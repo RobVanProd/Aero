@@ -29,6 +29,13 @@ jobs:
       run: cargo build --verbose
       working-directory: src/compiler
 
+    - name: Generate LLVM IR and Verify
+      run: |
+        cd src/compiler
+        cargo run
+        llc -verify-machineinstrs ../../output.ll -o /dev/null
+      working-directory: src/compiler
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
