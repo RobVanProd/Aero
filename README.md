@@ -1,183 +1,131 @@
 # Aero Programming Language
 
-## Project Overview
+[![License: MIT](httpsa://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<!-- Add other badges as appropriate, e.g., build status, version -->
 
-Aero is a high-performance, ergonomic programming language designed for systems programming, aiming to combine the speed and control of low-level languages with the safety and productivity of modern language features. Inspired by Rust, Aero emphasizes memory safety without garbage collection through a unique ownership and borrowing model, and aims for excellent performance through efficient compilation and a focus on zero-cost abstractions.
+## Overview
 
-This repository contains the foundational work for the Aero project, including its formal language specifications, initial project infrastructure, a bootstrap compiler prototype, and foundational benchmarks.
+Aero is a modern, statically-typed programming language designed for performance, safety, and developer productivity. It aims to provide the control and speed of systems programming languages while offering high-level abstractions and a user-friendly ergonomic syntax.
 
-## Phase 1: Initial Foundation and Minimum Viable Product
+**Core Goals:**
+-   **Performance:** Achieve performance comparable to C/C++ through efficient compilation and zero-cost abstractions.
+-   **Memory Safety:** Guarantee memory safety at compile time without a garbage collector, primarily through its ownership and borrowing system.
+-   **Ergonomics:** Offer a clean, intuitive syntax and powerful tooling to enhance the developer experience.
+-   **Concurrency:** Provide robust and safe concurrency features.
 
-Phase 1 focused on establishing a solid foundation for Aero, encompassing formal language specification, essential project infrastructure, a preliminary compiler prototype, and initial benchmarking capabilities.
+## Key Features
 
-### 1. Formalized Core Language Specification
+-   **Ownership and Borrowing:** A compile-time memory management system that prevents dangling pointers, data races, and other common memory-related bugs without a garbage collector.
+-   **Static Typing:** A strong, static type system helps catch errors at compile time and provides a solid foundation for robust applications.
+-   **Type Inference:** Reduces the need for explicit type annotations, making code cleaner while maintaining type safety.
+-   **Generics and Traits:** Powerful tools for creating reusable abstractions and achieving polymorphism.
+-   **Pattern Matching:** (Planned) For expressive control flow and destructuring of data.
+-   **Modular Design:** Code can be organized into modules for better structure and reusability.
+-   **Comprehensive Standard Library:** (In progress) Aims to provide essential utilities for common tasks.
 
-Before any compiler implementation, the core aspects of the Aero language were formally defined to ensure deliberate foundational decisions and provide definitive guides for implementation.
+## Current Status
 
-#### EBNF Grammar
+Aero is an actively developed programming language. It is currently in **Phase 2: Core Feature Implementation and Tooling** (as outlined in our [Roadmap.md](Roadmap.md)). This means core language features are being implemented in the compiler, and foundational tooling is under development.
 
-The Extended Backus-Naur Form (EBNF) grammar defines the complete syntax for a core subset of Aero. This document serves as the definitive guide for the lexer and parser components of the compiler.
-
-[aero_grammar.md](aero_grammar.md)
-
-#### Type System Rules
-
-This specification details the behavior of Aero's static type system, including rules for type inference, built-in types (`int`, `float`, `bool`, `string`, `char`, `unit`), and the precise syntax for generic type parameters and trait bounds. The type system is designed to ensure type safety and support robust generic programming.
-
-[aero_type_system.md](aero_type_system.md)
-
-#### Ownership and Borrowing Model
-
-This is a critical component of Aero's design, ensuring memory safety and concurrency without a garbage collector. The document specifies the exact compile-time rules for ownership, mutable borrows (`&mut T`), and immutable borrows (`&T`), along with the error conditions the compiler must detect (e.g., simultaneous mutable references).
-
-[aero_ownership_borrowing.md](aero_ownership_borrowing.md)
-
-### 2. Established Project Infrastructure
-
-To support open and collaborative development, essential project infrastructure has been set up.
-
-#### Git Repository
-
-This project is hosted on GitHub:
-
-[https://github.com/RobVanProd/Aero](https://github.com/RobVanProd/Aero)
-
-#### License
-
-Aero is released under the permissive MIT License, encouraging broad adoption and contribution.
-
-[LICENSE](LICENSE)
-
-#### Community and Communication
-
-Guidelines for community interaction and communication channels are outlined to foster an engaging and collaborative environment. This document will be updated with details about the chosen communication platform (e.g., Discourse, Zulip, or Discord) for general discussions and the Request for Comments (RFC) process.
-
-[COMMUNITY.md](COMMUNITY.md)
-
-#### Code of Conduct
-
-To ensure an inclusive and welcoming environment for all contributors, the project adopts the Contributor Covenant Code of Conduct.
-
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-
-### 3. Developed Bootstrap Compiler Prototype
-
-A preliminary version of the Aero compiler, written in Rust, has been developed. This 
-
-
-bootstrap compiler demonstrates the core compilation pipeline.
-
-#### Compiler Structure
-
-The compiler prototype is located in the `src/compiler/` directory and is implemented in Rust. It includes simulated components for:
-
--   **Lexer**: Reads Aero source files and transforms them into tokens.
-    (`src/compiler/src/lexer.rs`)
--   **Parser**: Transforms tokens into an Abstract Syntax Tree (AST) based on the EBNF grammar.
-    (`src/compiler/src/parser.rs`)
--   **Semantic Analysis**: Implements type checking and the borrow checker to enforce static type rules and ownership/borrowing rules, generating helpful error messages for violations.
-    (`src/compiler/src/semantic_analyzer.rs`)
--   **Intermediate Representation (IR) Generation**: Lowers the AST into a typed Intermediate Representation, designed for future optimizations.
-    (`src/compiler/src/ir_generator.rs`)
--   **Code Generation**: For the initial prototype, this component simulates targeting a well-known backend like LLVM, translating the IR into LLVM IR.
-    (`src/compiler/src/code_generator.rs`)
-
-#### Running the Compiler Prototype
-
-To build and run the simulated compiler prototype:
-
-```bash
-cd src/compiler
-source "$HOME/.cargo/env" # Ensure Rust environment is sourced
-cargo build
-cargo run
-```
-
-### 4. Implemented Foundational Benchmarks
-
-To validate performance claims and guide optimization from the outset, initial benchmarking capabilities have been integrated.
-
-#### Selected Benchmarks
-
-A small, targeted set of initial benchmarks has been selected from sources like the Computer Language Benchmarks Game. Placeholder implementations in Aero are provided for:
-
--   **N-body Simulation**: A classic computational physics problem.
-    (`benchmarks/aero/nbody.aero`)
--   **Mandelbrot Set Generation**: A computationally intensive graphics problem.
-    (`benchmarks/aero/mandelbrot.aero`)
-
-#### Benchmarking Harness
-
-A simple benchmarking harness has been created to compile and run Aero test programs, measure simulated execution time and memory usage, and provide a framework for rigorous performance validation.
-
-[run_benchmarks.sh](benchmarks/harness/run_benchmarks.sh)
-
-#### Running Benchmarks
-
-To run the simulated benchmarks:
-
-```bash
-cd benchmarks/harness
-./run_benchmarks.sh
-```
+The language is not yet production-ready but is rapidly evolving. We welcome feedback and contributions!
 
 ## Getting Started
 
-To get a local copy of the project up and running, follow these simple steps.
-
-### Prerequisites
-
--   Git
--   Rust (for building the compiler prototype)
+Ready to try Aero? Here’s how to get started:
 
 ### Installation
 
-1.  Clone the repository:
+To use Aero, you'll first need to install its compiler, `aero`. The compiler is written in Rust, so you'll need Rust and Cargo installed. If you don't have them, please visit [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install).
 
+1.  **Clone the Aero Repository (if you have it locally, navigate to its root):**
     ```bash
-    git clone https://github.com/RobVanProd/Aero.git
-    cd Aero
+    # git clone <repository_url> # If you don't have it yet
+    # cd aero # Or your repository's directory name
     ```
 
-2.  Install Rust (if you haven't already):
-
+2.  **Install the Aero Compiler:**
+    From the root directory of the Aero project, run:
     ```bash
-    curl --proto \'=https\' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source "$HOME/.cargo/env"
+    cargo install --path src/compiler
+    ```
+    This command builds the `aero` binary from the source code in `src/compiler/` and installs it into your Cargo binary directory (usually `~/.cargo/bin/`).
+
+3.  **Verify Installation:**
+    Ensure `~/.cargo/bin` is in your system's `PATH`. Then, open a new terminal session and type:
+    ```bash
+    aero --version
+    ```
+    This should display the installed Aero compiler version.
+
+### Your First Aero Program
+
+Let's create a simple "Hello, world!" program.
+
+1.  Create a file named `hello.aero` with the following content:
+    ```aero
+    // hello.aero
+    fn main() {
+        io::println("Hello, world! Welcome to Aero!");
+    }
     ```
 
-3.  Build the compiler prototype:
+### Compiling and Running
 
+There are two main ways to compile and run your Aero programs:
+
+1.  **Build then Run:**
+    First, compile your program into an executable:
     ```bash
-    cd src/compiler
-    cargo build
+    aero build hello.aero -o hello_aero_executable
     ```
+    This creates an executable file named `hello_aero_executable`. You can then run it:
+    -   On Linux/macOS: `./hello_aero_executable`
+    -   On Windows: `.\hello_aero_executable.exe`
+
+2.  **Compile and Run Directly:**
+    For convenience, you can compile and immediately run your program with a single command:
+    ```bash
+    aero run hello.aero
+    ```
+
+You should see the output: `Hello, world! Welcome to Aero!`
+
+## Learning Aero
+
+Dive deeper into the Aero language with these resources:
+
+-   **Tutorials**:
+    -   [Tutorial 1: Getting Started](tutorials/01-getting-started.md)
+    -   [Tutorial 2: Core Language Features](tutorials/02-core-features.md)
+    -   [Tutorial 3: Ownership and Borrowing](tutorials/03-ownership-borrowing.md)
+    -   [Tutorial 4: Data Structures (Structs, Enums, etc.)](tutorials/04-data-structures.md)
+-   **Language Design Documents**:
+    -   [Aero Grammar (EBNF)](aero_grammar.md)
+    -   [Type System Rules](aero_type_system.md)
+    -   [Ownership and Borrowing Model](aero_ownership_borrowing.md)
+
+## Standard Library
+
+Aero aims to provide a useful standard library to assist with common programming tasks. The design and features of the standard library are currently being defined.
+
+-   Learn more about the proposed standard library structure and APIs in the [Standard Library RFC](RFCs/standard-library.md).
 
 ## Contributing
 
-We welcome contributions to the Aero project! Please refer to the [COMMUNITY.md](COMMUNITY.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for guidelines on how to contribute and our community standards.
+Aero is an open-source project, and we welcome contributions from the community! Whether you're interested in language design, compiler development, writing documentation, or creating examples, there are many ways to help.
+
+-   **Contribution Guidelines**: Please read [CONTRIBUTING.md](CONTRIBUTING.md) (if it exists, otherwise check for community guidelines or open an issue to ask).
+-   **Code of Conduct**: We adhere to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). Please ensure you read and follow it.
+-   **RFCs (Request for Comments)**: Major language design changes and new features are discussed through an RFC process. Check out the [RFCs directory](RFCs/) to participate or propose new ideas.
+-   **Issues**: Report bugs or suggest features by opening an issue on our GitHub repository.
+-   **Pull Requests**: We welcome well-tested pull requests for bug fixes, feature implementations, and documentation improvements.
+
+## Roadmap
+
+To see the current development phase and future plans for Aero, please refer to the [Roadmap.md](Roadmap.md).
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Aero is distributed under the terms of the MIT license.
 
-## Acknowledgments
-
--   Inspired by the Rust programming language for its innovative ownership and borrowing model.
--   The Computer Language Benchmarks Game for providing a valuable source of algorithmic tests.
--   LLVM Project for its robust compiler infrastructure.
-
-
-
-
-## Installation
-
-To install the Aero compiler, navigate to the `src/compiler` directory and run the following command:
-
-```bash
-cargo install --path .
-```
-
-This will compile and install the `aero` executable to your Cargo bin directory, typically `~/.cargo/bin`.
-
-
+See [LICENSE](LICENSE) for details.
