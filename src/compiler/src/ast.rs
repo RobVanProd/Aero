@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Number(i64),
     Float(f64),
@@ -12,15 +12,16 @@ pub enum Expression {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Let { 
         name: String, 
         value: Expression 
     },
+    Return(Expression),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AstNode {
     Statement(Statement),
     Expression(Expression),

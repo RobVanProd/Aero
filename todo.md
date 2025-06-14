@@ -68,3 +68,13 @@
 - [x] Create a simple test case (e.g., `let x = 3 + 4;`) and verify that the generated LLVM IR string is correct and can be compiled externally (e.g., using `llc` and `clang` in the sandbox).
 
 
+
+
+## Phase 10: Stack-allocated variables & alloca / store / load
+
+- [x] IR tweak: Give each let a virtual stack slot ID. Lower to: %ptr0 = alloca i64, store i64 %r0, i64* %ptr0, %r1 = load i64, i64* %ptr0
+- [x] Code-gen string: Add helpers: fn fresh_reg() -> String and fn fresh_ptr() -> String so the emitter never re-uses names.
+- [x] Semantic pass: Track VarInfo { ptr_name, ty } in a HashMap. Emit “use-before-init” diagnostics when a load occurs without a prior store.
+- [x] CI test: New example: let a = 2; let b = a * 3; Assert IR compiles & the exit code is 6.
+
+

@@ -24,6 +24,11 @@ impl SemanticAnalyzer {
                             self.symbol_table.insert(name.clone(), inferred_type);
                             println!("Declared variable: {} with type {}", name, self.symbol_table[&name]);
                         }
+                        Statement::Return(expr) => {
+                            // For now, just infer the type of the expression
+                            self.infer_expression_type(&expr)?;
+                            println!("Return statement with expression of type inferred.");
+                        }
                     }
                 }
                 AstNode::Expression(_) => {
