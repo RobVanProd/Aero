@@ -168,3 +168,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   LLVM Project for its robust compiler infrastructure.
 
 
+
+
+## Installation
+
+To install the Aero compiler, navigate to the `src/compiler` directory and run the following command:
+
+```bash
+cargo install --path .
+```
+
+This will compile and install the `aero` executable to your Cargo bin directory, typically `~/.cargo/bin`.
+
+

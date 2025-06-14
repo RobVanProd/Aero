@@ -1,0 +1,10 @@
+// examples/hello.aero
+
+// A simple program to demonstrate basic functionality.
+fn main() {
+    let message = "Hello, Aero!";
+    // In a real compiler, this would involve a print intrinsic or library call.
+    // For now, this serves as a placeholder.
+}
+
+

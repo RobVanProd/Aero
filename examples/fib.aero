@@ -1,0 +1,18 @@
+// examples/fib.aero
+
+// Placeholder for Fibonacci sequence calculation.
+fn fib(n) {
+    if n <= 1 {
+        return n;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
+
+fn main() {
+    let result = fib(10);
+    // In a real compiler, this would involve a print intrinsic or library call.
+    // For now, this serves as a placeholder.
+}
+
+

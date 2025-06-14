@@ -1,0 +1,12 @@
+// examples/calc.aero
+
+// Placeholder for a simple calculator program.
+fn main() {
+    let a = 10;
+    let b = 20;
+    let c = (a + b) * 2 / 5;
+    // In a real compiler, this would involve a print intrinsic or library call.
+    // For now, this serves as a placeholder.
+}
+
+
