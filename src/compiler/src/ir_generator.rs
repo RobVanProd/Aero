@@ -6,6 +6,8 @@ pub struct IrGenerator {
     functions: HashMap<String, Function>,
     current_function_name: String,
     next_reg: u32,
+    next_ptr: u32, // Added for unique pointer IDs
+    symbol_table: HashMap<String, Value>, // To track allocated pointers
 }
 
 impl IrGenerator {
@@ -14,6 +16,8 @@ impl IrGenerator {
             functions: HashMap::new(),
             current_function_name: String::new(),
             next_reg: 0,
+            next_ptr: 0,
+            symbol_table: HashMap::new(),
         }
     }
 
@@ -23,6 +27,7 @@ impl IrGenerator {
             name: "main".to_string(),
             body: Vec::new(),
             next_reg: 0,
+            next_ptr: 0,
         };
 
         for node in ast {
@@ -41,7 +46,19 @@ impl IrGenerator {
         match stmt {
             Statement::Let { name, value } => {
                 let expr_value = self.generate_expression_ir(value, current_function);
-                current_function.body.push(Inst::Store(name, expr_value));
+
+                // Allocate a stack slot for the variable
+                let ptr_reg = Value::Reg(current_function.next_ptr);
+                current_function.next_ptr += 1;
+                current_function.body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                self.symbol_table.insert(name, ptr_reg.clone());
+
+                // Store the expression result into the allocated slot
+                current_function.body.push(Inst::Store(ptr_reg, expr_value));
+            }
+            Statement::Return(expr) => {
+                let return_value = self.generate_expression_ir(expr, current_function);
+                current_function.body.push(Inst::Return(return_value));
             }
         }
     }
@@ -51,10 +68,11 @@ impl IrGenerator {
             Expression::Number(n) => Value::ImmInt(n),
             Expression::Float(f) => Value::ImmFloat(f),
             Expression::Identifier(name) => {
-                let reg = Value::Reg(function.next_reg);
+                let ptr_reg = self.symbol_table.get(&name).expect("Undeclared variable").clone();
+                let result_reg = Value::Reg(function.next_reg);
                 function.next_reg += 1;
-                function.body.push(Inst::Load(reg.clone(), name));
-                reg
+                function.body.push(Inst::Load(result_reg.clone(), ptr_reg));
+                result_reg
             }
             Expression::Binary { op, lhs, rhs } => {
                 let lhs_val = self.generate_expression_ir(*lhs, function);

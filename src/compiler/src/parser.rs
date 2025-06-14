@@ -1,8 +1,5 @@
 use crate::ast::{AstNode, Expression, Statement};
 use crate::lexer;
-use crate::semantic_analyzer;
-use crate::ir_generator;
-use crate::code_generator;
 
 pub fn parse(tokens: Vec<String>) -> Vec<AstNode> {
     let mut ast_nodes = Vec::new();
@@ -37,6 +34,26 @@ pub fn parse(tokens: Vec<String>) -> Vec<AstNode> {
                 i += 1; // consume ';'
 
                 ast_nodes.push(AstNode::Statement(Statement::Let { name, value: expr }));
+            }
+            "keyword:return" => {
+                // Expecting 'return expression;'
+                i += 1; // consume 'return'
+
+                let mut expr_tokens = Vec::new();
+                while i < tokens.len() && tokens[i] != ";" {
+                    expr_tokens.push(tokens[i].clone());
+                    i += 1;
+                }
+
+                let expr = parse_expression(expr_tokens);
+
+                if i >= tokens.len() || tokens[i] != ";" {
+                    eprintln!("Expected ; after expression in return statement");
+                    break;
+                }
+                i += 1; // consume ';'
+
+                ast_nodes.push(AstNode::Statement(Statement::Return(expr)));
             }
             _ => {
                 eprintln!("Unexpected token at top level: {}", tokens[i]);

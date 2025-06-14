@@ -10,7 +10,7 @@ use crate::semantic_analyzer::SemanticAnalyzer;
 use crate::ir_generator::IrGenerator;
 
 fn main() {
-    let source_code = "let x = 10 + 5; "; // Changed for constant folding test
+    let source_code = "return 15;"; // Simplified test case
     println!("Compiling: \"{}\"", source_code);
 
     // Lexing
