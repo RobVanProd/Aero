@@ -40,8 +40,8 @@ fn main() {
     println!("IR: {:?}", ir);
 
     // Code Generation
-    // let llvm_ir = code_generator::generate_code(ir);
-    // println!("LLVM IR: {}", llvm_ir);
+    let llvm_ir = code_generator::generate_code(ir);
+    println!("LLVM IR:\n{}", llvm_ir);
 
     println!("Compilation process simulated successfully.");
 }
