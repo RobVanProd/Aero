@@ -1,0 +1,9 @@
+// benchmarks/aero/mandelbrot.aero
+
+// Placeholder for mandelbrot benchmark implementation in Aero
+fn main() {
+    // ... mandelbrot set generation logic ...
+    println!("Mandelbrot set generated.");
+}
+
+

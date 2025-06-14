@@ -1,0 +1,9 @@
+// benchmarks/aero/nbody.aero
+
+// Placeholder for n-body benchmark implementation in Aero
+fn main() {
+    // ... n-body simulation logic ...
+    println!("N-body simulation completed.");
+}
+
+
