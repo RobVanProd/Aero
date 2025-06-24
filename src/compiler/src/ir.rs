@@ -21,14 +21,20 @@ impl fmt::Display for Value {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
-    Add(Value, Value, Value), // result, lhs, rhs
-    Sub(Value, Value, Value), // result, lhs, rhs
-    Mul(Value, Value, Value), // result, lhs, rhs
-    Div(Value, Value, Value), // result, lhs, rhs
+    Add(Value, Value, Value), // result, lhs, rhs (integer)
+    FAdd(Value, Value, Value), // result, lhs, rhs (float)
+    Sub(Value, Value, Value), // result, lhs, rhs (integer)
+    FSub(Value, Value, Value), // result, lhs, rhs (float)
+    Mul(Value, Value, Value), // result, lhs, rhs (integer)
+    FMul(Value, Value, Value), // result, lhs, rhs (float)
+    Div(Value, Value, Value), // result, lhs, rhs (integer)
+    FDiv(Value, Value, Value), // result, lhs, rhs (float)
     Alloca(Value, String), // pointer_reg, variable_name
     Store(Value, Value), // pointer_reg, value_to_store
     Load(Value, Value), // result_reg, pointer_reg
     Return(Value), // value to return
+    SIToFP(Value, Value), // result_reg, int_value (signed integer to floating point)
+    FPToSI(Value, Value), // result_reg, float_value (floating point to signed integer)
 }
 
 #[derive(Debug, PartialEq, Clone)]

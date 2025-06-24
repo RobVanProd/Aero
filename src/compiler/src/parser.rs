@@ -87,7 +87,12 @@ fn parse_expression(expr_tokens: Vec<String>) -> Expression {
             _ => panic!("Unsupported expression token: {}", expr_tokens[i]),
         };
         i += 1;
-        lhs = Expression::Binary { op, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+        lhs = Expression::Binary { 
+            op, 
+            lhs: Box::new(lhs), 
+            rhs: Box::new(rhs),
+            ty: None, // Will be filled in by semantic analysis
+        };
     }
     lhs
 }

@@ -29,12 +29,63 @@ jobs:
       run: cargo build --verbose
       working-directory: src/compiler
 
-    - name: Generate LLVM IR and Verify
+    - name: Test return15 example
       run: |
         cd src/compiler
-        cargo run
-        llc -verify-machineinstrs ../../output.ll -o /dev/null
-      working-directory: src/compiler
+        cargo run -- build ../../examples/return15.aero -o ../../return15.ll
+        llc -verify-machineinstrs ../../return15.ll -o /dev/null
+        llc -filetype=obj ../../return15.ll -o ../../return15.o
+        clang ../../return15.o -o ../../return15
+        ../../return15
+        exit_code=$?
+        if [ $exit_code -ne 15 ]; then
+          echo "Expected exit code 15, got $exit_code"
+          exit 1
+        fi
+        echo "return15 test passed with exit code $exit_code"
+
+    - name: Test variables example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/variables.aero -o ../../variables.ll
+        llc -verify-machineinstrs ../../variables.ll -o /dev/null
+        llc -filetype=obj ../../variables.ll -o ../../variables.o
+        clang ../../variables.o -o ../../variables
+        ../../variables
+        exit_code=$?
+        if [ $exit_code -ne 6 ]; then
+          echo "Expected exit code 6, got $exit_code"
+          exit 1
+        fi
+    - name: Test mixed arithmetic example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/mixed.aero -o ../../mixed.ll
+        llc -verify-machineinstrs ../../mixed.ll -o /dev/null
+        llc -filetype=obj ../../mixed.ll -o ../../mixed.o
+        clang ../../mixed.o -o ../../mixed
+        ../../mixed
+        exit_code=$?
+        if [ $exit_code -ne 7 ]; then
+          echo "Expected exit code 7, got $exit_code"
+          exit 1
+        fi
+        echo "mixed test passed with exit code $exit_code"
+
+    - name: Test float operations example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/float_ops.aero -o ../../float_ops.ll
+        llc -verify-machineinstrs ../../float_ops.ll -o /dev/null
+        llc -filetype=obj ../../float_ops.ll -o ../../float_ops.o
+        clang ../../float_ops.o -o ../../float_ops
+        ../../float_ops
+        exit_code=$?
+        if [ $exit_code -ne 7 ]; then
+          echo "Expected exit code 7, got $exit_code"
+          exit 1
+        fi
+        echo "float_ops test passed with exit code $exit_code"
 
     - name: Run tests
       run: cargo test --verbose

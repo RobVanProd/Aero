@@ -1,0 +1,13 @@
+---
+source: tests/frontend_tests.rs
+expression: tokens
+---
+[
+    "keyword:let",
+    "identifier:y",
+    "=",
+    "identifier:x",
+    "+",
+    "float_literal:5.0",
+    ";",
+]

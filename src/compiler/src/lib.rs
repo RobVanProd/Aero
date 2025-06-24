@@ -1,8 +1,8 @@
 mod ast;
-pub mod lexer;
-pub mod parser;
-pub mod semantic_analyzer;
-pub mod ir_generator;
-pub mod code_generator;
-
-
+mod lexer;
+mod parser;
+mod semantic_analyzer;
+mod ir;
+mod ir_generator;
+mod code_generator;
+mod types;

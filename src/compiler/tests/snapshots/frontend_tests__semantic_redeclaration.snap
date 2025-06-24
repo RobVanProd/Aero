@@ -1,0 +1,7 @@
+---
+source: tests/frontend_tests.rs
+expression: result
+---
+Err(
+    "Error: Variable `x` already declared.",
+)

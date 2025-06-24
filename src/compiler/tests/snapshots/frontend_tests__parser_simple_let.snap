@@ -1,0 +1,14 @@
+---
+source: tests/frontend_tests.rs
+expression: ast
+---
+[
+    Statement(
+        Let {
+            name: "x",
+            value: Number(
+                10,
+            ),
+        },
+    ),
+]

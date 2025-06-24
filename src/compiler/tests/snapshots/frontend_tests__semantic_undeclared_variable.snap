@@ -1,0 +1,7 @@
+---
+source: tests/frontend_tests.rs
+expression: result
+---
+Err(
+    "Error: Use of undeclared variable `x`.",
+)

@@ -1,0 +1,7 @@
+---
+source: tests/frontend_tests.rs
+expression: result
+---
+Ok(
+    "Semantic analysis completed successfully. No borrow checker violations detected.",
+)

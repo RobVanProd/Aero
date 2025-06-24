@@ -1,0 +1,20 @@
+---
+source: tests/frontend_tests.rs
+expression: ast
+---
+[
+    Statement(
+        Let {
+            name: "y",
+            value: Binary {
+                op: "+",
+                lhs: Identifier(
+                    "x",
+                ),
+                rhs: Float(
+                    5.0,
+                ),
+            },
+        },
+    ),
+]

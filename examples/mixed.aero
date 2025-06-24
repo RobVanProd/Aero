@@ -1,0 +1,7 @@
+// examples/mixed.aero
+
+// A program that demonstrates mixed int/float arithmetic
+// 3 + 4.5 should result in 7.5, which truncates to 7 as exit code
+let x = 3 + 4.5;
+return x;
+

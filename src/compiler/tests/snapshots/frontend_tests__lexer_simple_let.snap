@@ -1,0 +1,11 @@
+---
+source: tests/frontend_tests.rs
+expression: tokens
+---
+[
+    "keyword:let",
+    "identifier:x",
+    "=",
+    "integer_literal:10",
+    ";",
+]
