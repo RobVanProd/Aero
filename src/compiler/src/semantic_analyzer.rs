@@ -56,6 +56,47 @@ impl SemanticAnalyzer {
                             self.infer_and_validate_expression(expr)?;
                             println!("Return statement with expression of type inferred.");
                         }
+                        Statement::Function { .. } => {
+                            // TODO: Implement function definition semantic analysis
+                            // This will be implemented in task 6.1
+                            println!("Function definition found - semantic analysis not yet implemented");
+                        }
+                        Statement::If { condition, then_block, else_block } => {
+                            // TODO: Implement if statement semantic analysis
+                            // This will be implemented in task 6.2
+                            self.check_expression_initialization(condition)?;
+                            self.infer_and_validate_expression(condition)?;
+                            println!("If statement found - semantic analysis not yet implemented");
+                        }
+                        Statement::While { condition, body } => {
+                            // TODO: Implement while loop semantic analysis
+                            // This will be implemented in task 6.2
+                            self.check_expression_initialization(condition)?;
+                            self.infer_and_validate_expression(condition)?;
+                            println!("While loop found - semantic analysis not yet implemented");
+                        }
+                        Statement::For { variable, iterable, body } => {
+                            // TODO: Implement for loop semantic analysis
+                            // This will be implemented in task 6.2
+                            self.check_expression_initialization(iterable)?;
+                            self.infer_and_validate_expression(iterable)?;
+                            println!("For loop found - semantic analysis not yet implemented");
+                        }
+                        Statement::Loop { body } => {
+                            // TODO: Implement infinite loop semantic analysis
+                            // This will be implemented in task 6.2
+                            println!("Loop statement found - semantic analysis not yet implemented");
+                        }
+                        Statement::Break => {
+                            // TODO: Implement break statement validation
+                            // This will be implemented in task 6.2
+                            println!("Break statement found - semantic analysis not yet implemented");
+                        }
+                        Statement::Continue => {
+                            // TODO: Implement continue statement validation
+                            // This will be implemented in task 6.2
+                            println!("Continue statement found - semantic analysis not yet implemented");
+                        }
                     }
                 }
                 AstNode::Expression(_) => {
@@ -84,6 +125,41 @@ impl SemanticAnalyzer {
             Expression::Binary { lhs, rhs, .. } => {
                 self.check_expression_initialization(lhs)?;
                 self.check_expression_initialization(rhs)?;
+                Ok(())
+            }
+            Expression::FunctionCall { arguments, .. } => {
+                // Check initialization of all function call arguments
+                for arg in arguments {
+                    self.check_expression_initialization(arg)?;
+                }
+                Ok(())
+            }
+            Expression::Print { arguments, .. } => {
+                // Check initialization of all print arguments
+                for arg in arguments {
+                    self.check_expression_initialization(arg)?;
+                }
+                Ok(())
+            }
+            Expression::Println { arguments, .. } => {
+                // Check initialization of all println arguments
+                for arg in arguments {
+                    self.check_expression_initialization(arg)?;
+                }
+                Ok(())
+            }
+            Expression::Comparison { left, right, .. } => {
+                self.check_expression_initialization(left)?;
+                self.check_expression_initialization(right)?;
+                Ok(())
+            }
+            Expression::Logical { left, right, .. } => {
+                self.check_expression_initialization(left)?;
+                self.check_expression_initialization(right)?;
+                Ok(())
+            }
+            Expression::Unary { operand, .. } => {
+                self.check_expression_initialization(operand)?;
                 Ok(())
             }
         }
@@ -115,6 +191,58 @@ impl SemanticAnalyzer {
                 *ty = Some(result_type.clone());
                 
                 Ok(result_type)
+            }
+            Expression::FunctionCall { .. } => {
+                // TODO: Implement function call type inference
+                // This will be implemented in task 6.1
+                // For now, assume function calls return int
+                Ok(Ty::Int)
+            }
+            Expression::Print { arguments, .. } => {
+                // TODO: Implement print expression type inference and validation
+                // This will be implemented in task 6.3
+                // Validate all arguments
+                for arg in arguments {
+                    self.infer_and_validate_expression(arg)?;
+                }
+                // Print expressions don't return a value (unit type)
+                Ok(Ty::Int) // Placeholder - should be unit type
+            }
+            Expression::Println { arguments, .. } => {
+                // TODO: Implement println expression type inference and validation
+                // This will be implemented in task 6.3
+                // Validate all arguments
+                for arg in arguments {
+                    self.infer_and_validate_expression(arg)?;
+                }
+                // Println expressions don't return a value (unit type)
+                Ok(Ty::Int) // Placeholder - should be unit type
+            }
+            Expression::Comparison { left, right, .. } => {
+                // TODO: Implement comparison expression type inference
+                // This will be implemented in task 6.3
+                let left_type = self.infer_and_validate_expression(left)?;
+                let right_type = self.infer_and_validate_expression(right)?;
+                // For now, just validate that both sides are compatible
+                // Comparison operations return boolean
+                Ok(Ty::Bool)
+            }
+            Expression::Logical { left, right, .. } => {
+                // TODO: Implement logical expression type inference
+                // This will be implemented in task 6.3
+                let left_type = self.infer_and_validate_expression(left)?;
+                let right_type = self.infer_and_validate_expression(right)?;
+                // Logical operations require boolean operands and return boolean
+                Ok(Ty::Bool)
+            }
+            Expression::Unary { operand, op } => {
+                // TODO: Implement unary expression type inference
+                // This will be implemented in task 6.3
+                let operand_type = self.infer_and_validate_expression(operand)?;
+                match op {
+                    crate::ast::UnaryOp::Not => Ok(Ty::Bool), // Logical not returns boolean
+                    crate::ast::UnaryOp::Minus => Ok(operand_type), // Unary minus returns same type as operand
+                }
             }
         }
     }

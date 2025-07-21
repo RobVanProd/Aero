@@ -63,6 +63,41 @@ impl IrGenerator {
                 let (return_value, _) = self.generate_expression_ir(expr, current_function);
                 current_function.body.push(Inst::Return(return_value));
             }
+            Statement::Function { .. } => {
+                // TODO: Implement function definition IR generation
+                // This will be implemented in task 7.1
+                println!("Function definition found - IR generation not yet implemented");
+            }
+            Statement::If { .. } => {
+                // TODO: Implement if statement IR generation
+                // This will be implemented in task 7.2
+                println!("If statement found - IR generation not yet implemented");
+            }
+            Statement::While { .. } => {
+                // TODO: Implement while loop IR generation
+                // This will be implemented in task 7.2
+                println!("While loop found - IR generation not yet implemented");
+            }
+            Statement::For { .. } => {
+                // TODO: Implement for loop IR generation
+                // This will be implemented in task 7.2
+                println!("For loop found - IR generation not yet implemented");
+            }
+            Statement::Loop { .. } => {
+                // TODO: Implement infinite loop IR generation
+                // This will be implemented in task 7.2
+                println!("Loop statement found - IR generation not yet implemented");
+            }
+            Statement::Break => {
+                // TODO: Implement break statement IR generation
+                // This will be implemented in task 7.2
+                println!("Break statement found - IR generation not yet implemented");
+            }
+            Statement::Continue => {
+                // TODO: Implement continue statement IR generation
+                // This will be implemented in task 7.2
+                println!("Continue statement found - IR generation not yet implemented");
+            }
         }
     }
 
@@ -112,6 +147,42 @@ impl IrGenerator {
                 
                 function.body.push(inst);
                 (result_reg, result_type)
+            }
+            Expression::FunctionCall { .. } => {
+                // TODO: Implement function call IR generation
+                // This will be implemented in task 7.1
+                // For now, return a placeholder value
+                (Value::ImmInt(0), Ty::Int)
+            }
+            Expression::Print { .. } => {
+                // TODO: Implement print expression IR generation
+                // This will be implemented in task 7.3
+                // For now, return a placeholder value
+                (Value::ImmInt(0), Ty::Int)
+            }
+            Expression::Println { .. } => {
+                // TODO: Implement println expression IR generation
+                // This will be implemented in task 7.3
+                // For now, return a placeholder value
+                (Value::ImmInt(0), Ty::Int)
+            }
+            Expression::Comparison { .. } => {
+                // TODO: Implement comparison expression IR generation
+                // This will be implemented in task 7.3
+                // For now, return a placeholder boolean value
+                (Value::ImmInt(1), Ty::Bool)
+            }
+            Expression::Logical { .. } => {
+                // TODO: Implement logical expression IR generation
+                // This will be implemented in task 7.3
+                // For now, return a placeholder boolean value
+                (Value::ImmInt(1), Ty::Bool)
+            }
+            Expression::Unary { .. } => {
+                // TODO: Implement unary expression IR generation
+                // This will be implemented in task 7.3
+                // For now, return a placeholder value
+                (Value::ImmInt(0), Ty::Int)
             }
         }
     }

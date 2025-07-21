@@ -4,7 +4,9 @@
 
 This document outlines the specific coding tasks needed to implement Phase 3 core language features. Each task builds incrementally on previous work and includes specific requirements references, git commit guidelines, and validation steps.
 
-- [-] 1. Setup Phase 3 Development Environment
+- [x] 1. Setup Phase 3 Development Environment
+
+
 
 
 
@@ -33,7 +35,13 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
   - _Requirements: All requirements - foundational setup_
   - _Git commit: "feat: setup Phase 3 development environment and dependencies"_
 
-- [ ] 2. Enhance Lexer for New Tokens
+- [x] 2. Enhance Lexer for New Tokens
+
+
+
+
+
+
   - [x] 2.1 Add function-related tokens (fn, ->, mut)
 
 
@@ -44,22 +52,35 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 1.1, 4.1, 4.2_
     - _Git commit: "feat(lexer): add function definition tokens (fn, ->, mut)"_
 
-  - [ ] 2.2 Add control flow tokens (if, else, while, for, loop, break, continue)
+  - [x] 2.2 Add control flow tokens (if, else, while, for, loop, break, continue)
+
+
+
     - Extend Token enum with control flow variants
     - Update keyword recognition in lexer
     - Add comprehensive tests for control flow tokens
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
     - _Git commit: "feat(lexer): add control flow tokens and keywords"_
 
-  - [ ] 2.3 Add I/O and operator tokens (print!, println!, ==, !=, <=, >=, &&, ||, !)
+  - [x] 2.3 Add I/O and operator tokens (print!, println!, ==, !=, <=, >=, &&, ||, !)
+
+
+
     - Extend Token enum with I/O macro and comparison operator variants
     - Implement multi-character operator tokenization
     - Add tests for I/O macros and new operators
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 5.3, 5.4, 5.5_
     - _Git commit: "feat(lexer): add I/O macros and enhanced operators"_
 
-- [ ] 3. Enhance AST for New Language Constructs
-  - [ ] 3.1 Add function definition AST nodes
+- [x] 3. Enhance AST for New Language Constructs
+
+
+
+
+
+  - [x] 3.1 Add function definition AST nodes
+
+
     - Create Function, Parameter, and Block AST structures
     - Update Statement enum to include Function variant
     - Add FunctionCall expression variant
@@ -67,7 +88,9 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
     - _Git commit: "feat(ast): add function definition and call AST nodes"_
 
-  - [ ] 3.2 Add control flow AST nodes
+  - [x] 3.2 Add control flow AST nodes
+
+
     - Create If, While, For, Loop, Break, Continue AST structures
     - Update Statement enum with control flow variants
     - Add proper nesting and scoping support in AST
@@ -75,7 +98,9 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
     - _Git commit: "feat(ast): add control flow statement AST nodes"_
 
-  - [ ] 3.3 Add I/O and enhanced expression AST nodes
+  - [x] 3.3 Add I/O and enhanced expression AST nodes
+
+
     - Create Print, Println expression variants
     - Add Comparison, Logical, and Unary expression types
     - Update expression parsing to handle new operators
@@ -83,8 +108,15 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 5.3, 5.4, 5.5_
     - _Git commit: "feat(ast): add I/O operations and enhanced expressions"_
 
-- [ ] 4. Enhance Parser for New Syntax
-  - [ ] 4.1 Implement function definition parsing
+- [x] 4. Enhance Parser for New Syntax
+
+
+
+
+
+  - [x] 4.1 Implement function definition parsing
+
+
     - Add parse_function_definition method
     - Implement parameter list parsing with types
     - Add return type parsing with arrow syntax
@@ -93,7 +125,9 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 1.1, 1.2, 1.3_
     - _Git commit: "feat(parser): implement function definition parsing"_
 
-  - [ ] 4.2 Implement control flow parsing
+  - [x] 4.2 Implement control flow parsing
+
+
     - Add parse_if_statement with else handling
     - Add parse_while_loop and parse_for_loop methods
     - Implement parse_loop for infinite loops
@@ -102,7 +136,9 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
     - _Git commit: "feat(parser): implement control flow statement parsing"_
 
-  - [ ] 4.3 Implement I/O macro and enhanced expression parsing
+  - [x] 4.3 Implement I/O macro and enhanced expression parsing
+
+
     - Add parse_print_macro for print! and println!
     - Implement format string parsing and validation
     - Add comparison and logical operator parsing with precedence
