@@ -1,4 +1,38 @@
-pub fn tokenize(source: &str) -> Vec<String> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum Token {
+    // Literals
+    IntegerLiteral(i64),
+    FloatLiteral(f64),
+    Identifier(String),
+    
+    // Keywords
+    Let,
+    Fn,
+    Return,
+    Mut,
+    
+    // Operators
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+    Assign,
+    Arrow,  // ->
+    
+    // Delimiters
+    Semicolon,
+    LeftBrace,
+    RightBrace,
+    LeftParen,
+    RightParen,
+    Dot,
+    
+    // End of file
+    Eof,
+}
+
+pub fn tokenize(source: &str) -> Vec<Token> {
     let mut tokens = Vec::new();
     let mut chars = source.chars().peekable();
 
@@ -9,17 +43,27 @@ pub fn tokenize(source: &str) -> Vec<String> {
                 chars.next();
             }
             // Operators and delimiters
-            '+' => { tokens.push("+".to_string()); chars.next(); }
-            '-' => { tokens.push("-".to_string()); chars.next(); }
-            '*' => { tokens.push("*".to_string()); chars.next(); }
-            '/' => { tokens.push("/".to_string()); chars.next(); }
-            '%' => { tokens.push("%".to_string()); chars.next(); }
-            '=' => { tokens.push("=".to_string()); chars.next(); }
-            ';' => { tokens.push(";".to_string()); chars.next(); }
-            '{' => { tokens.push("{".to_string()); chars.next(); }
-            '}' => { tokens.push("}".to_string()); chars.next(); }
-            '(' => { tokens.push("(".to_string()); chars.next(); }
-            ')' => { tokens.push(")".to_string()); chars.next(); }
+            '+' => { tokens.push(Token::Plus); chars.next(); }
+            '*' => { tokens.push(Token::Multiply); chars.next(); }
+            '/' => { tokens.push(Token::Divide); chars.next(); }
+            '%' => { tokens.push(Token::Modulo); chars.next(); }
+            ';' => { tokens.push(Token::Semicolon); chars.next(); }
+            '{' => { tokens.push(Token::LeftBrace); chars.next(); }
+            '}' => { tokens.push(Token::RightBrace); chars.next(); }
+            '(' => { tokens.push(Token::LeftParen); chars.next(); }
+            ')' => { tokens.push(Token::RightParen); chars.next(); }
+            // Handle minus and arrow (->)
+            '-' => {
+                chars.next(); // consume '-'
+                if let Some(&'>') = chars.peek() {
+                    chars.next(); // consume '>'
+                    tokens.push(Token::Arrow);
+                } else {
+                    tokens.push(Token::Minus);
+                }
+            }
+            // Handle assignment
+            '=' => { tokens.push(Token::Assign); chars.next(); }
             // Float literals starting with decimal point (e.g., .5)
             '.' => {
                 chars.next(); // consume the '.'
@@ -51,13 +95,14 @@ pub fn tokenize(source: &str) -> Vec<String> {
                                 }
                             }
                         }
-                        tokens.push(format!("float_literal:{}", num_str));
+                        let float_val: f64 = num_str.parse().unwrap_or(0.0);
+                        tokens.push(Token::FloatLiteral(float_val));
                     } else {
                         // Just a dot, not a float literal
-                        tokens.push(".".to_string());
+                        tokens.push(Token::Dot);
                     }
                 } else {
-                    tokens.push(".".to_string());
+                    tokens.push(Token::Dot);
                 }
             }
             // Integer and Float Literals
@@ -88,9 +133,11 @@ pub fn tokenize(source: &str) -> Vec<String> {
                 }
                 
                 if has_dot || has_exponent {
-                    tokens.push(format!("float_literal:{}", num_str));
+                    let float_val: f64 = num_str.parse().unwrap_or(0.0);
+                    tokens.push(Token::FloatLiteral(float_val));
                 } else {
-                    tokens.push(format!("integer_literal:{}", num_str));
+                    let int_val: i64 = num_str.parse().unwrap_or(0);
+                    tokens.push(Token::IntegerLiteral(int_val));
                 }
             }
             // Identifiers and Keywords
@@ -103,12 +150,14 @@ pub fn tokenize(source: &str) -> Vec<String> {
                         break;
                     }
                 }
-                match ident_str.as_str() {
-                    "let" => tokens.push("keyword:let".to_string()),
-                    "fn" => tokens.push("keyword:fn".to_string()),
-                    "return" => tokens.push("keyword:return".to_string()),
-                    _ => tokens.push(format!("identifier:{}", ident_str)),
-                }
+                let token = match ident_str.as_str() {
+                    "let" => Token::Let,
+                    "fn" => Token::Fn,
+                    "return" => Token::Return,
+                    "mut" => Token::Mut,
+                    _ => Token::Identifier(ident_str),
+                };
+                tokens.push(token);
             }
             _ => {
                 // Handle unexpected characters or errors
@@ -117,7 +166,69 @@ pub fn tokenize(source: &str) -> Vec<String> {
             }
         }
     }
+    
+    tokens.push(Token::Eof);
     tokens
 }
 
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_function_tokens() {
+        let source = "fn main() -> i32 { let mut x = 5; }";
+        let tokens = tokenize(source);
+        
+        assert_eq!(tokens[0], Token::Fn);
+        assert_eq!(tokens[1], Token::Identifier("main".to_string()));
+        assert_eq!(tokens[2], Token::LeftParen);
+        assert_eq!(tokens[3], Token::RightParen);
+        assert_eq!(tokens[4], Token::Arrow);
+        assert_eq!(tokens[5], Token::Identifier("i32".to_string()));
+        assert_eq!(tokens[6], Token::LeftBrace);
+        assert_eq!(tokens[7], Token::Let);
+        assert_eq!(tokens[8], Token::Mut);
+        assert_eq!(tokens[9], Token::Identifier("x".to_string()));
+        assert_eq!(tokens[10], Token::Assign);
+        assert_eq!(tokens[11], Token::IntegerLiteral(5));
+        assert_eq!(tokens[12], Token::Semicolon);
+        assert_eq!(tokens[13], Token::RightBrace);
+        assert_eq!(tokens[14], Token::Eof);
+    }
+
+    #[test]
+    fn test_arrow_operator() {
+        let source = "-> ->";
+        let tokens = tokenize(source);
+        
+        assert_eq!(tokens[0], Token::Arrow);
+        assert_eq!(tokens[1], Token::Arrow);
+        assert_eq!(tokens[2], Token::Eof);
+    }
+
+    #[test]
+    fn test_minus_vs_arrow() {
+        let source = "- -> -";
+        let tokens = tokenize(source);
+        
+        assert_eq!(tokens[0], Token::Minus);
+        assert_eq!(tokens[1], Token::Arrow);
+        assert_eq!(tokens[2], Token::Minus);
+        assert_eq!(tokens[3], Token::Eof);
+    }
+
+    #[test]
+    fn test_keywords() {
+        let source = "let fn return mut";
+        let tokens = tokenize(source);
+        
+        assert_eq!(tokens[0], Token::Let);
+        assert_eq!(tokens[1], Token::Fn);
+        assert_eq!(tokens[2], Token::Return);
+        assert_eq!(tokens[3], Token::Mut);
+        assert_eq!(tokens[4], Token::Eof);
+    }
+}
