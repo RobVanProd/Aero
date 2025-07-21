@@ -15,19 +15,54 @@ Aero is a modern, statically-typed programming language designed for performance
 
 ## Key Features
 
--   **Ownership and Borrowing:** A compile-time memory management system that prevents dangling pointers, data races, and other common memory-related bugs without a garbage collector.
--   **Static Typing:** A strong, static type system helps catch errors at compile time and provides a solid foundation for robust applications.
--   **Type Inference:** Reduces the need for explicit type annotations, making code cleaner while maintaining type safety.
--   **Generics and Traits:** Powerful tools for creating reusable abstractions and achieving polymorphism.
--   **Pattern Matching:** (Planned) For expressive control flow and destructuring of data.
--   **Modular Design:** Code can be organized into modules for better structure and reusability.
--   **Comprehensive Standard Library:** (In progress) Aims to provide essential utilities for common tasks.
+### Currently Implemented ✅
+
+-   **Static Typing:** A strong, static type system with compile-time type checking and automatic type inference
+-   **Type Inference:** Automatic type deduction for variables and expressions while maintaining type safety
+-   **Memory Safety:** Stack-allocated variables with proper lifetime management
+-   **Arithmetic Operations:** Full support for integer and floating-point arithmetic with automatic type promotion
+-   **Variable System:** Immutable variables by default with explicit mutability support (`let` vs `let mut`)
+-   **Comprehensive Error Reporting:** Clear error messages with type information and validation
+-   **LLVM Backend:** Native code generation through LLVM for optimal performance
+-   **CLI Tooling:** Complete command-line interface with `aero build` and `aero run` commands
+
+### Phase 3 Features (In Development) 🚧
+
+-   **Function Definitions:** Define and call functions with parameters and return types (`fn name(params) -> type`)
+-   **Control Flow:** If/else statements, while loops, for loops, and infinite loops with break/continue
+-   **I/O Operations:** Print macros (`print!`, `println!`) with format string validation
+-   **Enhanced Type System:** Comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`) and logical operators (`&&`, `||`, `!`)
+-   **Advanced Scoping:** Nested scopes, variable shadowing, and function-local variables
+-   **Semantic Validation:** Comprehensive compile-time checking for all language constructs
+
+### Planned Features 📋
+
+-   **Ownership and Borrowing:** A compile-time memory management system that prevents dangling pointers, data races, and other common memory-related bugs without a garbage collector
+-   **Generics and Traits:** Powerful tools for creating reusable abstractions and achieving polymorphism
+-   **Pattern Matching:** Expressive control flow and destructuring of data
+-   **Data Structures:** Structs, enums, arrays, and other composite types
+-   **Modular Design:** Code organization into modules for better structure and reusability
+-   **Comprehensive Standard Library:** Essential utilities for common programming tasks
 
 ## Current Status
 
-Aero is an actively developed programming language. It is currently in **Phase 2: Core Feature Implementation and Tooling** (as outlined in our [Roadmap.md](Roadmap.md)). This means core language features are being implemented in the compiler, and foundational tooling is under development.
+Aero is an actively developed programming language. It is currently in **Phase 3: Core Language Features** (as outlined in our [Roadmap.md](Roadmap.md)). Phase 2 has been completed successfully, and we are now implementing advanced language features including functions, control flow, and I/O operations.
 
-The language is not yet production-ready but is rapidly evolving. We welcome feedback and contributions!
+**Phase 2 Complete ✅** - The compiler now has:
+- Full lexical analysis and parsing
+- Complete semantic analysis with type checking
+- LLVM IR generation and native compilation
+- Working CLI tools (`aero build` and `aero run`)
+- Comprehensive test suite and CI/CD
+
+**Phase 3 In Progress 🚧** - Currently implementing:
+- Function definitions and calls
+- Control flow statements (if/else, loops)
+- I/O operations (print!, println!)
+- Enhanced type system with comparisons and logical operations
+- Advanced scope management and variable mutability
+
+The language is not yet production-ready but has a solid foundation and is rapidly evolving. We welcome feedback and contributions!
 
 ## Getting Started
 
@@ -88,15 +123,47 @@ The test suite will build the compiler and run several example programs to ensur
 
 ### Your First Aero Program
 
-Let's create a simple "Hello, world!" program.
+Let's create a simple program that demonstrates Aero's current capabilities.
 
-1.  Create a file named `hello.aero` with the following content:
+1.  Create a file named `example.aero` with the following content:
     ```aero
-    // hello.aero
-    fn main() {
-        io::println("Hello, world! Welcome to Aero!");
-    }
+    // example.aero - Demonstrates current Aero features
+    let x = 10;
+    let y = 3.5;
+    let result = x + y;  // Automatic type promotion: int + float = float
+    return result;       // Returns 13.5 (truncated to 13 as exit code)
     ```
+
+This program showcases:
+- Variable declarations with type inference
+- Mixed integer and floating-point arithmetic
+- Automatic type promotion
+- Return statements
+
+### What's Currently Working
+
+Aero can currently compile and run programs with these features:
+
+**Variables and Types:**
+```aero
+let x = 42;           // Integer variable
+let y = 3.14;         // Float variable
+let z = x + y;        // Mixed arithmetic with type promotion
+```
+
+**Arithmetic Operations:**
+```aero
+let a = 10 + 5;       // Addition
+let b = 20 - 8;       // Subtraction  
+let c = 4 * 6;        // Multiplication
+let d = 15 / 3;       // Division
+```
+
+**Return Values:**
+```aero
+let final_result = (a + b) * c / d;
+return final_result;  // Program exit code
+```
 
 ### Compiling and Running
 
@@ -105,19 +172,21 @@ There are two main ways to compile and run your Aero programs:
 1.  **Build then Run:**
     First, compile your program into an executable:
     ```bash
-    aero build hello.aero -o hello_aero_executable
+    aero build example.aero -o example_executable
     ```
-    This creates an executable file named `hello_aero_executable`. You can then run it:
-    -   On Linux/macOS: `./hello_aero_executable`
-    -   On Windows: `.\hello_aero_executable.exe`
+    This creates an executable file named `example_executable`. You can then run it:
+    -   On Linux/macOS: `./example_executable`
+    -   On Windows: `.\example_executable.exe`
 
 2.  **Compile and Run Directly:**
     For convenience, you can compile and immediately run your program with a single command:
     ```bash
-    aero run hello.aero
+    aero run example.aero
     ```
 
-You should see the output: `Hello, world! Welcome to Aero!`
+The program will execute and return an exit code of 13 (the result of 10 + 3.5, truncated to integer). You can check the exit code with:
+- Linux/macOS: `echo $?`
+- Windows: `echo %ERRORLEVEL%`
 
 ## Learning Aero
 
