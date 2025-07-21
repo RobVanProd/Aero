@@ -1,0 +1,7 @@
+// examples/variables.aero
+
+// A program that demonstrates variable usage
+// let a = 2; let b = a * 3; should result in 6
+let a = 2;
+let b = a * 3;
+return b;

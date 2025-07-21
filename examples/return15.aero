@@ -1,0 +1,6 @@
+// examples/return15.aero
+
+// A simple program that returns 15 as exit code
+// 10 + 5 = 15
+let result = 10 + 5;
+return result;

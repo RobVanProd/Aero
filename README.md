@@ -35,12 +35,24 @@ Ready to try Aero? Here’s how to get started:
 
 ### Installation
 
-To use Aero, you'll first need to install its compiler, `aero`. The compiler is written in Rust, so you'll need Rust and Cargo installed. If you don't have them, please visit [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install).
+To use Aero, you'll first need to install its compiler, `aero`. The compiler is written in Rust, so you'll need Rust and Cargo installed. You'll also need LLVM tools (`llc` and `clang`) for compilation.
 
-1.  **Clone the Aero Repository (if you have it locally, navigate to its root):**
+#### Prerequisites
+
+1. **Install Rust and Cargo:**
+   Visit [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install) and follow the installation instructions.
+
+2. **Install LLVM tools:**
+   - **Ubuntu/Debian:** `sudo apt install llvm clang`
+   - **macOS:** `brew install llvm` (or use Xcode command line tools)
+   - **Windows:** Download from [LLVM releases](https://releases.llvm.org/) or use `winget install LLVM.LLVM`
+
+#### Installation Steps
+
+1.  **Clone the Aero Repository:**
     ```bash
-    # git clone <repository_url> # If you don't have it yet
-    # cd aero # Or your repository's directory name
+    git clone https://github.com/RobVanProd/Aero.git
+    cd Aero
     ```
 
 2.  **Install the Aero Compiler:**
@@ -53,9 +65,26 @@ To use Aero, you'll first need to install its compiler, `aero`. The compiler is 
 3.  **Verify Installation:**
     Ensure `~/.cargo/bin` is in your system's `PATH`. Then, open a new terminal session and type:
     ```bash
-    aero --version
+    aero --help
     ```
-    This should display the installed Aero compiler version.
+    This should display the Aero compiler help message.
+
+#### Testing the Installation
+
+To verify that everything is working correctly, you can run the test suite:
+
+**Linux/macOS:**
+```bash
+chmod +x test_compiler.sh
+./test_compiler.sh
+```
+
+**Windows:**
+```cmd
+test_compiler.bat
+```
+
+The test suite will build the compiler and run several example programs to ensure everything is working correctly.
 
 ### Your First Aero Program
 

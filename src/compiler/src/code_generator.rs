@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::ir::{Function, Inst, Value};
+use crate::types::Ty;
 
 pub struct CodeGenerator {
     next_reg: u32,
@@ -29,7 +30,7 @@ impl CodeGenerator {
     fn value_to_string(&self, value: &Value) -> String {
         match value {
             Value::ImmInt(n) => {
-                // Convert int to double for storage
+                // Convert int to double for unified storage
                 let f = *n as f64;
                 format!("0x{:016X}", f.to_bits())
             },
@@ -89,7 +90,7 @@ impl CodeGenerator {
                         };
                         let lhs_str = self.value_to_string(lhs);
                         let rhs_str = self.value_to_string(rhs);
-                        llvm_ir.push_str(&format!("  %{} = add i64 {}, {}\n", result_str, lhs_str, rhs_str));
+                        llvm_ir.push_str(&format!("  %{} = fadd double {}, {}\n", result_str, lhs_str, rhs_str));
                     }
                     Inst::FAdd(result_reg, lhs, rhs) => {
                         let result_str = match result_reg { 
@@ -107,7 +108,7 @@ impl CodeGenerator {
                         };
                         let lhs_str = self.value_to_string(lhs);
                         let rhs_str = self.value_to_string(rhs);
-                        llvm_ir.push_str(&format!("  %{} = sub i64 {}, {}\n", result_str, lhs_str, rhs_str));
+                        llvm_ir.push_str(&format!("  %{} = fsub double {}, {}\n", result_str, lhs_str, rhs_str));
                     }
                     Inst::FSub(result_reg, lhs, rhs) => {
                         let result_str = match result_reg { 
@@ -125,7 +126,7 @@ impl CodeGenerator {
                         };
                         let lhs_str = self.value_to_string(lhs);
                         let rhs_str = self.value_to_string(rhs);
-                        llvm_ir.push_str(&format!("  %{} = mul i64 {}, {}\n", result_str, lhs_str, rhs_str));
+                        llvm_ir.push_str(&format!("  %{} = fmul double {}, {}\n", result_str, lhs_str, rhs_str));
                     }
                     Inst::FMul(result_reg, lhs, rhs) => {
                         let result_str = match result_reg { 
@@ -143,7 +144,7 @@ impl CodeGenerator {
                         };
                         let lhs_str = self.value_to_string(lhs);
                         let rhs_str = self.value_to_string(rhs);
-                        llvm_ir.push_str(&format!("  %{} = sdiv i64 {}, {}\n", result_str, lhs_str, rhs_str));
+                        llvm_ir.push_str(&format!("  %{} = fdiv double {}, {}\n", result_str, lhs_str, rhs_str));
                     }
                     Inst::FDiv(result_reg, lhs, rhs) => {
                         let result_str = match result_reg { 
@@ -164,33 +165,21 @@ impl CodeGenerator {
                     }
                     Inst::Return(value) => {
                         let val_str = self.value_to_string(value);
-                        // Check if we need to convert float to int for return
-                        match value {
-                            Value::ImmFloat(_) | Value::Reg(_) => {
-                                // For float values, convert to int first
-                                let convert_reg = self.fresh_reg();
-                                llvm_ir.push_str(&format!("  %{} = fptosi double {} to i32\n", convert_reg, val_str));
-                                llvm_ir.push_str(&format!("  ret i32 %{}\n", convert_reg));
-                            }
-                            Value::ImmInt(_) => {
-                                // For int values, truncate to i32
-                                let trunc_reg = self.fresh_reg();
-                                llvm_ir.push_str(&format!("  %{} = trunc i64 {} to i32\n", trunc_reg, val_str));
-                                llvm_ir.push_str(&format!("  ret i32 %{}\n", trunc_reg));
-                            }
-                        }
+                        // Since we're storing everything as double, always convert to int for return
+                        let convert_reg = self.fresh_reg();
+                        llvm_ir.push_str(&format!("  %{} = fptosi double {} to i32\n", convert_reg, val_str));
+                        llvm_ir.push_str(&format!("  ret i32 %{}\n", convert_reg));
                     }
                     Inst::SIToFP(result_reg, value) => {
+                        // Since we're already storing everything as double, this is essentially a no-op
+                        // Just copy the value to the result register
                         let result_str = match result_reg { 
                             Value::Reg(r) => format!("reg{}", r), 
                             _ => panic!("Expected register for sitofp result") 
                         };
-                        let val_str = match value {
-                            Value::ImmInt(n) => n.to_string(), // Use integer format for sitofp source
-                            Value::Reg(r) => format!("%reg{}", r),
-                            _ => panic!("SIToFP expects integer input"),
-                        };
-                        llvm_ir.push_str(&format!("  %{} = sitofp i64 {} to double\n", result_str, val_str));
+                        let val_str = self.value_to_string(value);
+                        // Since both source and target are double, just use fadd with 0.0
+                        llvm_ir.push_str(&format!("  %{} = fadd double {}, 0x0000000000000000\n", result_str, val_str));
                     }
                 }
             }
