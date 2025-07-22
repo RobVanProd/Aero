@@ -35,6 +35,74 @@ pub enum Inst {
     Return(Value), // value to return
     SIToFP(Value, Value), // result_reg, int_value (signed integer to floating point)
     FPToSI(Value, Value), // result_reg, float_value (floating point to signed integer)
+    
+    // Function operations
+    FunctionDef {
+        name: String,
+        parameters: Vec<(String, String)>, // (name, type)
+        return_type: Option<String>,
+        body: Vec<Inst>,
+    },
+    Call {
+        function: String,
+        arguments: Vec<Value>,
+        result: Option<Value>,
+    },
+    
+    // Control flow operations
+    Branch {
+        condition: Value,
+        true_label: String,
+        false_label: String,
+    },
+    Jump(String), // Unconditional jump to label
+    Label(String), // Label for jumps and branches
+    
+    // Comparison operations
+    ICmp {
+        op: String, // "eq", "ne", "slt", "sgt", "sle", "sge"
+        result: Value,
+        left: Value,
+        right: Value,
+    },
+    FCmp {
+        op: String, // "oeq", "one", "olt", "ogt", "ole", "oge"
+        result: Value,
+        left: Value,
+        right: Value,
+    },
+    
+    // I/O operations
+    Print {
+        format_string: String,
+        arguments: Vec<Value>,
+    },
+    Println {
+        format_string: String,
+        arguments: Vec<Value>,
+    },
+    
+    // Logical operations
+    And {
+        result: Value,
+        left: Value,
+        right: Value,
+    },
+    Or {
+        result: Value,
+        left: Value,
+        right: Value,
+    },
+    Not {
+        result: Value,
+        operand: Value,
+    },
+    
+    // Unary operations
+    Neg {
+        result: Value,
+        operand: Value,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]

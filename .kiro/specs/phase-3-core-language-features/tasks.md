@@ -246,8 +246,15 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
     - _Git commit: "feat(semantic): add I/O validation and enhanced type checking"_
 
-- [ ] 7. Enhance IR Generator
-  - [ ] 7.1 Add function definition and call IR generation
+- [-] 7. Enhance IR Generator
+
+
+
+
+
+  - [x] 7.1 Add function definition and call IR generation
+
+
     - Extend IR with FunctionDef and Call instructions
     - Implement function definition IR generation
     - Add function call IR generation with argument passing
@@ -256,7 +263,9 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7, 1.8_
     - _Git commit: "feat(ir): add function definition and call IR generation"_
 
-  - [ ] 7.2 Add control flow IR generation
+  - [x] 7.2 Add control flow IR generation
+
+
     - Extend IR with Branch, Jump, and Label instructions
     - Implement if/else IR generation with labels
     - Add loop IR generation (while, for, infinite)
@@ -265,7 +274,11 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
     - _Git commit: "feat(ir): add control flow IR generation"_
 
-  - [ ] 7.3 Add I/O and enhanced expression IR generation
+  - [x] 7.3 Add I/O and enhanced expression IR generation
+
+
+
+
     - Extend IR with Print instruction for I/O operations
     - Implement format string handling in IR
     - Add comparison and logical operation IR generation
@@ -275,7 +288,18 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Git commit: "feat(ir): add I/O operations and enhanced expression IR"_
 
 - [ ] 8. Enhance LLVM Code Generator
-  - [ ] 8.1 Add LLVM function generation
+
+
+
+
+
+
+
+
+
+  - [x] 8.1 Add LLVM function generation
+
+
     - Implement LLVM function definition generation
     - Add parameter handling and local variable allocation
     - Implement function call generation with proper ABI
@@ -284,7 +308,9 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7, 1.8_
     - _Git commit: "feat(codegen): add LLVM function definition and call generation"_
 
-  - [ ] 8.2 Add LLVM control flow generation
+  - [x] 8.2 Add LLVM control flow generation
+
+
     - Implement if/else LLVM generation with basic blocks
     - Add loop LLVM generation (while, for, infinite)
     - Implement break/continue with proper block termination
@@ -293,7 +319,13 @@ This document outlines the specific coding tasks needed to implement Phase 3 cor
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
     - _Git commit: "feat(codegen): add LLVM control flow generation"_
 
-  - [ ] 8.3 Add LLVM I/O and enhanced operations
+  - [x] 8.3 Add LLVM I/O and enhanced operations
+
+
+
+
+
+
     - Implement printf integration for print operations
     - Add format string handling in LLVM generation
     - Implement comparison operation LLVM generation
