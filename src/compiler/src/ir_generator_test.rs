@@ -5,6 +5,8 @@ mod tests {
     use crate::ir::{Inst, Value};
     use crate::types::Ty;
 
+    // ===== PHASE 3 COMPREHENSIVE IR GENERATOR TESTS =====
+
     #[test]
     fn test_function_definition_ir_generation() {
         let mut ir_gen = IrGenerator::new();
@@ -77,8 +79,8 @@ mod tests {
         let func_call = Expression::FunctionCall {
             name: "add".to_string(),
             arguments: vec![
-                Expression::Number(5),
-                Expression::Number(3),
+                Expression::IntegerLiteral(5),
+                Expression::IntegerLiteral(3),
             ],
         };
         
@@ -118,7 +120,7 @@ mod tests {
         // Create a function: fn get_value() -> i32 { 42 }
         let body = Block {
             statements: vec![],
-            expression: Some(Expression::Number(42)),
+            expression: Some(Expression::IntegerLiteral(42)),
         };
         
         let func_stmt = Statement::Function {
@@ -159,7 +161,7 @@ mod tests {
                 Statement::Return(Expression::Binary {
                     op: "*".to_string(),
                     lhs: Box::new(Expression::Identifier("x".to_string())),
-                    rhs: Box::new(Expression::Number(2)),
+                    rhs: Box::new(Expression::IntegerLiteral(2)),
                     ty: Some(Ty::Int),
                 }),
             ],
@@ -200,8 +202,8 @@ mod tests {
         let inner_call = Expression::FunctionCall {
             name: "multiply".to_string(),
             arguments: vec![
-                Expression::Number(2),
-                Expression::Number(3),
+                Expression::IntegerLiteral(2),
+                Expression::IntegerLiteral(3),
             ],
         };
         
@@ -209,7 +211,7 @@ mod tests {
             name: "add".to_string(),
             arguments: vec![
                 inner_call,
-                Expression::Number(4),
+                Expression::IntegerLiteral(4),
             ],
         };
         
@@ -275,7 +277,7 @@ mod tests {
                     value: Expression::Binary {
                         op: "+".to_string(),
                         lhs: Box::new(Expression::Identifier("x".to_string())),
-                        rhs: Box::new(Expression::Number(1)),
+                        rhs: Box::new(Expression::IntegerLiteral(1)),
                         ty: Some(Ty::Int),
                     },
                 },
@@ -283,7 +285,7 @@ mod tests {
             expression: Some(Expression::Binary {
                 op: "*".to_string(),
                 lhs: Box::new(Expression::Identifier("temp".to_string())),
-                rhs: Box::new(Expression::Number(2)),
+                rhs: Box::new(Expression::IntegerLiteral(2)),
                 ty: Some(Ty::Int),
             }),
         };

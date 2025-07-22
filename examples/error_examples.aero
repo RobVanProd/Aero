@@ -1,0 +1,300 @@
+// error_examples.aero - Demonstrates various error cases and error handling
+
+// This file contains examples of code that should produce specific compiler errors
+// Each section demonstrates different types of errors that the Aero compiler should catch
+
+// =============================================================================
+// FUNCTION-RELATED ERRORS
+// =============================================================================
+
+// Error: Function redefinition
+fn duplicate_function() -> i32 {
+    return 1;
+}
+
+// This should cause a "function redefinition" error
+fn duplicate_function() -> i32 {
+    return 2;
+}
+
+// Error: Undefined function call
+fn test_undefined_function() {
+    let result = nonexistent_function(5);  // Should error: undefined function
+    println!("Result: {}", result);
+}
+
+// Error: Function arity mismatch
+fn takes_two_params(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+fn test_arity_errors() {
+    let result1 = takes_two_params(5);        // Error: too few arguments
+    let result2 = takes_two_params(5, 10, 15); // Error: too many arguments
+    println!("Results: {} {}", result1, result2);
+}
+
+// Error: Parameter type mismatch
+fn expects_integer(x: i32) -> i32 {
+    return x * 2;
+}
+
+fn test_parameter_type_errors() {
+    let string_val = "hello";
+    let result = expects_integer(string_val);  // Error: type mismatch
+    println!("Result: {}", result);
+}
+
+// Error: Return type mismatch
+fn should_return_int() -> i32 {
+    return "string";  // Error: returning string when i32 expected
+}
+
+fn missing_return() -> i32 {
+    let x = 5;
+    // Error: function should return i32 but has no return statement
+}
+
+// =============================================================================
+// CONTROL FLOW ERRORS
+// =============================================================================
+
+// Error: Break outside loop
+fn test_break_outside_loop() {
+    let x = 5;
+    if x > 0 {
+        break;  // Error: break statement outside of loop
+    }
+}
+
+// Error: Continue outside loop
+fn test_continue_outside_loop() {
+    let x = 10;
+    if x > 5 {
+        continue;  // Error: continue statement outside of loop
+    }
+}
+
+// Error: Non-boolean condition in if statement
+fn test_non_boolean_condition() {
+    let x = 5;
+    if x {  // Error: integer used as boolean condition
+        println!("This shouldn't work");
+    }
+}
+
+// Error: Non-boolean condition in while loop
+fn test_non_boolean_while_condition() {
+    let counter = 10;
+    while counter {  // Error: integer used as boolean condition
+        counter = counter - 1;
+    }
+}
+
+// =============================================================================
+// VARIABLE AND MUTABILITY ERRORS
+// =============================================================================
+
+// Error: Assignment to immutable variable
+fn test_immutable_assignment() {
+    let x = 5;
+    x = 10;  // Error: cannot assign to immutable variable
+    println!("x = {}", x);
+}
+
+// Error: Use of undefined variable
+fn test_undefined_variable() {
+    println!("Value: {}", undefined_var);  // Error: undefined variable
+}
+
+// Error: Variable used before initialization
+fn test_uninitialized_variable() {
+    let x: i32;
+    println!("x = {}", x);  // Error: variable used before initialization
+}
+
+// =============================================================================
+// TYPE SYSTEM ERRORS
+// =============================================================================
+
+// Error: Type mismatch in assignment
+fn test_type_mismatch() {
+    let x: i32 = "string";  // Error: cannot assign string to i32
+    println!("x = {}", x);
+}
+
+// Error: Incompatible types in arithmetic
+fn test_incompatible_arithmetic() {
+    let a = 5;
+    let b = "hello";
+    let result = a + b;  // Error: cannot add integer and string
+    println!("Result: {}", result);
+}
+
+// Error: Incompatible types in comparison
+fn test_incompatible_comparison() {
+    let num = 42;
+    let text = "42";
+    if num == text {  // Error: cannot compare integer and string
+        println!("They're equal!");
+    }
+}
+
+// =============================================================================
+// I/O AND FORMAT STRING ERRORS
+// =============================================================================
+
+// Error: Format string argument count mismatch
+fn test_format_argument_mismatch() {
+    let x = 5;
+    let y = 10;
+    
+    // Too few arguments
+    println!("Values: {} and {}", x);  // Error: format string expects 2 args, got 1
+    
+    // Too many arguments
+    println!("Value: {}", x, y);  // Error: format string expects 1 arg, got 2
+}
+
+// Error: Invalid format string
+fn test_invalid_format_string() {
+    let x = 5;
+    println!("Value: {", x);  // Error: unclosed format placeholder
+    println!("Value: }", x);  // Error: unmatched closing brace
+}
+
+// =============================================================================
+// SCOPE AND VISIBILITY ERRORS
+// =============================================================================
+
+// Error: Variable out of scope
+fn test_variable_out_of_scope() {
+    {
+        let inner_var = 42;
+    }
+    println!("Value: {}", inner_var);  // Error: variable out of scope
+}
+
+// Error: Function parameter shadowing with different type
+fn test_parameter_shadowing_error(x: i32) {
+    let x: bool = true;  // This might be allowed (shadowing) or error depending on design
+    println!("x = {}", x);
+}
+
+// =============================================================================
+// LOGICAL ERRORS THAT SHOULD BE CAUGHT
+// =============================================================================
+
+// Error: Division by zero (should be caught at compile time if possible)
+fn test_division_by_zero() {
+    let result = 10 / 0;  // Error: division by zero
+    println!("Result: {}", result);
+}
+
+// Error: Unreachable code
+fn test_unreachable_code() -> i32 {
+    return 5;
+    let x = 10;  // Error: unreachable code after return
+    return x;
+}
+
+// Error: Infinite recursion (might be hard to detect, but worth trying)
+fn infinite_recursion() -> i32 {
+    return infinite_recursion();  // Warning: potential infinite recursion
+}
+
+// =============================================================================
+// MAIN FUNCTION WITH ERROR DEMONSTRATIONS
+// =============================================================================
+
+fn main() {
+    println!("=== ERROR EXAMPLES DEMONSTRATION ===");
+    println!("Note: This file is designed to show compiler errors.");
+    println!("Many of these function calls will cause compilation errors.");
+    
+    // Uncomment sections below to test specific error types:
+    
+    // Function errors
+    // test_undefined_function();
+    // test_arity_errors();
+    // test_parameter_type_errors();
+    
+    // Control flow errors
+    // test_break_outside_loop();
+    // test_continue_outside_loop();
+    // test_non_boolean_condition();
+    // test_non_boolean_while_condition();
+    
+    // Variable errors
+    // test_immutable_assignment();
+    // test_undefined_variable();
+    // test_uninitialized_variable();
+    
+    // Type errors
+    // test_type_mismatch();
+    // test_incompatible_arithmetic();
+    // test_incompatible_comparison();
+    
+    // I/O errors
+    // test_format_argument_mismatch();
+    // test_invalid_format_string();
+    
+    // Scope errors
+    // test_variable_out_of_scope();
+    
+    // Logical errors
+    // test_division_by_zero();
+    
+    println!("If you're seeing this message, the error examples are commented out.");
+    println!("Uncomment specific sections to test error handling.");
+    
+    // Demonstrate proper error handling patterns
+    demonstrate_proper_error_handling();
+}
+
+// =============================================================================
+// PROPER ERROR HANDLING EXAMPLES
+// =============================================================================
+
+fn safe_divide(a: i32, b: i32) -> i32 {
+    if b == 0 {
+        println!("Error: Cannot divide by zero!");
+        return 0;  // Return safe default value
+    }
+    return a / b;
+}
+
+fn validate_input(value: i32) -> bool {
+    if value < 0 {
+        println!("Warning: Negative value provided: {}", value);
+        return false;
+    }
+    if value > 100 {
+        println!("Warning: Value too large: {}", value);
+        return false;
+    }
+    return true;
+}
+
+fn demonstrate_proper_error_handling() {
+    println!("\n=== PROPER ERROR HANDLING EXAMPLES ===");
+    
+    // Safe division
+    let result1 = safe_divide(10, 2);
+    println!("10 / 2 = {}", result1);
+    
+    let result2 = safe_divide(10, 0);
+    println!("10 / 0 = {} (handled safely)", result2);
+    
+    // Input validation
+    let valid1 = validate_input(50);
+    println!("Input 50 is valid: {}", valid1);
+    
+    let valid2 = validate_input(-5);
+    println!("Input -5 is valid: {}", valid2);
+    
+    let valid3 = validate_input(150);
+    println!("Input 150 is valid: {}", valid3);
+    
+    println!("\nError handling demonstration complete!");
+}

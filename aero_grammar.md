@@ -28,7 +28,7 @@ identifier = letter { letter | digit | "_" } ;
 ### Keywords
 
 ```ebnf
-keyword = "fn" | "let" | "mut" | "if" | "else" | "while" | "for" | "return" | "struct" | "enum" | "trait" | "impl" | "pub" | "use" | "as" | "true" | "false" | "mod" | "const" | "type" | "loop" | "break" | "continue" ;
+keyword = "fn" | "let" | "mut" | "if" | "else" | "while" | "for" | "return" | "struct" | "enum" | "trait" | "impl" | "pub" | "use" | "as" | "true" | "false" | "mod" | "const" | "type" | "loop" | "break" | "continue" | "print!" | "println!" ;
 ```
 
 ### Literals
@@ -195,6 +195,8 @@ primary_expression = literal
                    | index_expression                // array_or_slice[index]
                    | field_access_expression         // struct_instance.field
                    | tuple_index_expression          // tuple_instance.0
+                   | print_macro                     // print! macro
+                   | println_macro                   // println! macro
                    | "break" [ loop_label_ref ] [ expression ] // break as an expression
                    | "return" [ expression ] ;       // return as an expression (diverges)
 
@@ -211,6 +213,10 @@ tuple_index_expression = primary_expression "." integer_literal ; // e.g. my_tup
 
 array_literal = "[" [ expression { "," expression } [ "," ] ] "]" ;
 tuple_literal = "(" [ expression { "," expression } [ "," ] ] ")" ;
+
+// I/O macro expressions
+print_macro = "print!" "(" string_literal [ "," argument_list ] ")" ;
+println_macro = "println!" "(" string_literal [ "," argument_list ] ")" ;
 
 // Control flow constructs as expressions
 loop_expression = [ loop_label ] "loop" block_expression ;

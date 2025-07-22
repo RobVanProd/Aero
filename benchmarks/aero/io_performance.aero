@@ -1,0 +1,57 @@
+// I/O performance test program
+// Tests print operations and format string performance
+
+fn test_simple_prints() {
+    for i in 0..1000 {
+        print!("Simple print test");
+        println!("Simple println test");
+    }
+}
+
+fn test_formatted_prints() {
+    for i in 0..500 {
+        let x = i * 2;
+        let y = i + 10;
+        println!("Formatted: {} + {} = {}", x, y, x + y);
+    }
+}
+
+fn test_complex_formatting() {
+    for i in 0..100 {
+        let a = i;
+        let b = i + 1;
+        let c = i + 2;
+        let d = i + 3;
+        let e = i + 4;
+        println!("Complex: {} {} {} {} {} sum={}", a, b, c, d, e, a + b + c + d + e);
+    }
+}
+
+fn test_nested_io() {
+    for i in 0..50 {
+        println!("Outer loop: {}", i);
+        for j in 0..20 {
+            if j % 5 == 0 {
+                println!("  Inner: {} at {}", j, i);
+            }
+        }
+    }
+}
+
+fn main() {
+    println!("Starting I/O performance tests...");
+    
+    test_simple_prints();
+    println!("Simple print test completed");
+    
+    test_formatted_prints();
+    println!("Formatted print test completed");
+    
+    test_complex_formatting();
+    println!("Complex formatting test completed");
+    
+    test_nested_io();
+    println!("Nested I/O test completed");
+    
+    println!("All I/O performance tests completed");
+}

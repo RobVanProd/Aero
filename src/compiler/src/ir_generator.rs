@@ -1,4 +1,4 @@
-use crate::ast::{AstNode, Expression, Statement};
+use crate::ast::{AstNode, Expression, Statement, Type};
 use crate::ir::{Function, Inst, Value};
 use crate::types::{Ty, needs_promotion};
 use std::collections::HashMap;
@@ -47,8 +47,8 @@ impl IrGenerator {
 
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
         match stmt {
-            Statement::Let { name, value } => {
-                let (expr_value, expr_type) = self.generate_expression_ir(value, current_function);
+            Statement::Let { name, mutable: _, type_annotation: _, value } => {
+                let (expr_value, expr_type) = if let Some(val) = value { self.generate_expression_ir(val, current_function) } else { (Value::ImmInt(0), Ty::Int) };
 
                 // Allocate a stack slot for the variable
                 let ptr_reg = Value::Reg(self.next_ptr);
@@ -60,7 +60,7 @@ impl IrGenerator {
                 current_function.body.push(Inst::Store(ptr_reg, expr_value));
             }
             Statement::Return(expr) => {
-                let (return_value, _) = self.generate_expression_ir(expr, current_function);
+                let (return_value, _) = if let Some(val) = expr { self.generate_expression_ir(val, current_function) } else { (Value::ImmInt(0), Ty::Int) };
                 current_function.body.push(Inst::Return(return_value));
             }
             Statement::Function { name, parameters, return_type: _, body } => {
@@ -84,13 +84,26 @@ impl IrGenerator {
             Statement::Continue => {
                 self.generate_continue_ir(current_function);
             }
+            Statement::Expression(expr) => {
+                // Generate IR for standalone expressions
+                self.generate_expression_ir(expr, current_function);
+            }
+            Statement::Block(block) => {
+                // Generate IR for block statements
+                for stmt in block.statements {
+                    self.generate_statement_ir(stmt, current_function);
+                }
+                if let Some(expr) = block.expression {
+                    self.generate_expression_ir(expr, current_function);
+                }
+            }
         }
     }
 
     fn generate_expression_ir(&mut self, expr: Expression, function: &mut Function) -> (Value, Ty) {
         match expr {
-            Expression::Number(n) => (Value::ImmInt(n), Ty::Int),
-            Expression::Float(f) => (Value::ImmFloat(f), Ty::Float),
+            Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
+            Expression::FloatLiteral(f) => (Value::ImmFloat(f), Ty::Float),
             Expression::Identifier(name) => {
                 let (ptr_reg, var_type) = self.symbol_table.get(&name).expect("Undeclared variable").clone();
                 let result_reg = Value::Reg(self.next_reg);
@@ -98,9 +111,9 @@ impl IrGenerator {
                 function.body.push(Inst::Load(result_reg.clone(), ptr_reg));
                 (result_reg, var_type)
             }
-            Expression::Binary { op, lhs, rhs, ty } => {
-                let (lhs_val, lhs_type) = self.generate_expression_ir(*lhs, function);
-                let (rhs_val, rhs_type) = self.generate_expression_ir(*rhs, function);
+            Expression::Binary { op, left, right, ty } => {
+                let (lhs_val, lhs_type) = self.generate_expression_ir(*left, function);
+                let (rhs_val, rhs_type) = self.generate_expression_ir(*right, function);
                 
                 // Get the result type from the AST (set by semantic analysis)
                 let result_type = ty.expect("Binary expression should have type set by semantic analysis");
@@ -111,7 +124,7 @@ impl IrGenerator {
                 );
 
                 // Try constant folding first
-                if let (Some(folded_value), Some(folded_type)) = self.try_constant_fold(&op, &promoted_lhs, &promoted_rhs, &result_type) {
+                if let (Some(folded_value), Some(folded_type)) = self.try_constant_fold(&format!("{:?}", op).to_lowercase(), &promoted_lhs, &promoted_rhs, &result_type) {
                     return (folded_value, folded_type);
                 }
 
@@ -119,7 +132,7 @@ impl IrGenerator {
                 self.next_reg += 1;
                 
                 // Generate the appropriate instruction based on result type
-                let inst = match (&result_type, op.as_str()) {
+                let inst = match (&result_type, format!("{:?}", op).to_lowercase().as_str()) {
                     (Ty::Int, "+") => Inst::Add(result_reg.clone(), promoted_lhs, promoted_rhs),
                     (Ty::Float, "+") => Inst::FAdd(result_reg.clone(), promoted_lhs, promoted_rhs),
                     (Ty::Int, "-") => Inst::Sub(result_reg.clone(), promoted_lhs, promoted_rhs),
@@ -237,7 +250,9 @@ impl IrGenerator {
         
         // Create parameter names and types for IR
         let param_names: Vec<(String, String)> = parameters.iter()
-            .map(|p| (p.name.clone(), p.param_type.name.clone()))
+            .map(|p| (p.name.clone(), match &p.param_type {
+                Type::Named(name) => name.clone(),
+            }))
             .collect();
         
         // Set up parameter variables in symbol table
@@ -246,11 +261,13 @@ impl IrGenerator {
             self.next_ptr += 1;
             
             // Convert AST Type to Ty
-            let param_type = match param.param_type.name.as_str() {
-                "i32" => Ty::Int,
-                "f64" => Ty::Float,
-                "bool" => Ty::Bool,
-                _ => Ty::Int, // Default fallback
+            let param_type = match &param.param_type {
+                Type::Named(name) => match name.as_str() {
+                    "i32" => Ty::Int,
+                    "f64" => Ty::Float,
+                    "bool" => Ty::Bool,
+                    _ => Ty::Int, // Default fallback
+                }
             };
             
             self.symbol_table.insert(param.name.clone(), (ptr_reg, param_type));
@@ -307,8 +324,8 @@ impl IrGenerator {
     
     fn generate_statement_ir_for_function(&mut self, stmt: Statement, function_body: &mut Vec<Inst>) {
         match stmt {
-            Statement::Let { name, value } => {
-                let (expr_value, expr_type) = self.generate_expression_ir_for_function(value, function_body);
+            Statement::Let { name, mutable: _, type_annotation: _, value } => {
+                let (expr_value, expr_type) = if let Some(val) = value { self.generate_expression_ir_for_function(val, function_body) } else { (Value::ImmInt(0), Ty::Int) };
 
                 // Allocate a stack slot for the variable
                 let ptr_reg = Value::Reg(self.next_ptr);
@@ -320,7 +337,7 @@ impl IrGenerator {
                 function_body.push(Inst::Store(ptr_reg, expr_value));
             }
             Statement::Return(expr) => {
-                let (return_value, _) = self.generate_expression_ir_for_function(expr, function_body);
+                let (return_value, _) = if let Some(val) = expr { self.generate_expression_ir_for_function(val, function_body) } else { (Value::ImmInt(0), Ty::Int) };
                 function_body.push(Inst::Return(return_value));
             }
             Statement::Function { .. } => {
@@ -336,8 +353,8 @@ impl IrGenerator {
     
     fn generate_expression_ir_for_function(&mut self, expr: Expression, function_body: &mut Vec<Inst>) -> (Value, Ty) {
         match expr {
-            Expression::Number(n) => (Value::ImmInt(n), Ty::Int),
-            Expression::Float(f) => (Value::ImmFloat(f), Ty::Float),
+            Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
+            Expression::FloatLiteral(f) => (Value::ImmFloat(f), Ty::Float),
             Expression::Identifier(name) => {
                 let (ptr_reg, var_type) = self.symbol_table.get(&name).expect("Undeclared variable").clone();
                 let result_reg = Value::Reg(self.next_reg);
@@ -345,9 +362,9 @@ impl IrGenerator {
                 function_body.push(Inst::Load(result_reg.clone(), ptr_reg));
                 (result_reg, var_type)
             }
-            Expression::Binary { op, lhs, rhs, ty } => {
-                let (lhs_val, lhs_type) = self.generate_expression_ir_for_function(*lhs, function_body);
-                let (rhs_val, rhs_type) = self.generate_expression_ir_for_function(*rhs, function_body);
+            Expression::Binary { op, left, right, ty } => {
+                let (lhs_val, lhs_type) = self.generate_expression_ir_for_function(*left, function_body);
+                let (rhs_val, rhs_type) = self.generate_expression_ir_for_function(*right, function_body);
                 
                 // Get the result type from the AST (set by semantic analysis)
                 let result_type = ty.expect("Binary expression should have type set by semantic analysis");
@@ -358,7 +375,7 @@ impl IrGenerator {
                 );
 
                 // Try constant folding first
-                if let (Some(folded_value), Some(folded_type)) = self.try_constant_fold(&op, &promoted_lhs, &promoted_rhs, &result_type) {
+                if let (Some(folded_value), Some(folded_type)) = self.try_constant_fold(&format!("{:?}", op).to_lowercase(), &promoted_lhs, &promoted_rhs, &result_type) {
                     return (folded_value, folded_type);
                 }
 
@@ -366,7 +383,7 @@ impl IrGenerator {
                 self.next_reg += 1;
                 
                 // Generate the appropriate instruction based on result type
-                let inst = match (&result_type, op.as_str()) {
+                let inst = match (&result_type, format!("{:?}", op).to_lowercase().as_str()) {
                     (Ty::Int, "+") => Inst::Add(result_reg.clone(), promoted_lhs, promoted_rhs),
                     (Ty::Float, "+") => Inst::FAdd(result_reg.clone(), promoted_lhs, promoted_rhs),
                     (Ty::Int, "-") => Inst::Sub(result_reg.clone(), promoted_lhs, promoted_rhs),
@@ -475,7 +492,7 @@ impl IrGenerator {
             self.generate_statement_ir(stmt, current_function);
         }
         if let Some(expr) = then_block.expression {
-            let _ = self.generate_expression_ir(expr, current_function);
+            self.generate_expression_ir(expr, current_function);
         }
         current_function.body.push(Inst::Jump(end_label.clone()));
         
@@ -517,7 +534,7 @@ impl IrGenerator {
             self.generate_statement_ir(stmt, current_function);
         }
         if let Some(expr) = body.expression {
-            let _ = self.generate_expression_ir(expr, current_function);
+            self.generate_expression_ir(expr, current_function);
         }
         current_function.body.push(Inst::Jump(loop_start));
         
@@ -572,7 +589,7 @@ impl IrGenerator {
             self.generate_statement_ir(stmt, current_function);
         }
         if let Some(expr) = body.expression {
-            let _ = self.generate_expression_ir(expr, current_function);
+            self.generate_expression_ir(expr, current_function);
         }
         
         // Increment loop variable
@@ -603,7 +620,7 @@ impl IrGenerator {
             self.generate_statement_ir(stmt, current_function);
         }
         if let Some(expr) = body.expression {
-            let _ = self.generate_expression_ir(expr, current_function);
+            self.generate_expression_ir(expr, current_function);
         }
         
         // Jump back to start (infinite loop)
@@ -791,7 +808,7 @@ impl IrGenerator {
                     operand: operand_val,
                 }, Ty::Bool)
             },
-            crate::ast::UnaryOp::Minus => {
+            crate::ast::UnaryOp::Negate => {
                 (Inst::Neg {
                     result: result_reg.clone(),
                     operand: operand_val,
@@ -968,7 +985,7 @@ impl IrGenerator {
                     operand: operand_val,
                 }, Ty::Bool)
             },
-            crate::ast::UnaryOp::Minus => {
+            crate::ast::UnaryOp::Negate => {
                 (Inst::Neg {
                     result: result_reg.clone(),
                     operand: operand_val,
@@ -1099,7 +1116,7 @@ mod tests {
         // Create a println expression: println!("Value: {}", 42)
         let println_expr = Expression::Println {
             format_string: "Value: {}".to_string(),
-            arguments: vec![Expression::Number(42)],
+            arguments: vec![Expression::IntegerLiteral(42)],
         };
         
         let mut function = Function {
@@ -1136,7 +1153,7 @@ mod tests {
         let comparison_expr = Expression::Comparison {
             op: crate::ast::ComparisonOp::Equal,
             left: Box::new(Expression::Identifier("x".to_string())),
-            right: Box::new(Expression::Number(5)),
+            right: Box::new(Expression::IntegerLiteral(5)),
         };
         
         // Set up symbol table for the identifier
@@ -1187,7 +1204,7 @@ mod tests {
         let comparison_expr = Expression::Comparison {
             op: crate::ast::ComparisonOp::GreaterThan,
             left: Box::new(Expression::Identifier("x".to_string())),
-            right: Box::new(Expression::Float(3.14)),
+            right: Box::new(Expression::FloatLiteral(3.14)),
         };
         
         // Set up symbol table for the identifier (float type)
@@ -1229,7 +1246,7 @@ mod tests {
         let comparison_expr = Expression::Comparison {
             op: crate::ast::ComparisonOp::LessThan,
             left: Box::new(Expression::Identifier("int_var".to_string())),
-            right: Box::new(Expression::Float(3.5)),
+            right: Box::new(Expression::FloatLiteral(3.5)),
         };
         
         // Set up symbol table for the identifier (int type)
@@ -1401,7 +1418,7 @@ mod tests {
         
         // Create a unary minus expression: -x
         let unary_expr = Expression::Unary {
-            op: crate::ast::UnaryOp::Minus,
+            op: crate::ast::UnaryOp::Negate,
             operand: Box::new(Expression::Identifier("x".to_string())),
         };
         
@@ -1446,12 +1463,12 @@ mod tests {
                 left: Box::new(Expression::Comparison {
                     op: crate::ast::ComparisonOp::GreaterThan,
                     left: Box::new(Expression::Identifier("x".to_string())),
-                    right: Box::new(Expression::Number(5)),
+                    right: Box::new(Expression::IntegerLiteral(5)),
                 }),
                 right: Box::new(Expression::Comparison {
                     op: crate::ast::ComparisonOp::LessThan,
                     left: Box::new(Expression::Identifier("y".to_string())),
-                    right: Box::new(Expression::Number(10)),
+                    right: Box::new(Expression::IntegerLiteral(10)),
                 }),
             }),
         };
@@ -1541,8 +1558,8 @@ mod tests {
         let func_call = Expression::FunctionCall {
             name: "add".to_string(),
             arguments: vec![
-                Expression::Number(5),
-                Expression::Number(3),
+                Expression::IntegerLiteral(5),
+                Expression::IntegerLiteral(3),
             ],
         };
         
@@ -1582,7 +1599,7 @@ mod tests {
         // Create a function: fn get_value() -> i32 { 42 }
         let body = Block {
             statements: vec![],
-            expression: Some(Expression::Number(42)),
+            expression: Some(Expression::IntegerLiteral(42)),
         };
         
         let func_stmt = Statement::Function {
@@ -1624,7 +1641,7 @@ mod tests {
                 Statement::Return(Expression::Binary {
                     op: "*".to_string(),
                     lhs: Box::new(Expression::Identifier("x".to_string())),
-                    rhs: Box::new(Expression::Number(2)),
+                    rhs: Box::new(Expression::IntegerLiteral(2)),
                     ty: Some(Ty::Int),
                 }),
             ],
@@ -1666,8 +1683,8 @@ mod tests {
         let inner_call = Expression::FunctionCall {
             name: "multiply".to_string(),
             arguments: vec![
-                Expression::Number(2),
-                Expression::Number(3),
+                Expression::IntegerLiteral(2),
+                Expression::IntegerLiteral(3),
             ],
         };
         
@@ -1675,7 +1692,7 @@ mod tests {
             name: "add".to_string(),
             arguments: vec![
                 inner_call,
-                Expression::Number(4),
+                Expression::IntegerLiteral(4),
             ],
         };
         
@@ -1741,7 +1758,7 @@ mod tests {
                     value: Expression::Binary {
                         op: "+".to_string(),
                         lhs: Box::new(Expression::Identifier("x".to_string())),
-                        rhs: Box::new(Expression::Number(1)),
+                        rhs: Box::new(Expression::IntegerLiteral(1)),
                         ty: Some(Ty::Int),
                     },
                 },
@@ -1749,7 +1766,7 @@ mod tests {
             expression: Some(Expression::Binary {
                 op: "*".to_string(),
                 lhs: Box::new(Expression::Identifier("temp".to_string())),
-                rhs: Box::new(Expression::Number(2)),
+                rhs: Box::new(Expression::IntegerLiteral(2)),
                 ty: Some(Ty::Int),
             }),
         };
@@ -1826,13 +1843,13 @@ mod tests {
         // Create an if statement: let x = 7; if x > 5 { let y = 10; }
         let x_decl = Statement::Let {
             name: "x".to_string(),
-            value: Expression::Number(7),
+            value: Expression::IntegerLiteral(7),
         };
         
         let condition = Expression::Binary {
             op: ">".to_string(),
             lhs: Box::new(Expression::Identifier("x".to_string())),
-            rhs: Box::new(Expression::Number(5)),
+            rhs: Box::new(Expression::IntegerLiteral(5)),
             ty: Some(Ty::Bool),
         };
         
@@ -1840,7 +1857,7 @@ mod tests {
             statements: vec![
                 Statement::Let {
                     name: "y".to_string(),
-                    value: Expression::Number(10),
+                    value: Expression::IntegerLiteral(10),
                 },
             ],
             expression: None,
@@ -1874,13 +1891,13 @@ mod tests {
         // Create an if-else statement: let x = 7; if x > 5 { let y = 10; } else { let z = 20; }
         let x_decl = Statement::Let {
             name: "x".to_string(),
-            value: Expression::Number(7),
+            value: Expression::IntegerLiteral(7),
         };
         
         let condition = Expression::Binary {
             op: ">".to_string(),
             lhs: Box::new(Expression::Identifier("x".to_string())),
-            rhs: Box::new(Expression::Number(5)),
+            rhs: Box::new(Expression::IntegerLiteral(5)),
             ty: Some(Ty::Bool),
         };
         
@@ -1888,7 +1905,7 @@ mod tests {
             statements: vec![
                 Statement::Let {
                     name: "y".to_string(),
-                    value: Expression::Number(10),
+                    value: Expression::IntegerLiteral(10),
                 },
             ],
             expression: None,
@@ -1896,7 +1913,7 @@ mod tests {
         
         let else_block = Some(Box::new(Statement::Let {
             name: "z".to_string(),
-            value: Expression::Number(20),
+            value: Expression::IntegerLiteral(20),
         }));
         
         let if_stmt = Statement::If {
@@ -1927,13 +1944,13 @@ mod tests {
         // Create a while loop: let i = 0; while i < 10 { i = i + 1; }
         let i_decl = Statement::Let {
             name: "i".to_string(),
-            value: Expression::Number(0),
+            value: Expression::IntegerLiteral(0),
         };
         
         let condition = Expression::Binary {
             op: "<".to_string(),
             lhs: Box::new(Expression::Identifier("i".to_string())),
-            rhs: Box::new(Expression::Number(10)),
+            rhs: Box::new(Expression::IntegerLiteral(10)),
             ty: Some(Ty::Bool),
         };
         
@@ -1944,7 +1961,7 @@ mod tests {
                     value: Expression::Binary {
                         op: "+".to_string(),
                         lhs: Box::new(Expression::Identifier("i".to_string())),
-                        rhs: Box::new(Expression::Number(1)),
+                        rhs: Box::new(Expression::IntegerLiteral(1)),
                         ty: Some(Ty::Int),
                     },
                 },
@@ -1976,8 +1993,8 @@ mod tests {
         // Create a for loop: for i in 0..5 { println(i); }
         let iterable = Expression::Binary {
             op: "..".to_string(),
-            lhs: Box::new(Expression::Number(0)),
-            rhs: Box::new(Expression::Number(5)),
+            lhs: Box::new(Expression::IntegerLiteral(0)),
+            rhs: Box::new(Expression::IntegerLiteral(5)),
             ty: Some(Ty::Int),
         };
         
@@ -2026,7 +2043,7 @@ mod tests {
                     value: Expression::Binary {
                         op: "+".to_string(),
                         lhs: Box::new(Expression::Identifier("x".to_string())),
-                        rhs: Box::new(Expression::Number(1)),
+                        rhs: Box::new(Expression::IntegerLiteral(1)),
                         ty: Some(Ty::Int),
                     },
                 },
@@ -2111,7 +2128,7 @@ mod tests {
         let while_condition = Expression::Binary {
             op: "<".to_string(),
             lhs: Box::new(Expression::Identifier("y".to_string())),
-            rhs: Box::new(Expression::Number(10)),
+            rhs: Box::new(Expression::IntegerLiteral(10)),
             ty: Some(Ty::Bool),
         };
         
@@ -2122,7 +2139,7 @@ mod tests {
                     value: Expression::Binary {
                         op: "+".to_string(),
                         lhs: Box::new(Expression::Identifier("y".to_string())),
-                        rhs: Box::new(Expression::Number(1)),
+                        rhs: Box::new(Expression::IntegerLiteral(1)),
                         ty: Some(Ty::Int),
                     },
                 },
@@ -2138,7 +2155,7 @@ mod tests {
         let if_condition = Expression::Binary {
             op: ">".to_string(),
             lhs: Box::new(Expression::Identifier("x".to_string())),
-            rhs: Box::new(Expression::Number(0)),
+            rhs: Box::new(Expression::IntegerLiteral(0)),
             ty: Some(Ty::Bool),
         };
         

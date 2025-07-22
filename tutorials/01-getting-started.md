@@ -50,9 +50,9 @@ Let's write a classic "Hello, world!" program.
 
     // The `main` function is the entry point of every Aero executable.
     fn main() {
-        // `io::println` prints a line of text to the console.
-        // It's part of the `io` module in the standard library.
-        io::println("Hello, world!");
+        // `println!` prints a line of text to the console.
+        // It's a built-in macro for formatted output.
+        println!("Hello, world!");
     }
     ```
 
@@ -64,9 +64,9 @@ Let's write a classic "Hello, world!" program.
     *   `main` is the name of the function.
     *   `()` indicates that this function takes no parameters.
     *   `{ ... }` The function body is enclosed in curly braces.
-*   `io::println("Hello, world!");`: This line does the work of printing text to the screen.
-    *   `io::println` calls the `println` function, which is part of the `io` module from Aero's standard library. The `::` syntax is used to access items within a module.
-    *   `"Hello, world!"` is a string literal that we pass as an argument to `println`.
+*   `println!("Hello, world!");`: This line does the work of printing text to the screen.
+    *   `println!` is a built-in macro that prints text followed by a newline. The `!` indicates it's a macro.
+    *   `"Hello, world!"` is a string literal that we pass as an argument to `println!`.
     *   Aero statements are typically terminated with a semicolon `;`.
 
 ## Compiling and Running

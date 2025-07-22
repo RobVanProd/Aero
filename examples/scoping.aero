@@ -1,0 +1,263 @@
+// scoping.aero - Demonstrates variable scoping, shadowing, and mutability
+
+// Global-level function to demonstrate function scope
+fn demonstrate_function_scope() {
+    println!("=== Function Scope Demo ===");
+    
+    let function_var = 100;
+    println!("Variable in function scope: {}", function_var);
+    
+    // Nested block within function
+    {
+        let nested_var = 200;
+        println!("Variable in nested block: {}", nested_var);
+        println!("Can still access function variable: {}", function_var);
+        
+        // Shadow the function variable
+        let function_var = 300;
+        println!("Shadowed function variable: {}", function_var);
+    }
+    
+    // Back to function scope - original variable restored
+    println!("Back to function scope: {}", function_var);
+}
+
+fn demonstrate_parameter_scope(param: i32) {
+    println!("\n=== Parameter Scope Demo ===");
+    println!("Parameter value: {}", param);
+    
+    // Parameters can be shadowed
+    let param = param * 2;
+    println!("Shadowed parameter: {}", param);
+    
+    {
+        let param = param + 10;
+        println!("Parameter shadowed in nested block: {}", param);
+    }
+    
+    println!("Parameter after nested block: {}", param);
+}
+
+fn demonstrate_mutability() {
+    println!("\n=== Mutability Demo ===");
+    
+    // Immutable variable
+    let immutable_var = 42;
+    println!("Immutable variable: {}", immutable_var);
+    
+    // Mutable variable
+    let mut mutable_var = 10;
+    println!("Initial mutable variable: {}", mutable_var);
+    
+    mutable_var = 20;
+    println!("Modified mutable variable: {}", mutable_var);
+    
+    // Demonstrate mutability in nested scopes
+    {
+        let mut nested_mutable = 5;
+        println!("Nested mutable variable: {}", nested_mutable);
+        nested_mutable = nested_mutable * 3;
+        println!("Modified nested mutable: {}", nested_mutable);
+        
+        // Shadow the outer mutable variable
+        let mut mutable_var = 100;
+        println!("Shadowed mutable in nested scope: {}", mutable_var);
+        mutable_var = mutable_var + 50;
+        println!("Modified shadowed variable: {}", mutable_var);
+    }
+    
+    // Original mutable variable unchanged by shadowing
+    println!("Original mutable after nested scope: {}", mutable_var);
+}
+
+fn demonstrate_loop_scoping() {
+    println!("\n=== Loop Scoping Demo ===");
+    
+    let outer_var = 1;
+    println!("Outer variable before loop: {}", outer_var);
+    
+    let mut i = 0;
+    while i < 3 {
+        let loop_var = i * 10;
+        println!("Loop iteration {}: loop_var = {}", i, loop_var);
+        
+        // Shadow outer variable in loop
+        let outer_var = outer_var + i;
+        println!("  Shadowed outer_var in loop: {}", outer_var);
+        
+        // Nested block within loop
+        {
+            let inner_loop_var = loop_var + 5;
+            println!("  Inner loop variable: {}", inner_loop_var);
+            
+            // Multiple levels of shadowing
+            let outer_var = 999;
+            println!("  Deeply shadowed outer_var: {}", outer_var);
+        }
+        
+        i = i + 1;
+    }
+    
+    println!("Outer variable after loop: {}", outer_var);
+}
+
+fn demonstrate_function_local_variables(input: i32) -> i32 {
+    println!("\n=== Function Local Variables Demo ===");
+    
+    let local_a = input * 2;
+    let local_b = input + 10;
+    
+    println!("Function input: {}", input);
+    println!("Local variable a: {}", local_a);
+    println!("Local variable b: {}", local_b);
+    
+    // Create nested scope with local variables
+    let result = {
+        let temp_calc = local_a + local_b;
+        let final_calc = temp_calc * 2;
+        println!("Temporary calculation: {}", temp_calc);
+        println!("Final calculation: {}", final_calc);
+        final_calc  // Return value from block
+    };
+    
+    println!("Result from nested block: {}", result);
+    return result;
+}
+
+fn demonstrate_variable_shadowing_patterns() {
+    println!("\n=== Variable Shadowing Patterns ===");
+    
+    let x = 1;
+    println!("Original x: {}", x);
+    
+    // Pattern 1: Type change through shadowing
+    let x = "now I'm a string";
+    println!("Shadowed x (different type): {}", x);
+    
+    // Pattern 2: Calculation and reassignment pattern
+    let x = 5;
+    println!("Shadowed x (back to number): {}", x);
+    
+    let x = x * x;  // Common pattern: use old value to compute new
+    println!("Shadowed x (calculated from previous): {}", x);
+    
+    // Pattern 3: Nested shadowing
+    {
+        let x = x + 100;
+        println!("Nested shadow level 1: {}", x);
+        
+        {
+            let x = x / 5;
+            println!("Nested shadow level 2: {}", x);
+            
+            {
+                let x = 0;
+                println!("Nested shadow level 3: {}", x);
+            }
+            
+            println!("Back to level 2: {}", x);
+        }
+        
+        println!("Back to level 1: {}", x);
+    }
+    
+    println!("Back to original scope: {}", x);
+}
+
+fn demonstrate_mutable_references_and_scope() {
+    println!("\n=== Mutable Variables in Different Scopes ===");
+    
+    let mut counter = 0;
+    println!("Initial counter: {}", counter);
+    
+    // Modify in loop
+    let mut i = 0;
+    while i < 3 {
+        counter = counter + 1;
+        println!("Counter in loop iteration {}: {}", i, counter);
+        
+        // Local mutable variable in loop
+        let mut local_counter = counter * 10;
+        local_counter = local_counter + i;
+        println!("  Local counter: {}", local_counter);
+        
+        i = i + 1;
+    }
+    
+    println!("Final counter: {}", counter);
+    
+    // Modify in nested blocks
+    {
+        counter = counter + 10;
+        println!("Counter in nested block: {}", counter);
+        
+        let mut block_var = counter;
+        block_var = block_var * 2;
+        println!("Block variable: {}", block_var);
+    }
+    
+    println!("Counter after nested block: {}", counter);
+}
+
+fn recursive_scope_demo(depth: i32) -> i32 {
+    if depth <= 0 {
+        return 1;
+    }
+    
+    let local_value = depth * 10;
+    println!("Recursive call depth {}: local_value = {}", depth, local_value);
+    
+    let recursive_result = recursive_scope_demo(depth - 1);
+    let combined_result = local_value + recursive_result;
+    
+    println!("Depth {} returning: {}", depth, combined_result);
+    return combined_result;
+}
+
+fn main() {
+    println!("=== VARIABLE SCOPING DEMONSTRATION ===");
+    
+    // Demonstrate different scoping scenarios
+    demonstrate_function_scope();
+    demonstrate_parameter_scope(42);
+    demonstrate_mutability();
+    demonstrate_loop_scoping();
+    
+    let func_result = demonstrate_function_local_variables(5);
+    println!("Function returned: {}", func_result);
+    
+    demonstrate_variable_shadowing_patterns();
+    demonstrate_mutable_references_and_scope();
+    
+    // Recursive function scoping
+    println!("\n=== Recursive Function Scoping ===");
+    let recursive_result = recursive_scope_demo(3);
+    println!("Final recursive result: {}", recursive_result);
+    
+    // Final demonstration of scope isolation
+    println!("\n=== Scope Isolation Demo ===");
+    let main_var = 1000;
+    println!("Main function variable: {}", main_var);
+    
+    {
+        let isolated_var = 2000;
+        println!("Isolated block variable: {}", isolated_var);
+        
+        // This demonstrates that variables from inner scopes
+        // don't leak to outer scopes
+    }
+    
+    // isolated_var is not accessible here
+    println!("Main variable still accessible: {}", main_var);
+    
+    println!("\n=== Scoping Demonstration Complete ===");
+    println!("Key concepts demonstrated:");
+    println!("  ✓ Function-level scoping");
+    println!("  ✓ Block-level scoping");
+    println!("  ✓ Variable shadowing");
+    println!("  ✓ Mutability in different scopes");
+    println!("  ✓ Parameter scoping");
+    println!("  ✓ Loop variable scoping");
+    println!("  ✓ Recursive function scoping");
+    println!("  ✓ Scope isolation");
+}

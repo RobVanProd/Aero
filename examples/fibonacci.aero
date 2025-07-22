@@ -1,0 +1,86 @@
+// fibonacci.aero - Demonstrates functions, recursion, and return values
+
+// Recursive Fibonacci function
+fn fib(n: i32) -> i32 {
+    if n <= 1 {
+        return n;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
+
+// Iterative Fibonacci function for comparison
+fn fib_iterative(n: i32) -> i32 {
+    if n <= 1 {
+        return n;
+    }
+    
+    let mut a = 0;
+    let mut b = 1;
+    let mut i = 2;
+    
+    while i <= n {
+        let temp = a + b;
+        a = b;
+        b = temp;
+        i = i + 1;
+    }
+    
+    return b;
+}
+
+// Helper function to demonstrate function calls within functions
+fn print_fib_sequence(count: i32) {
+    println!("Fibonacci sequence (first {} numbers):", count);
+    let mut i = 0;
+    while i < count {
+        let result = fib(i);
+        print!("{} ", result);
+        i = i + 1;
+    }
+    println!("");
+}
+
+// Function demonstrating parameter passing and local variables
+fn calculate_fib_sum(start: i32, end: i32) -> i32 {
+    let mut sum = 0;
+    let mut current = start;
+    
+    while current <= end {
+        sum = sum + fib(current);
+        current = current + 1;
+    }
+    
+    return sum;
+}
+
+fn main() {
+    println!("=== Fibonacci Examples ===");
+    
+    // Test recursive fibonacci
+    let n = 10;
+    let result_recursive = fib(n);
+    println!("Recursive fib({}) = {}", n, result_recursive);
+    
+    // Test iterative fibonacci
+    let result_iterative = fib_iterative(n);
+    println!("Iterative fib({}) = {}", n, result_iterative);
+    
+    // Verify both methods give same result
+    if result_recursive == result_iterative {
+        println!("✓ Both methods produce the same result!");
+    } else {
+        println!("✗ Methods produce different results!");
+    }
+    
+    // Print sequence using helper function
+    print_fib_sequence(8);
+    
+    // Calculate sum of fibonacci numbers
+    let sum = calculate_fib_sum(1, 5);
+    println!("Sum of fib(1) through fib(5) = {}", sum);
+    
+    // Demonstrate nested function calls
+    let nested_result = fib(fib(4));
+    println!("fib(fib(4)) = fib({}) = {}", fib(4), nested_result);
+}

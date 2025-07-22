@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::ir::{Function, Inst, Value};
-use crate::types::Ty;
+
 
 pub struct CodeGenerator {
     next_reg: u32,
@@ -1402,6 +1402,7 @@ mod tests {
         assert!(llvm_ir.contains("br label %loop_body"));
         assert!(llvm_ir.contains("loop_body:"));
     }
+
 
 
 

@@ -1,370 +1,276 @@
-// Integration test for I/O and enhanced type validation features
-// This file demonstrates the new semantic analysis capabilities implemented in task 6.3
-
-use std::collections::HashMap;
-
-// Mock AST structures for testing
-#[derive(Debug, Clone)]
-pub enum Expression {
-    Number(i64),
-    Float(f64),
-    Identifier(String),
-    Print {
-        format_string: String,
-        arguments: Vec<Expression>,
-    },
-    Println {
-        format_string: String,
-        arguments: Vec<Expression>,
-    },
-    Comparison {
-        op: ComparisonOp,
-        left: Box<Expression>,
-        right: Box<Expression>,
-    },
-    Logical {
-        op: LogicalOp,
-        left: Box<Expression>,
-        right: Box<Expression>,
-    },
-    Unary {
-        op: UnaryOp,
-        operand: Box<Expression>,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub enum ComparisonOp {
-    Equal,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessEqual,
-    GreaterEqual,
-}
-
-#[derive(Debug, Clone)]
-pub enum LogicalOp {
-    And,
-    Or,
-}
-
-#[derive(Debug, Clone)]
-pub enum UnaryOp {
-    Not,
-    Minus,
-}
+// Test I/O validation and format string error reporting
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Ty {
-    Int,
-    Float,
-    Bool,
+pub struct SourceLocation {
+    pub line: usize,
+    pub column: usize,
 }
 
-impl Ty {
-    pub fn to_string(&self) -> String {
+impl SourceLocation {
+    pub fn new(line: usize, column: usize) -> Self {
+        SourceLocation { line, column }
+    }
+}
+
+impl fmt::Display for SourceLocation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
+    }
+}
+
+#[derive(Debug)]
+pub struct ErrorSuggestion {
+    pub message: String,
+    pub replacement: Option<String>,
+}
+
+impl ErrorSuggestion {
+    pub fn new(message: &str) -> Self {
+        ErrorSuggestion {
+            message: message.to_string(),
+            replacement: None,
+        }
+    }
+
+    pub fn with_replacement(message: &str, replacement: &str) -> Self {
+        ErrorSuggestion {
+            message: message.to_string(),
+            replacement: Some(replacement.to_string()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CompilerError {
+    FormatArgumentMismatch { 
+        expected: usize, 
+        actual: usize, 
+        location: SourceLocation 
+    },
+    InvalidFormatString { 
+        format: String, 
+        location: SourceLocation 
+    },
+    InvalidFormatSpecifier { 
+        specifier: String, 
+        location: SourceLocation 
+    },
+}
+
+impl fmt::Display for CompilerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Ty::Int => "int".to_string(),
-            Ty::Float => "float".to_string(),
-            Ty::Bool => "bool".to_string(),
+            CompilerError::FormatArgumentMismatch { expected, actual, location } => {
+                write!(f, "Error at {}: Format string expects {} arguments, got {}", location, expected, actual)
+            }
+            CompilerError::InvalidFormatString { format, location } => {
+                write!(f, "Error at {}: Invalid format string '{}'", location, format)
+            }
+            CompilerError::InvalidFormatSpecifier { specifier, location } => {
+                write!(f, "Error at {}: Invalid format specifier '{}'", location, specifier)
+            }
         }
     }
 }
 
-// Mock semantic analyzer for testing
-pub struct TestSemanticAnalyzer {
-    variables: HashMap<String, Ty>,
+#[derive(Debug)]
+pub struct EnhancedError {
+    pub error: CompilerError,
+    pub suggestions: Vec<ErrorSuggestion>,
 }
 
-impl TestSemanticAnalyzer {
-    pub fn new() -> Self {
-        TestSemanticAnalyzer {
-            variables: HashMap::new(),
+impl EnhancedError {
+    pub fn new(error: CompilerError) -> Self {
+        EnhancedError {
+            error,
+            suggestions: Vec::new(),
         }
     }
 
-    pub fn define_variable(&mut self, name: String, ty: Ty) {
-        self.variables.insert(name, ty);
+    pub fn with_suggestion(mut self, suggestion: ErrorSuggestion) -> Self {
+        self.suggestions.push(suggestion);
+        self
     }
 
-    pub fn validate_format_string_and_args(&self, format_string: &str, arguments: &[Expression]) -> Result<(), String> {
+    /// Create enhanced I/O error with format string suggestions
+    pub fn format_error_with_suggestions(
+        expected: usize,
+        actual: usize,
+        location: SourceLocation,
+        format_string: &str
+    ) -> Self {
+        let error = CompilerError::FormatArgumentMismatch { expected, actual, location };
+        let mut enhanced = EnhancedError::new(error);
+        
+        if actual < expected {
+            enhanced = enhanced.with_suggestion(
+                ErrorSuggestion::new(&format!("Add {} more argument(s) to match the format string", expected - actual))
+            );
+        } else if actual > expected {
+            enhanced = enhanced.with_suggestion(
+                ErrorSuggestion::new(&format!("Remove {} argument(s) or add more placeholders to the format string", actual - expected))
+            );
+        }
+        
+        // Count placeholders in format string
         let placeholder_count = format_string.matches("{}").count();
-        
-        if placeholder_count != arguments.len() {
-            return Err(format!(
-                "Error: Format string has {} placeholders but {} arguments were provided.",
-                placeholder_count,
-                arguments.len()
-            ));
+        if placeholder_count != expected {
+            enhanced = enhanced.with_suggestion(
+                ErrorSuggestion::with_replacement(
+                    &format!("Format string has {} placeholders but expects {}", placeholder_count, expected),
+                    &format!("Check format string: \"{}\"", format_string)
+                )
+            );
         }
+        
+        enhanced
+    }
 
-        for (i, arg) in arguments.iter().enumerate() {
-            let arg_type = self.infer_expression_type(arg)?;
-            if !self.is_printable_type(&arg_type) {
-                return Err(format!(
-                    "Error: Argument {} of type `{}` is not printable.",
-                    i + 1,
-                    arg_type.to_string()
-                ));
+    /// Create enhanced invalid format specifier error
+    pub fn invalid_format_specifier_with_suggestions(
+        specifier: &str,
+        location: SourceLocation
+    ) -> Self {
+        let error = CompilerError::InvalidFormatSpecifier {
+            specifier: specifier.to_string(),
+            location,
+        };
+        let mut enhanced = EnhancedError::new(error);
+        
+        // Suggest common format specifiers
+        match specifier {
+            "{d}" | "{i}" => {
+                enhanced = enhanced.with_suggestion(
+                    ErrorSuggestion::with_replacement("Use '{}' for general formatting", "{}")
+                );
+            }
+            "{s}" => {
+                enhanced = enhanced.with_suggestion(
+                    ErrorSuggestion::with_replacement("Use '{}' for string formatting", "{}")
+                );
+            }
+            "{f}" => {
+                enhanced = enhanced.with_suggestion(
+                    ErrorSuggestion::with_replacement("Use '{}' for float formatting", "{}")
+                );
+            }
+            _ if specifier.starts_with("{") && specifier.ends_with("}") => {
+                enhanced = enhanced.with_suggestion(
+                    ErrorSuggestion::with_replacement("Use simple '{}' placeholder", "{}")
+                );
+            }
+            _ => {
+                enhanced = enhanced.with_suggestion(
+                    ErrorSuggestion::new("Valid format specifiers: '{}' for general formatting")
+                );
             }
         }
+        
+        enhanced
+    }
+}
 
+impl fmt::Display for EnhancedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.error)?;
+        
+        for suggestion in &self.suggestions {
+            write!(f, "\n  help: {}", suggestion.message)?;
+            if let Some(replacement) = &suggestion.replacement {
+                write!(f, " (try: {})", replacement)?;
+            }
+        }
+        
         Ok(())
-    }
-
-    pub fn is_printable_type(&self, ty: &Ty) -> bool {
-        matches!(ty, Ty::Int | Ty::Float | Ty::Bool)
-    }
-
-    pub fn validate_comparison_operands(&self, op: &ComparisonOp, left_type: &Ty, right_type: &Ty) -> Result<(), String> {
-        match (left_type, right_type) {
-            (Ty::Int, Ty::Int) | (Ty::Float, Ty::Float) => Ok(()),
-            (Ty::Int, Ty::Float) | (Ty::Float, Ty::Int) => Ok(()),
-            (Ty::Bool, Ty::Bool) => {
-                match op {
-                    ComparisonOp::Equal | ComparisonOp::NotEqual => Ok(()),
-                    _ => Err(format!(
-                        "Error: Boolean values can only be compared using `==` or `!=`, not `{:?}`.",
-                        op
-                    )),
-                }
-            }
-            (Ty::Bool, _) | (_, Ty::Bool) => {
-                Err(format!(
-                    "Error: Cannot compare `{}` with `{}` using `{:?}`.",
-                    left_type.to_string(),
-                    right_type.to_string(),
-                    op
-                ))
-            }
-        }
-    }
-
-    pub fn validate_logical_operands(&self, op: &LogicalOp, left_type: &Ty, right_type: &Ty) -> Result<(), String> {
-        if *left_type != Ty::Bool {
-            return Err(format!(
-                "Error: Left operand of `{:?}` must be boolean, found `{}`.",
-                op,
-                left_type.to_string()
-            ));
-        }
-        
-        if *right_type != Ty::Bool {
-            return Err(format!(
-                "Error: Right operand of `{:?}` must be boolean, found `{}`.",
-                op,
-                right_type.to_string()
-            ));
-        }
-        
-        Ok(())
-    }
-
-    pub fn validate_unary_operation(&self, op: &UnaryOp, operand_type: &Ty) -> Result<Ty, String> {
-        match op {
-            UnaryOp::Not => {
-                if *operand_type != Ty::Bool {
-                    return Err(format!(
-                        "Error: Logical not `!` requires boolean operand, found `{}`.",
-                        operand_type.to_string()
-                    ));
-                }
-                Ok(Ty::Bool)
-            }
-            UnaryOp::Minus => {
-                match operand_type {
-                    Ty::Int | Ty::Float => Ok(operand_type.clone()),
-                    _ => Err(format!(
-                        "Error: Unary minus `-` requires numeric operand, found `{}`.",
-                        operand_type.to_string()
-                    )),
-                }
-            }
-        }
-    }
-
-    pub fn infer_expression_type(&self, expr: &Expression) -> Result<Ty, String> {
-        match expr {
-            Expression::Number(_) => Ok(Ty::Int),
-            Expression::Float(_) => Ok(Ty::Float),
-            Expression::Identifier(name) => {
-                self.variables.get(name)
-                    .cloned()
-                    .ok_or_else(|| format!("Error: Variable `{}` not found.", name))
-            }
-            Expression::Print { format_string, arguments } => {
-                self.validate_format_string_and_args(format_string, arguments)?;
-                Ok(Ty::Int) // Placeholder for unit type
-            }
-            Expression::Println { format_string, arguments } => {
-                self.validate_format_string_and_args(format_string, arguments)?;
-                Ok(Ty::Int) // Placeholder for unit type
-            }
-            Expression::Comparison { op, left, right } => {
-                let left_type = self.infer_expression_type(left)?;
-                let right_type = self.infer_expression_type(right)?;
-                self.validate_comparison_operands(op, &left_type, &right_type)?;
-                Ok(Ty::Bool)
-            }
-            Expression::Logical { op, left, right } => {
-                let left_type = self.infer_expression_type(left)?;
-                let right_type = self.infer_expression_type(right)?;
-                self.validate_logical_operands(op, &left_type, &right_type)?;
-                Ok(Ty::Bool)
-            }
-            Expression::Unary { op, operand } => {
-                let operand_type = self.infer_expression_type(operand)?;
-                self.validate_unary_operation(op, &operand_type)
-            }
-        }
     }
 }
 
 fn main() {
-    println!("Testing I/O and Enhanced Type Validation Features");
-    println!("=================================================");
-
-    let mut analyzer = TestSemanticAnalyzer::new();
+    println!("Testing I/O Validation and Format String Error Reporting");
+    println!("========================================================");
     
-    // Define some test variables
-    analyzer.define_variable("x".to_string(), Ty::Int);
-    analyzer.define_variable("y".to_string(), Ty::Float);
-    analyzer.define_variable("flag".to_string(), Ty::Bool);
+    test_format_argument_mismatch();
+    test_invalid_format_specifier();
+    test_format_string_validation();
+    
+    println!("\n✅ All I/O validation tests passed!");
+}
 
-    // Test 1: Valid print statement
-    println!("\n1. Testing valid print statement:");
-    let print_expr = Expression::Print {
-        format_string: "Value: {}, Pi: {}".to_string(),
-        arguments: vec![
-            Expression::Identifier("x".to_string()),
-            Expression::Identifier("y".to_string()),
-        ],
+fn test_format_argument_mismatch() {
+    println!("\n🧪 Testing format argument mismatch errors...");
+    
+    let location = SourceLocation::new(10, 15);
+    
+    // Test too few arguments
+    let enhanced = EnhancedError::format_error_with_suggestions(
+        3, 1, location.clone(), "Hello {} {} {}"
+    );
+    let error_msg = format!("{}", enhanced);
+    assert!(error_msg.contains("Format string expects 3 arguments, got 1"));
+    assert!(error_msg.contains("Add 2 more argument(s)"));
+    
+    // Test too many arguments
+    let enhanced = EnhancedError::format_error_with_suggestions(
+        1, 3, location, "Hello {}"
+    );
+    let error_msg = format!("{}", enhanced);
+    assert!(error_msg.contains("Format string expects 1 arguments, got 3"));
+    assert!(error_msg.contains("Remove 2 argument(s)"));
+    
+    println!("✅ Format argument mismatch errors work");
+}
+
+fn test_invalid_format_specifier() {
+    println!("\n🧪 Testing invalid format specifier errors...");
+    
+    let location = SourceLocation::new(5, 20);
+    
+    // Test {d} specifier
+    let enhanced = EnhancedError::invalid_format_specifier_with_suggestions(
+        "{d}", location.clone()
+    );
+    let error_msg = format!("{}", enhanced);
+    assert!(error_msg.contains("Invalid format specifier '{d}'"));
+    assert!(error_msg.contains("Use '{}' for general formatting"));
+    
+    // Test {s} specifier
+    let enhanced = EnhancedError::invalid_format_specifier_with_suggestions(
+        "{s}", location.clone()
+    );
+    let error_msg = format!("{}", enhanced);
+    assert!(error_msg.contains("Use '{}' for string formatting"));
+    
+    // Test unknown specifier
+    let enhanced = EnhancedError::invalid_format_specifier_with_suggestions(
+        "{xyz}", location
+    );
+    let error_msg = format!("{}", enhanced);
+    assert!(error_msg.contains("Use simple '{}' placeholder"));
+    
+    println!("✅ Invalid format specifier errors work");
+}
+
+fn test_format_string_validation() {
+    println!("\n🧪 Testing format string validation...");
+    
+    let location = SourceLocation::new(8, 12);
+    let error = CompilerError::InvalidFormatString {
+        format: "Hello {unclosed".to_string(),
+        location,
     };
     
-    match analyzer.infer_expression_type(&print_expr) {
-        Ok(_) => println!("✓ Valid print statement accepted"),
-        Err(e) => println!("✗ Error: {}", e),
-    }
-
-    // Test 2: Invalid print statement (argument count mismatch)
-    println!("\n2. Testing invalid print statement (too many arguments):");
-    let invalid_print = Expression::Print {
-        format_string: "Value: {}".to_string(),
-        arguments: vec![
-            Expression::Identifier("x".to_string()),
-            Expression::Identifier("y".to_string()),
-        ],
-    };
+    let enhanced = EnhancedError::new(error)
+        .with_suggestion(ErrorSuggestion::new("Format string has unclosed placeholder"))
+        .with_suggestion(ErrorSuggestion::with_replacement(
+            "Close the placeholder", 
+            "Hello {}"
+        ));
     
-    match analyzer.infer_expression_type(&invalid_print) {
-        Ok(_) => println!("✗ Invalid print statement incorrectly accepted"),
-        Err(e) => println!("✓ Correctly rejected: {}", e),
-    }
-
-    // Test 3: Valid comparison
-    println!("\n3. Testing valid comparison:");
-    let comparison = Expression::Comparison {
-        op: ComparisonOp::LessThan,
-        left: Box::new(Expression::Identifier("x".to_string())),
-        right: Box::new(Expression::Identifier("y".to_string())),
-    };
+    let error_msg = format!("{}", enhanced);
+    assert!(error_msg.contains("Invalid format string 'Hello {unclosed'"));
+    assert!(error_msg.contains("Format string has unclosed placeholder"));
+    assert!(error_msg.contains("try: Hello {}"));
     
-    match analyzer.infer_expression_type(&comparison) {
-        Ok(ty) => println!("✓ Valid comparison, result type: {}", ty.to_string()),
-        Err(e) => println!("✗ Error: {}", e),
-    }
-
-    // Test 4: Invalid comparison (bool with ordering operator)
-    println!("\n4. Testing invalid comparison (bool with ordering operator):");
-    let invalid_comparison = Expression::Comparison {
-        op: ComparisonOp::LessThan,
-        left: Box::new(Expression::Identifier("flag".to_string())),
-        right: Box::new(Expression::Identifier("flag".to_string())),
-    };
-    
-    match analyzer.infer_expression_type(&invalid_comparison) {
-        Ok(_) => println!("✗ Invalid comparison incorrectly accepted"),
-        Err(e) => println!("✓ Correctly rejected: {}", e),
-    }
-
-    // Test 5: Valid logical operation
-    println!("\n5. Testing valid logical operation:");
-    let logical_expr = Expression::Logical {
-        op: LogicalOp::And,
-        left: Box::new(Expression::Identifier("flag".to_string())),
-        right: Box::new(Expression::Comparison {
-            op: ComparisonOp::GreaterThan,
-            left: Box::new(Expression::Identifier("x".to_string())),
-            right: Box::new(Expression::Number(0)),
-        }),
-    };
-    
-    match analyzer.infer_expression_type(&logical_expr) {
-        Ok(ty) => println!("✓ Valid logical operation, result type: {}", ty.to_string()),
-        Err(e) => println!("✗ Error: {}", e),
-    }
-
-    // Test 6: Invalid logical operation (non-bool operand)
-    println!("\n6. Testing invalid logical operation (non-bool operand):");
-    let invalid_logical = Expression::Logical {
-        op: LogicalOp::Or,
-        left: Box::new(Expression::Identifier("x".to_string())),
-        right: Box::new(Expression::Identifier("flag".to_string())),
-    };
-    
-    match analyzer.infer_expression_type(&invalid_logical) {
-        Ok(_) => println!("✗ Invalid logical operation incorrectly accepted"),
-        Err(e) => println!("✓ Correctly rejected: {}", e),
-    }
-
-    // Test 7: Valid unary operations
-    println!("\n7. Testing valid unary operations:");
-    
-    let unary_not = Expression::Unary {
-        op: UnaryOp::Not,
-        operand: Box::new(Expression::Identifier("flag".to_string())),
-    };
-    
-    match analyzer.infer_expression_type(&unary_not) {
-        Ok(ty) => println!("✓ Valid logical not, result type: {}", ty.to_string()),
-        Err(e) => println!("✗ Error: {}", e),
-    }
-    
-    let unary_minus = Expression::Unary {
-        op: UnaryOp::Minus,
-        operand: Box::new(Expression::Identifier("x".to_string())),
-    };
-    
-    match analyzer.infer_expression_type(&unary_minus) {
-        Ok(ty) => println!("✓ Valid unary minus, result type: {}", ty.to_string()),
-        Err(e) => println!("✗ Error: {}", e),
-    }
-
-    // Test 8: Invalid unary operations
-    println!("\n8. Testing invalid unary operations:");
-    
-    let invalid_not = Expression::Unary {
-        op: UnaryOp::Not,
-        operand: Box::new(Expression::Identifier("x".to_string())),
-    };
-    
-    match analyzer.infer_expression_type(&invalid_not) {
-        Ok(_) => println!("✗ Invalid logical not incorrectly accepted"),
-        Err(e) => println!("✓ Correctly rejected: {}", e),
-    }
-    
-    let invalid_minus = Expression::Unary {
-        op: UnaryOp::Minus,
-        operand: Box::new(Expression::Identifier("flag".to_string())),
-    };
-    
-    match analyzer.infer_expression_type(&invalid_minus) {
-        Ok(_) => println!("✗ Invalid unary minus incorrectly accepted"),
-        Err(e) => println!("✓ Correctly rejected: {}", e),
-    }
-
-    println!("\n=================================================");
-    println!("I/O and Enhanced Type Validation Test Complete!");
-    println!("All features are working correctly.");
+    println!("✅ Format string validation works");
 }

@@ -1,0 +1,49 @@
+// Function performance test program
+// Tests function call overhead and recursion performance
+
+fn fibonacci(n: i32) -> i32 {
+    if n <= 1 {
+        return n;
+    } else {
+        return fibonacci(n - 1) + fibonacci(n - 2);
+    }
+}
+
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+fn simple_add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+fn nested_calls(x: i32) -> i32 {
+    let step1 = simple_add(x, 1);
+    let step2 = simple_add(step1, 2);
+    let step3 = simple_add(step2, 3);
+    return step3;
+}
+
+fn main() {
+    // Test simple function calls
+    for i in 0..100 {
+        let result = simple_add(i, i + 1);
+    }
+    
+    // Test nested function calls
+    for i in 0..50 {
+        let result = nested_calls(i);
+    }
+    
+    // Test recursive functions
+    for i in 0..20 {
+        let fib = fibonacci(i);
+        let fact = factorial(i);
+    }
+    
+    println!("Function performance test completed");
+}

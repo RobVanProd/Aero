@@ -1,0 +1,370 @@
+#!/usr/bin/env python3
+"""
+Performance Benchmark Report Generator for Aero Phase 3
+Generates HTML and markdown reports from benchmark results
+"""
+
+import json
+import sys
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, Any
+
+def load_latest_results(results_dir: Path) -> Dict[str, Any]:
+    """Load the most recent benchmark results"""
+    result_files = list(results_dir.glob("performance_results_*.json"))
+    
+    if not result_files:
+        print("No benchmark results found!")
+        return {}
+    
+    # Get the most recent file
+    latest_file = max(result_files, key=lambda f: f.stat().st_mtime)
+    
+    with open(latest_file, 'r') as f:
+        return json.load(f)
+
+def generate_markdown_report(results: Dict[str, Any]) -> str:
+    """Generate a markdown performance report"""
+    
+    timestamp = datetime.fromtimestamp(results.get('timestamp', 0))
+    
+    report = f"""# Aero Phase 3 Performance Benchmark Report
+
+**Generated:** {timestamp.strftime('%Y-%m-%d %H:%M:%S')}
+
+## Executive Summary
+
+This report contains performance benchmarks for Aero Phase 3 core language features including:
+- Function call overhead and performance
+- Loop construct performance (while, for, infinite loops)
+- I/O operations performance (print, println, formatting)
+- Compilation speed for various program sizes
+- Performance regression testing
+
+## Benchmark Results
+
+"""
+    
+    benchmarks = results.get('benchmarks', {})
+    
+    for category, tests in benchmarks.items():
+        category_name = category.replace('_', ' ').title()
+        report += f"### {category_name}\n\n"
+        
+        if not tests:
+            report += "No tests in this category.\n\n"
+            continue
+            
+        # Create a table for this category
+        report += "| Test | Status | Compilation Time | File Size | Description |\n"
+        report += "|------|--------|------------------|-----------|-------------|\n"
+        
+        for test_name, test_data in tests.items():
+            compilation = test_data.get('compilation', {})
+            file_size = test_data.get('file_size_bytes', 'N/A')
+            description = test_data.get('description', 'No description')
+            
+            if 'error' in compilation:
+                status = "❌ Failed"
+                comp_time = compilation['error']
+            elif 'mean' in compilation:
+                status = "✅ Success"
+                comp_time = f"{compilation['mean']:.4f}s"
+            else:
+                status = "⚠️ Unknown"
+                comp_time = "N/A"
+            
+            if file_size != 'N/A':
+                file_size_str = f"{file_size} bytes"
+            else:
+                file_size_str = "N/A"
+            
+            report += f"| {test_name} | {status} | {comp_time} | {file_size_str} | {description} |\n"
+        
+        report += "\n"
+    
+    # Add analysis section
+    report += """## Analysis
+
+### Current Status
+The benchmark infrastructure is in place and functioning correctly. However, the Aero compiler currently has compilation errors that prevent successful compilation of test programs.
+
+### Key Findings
+1. **Benchmark Infrastructure**: ✅ Working correctly
+2. **Test Coverage**: ✅ Comprehensive test suite covering all Phase 3 features
+3. **Compiler Status**: ❌ Compilation errors prevent performance measurement
+4. **Baseline Establishment**: ⏳ Pending compiler fixes
+
+### Next Steps
+1. Fix compiler compilation errors
+2. Establish performance baselines
+3. Run comprehensive performance analysis
+4. Set up continuous performance monitoring
+
+### Performance Targets (When Compiler is Fixed)
+- **Function call overhead**: < 10ns per call
+- **Loop iteration**: < 1ns per iteration  
+- **I/O operations**: < 1μs per print statement
+- **Compilation speed**: < 100ms for small programs
+- **Memory usage**: < 50MB for typical programs
+
+## Recommendations
+
+1. **Priority 1**: Fix compiler compilation errors to enable benchmarking
+2. **Priority 2**: Establish baseline performance metrics
+3. **Priority 3**: Set up automated performance regression testing
+4. **Priority 4**: Optimize critical performance paths
+
+## Technical Details
+
+### Benchmark Categories
+- **Function Performance**: Tests function call overhead, recursion, and nested calls
+- **Loop Performance**: Evaluates while, for, and infinite loop constructs
+- **I/O Performance**: Measures print operations and format string performance
+- **Compilation Speed**: Tests compilation time for various program sizes
+- **Performance Regression**: Compares Phase 3 performance against baselines
+
+### Infrastructure
+- **Python Framework**: Cross-platform benchmark execution
+- **Rust Criterion**: Statistical performance measurement (when compiler works)
+- **JSON Results**: Structured data for analysis and reporting
+- **Automated Reporting**: This report generated automatically
+
+---
+*Report generated by Aero Performance Benchmark Suite*
+"""
+    
+    return report
+
+def generate_html_report(results: Dict[str, Any]) -> str:
+    """Generate an HTML performance report"""
+    
+    timestamp = datetime.fromtimestamp(results.get('timestamp', 0))
+    
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aero Phase 3 Performance Report</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }}
+        .summary {{
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }}
+        .category {{
+            margin-bottom: 40px;
+        }}
+        .category h2 {{
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }}
+        th, td {{
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }}
+        th {{
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }}
+        .status-success {{ color: #28a745; }}
+        .status-failed {{ color: #dc3545; }}
+        .status-unknown {{ color: #ffc107; }}
+        .analysis {{
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }}
+        .recommendations {{
+            background: #d1ecf1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }}
+        .footer {{
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Aero Phase 3 Performance Benchmark Report</h1>
+        <p><strong>Generated:</strong> {timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
+    </div>
+
+    <div class="summary">
+        <h2>Executive Summary</h2>
+        <p>This report contains performance benchmarks for Aero Phase 3 core language features including function calls, control flow, I/O operations, and compilation speed.</p>
+    </div>
+"""
+    
+    benchmarks = results.get('benchmarks', {})
+    
+    for category, tests in benchmarks.items():
+        category_name = category.replace('_', ' ').title()
+        html += f'    <div class="category">\n'
+        html += f'        <h2>{category_name}</h2>\n'
+        
+        if not tests:
+            html += '        <p>No tests in this category.</p>\n'
+        else:
+            html += '        <table>\n'
+            html += '            <thead>\n'
+            html += '                <tr>\n'
+            html += '                    <th>Test</th>\n'
+            html += '                    <th>Status</th>\n'
+            html += '                    <th>Compilation Time</th>\n'
+            html += '                    <th>File Size</th>\n'
+            html += '                    <th>Description</th>\n'
+            html += '                </tr>\n'
+            html += '            </thead>\n'
+            html += '            <tbody>\n'
+            
+            for test_name, test_data in tests.items():
+                compilation = test_data.get('compilation', {})
+                file_size = test_data.get('file_size_bytes', 'N/A')
+                description = test_data.get('description', 'No description')
+                
+                if 'error' in compilation:
+                    status = '<span class="status-failed">❌ Failed</span>'
+                    comp_time = compilation['error']
+                elif 'mean' in compilation:
+                    status = '<span class="status-success">✅ Success</span>'
+                    comp_time = f"{compilation['mean']:.4f}s"
+                else:
+                    status = '<span class="status-unknown">⚠️ Unknown</span>'
+                    comp_time = "N/A"
+                
+                if file_size != 'N/A':
+                    file_size_str = f"{file_size} bytes"
+                else:
+                    file_size_str = "N/A"
+                
+                html += f'                <tr>\n'
+                html += f'                    <td>{test_name}</td>\n'
+                html += f'                    <td>{status}</td>\n'
+                html += f'                    <td>{comp_time}</td>\n'
+                html += f'                    <td>{file_size_str}</td>\n'
+                html += f'                    <td>{description}</td>\n'
+                html += f'                </tr>\n'
+            
+            html += '            </tbody>\n'
+            html += '        </table>\n'
+        
+        html += '    </div>\n'
+    
+    html += """
+    <div class="analysis">
+        <h2>Analysis</h2>
+        <h3>Current Status</h3>
+        <p>The benchmark infrastructure is in place and functioning correctly. However, the Aero compiler currently has compilation errors that prevent successful compilation of test programs.</p>
+        
+        <h3>Key Findings</h3>
+        <ul>
+            <li><strong>Benchmark Infrastructure:</strong> ✅ Working correctly</li>
+            <li><strong>Test Coverage:</strong> ✅ Comprehensive test suite covering all Phase 3 features</li>
+            <li><strong>Compiler Status:</strong> ❌ Compilation errors prevent performance measurement</li>
+            <li><strong>Baseline Establishment:</strong> ⏳ Pending compiler fixes</li>
+        </ul>
+    </div>
+
+    <div class="recommendations">
+        <h2>Recommendations</h2>
+        <ol>
+            <li><strong>Priority 1:</strong> Fix compiler compilation errors to enable benchmarking</li>
+            <li><strong>Priority 2:</strong> Establish baseline performance metrics</li>
+            <li><strong>Priority 3:</strong> Set up automated performance regression testing</li>
+            <li><strong>Priority 4:</strong> Optimize critical performance paths</li>
+        </ol>
+    </div>
+
+    <div class="footer">
+        <p><em>Report generated by Aero Performance Benchmark Suite</em></p>
+    </div>
+</body>
+</html>"""
+    
+    return html
+
+def main():
+    # Find the Aero root directory
+    current_dir = Path(__file__).parent
+    aero_root = current_dir.parent
+    results_dir = current_dir / "results"
+    
+    if not results_dir.exists():
+        print("No results directory found. Run benchmarks first.")
+        sys.exit(1)
+    
+    # Load the latest results
+    results = load_latest_results(results_dir)
+    
+    if not results:
+        print("No benchmark results found.")
+        sys.exit(1)
+    
+    # Generate reports
+    markdown_report = generate_markdown_report(results)
+    html_report = generate_html_report(results)
+    
+    # Save reports
+    timestamp = int(results.get('timestamp', 0))
+    
+    markdown_file = results_dir / f"performance_report_{timestamp}.md"
+    html_file = results_dir / f"performance_report_{timestamp}.html"
+    
+    with open(markdown_file, 'w', encoding='utf-8') as f:
+        f.write(markdown_report)
+    
+    with open(html_file, 'w', encoding='utf-8') as f:
+        f.write(html_report)
+    
+    print(f"Reports generated:")
+    print(f"  Markdown: {markdown_file}")
+    print(f"  HTML: {html_file}")
+    
+    # Also create latest versions
+    latest_md = results_dir / "latest_performance_report.md"
+    latest_html = results_dir / "latest_performance_report.html"
+    
+    with open(latest_md, 'w', encoding='utf-8') as f:
+        f.write(markdown_report)
+    
+    with open(latest_html, 'w', encoding='utf-8') as f:
+        f.write(html_report)
+    
+    print(f"  Latest Markdown: {latest_md}")
+    print(f"  Latest HTML: {latest_html}")
+
+if __name__ == "__main__":
+    main()

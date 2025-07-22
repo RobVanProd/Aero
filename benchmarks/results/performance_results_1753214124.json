@@ -1,0 +1,141 @@
+{
+  "timestamp": 1753213807.4191484,
+  "benchmarks": {
+    "function_performance": {
+      "function_performance.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "description": "Function call overhead and recursion performance"
+      }
+    },
+    "loop_performance": {
+      "loop_performance.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "description": "While, for, and infinite loop performance"
+      }
+    },
+    "io_performance": {
+      "io_performance.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "description": "Print and format string performance"
+      }
+    },
+    "compilation_speed": {
+      "calc.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 287,
+        "description": "Compilation speed for calc.aero"
+      },
+      "calculator.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 6164,
+        "description": "Compilation speed for calculator.aero"
+      },
+      "error_examples.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 9310,
+        "description": "Compilation speed for error_examples.aero"
+      },
+      "fib.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 368,
+        "description": "Compilation speed for fib.aero"
+      },
+      "fibonacci.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 2183,
+        "description": "Compilation speed for fibonacci.aero"
+      },
+      "float_ops.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 216,
+        "description": "Compilation speed for float_ops.aero"
+      },
+      "hello.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 267,
+        "description": "Compilation speed for hello.aero"
+      },
+      "loops.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 4430,
+        "description": "Compilation speed for loops.aero"
+      },
+      "mixed.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 184,
+        "description": "Compilation speed for mixed.aero"
+      },
+      "return15.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 131,
+        "description": "Compilation speed for return15.aero"
+      },
+      "scoping.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 8317,
+        "description": "Compilation speed for scoping.aero"
+      },
+      "variables.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "file_size_bytes": 163,
+        "description": "Compilation speed for variables.aero"
+      }
+    },
+    "performance_regression": {
+      "simple_arithmetic.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "description": "Regression test for simple_arithmetic.aero"
+      },
+      "simple_functions.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "description": "Regression test for simple_functions.aero"
+      },
+      "simple_loops.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "description": "Regression test for simple_loops.aero"
+      },
+      "simple_io.aero": {
+        "compilation": {
+          "error": "No successful compilations"
+        },
+        "description": "Regression test for simple_io.aero"
+      }
+    }
+  }
+}

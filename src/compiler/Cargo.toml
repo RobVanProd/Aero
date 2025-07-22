@@ -1,12 +1,13 @@
 [package]
 name = "compiler"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
+md5 = "0.7"
 thiserror = "1.0"
 miette = { version = "7.0", features = ["fancy"] }
 ariadne = "0.4"
@@ -18,5 +19,34 @@ path = "src/main.rs"
 [dev-dependencies]
 insta = "1.34.0"
 compiler = { path = "." }
+criterion = "0.5"
+
+[[bench]]
+name = "function_call_overhead"
+harness = false
+
+[[bench]]
+name = "loop_performance"
+harness = false
+
+[[bench]]
+name = "io_operations"
+harness = false
+
+[[bench]]
+name = "compilation_speed"
+harness = false
+
+[[bench]]
+name = "performance_regression"
+harness = false
+
+[[bench]]
+name = "simple_benchmarks"
+harness = false
+
+[[bench]]
+name = "lexer_only_benchmarks"
+harness = false
 
 

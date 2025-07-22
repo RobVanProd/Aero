@@ -1,0 +1,231 @@
+// calculator.aero - Interactive calculator with I/O and functions
+
+// Basic arithmetic functions
+fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+fn subtract(a: i32, b: i32) -> i32 {
+    return a - b;
+}
+
+fn multiply(a: i32, b: i32) -> i32 {
+    return a * b;
+}
+
+fn divide(a: i32, b: i32) -> i32 {
+    if b == 0 {
+        println!("Error: Division by zero!");
+        return 0;
+    }
+    return a / b;
+}
+
+fn modulo(a: i32, b: i32) -> i32 {
+    if b == 0 {
+        println!("Error: Modulo by zero!");
+        return 0;
+    }
+    return a % b;
+}
+
+// Advanced mathematical functions
+fn power(base: i32, exponent: i32) -> i32 {
+    if exponent == 0 {
+        return 1;
+    }
+    
+    let mut result = 1;
+    let mut exp = exponent;
+    let mut current_base = base;
+    
+    if exp < 0 {
+        println!("Warning: Negative exponents not supported for integers");
+        return 0;
+    }
+    
+    while exp > 0 {
+        if exp % 2 == 1 {
+            result = result * current_base;
+        }
+        current_base = current_base * current_base;
+        exp = exp / 2;
+    }
+    
+    return result;
+}
+
+fn factorial(n: i32) -> i32 {
+    if n < 0 {
+        println!("Error: Factorial of negative number!");
+        return 0;
+    }
+    if n <= 1 {
+        return 1;
+    }
+    
+    let mut result = 1;
+    let mut i = 2;
+    while i <= n {
+        result = result * i;
+        i = i + 1;
+    }
+    return result;
+}
+
+fn gcd(a: i32, b: i32) -> i32 {
+    let mut x = a;
+    let mut y = b;
+    
+    if x < 0 {
+        x = -x;
+    }
+    if y < 0 {
+        y = -y;
+    }
+    
+    while y != 0 {
+        let temp = y;
+        y = x % y;
+        x = temp;
+    }
+    return x;
+}
+
+// Display functions with formatted output
+fn print_operation_result(op: &str, a: i32, b: i32, result: i32) {
+    println!("{} {} {} = {}", a, op, b, result);
+}
+
+fn print_single_operation_result(op: &str, a: i32, result: i32) {
+    println!("{}({}) = {}", op, a, result);
+}
+
+fn print_calculator_header() {
+    println!("=====================================");
+    println!("    AERO CALCULATOR DEMO");
+    println!("=====================================");
+}
+
+fn print_menu() {
+    println!("\nAvailable operations:");
+    println!("1. Basic arithmetic (+, -, *, /, %)");
+    println!("2. Power calculation");
+    println!("3. Factorial");
+    println!("4. Greatest Common Divisor (GCD)");
+    println!("5. Multiple operations demo");
+}
+
+fn demonstrate_basic_arithmetic() {
+    println!("\n--- Basic Arithmetic Demo ---");
+    let a = 15;
+    let b = 4;
+    
+    println!("Using numbers: a = {}, b = {}", a, b);
+    
+    let sum = add(a, b);
+    print_operation_result("+", a, b, sum);
+    
+    let diff = subtract(a, b);
+    print_operation_result("-", a, b, diff);
+    
+    let product = multiply(a, b);
+    print_operation_result("*", a, b, product);
+    
+    let quotient = divide(a, b);
+    print_operation_result("/", a, b, quotient);
+    
+    let remainder = modulo(a, b);
+    print_operation_result("%", a, b, remainder);
+}
+
+fn demonstrate_advanced_functions() {
+    println!("\n--- Advanced Functions Demo ---");
+    
+    // Power demonstration
+    let base = 2;
+    let exp = 8;
+    let pow_result = power(base, exp);
+    println!("{}^{} = {}", base, exp, pow_result);
+    
+    // Factorial demonstration
+    let fact_num = 6;
+    let fact_result = factorial(fact_num);
+    print_single_operation_result("factorial", fact_num, fact_result);
+    
+    // GCD demonstration
+    let gcd_a = 48;
+    let gcd_b = 18;
+    let gcd_result = gcd(gcd_a, gcd_b);
+    println!("GCD({}, {}) = {}", gcd_a, gcd_b, gcd_result);
+}
+
+fn demonstrate_complex_calculations() {
+    println!("\n--- Complex Calculations Demo ---");
+    
+    // Compound calculation
+    let x = 5;
+    let y = 3;
+    let z = 2;
+    
+    println!("Calculating: ({}^{} + {}!) / {} + {} * {}", x, y, z, y, x, z);
+    
+    let power_result = power(x, y);
+    let factorial_result = factorial(z);
+    let sum_part = add(power_result, factorial_result);
+    let division_part = divide(sum_part, y);
+    let multiplication_part = multiply(x, z);
+    let final_result = add(division_part, multiplication_part);
+    
+    println!("Step by step:");
+    println!("  {}^{} = {}", x, y, power_result);
+    println!("  {}! = {}", z, factorial_result);
+    println!("  {} + {} = {}", power_result, factorial_result, sum_part);
+    println!("  {} / {} = {}", sum_part, y, division_part);
+    println!("  {} * {} = {}", x, z, multiplication_part);
+    println!("  {} + {} = {}", division_part, multiplication_part, final_result);
+    println!("Final result: {}", final_result);
+}
+
+fn demonstrate_error_handling() {
+    println!("\n--- Error Handling Demo ---");
+    
+    // Division by zero
+    println!("Testing division by zero:");
+    let zero_div = divide(10, 0);
+    
+    // Modulo by zero
+    println!("Testing modulo by zero:");
+    let zero_mod = modulo(10, 0);
+    
+    // Negative factorial
+    println!("Testing negative factorial:");
+    let neg_fact = factorial(-5);
+    
+    // Negative power
+    println!("Testing negative exponent:");
+    let neg_pow = power(2, -3);
+}
+
+fn main() {
+    print_calculator_header();
+    print_menu();
+    
+    // Run all demonstrations
+    demonstrate_basic_arithmetic();
+    demonstrate_advanced_functions();
+    demonstrate_complex_calculations();
+    demonstrate_error_handling();
+    
+    // Summary with formatted output
+    println!("\n=====================================");
+    println!("Calculator demonstration complete!");
+    println!("Features demonstrated:");
+    println!("  ✓ Function definitions and calls");
+    println!("  ✓ Parameter passing and return values");
+    println!("  ✓ Formatted output with print!/println!");
+    println!("  ✓ Control flow (if/else, while loops)");
+    println!("  ✓ Error handling and validation");
+    println!("  ✓ Complex mathematical operations");
+    println!("=====================================");
+}

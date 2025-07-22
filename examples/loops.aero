@@ -1,0 +1,188 @@
+// loops.aero - Demonstrates all types of loops and control flow
+
+fn demonstrate_while_loops() {
+    println!("=== While Loop Examples ===");
+    
+    // Basic while loop
+    println!("Counting up:");
+    let mut i = 1;
+    while i <= 5 {
+        print!("{} ", i);
+        i = i + 1;
+    }
+    println!("");
+    
+    // While loop with condition checking
+    println!("Counting down:");
+    let mut countdown = 10;
+    while countdown > 0 {
+        print!("{} ", countdown);
+        countdown = countdown - 1;
+    }
+    println!("Blast off!");
+    
+    // While loop with break
+    println!("While with break:");
+    let mut counter = 0;
+    while true {
+        if counter >= 3 {
+            break;
+        }
+        println!("Counter: {}", counter);
+        counter = counter + 1;
+    }
+}
+
+fn demonstrate_for_loops() {
+    println!("\n=== For Loop Examples ===");
+    
+    // Basic for loop (assuming range syntax)
+    println!("For loop 0 to 4:");
+    for i in 0..5 {
+        print!("{} ", i);
+    }
+    println!("");
+    
+    // For loop with different range
+    println!("For loop 1 to 3:");
+    for j in 1..4 {
+        print!("{} ", j);
+    }
+    println!("");
+}
+
+fn demonstrate_infinite_loops() {
+    println!("\n=== Infinite Loop Examples ===");
+    
+    // Infinite loop with break
+    println!("Infinite loop with break:");
+    let mut value = 0;
+    loop {
+        println!("Value: {}", value);
+        value = value + 1;
+        if value >= 3 {
+            break;
+        }
+    }
+    
+    // Infinite loop with continue
+    println!("Infinite loop with continue:");
+    let mut num = 0;
+    loop {
+        num = num + 1;
+        if num % 2 == 0 {
+            continue;
+        }
+        print!("{} ", num);
+        if num >= 9 {
+            break;
+        }
+    }
+    println!("");
+}
+
+fn demonstrate_nested_loops() {
+    println!("\n=== Nested Loop Examples ===");
+    
+    // Nested while loops
+    println!("Multiplication table (3x3):");
+    let mut row = 1;
+    while row <= 3 {
+        let mut col = 1;
+        while col <= 3 {
+            let product = row * col;
+            print!("{} ", product);
+            col = col + 1;
+        }
+        println!("");
+        row = row + 1;
+    }
+    
+    // Nested loops with break and continue
+    println!("Pattern with breaks and continues:");
+    let mut outer = 0;
+    while outer < 4 {
+        let mut inner = 0;
+        while inner < 4 {
+            if inner == 2 {
+                inner = inner + 1;
+                continue;
+            }
+            if outer == 2 && inner == 1 {
+                break;
+            }
+            print!("({},{}) ", outer, inner);
+            inner = inner + 1;
+        }
+        println!("");
+        outer = outer + 1;
+    }
+}
+
+fn demonstrate_loop_control() {
+    println!("\n=== Loop Control Examples ===");
+    
+    // Break in different contexts
+    println!("Break examples:");
+    let mut i = 0;
+    while i < 10 {
+        if i == 5 {
+            println!("Breaking at i = {}", i);
+            break;
+        }
+        print!("{} ", i);
+        i = i + 1;
+    }
+    println!("");
+    
+    // Continue in different contexts
+    println!("Continue examples (skip even numbers):");
+    let mut j = 0;
+    while j < 10 {
+        j = j + 1;
+        if j % 2 == 0 {
+            continue;
+        }
+        print!("{} ", j);
+    }
+    println!("");
+}
+
+fn factorial_with_loop(n: i32) -> i32 {
+    let mut result = 1;
+    let mut i = 1;
+    while i <= n {
+        result = result * i;
+        i = i + 1;
+    }
+    return result;
+}
+
+fn sum_range_with_for(start: i32, end: i32) -> i32 {
+    let mut sum = 0;
+    for i in start..end {
+        sum = sum + i;
+    }
+    return sum;
+}
+
+fn main() {
+    println!("=== Loop Demonstration Program ===");
+    
+    // Demonstrate different loop types
+    demonstrate_while_loops();
+    demonstrate_for_loops();
+    demonstrate_infinite_loops();
+    demonstrate_nested_loops();
+    demonstrate_loop_control();
+    
+    // Practical examples
+    println!("\n=== Practical Loop Examples ===");
+    let fact_5 = factorial_with_loop(5);
+    println!("5! = {}", fact_5);
+    
+    let sum = sum_range_with_for(1, 6);
+    println!("Sum of 1 to 5 = {}", sum);
+    
+    println!("\nLoop demonstration complete!");
+}

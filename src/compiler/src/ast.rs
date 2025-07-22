@@ -4,13 +4,13 @@ use crate::types::Ty;
 
 #[derive(Debug, Clone)]
 pub enum Expression {
-    Number(i64),
-    Float(f64),
+    IntegerLiteral(i64),
+    FloatLiteral(f64),
     Identifier(String),
     Binary { 
-        op: String, 
-        lhs: Box<Expression>, 
-        rhs: Box<Expression>,
+        op: BinaryOp, 
+        left: Box<Expression>, 
+        right: Box<Expression>,
         ty: Option<Ty>, // Result type of the binary operation
     },
     FunctionCall {
@@ -45,9 +45,13 @@ pub enum Expression {
 pub enum Statement {
     Let { 
         name: String, 
-        value: Expression 
+        mutable: bool,
+        type_annotation: Option<Type>,
+        value: Option<Expression>
     },
-    Return(Expression),
+    Return(Option<Expression>),
+    Expression(Expression),
+    Block(Block),
     Function {
         name: String,
         parameters: Vec<Parameter>,
@@ -94,8 +98,8 @@ pub struct Block {
 }
 
 #[derive(Debug, Clone)]
-pub struct Type {
-    pub name: String,
+pub enum Type {
+    Named(String),
 }
 
 #[derive(Debug, Clone)]
@@ -116,16 +120,45 @@ pub enum LogicalOp {
 
 #[derive(Debug, Clone)]
 pub enum UnaryOp {
-    Not,    // !
-    Minus,  // -
+    Not,     // !
+    Negate,  // - (unary minus)
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum BinaryOp {
+    Add,      // +
+    Subtract, // -
+    Multiply, // *
+    Divide,   // /
+    Modulo,   // %
+}
+
+impl BinaryOp {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BinaryOp::Add => "+",
+            BinaryOp::Subtract => "-",
+            BinaryOp::Multiply => "*",
+            BinaryOp::Divide => "/",
+            BinaryOp::Modulo => "%",
+        }
+    }
+}
+
+impl std::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+
 
 impl Expression {
     /// Get the inferred type of an expression (used for literals)
     pub fn get_literal_type(&self) -> Option<Ty> {
         match self {
-            Expression::Number(_) => Some(Ty::Int),
-            Expression::Float(_) => Some(Ty::Float),
+            Expression::IntegerLiteral(_) => Some(Ty::Int),
+            Expression::FloatLiteral(_) => Some(Ty::Float),
             Expression::Binary { ty, .. } => ty.clone(),
             Expression::Identifier(_) => None, // Type must be looked up in symbol table
             Expression::FunctionCall { .. } => None, // Type must be looked up from function signature
@@ -136,7 +169,7 @@ impl Expression {
             Expression::Unary { op, .. } => {
                 match op {
                     UnaryOp::Not => Some(Ty::Bool), // Logical not returns boolean
-                    UnaryOp::Minus => None, // Unary minus type depends on operand type
+                    UnaryOp::Negate => None, // Unary minus type depends on operand type
                 }
             }
         }
@@ -152,8 +185,8 @@ mod tests {
         let func_call = Expression::FunctionCall {
             name: "add".to_string(),
             arguments: vec![
-                Expression::Number(5),
-                Expression::Number(3),
+                Expression::IntegerLiteral(5),
+                Expression::IntegerLiteral(3),
             ],
         };
 
@@ -161,8 +194,8 @@ mod tests {
             Expression::FunctionCall { name, arguments } => {
                 assert_eq!(name, "add");
                 assert_eq!(arguments.len(), 2);
-                assert!(matches!(arguments[0], Expression::Number(5)));
-                assert!(matches!(arguments[1], Expression::Number(3)));
+                assert!(matches!(arguments[0], Expression::IntegerLiteral(5)));
+                assert!(matches!(arguments[1], Expression::IntegerLiteral(3)));
             }
             _ => panic!("Expected FunctionCall expression"),
         }
@@ -206,9 +239,9 @@ mod tests {
                 assert_eq!(name, "add");
                 assert_eq!(parameters.len(), 2);
                 assert_eq!(parameters[0].name, "a");
-                assert_eq!(parameters[0].param_type.name, "i32");
+                assert_eq!(parameters[0].param_type, "i32");
                 assert_eq!(parameters[1].name, "b");
-                assert_eq!(parameters[1].param_type.name, "i32");
+                assert_eq!(parameters[1].param_type, "i32");
                 assert!(return_type.is_some());
                 assert_eq!(return_type.unwrap().name, "i32");
                 assert_eq!(body.statements.len(), 1);
@@ -226,7 +259,7 @@ mod tests {
         };
 
         assert_eq!(param.name, "x");
-        assert_eq!(param.param_type.name, "f64");
+        assert_eq!(param.param_type, "f64");
     }
 
     #[test]
@@ -235,7 +268,7 @@ mod tests {
             statements: vec![
                 Statement::Let {
                     name: "x".to_string(),
-                    value: Expression::Number(42),
+                    value: Expression::IntegerLiteral(42),
                 },
                 Statement::Return(Expression::Identifier("x".to_string())),
             ],
@@ -293,15 +326,15 @@ mod tests {
         let inner_call = Expression::FunctionCall {
             name: "multiply".to_string(),
             arguments: vec![
-                Expression::Number(2),
-                Expression::Number(3),
+                Expression::IntegerLiteral(2),
+                Expression::IntegerLiteral(3),
             ],
         };
 
         let outer_call = Expression::FunctionCall {
             name: "add".to_string(),
             arguments: vec![
-                Expression::Number(1),
+                Expression::IntegerLiteral(1),
                 inner_call,
             ],
         };
@@ -310,7 +343,7 @@ mod tests {
             Expression::FunctionCall { name, arguments } => {
                 assert_eq!(name, "add");
                 assert_eq!(arguments.len(), 2);
-                assert!(matches!(arguments[0], Expression::Number(1)));
+                assert!(matches!(arguments[0], Expression::IntegerLiteral(1)));
                 assert!(matches!(arguments[1], Expression::FunctionCall { .. }));
             }
             _ => panic!("Expected FunctionCall expression"),
@@ -334,14 +367,14 @@ mod tests {
             condition: Expression::Binary {
                 op: ">".to_string(),
                 lhs: Box::new(Expression::Identifier("x".to_string())),
-                rhs: Box::new(Expression::Number(5)),
+                rhs: Box::new(Expression::IntegerLiteral(5)),
                 ty: None,
             },
             then_block: Block {
                 statements: vec![
                     Statement::Let {
                         name: "result".to_string(),
-                        value: Expression::Number(1),
+                        value: Expression::IntegerLiteral(1),
                     },
                 ],
                 expression: None,
@@ -388,7 +421,7 @@ mod tests {
             condition: Expression::Binary {
                 op: "<".to_string(),
                 lhs: Box::new(Expression::Identifier("i".to_string())),
-                rhs: Box::new(Expression::Number(10)),
+                rhs: Box::new(Expression::IntegerLiteral(10)),
                 ty: None,
             },
             body: Block {
@@ -398,7 +431,7 @@ mod tests {
                         value: Expression::Binary {
                             op: "+".to_string(),
                             lhs: Box::new(Expression::Identifier("i".to_string())),
-                            rhs: Box::new(Expression::Number(1)),
+                            rhs: Box::new(Expression::IntegerLiteral(1)),
                             ty: None,
                         },
                     },
@@ -423,8 +456,8 @@ mod tests {
             variable: "i".to_string(),
             iterable: Expression::Binary {
                 op: "..".to_string(),
-                lhs: Box::new(Expression::Number(0)),
-                rhs: Box::new(Expression::Number(10)),
+                lhs: Box::new(Expression::IntegerLiteral(0)),
+                rhs: Box::new(Expression::IntegerLiteral(10)),
                 ty: None,
             },
             body: Block {
@@ -501,8 +534,8 @@ mod tests {
                         variable: "j".to_string(),
                         iterable: Expression::Binary {
                             op: "..".to_string(),
-                            lhs: Box::new(Expression::Number(0)),
-                            rhs: Box::new(Expression::Number(5)),
+                            lhs: Box::new(Expression::IntegerLiteral(0)),
+                            rhs: Box::new(Expression::IntegerLiteral(5)),
                             ty: None,
                         },
                         body: Block {
@@ -511,7 +544,7 @@ mod tests {
                                     condition: Expression::Binary {
                                         op: "==".to_string(),
                                         lhs: Box::new(Expression::Identifier("j".to_string())),
-                                        rhs: Box::new(Expression::Number(3)),
+                                        rhs: Box::new(Expression::IntegerLiteral(3)),
                                         ty: None,
                                     },
                                     then_block: Block {
@@ -547,13 +580,13 @@ mod tests {
                 lhs: Box::new(Expression::Binary {
                     op: ">".to_string(),
                     lhs: Box::new(Expression::Identifier("x".to_string())),
-                    rhs: Box::new(Expression::Number(0)),
+                    rhs: Box::new(Expression::IntegerLiteral(0)),
                     ty: None,
                 }),
                 rhs: Box::new(Expression::Binary {
                     op: "<".to_string(),
                     lhs: Box::new(Expression::Identifier("x".to_string())),
-                    rhs: Box::new(Expression::Number(100)),
+                    rhs: Box::new(Expression::IntegerLiteral(100)),
                     ty: None,
                 }),
                 ty: None,
@@ -601,8 +634,8 @@ mod tests {
             arguments: vec![
                 Expression::Binary {
                     op: "+".to_string(),
-                    lhs: Box::new(Expression::Number(5)),
-                    rhs: Box::new(Expression::Number(3)),
+                    lhs: Box::new(Expression::IntegerLiteral(5)),
+                    rhs: Box::new(Expression::IntegerLiteral(3)),
                     ty: None,
                 },
             ],
@@ -623,26 +656,26 @@ mod tests {
         let equal_expr = Expression::Comparison {
             op: ComparisonOp::Equal,
             left: Box::new(Expression::Identifier("x".to_string())),
-            right: Box::new(Expression::Number(5)),
+            right: Box::new(Expression::IntegerLiteral(5)),
         };
 
         let not_equal_expr = Expression::Comparison {
             op: ComparisonOp::NotEqual,
             left: Box::new(Expression::Identifier("y".to_string())),
-            right: Box::new(Expression::Number(10)),
+            right: Box::new(Expression::IntegerLiteral(10)),
         };
 
         let less_than_expr = Expression::Comparison {
             op: ComparisonOp::LessThan,
-            left: Box::new(Expression::Number(3)),
-            right: Box::new(Expression::Number(7)),
+            left: Box::new(Expression::IntegerLiteral(3)),
+            right: Box::new(Expression::IntegerLiteral(7)),
         };
 
         match equal_expr {
             Expression::Comparison { op, left, right } => {
                 assert!(matches!(op, ComparisonOp::Equal));
                 assert!(matches!(*left, Expression::Identifier(_)));
-                assert!(matches!(*right, Expression::Number(5)));
+                assert!(matches!(*right, Expression::IntegerLiteral(5)));
             }
             _ => panic!("Expected Comparison expression"),
         }
@@ -669,12 +702,12 @@ mod tests {
             left: Box::new(Expression::Comparison {
                 op: ComparisonOp::GreaterThan,
                 left: Box::new(Expression::Identifier("x".to_string())),
-                right: Box::new(Expression::Number(0)),
+                right: Box::new(Expression::IntegerLiteral(0)),
             }),
             right: Box::new(Expression::Comparison {
                 op: ComparisonOp::LessThan,
                 left: Box::new(Expression::Identifier("x".to_string())),
-                right: Box::new(Expression::Number(100)),
+                right: Box::new(Expression::IntegerLiteral(100)),
             }),
         };
 
@@ -709,8 +742,8 @@ mod tests {
         };
 
         let minus_expr = Expression::Unary {
-            op: UnaryOp::Minus,
-            operand: Box::new(Expression::Number(42)),
+            op: UnaryOp::Negate,
+            operand: Box::new(Expression::IntegerLiteral(42)),
         };
 
         match not_expr {
@@ -723,8 +756,8 @@ mod tests {
 
         match minus_expr {
             Expression::Unary { op, operand } => {
-                assert!(matches!(op, UnaryOp::Minus));
-                assert!(matches!(*operand, Expression::Number(42)));
+                assert!(matches!(op, UnaryOp::Negate));
+                assert!(matches!(*operand, Expression::IntegerLiteral(42)));
             }
             _ => panic!("Expected Unary expression"),
         }
@@ -740,12 +773,12 @@ mod tests {
                 left: Box::new(Expression::Comparison {
                     op: ComparisonOp::GreaterThan,
                     left: Box::new(Expression::Identifier("x".to_string())),
-                    right: Box::new(Expression::Number(5)),
+                    right: Box::new(Expression::IntegerLiteral(5)),
                 }),
                 right: Box::new(Expression::Comparison {
                     op: ComparisonOp::LessThan,
                     left: Box::new(Expression::Identifier("y".to_string())),
-                    right: Box::new(Expression::Number(10)),
+                    right: Box::new(Expression::IntegerLiteral(10)),
                 }),
             }),
         };
@@ -792,8 +825,8 @@ mod tests {
         // Test that comparison expressions return Bool type
         let comparison = Expression::Comparison {
             op: ComparisonOp::Equal,
-            left: Box::new(Expression::Number(1)),
-            right: Box::new(Expression::Number(2)),
+            left: Box::new(Expression::IntegerLiteral(1)),
+            right: Box::new(Expression::IntegerLiteral(2)),
         };
         assert_eq!(comparison.get_literal_type(), Some(Ty::Bool));
 
@@ -814,8 +847,8 @@ mod tests {
 
         // Test that unary minus returns None (depends on operand)
         let unary_minus = Expression::Unary {
-            op: UnaryOp::Minus,
-            operand: Box::new(Expression::Number(5)),
+            op: UnaryOp::Negate,
+            operand: Box::new(Expression::IntegerLiteral(5)),
         };
         assert_eq!(unary_minus.get_literal_type(), None);
 
@@ -847,8 +880,8 @@ mod tests {
         for op in ops {
             let expr = Expression::Comparison {
                 op: op.clone(),
-                left: Box::new(Expression::Number(1)),
-                right: Box::new(Expression::Number(2)),
+                left: Box::new(Expression::IntegerLiteral(1)),
+                right: Box::new(Expression::IntegerLiteral(2)),
             };
 
             match expr {
@@ -902,8 +935,8 @@ mod tests {
         };
 
         let minus_expr = Expression::Unary {
-            op: UnaryOp::Minus,
-            operand: Box::new(Expression::Number(42)),
+            op: UnaryOp::Negate,
+            operand: Box::new(Expression::IntegerLiteral(42)),
         };
 
         match not_expr {
@@ -912,7 +945,7 @@ mod tests {
         }
 
         match minus_expr {
-            Expression::Unary { op: UnaryOp::Minus, .. } => (),
+            Expression::Unary { op: UnaryOp::Negate, .. } => (),
             _ => panic!("Expected Minus unary expression"),
         }
     }

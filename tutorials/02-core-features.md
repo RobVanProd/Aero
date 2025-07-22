@@ -13,7 +13,7 @@ You can declare variables using the `let` keyword. By default, variables in Aero
 ```aero
 fn main() {
     let message = "Hello from Aero!"; // `message` is immutable
-    io::println(message);
+    println!("{}", message);
 
     // message = "New message"; // This would cause a compile-time error!
 }
@@ -28,10 +28,10 @@ If you need a variable whose value can be changed, you can use the `mut` keyword
 ```aero
 fn main() {
     let mut count = 0; // `count` is mutable
-    io::println(count); // Prints 0
+    println!("{}", count); // Prints 0
 
     count = 1;
-    io::println(count); // Prints 1
+    println!("{}", count); // Prints 1
 }
 ```
 Here, `count` is inferred as an integer type (likely `i64`).
@@ -46,9 +46,9 @@ fn main() {
     let pi: f64 = 3.14159;
     let name: String = String::from("Alice"); // An owned string
 
-    io::println(score);
-    io::println(pi);
-    io::println(name);
+    println!("{}", score);
+    println!("{}", pi);
+    println!("{}", name);
 }
 ```
 
@@ -73,12 +73,12 @@ Aero comes with several built-in data types for common kinds of data.
         ```aero
         let mut name: String = String::from("Bob");
         name.push_str(" the Builder"); // Modifying the String
-        io::println(name);
+        println!("{}", name);
         ```
     *   `&str` (string slice or string literal): An immutable reference to a sequence of characters. String literals (like `"Hello"`) are `&str`.
         ```aero
         let greeting: &str = "Hello, Aero learner!";
-        io::println(greeting);
+        println!("{}", greeting);
         ```
 
 ## Operators
@@ -98,15 +98,15 @@ fn main() {
     let a = 10;
     let b = 3;
 
-    io::println(a + b); // 13
-    io::println(a - b); // 7
-    io::println(a * b); // 30
-    io::println(a / b); // 3 (integer division truncates)
-    io::println(a % b); // 1
+    println!("{}", a + b); // 13
+    println!("{}", a - b); // 7
+    println!("{}", a * b); // 30
+    println!("{}", a / b); // 3 (integer division truncates)
+    println!("{}", a % b); // 1
 
     let c: f64 = 10.0;
     let d: f64 = 3.0;
-    io::println(c / d); // Approximately 3.333...
+    println!("{}", c / d); // Approximately 3.333...
 }
 ```
 
@@ -126,12 +126,12 @@ fn main() {
     let x = 5;
     let y = 10;
 
-    io::println(x == y); // false
-    io::println(x != y); // true
-    io::println(x < y);  // true
-    io::println(x > y);  // false
-    io::println(x <= 5); // true
-    io::println(y >= 10); // true
+    println!("{}", x == y); // false
+    println!("{}", x != y); // true
+    println!("{}", x < y);  // true
+    println!("{}", x > y);  // false
+    println!("{}", x <= 5); // true
+    println!("{}", y >= 10); // true
 }
 ```
 
@@ -148,9 +148,9 @@ fn main() {
     let is_sunny = true;
     let is_warm = false;
 
-    io::println(is_sunny && is_warm); // false
-    io::println(is_sunny || is_warm); // true
-    io::println(!is_warm);          // true
+    println!("{}", is_sunny && is_warm); // false
+    println!("{}", is_sunny || is_warm); // true
+    println!("{}", !is_warm);          // true
 }
 ```
 
@@ -160,7 +160,7 @@ fn main() {
     ```aero
     let mut value = 10; // Initialization uses let
     value = 20;       // Assignment to a mutable variable
-    io::println(value);
+    println!("{}", value);
     ```
     Aero might also support compound assignment operators like `+=`, `-=`, `*=`, etc. (e.g., `value += 5;` is `value = value + 5;`).
 
@@ -177,11 +177,11 @@ fn main() {
     let number = 7;
 
     if number < 5 {
-        io::println("Condition was true: number is less than 5");
+        println!("Condition was true: number is less than 5");
     } else if number < 10 {
-        io::println("Condition was true: number is less than 10 but not less than 5");
+        println!("Condition was true: number is less than 10 but not less than 5");
     } else {
-        io::println("Condition was false: number is 10 or greater");
+        println!("Condition was false: number is 10 or greater");
     }
 
     // `if` is an expression, so you can use it in `let` statements:
@@ -190,7 +190,7 @@ fn main() {
     } else {
         "odd"
     };
-    io::println(result); // Prints "odd"
+    println!("{}", result); // Prints "odd"
 }
 ```
 Note: All branches of an `if`/`else if`/`else` expression (when used to assign a value) must evaluate to the same type.
@@ -203,10 +203,10 @@ Note: All branches of an `if`/`else if`/`else` expression (when used to assign a
 fn main() {
     let mut count = 0;
     while count < 3 {
-        io::println(count);
+        println!("{}", count);
         count = count + 1; // Or count += 1;
     }
-    io::println("Loop finished!");
+    println!("Loop finished!");
 }
 ```
 Output:
@@ -225,13 +225,13 @@ The `loop` keyword creates an infinite loop. You typically use `break` to exit a
 fn main() {
     let mut counter = 0;
     loop {
-        io::println("Looping...");
+        println!("Looping...");
         counter = counter + 1;
         if counter == 3 {
             break; // Exits the loop
         }
     }
-    io::println("Exited the infinite loop.");
+    println!("Exited the infinite loop.");
 }
 ```
 
@@ -245,14 +245,14 @@ A conceptual example:
 fn main() {
     // Example: Iterating over a range (if supported)
     for i in 0..3 { // Iterate from 0 up to (but not including) 3
-        io::println(i);
+        println!("{}", i);
     }
     // Output: 0, 1, 2
 
     // Example: Iterating over elements of a Vec (once Vec is introduced)
     // let my_vec = vec!["a", "b", "c"];
     // for item in my_vec {
-    //     io::println(item);
+    //     println!("{}", item);
     // }
 }
 */
@@ -270,20 +270,13 @@ You define functions using the `fn` keyword.
 ```aero
 // A simple function
 fn greet() {
-    io::println("Hello from a function!");
+    println!("Hello from a function!");
 }
 
 // Function with parameters
 // Type annotations for parameters are mandatory.
 fn greet_person(name: &str, age: i32) {
-    io::print("Hello, ");
-    io::print(name);
-    io::print("! You are ");
-    io::print(age); // Note: print does not automatically convert numbers to strings for display
-                   // A proper Display trait implementation or string formatting would be needed here.
-                   // For simplicity, we'll assume io::print can handle basic types for now,
-                   // or we'd use string formatting if available.
-    io::println(" years old.");
+    println!("Hello, {}! You are {} years old.", name, age);
 }
 
 // Function with a return value
@@ -300,18 +293,7 @@ fn main() {
     greet_person("Bob", 25);
 
     let sum = add(5, 7);
-    // io::println(sum); // Again, printing numbers might require specific formatting.
-                       // Let's assume a way to print numbers for tutorial purposes:
-    io::println("Sum is some_value"); // Placeholder for actual sum printing
-                                      // A real std lib would have io::println_int(sum) or similar,
-                                      // or string formatting like io::println(format!("Sum is {}", sum))
-                                      // For now, let's imagine a basic print functionality.
-
-    // To print the sum, one might need a to_string method or specific print function:
-    // let sum_str = sum.to_string(); // If available
-    // io::println(sum_str);
-    // Or, if io::println is very flexible (like Rust's println! macro):
-    // io::println("The sum of 5 and 7 is: {}", sum);
+    println!("The sum of 5 and 7 is: {}", sum);
 }
 ```
 **Note on Printing Numbers:** Standard libraries often require explicit conversion of numbers to strings for printing with generic `print` functions, or they provide formatted printing utilities. For this tutorial, assume `io::println` can handle basic types or that appropriate formatting tools exist.
@@ -333,9 +315,9 @@ fn explicit_return_add(a: i32, b: i32) -> i32 {
 
 fn main() {
     let five = get_five();
-    // io::println(five); // Assuming print for i32
+    println!("Five: {}", five);
     let total = explicit_return_add(10, 2);
-    // io::println(total); // Assuming print for i32
+    println!("Total: {}", total);
 }
 ```
 
@@ -345,7 +327,7 @@ If a function doesn't explicitly return a value, it implicitly returns the `unit
 
 ```aero
 fn log_message(message: &str) { // No return type specified, so it returns unit
-    io::println(message);
+    println!("{}", message);
 }
 
 fn main() {
@@ -379,7 +361,7 @@ and is useful for longer explanations.
 */
 fn main() {
     /* You can also use them mid-line, but it's less common: let y = /* ignored */ 5; */
-    io::println("Block comments are useful!");
+    println!("Block comments are useful!");
 }
 ```
 Block comments typically do not nest in Aero (similar to C or Rust).

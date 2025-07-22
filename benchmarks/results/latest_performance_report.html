@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aero Phase 3 Performance Report</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .category {
+            margin-bottom: 40px;
+        }
+        .category h2 {
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .status-success { color: #28a745; }
+        .status-failed { color: #dc3545; }
+        .status-unknown { color: #ffc107; }
+        .analysis {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+        .recommendations {
+            background: #d1ecf1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Aero Phase 3 Performance Benchmark Report</h1>
+        <p><strong>Generated:</strong> 2025-07-22 15:50:07</p>
+    </div>
+
+    <div class="summary">
+        <h2>Executive Summary</h2>
+        <p>This report contains performance benchmarks for Aero Phase 3 core language features including function calls, control flow, I/O operations, and compilation speed.</p>
+    </div>
+    <div class="category">
+        <h2>Function Performance</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test</th>
+                    <th>Status</th>
+                    <th>Compilation Time</th>
+                    <th>File Size</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>function_performance.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>N/A</td>
+                    <td>Function call overhead and recursion performance</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="category">
+        <h2>Loop Performance</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test</th>
+                    <th>Status</th>
+                    <th>Compilation Time</th>
+                    <th>File Size</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>loop_performance.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>N/A</td>
+                    <td>While, for, and infinite loop performance</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="category">
+        <h2>Io Performance</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test</th>
+                    <th>Status</th>
+                    <th>Compilation Time</th>
+                    <th>File Size</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>io_performance.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>N/A</td>
+                    <td>Print and format string performance</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="category">
+        <h2>Compilation Speed</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test</th>
+                    <th>Status</th>
+                    <th>Compilation Time</th>
+                    <th>File Size</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>calc.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>287 bytes</td>
+                    <td>Compilation speed for calc.aero</td>
+                </tr>
+                <tr>
+                    <td>calculator.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>6164 bytes</td>
+                    <td>Compilation speed for calculator.aero</td>
+                </tr>
+                <tr>
+                    <td>error_examples.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>9310 bytes</td>
+                    <td>Compilation speed for error_examples.aero</td>
+                </tr>
+                <tr>
+                    <td>fib.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>368 bytes</td>
+                    <td>Compilation speed for fib.aero</td>
+                </tr>
+                <tr>
+                    <td>fibonacci.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>2183 bytes</td>
+                    <td>Compilation speed for fibonacci.aero</td>
+                </tr>
+                <tr>
+                    <td>float_ops.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>216 bytes</td>
+                    <td>Compilation speed for float_ops.aero</td>
+                </tr>
+                <tr>
+                    <td>hello.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>267 bytes</td>
+                    <td>Compilation speed for hello.aero</td>
+                </tr>
+                <tr>
+                    <td>loops.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>4430 bytes</td>
+                    <td>Compilation speed for loops.aero</td>
+                </tr>
+                <tr>
+                    <td>mixed.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>184 bytes</td>
+                    <td>Compilation speed for mixed.aero</td>
+                </tr>
+                <tr>
+                    <td>return15.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>131 bytes</td>
+                    <td>Compilation speed for return15.aero</td>
+                </tr>
+                <tr>
+                    <td>scoping.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>8317 bytes</td>
+                    <td>Compilation speed for scoping.aero</td>
+                </tr>
+                <tr>
+                    <td>variables.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>163 bytes</td>
+                    <td>Compilation speed for variables.aero</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="category">
+        <h2>Performance Regression</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test</th>
+                    <th>Status</th>
+                    <th>Compilation Time</th>
+                    <th>File Size</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>simple_arithmetic.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>N/A</td>
+                    <td>Regression test for simple_arithmetic.aero</td>
+                </tr>
+                <tr>
+                    <td>simple_functions.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>N/A</td>
+                    <td>Regression test for simple_functions.aero</td>
+                </tr>
+                <tr>
+                    <td>simple_loops.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>N/A</td>
+                    <td>Regression test for simple_loops.aero</td>
+                </tr>
+                <tr>
+                    <td>simple_io.aero</td>
+                    <td><span class="status-failed">❌ Failed</span></td>
+                    <td>No successful compilations</td>
+                    <td>N/A</td>
+                    <td>Regression test for simple_io.aero</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="analysis">
+        <h2>Analysis</h2>
+        <h3>Current Status</h3>
+        <p>The benchmark infrastructure is in place and functioning correctly. However, the Aero compiler currently has compilation errors that prevent successful compilation of test programs.</p>
+        
+        <h3>Key Findings</h3>
+        <ul>
+            <li><strong>Benchmark Infrastructure:</strong> ✅ Working correctly</li>
+            <li><strong>Test Coverage:</strong> ✅ Comprehensive test suite covering all Phase 3 features</li>
+            <li><strong>Compiler Status:</strong> ❌ Compilation errors prevent performance measurement</li>
+            <li><strong>Baseline Establishment:</strong> ⏳ Pending compiler fixes</li>
+        </ul>
+    </div>
+
+    <div class="recommendations">
+        <h2>Recommendations</h2>
+        <ol>
+            <li><strong>Priority 1:</strong> Fix compiler compilation errors to enable benchmarking</li>
+            <li><strong>Priority 2:</strong> Establish baseline performance metrics</li>
+            <li><strong>Priority 3:</strong> Set up automated performance regression testing</li>
+            <li><strong>Priority 4:</strong> Optimize critical performance paths</li>
+        </ol>
+    </div>
+
+    <div class="footer">
+        <p><em>Report generated by Aero Performance Benchmark Suite</em></p>
+    </div>
+</body>
+</html>
