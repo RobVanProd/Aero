@@ -103,6 +103,194 @@ pub enum Inst {
         result: Value,
         operand: Value,
     },
+    
+    // Struct operations
+    StructDef {
+        name: String,
+        fields: Vec<(String, String)>, // (field_name, field_type)
+        is_tuple: bool,
+    },
+    StructAlloca {
+        result: Value,
+        struct_name: String,
+    },
+    StructInit {
+        result: Value,
+        struct_name: String,
+        field_values: Vec<(String, Value)>, // (field_name, value)
+    },
+    FieldAccess {
+        result: Value,
+        struct_ptr: Value,
+        field_name: String,
+        field_index: usize,
+    },
+    FieldStore {
+        struct_ptr: Value,
+        field_name: String,
+        field_index: usize,
+        value: Value,
+    },
+    StructCopy {
+        result: Value,
+        source: Value,
+        struct_name: String,
+    },
+    
+    // Enum operations
+    EnumDef {
+        name: String,
+        variants: Vec<(String, Option<Vec<String>>)>, // (variant_name, optional_data_types)
+        discriminant_type: String,
+    },
+    EnumAlloca {
+        result: Value,
+        enum_name: String,
+    },
+    EnumConstruct {
+        result: Value,
+        enum_name: String,
+        variant_name: String,
+        variant_index: usize,
+        data_values: Vec<Value>, // Values for variant data
+    },
+    EnumDiscriminant {
+        result: Value,
+        enum_ptr: Value,
+    },
+    EnumExtract {
+        result: Value,
+        enum_ptr: Value,
+        variant_index: usize,
+        data_index: usize, // Index of data within variant
+    },
+    
+    // Pattern matching operations
+    Match {
+        discriminant: Value,
+        arms: Vec<MatchArm>,
+        default_label: Option<String>,
+    },
+    PatternCheck {
+        result: Value,
+        discriminant: Value,
+        expected_variant: usize,
+    },
+    
+    // Switch-like instruction for efficient pattern matching
+    Switch {
+        discriminant: Value,
+        cases: Vec<(i64, String)>, // (variant_index, label)
+        default_label: String,
+    },
+    
+    // Array and collection operations
+    ArrayAlloca {
+        result: Value,
+        element_type: String,
+        size: Value, // Size can be dynamic
+    },
+    ArrayInit {
+        result: Value,
+        element_type: String,
+        elements: Vec<Value>,
+    },
+    ArrayAccess {
+        result: Value,
+        array_ptr: Value,
+        index: Value,
+    },
+    ArrayStore {
+        array_ptr: Value,
+        index: Value,
+        value: Value,
+    },
+    ArrayLength {
+        result: Value,
+        array_ptr: Value,
+    },
+    BoundsCheck {
+        array_ptr: Value,
+        index: Value,
+        success_label: String,
+        failure_label: String,
+    },
+    
+    // Vec operations
+    VecAlloca {
+        result: Value,
+        element_type: String,
+    },
+    VecInit {
+        result: Value,
+        element_type: String,
+        elements: Vec<Value>,
+    },
+    VecPush {
+        vec_ptr: Value,
+        value: Value,
+    },
+    VecPop {
+        result: Value,
+        vec_ptr: Value,
+    },
+    VecLength {
+        result: Value,
+        vec_ptr: Value,
+    },
+    VecCapacity {
+        result: Value,
+        vec_ptr: Value,
+    },
+    VecAccess {
+        result: Value,
+        vec_ptr: Value,
+        index: Value,
+    },
+    
+    // Generic type operations
+    GenericInstantiate {
+        result: Value,
+        base_type: String,
+        type_args: Vec<String>,
+        instantiated_name: String,
+    },
+    GenericMethodCall {
+        result: Option<Value>,
+        object: Value,
+        method: String,
+        type_args: Vec<String>,
+        arguments: Vec<Value>,
+    },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct MatchArm {
+    pub pattern_checks: Vec<PatternCheck>,
+    pub bindings: Vec<(String, Value)>, // Variable bindings from pattern
+    pub guard: Option<Value>, // Optional guard condition
+    pub body_label: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct PatternCheck {
+    pub check_type: PatternCheckType,
+    pub target: Value,
+    pub expected: PatternValue,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum PatternCheckType {
+    VariantMatch,
+    LiteralMatch,
+    RangeMatch,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum PatternValue {
+    Variant(usize),
+    Literal(Value),
+    Range(Value, Value, bool), // start, end, inclusive
 }
 
 #[derive(Debug, PartialEq, Clone)]

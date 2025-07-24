@@ -7,6 +7,7 @@ mod ir_generator;
 mod code_generator;
 mod types;
 pub mod errors;
+mod pattern_matcher;
 
 pub use lexer::{tokenize, tokenize_with_locations, Token, LocatedToken};
 pub use parser::{parse, parse_with_locations, Parser};
@@ -16,6 +17,14 @@ pub use code_generator::{generate_code, CodeGenerator};
 
 #[cfg(test)]
 mod error_test;
+
+#[cfg(test)]
+mod ast_generic_collection_test;
+
+#[cfg(test)]
+mod types_enum_test;
+
+
 
 /// Compiler options for benchmarking
 #[derive(Debug, Clone, Default)]

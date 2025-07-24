@@ -13,6 +13,11 @@ pub enum Token {
     Return,
     Mut,
     
+    // Data structure keywords
+    Struct,
+    Enum,
+    Impl,
+    
     // Control flow keywords
     If,
     Else,
@@ -22,6 +27,9 @@ pub enum Token {
     Loop,
     Break,
     Continue,
+    
+    // Pattern matching keywords
+    Match,
     
     // I/O Macros
     PrintMacro,    // print!
@@ -34,7 +42,8 @@ pub enum Token {
     Divide,
     Modulo,
     Assign,
-    Arrow,  // ->
+    Arrow,     // ->
+    FatArrow,  // =>
     
     // Comparison operators
     Equal,        // ==
@@ -44,10 +53,28 @@ pub enum Token {
     LessEqual,    // <=
     GreaterEqual, // >=
     
+    // Generic syntax
+    LeftAngle,    // < (for generics)
+    RightAngle,   // > (for generics)
+    
     // Logical operators
     LogicalAnd,   // &&
     LogicalOr,    // ||
     LogicalNot,   // !
+    
+    // Pattern matching operators
+    Underscore,   // _
+    DotDot,       // ..
+    DotDotEqual,  // ..=
+    Pipe,         // |
+    At,           // @
+    
+    // Collection and advanced operators
+    Vec,          // Vec keyword
+    HashMap,      // HashMap keyword
+    Format,       // format! macro
+    Question,     // ?
+    DoubleColon,  // ::
     
     // Delimiters
     Semicolon,
@@ -55,6 +82,8 @@ pub enum Token {
     RightBrace,
     LeftParen,
     RightParen,
+    LeftBracket,
+    RightBracket,
     Dot,
     Colon,
     Comma,
@@ -174,15 +203,43 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 advance_position(c, &mut line, &mut column);
                 tokens.push(LocatedToken::new(Token::RightParen, make_location(token_start_line, token_start_column)));
             }
-            ':' => { 
+            '[' => { 
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Colon, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(Token::LeftBracket, make_location(token_start_line, token_start_column)));
+            }
+            ']' => { 
+                chars.next();
+                advance_position(c, &mut line, &mut column);
+                tokens.push(LocatedToken::new(Token::RightBracket, make_location(token_start_line, token_start_column)));
+            }
+            ':' => { 
+                let ch = chars.next().unwrap(); // consume ':'
+                advance_position(ch, &mut line, &mut column);
+                if let Some(&':') = chars.peek() {
+                    let ch2 = chars.next().unwrap(); // consume second ':'
+                    advance_position(ch2, &mut line, &mut column);
+                    tokens.push(LocatedToken::new(Token::DoubleColon, make_location(token_start_line, token_start_column)));
+                } else {
+                    tokens.push(LocatedToken::new(Token::Colon, make_location(token_start_line, token_start_column)));
+                }
             }
             ',' => { 
                 chars.next();
                 advance_position(c, &mut line, &mut column);
                 tokens.push(LocatedToken::new(Token::Comma, make_location(token_start_line, token_start_column)));
+            }
+            // At operator for pattern matching
+            '@' => { 
+                chars.next();
+                advance_position(c, &mut line, &mut column);
+                tokens.push(LocatedToken::new(Token::At, make_location(token_start_line, token_start_column)));
+            }
+            // Question mark operator for error propagation
+            '?' => { 
+                chars.next();
+                advance_position(c, &mut line, &mut column);
+                tokens.push(LocatedToken::new(Token::Question, make_location(token_start_line, token_start_column)));
             }
             // Handle minus and arrow (->)
             '-' => {
@@ -196,7 +253,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     tokens.push(LocatedToken::new(Token::Minus, make_location(token_start_line, token_start_column)));
                 }
             }
-            // Handle assignment and equality
+            // Handle assignment, equality, and fat arrow
             '=' => {
                 let ch = chars.next().unwrap(); // consume '='
                 advance_position(ch, &mut line, &mut column);
@@ -204,6 +261,10 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     let ch2 = chars.next().unwrap(); // consume second '='
                     advance_position(ch2, &mut line, &mut column);
                     tokens.push(LocatedToken::new(Token::Equal, make_location(token_start_line, token_start_column)));
+                } else if let Some(&'>') = chars.peek() {
+                    let ch2 = chars.next().unwrap(); // consume '>'
+                    advance_position(ch2, &mut line, &mut column);
+                    tokens.push(LocatedToken::new(Token::FatArrow, make_location(token_start_line, token_start_column)));
                 } else {
                     tokens.push(LocatedToken::new(Token::Assign, make_location(token_start_line, token_start_column)));
                 }
@@ -257,7 +318,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     eprintln!("Unexpected character: & at {}:{}", line, column);
                 }
             }
-            // Handle logical or
+            // Handle logical or and pipe
             '|' => {
                 let ch = chars.next().unwrap(); // consume '|'
                 advance_position(ch, &mut line, &mut column);
@@ -266,15 +327,33 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     advance_position(ch2, &mut line, &mut column);
                     tokens.push(LocatedToken::new(Token::LogicalOr, make_location(token_start_line, token_start_column)));
                 } else {
-                    // Single | not supported yet, treat as unexpected
-                    eprintln!("Unexpected character: | at {}:{}", line, column);
+                    // Single | for pattern matching
+                    tokens.push(LocatedToken::new(Token::Pipe, make_location(token_start_line, token_start_column)));
                 }
             }
-            // Dot operator
+            // Dot operator and range operators
             '.' => {
                 let ch = chars.next().unwrap(); // consume the '.'
                 advance_position(ch, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Dot, make_location(token_start_line, token_start_column)));
+                
+                if let Some(&'.') = chars.peek() {
+                    // This could be .. or ..=
+                    let ch2 = chars.next().unwrap(); // consume second '.'
+                    advance_position(ch2, &mut line, &mut column);
+                    
+                    if let Some(&'=') = chars.peek() {
+                        // This is ..=
+                        let ch3 = chars.next().unwrap(); // consume '='
+                        advance_position(ch3, &mut line, &mut column);
+                        tokens.push(LocatedToken::new(Token::DotDotEqual, make_location(token_start_line, token_start_column)));
+                    } else {
+                        // This is ..
+                        tokens.push(LocatedToken::new(Token::DotDot, make_location(token_start_line, token_start_column)));
+                    }
+                } else {
+                    // Single dot
+                    tokens.push(LocatedToken::new(Token::Dot, make_location(token_start_line, token_start_column)));
+                }
             }
             // Integer and Float Literals
             '0'..='9' => {
@@ -365,8 +444,76 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 }
                 tokens.push(LocatedToken::new(Token::Identifier(string_content), make_location(token_start_line, token_start_column)));
             }
+            // Handle underscore (could be wildcard pattern or identifier)
+            '_' => {
+                let ch = chars.next().unwrap(); // consume '_'
+                advance_position(ch, &mut line, &mut column);
+                
+                // Check if this is a standalone underscore (wildcard pattern)
+                if let Some(&next_char) = chars.peek() {
+                    if next_char.is_ascii_alphanumeric() || next_char == '_' {
+                        // This is part of an identifier, put the '_' back and handle as identifier
+                        let mut ident_str = String::from("_");
+                        while let Some(&d) = chars.peek() {
+                            if d.is_ascii_alphanumeric() || d == '_' {
+                                let ch = chars.next().unwrap();
+                                advance_position(ch, &mut line, &mut column);
+                                ident_str.push(ch);
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        // Check for I/O macros (identifiers followed by !)
+                        if let Some(&'!') = chars.peek() {
+                            let token = match ident_str.as_str() {
+                                "print" => {
+                                    let ch = chars.next().unwrap(); // consume '!'
+                                    advance_position(ch, &mut line, &mut column);
+                                    Token::PrintMacro
+                                }
+                                "println" => {
+                                    let ch = chars.next().unwrap(); // consume '!'
+                                    advance_position(ch, &mut line, &mut column);
+                                    Token::PrintlnMacro
+                                }
+                                _ => Token::Identifier(ident_str), // Regular identifier, don't consume '!'
+                            };
+                            tokens.push(LocatedToken::new(token, make_location(token_start_line, token_start_column)));
+                        } else {
+                            // Regular keywords and identifiers
+                            let token = match ident_str.as_str() {
+                                "let" => Token::Let,
+                                "fn" => Token::Fn,
+                                "return" => Token::Return,
+                                "mut" => Token::Mut,
+                                "struct" => Token::Struct,
+                                "enum" => Token::Enum,
+                                "impl" => Token::Impl,
+                                "if" => Token::If,
+                                "else" => Token::Else,
+                                "while" => Token::While,
+                                "for" => Token::For,
+                                "in" => Token::In,
+                                "loop" => Token::Loop,
+                                "break" => Token::Break,
+                                "continue" => Token::Continue,
+                                "match" => Token::Match,
+                                _ => Token::Identifier(ident_str),
+                            };
+                            tokens.push(LocatedToken::new(token, make_location(token_start_line, token_start_column)));
+                        }
+                    } else {
+                        // Standalone underscore - wildcard pattern
+                        tokens.push(LocatedToken::new(Token::Underscore, make_location(token_start_line, token_start_column)));
+                    }
+                } else {
+                    // End of input, standalone underscore
+                    tokens.push(LocatedToken::new(Token::Underscore, make_location(token_start_line, token_start_column)));
+                }
+            }
             // Identifiers and Keywords
-            'a'..='z' | 'A'..='Z' | '_' => {
+            'a'..='z' | 'A'..='Z' => {
                 let mut ident_str = String::new();
                 while let Some(&d) = chars.peek() {
                     if d.is_ascii_alphanumeric() || d == '_' {
@@ -391,6 +538,11 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                             advance_position(ch, &mut line, &mut column);
                             Token::PrintlnMacro
                         }
+                        "format" => {
+                            let ch = chars.next().unwrap(); // consume '!'
+                            advance_position(ch, &mut line, &mut column);
+                            Token::Format
+                        }
                         _ => Token::Identifier(ident_str), // Regular identifier, don't consume '!'
                     };
                     tokens.push(LocatedToken::new(token, make_location(token_start_line, token_start_column)));
@@ -401,6 +553,9 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         "fn" => Token::Fn,
                         "return" => Token::Return,
                         "mut" => Token::Mut,
+                        "struct" => Token::Struct,
+                        "enum" => Token::Enum,
+                        "impl" => Token::Impl,
                         "if" => Token::If,
                         "else" => Token::Else,
                         "while" => Token::While,
@@ -409,6 +564,9 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         "loop" => Token::Loop,
                         "break" => Token::Break,
                         "continue" => Token::Continue,
+                        "match" => Token::Match,
+                        "Vec" => Token::Vec,
+                        "HashMap" => Token::HashMap,
                         _ => Token::Identifier(ident_str),
                     };
                     tokens.push(LocatedToken::new(token, make_location(token_start_line, token_start_column)));
@@ -510,5 +668,37 @@ mod tests {
         assert_eq!(tokens[6], Token::Identifier("\"World\"".to_string()));
         assert_eq!(tokens[7], Token::RightParen);
         assert_eq!(tokens[8], Token::Eof);
+    }
+
+    #[test]
+    fn test_struct_enum_tokens() {
+        let source = "struct Point { x: i32, y: i32 } enum Color { Red, Green, Blue } impl Point { }";
+        let tokens = tokenize(source);
+        
+        assert_eq!(tokens[0], Token::Struct);
+        assert_eq!(tokens[1], Token::Identifier("Point".to_string()));
+        assert_eq!(tokens[2], Token::LeftBrace);
+        assert_eq!(tokens[3], Token::Identifier("x".to_string()));
+        assert_eq!(tokens[4], Token::Colon);
+        assert_eq!(tokens[5], Token::Identifier("i32".to_string()));
+        assert_eq!(tokens[6], Token::Comma);
+        assert_eq!(tokens[7], Token::Identifier("y".to_string()));
+        assert_eq!(tokens[8], Token::Colon);
+        assert_eq!(tokens[9], Token::Identifier("i32".to_string()));
+        assert_eq!(tokens[10], Token::RightBrace);
+        assert_eq!(tokens[11], Token::Enum);
+        assert_eq!(tokens[12], Token::Identifier("Color".to_string()));
+        assert_eq!(tokens[13], Token::LeftBrace);
+        assert_eq!(tokens[14], Token::Identifier("Red".to_string()));
+        assert_eq!(tokens[15], Token::Comma);
+        assert_eq!(tokens[16], Token::Identifier("Green".to_string()));
+        assert_eq!(tokens[17], Token::Comma);
+        assert_eq!(tokens[18], Token::Identifier("Blue".to_string()));
+        assert_eq!(tokens[19], Token::RightBrace);
+        assert_eq!(tokens[20], Token::Impl);
+        assert_eq!(tokens[21], Token::Identifier("Point".to_string()));
+        assert_eq!(tokens[22], Token::LeftBrace);
+        assert_eq!(tokens[23], Token::RightBrace);
+        assert_eq!(tokens[24], Token::Eof);
     }
 }

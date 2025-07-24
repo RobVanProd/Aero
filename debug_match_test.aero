@@ -1,0 +1,5 @@
+fn main() {
+    let result = match 1 {
+        1 => 2,
+    };
+}

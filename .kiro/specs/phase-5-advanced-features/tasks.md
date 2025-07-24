@@ -6,7 +6,7 @@ This document outlines the specific coding tasks needed to implement Phase 5 adv
 
 - [ ] 1. Setup Phase 5 Development Environment
   - Create feature branch `phase-5-advanced-features` from phase-4-data-structures
-  - Update project version to 0.4.0 in Cargo.toml
+  - Update project version to 0.5.0 in Cargo.toml
   - Add dependencies for trait system, borrow checking, and concurrency
   - _Requirements: All requirements - foundational setup_
   - _Git commit: "feat: setup Phase 5 development environment for advanced features"_

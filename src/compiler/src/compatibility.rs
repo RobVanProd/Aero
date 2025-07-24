@@ -117,9 +117,16 @@ impl UnaryOp {
 /// Compatibility extensions for Type enum
 impl Type {
     /// Get type name (backward compatibility)
-    pub fn name(&self) -> &String {
+    pub fn name(&self) -> String {
         match self {
-            Type::Named(name) => name,
+            Type::Named(name) => name.clone(),
+            // TODO: Implement proper type name generation for generic and collection types
+            Type::Generic { name, .. } => name.clone(),
+            Type::Array { .. } => "array".to_string(),
+            Type::Slice { .. } => "slice".to_string(),
+            Type::Vec { .. } => "vec".to_string(),
+            Type::HashMap { .. } => "hashmap".to_string(),
+            Type::Reference { .. } => "reference".to_string(),
         }
     }
 

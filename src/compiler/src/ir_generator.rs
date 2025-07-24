@@ -1,4 +1,4 @@
-use crate::ast::{AstNode, Expression, Statement, Type};
+use crate::ast::{AstNode, Expression, Statement, Type, StructField, EnumVariant, EnumVariantData, Pattern, MatchArm};
 use crate::ir::{Function, Inst, Value};
 use crate::types::{Ty, needs_promotion};
 use std::collections::HashMap;
@@ -9,6 +9,24 @@ pub struct IrGenerator {
     next_reg: u32,
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
+    struct_definitions: HashMap<String, StructDefinition>, // Track struct definitions
+    enum_definitions: HashMap<String, EnumDefinition>, // Track enum definitions
+}
+
+#[derive(Debug, Clone)]
+pub struct StructDefinition {
+    pub name: String,
+    pub fields: Vec<(String, String)>, // (field_name, field_type)
+    pub field_indices: HashMap<String, usize>, // field_name -> index
+    pub is_tuple: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumDefinition {
+    pub name: String,
+    pub variants: Vec<(String, Option<Vec<String>>)>, // (variant_name, optional_data_types)
+    pub variant_indices: HashMap<String, usize>, // variant_name -> index
+    pub discriminant_type: String,
 }
 
 impl IrGenerator {
@@ -19,6 +37,8 @@ impl IrGenerator {
             next_reg: 0,
             next_ptr: 0,
             symbol_table: HashMap::new(),
+            struct_definitions: HashMap::new(),
+            enum_definitions: HashMap::new(),
         }
     }
 
@@ -96,6 +116,15 @@ impl IrGenerator {
                 if let Some(expr) = block.expression {
                     self.generate_expression_ir(expr, current_function);
                 }
+            }
+            Statement::Struct { name, generics: _, fields, is_tuple } => {
+                self.generate_struct_definition_ir(name, fields, is_tuple, current_function);
+            }
+            Statement::Enum { name, generics: _, variants } => {
+                self.generate_enum_definition_ir(name, variants, current_function);
+            }
+            Statement::Impl { .. } => {
+                // TODO: Implement impl block IR generation in Phase 4
             }
         }
     }
@@ -186,6 +215,31 @@ impl IrGenerator {
             Expression::Unary { op, operand } => {
                 self.generate_unary_ir(op, *operand, function)
             }
+            Expression::StructLiteral { name, fields, base: _ } => {
+                self.generate_struct_literal_ir(name, fields, function)
+            }
+            Expression::FieldAccess { object, field } => {
+                self.generate_field_access_ir(*object, field, function)
+            }
+            Expression::Match { expression, arms } => {
+                self.generate_match_expression_ir(*expression, arms, function)
+            }
+            Expression::MethodCall { object, method, arguments } => {
+                self.generate_method_call_ir(*object, method, arguments, function)
+            }
+            Expression::ArrayLiteral { elements } => {
+                self.generate_array_literal_ir(elements, function)
+            }
+            Expression::ArrayAccess { array, index } => {
+                self.generate_array_access_ir(*array, *index, function)
+            }
+            Expression::VecMacro { elements } => {
+                self.generate_vec_macro_ir(elements, function)
+            }
+            Expression::FormatMacro { .. } => {
+                // TODO: Implement format macro IR generation in Phase 4
+                (Value::ImmInt(0), Ty::Int)
+            }
         }
     }
 
@@ -252,6 +306,13 @@ impl IrGenerator {
         let param_names: Vec<(String, String)> = parameters.iter()
             .map(|p| (p.name.clone(), match &p.param_type {
                 Type::Named(name) => name.clone(),
+                // TODO: Implement proper type name generation for generic and collection types
+                Type::Generic { .. } => "generic".to_string(), // Placeholder
+                Type::Array { .. } => "array".to_string(), // Placeholder
+                Type::Slice { .. } => "slice".to_string(), // Placeholder
+                Type::Vec { .. } => "vec".to_string(), // Placeholder
+                Type::HashMap { .. } => "hashmap".to_string(), // Placeholder
+                Type::Reference { .. } => "reference".to_string(), // Placeholder
             }))
             .collect();
         
@@ -267,7 +328,14 @@ impl IrGenerator {
                     "f64" => Ty::Float,
                     "bool" => Ty::Bool,
                     _ => Ty::Int, // Default fallback
-                }
+                },
+                // TODO: Implement proper type conversion for generic and collection types
+                Type::Generic { .. } => Ty::Int, // Placeholder
+                Type::Array { .. } => Ty::Int, // Placeholder
+                Type::Slice { .. } => Ty::Int, // Placeholder
+                Type::Vec { .. } => Ty::Int, // Placeholder
+                Type::HashMap { .. } => Ty::Int, // Placeholder
+                Type::Reference { .. } => Ty::Int, // Placeholder
             };
             
             self.symbol_table.insert(param.name.clone(), (ptr_reg, param_type));
@@ -415,6 +483,31 @@ impl IrGenerator {
             }
             Expression::Unary { op, operand } => {
                 self.generate_unary_ir_for_function(op, *operand, function_body)
+            }
+            Expression::StructLiteral { name, fields, base: _ } => {
+                self.generate_struct_literal_ir_for_function(name, fields, function_body)
+            }
+            Expression::FieldAccess { object, field } => {
+                self.generate_field_access_ir_for_function(*object, field, function_body)
+            }
+            Expression::Match { expression, arms } => {
+                self.generate_match_expression_ir_for_function(*expression, arms, function_body)
+            }
+            Expression::MethodCall { object, method, arguments } => {
+                self.generate_method_call_ir_for_function(*object, method, arguments, function_body)
+            }
+            Expression::ArrayLiteral { elements } => {
+                self.generate_array_literal_ir_for_function(elements, function_body)
+            }
+            Expression::ArrayAccess { array, index } => {
+                self.generate_array_access_ir_for_function(*array, *index, function_body)
+            }
+            Expression::VecMacro { elements } => {
+                self.generate_vec_macro_ir_for_function(elements, function_body)
+            }
+            Expression::FormatMacro { .. } => {
+                // TODO: Implement format macro IR generation in Phase 4
+                (Value::ImmInt(0), Ty::Int)
             }
         }
     }
@@ -995,6 +1088,365 @@ impl IrGenerator {
         
         function_body.push(inst);
         (result_reg, result_type)
+    }
+
+    // Struct IR generation methods
+    fn generate_struct_definition_ir(&mut self, name: String, fields: Vec<StructField>, is_tuple: bool, current_function: &mut Function) {
+        // Convert AST StructField to IR field representation
+        let ir_fields: Vec<(String, String)> = fields.iter().enumerate().map(|(i, field)| {
+            let field_name = if is_tuple {
+                i.to_string() // Use index as field name for tuple structs
+            } else {
+                field.name.clone()
+            };
+            let field_type = self.type_to_string(&field.field_type);
+            (field_name, field_type)
+        }).collect();
+        
+        // Create field index mapping
+        let mut field_indices = HashMap::new();
+        for (i, (field_name, _)) in ir_fields.iter().enumerate() {
+            field_indices.insert(field_name.clone(), i);
+        }
+        
+        // Store struct definition
+        let struct_def = StructDefinition {
+            name: name.clone(),
+            fields: ir_fields.clone(),
+            field_indices,
+            is_tuple,
+        };
+        self.struct_definitions.insert(name.clone(), struct_def);
+        
+        // Generate struct definition IR instruction
+        let struct_def_inst = Inst::StructDef {
+            name,
+            fields: ir_fields,
+            is_tuple,
+        };
+        current_function.body.push(struct_def_inst);
+    }
+    
+    fn generate_struct_literal_ir(&mut self, name: String, fields: Vec<(String, Expression)>, function: &mut Function) -> (Value, Ty) {
+        // Get struct definition
+        let struct_def = self.struct_definitions.get(&name)
+            .expect(&format!("Undefined struct: {}", name))
+            .clone();
+        
+        // Allocate memory for the struct
+        let struct_ptr = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::StructAlloca {
+            result: struct_ptr.clone(),
+            struct_name: name.clone(),
+        });
+        
+        // Generate field values and create field initialization list
+        let mut field_values = Vec::new();
+        for (field_name, field_expr) in fields {
+            let (field_value, _) = self.generate_expression_ir(field_expr, function);
+            field_values.push((field_name, field_value));
+        }
+        
+        // Initialize struct with field values
+        function.body.push(Inst::StructInit {
+            result: struct_ptr.clone(),
+            struct_name: name.clone(),
+            field_values,
+        });
+        
+        // Return struct pointer and custom struct type
+        (struct_ptr, Ty::Struct(name))
+    }
+    
+    fn generate_field_access_ir(&mut self, object: Expression, field: String, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for the object expression
+        let (object_value, object_type) = self.generate_expression_ir(object, function);
+        
+        // Extract struct name from type
+        let struct_name = match object_type {
+            Ty::Struct(name) => name,
+            _ => panic!("Field access on non-struct type: {:?}", object_type),
+        };
+        
+        // Get struct definition and field index
+        let struct_def = self.struct_definitions.get(&struct_name)
+            .expect(&format!("Undefined struct: {}", struct_name))
+            .clone();
+        
+        let field_index = *struct_def.field_indices.get(&field)
+            .expect(&format!("Field '{}' not found in struct '{}'", field, struct_name));
+        
+        // Generate field access instruction
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function.body.push(Inst::FieldAccess {
+            result: result_reg.clone(),
+            struct_ptr: object_value,
+            field_name: field.clone(),
+            field_index,
+        });
+        
+        // Look up actual field type from struct definition
+        let field_type = self.get_field_type(&struct_def, &field);
+        
+        (result_reg, field_type)
+    }
+    
+    fn generate_struct_copy_ir(&mut self, source: Value, struct_name: String, function: &mut Function) -> Value {
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function.body.push(Inst::StructCopy {
+            result: result_reg.clone(),
+            source,
+            struct_name,
+        });
+        
+        result_reg
+    }
+
+    // Struct IR generation methods for function bodies
+    fn generate_struct_literal_ir_for_function(&mut self, name: String, fields: Vec<(String, Expression)>, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Get struct definition
+        let struct_def = self.struct_definitions.get(&name)
+            .expect(&format!("Undefined struct: {}", name))
+            .clone();
+        
+        // Allocate memory for the struct
+        let struct_ptr = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function_body.push(Inst::StructAlloca {
+            result: struct_ptr.clone(),
+            struct_name: name.clone(),
+        });
+        
+        // Generate field values and create field initialization list
+        let mut field_values = Vec::new();
+        for (field_name, field_expr) in fields {
+            let (field_value, _) = self.generate_expression_ir_for_function(field_expr, function_body);
+            field_values.push((field_name, field_value));
+        }
+        
+        // Initialize struct with field values
+        function_body.push(Inst::StructInit {
+            result: struct_ptr.clone(),
+            struct_name: name.clone(),
+            field_values,
+        });
+        
+        // Return struct pointer and custom struct type
+        (struct_ptr, Ty::Struct(name))
+    }
+    
+    fn generate_field_access_ir_for_function(&mut self, object: Expression, field: String, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Generate IR for the object expression
+        let (object_value, object_type) = self.generate_expression_ir_for_function(object, function_body);
+        
+        // Extract struct name from type
+        let struct_name = match object_type {
+            Ty::Struct(name) => name,
+            _ => panic!("Field access on non-struct type: {:?}", object_type),
+        };
+        
+        // Get struct definition and field index
+        let struct_def = self.struct_definitions.get(&struct_name)
+            .expect(&format!("Undefined struct: {}", struct_name))
+            .clone();
+        
+        let field_index = *struct_def.field_indices.get(&field)
+            .expect(&format!("Field '{}' not found in struct '{}'", field, struct_name));
+        
+        // Generate field access instruction
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function_body.push(Inst::FieldAccess {
+            result: result_reg.clone(),
+            struct_ptr: object_value,
+            field_name: field.clone(),
+            field_index,
+        });
+        
+        // Look up actual field type from struct definition
+        let field_type = self.get_field_type(&struct_def, &field);
+        
+        (result_reg, field_type)
+    }
+
+    // Helper method to get field type from struct definition
+    fn get_field_type(&self, struct_def: &StructDefinition, field_name: &str) -> Ty {
+        // Find the field in the struct definition
+        for (name, type_str) in &struct_def.fields {
+            if name == field_name {
+                // Convert type string back to Ty
+                return self.string_to_ty(type_str);
+            }
+        }
+        
+        // Fallback to Int if field not found (should not happen if semantic analysis is correct)
+        Ty::Int
+    }
+    
+    // Helper method to convert type string back to Ty
+    fn string_to_ty(&self, type_str: &str) -> Ty {
+        match type_str {
+            "i32" | "int" => Ty::Int,
+            "f64" | "float" => Ty::Float,
+            "bool" => Ty::Bool,
+            "String" => Ty::String,
+            s if s.starts_with("Vec<") => {
+                // Parse Vec<T> type
+                let inner = &s[4..s.len()-1];
+                Ty::Vec(Box::new(self.string_to_ty(inner)))
+            }
+            s if s.starts_with("[") && s.contains(";") => {
+                // Parse [T; N] array type
+                let parts: Vec<&str> = s[1..s.len()-1].split(";").collect();
+                if parts.len() == 2 {
+                    let element_type = self.string_to_ty(parts[0].trim());
+                    if let Ok(size) = parts[1].trim().parse::<usize>() {
+                        return Ty::Array(Box::new(element_type), Some(size));
+                    }
+                }
+                Ty::Int // Fallback
+            }
+            s if s.starts_with("[") && s.ends_with("]") => {
+                // Parse [T] slice type
+                let inner = &s[1..s.len()-1];
+                Ty::Array(Box::new(self.string_to_ty(inner)), None)
+            }
+            s if s.starts_with("&") => {
+                // Parse reference type
+                let inner = &s[1..];
+                Ty::Reference(Box::new(self.string_to_ty(inner)))
+            }
+            _ => {
+                // Check if it's a struct type
+                if self.struct_definitions.contains_key(type_str) {
+                    Ty::Struct(type_str.to_string())
+                } else {
+                    // Default fallback
+                    Ty::Int
+                }
+            }
+        }
+    }
+
+    // Method call IR generation methods
+    fn generate_method_call_ir(&mut self, object: Expression, method: String, arguments: Vec<Expression>, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for the object expression
+        let (object_value, object_type) = self.generate_expression_ir(object, function);
+        
+        // Generate IR for arguments
+        let mut arg_values = Vec::new();
+        for arg in arguments {
+            let (arg_value, _) = self.generate_expression_ir(arg, function);
+            arg_values.push(arg_value);
+        }
+        
+        // Create method call - for now, treat as function call with object as first argument
+        let mut all_args = vec![object_value];
+        all_args.extend(arg_values);
+        
+        // Generate result register for method call
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        // Create method call instruction (using function call for now)
+        let method_name = match &object_type {
+            Ty::Struct(struct_name) => format!("{}::{}", struct_name, method),
+            _ => format!("{}::{}", object_type.to_string(), method),
+        };
+        
+        let call_inst = Inst::Call {
+            function: method_name,
+            arguments: all_args,
+            result: Some(result_reg.clone()),
+        };
+        
+        function.body.push(call_inst);
+        
+        // For now, assume method calls return the same type as the object
+        (result_reg, object_type)
+    }
+    
+    fn generate_method_call_ir_for_function(&mut self, object: Expression, method: String, arguments: Vec<Expression>, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Generate IR for the object expression
+        let (object_value, object_type) = self.generate_expression_ir_for_function(object, function_body);
+        
+        // Generate IR for arguments
+        let mut arg_values = Vec::new();
+        for arg in arguments {
+            let (arg_value, _) = self.generate_expression_ir_for_function(arg, function_body);
+            arg_values.push(arg_value);
+        }
+        
+        // Create method call - for now, treat as function call with object as first argument
+        let mut all_args = vec![object_value];
+        all_args.extend(arg_values);
+        
+        // Generate result register for method call
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        // Create method call instruction (using function call for now)
+        let method_name = match &object_type {
+            Ty::Struct(struct_name) => format!("{}::{}", struct_name, method),
+            _ => format!("{}::{}", object_type.to_string(), method),
+        };
+        
+        let call_inst = Inst::Call {
+            function: method_name,
+            arguments: all_args,
+            result: Some(result_reg.clone()),
+        };
+        
+        function_body.push(call_inst);
+        
+        // For now, assume method calls return the same type as the object
+        (result_reg, object_type)
+    }
+
+    // Enhanced struct IR generation with field modification support
+    fn generate_field_store_ir(&mut self, object: Expression, field: String, value: Expression, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for the object expression (should be a pointer)
+        let (object_value, object_type) = self.generate_expression_ir(object, function);
+        
+        // Generate IR for the value to store
+        let (value_reg, value_type) = self.generate_expression_ir(value, function);
+        
+        // Extract struct name from type
+        let struct_name = match object_type {
+            Ty::Struct(name) => name,
+            _ => panic!("Field store on non-struct type: {:?}", object_type),
+        };
+        
+        // Get struct definition and field index
+        let struct_def = self.struct_definitions.get(&struct_name)
+            .expect(&format!("Undefined struct: {}", struct_name))
+            .clone();
+        
+        let field_index = *struct_def.field_indices.get(&field)
+            .expect(&format!("Field '{}' not found in struct '{}'", field, struct_name));
+        
+        // Generate field store instruction
+        function.body.push(Inst::FieldStore {
+            struct_ptr: object_value.clone(),
+            field_name: field,
+            field_index,
+            value: value_reg,
+        });
+        
+        // Return the stored value and its type
+        (value_reg, value_type)
+    }
+
+    // Struct copy and move semantics
+    fn generate_struct_move_ir(&mut self, source: Value, struct_name: String, function: &mut Function) -> Value {
+        // For now, implement move as copy (proper move semantics would invalidate source)
+        self.generate_struct_copy_ir(source, struct_name, function)
     }
 }
 
@@ -2184,5 +2636,1541 @@ mod tests {
         assert!(label_count >= 5); // if then/else/end + while start/body/end
         assert!(jump_count >= 3); // if jumps + while jumps
     }
-}
 
+    // Struct IR generation methods
+    
+    fn generate_struct_definition_ir(&mut self, name: String, fields: Vec<StructField>, is_tuple: bool, current_function: &mut Function) {
+        // Convert AST StructField to IR field representation
+        let ir_fields: Vec<(String, String)> = fields.iter().enumerate().map(|(i, field)| {
+            let field_name = if is_tuple {
+                i.to_string() // Use index as field name for tuple structs
+            } else {
+                field.name.clone()
+            };
+            let field_type = self.type_to_string(&field.field_type);
+            (field_name, field_type)
+        }).collect();
+        
+        // Create field index mapping
+        let mut field_indices = HashMap::new();
+        for (i, (field_name, _)) in ir_fields.iter().enumerate() {
+            field_indices.insert(field_name.clone(), i);
+        }
+        
+        // Store struct definition
+        let struct_def = StructDefinition {
+            name: name.clone(),
+            fields: ir_fields.clone(),
+            field_indices,
+            is_tuple,
+        };
+        self.struct_definitions.insert(name.clone(), struct_def);
+        
+        // Generate struct definition IR instruction
+        let struct_def_inst = Inst::StructDef {
+            name,
+            fields: ir_fields,
+            is_tuple,
+        };
+        current_function.body.push(struct_def_inst);
+    }
+    
+    fn generate_struct_literal_ir(&mut self, name: String, fields: Vec<(String, Expression)>, function: &mut Function) -> (Value, Ty) {
+        // Get struct definition
+        let struct_def = self.struct_definitions.get(&name)
+            .expect(&format!("Undefined struct: {}", name))
+            .clone();
+        
+        // Allocate memory for the struct
+        let struct_ptr = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::StructAlloca {
+            result: struct_ptr.clone(),
+            struct_name: name.clone(),
+        });
+        
+        // Generate field values and create field initialization list
+        let mut field_values = Vec::new();
+        for (field_name, field_expr) in fields {
+            let (field_value, _) = self.generate_expression_ir(field_expr, function);
+            field_values.push((field_name, field_value));
+        }
+        
+        // Initialize struct with field values
+        function.body.push(Inst::StructInit {
+            result: struct_ptr.clone(),
+            struct_name: name.clone(),
+            field_values,
+        });
+        
+        // Return struct pointer and custom struct type
+        (struct_ptr, Ty::Struct(name))
+    }
+    
+    fn generate_field_access_ir(&mut self, object: Expression, field: String, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for the object expression
+        let (object_value, object_type) = self.generate_expression_ir(object, function);
+        
+        // Extract struct name from type
+        let struct_name = match object_type {
+            Ty::Struct(name) => name,
+            _ => panic!("Field access on non-struct type: {:?}", object_type),
+        };
+        
+        // Get struct definition and field index
+        let struct_def = self.struct_definitions.get(&struct_name)
+            .expect(&format!("Undefined struct: {}", struct_name))
+            .clone();
+        
+        let field_index = *struct_def.field_indices.get(&field)
+            .expect(&format!("Field '{}' not found in struct '{}'", field, struct_name));
+        
+        // Generate field access instruction
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function.body.push(Inst::FieldAccess {
+            result: result_reg.clone(),
+            struct_ptr: object_value,
+            field_name: field.clone(),
+            field_index,
+        });
+        
+        // Look up actual field type from struct definition
+        let field_type = self.get_field_type(&struct_def, &field);
+        
+        (result_reg, field_type)
+    }
+    
+    fn generate_struct_copy_ir(&mut self, source: Value, struct_name: String, function: &mut Function) -> Value {
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function.body.push(Inst::StructCopy {
+            result: result_reg.clone(),
+            source,
+            struct_name,
+        });
+        
+        result_reg
+    }
+    
+    fn type_to_string(&self, ty: &Type) -> String {
+        match ty {
+            Type::Named(name) => name.clone(),
+            Type::Generic { name, .. } => name.clone(),
+            Type::Array { element_type, size } => {
+                if let Some(s) = size {
+                    format!("[{}; {}]", self.type_to_string(element_type), s)
+                } else {
+                    format!("[{}]", self.type_to_string(element_type))
+                }
+            }
+            Type::Slice { element_type } => format!("&[{}]", self.type_to_string(element_type)),
+            Type::Vec { element_type } => format!("Vec<{}>", self.type_to_string(element_type)),
+            Type::HashMap { key_type, value_type } => {
+                format!("HashMap<{}, {}>", self.type_to_string(key_type), self.type_to_string(value_type))
+            }
+            Type::Reference { mutable, inner_type } => {
+                if *mutable {
+                    format!("&mut {}", self.type_to_string(inner_type))
+                } else {
+                    format!("&{}", self.type_to_string(inner_type))
+                }
+            }
+        }
+    }
+    
+    // Struct IR generation methods for function bodies
+    
+    fn generate_struct_literal_ir_for_function(&mut self, name: String, fields: Vec<(String, Expression)>, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Get struct definition
+        let struct_def = self.struct_definitions.get(&name)
+            .expect(&format!("Undefined struct: {}", name))
+            .clone();
+        
+        // Allocate memory for the struct
+        let struct_ptr = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function_body.push(Inst::StructAlloca {
+            result: struct_ptr.clone(),
+            struct_name: name.clone(),
+        });
+        
+        // Generate field values and create field initialization list
+        let mut field_values = Vec::new();
+        for (field_name, field_expr) in fields {
+            let (field_value, _) = self.generate_expression_ir_for_function(field_expr, function_body);
+            field_values.push((field_name, field_value));
+        }
+        
+        // Initialize struct with field values
+        function_body.push(Inst::StructInit {
+            result: struct_ptr.clone(),
+            struct_name: name.clone(),
+            field_values,
+        });
+        
+        // Return struct pointer and custom struct type
+        (struct_ptr, Ty::Struct(name))
+    }
+    
+    fn generate_field_access_ir_for_function(&mut self, object: Expression, field: String, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Generate IR for the object expression
+        let (object_value, object_type) = self.generate_expression_ir_for_function(object, function_body);
+        
+        // Extract struct name from type
+        let struct_name = match object_type {
+            Ty::Struct(name) => name,
+            _ => panic!("Field access on non-struct type: {:?}", object_type),
+        };
+        
+        // Get struct definition and field index
+        let struct_def = self.struct_definitions.get(&struct_name)
+            .expect(&format!("Undefined struct: {}", struct_name))
+            .clone();
+        
+        let field_index = *struct_def.field_indices.get(&field)
+            .expect(&format!("Field '{}' not found in struct '{}'", field, struct_name));
+        
+        // Generate field access instruction
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function_body.push(Inst::FieldAccess {
+            result: result_reg.clone(),
+            struct_ptr: object_value,
+            field_name: field.clone(),
+            field_index,
+        });
+        
+        // Look up actual field type from struct definition
+        let field_type = self.get_field_type(&struct_def, &field);
+        
+        (result_reg, field_type)
+    }
+
+    // Helper method to get field type from struct definition
+    fn get_field_type(&self, struct_def: &StructDefinition, field_name: &str) -> Ty {
+        // Find the field in the struct definition
+        for (name, type_str) in &struct_def.fields {
+            if name == field_name {
+                // Convert type string back to Ty
+                return self.string_to_ty(type_str);
+            }
+        }
+        
+        // Fallback to Int if field not found (should not happen if semantic analysis is correct)
+        Ty::Int
+    }
+    
+    // Helper method to convert type string back to Ty
+    fn string_to_ty(&self, type_str: &str) -> Ty {
+        match type_str {
+            "i32" | "int" => Ty::Int,
+            "f64" | "float" => Ty::Float,
+            "bool" => Ty::Bool,
+            "String" => Ty::String,
+            s if s.starts_with("Vec<") => {
+                // Parse Vec<T> type
+                let inner = &s[4..s.len()-1];
+                Ty::Vec(Box::new(self.string_to_ty(inner)))
+            }
+            s if s.starts_with("[") && s.contains(";") => {
+                // Parse [T; N] array type
+                let parts: Vec<&str> = s[1..s.len()-1].split(";").collect();
+                if parts.len() == 2 {
+                    let element_type = self.string_to_ty(parts[0].trim());
+                    if let Ok(size) = parts[1].trim().parse::<usize>() {
+                        return Ty::Array(Box::new(element_type), Some(size));
+                    }
+                }
+                Ty::Int // Fallback
+            }
+            s if s.starts_with("[") && s.ends_with("]") => {
+                // Parse [T] slice type
+                let inner = &s[1..s.len()-1];
+                Ty::Array(Box::new(self.string_to_ty(inner)), None)
+            }
+            s if s.starts_with("&") => {
+                // Parse reference type
+                let inner = &s[1..];
+                Ty::Reference(Box::new(self.string_to_ty(inner)))
+            }
+            _ => {
+                // Check if it's a struct type
+                if self.struct_definitions.contains_key(type_str) {
+                    Ty::Struct(type_str.to_string())
+                } else {
+                    // Default fallback
+                    Ty::Int
+                }
+            }
+        }
+    }
+    
+    fn type_to_string(&self, ty: &Type) -> String {
+        match ty {
+            Type::Named(name) => name.clone(),
+            Type::Generic { name, .. } => name.clone(),
+            Type::Array { element_type, size } => {
+                if let Some(s) = size {
+                    format!("[{}; {}]", self.type_to_string(element_type), s)
+                } else {
+                    format!("[{}]", self.type_to_string(element_type))
+                }
+            }
+            Type::Slice { element_type } => format!("&[{}]", self.type_to_string(element_type)),
+            Type::Vec { element_type } => format!("Vec<{}>", self.type_to_string(element_type)),
+            Type::HashMap { key_type, value_type } => {
+                format!("HashMap<{}, {}>", self.type_to_string(key_type), self.type_to_string(value_type))
+            }
+            Type::Reference { mutable, inner_type } => {
+                if *mutable {
+                    format!("&mut {}", self.type_to_string(inner_type))
+                } else {
+                    format!("&{}", self.type_to_string(inner_type))
+                }
+            }
+        }
+    }
+
+    // Method call IR generation methods
+    fn generate_method_call_ir(&mut self, object: Expression, method: String, arguments: Vec<Expression>, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for the object expression
+        let (object_value, object_type) = self.generate_expression_ir(object, function);
+        
+        // Generate IR for arguments
+        let mut arg_values = Vec::new();
+        for arg in arguments {
+            let (arg_value, _) = self.generate_expression_ir(arg, function);
+            arg_values.push(arg_value);
+        }
+        
+        // Create method call - for now, treat as function call with object as first argument
+        let mut all_args = vec![object_value];
+        all_args.extend(arg_values);
+        
+        // Generate result register for method call
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        // Create method call instruction (using function call for now)
+        let method_name = match &object_type {
+            Ty::Struct(struct_name) => format!("{}::{}", struct_name, method),
+            _ => format!("{}::{}", object_type.to_string(), method),
+        };
+        
+        let call_inst = Inst::Call {
+            function: method_name,
+            arguments: all_args,
+            result: Some(result_reg.clone()),
+        };
+        
+        function.body.push(call_inst);
+        
+        // For now, assume method calls return the same type as the object
+        (result_reg, object_type)
+    }
+    
+    fn generate_method_call_ir_for_function(&mut self, object: Expression, method: String, arguments: Vec<Expression>, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Generate IR for the object expression
+        let (object_value, object_type) = self.generate_expression_ir_for_function(object, function_body);
+        
+        // Generate IR for arguments
+        let mut arg_values = Vec::new();
+        for arg in arguments {
+            let (arg_value, _) = self.generate_expression_ir_for_function(arg, function_body);
+            arg_values.push(arg_value);
+        }
+        
+        // Create method call - for now, treat as function call with object as first argument
+        let mut all_args = vec![object_value];
+        all_args.extend(arg_values);
+        
+        // Generate result register for method call
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        // Create method call instruction (using function call for now)
+        let method_name = match &object_type {
+            Ty::Struct(struct_name) => format!("{}::{}", struct_name, method),
+            _ => format!("{}::{}", object_type.to_string(), method),
+        };
+        
+        let call_inst = Inst::Call {
+            function: method_name,
+            arguments: all_args,
+            result: Some(result_reg.clone()),
+        };
+        
+        function_body.push(call_inst);
+        
+        // For now, assume method calls return the same type as the object
+        (result_reg, object_type)
+    }
+
+    // Enhanced struct IR generation with field modification support
+    fn generate_field_store_ir(&mut self, object: Expression, field: String, value: Expression, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for the object expression (should be a pointer)
+        let (object_value, object_type) = self.generate_expression_ir(object, function);
+        
+        // Generate IR for the value to store
+        let (value_reg, value_type) = self.generate_expression_ir(value, function);
+        
+        // Extract struct name from type
+        let struct_name = match object_type {
+            Ty::Struct(name) => name,
+            _ => panic!("Field store on non-struct type: {:?}", object_type),
+        };
+        
+        // Get struct definition and field index
+        let struct_def = self.struct_definitions.get(&struct_name)
+            .expect(&format!("Undefined struct: {}", struct_name))
+            .clone();
+        
+        let field_index = *struct_def.field_indices.get(&field)
+            .expect(&format!("Field '{}' not found in struct '{}'", field, struct_name));
+        
+        // Generate field store instruction
+        function.body.push(Inst::FieldStore {
+            struct_ptr: object_value.clone(),
+            field_name: field,
+            field_index,
+            value: value_reg,
+        });
+        
+        // Return the stored value and its type
+        (value_reg, value_type)
+    }
+
+    // Struct copy and move semantics
+    fn generate_struct_move_ir(&mut self, source: Value, struct_name: String, function: &mut Function) -> Value {
+        // For now, implement move as copy (proper move semantics would invalidate source)
+        self.generate_struct_copy_ir(source, struct_name, function)
+    }
+
+    // Enum definition IR generation
+    fn generate_enum_definition_ir(&mut self, name: String, variants: Vec<EnumVariant>, current_function: &mut Function) {
+        // Convert enum variants to IR format
+        let ir_variants: Vec<(String, Option<Vec<String>>)> = variants.iter().map(|variant| {
+            let data_types = match &variant.data {
+                Some(EnumVariantData::Tuple(types)) => {
+                    Some(types.iter().map(|t| self.type_to_string(t)).collect())
+                }
+                Some(EnumVariantData::Struct(fields)) => {
+                    Some(fields.iter().map(|f| self.type_to_string(&f.field_type)).collect())
+                }
+                None => None,
+            };
+            (variant.name.clone(), data_types)
+        }).collect();
+
+        // Create variant index mapping
+        let mut variant_indices = HashMap::new();
+        for (index, variant) in variants.iter().enumerate() {
+            variant_indices.insert(variant.name.clone(), index);
+        }
+
+        // Store enum definition
+        let enum_def = EnumDefinition {
+            name: name.clone(),
+            variants: ir_variants.clone(),
+            variant_indices,
+            discriminant_type: "i32".to_string(), // Use i32 for discriminant
+        };
+        self.enum_definitions.insert(name.clone(), enum_def);
+
+        // Generate enum definition instruction
+        current_function.body.push(Inst::EnumDef {
+            name,
+            variants: ir_variants,
+            discriminant_type: "i32".to_string(),
+        });
+    }
+
+    // Match expression IR generation
+    fn generate_match_expression_ir(&mut self, expression: Expression, arms: Vec<MatchArm>, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for the match expression (discriminant)
+        let (discriminant_value, discriminant_type) = self.generate_expression_ir(expression, function);
+
+        // Generate unique labels for match arms and end
+        let mut arm_labels = Vec::new();
+        let mut arm_body_labels = Vec::new();
+        for i in 0..arms.len() {
+            arm_labels.push(format!("match_arm_{}_{}", i, self.next_reg));
+            arm_body_labels.push(format!("match_body_{}_{}", i, self.next_reg));
+            self.next_reg += 1;
+        }
+        let end_label = format!("match_end_{}", self.next_reg);
+        self.next_reg += 1;
+
+        // Result register for the match expression
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+
+        // Generate pattern matching logic
+        match discriminant_type {
+            Ty::Enum(enum_name) => {
+                self.generate_enum_match_ir(discriminant_value, enum_name, arms, arm_labels, arm_body_labels, end_label.clone(), result_reg.clone(), function);
+            }
+            _ => {
+                // For non-enum types, generate simple pattern matching
+                self.generate_simple_match_ir(discriminant_value, discriminant_type, arms, arm_labels, arm_body_labels, end_label.clone(), result_reg.clone(), function);
+            }
+        }
+
+        // End label
+        function.body.push(Inst::Label(end_label));
+
+        // Return result (assuming int type for now, should be inferred from arms)
+        (result_reg, Ty::Int)
+    }
+
+    // Generate enum-specific match IR
+    fn generate_enum_match_ir(&mut self, discriminant: Value, enum_name: String, arms: Vec<MatchArm>, arm_labels: Vec<String>, arm_body_labels: Vec<String>, end_label: String, result_reg: Value, function: &mut Function) {
+        // Get enum definition
+        let enum_def = self.enum_definitions.get(&enum_name)
+            .expect(&format!("Undefined enum: {}", enum_name))
+            .clone();
+
+        // Extract discriminant from enum value
+        let disc_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::EnumDiscriminant {
+            result: disc_reg.clone(),
+            enum_ptr: discriminant.clone(),
+        });
+
+        // Generate switch instruction for efficient pattern matching
+        let mut switch_cases = Vec::new();
+        let mut default_label = None;
+
+        for (i, arm) in arms.iter().enumerate() {
+            match &arm.pattern {
+                Pattern::Enum { variant, .. } => {
+                    if let Some(&variant_index) = enum_def.variant_indices.get(variant) {
+                        switch_cases.push((variant_index as i64, arm_labels[i].clone()));
+                    }
+                }
+                Pattern::Wildcard => {
+                    default_label = Some(arm_labels[i].clone());
+                }
+                _ => {
+                    // For other patterns, use the first arm label as default
+                    if default_label.is_none() {
+                        default_label = Some(arm_labels[i].clone());
+                    }
+                }
+            }
+        }
+
+        // Generate switch instruction
+        function.body.push(Inst::Switch {
+            discriminant: disc_reg,
+            cases: switch_cases,
+            default_label: default_label.unwrap_or_else(|| format!("match_default_{}", self.next_reg)),
+        });
+
+        // Generate code for each arm
+        for (i, arm) in arms.iter().enumerate() {
+            // Arm label
+            function.body.push(Inst::Label(arm_labels[i].clone()));
+
+            // Generate pattern binding extraction
+            self.generate_pattern_bindings(&arm.pattern, discriminant.clone(), enum_name.clone(), function);
+
+            // Generate guard condition if present
+            if let Some(guard) = &arm.guard {
+                let (guard_value, _) = self.generate_expression_ir(guard.clone(), function);
+                let guard_end_label = format!("guard_end_{}_{}", i, self.next_reg);
+                self.next_reg += 1;
+                
+                function.body.push(Inst::Branch {
+                    condition: guard_value,
+                    true_label: arm_body_labels[i].clone(),
+                    false_label: guard_end_label.clone(),
+                });
+                
+                // If guard fails, continue to next arm or end
+                function.body.push(Inst::Label(guard_end_label));
+                let next_label = if i + 1 < arms.len() {
+                    arm_labels[i + 1].clone()
+                } else {
+                    end_label.clone()
+                };
+                function.body.push(Inst::Jump(next_label));
+            } else {
+                // No guard, jump directly to body
+                function.body.push(Inst::Jump(arm_body_labels[i].clone()));
+            }
+
+            // Arm body label
+            function.body.push(Inst::Label(arm_body_labels[i].clone()));
+
+            // Generate arm body
+            let (arm_result, _) = self.generate_expression_ir(arm.body.clone(), function);
+            
+            // Store result in match result register
+            let temp_ptr = Value::Reg(self.next_ptr);
+            self.next_ptr += 1;
+            function.body.push(Inst::Alloca(temp_ptr.clone(), format!("match_result_{}", i)));
+            function.body.push(Inst::Store(temp_ptr.clone(), arm_result));
+            function.body.push(Inst::Load(result_reg.clone(), temp_ptr));
+
+            // Jump to end
+            function.body.push(Inst::Jump(end_label.clone()));
+        }
+    }
+
+    // Generate simple pattern matching for non-enum types
+    fn generate_simple_match_ir(&mut self, discriminant: Value, discriminant_type: Ty, arms: Vec<MatchArm>, arm_labels: Vec<String>, arm_body_labels: Vec<String>, end_label: String, result_reg: Value, function: &mut Function) {
+        // For simple types, generate if-else chain
+        for (i, arm) in arms.iter().enumerate() {
+            function.body.push(Inst::Label(arm_labels[i].clone()));
+
+            // Generate pattern check
+            let pattern_matches = self.generate_pattern_check(&arm.pattern, discriminant.clone(), discriminant_type.clone(), function);
+
+            // Generate guard condition if present
+            let condition = if let Some(guard) = &arm.guard {
+                let (guard_value, _) = self.generate_expression_ir(guard.clone(), function);
+                // Combine pattern match and guard with AND
+                let combined_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::And {
+                    result: combined_reg.clone(),
+                    left: pattern_matches,
+                    right: guard_value,
+                });
+                combined_reg
+            } else {
+                pattern_matches
+            };
+
+            // Branch based on condition
+            let next_label = if i + 1 < arms.len() {
+                arm_labels[i + 1].clone()
+            } else {
+                end_label.clone()
+            };
+
+            function.body.push(Inst::Branch {
+                condition,
+                true_label: arm_body_labels[i].clone(),
+                false_label: next_label,
+            });
+
+            // Arm body
+            function.body.push(Inst::Label(arm_body_labels[i].clone()));
+            let (arm_result, _) = self.generate_expression_ir(arm.body.clone(), function);
+            
+            // Store result
+            let temp_ptr = Value::Reg(self.next_ptr);
+            self.next_ptr += 1;
+            function.body.push(Inst::Alloca(temp_ptr.clone(), format!("match_result_{}", i)));
+            function.body.push(Inst::Store(temp_ptr.clone(), arm_result));
+            function.body.push(Inst::Load(result_reg.clone(), temp_ptr));
+
+            function.body.push(Inst::Jump(end_label.clone()));
+        }
+    }
+
+    // Generate pattern bindings for enum variants
+    fn generate_pattern_bindings(&mut self, pattern: &Pattern, discriminant: Value, enum_name: String, function: &mut Function) {
+        match pattern {
+            Pattern::Enum { variant, data } => {
+                if let Some(data_pattern) = data {
+                    // Get variant index
+                    let enum_def = self.enum_definitions.get(&enum_name).unwrap();
+                    let variant_index = *enum_def.variant_indices.get(variant).unwrap();
+
+                    // Extract variant data and bind to pattern
+                    self.generate_variant_data_bindings(data_pattern, discriminant, variant_index, function);
+                }
+            }
+            Pattern::Binding { name, pattern } => {
+                // Bind the discriminant to the name
+                let ptr_reg = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                function.body.push(Inst::Store(ptr_reg.clone(), discriminant.clone()));
+                self.symbol_table.insert(name.clone(), (ptr_reg, Ty::Int)); // TODO: Use proper type
+
+                // Process nested pattern
+                self.generate_pattern_bindings(pattern, discriminant, enum_name, function);
+            }
+            _ => {
+                // Other patterns don't create bindings in this context
+            }
+        }
+    }
+
+    // Generate variant data bindings
+    fn generate_variant_data_bindings(&mut self, pattern: &Pattern, enum_value: Value, variant_index: usize, function: &mut Function) {
+        match pattern {
+            Pattern::Identifier(name) => {
+                // Extract single data value from variant
+                let data_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::EnumExtract {
+                    result: data_reg.clone(),
+                    enum_ptr: enum_value,
+                    variant_index,
+                    data_index: 0,
+                });
+
+                // Bind to variable
+                let ptr_reg = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                function.body.push(Inst::Store(ptr_reg.clone(), data_reg));
+                self.symbol_table.insert(name.clone(), (ptr_reg, Ty::Int)); // TODO: Use proper type
+            }
+            Pattern::Tuple(patterns) => {
+                // Extract multiple data values from variant
+                for (i, sub_pattern) in patterns.iter().enumerate() {
+                    let data_reg = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(Inst::EnumExtract {
+                        result: data_reg.clone(),
+                        enum_ptr: enum_value.clone(),
+                        variant_index,
+                        data_index: i,
+                    });
+
+                    // Recursively handle sub-pattern
+                    if let Pattern::Identifier(name) = sub_pattern {
+                        let ptr_reg = Value::Reg(self.next_ptr);
+                        self.next_ptr += 1;
+                        function.body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                        function.body.push(Inst::Store(ptr_reg.clone(), data_reg));
+                        self.symbol_table.insert(name.clone(), (ptr_reg, Ty::Int)); // TODO: Use proper type
+                    }
+                }
+            }
+            _ => {
+                // Other patterns not implemented yet
+            }
+        }
+    }
+
+    // Generate pattern check for simple patterns
+    fn generate_pattern_check(&mut self, pattern: &Pattern, value: Value, value_type: Ty, function: &mut Function) -> Value {
+        match pattern {
+            Pattern::Literal(expr) => {
+                // Generate literal value and compare
+                let (literal_value, _) = self.generate_expression_ir(expr.clone(), function);
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+
+                match value_type {
+                    Ty::Int => {
+                        function.body.push(Inst::ICmp {
+                            op: "eq".to_string(),
+                            result: result_reg.clone(),
+                            left: value,
+                            right: literal_value,
+                        });
+                    }
+                    Ty::Float => {
+                        function.body.push(Inst::FCmp {
+                            op: "oeq".to_string(),
+                            result: result_reg.clone(),
+                            left: value,
+                            right: literal_value,
+                        });
+                    }
+                    _ => {
+                        // Default to integer comparison
+                        function.body.push(Inst::ICmp {
+                            op: "eq".to_string(),
+                            result: result_reg.clone(),
+                            left: value,
+                            right: literal_value,
+                        });
+                    }
+                }
+
+                result_reg
+            }
+            Pattern::Range { start, end, inclusive } => {
+                // Generate range check
+                let (start_value, _) = if let Pattern::Literal(expr) = start.as_ref() {
+                    self.generate_expression_ir(expr.clone(), function)
+                } else {
+                    (Value::ImmInt(0), Ty::Int) // Default
+                };
+
+                let (end_value, _) = if let Pattern::Literal(expr) = end.as_ref() {
+                    self.generate_expression_ir(expr.clone(), function)
+                } else {
+                    (Value::ImmInt(100), Ty::Int) // Default
+                };
+
+                // Generate start <= value
+                let start_check_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::ICmp {
+                    op: "sle".to_string(),
+                    result: start_check_reg.clone(),
+                    left: start_value,
+                    right: value.clone(),
+                });
+
+                // Generate value <= end (or value < end for exclusive)
+                let end_check_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                let end_op = if *inclusive { "sle" } else { "slt" };
+                function.body.push(Inst::ICmp {
+                    op: end_op.to_string(),
+                    result: end_check_reg.clone(),
+                    left: value,
+                    right: end_value,
+                });
+
+                // Combine with AND
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::And {
+                    result: result_reg.clone(),
+                    left: start_check_reg,
+                    right: end_check_reg,
+                });
+
+                result_reg
+            }
+            Pattern::Wildcard => {
+                // Wildcard always matches
+                Value::ImmInt(1) // True
+            }
+            Pattern::Identifier(_) => {
+                // Identifier patterns always match (they bind the value)
+                Value::ImmInt(1) // True
+            }
+            _ => {
+                // Other patterns not implemented yet, default to false
+                Value::ImmInt(0) // False
+            }
+        }
+    }
+
+    // Helper method to convert AST Type to string
+    fn type_to_string(&self, ty: &Type) -> String {
+        match ty {
+            Type::Named(name) => name.clone(),
+            Type::Generic { name, .. } => name.clone(),
+            Type::Array { element_type, size } => {
+                if let Some(s) = size {
+                    format!("[{}; {}]", self.type_to_string(element_type), s)
+                } else {
+                    format!("[{}]", self.type_to_string(element_type))
+                }
+            }
+            Type::Slice { element_type } => {
+                format!("&[{}]", self.type_to_string(element_type))
+            }
+            Type::Vec { element_type } => {
+                format!("Vec<{}>", self.type_to_string(element_type))
+            }
+            Type::HashMap { key_type, value_type } => {
+                format!("HashMap<{}, {}>", self.type_to_string(key_type), self.type_to_string(value_type))
+            }
+            Type::Reference { mutable, inner_type } => {
+                if *mutable {
+                    format!("&mut {}", self.type_to_string(inner_type))
+                } else {
+                    format!("&{}", self.type_to_string(inner_type))
+                }
+            }
+        }
+    }
+
+    // Match expression IR generation for function bodies
+    fn generate_match_expression_ir_for_function(&mut self, expression: Expression, arms: Vec<crate::ast::MatchArm>, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Generate IR for the match expression (discriminant)
+        let (discriminant_value, discriminant_type) = self.generate_expression_ir_for_function(expression, function_body);
+
+        // Generate unique labels for match arms and end
+        let mut arm_labels = Vec::new();
+        let mut arm_body_labels = Vec::new();
+        for i in 0..arms.len() {
+            arm_labels.push(format!("match_arm_{}_{}", i, self.next_reg));
+            arm_body_labels.push(format!("match_body_{}_{}", i, self.next_reg));
+            self.next_reg += 1;
+        }
+        let end_label = format!("match_end_{}", self.next_reg);
+        self.next_reg += 1;
+
+        // Result register for the match expression
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+
+        // Generate pattern matching logic
+        match discriminant_type {
+            Ty::Enum(enum_name) => {
+                self.generate_enum_match_ir_for_function(discriminant_value, enum_name, arms, arm_labels, arm_body_labels, end_label.clone(), result_reg.clone(), function_body);
+            }
+            _ => {
+                // For non-enum types, generate simple pattern matching
+                self.generate_simple_match_ir_for_function(discriminant_value, discriminant_type, arms, arm_labels, arm_body_labels, end_label.clone(), result_reg.clone(), function_body);
+            }
+        }
+
+        // End label
+        function_body.push(Inst::Label(end_label));
+
+        // Return result (assuming int type for now, should be inferred from arms)
+        (result_reg, Ty::Int)
+    }
+
+    // Generate enum-specific match IR for function bodies
+    fn generate_enum_match_ir_for_function(&mut self, discriminant: Value, enum_name: String, arms: Vec<crate::ast::MatchArm>, arm_labels: Vec<String>, arm_body_labels: Vec<String>, end_label: String, result_reg: Value, function_body: &mut Vec<Inst>) {
+        // Get enum definition
+        let enum_def = self.enum_definitions.get(&enum_name)
+            .expect(&format!("Undefined enum: {}", enum_name))
+            .clone();
+
+        // Extract discriminant from enum value
+        let disc_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function_body.push(Inst::EnumDiscriminant {
+            result: disc_reg.clone(),
+            enum_ptr: discriminant.clone(),
+        });
+
+        // Generate switch instruction for efficient pattern matching
+        let mut switch_cases = Vec::new();
+        let mut default_label = None;
+
+        for (i, arm) in arms.iter().enumerate() {
+            match &arm.pattern {
+                crate::ast::Pattern::Enum { variant, .. } => {
+                    if let Some(&variant_index) = enum_def.variant_indices.get(variant) {
+                        switch_cases.push((variant_index as i64, arm_labels[i].clone()));
+                    }
+                }
+                crate::ast::Pattern::Wildcard => {
+                    default_label = Some(arm_labels[i].clone());
+                }
+                _ => {
+                    // For other patterns, use the first arm label as default
+                    if default_label.is_none() {
+                        default_label = Some(arm_labels[i].clone());
+                    }
+                }
+            }
+        }
+
+        // Generate switch instruction
+        function_body.push(Inst::Switch {
+            discriminant: disc_reg,
+            cases: switch_cases,
+            default_label: default_label.unwrap_or_else(|| format!("match_default_{}", self.next_reg)),
+        });
+
+        // Generate code for each arm
+        for (i, arm) in arms.iter().enumerate() {
+            // Arm label
+            function_body.push(Inst::Label(arm_labels[i].clone()));
+
+            // Generate pattern binding extraction
+            self.generate_pattern_bindings_for_function(&arm.pattern, discriminant.clone(), enum_name.clone(), function_body);
+
+            // Generate guard condition if present
+            if let Some(guard) = &arm.guard {
+                let (guard_value, _) = self.generate_expression_ir_for_function(guard.clone(), function_body);
+                let guard_end_label = format!("guard_end_{}_{}", i, self.next_reg);
+                self.next_reg += 1;
+                
+                function_body.push(Inst::Branch {
+                    condition: guard_value,
+                    true_label: arm_body_labels[i].clone(),
+                    false_label: guard_end_label.clone(),
+                });
+                
+                // If guard fails, continue to next arm or end
+                function_body.push(Inst::Label(guard_end_label));
+                let next_label = if i + 1 < arms.len() {
+                    arm_labels[i + 1].clone()
+                } else {
+                    end_label.clone()
+                };
+                function_body.push(Inst::Jump(next_label));
+            } else {
+                // No guard, jump directly to body
+                function_body.push(Inst::Jump(arm_body_labels[i].clone()));
+            }
+
+            // Arm body label
+            function_body.push(Inst::Label(arm_body_labels[i].clone()));
+
+            // Generate arm body
+            let (arm_result, _) = self.generate_expression_ir_for_function(arm.body.clone(), function_body);
+            
+            // Store result in match result register
+            let temp_ptr = Value::Reg(self.next_ptr);
+            self.next_ptr += 1;
+            function_body.push(Inst::Alloca(temp_ptr.clone(), format!("match_result_{}", i)));
+            function_body.push(Inst::Store(temp_ptr.clone(), arm_result));
+            function_body.push(Inst::Load(result_reg.clone(), temp_ptr));
+
+            // Jump to end
+            function_body.push(Inst::Jump(end_label.clone()));
+        }
+    }
+
+    // Generate simple pattern matching for non-enum types in function bodies
+    fn generate_simple_match_ir_for_function(&mut self, discriminant: Value, discriminant_type: Ty, arms: Vec<crate::ast::MatchArm>, arm_labels: Vec<String>, arm_body_labels: Vec<String>, end_label: String, result_reg: Value, function_body: &mut Vec<Inst>) {
+        // For simple types, generate if-else chain
+        for (i, arm) in arms.iter().enumerate() {
+            function_body.push(Inst::Label(arm_labels[i].clone()));
+
+            // Generate pattern check
+            let pattern_matches = self.generate_pattern_check_for_function(&arm.pattern, discriminant.clone(), discriminant_type.clone(), function_body);
+
+            // Generate guard condition if present
+            let condition = if let Some(guard) = &arm.guard {
+                let (guard_value, _) = self.generate_expression_ir_for_function(guard.clone(), function_body);
+                // Combine pattern match and guard with AND
+                let combined_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function_body.push(Inst::And {
+                    result: combined_reg.clone(),
+                    left: pattern_matches,
+                    right: guard_value,
+                });
+                combined_reg
+            } else {
+                pattern_matches
+            };
+
+            // Branch based on condition
+            let next_label = if i + 1 < arms.len() {
+                arm_labels[i + 1].clone()
+            } else {
+                end_label.clone()
+            };
+
+            function_body.push(Inst::Branch {
+                condition,
+                true_label: arm_body_labels[i].clone(),
+                false_label: next_label,
+            });
+
+            // Arm body
+            function_body.push(Inst::Label(arm_body_labels[i].clone()));
+            let (arm_result, _) = self.generate_expression_ir_for_function(arm.body.clone(), function_body);
+            
+            // Store result
+            let temp_ptr = Value::Reg(self.next_ptr);
+            self.next_ptr += 1;
+            function_body.push(Inst::Alloca(temp_ptr.clone(), format!("match_result_{}", i)));
+            function_body.push(Inst::Store(temp_ptr.clone(), arm_result));
+            function_body.push(Inst::Load(result_reg.clone(), temp_ptr));
+
+            function_body.push(Inst::Jump(end_label.clone()));
+        }
+    }
+
+    // Generate pattern bindings for enum variants in function bodies
+    fn generate_pattern_bindings_for_function(&mut self, pattern: &crate::ast::Pattern, discriminant: Value, enum_name: String, function_body: &mut Vec<Inst>) {
+        match pattern {
+            crate::ast::Pattern::Enum { variant, data } => {
+                if let Some(data_pattern) = data {
+                    // Get variant index
+                    let enum_def = self.enum_definitions.get(&enum_name).unwrap();
+                    let variant_index = *enum_def.variant_indices.get(variant).unwrap();
+
+                    // Extract variant data and bind to pattern
+                    self.generate_variant_data_bindings_for_function(data_pattern, discriminant, variant_index, function_body);
+                }
+            }
+            crate::ast::Pattern::Binding { name, pattern } => {
+                // Bind the discriminant to the name
+                let ptr_reg = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function_body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                function_body.push(Inst::Store(ptr_reg.clone(), discriminant.clone()));
+                self.symbol_table.insert(name.clone(), (ptr_reg, Ty::Int)); // TODO: Use proper type
+
+                // Process nested pattern
+                self.generate_pattern_bindings_for_function(pattern, discriminant, enum_name, function_body);
+            }
+            _ => {
+                // Other patterns don't create bindings in this context
+            }
+        }
+    }
+
+    // Generate variant data bindings for function bodies
+    fn generate_variant_data_bindings_for_function(&mut self, pattern: &crate::ast::Pattern, enum_value: Value, variant_index: usize, function_body: &mut Vec<Inst>) {
+        match pattern {
+            crate::ast::Pattern::Identifier(name) => {
+                // Extract single data value from variant
+                let data_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function_body.push(Inst::EnumExtract {
+                    result: data_reg.clone(),
+                    enum_ptr: enum_value,
+                    variant_index,
+                    data_index: 0,
+                });
+
+                // Bind to variable
+                let ptr_reg = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function_body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                function_body.push(Inst::Store(ptr_reg.clone(), data_reg));
+                self.symbol_table.insert(name.clone(), (ptr_reg, Ty::Int)); // TODO: Use proper type
+            }
+            crate::ast::Pattern::Tuple(patterns) => {
+                // Extract multiple data values from variant
+                for (i, sub_pattern) in patterns.iter().enumerate() {
+                    let data_reg = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function_body.push(Inst::EnumExtract {
+                        result: data_reg.clone(),
+                        enum_ptr: enum_value.clone(),
+                        variant_index,
+                        data_index: i,
+                    });
+
+                    // Recursively handle sub-pattern
+                    if let crate::ast::Pattern::Identifier(name) = sub_pattern {
+                        let ptr_reg = Value::Reg(self.next_ptr);
+                        self.next_ptr += 1;
+                        function_body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                        function_body.push(Inst::Store(ptr_reg.clone(), data_reg));
+                        self.symbol_table.insert(name.clone(), (ptr_reg, Ty::Int)); // TODO: Use proper type
+                    }
+                }
+            }
+            _ => {
+                // Other patterns not implemented yet
+            }
+        }
+    }
+
+    // Generate pattern check for simple patterns in function bodies
+    fn generate_pattern_check_for_function(&mut self, pattern: &crate::ast::Pattern, value: Value, value_type: Ty, function_body: &mut Vec<Inst>) -> Value {
+        match pattern {
+            crate::ast::Pattern::Literal(expr) => {
+                // Generate literal value and compare
+                let (literal_value, _) = self.generate_expression_ir_for_function(expr.clone(), function_body);
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+
+                match value_type {
+                    Ty::Int => {
+                        function_body.push(Inst::ICmp {
+                            op: "eq".to_string(),
+                            result: result_reg.clone(),
+                            left: value,
+                            right: literal_value,
+                        });
+                    }
+                    Ty::Float => {
+                        function_body.push(Inst::FCmp {
+                            op: "oeq".to_string(),
+                            result: result_reg.clone(),
+                            left: value,
+                            right: literal_value,
+                        });
+                    }
+                    _ => {
+                        // Default to integer comparison
+                        function_body.push(Inst::ICmp {
+                            op: "eq".to_string(),
+                            result: result_reg.clone(),
+                            left: value,
+                            right: literal_value,
+                        });
+                    }
+                }
+
+                result_reg
+            }
+            crate::ast::Pattern::Range { start, end, inclusive } => {
+                // Generate range check
+                let (start_value, _) = if let crate::ast::Pattern::Literal(expr) = start.as_ref() {
+                    self.generate_expression_ir_for_function(expr.clone(), function_body)
+                } else {
+                    (Value::ImmInt(0), Ty::Int) // Default
+                };
+
+                let (end_value, _) = if let crate::ast::Pattern::Literal(expr) = end.as_ref() {
+                    self.generate_expression_ir_for_function(expr.clone(), function_body)
+                } else {
+                    (Value::ImmInt(100), Ty::Int) // Default
+                };
+
+                // Generate start <= value
+                let start_check_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function_body.push(Inst::ICmp {
+                    op: "sle".to_string(),
+                    result: start_check_reg.clone(),
+                    left: start_value,
+                    right: value.clone(),
+                });
+
+                // Generate value <= end (or value < end for exclusive)
+                let end_check_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                let end_op = if *inclusive { "sle" } else { "slt" };
+                function_body.push(Inst::ICmp {
+                    op: end_op.to_string(),
+                    result: end_check_reg.clone(),
+                    left: value,
+                    right: end_value,
+                });
+
+                // Combine with AND
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function_body.push(Inst::And {
+                    result: result_reg.clone(),
+                    left: start_check_reg,
+                    right: end_check_reg,
+                });
+
+                result_reg
+            }
+            crate::ast::Pattern::Wildcard => {
+                // Wildcard always matches
+                Value::ImmInt(1) // True
+            }
+            crate::ast::Pattern::Identifier(_) => {
+                // Identifier patterns always match (they bind the value)
+                Value::ImmInt(1) // True
+            }
+            _ => {
+                // Other patterns not implemented yet, default to false
+                Value::ImmInt(0) // False
+            }
+        }
+    }
+
+    // Array literal IR generation
+    fn generate_array_literal_ir(&mut self, elements: Vec<Expression>, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for all elements
+        let mut element_values = Vec::new();
+        let mut element_type = Ty::Int; // Default type
+        
+        for (i, element) in elements.iter().enumerate() {
+            let (element_value, elem_type) = self.generate_expression_ir(element.clone(), function);
+            element_values.push(element_value);
+            
+            // Use the first element's type as the array element type
+            if i == 0 {
+                element_type = elem_type;
+            }
+        }
+        
+        // Allocate array
+        let array_ptr = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        let size_value = Value::ImmInt(elements.len() as i64);
+        function.body.push(Inst::ArrayAlloca {
+            result: array_ptr.clone(),
+            element_type: element_type.to_string(),
+            size: size_value,
+        });
+        
+        // Initialize array with elements
+        function.body.push(Inst::ArrayInit {
+            result: array_ptr.clone(),
+            element_type: element_type.to_string(),
+            elements: element_values,
+        });
+        
+        (array_ptr, Ty::Array(Box::new(element_type), Some(elements.len())))
+    }
+    
+    // Array access IR generation with bounds checking
+    fn generate_array_access_ir(&mut self, array: Expression, index: Expression, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for array and index expressions
+        let (array_value, array_type) = self.generate_expression_ir(array, function);
+        let (index_value, _) = self.generate_expression_ir(index, function);
+        
+        // Extract element type from array type
+        let element_type = match array_type {
+            Ty::Array(elem_type, _) => *elem_type,
+            _ => Ty::Int, // Default fallback
+        };
+        
+        // Generate bounds check
+        let success_label = format!("bounds_check_success_{}", self.next_reg);
+        let failure_label = format!("bounds_check_failure_{}", self.next_reg);
+        self.next_reg += 1;
+        
+        function.body.push(Inst::BoundsCheck {
+            array_ptr: array_value.clone(),
+            index: index_value.clone(),
+            success_label: success_label.clone(),
+            failure_label: failure_label.clone(),
+        });
+        
+        // Failure label - could generate runtime error
+        function.body.push(Inst::Label(failure_label));
+        // For now, just return 0 on bounds failure
+        let error_result = Value::ImmInt(0);
+        let end_label = format!("array_access_end_{}", self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Jump(end_label.clone()));
+        
+        // Success label - perform actual access
+        function.body.push(Inst::Label(success_label));
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function.body.push(Inst::ArrayAccess {
+            result: result_reg.clone(),
+            array_ptr: array_value,
+            index: index_value,
+        });
+        
+        function.body.push(Inst::Label(end_label));
+        
+        (result_reg, element_type)
+    }
+    
+    // Vec macro IR generation
+    fn generate_vec_macro_ir(&mut self, elements: Vec<Expression>, function: &mut Function) -> (Value, Ty) {
+        // Generate IR for all elements
+        let mut element_values = Vec::new();
+        let mut element_type = Ty::Int; // Default type
+        
+        for (i, element) in elements.iter().enumerate() {
+            let (element_value, elem_type) = self.generate_expression_ir(element.clone(), function);
+            element_values.push(element_value);
+            
+            // Use the first element's type as the Vec element type
+            if i == 0 {
+                element_type = elem_type;
+            }
+        }
+        
+        // Allocate Vec
+        let vec_ptr = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function.body.push(Inst::VecAlloca {
+            result: vec_ptr.clone(),
+            element_type: element_type.to_string(),
+        });
+        
+        // Initialize Vec with elements
+        function.body.push(Inst::VecInit {
+            result: vec_ptr.clone(),
+            element_type: element_type.to_string(),
+            elements: element_values,
+        });
+        
+        (vec_ptr, Ty::Vec(Box::new(element_type)))
+    }
+    
+    // Generic type instantiation IR generation
+    fn generate_generic_instantiation_ir(&mut self, base_type: String, type_args: Vec<String>, function: &mut Function) -> (Value, Ty) {
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        let instantiated_name = format!("{}<{}>", base_type, type_args.join(", "));
+        
+        function.body.push(Inst::GenericInstantiate {
+            result: result_reg.clone(),
+            base_type,
+            type_args,
+            instantiated_name: instantiated_name.clone(),
+        });
+        
+        // For now, return a generic type representation
+        (result_reg, Ty::Int) // TODO: Implement proper generic type representation
+    }
+    
+    // Collection method call IR generation
+    fn generate_collection_method_ir(&mut self, object: Expression, method: String, arguments: Vec<Expression>, function: &mut Function) -> (Value, Ty) {
+        let (object_value, object_type) = self.generate_expression_ir(object, function);
+        
+        // Generate IR for arguments
+        let mut arg_values = Vec::new();
+        for arg in arguments {
+            let (arg_value, _) = self.generate_expression_ir(arg, function);
+            arg_values.push(arg_value);
+        }
+        
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        match (&object_type, method.as_str()) {
+            (Ty::Vec(_), "push") => {
+                if let Some(value) = arg_values.first() {
+                    function.body.push(Inst::VecPush {
+                        vec_ptr: object_value,
+                        value: value.clone(),
+                    });
+                }
+                (Value::ImmInt(0), Ty::Int) // push returns unit
+            }
+            (Ty::Vec(_), "pop") => {
+                function.body.push(Inst::VecPop {
+                    result: result_reg.clone(),
+                    vec_ptr: object_value,
+                });
+                (result_reg, Ty::Int) // TODO: Return Option<T>
+            }
+            (Ty::Vec(_), "len") => {
+                function.body.push(Inst::VecLength {
+                    result: result_reg.clone(),
+                    vec_ptr: object_value,
+                });
+                (result_reg, Ty::Int)
+            }
+            (Ty::Vec(_), "capacity") => {
+                function.body.push(Inst::VecCapacity {
+                    result: result_reg.clone(),
+                    vec_ptr: object_value,
+                });
+                (result_reg, Ty::Int)
+            }
+            (Ty::Array(elem_type, _), "len") => {
+                function.body.push(Inst::ArrayLength {
+                    result: result_reg.clone(),
+                    array_ptr: object_value,
+                });
+                (result_reg, Ty::Int)
+            }
+            _ => {
+                // Generic method call
+                function.body.push(Inst::GenericMethodCall {
+                    result: Some(result_reg.clone()),
+                    object: object_value,
+                    method,
+                    type_args: vec![], // TODO: Extract type arguments
+                    arguments: arg_values,
+                });
+                (result_reg, Ty::Int) // Default return type
+            }
+        }
+    }
+    
+    // Array literal IR generation for function bodies
+    fn generate_array_literal_ir_for_function(&mut self, elements: Vec<Expression>, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Generate IR for all elements
+        let mut element_values = Vec::new();
+        let mut element_type = Ty::Int; // Default type
+        
+        for (i, element) in elements.iter().enumerate() {
+            let (element_value, elem_type) = self.generate_expression_ir_for_function(element.clone(), function_body);
+            element_values.push(element_value);
+            
+            // Use the first element's type as the array element type
+            if i == 0 {
+                element_type = elem_type;
+            }
+        }
+        
+        // Allocate array
+        let array_ptr = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        let size_value = Value::ImmInt(elements.len() as i64);
+        function_body.push(Inst::ArrayAlloca {
+            result: array_ptr.clone(),
+            element_type: element_type.to_string(),
+            size: size_value,
+        });
+        
+        // Initialize array with elements
+        function_body.push(Inst::ArrayInit {
+            result: array_ptr.clone(),
+            element_type: element_type.to_string(),
+            elements: element_values,
+        });
+        
+        (array_ptr, Ty::Array(Box::new(element_type), Some(elements.len())))
+    }
+    
+    // Array access IR generation for function bodies
+    fn generate_array_access_ir_for_function(&mut self, array: Expression, index: Expression, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Generate IR for array and index expressions
+        let (array_value, array_type) = self.generate_expression_ir_for_function(array, function_body);
+        let (index_value, _) = self.generate_expression_ir_for_function(index, function_body);
+        
+        // Extract element type from array type
+        let element_type = match array_type {
+            Ty::Array(elem_type, _) => *elem_type,
+            _ => Ty::Int, // Default fallback
+        };
+        
+        // Generate bounds check
+        let success_label = format!("bounds_check_success_{}", self.next_reg);
+        let failure_label = format!("bounds_check_failure_{}", self.next_reg);
+        self.next_reg += 1;
+        
+        function_body.push(Inst::BoundsCheck {
+            array_ptr: array_value.clone(),
+            index: index_value.clone(),
+            success_label: success_label.clone(),
+            failure_label: failure_label.clone(),
+        });
+        
+        // Failure label - could generate runtime error
+        function_body.push(Inst::Label(failure_label));
+        let end_label = format!("array_access_end_{}", self.next_reg);
+        self.next_reg += 1;
+        function_body.push(Inst::Jump(end_label.clone()));
+        
+        // Success label - perform actual access
+        function_body.push(Inst::Label(success_label));
+        let result_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function_body.push(Inst::ArrayAccess {
+            result: result_reg.clone(),
+            array_ptr: array_value,
+            index: index_value,
+        });
+        
+        function_body.push(Inst::Label(end_label));
+        
+        (result_reg, element_type)
+    }
+    
+    // Vec macro IR generation for function bodies
+    fn generate_vec_macro_ir_for_function(&mut self, elements: Vec<Expression>, function_body: &mut Vec<Inst>) -> (Value, Ty) {
+        // Generate IR for all elements
+        let mut element_values = Vec::new();
+        let mut element_type = Ty::Int; // Default type
+        
+        for (i, element) in elements.iter().enumerate() {
+            let (element_value, elem_type) = self.generate_expression_ir_for_function(element.clone(), function_body);
+            element_values.push(element_value);
+            
+            // Use the first element's type as the Vec element type
+            if i == 0 {
+                element_type = elem_type;
+            }
+        }
+        
+        // Allocate Vec
+        let vec_ptr = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        
+        function_body.push(Inst::VecAlloca {
+            result: vec_ptr.clone(),
+            element_type: element_type.to_string(),
+        });
+        
+        // Initialize Vec with elements
+        function_body.push(Inst::VecInit {
+            result: vec_ptr.clone(),
+            element_type: element_type.to_string(),
+            elements: element_values,
+        });
+        
+        (vec_ptr, Ty::Vec(Box::new(element_type)))
+    }
+}

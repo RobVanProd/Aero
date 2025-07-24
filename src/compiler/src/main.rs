@@ -10,6 +10,8 @@ mod errors;
 mod optimizations;
 mod compatibility;
 mod performance_optimizations;
+mod pattern_matcher;
+mod generic_resolver;
 
 #[cfg(test)]
 mod lexer_test;

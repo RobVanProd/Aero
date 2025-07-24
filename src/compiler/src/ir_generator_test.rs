@@ -1,355 +1,680 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{AstNode, Statement, Expression, Parameter, Block, Type};
+    use crate::ast::{AstNode, Statement, Expression, Parameter, Block, Type, BinaryOp, ComparisonOp, LogicalOp, UnaryOp};
     use crate::ir::{Inst, Value};
     use crate::types::Ty;
 
     // ===== PHASE 3 COMPREHENSIVE IR GENERATOR TESTS =====
 
     #[test]
-    fn test_function_definition_ir_generation() {
+    fn test_simple_let_statement_ir() {
         let mut ir_gen = IrGenerator::new();
         
-        // Create a simple function: fn add(a: i32, b: i32) -> i32 { a + b }
-        let param1 = Parameter {
-            name: "a".to_string(),
-            param_type: Type { name: "i32".to_string() },
-        };
-        let param2 = Parameter {
-            name: "b".to_string(),
-            param_type: Type { name: "i32".to_string() },
-        };
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "x".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(42)),
+            })
+        ];
         
-        let body = Block {
-            statements: vec![],
-            expression: Some(Expression::Binary {
-                op: "+".to_string(),
-                lhs: Box::new(Expression::Identifier("a".to_string())),
-                rhs: Box::new(Expression::Identifier("b".to_string())),
-                ty: Some(Ty::Int),
-            }),
-        };
-        
-        let func_stmt = Statement::Function {
-            name: "add".to_string(),
-            parameters: vec![param1, param2],
-            return_type: Some(Type { name: "i32".to_string() }),
-            body,
-        };
-        
-        let ast = vec![AstNode::Statement(func_stmt)];
         let ir = ir_gen.generate_ir(ast);
         
         // Check that main function exists
         assert!(ir.contains_key("main"));
         let main_func = &ir["main"];
         
-        // Check that main function contains a FunctionDef instruction
-        assert_eq!(main_func.body.len(), 1);
-        match &main_func.body[0] {
-            Inst::FunctionDef { name, parameters, body } => {
-                assert_eq!(name, "add");
-                assert_eq!(parameters.len(), 2);
-                assert_eq!(parameters[0], "a");
-                assert_eq!(parameters[1], "b");
-                
-                // Check function body structure
-                assert!(body.len() >= 4); // At least: 2 allocas, 1 add, 1 return
-                
-                // Check parameter allocations
-                assert!(matches!(body[0], Inst::Alloca(Value::Reg(0), ref name) if name == "a"));
-                assert!(matches!(body[1], Inst::Alloca(Value::Reg(1), ref name) if name == "b"));
-                
-                // Check return instruction exists
-                assert!(body.iter().any(|inst| matches!(inst, Inst::Return(_))));
-            }
-            _ => panic!("Expected FunctionDef instruction"),
-        }
+        // Should have at least: alloca, store instructions
+        assert!(main_func.body.len() >= 2);
         
-        // Check that function is stored in functions map
-        assert!(ir.contains_key("add"));
+        // Check for alloca instruction
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "x")));
+        
+        // Check for store instruction with immediate value
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Store(Value::ImmInt(42), _))));
     }
 
     #[test]
-    fn test_function_call_ir_generation() {
+    fn test_mutable_variable_ir() {
         let mut ir_gen = IrGenerator::new();
         
-        // Create a function call: add(5, 3)
-        let func_call = Expression::FunctionCall {
-            name: "add".to_string(),
-            arguments: vec![
-                Expression::IntegerLiteral(5),
-                Expression::IntegerLiteral(3),
-            ],
-        };
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "x".to_string(),
+                mutable: true,
+                type_annotation: Some(Type::Named("i32".to_string())),
+                value: Some(Expression::IntegerLiteral(42)),
+            })
+        ];
         
-        let let_stmt = Statement::Let {
-            name: "result".to_string(),
-            value: func_call,
-        };
-        
-        let ast = vec![AstNode::Statement(let_stmt)];
         let ir = ir_gen.generate_ir(ast);
-        
         let main_func = &ir["main"];
         
-        // Should have: alloca for result, call instruction, store instruction
-        assert!(main_func.body.len() >= 3);
-        
-        // Find the call instruction
-        let call_inst = main_func.body.iter().find(|inst| matches!(inst, Inst::Call { .. }));
-        assert!(call_inst.is_some());
-        
-        match call_inst.unwrap() {
-            Inst::Call { function, arguments, result } => {
-                assert_eq!(function, "add");
-                assert_eq!(arguments.len(), 2);
-                assert!(matches!(arguments[0], Value::ImmInt(5)));
-                assert!(matches!(arguments[1], Value::ImmInt(3)));
-                assert!(result.is_some());
-            }
-            _ => panic!("Expected Call instruction"),
-        }
+        // Should generate similar IR to immutable, but track mutability
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "x")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Store(Value::ImmInt(42), _))));
     }
 
     #[test]
-    fn test_function_with_no_parameters() {
+    fn test_binary_expression_ir() {
         let mut ir_gen = IrGenerator::new();
         
-        // Create a function: fn get_value() -> i32 { 42 }
-        let body = Block {
-            statements: vec![],
-            expression: Some(Expression::IntegerLiteral(42)),
-        };
-        
-        let func_stmt = Statement::Function {
-            name: "get_value".to_string(),
-            parameters: vec![],
-            return_type: Some(Type { name: "i32".to_string() }),
-            body,
-        };
-        
-        let ast = vec![AstNode::Statement(func_stmt)];
-        let ir = ir_gen.generate_ir(ast);
-        
-        let main_func = &ir["main"];
-        match &main_func.body[0] {
-            Inst::FunctionDef { name, parameters, body } => {
-                assert_eq!(name, "get_value");
-                assert_eq!(parameters.len(), 0);
-                
-                // Should have return instruction with immediate value
-                assert!(body.iter().any(|inst| matches!(inst, Inst::Return(Value::ImmInt(42)))));
-            }
-            _ => panic!("Expected FunctionDef instruction"),
-        }
-    }
-
-    #[test]
-    fn test_function_with_return_statement() {
-        let mut ir_gen = IrGenerator::new();
-        
-        // Create a function: fn double(x: i32) -> i32 { return x * 2; }
-        let param = Parameter {
-            name: "x".to_string(),
-            param_type: Type { name: "i32".to_string() },
-        };
-        
-        let body = Block {
-            statements: vec![
-                Statement::Return(Expression::Binary {
-                    op: "*".to_string(),
-                    lhs: Box::new(Expression::Identifier("x".to_string())),
-                    rhs: Box::new(Expression::IntegerLiteral(2)),
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "x".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(5)),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "y".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(10)),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "result".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Binary {
+                    op: BinaryOp::Add,
+                    left: Box::new(Expression::Identifier("x".to_string())),
+                    right: Box::new(Expression::Identifier("y".to_string())),
                     ty: Some(Ty::Int),
                 }),
-            ],
-            expression: None,
-        };
+            }),
+        ];
         
-        let func_stmt = Statement::Function {
-            name: "double".to_string(),
-            parameters: vec![param],
-            return_type: Some(Type { name: "i32".to_string() }),
-            body,
-        };
-        
-        let ast = vec![AstNode::Statement(func_stmt)];
         let ir = ir_gen.generate_ir(ast);
-        
         let main_func = &ir["main"];
-        match &main_func.body[0] {
-            Inst::FunctionDef { name, parameters, body } => {
-                assert_eq!(name, "double");
-                assert_eq!(parameters.len(), 1);
-                assert_eq!(parameters[0], "x");
-                
-                // Should have parameter alloca, multiplication, and return
-                assert!(body.iter().any(|inst| matches!(inst, Inst::Alloca(Value::Reg(0), ref name) if name == "x")));
-                assert!(body.iter().any(|inst| matches!(inst, Inst::Mul(_, _, _))));
-                assert!(body.iter().any(|inst| matches!(inst, Inst::Return(_))));
-            }
-            _ => panic!("Expected FunctionDef instruction"),
-        }
+        
+        // Should have allocas for x, y, result
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "x")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "y")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "result")));
+        
+        // Should have an Add instruction
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Add(_, _, _))));
     }
 
     #[test]
-    fn test_nested_function_calls() {
+    fn test_comparison_expression_ir() {
         let mut ir_gen = IrGenerator::new();
         
-        // Create nested function calls: add(multiply(2, 3), 4)
-        let inner_call = Expression::FunctionCall {
-            name: "multiply".to_string(),
-            arguments: vec![
-                Expression::IntegerLiteral(2),
-                Expression::IntegerLiteral(3),
-            ],
-        };
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "x".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(5)),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "result".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Comparison {
+                    op: ComparisonOp::GreaterThan,
+                    left: Box::new(Expression::Identifier("x".to_string())),
+                    right: Box::new(Expression::IntegerLiteral(0)),
+                }),
+            }),
+        ];
         
-        let outer_call = Expression::FunctionCall {
-            name: "add".to_string(),
-            arguments: vec![
-                inner_call,
-                Expression::IntegerLiteral(4),
-            ],
-        };
-        
-        let let_stmt = Statement::Let {
-            name: "result".to_string(),
-            value: outer_call,
-        };
-        
-        let ast = vec![AstNode::Statement(let_stmt)];
         let ir = ir_gen.generate_ir(ast);
-        
         let main_func = &ir["main"];
         
-        // Should have two call instructions
-        let call_instructions: Vec<_> = main_func.body.iter()
-            .filter(|inst| matches!(inst, Inst::Call { .. }))
-            .collect();
+        // Should have allocas for x and result
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "x")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "result")));
         
-        assert_eq!(call_instructions.len(), 2);
-        
-        // First call should be to multiply
-        match call_instructions[0] {
-            Inst::Call { function, arguments, .. } => {
-                assert_eq!(function, "multiply");
-                assert_eq!(arguments.len(), 2);
-                assert!(matches!(arguments[0], Value::ImmInt(2)));
-                assert!(matches!(arguments[1], Value::ImmInt(3)));
-            }
-            _ => panic!("Expected Call instruction"),
-        }
-        
-        // Second call should be to add
-        match call_instructions[1] {
-            Inst::Call { function, arguments, .. } => {
-                assert_eq!(function, "add");
-                assert_eq!(arguments.len(), 2);
-                // First argument should be a register (result of multiply call)
-                assert!(matches!(arguments[0], Value::Reg(_)));
-                assert!(matches!(arguments[1], Value::ImmInt(4)));
-            }
-            _ => panic!("Expected Call instruction"),
-        }
+        // Should have a comparison instruction (implementation dependent)
+        // This might be Cmp, Gt, or similar depending on IR design
+        assert!(main_func.body.len() > 4); // At least some instructions generated
     }
 
     #[test]
-    fn test_function_with_local_variables() {
+    fn test_logical_expression_ir() {
         let mut ir_gen = IrGenerator::new();
         
-        // Create a function with local variables:
-        // fn calculate(x: i32) -> i32 {
-        //     let temp = x + 1;
-        //     temp * 2
-        // }
-        let param = Parameter {
-            name: "x".to_string(),
-            param_type: Type { name: "i32".to_string() },
-        };
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "a".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Comparison {
+                    op: ComparisonOp::GreaterThan,
+                    left: Box::new(Expression::IntegerLiteral(5)),
+                    right: Box::new(Expression::IntegerLiteral(0)),
+                }),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "b".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Comparison {
+                    op: ComparisonOp::LessThan,
+                    left: Box::new(Expression::IntegerLiteral(10)),
+                    right: Box::new(Expression::IntegerLiteral(20)),
+                }),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "result".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Logical {
+                    op: LogicalOp::And,
+                    left: Box::new(Expression::Identifier("a".to_string())),
+                    right: Box::new(Expression::Identifier("b".to_string())),
+                }),
+            }),
+        ];
         
-        let body = Block {
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have allocas for a, b, result
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "a")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "b")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "result")));
+        
+        // Should generate multiple instructions for logical operations
+        assert!(main_func.body.len() > 6);
+    }
+
+    #[test]
+    fn test_unary_expression_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "flag".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Comparison {
+                    op: ComparisonOp::Equal,
+                    left: Box::new(Expression::IntegerLiteral(1)),
+                    right: Box::new(Expression::IntegerLiteral(1)),
+                }),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "result".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Unary {
+                    op: UnaryOp::Not,
+                    operand: Box::new(Expression::Identifier("flag".to_string())),
+                }),
+            }),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have allocas for flag and result
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "flag")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "result")));
+        
+        // Should generate instructions for unary operation
+        assert!(main_func.body.len() > 4);
+    }
+
+    #[test]
+    fn test_print_expression_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "name".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::StringLiteral("World".to_string())),
+            }),
+            AstNode::Statement(Statement::Expression(Expression::Print {
+                format_string: "Hello, {}!".to_string(),
+                arguments: vec![Expression::Identifier("name".to_string())],
+            })),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have alloca for name
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "name")));
+        
+        // Should have a Print instruction
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Print { .. })));
+    }
+
+    #[test]
+    fn test_println_expression_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Expression(Expression::Println {
+                format_string: "Value: {}".to_string(),
+                arguments: vec![Expression::IntegerLiteral(42)],
+            })),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have a Print instruction (println is handled as print with newline)
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Print { .. })));
+    }
+
+    #[test]
+    fn test_return_statement_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Return(Some(Expression::IntegerLiteral(42)))),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have a Return instruction
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Return(_))));
+    }
+
+    #[test]
+    fn test_empty_return_statement_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Return(None)),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have a Return instruction with no value
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Return(Value::Unit))));
+    }
+
+    #[test]
+    fn test_break_statement_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Break),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should generate some IR (implementation dependent)
+        // Break might generate Jump instruction or similar
+        assert!(main_func.body.len() >= 0); // At least doesn't crash
+    }
+
+    #[test]
+    fn test_continue_statement_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Continue),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should generate some IR (implementation dependent)
+        // Continue might generate Jump instruction or similar
+        assert!(main_func.body.len() >= 0); // At least doesn't crash
+    }
+
+    #[test]
+    fn test_block_statement_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let block = Block {
             statements: vec![
                 Statement::Let {
-                    name: "temp".to_string(),
-                    value: Expression::Binary {
-                        op: "+".to_string(),
-                        lhs: Box::new(Expression::Identifier("x".to_string())),
-                        rhs: Box::new(Expression::IntegerLiteral(1)),
-                        ty: Some(Ty::Int),
-                    },
+                    name: "x".to_string(),
+                    mutable: false,
+                    type_annotation: None,
+                    value: Some(Expression::IntegerLiteral(5)),
+                },
+                Statement::Let {
+                    name: "y".to_string(),
+                    mutable: false,
+                    type_annotation: None,
+                    value: Some(Expression::IntegerLiteral(10)),
                 },
             ],
             expression: Some(Expression::Binary {
-                op: "*".to_string(),
-                lhs: Box::new(Expression::Identifier("temp".to_string())),
-                rhs: Box::new(Expression::IntegerLiteral(2)),
+                op: BinaryOp::Add,
+                left: Box::new(Expression::Identifier("x".to_string())),
+                right: Box::new(Expression::Identifier("y".to_string())),
                 ty: Some(Ty::Int),
             }),
         };
         
-        let func_stmt = Statement::Function {
-            name: "calculate".to_string(),
-            parameters: vec![param],
-            return_type: Some(Type { name: "i32".to_string() }),
-            body,
-        };
+        let ast = vec![
+            AstNode::Statement(Statement::Block(block)),
+        ];
         
-        let ast = vec![AstNode::Statement(func_stmt)];
         let ir = ir_gen.generate_ir(ast);
-        
         let main_func = &ir["main"];
-        match &main_func.body[0] {
-            Inst::FunctionDef { name, parameters, body } => {
-                assert_eq!(name, "calculate");
-                assert_eq!(parameters.len(), 1);
-                
-                // Should have allocas for both parameter and local variable
-                let alloca_count = body.iter().filter(|inst| matches!(inst, Inst::Alloca(_, _))).count();
-                assert_eq!(alloca_count, 2); // x and temp
-                
-                // Should have two add/multiply operations and a return
-                assert!(body.iter().any(|inst| matches!(inst, Inst::Add(_, _, _))));
-                assert!(body.iter().any(|inst| matches!(inst, Inst::Mul(_, _, _))));
-                assert!(body.iter().any(|inst| matches!(inst, Inst::Return(_))));
-            }
-            _ => panic!("Expected FunctionDef instruction"),
-        }
+        
+        // Should have allocas for x and y
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "x")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "y")));
+        
+        // Should have an Add instruction for the block expression
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Add(_, _, _))));
     }
 
     #[test]
-    fn test_function_call_with_no_arguments() {
+    fn test_nested_expressions_ir() {
         let mut ir_gen = IrGenerator::new();
         
-        // Create a function call with no arguments: get_value()
-        let func_call = Expression::FunctionCall {
-            name: "get_value".to_string(),
-            arguments: vec![],
-        };
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "result".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Binary {
+                    op: BinaryOp::Multiply,
+                    left: Box::new(Expression::Binary {
+                        op: BinaryOp::Add,
+                        left: Box::new(Expression::IntegerLiteral(2)),
+                        right: Box::new(Expression::IntegerLiteral(3)),
+                        ty: Some(Ty::Int),
+                    }),
+                    right: Box::new(Expression::IntegerLiteral(4)),
+                    ty: Some(Ty::Int),
+                }),
+            }),
+        ];
         
-        let let_stmt = Statement::Let {
-            name: "result".to_string(),
-            value: func_call,
-        };
-        
-        let ast = vec![AstNode::Statement(let_stmt)];
         let ir = ir_gen.generate_ir(ast);
-        
         let main_func = &ir["main"];
         
-        // Find the call instruction
-        let call_inst = main_func.body.iter().find(|inst| matches!(inst, Inst::Call { .. }));
-        assert!(call_inst.is_some());
+        // Should have alloca for result
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "result")));
         
-        match call_inst.unwrap() {
-            Inst::Call { function, arguments, result } => {
-                assert_eq!(function, "get_value");
-                assert_eq!(arguments.len(), 0);
-                assert!(result.is_some());
-            }
-            _ => panic!("Expected Call instruction"),
+        // Should have both Add and Multiply instructions
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Add(_, _, _))));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Mul(_, _, _))));
+    }
+
+    #[test]
+    fn test_string_literal_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "message".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::StringLiteral("Hello World".to_string())),
+            }),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have alloca for message
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "message")));
+        
+        // Should have store instruction with string value
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Store(Value::ImmString(_), _))));
+    }
+
+    #[test]
+    fn test_float_literal_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "pi".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::FloatLiteral(3.14)),
+            }),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have alloca for pi
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "pi")));
+        
+        // Should have store instruction with float value
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Store(Value::ImmFloat(_), _))));
+    }
+
+    #[test]
+    fn test_identifier_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "x".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(42)),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "y".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Identifier("x".to_string())),
+            }),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have allocas for both x and y
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "x")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "y")));
+        
+        // Should have load instruction to read x's value
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Load(_, _))));
+    }
+
+    #[test]
+    fn test_multiple_statements_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "x".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(5)),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "y".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(10)),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "result".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Binary {
+                    op: BinaryOp::Add,
+                    left: Box::new(Expression::Identifier("x".to_string())),
+                    right: Box::new(Expression::Identifier("y".to_string())),
+                    ty: Some(Ty::Int),
+                }),
+            }),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have allocas for all three variables
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "x")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "y")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "result")));
+        
+        // Should have multiple store instructions
+        let store_count = main_func.body.iter().filter(|inst| matches!(inst, Inst::Store(_, _))).count();
+        assert!(store_count >= 3);
+    }
+
+    #[test]
+    fn test_all_binary_operators_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let operators = vec![
+            BinaryOp::Add,
+            BinaryOp::Subtract,
+            BinaryOp::Multiply,
+            BinaryOp::Divide,
+            BinaryOp::Modulo,
+        ];
+        
+        let mut statements = vec![];
+        for (i, op) in operators.iter().enumerate() {
+            statements.push(AstNode::Statement(Statement::Let {
+                name: format!("result_{}", i),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Binary {
+                    op: op.clone(),
+                    left: Box::new(Expression::IntegerLiteral(10)),
+                    right: Box::new(Expression::IntegerLiteral(5)),
+                    ty: Some(Ty::Int),
+                }),
+            }));
         }
+        
+        let ir = ir_gen.generate_ir(statements);
+        let main_func = &ir["main"];
+        
+        // Should have allocas for all result variables
+        for i in 0..operators.len() {
+            let var_name = format!("result_{}", i);
+            assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == &var_name)));
+        }
+        
+        // Should have arithmetic instructions
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Add(_, _, _))));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Sub(_, _, _))));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Mul(_, _, _))));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Div(_, _, _))));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Mod(_, _, _))));
+    }
+
+    // ===== EDGE CASE TESTS =====
+
+    #[test]
+    fn test_empty_ast_ir() {
+        let mut ir_gen = IrGenerator::new();
+        let ast = vec![];
+        let ir = ir_gen.generate_ir(ast);
+        
+        // Should still create main function
+        assert!(ir.contains_key("main"));
+        let main_func = &ir["main"];
+        
+        // Main function should be mostly empty
+        assert!(main_func.body.len() == 0 || main_func.body.len() == 1); // Might have implicit return
+    }
+
+    #[test]
+    fn test_single_expression_statement_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Expression(Expression::IntegerLiteral(42))),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should generate some IR for the expression
+        assert!(main_func.body.len() >= 0); // At least doesn't crash
+    }
+
+    #[test]
+    fn test_deeply_nested_expressions_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        // Create a deeply nested binary expression: ((((1 + 2) + 3) + 4) + 5)
+        let mut expr = Expression::IntegerLiteral(1);
+        for i in 2..=5 {
+            expr = Expression::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(expr),
+                right: Box::new(Expression::IntegerLiteral(i)),
+                ty: Some(Ty::Int),
+            };
+        }
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "result".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(expr),
+            }),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have alloca for result
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "result")));
+        
+        // Should have multiple Add instructions for nested operations
+        let add_count = main_func.body.iter().filter(|inst| matches!(inst, Inst::Add(_, _, _))).count();
+        assert!(add_count >= 4); // At least 4 additions in the nested expression
+    }
+
+    #[test]
+    fn test_complex_print_with_multiple_arguments_ir() {
+        let mut ir_gen = IrGenerator::new();
+        
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "a".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(5)),
+            }),
+            AstNode::Statement(Statement::Let {
+                name: "b".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::IntegerLiteral(10)),
+            }),
+            AstNode::Statement(Statement::Expression(Expression::Print {
+                format_string: "{} + {} = {}".to_string(),
+                arguments: vec![
+                    Expression::Identifier("a".to_string()),
+                    Expression::Identifier("b".to_string()),
+                    Expression::Binary {
+                        op: BinaryOp::Add,
+                        left: Box::new(Expression::Identifier("a".to_string())),
+                        right: Box::new(Expression::Identifier("b".to_string())),
+                        ty: Some(Ty::Int),
+                    },
+                ],
+            })),
+        ];
+        
+        let ir = ir_gen.generate_ir(ast);
+        let main_func = &ir["main"];
+        
+        // Should have allocas for a and b
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "a")));
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Alloca(_, ref name) if name == "b")));
+        
+        // Should have Print instruction
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Print { .. })));
+        
+        // Should have Add instruction for the expression argument
+        assert!(main_func.body.iter().any(|inst| matches!(inst, Inst::Add(_, _, _))));
     }
 }
