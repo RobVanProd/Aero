@@ -8,6 +8,7 @@ mod code_generator;
 mod types;
 pub mod errors;
 mod pattern_matcher;
+pub mod stdlib;
 
 pub use lexer::{tokenize, tokenize_with_locations, Token, LocatedToken};
 pub use parser::{parse, parse_with_locations, Parser};

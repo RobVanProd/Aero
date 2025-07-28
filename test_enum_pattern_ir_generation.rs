@@ -1,311 +1,231 @@
-// Test for enum and pattern matching IR generation
+// Test for LLVM enum and pattern matching generation - Task 10.2
+// This test verifies that the code generator can properly generate LLVM IR for enum operations
+
 use std::collections::HashMap;
 
-// Import the compiler modules
+// Include the compiler modules
 mod src {
     pub mod compiler {
         pub mod src {
-            pub mod ast;
             pub mod ir;
-            pub mod ir_generator;
-            pub mod types;
+            pub mod code_generator;
         }
     }
 }
 
-use src::compiler::src::ast::*;
-use src::compiler::src::ir::*;
-use src::compiler::src::ir_generator::*;
-use src::compiler::src::types::*;
+use src::compiler::src::ir::{Function, Inst, Value, MatchArm, PatternCheck, PatternCheckType, PatternValue};
+use src::compiler::src::code_generator::CodeGenerator;
 
-fn main() {
-    println!("Testing enum and pattern matching IR generation...");
-
-    // Test 1: Simple enum definition
-    test_simple_enum_definition();
+#[test]
+fn test_enum_definition_llvm_generation() {
+    let mut code_gen = CodeGenerator::new();
     
-    // Test 2: Enum with data variants
-    test_enum_with_data();
-    
-    // Test 3: Pattern matching with enum
-    test_enum_pattern_matching();
-    
-    // Test 4: Pattern matching with guards
-    test_pattern_matching_with_guards();
-    
-    // Test 5: Pattern matching with literal patterns
-    test_literal_pattern_matching();
-
-    println!("All enum and pattern matching IR generation tests completed!");
-}
-
-fn test_simple_enum_definition() {
-    println!("\n=== Test 1: Simple Enum Definition ===");
-    
-    let mut ir_generator = IrGenerator::new();
-    
-    // Create a simple enum: enum Color { Red, Green, Blue }
-    let enum_stmt = Statement::Enum {
-        name: "Color".to_string(),
-        generics: vec![],
-        variants: vec![
-            EnumVariant {
-                name: "Red".to_string(),
-                data: None,
-            },
-            EnumVariant {
-                name: "Green".to_string(),
-                data: None,
-            },
-            EnumVariant {
-                name: "Blue".to_string(),
-                data: None,
-            },
-        ],
-    };
-    
-    let ast = vec![AstNode::Statement(enum_stmt)];
-    let functions = ir_generator.generate_ir(ast);
-    
-    // Check that the main function contains the enum definition
-    if let Some(main_func) = functions.get("main") {
-        let has_enum_def = main_func.body.iter().any(|inst| {
-            matches!(inst, Inst::EnumDef { name, .. } if name == "Color")
-        });
-        
-        if has_enum_def {
-            println!("✓ Simple enum definition IR generated successfully");
-        } else {
-            println!("✗ Simple enum definition IR generation failed");
-        }
-    } else {
-        println!("✗ Main function not found");
-    }
-}
-
-fn test_enum_with_data() {
-    println!("\n=== Test 2: Enum with Data Variants ===");
-    
-    let mut ir_generator = IrGenerator::new();
-    
-    // Create enum Option<T> { Some(T), None }
-    let enum_stmt = Statement::Enum {
+    // Create a simple enum definition IR
+    let enum_def = Inst::EnumDef {
         name: "Option".to_string(),
-        generics: vec!["T".to_string()],
         variants: vec![
-            EnumVariant {
-                name: "Some".to_string(),
-                data: Some(EnumVariantData::Tuple(vec![Type::Named("T".to_string())])),
-            },
-            EnumVariant {
-                name: "None".to_string(),
-                data: None,
-            },
+            ("None".to_string(), None),
+            ("Some".to_string(), Some(vec!["i32".to_string()])),
         ],
+        discriminant_type: "i32".to_string(),
     };
     
-    let ast = vec![AstNode::Statement(enum_stmt)];
-    let functions = ir_generator.generate_ir(ast);
+    let function = Function {
+        name: "test_enum".to_string(),
+        body: vec![enum_def],
+        next_reg: 1,
+    };
     
-    // Check that the enum definition includes variant data
-    if let Some(main_func) = functions.get("main") {
-        let has_enum_def = main_func.body.iter().any(|inst| {
-            if let Inst::EnumDef { name, variants, .. } = inst {
-                name == "Option" && variants.len() == 2 && 
-                variants[0].1.is_some() && variants[1].1.is_none()
-            } else {
-                false
-            }
-        });
-        
-        if has_enum_def {
-            println!("✓ Enum with data variants IR generated successfully");
-        } else {
-            println!("✗ Enum with data variants IR generation failed");
-        }
-    } else {
-        println!("✗ Main function not found");
-    }
+    let mut functions = HashMap::new();
+    functions.insert("test_enum".to_string(), function);
+    
+    let llvm_ir = code_gen.generate_code(functions);
+    
+    // Verify that the LLVM IR contains enum type definition
+    assert!(llvm_ir.contains("%Option = type"));
+    assert!(llvm_ir.contains("i32")); // Should contain discriminant type
+    
+    println!("Generated LLVM IR:\n{}", llvm_ir);
 }
 
-fn test_enum_pattern_matching() {
-    println!("\n=== Test 3: Enum Pattern Matching ===");
+#[test]
+fn test_enum_allocation_llvm_generation() {
+    let mut code_gen = CodeGenerator::new();
     
-    let mut ir_generator = IrGenerator::new();
-    
-    // First define the enum
-    let enum_stmt = Statement::Enum {
-        name: "Color".to_string(),
-        generics: vec![],
-        variants: vec![
-            EnumVariant {
-                name: "Red".to_string(),
-                data: None,
-            },
-            EnumVariant {
-                name: "Green".to_string(),
-                data: None,
-            },
-            EnumVariant {
-                name: "Blue".to_string(),
-                data: None,
-            },
-        ],
+    // Create enum allocation IR
+    let enum_alloca = Inst::EnumAlloca {
+        result: Value::Reg(1),
+        enum_name: "Option".to_string(),
     };
     
-    // Create a match expression
-    let match_expr = Expression::Match {
-        expression: Box::new(Expression::Identifier("color".to_string())),
-        arms: vec![
-            MatchArm {
-                pattern: Pattern::Enum {
-                    variant: "Red".to_string(),
-                    data: None,
-                },
-                guard: None,
-                body: Expression::IntegerLiteral(1),
-            },
-            MatchArm {
-                pattern: Pattern::Enum {
-                    variant: "Green".to_string(),
-                    data: None,
-                },
-                guard: None,
-                body: Expression::IntegerLiteral(2),
-            },
-            MatchArm {
-                pattern: Pattern::Wildcard,
-                guard: None,
-                body: Expression::IntegerLiteral(0),
-            },
-        ],
+    let function = Function {
+        name: "test_alloca".to_string(),
+        body: vec![enum_alloca],
+        next_reg: 2,
     };
     
-    let expr_stmt = Statement::Expression(match_expr);
+    let mut functions = HashMap::new();
+    functions.insert("test_alloca".to_string(), function);
     
-    let ast = vec![
-        AstNode::Statement(enum_stmt),
-        AstNode::Statement(expr_stmt),
+    let llvm_ir = code_gen.generate_code(functions);
+    
+    // Verify that the LLVM IR contains enum allocation
+    assert!(llvm_ir.contains("alloca"));
+    assert!(llvm_ir.contains("%Option"));
+    
+    println!("Generated LLVM IR:\n{}", llvm_ir);
+}
+
+#[test]
+fn test_enum_construction_llvm_generation() {
+    let mut code_gen = CodeGenerator::new();
+    
+    // Create enum construction IR
+    let enum_construct = Inst::EnumConstruct {
+        result: Value::Reg(1),
+        enum_name: "Option".to_string(),
+        variant_name: "Some".to_string(),
+        variant_index: 1,
+        data_values: vec![Value::ImmInt(42)],
+    };
+    
+    let function = Function {
+        name: "test_construct".to_string(),
+        body: vec![enum_construct],
+        next_reg: 2,
+    };
+    
+    let mut functions = HashMap::new();
+    functions.insert("test_construct".to_string(), function);
+    
+    let llvm_ir = code_gen.generate_code(functions);
+    
+    // Verify that the LLVM IR contains enum construction
+    assert!(llvm_ir.contains("store i32 1")); // Discriminant store
+    assert!(llvm_ir.contains("getelementptr"));
+    
+    println!("Generated LLVM IR:\n{}", llvm_ir);
+}
+
+#[test]
+fn test_enum_discriminant_llvm_generation() {
+    let mut code_gen = CodeGenerator::new();
+    
+    // Create discriminant extraction IR
+    let enum_discriminant = Inst::EnumDiscriminant {
+        result: Value::Reg(2),
+        enum_ptr: Value::Reg(1),
+    };
+    
+    let function = Function {
+        name: "test_discriminant".to_string(),
+        body: vec![enum_discriminant],
+        next_reg: 3,
+    };
+    
+    let mut functions = HashMap::new();
+    functions.insert("test_discriminant".to_string(), function);
+    
+    let llvm_ir = code_gen.generate_code(functions);
+    
+    // Verify that the LLVM IR contains discriminant extraction
+    assert!(llvm_ir.contains("getelementptr"));
+    assert!(llvm_ir.contains("load i32"));
+    
+    println!("Generated LLVM IR:\n{}", llvm_ir);
+}
+
+#[test]
+fn test_pattern_matching_llvm_generation() {
+    let mut code_gen = CodeGenerator::new();
+    
+    // Create pattern matching IR
+    let match_arms = vec![
+        MatchArm {
+            pattern_checks: vec![
+                PatternCheck {
+                    check_type: PatternCheckType::VariantMatch,
+                    target: Value::Reg(1),
+                    expected: PatternValue::Variant(0),
+                }
+            ],
+            bindings: vec![],
+            guard: None,
+            body_label: "none_case".to_string(),
+        },
+        MatchArm {
+            pattern_checks: vec![
+                PatternCheck {
+                    check_type: PatternCheckType::VariantMatch,
+                    target: Value::Reg(1),
+                    expected: PatternValue::Variant(1),
+                }
+            ],
+            bindings: vec![("x".to_string(), Value::Reg(2))],
+            guard: None,
+            body_label: "some_case".to_string(),
+        },
     ];
     
-    let functions = ir_generator.generate_ir(ast);
-    
-    // Check that the match expression generates switch instruction
-    if let Some(main_func) = functions.get("main") {
-        let has_switch = main_func.body.iter().any(|inst| {
-            matches!(inst, Inst::Switch { .. })
-        });
-        
-        if has_switch {
-            println!("✓ Enum pattern matching IR generated successfully");
-        } else {
-            println!("✗ Enum pattern matching IR generation failed");
-        }
-    } else {
-        println!("✗ Main function not found");
-    }
-}
-
-fn test_pattern_matching_with_guards() {
-    println!("\n=== Test 4: Pattern Matching with Guards ===");
-    
-    let mut ir_generator = IrGenerator::new();
-    
-    // Create a match expression with guard
-    let match_expr = Expression::Match {
-        expression: Box::new(Expression::Identifier("x".to_string())),
-        arms: vec![
-            MatchArm {
-                pattern: Pattern::Identifier("n".to_string()),
-                guard: Some(Expression::Comparison {
-                    op: ComparisonOp::GreaterThan,
-                    left: Box::new(Expression::Identifier("n".to_string())),
-                    right: Box::new(Expression::IntegerLiteral(0)),
-                }),
-                body: Expression::IntegerLiteral(1),
-            },
-            MatchArm {
-                pattern: Pattern::Wildcard,
-                guard: None,
-                body: Expression::IntegerLiteral(0),
-            },
-        ],
+    let match_expr = Inst::Match {
+        discriminant: Value::Reg(1),
+        arms: match_arms,
+        default_label: None,
     };
     
-    let expr_stmt = Statement::Expression(match_expr);
-    let ast = vec![AstNode::Statement(expr_stmt)];
-    
-    let functions = ir_generator.generate_ir(ast);
-    
-    // Check that guard conditions generate branch instructions
-    if let Some(main_func) = functions.get("main") {
-        let has_branch = main_func.body.iter().any(|inst| {
-            matches!(inst, Inst::Branch { .. })
-        });
-        
-        if has_branch {
-            println!("✓ Pattern matching with guards IR generated successfully");
-        } else {
-            println!("✗ Pattern matching with guards IR generation failed");
-        }
-    } else {
-        println!("✗ Main function not found");
-    }
-}
-
-fn test_literal_pattern_matching() {
-    println!("\n=== Test 5: Literal Pattern Matching ===");
-    
-    let mut ir_generator = IrGenerator::new();
-    
-    // Create a match expression with literal patterns
-    let match_expr = Expression::Match {
-        expression: Box::new(Expression::Identifier("x".to_string())),
-        arms: vec![
-            MatchArm {
-                pattern: Pattern::Literal(Expression::IntegerLiteral(1)),
-                guard: None,
-                body: Expression::IntegerLiteral(10),
-            },
-            MatchArm {
-                pattern: Pattern::Literal(Expression::IntegerLiteral(2)),
-                guard: None,
-                body: Expression::IntegerLiteral(20),
-            },
-            MatchArm {
-                pattern: Pattern::Range {
-                    start: Box::new(Pattern::Literal(Expression::IntegerLiteral(3))),
-                    end: Box::new(Pattern::Literal(Expression::IntegerLiteral(5))),
-                    inclusive: true,
-                },
-                guard: None,
-                body: Expression::IntegerLiteral(30),
-            },
-            MatchArm {
-                pattern: Pattern::Wildcard,
-                guard: None,
-                body: Expression::IntegerLiteral(0),
-            },
-        ],
+    let function = Function {
+        name: "test_match".to_string(),
+        body: vec![match_expr],
+        next_reg: 3,
     };
     
-    let expr_stmt = Statement::Expression(match_expr);
-    let ast = vec![AstNode::Statement(expr_stmt)];
+    let mut functions = HashMap::new();
+    functions.insert("test_match".to_string(), function);
     
-    let functions = ir_generator.generate_ir(ast);
+    let llvm_ir = code_gen.generate_code(functions);
     
-    // Check that literal patterns generate comparison instructions
-    if let Some(main_func) = functions.get("main") {
-        let has_icmp = main_func.body.iter().any(|inst| {
-            matches!(inst, Inst::ICmp { .. })
-        });
-        
-        if has_icmp {
-            println!("✓ Literal pattern matching IR generated successfully");
-        } else {
-            println!("✗ Literal pattern matching IR generation failed");
-        }
-    } else {
-        println!("✗ Main function not found");
-    }
+    // Verify that the LLVM IR contains switch statement
+    assert!(llvm_ir.contains("switch i32"));
+    assert!(llvm_ir.contains("none_case"));
+    assert!(llvm_ir.contains("some_case"));
+    
+    println!("Generated LLVM IR:\n{}", llvm_ir);
+}
+
+#[test]
+fn test_pattern_check_llvm_generation() {
+    let mut code_gen = CodeGenerator::new();
+    
+    // Create pattern check IR
+    let pattern_check = Inst::PatternCheck {
+        result: Value::Reg(2),
+        discriminant: Value::Reg(1),
+        expected_variant: 1,
+    };
+    
+    let function = Function {
+        name: "test_pattern_check".to_string(),
+        body: vec![pattern_check],
+        next_reg: 3,
+    };
+    
+    let mut functions = HashMap::new();
+    functions.insert("test_pattern_check".to_string(), function);
+    
+    let llvm_ir = code_gen.generate_code(functions);
+    
+    // Verify that the LLVM IR contains comparison
+    assert!(llvm_ir.contains("icmp eq i32"));
+    
+    println!("Generated LLVM IR:\n{}", llvm_ir);
+}
+
+fn main() {
+    test_enum_definition_llvm_generation();
+    test_enum_allocation_llvm_generation();
+    test_enum_construction_llvm_generation();
+    test_enum_discriminant_llvm_generation();
+    test_pattern_matching_llvm_generation();
+    test_pattern_check_llvm_generation();
+    println!("All LLVM enum and pattern matching generation tests passed!");
 }
