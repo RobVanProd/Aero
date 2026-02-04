@@ -1,13 +1,21 @@
 ---
 source: tests/frontend_tests.rs
+assertion_line: 17
 expression: tokens
 ---
 [
-    "keyword:let",
-    "identifier:y",
-    "=",
-    "identifier:x",
-    "+",
-    "float_literal:5.0",
-    ";",
+    Let,
+    Identifier(
+        "y",
+    ),
+    Assign,
+    Identifier(
+        "x",
+    ),
+    Plus,
+    FloatLiteral(
+        5.0,
+    ),
+    Semicolon,
+    Eof,
 ]

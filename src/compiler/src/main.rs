@@ -11,10 +11,8 @@ mod optimizations;
 mod compatibility;
 mod performance_optimizations;
 
-#[cfg(test)]
-mod lexer_test;
-#[cfg(test)]
-mod error_test;
+
+// (unit tests live in the library crate)
 
 use crate::semantic_analyzer::SemanticAnalyzer;
 use crate::ir_generator::IrGenerator;

@@ -1,7 +1,24 @@
 ---
 source: tests/frontend_tests.rs
+assertion_line: 43
 expression: result
 ---
 Ok(
-    "Semantic analysis completed successfully. No borrow checker violations detected.",
+    (
+        "Semantic analysis completed successfully",
+        [
+            Statement(
+                Let {
+                    name: "x",
+                    mutable: false,
+                    type_annotation: None,
+                    value: Some(
+                        IntegerLiteral(
+                            10,
+                        ),
+                    ),
+                },
+            ),
+        ],
+    ),
 )
