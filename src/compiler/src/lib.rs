@@ -1,11 +1,11 @@
-mod ast;
-mod lexer;
-mod parser;
-mod semantic_analyzer;
+pub mod ast;
+pub mod lexer;
+pub mod parser;
+pub mod semantic_analyzer;
 mod ir;
 mod ir_generator;
 mod code_generator;
-mod types;
+pub mod types;
 pub mod errors;
 
 pub use lexer::{tokenize, tokenize_with_locations, Token, LocatedToken};

@@ -1,7 +1,8 @@
 ---
 source: tests/frontend_tests.rs
+assertion_line: 63
 expression: result
 ---
 Err(
-    "Error: Variable `x` already declared.",
+    "Error: Variable `x` is already defined in this scope.",
 )

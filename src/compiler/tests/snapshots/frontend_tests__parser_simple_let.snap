@@ -1,13 +1,18 @@
 ---
 source: tests/frontend_tests.rs
+assertion_line: 25
 expression: ast
 ---
 [
     Statement(
         Let {
             name: "x",
-            value: Number(
-                10,
+            mutable: false,
+            type_annotation: None,
+            value: Some(
+                IntegerLiteral(
+                    10,
+                ),
             ),
         },
     ),

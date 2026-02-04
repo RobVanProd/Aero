@@ -1,20 +1,26 @@
 ---
 source: tests/frontend_tests.rs
+assertion_line: 33
 expression: ast
 ---
 [
     Statement(
         Let {
             name: "y",
-            value: Binary {
-                op: "+",
-                lhs: Identifier(
-                    "x",
-                ),
-                rhs: Float(
-                    5.0,
-                ),
-            },
+            mutable: false,
+            type_annotation: None,
+            value: Some(
+                Binary {
+                    op: Add,
+                    left: Identifier(
+                        "x",
+                    ),
+                    right: FloatLiteral(
+                        5.0,
+                    ),
+                    ty: None,
+                },
+            ),
         },
     ),
 ]

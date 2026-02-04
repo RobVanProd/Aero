@@ -866,13 +866,13 @@ mod tests {
         let generator = CodeGenerator::new();
         
         // Test LLVM escaping
-        let result = generator.escape_for_llvm("Hello\\nWorld");
-        assert_eq!(result, "Hello\\\\0AWorld");
+        let result = generator.escape_for_llvm("Hello\nWorld");
+        assert_eq!(result, "Hello\\0AWorld");
         
         let result = generator.escape_for_llvm("Quote: \"test\"");
         assert_eq!(result, "Quote: \\\"test\\\"");
         
-        let result = generator.escape_for_llvm("Tab\\tSeparated");
+        let result = generator.escape_for_llvm("Tab\tSeparated");
         assert_eq!(result, "Tab\\09Separated");
     }
 

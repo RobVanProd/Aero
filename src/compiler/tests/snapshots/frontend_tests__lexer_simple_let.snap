@@ -1,11 +1,17 @@
 ---
 source: tests/frontend_tests.rs
+assertion_line: 10
 expression: tokens
 ---
 [
-    "keyword:let",
-    "identifier:x",
-    "=",
-    "integer_literal:10",
-    ";",
+    Let,
+    Identifier(
+        "x",
+    ),
+    Assign,
+    IntegerLiteral(
+        10,
+    ),
+    Semicolon,
+    Eof,
 ]
