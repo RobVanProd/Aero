@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use compiler::{compile_program, CompilerOptions};
+use compiler::{CompilerOptions, compile_program};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn benchmark_compilation_speed(c: &mut Criterion) {
     let small_program = r#"
@@ -40,7 +40,7 @@ fn main() {
     // Generate a large program with many functions
     let large_program = {
         let mut code = String::new();
-        
+
         // Generate 50 simple functions
         for i in 0..50 {
             code.push_str(&format!(
@@ -48,7 +48,7 @@ fn main() {
                 i, i
             ));
         }
-        
+
         // Generate main function that calls all of them
         code.push_str("fn main() {\n");
         for i in 0..50 {
@@ -56,7 +56,7 @@ fn main() {
         }
         code.push_str("    println!(\"All functions executed\");\n");
         code.push_str("}\n");
-        
+
         code
     };
 
@@ -86,15 +86,20 @@ fn benchmark_lexer_performance(c: &mut Criterion) {
     let token_heavy_code = {
         let mut code = String::new();
         code.push_str("fn main() {\n");
-        
+
         // Generate code with many tokens
         for i in 0..1000 {
             code.push_str(&format!(
                 "    let var{} = {} + {} * {} - {} / {};\n",
-                i, i, i+1, i+2, i+3, i+4
+                i,
+                i,
+                i + 1,
+                i + 2,
+                i + 3,
+                i + 4
             ));
         }
-        
+
         code.push_str("}\n");
         code
     };
@@ -111,15 +116,21 @@ fn benchmark_parser_performance(c: &mut Criterion) {
     let complex_expressions_code = {
         let mut code = String::new();
         code.push_str("fn main() {\n");
-        
+
         // Generate complex nested expressions
         for i in 0..100 {
             code.push_str(&format!(
                 "    let result{} = ((({} + {}) * {}) - {}) / ({} + {});\n",
-                i, i, i+1, i+2, i+3, i+4, i+5
+                i,
+                i,
+                i + 1,
+                i + 2,
+                i + 3,
+                i + 4,
+                i + 5
             ));
         }
-        
+
         code.push_str("}\n");
         code
     };

@@ -1,7 +1,7 @@
 // Compatibility layer for Phase 3 optimizations
 // This module provides backward compatibility shims and fixes for compilation errors
 
-use crate::ast::{Expression, Statement, BinaryOp, UnaryOp, Type};
+use crate::ast::{BinaryOp, Expression, Statement, Type, UnaryOp};
 use crate::types::Ty;
 
 /// Compatibility extensions for Expression enum
@@ -87,7 +87,6 @@ impl Statement {
 
 /// Compatibility extensions for BinaryOp enum
 impl BinaryOp {
-
     /// Create BinaryOp from string (backward compatibility)
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
@@ -131,7 +130,6 @@ impl Type {
 
 /// Display implementation for BinaryOp (fixes compilation error)
 
-
 /// Helper functions for type inference compatibility
 pub fn infer_binary_type_compat(op: &BinaryOp, lhs: &Ty, rhs: &Ty) -> Result<Ty, String> {
     crate::types::infer_binary_type(op.as_str(), lhs, rhs)
@@ -148,7 +146,12 @@ pub fn create_binary_expression(op: BinaryOp, left: Expression, right: Expressio
 }
 
 /// Helper function to create Let statement with all required fields
-pub fn create_let_statement(name: String, value: Option<Expression>, mutable: bool, type_annotation: Option<Type>) -> Statement {
+pub fn create_let_statement(
+    name: String,
+    value: Option<Expression>,
+    mutable: bool,
+    type_annotation: Option<Type>,
+) -> Statement {
     Statement::Let {
         name,
         mutable,
@@ -158,13 +161,23 @@ pub fn create_let_statement(name: String, value: Option<Expression>, mutable: bo
 }
 
 /// Helper function to unwrap Option<Expression> safely
-pub fn unwrap_expression_option<'a>(expr_opt: &'a Option<Expression>, context: &str) -> Result<&'a Expression, String> {
-    expr_opt.as_ref().ok_or_else(|| format!("Expected expression in {}", context))
+pub fn unwrap_expression_option<'a>(
+    expr_opt: &'a Option<Expression>,
+    context: &str,
+) -> Result<&'a Expression, String> {
+    expr_opt
+        .as_ref()
+        .ok_or_else(|| format!("Expected expression in {}", context))
 }
 
 /// Helper function to unwrap Option<Expression> mutably
-pub fn unwrap_expression_option_mut<'a>(expr_opt: &'a mut Option<Expression>, context: &str) -> Result<&'a mut Expression, String> {
-    expr_opt.as_mut().ok_or_else(|| format!("Expected expression in {}", context))
+pub fn unwrap_expression_option_mut<'a>(
+    expr_opt: &'a mut Option<Expression>,
+    context: &str,
+) -> Result<&'a mut Expression, String> {
+    expr_opt
+        .as_mut()
+        .ok_or_else(|| format!("Expected expression in {}", context))
 }
 
 #[cfg(test)]
@@ -196,7 +209,7 @@ mod tests {
     fn test_statement_compatibility() {
         let let_stmt = Statement::let_simple("x".to_string(), Expression::number(5));
         assert!(let_stmt.is_let());
-        
+
         if let Some((name, value)) = let_stmt.as_let() {
             assert_eq!(name, "x");
             assert!(value.is_some());
@@ -214,9 +227,14 @@ mod tests {
         let left = Expression::number(5);
         let right = Expression::number(3);
         let binary = create_binary_expression(BinaryOp::Add, left, right);
-        
+
         match binary {
-            Expression::Binary { op, left, right, ty } => {
+            Expression::Binary {
+                op,
+                left,
+                right,
+                ty,
+            } => {
                 assert_eq!(op.as_str(), "+");
                 assert!(left.is_number());
                 assert!(right.is_number());

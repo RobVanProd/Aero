@@ -1,15 +1,15 @@
 // Performance Optimizations Implementation for Task 12.2
 // This module implements critical path optimizations for Phase 3 features:
 // 1. Function call generation optimization
-// 2. Control flow LLVM generation optimization  
+// 2. Control flow LLVM generation optimization
 // 3. Parser performance improvements for complex constructs
 // 4. Semantic analysis optimization for large programs
 // 5. Compilation caching system
 
+use crate::ast::{AstNode, Expression, Statement};
+use crate::ir::{Function, Inst, Value};
 use std::collections::HashMap;
 use std::time::Instant;
-use crate::ast::{Expression, Statement, AstNode};
-use crate::ir::{Function, Inst, Value};
 
 /// Performance metrics collector for profiling
 #[derive(Debug, Default)]
@@ -77,14 +77,17 @@ impl FunctionCallOptimizer {
     pub fn should_inline_function(&self, func_name: &str) -> bool {
         let size = self.function_sizes.get(func_name).unwrap_or(&usize::MAX);
         let frequency = self.call_frequency.get(func_name).unwrap_or(&0);
-        
+
         // Inline small functions or frequently called functions
         *size <= self.inline_threshold || *frequency >= 5
     }
 
     /// Record function call for frequency analysis
     pub fn record_function_call(&mut self, func_name: &str) {
-        *self.call_frequency.entry(func_name.to_string()).or_insert(0) += 1;
+        *self
+            .call_frequency
+            .entry(func_name.to_string())
+            .or_insert(0) += 1;
     }
 
     /// Record function size for inlining decisions
@@ -93,18 +96,25 @@ impl FunctionCallOptimizer {
     }
 
     /// Optimize function call generation with timing
-    pub fn optimize_function_call_generation(&mut self, function: &str, arguments: &[Value]) -> Vec<Inst> {
+    pub fn optimize_function_call_generation(
+        &mut self,
+        function: &str,
+        arguments: &[Value],
+    ) -> Vec<Inst> {
         let start = Instant::now();
-        
+
         let mut optimized_instructions = Vec::new();
-        
+
         // Record the call for frequency tracking
         self.record_function_call(function);
-        
+
         // Check if function should be inlined
         if self.should_inline_function(function) {
             // Generate inline code instead of function call
-            optimized_instructions.push(create_comment_instruction(format!("Inlined function: {}", function)));
+            optimized_instructions.push(create_comment_instruction(format!(
+                "Inlined function: {}",
+                function
+            )));
             // Note: Actual inlining would require function body substitution
         } else {
             // Generate optimized function call
@@ -114,10 +124,10 @@ impl FunctionCallOptimizer {
                 result: None, // Will be set by caller if needed
             });
         }
-        
+
         let duration = start.elapsed().as_secs_f64();
         self.metrics.record_function_call_time(duration);
-        
+
         optimized_instructions
     }
 
@@ -153,32 +163,36 @@ impl ControlFlowOptimizer {
     }
 
     /// Optimize basic block generation with caching
-    pub fn optimize_basic_block_generation(&mut self, block_id: &str, instructions: &[Inst]) -> String {
+    pub fn optimize_basic_block_generation(
+        &mut self,
+        block_id: &str,
+        instructions: &[Inst],
+    ) -> String {
         let start = Instant::now();
-        
+
         // Check cache first
         let cache_key = format!("{}_{}", block_id, instructions.len());
         if let Some(cached_result) = self.basic_block_cache.get(&cache_key) {
             return cached_result.clone();
         }
-        
+
         // Generate optimized basic block
         let mut llvm_code = String::new();
         llvm_code.push_str(&format!("{}:\n", block_id));
-        
+
         // Optimize instruction sequence
         let optimized_instructions = self.optimize_instruction_sequence(instructions);
-        
+
         for inst in optimized_instructions {
             llvm_code.push_str(&format!("  {}\n", self.instruction_to_llvm(&inst)));
         }
-        
+
         // Cache the result
         self.basic_block_cache.insert(cache_key, llvm_code.clone());
-        
+
         let duration = start.elapsed().as_secs_f64();
         self.metrics.record_control_flow_time(duration);
-        
+
         llvm_code
     }
 
@@ -186,7 +200,7 @@ impl ControlFlowOptimizer {
     fn optimize_instruction_sequence(&self, instructions: &[Inst]) -> Vec<Inst> {
         let mut optimized = Vec::new();
         let mut last_load: Option<(Value, Value)> = None;
-        
+
         for inst in instructions {
             match inst {
                 Inst::Load(result, ptr) => {
@@ -214,7 +228,7 @@ impl ControlFlowOptimizer {
                 }
             }
         }
-        
+
         optimized
     }
 
@@ -223,22 +237,29 @@ impl ControlFlowOptimizer {
         match inst {
             Inst::Load(result, ptr) => format!("load instruction for {:?} from {:?}", result, ptr),
             Inst::Store(ptr, value) => format!("store instruction for {:?} to {:?}", value, ptr),
-            Inst::Add(result, lhs, rhs) => format!("add instruction {:?} = {:?} + {:?}", result, lhs, rhs),
+            Inst::Add(result, lhs, rhs) => {
+                format!("add instruction {:?} = {:?} + {:?}", result, lhs, rhs)
+            }
             _ => format!("other instruction: {:?}", inst),
         }
     }
 
     /// Optimize branch generation with pattern recognition
-    pub fn optimize_branch_generation(&mut self, condition: &Value, true_label: &str, false_label: &str) -> Vec<Inst> {
+    pub fn optimize_branch_generation(
+        &mut self,
+        condition: &Value,
+        true_label: &str,
+        false_label: &str,
+    ) -> Vec<Inst> {
         let start = Instant::now();
-        
+
         let cache_key = format!("branch_{}_{}", true_label, false_label);
         if let Some(cached_result) = self.branch_optimization_cache.get(&cache_key) {
             return cached_result.clone();
         }
-        
+
         let mut optimized_branch = Vec::new();
-        
+
         // Optimize based on condition type
         match condition {
             Value::ImmInt(0) => {
@@ -258,25 +279,33 @@ impl ControlFlowOptimizer {
                 });
             }
         }
-        
+
         // Cache the result
-        self.branch_optimization_cache.insert(cache_key, optimized_branch.clone());
-        
+        self.branch_optimization_cache
+            .insert(cache_key, optimized_branch.clone());
+
         let duration = start.elapsed().as_secs_f64();
         self.metrics.record_control_flow_time(duration);
-        
+
         optimized_branch
     }
 
     /// Optimize phi node generation
-    pub fn optimize_phi_node_generation(&self, variable: &str, incoming: &[(Value, String)]) -> Option<Inst> {
+    pub fn optimize_phi_node_generation(
+        &self,
+        variable: &str,
+        incoming: &[(Value, String)],
+    ) -> Option<Inst> {
         // Skip phi nodes with only one incoming value
         if incoming.len() <= 1 {
             return None;
         }
-        
+
         // Generate optimized phi node
-        Some(create_comment_instruction(format!("Optimized phi node for {}", variable)))
+        Some(create_comment_instruction(format!(
+            "Optimized phi node for {}",
+            variable
+        )))
     }
 
     pub fn get_metrics(&self) -> &PerformanceMetrics {
@@ -303,23 +332,24 @@ impl ParserOptimizer {
     /// Optimize expression parsing with memoization
     pub fn optimize_expression_parsing(&mut self, tokens: &str) -> Option<Expression> {
         let start = Instant::now();
-        
+
         // Check cache first
         if let Some(cached_expr) = self.expression_cache.get(tokens) {
             return Some(cached_expr.clone());
         }
-        
+
         // Parse expression (simplified - would integrate with actual parser)
         let parsed_expr = self.parse_expression_optimized(tokens);
-        
+
         // Cache the result
         if let Some(ref expr) = parsed_expr {
-            self.expression_cache.insert(tokens.to_string(), expr.clone());
+            self.expression_cache
+                .insert(tokens.to_string(), expr.clone());
         }
-        
+
         let duration = start.elapsed().as_secs_f64();
         self.metrics.record_parser_time(duration);
-        
+
         parsed_expr
     }
 
@@ -330,28 +360,32 @@ impl ParserOptimizer {
     }
 
     /// Optimize complex construct parsing (nested functions, loops, etc.)
-    pub fn optimize_complex_construct_parsing(&mut self, construct_type: &str, tokens: &str) -> Option<Statement> {
+    pub fn optimize_complex_construct_parsing(
+        &mut self,
+        construct_type: &str,
+        tokens: &str,
+    ) -> Option<Statement> {
         let start = Instant::now();
-        
+
         let cache_key = format!("{}_{}", construct_type, tokens.len());
         if let Some(cached_stmt) = self.statement_cache.get(&cache_key) {
             return Some(cached_stmt.clone());
         }
-        
+
         let parsed_stmt = match construct_type {
             "function" => self.parse_function_optimized(tokens),
             "loop" => self.parse_loop_optimized(tokens),
             "if_else" => self.parse_if_else_optimized(tokens),
             _ => None,
         };
-        
+
         if let Some(ref stmt) = parsed_stmt {
             self.statement_cache.insert(cache_key, stmt.clone());
         }
-        
+
         let duration = start.elapsed().as_secs_f64();
         self.metrics.record_parser_time(duration);
-        
+
         parsed_stmt
     }
 
@@ -396,23 +430,23 @@ impl SemanticOptimizer {
     /// Optimize symbol table operations with caching
     pub fn optimize_symbol_lookup(&mut self, symbol: &str, scope: &str) -> Option<String> {
         let start = Instant::now();
-        
+
         let cache_key = format!("{}_{}", symbol, scope);
         if let Some(cached_result) = self.symbol_table_cache.get(&cache_key) {
             return Some(cached_result.clone());
         }
-        
+
         // Perform optimized symbol lookup
         let result = self.perform_symbol_lookup(symbol, scope);
-        
+
         // Cache the result
         if let Some(ref res) = result {
             self.symbol_table_cache.insert(cache_key, res.clone());
         }
-        
+
         let duration = start.elapsed().as_secs_f64();
         self.metrics.record_semantic_time(duration);
-        
+
         result
     }
 
@@ -424,20 +458,21 @@ impl SemanticOptimizer {
     /// Optimize type inference with memoization
     pub fn optimize_type_inference(&mut self, expression: &str) -> Option<String> {
         let start = Instant::now();
-        
+
         if let Some(cached_type) = self.type_inference_cache.get(expression) {
             return Some(cached_type.clone());
         }
-        
+
         let inferred_type = self.perform_type_inference(expression);
-        
+
         if let Some(ref type_str) = inferred_type {
-            self.type_inference_cache.insert(expression.to_string(), type_str.clone());
+            self.type_inference_cache
+                .insert(expression.to_string(), type_str.clone());
         }
-        
+
         let duration = start.elapsed().as_secs_f64();
         self.metrics.record_semantic_time(duration);
-        
+
         inferred_type
     }
 
@@ -449,19 +484,20 @@ impl SemanticOptimizer {
     /// Optimize scope analysis for large programs
     pub fn optimize_scope_analysis(&mut self, function: &str, variables: &[String]) -> Vec<String> {
         let start = Instant::now();
-        
+
         let cache_key = format!("{}_{}", function, variables.len());
         if let Some(cached_result) = self.scope_analysis_cache.get(&cache_key) {
             return cached_result.clone();
         }
-        
+
         let scope_result = self.perform_scope_analysis(function, variables);
-        
-        self.scope_analysis_cache.insert(cache_key, scope_result.clone());
-        
+
+        self.scope_analysis_cache
+            .insert(cache_key, scope_result.clone());
+
         let duration = start.elapsed().as_secs_f64();
         self.metrics.record_semantic_time(duration);
-        
+
         scope_result
     }
 
@@ -589,9 +625,9 @@ impl PerformanceOptimizer {
     /// Get comprehensive performance report
     pub fn get_performance_report(&self) -> String {
         let mut report = String::new();
-        
+
         report.push_str("=== Aero Compiler Performance Report ===\n\n");
-        
+
         // Function call optimization metrics
         let func_metrics = self.function_optimizer.get_metrics();
         report.push_str(&format!(
@@ -599,58 +635,60 @@ impl PerformanceOptimizer {
             func_metrics.get_average_function_call_time(),
             func_metrics.function_call_times.len()
         ));
-        
+
         // Control flow optimization metrics
         let cf_metrics = self.control_flow_optimizer.get_metrics();
         report.push_str(&format!(
             "Control Flow Optimization:\n  Total optimizations: {}\n\n",
             cf_metrics.control_flow_times.len()
         ));
-        
+
         // Parser optimization metrics
         let parser_metrics = self.parser_optimizer.get_metrics();
         report.push_str(&format!(
             "Parser Optimization:\n  Total parses: {}\n\n",
             parser_metrics.parser_times.len()
         ));
-        
+
         // Semantic optimization metrics
         let semantic_metrics = self.semantic_optimizer.get_metrics();
         report.push_str(&format!(
             "Semantic Analysis Optimization:\n  Total analyses: {}\n\n",
             semantic_metrics.semantic_times.len()
         ));
-        
+
         // Cache statistics
         let (hits, misses, hit_rate) = self.compilation_cache.get_cache_stats();
         report.push_str(&format!(
             "Compilation Cache:\n  Hits: {}\n  Misses: {}\n  Hit Rate: {:.2}%\n\n",
-            hits, misses, hit_rate * 100.0
+            hits,
+            misses,
+            hit_rate * 100.0
         ));
-        
+
         report.push_str(&format!(
             "Total Compilation Time: {:.6}s\n",
             self.total_metrics.total_compilation_time
         ));
-        
+
         report
     }
 
     /// Apply all optimizations to a compilation unit
     pub fn optimize_compilation(&mut self, source_hash: &str) -> Result<String, String> {
         let start = Instant::now();
-        
+
         // Check cache first
         if let Some(cached_result) = self.compilation_cache.get_cached_llvm(source_hash) {
             return Ok(cached_result.clone());
         }
-        
+
         // Apply optimizations in sequence
         // This would integrate with the actual compiler pipeline
-        
+
         let duration = start.elapsed().as_secs_f64();
         self.total_metrics.total_compilation_time += duration;
-        
+
         Ok("Optimized compilation result".to_string())
     }
 

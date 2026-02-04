@@ -72,7 +72,9 @@ pub enum Statement {
         iterable: Expression,
         body: Block,
     },
-    Loop { body: Block },
+    Loop {
+        body: Block,
+    },
     Break,
     Continue,
 }
@@ -207,8 +209,14 @@ mod tests {
 
     #[test]
     fn expression_literal_types() {
-        assert_eq!(Expression::IntegerLiteral(1).get_literal_type(), Some(Ty::Int));
-        assert_eq!(Expression::FloatLiteral(1.0).get_literal_type(), Some(Ty::Float));
+        assert_eq!(
+            Expression::IntegerLiteral(1).get_literal_type(),
+            Some(Ty::Int)
+        );
+        assert_eq!(
+            Expression::FloatLiteral(1.0).get_literal_type(),
+            Some(Ty::Float)
+        );
         assert_eq!(
             Expression::Comparison {
                 op: ComparisonOp::Equal,

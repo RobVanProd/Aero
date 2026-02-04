@@ -1,6 +1,6 @@
-use crate::ast::{AstNode, Expression, Statement, Parameter, Block, Type};
-use crate::lexer::{Token, LocatedToken};
+use crate::ast::{AstNode, Block, Expression, Parameter, Statement, Type};
 use crate::errors::{CompilerError, CompilerResult, SourceLocation};
+use crate::lexer::{LocatedToken, Token};
 
 pub struct Parser {
     tokens: Vec<LocatedToken>,
@@ -59,18 +59,24 @@ impl Parser {
     fn parse_function_definition(&mut self) -> CompilerResult<Statement> {
         let fn_location = self.peek().location.clone();
         self.consume(Token::Fn, "Expected 'fn'")?;
-        
+
         let name = match &self.peek().token {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
                 name
             }
-            _ => return Err(CompilerError::unexpected_token("function name", &format!("{:?}", self.peek().token), self.peek().location.clone())),
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "function name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
         };
 
         self.consume(Token::LeftParen, "Expected '(' after function name")?;
-        
+
         let mut parameters = Vec::new();
         if !self.check(&Token::RightParen) {
             loop {
@@ -80,13 +86,22 @@ impl Parser {
                         self.advance();
                         name
                     }
-                    _ => return Err(CompilerError::unexpected_token("parameter name", &format!("{:?}", self.peek().token), self.peek().location.clone())),
+                    _ => {
+                        return Err(CompilerError::unexpected_token(
+                            "parameter name",
+                            &format!("{:?}", self.peek().token),
+                            self.peek().location.clone(),
+                        ));
+                    }
                 };
 
                 self.consume(Token::Colon, "Expected ':' after parameter name")?;
-                
+
                 let param_type = self.parse_type()?;
-                parameters.push(Parameter { name: param_name, param_type });
+                parameters.push(Parameter {
+                    name: param_name,
+                    param_type,
+                });
 
                 if !self.match_token(&Token::Comma) {
                     break;
@@ -95,7 +110,7 @@ impl Parser {
         }
 
         self.consume(Token::RightParen, "Expected ')' after parameters")?;
-        
+
         let return_type = if self.match_token(&Token::Arrow) {
             Some(self.parse_type()?)
         } else {
@@ -114,16 +129,22 @@ impl Parser {
 
     fn parse_let_statement(&mut self) -> CompilerResult<Statement> {
         self.consume(Token::Let, "Expected 'let'")?;
-        
+
         let mutable = self.match_token(&Token::Mut);
-        
+
         let name = match &self.peek().token {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
                 name
             }
-            _ => return Err(CompilerError::unexpected_token("variable name", &format!("{:?}", self.peek().token), self.peek().location.clone())),
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "variable name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
         };
 
         let type_annotation = if self.match_token(&Token::Colon) {
@@ -150,7 +171,7 @@ impl Parser {
 
     fn parse_return_statement(&mut self) -> CompilerResult<Statement> {
         self.consume(Token::Return, "Expected 'return'")?;
-        
+
         let value = if self.check(&Token::Semicolon) {
             None
         } else {
@@ -163,10 +184,10 @@ impl Parser {
 
     fn parse_if_statement(&mut self) -> CompilerResult<Statement> {
         self.consume(Token::If, "Expected 'if'")?;
-        
+
         let condition = self.parse_expression()?;
         let then_block = self.parse_block()?;
-        
+
         let else_block = if self.match_token(&Token::Else) {
             if self.check(&Token::If) {
                 // else if
@@ -188,7 +209,7 @@ impl Parser {
 
     fn parse_while_statement(&mut self) -> CompilerResult<Statement> {
         self.consume(Token::While, "Expected 'while'")?;
-        
+
         let condition = self.parse_expression()?;
         let body = self.parse_block()?;
 
@@ -197,18 +218,24 @@ impl Parser {
 
     fn parse_for_statement(&mut self) -> CompilerResult<Statement> {
         self.consume(Token::For, "Expected 'for'")?;
-        
+
         let variable = match &self.peek().token {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
                 name
             }
-            _ => return Err(CompilerError::unexpected_token("loop variable", &format!("{:?}", self.peek().token), self.peek().location.clone())),
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "loop variable",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
         };
 
         self.consume(Token::In, "Expected 'in' after for loop variable")?;
-        
+
         let iterable = self.parse_expression()?;
         let body = self.parse_block()?;
 
@@ -244,7 +271,7 @@ impl Parser {
 
     fn parse_block(&mut self) -> CompilerResult<Block> {
         self.consume(Token::LeftBrace, "Expected '{'")?;
-        
+
         let mut statements = Vec::new();
         let mut expression = None;
 
@@ -279,7 +306,7 @@ impl Parser {
         }
 
         self.consume(Token::RightBrace, "Expected '}'")?;
-        
+
         Ok(Block {
             statements,
             expression,
@@ -374,7 +401,10 @@ impl Parser {
     fn parse_factor(&mut self) -> CompilerResult<Expression> {
         let mut expr = self.parse_unary()?;
 
-        while self.match_token(&Token::Multiply) || self.match_token(&Token::Divide) || self.match_token(&Token::Modulo) {
+        while self.match_token(&Token::Multiply)
+            || self.match_token(&Token::Divide)
+            || self.match_token(&Token::Modulo)
+        {
             let op = match self.previous().token {
                 Token::Multiply => crate::ast::BinaryOp::Multiply,
                 Token::Divide => crate::ast::BinaryOp::Divide,
@@ -463,7 +493,11 @@ impl Parser {
             }
             Token::PrintMacro => self.parse_print_macro(false),
             Token::PrintlnMacro => self.parse_print_macro(true),
-            _ => Err(CompilerError::unexpected_token("expression", &format!("{:?}", self.peek().token), self.peek().location.clone())),
+            _ => Err(CompilerError::unexpected_token(
+                "expression",
+                &format!("{:?}", self.peek().token),
+                self.peek().location.clone(),
+            )),
         }
     }
 
@@ -482,7 +516,13 @@ impl Parser {
                 self.advance();
                 s
             }
-            _ => return Err(CompilerError::unexpected_token("format string", &format!("{:?}", self.peek().token), self.peek().location.clone())),
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "format string",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
         };
 
         let mut arguments = Vec::new();
@@ -512,7 +552,11 @@ impl Parser {
                 self.advance();
                 Ok(Type::Named(name))
             }
-            _ => Err(CompilerError::unexpected_token("type", &format!("{:?}", self.peek().token), self.peek().location.clone())),
+            _ => Err(CompilerError::unexpected_token(
+                "type",
+                &format!("{:?}", self.peek().token),
+                self.peek().location.clone(),
+            )),
         }
     }
 
@@ -612,7 +656,13 @@ impl Parser {
             }
 
             match self.peek().token {
-                Token::Fn | Token::Let | Token::If | Token::While | Token::For | Token::Loop | Token::Return => return,
+                Token::Fn
+                | Token::Let
+                | Token::If
+                | Token::While
+                | Token::For
+                | Token::Loop
+                | Token::Return => return,
                 _ => {}
             }
 

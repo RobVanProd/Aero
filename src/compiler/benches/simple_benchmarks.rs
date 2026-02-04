@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use compiler::{tokenize, parse, SemanticAnalyzer, IrGenerator, generate_code};
+use compiler::{IrGenerator, SemanticAnalyzer, generate_code, parse, tokenize};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn benchmark_lexer_performance(c: &mut Criterion) {
     let simple_code = r#"
@@ -15,7 +15,7 @@ fn main() {
 
     let complex_code = {
         let mut code = String::new();
-        
+
         // Generate many functions
         for i in 0..100 {
             code.push_str(&format!(
@@ -23,27 +23,23 @@ fn main() {
                 i, i
             ));
         }
-        
+
         // Generate main function
         code.push_str("fn main() {\n");
         for i in 0..100 {
             code.push_str(&format!("    let result{} = func{}({});\n", i, i, i));
         }
         code.push_str("}\n");
-        
+
         code
     };
 
     c.bench_function("lexer_simple_code", |b| {
-        b.iter(|| {
-            tokenize(black_box(simple_code))
-        })
+        b.iter(|| tokenize(black_box(simple_code)))
     });
 
     c.bench_function("lexer_complex_code", |b| {
-        b.iter(|| {
-            tokenize(black_box(&complex_code))
-        })
+        b.iter(|| tokenize(black_box(&complex_code)))
     });
 }
 
@@ -101,14 +97,14 @@ fn benchmark_tokenization_patterns(c: &mut Criterion) {
     let function_heavy_code = {
         let mut code = String::new();
         for i in 0..50 {
-            code.push_str(&format!(
-                "fn fibonacci{}(n: i32) -> i32 {{\n",
-                i
-            ));
+            code.push_str(&format!("fn fibonacci{}(n: i32) -> i32 {{\n", i));
             code.push_str("    if n <= 1 {\n");
             code.push_str("        return n;\n");
             code.push_str("    } else {\n");
-            code.push_str(&format!("        return fibonacci{}(n - 1) + fibonacci{}(n - 2);\n", i, i));
+            code.push_str(&format!(
+                "        return fibonacci{}(n - 1) + fibonacci{}(n - 2);\n",
+                i, i
+            ));
             code.push_str("    }\n");
             code.push_str("}\n\n");
         }
@@ -121,7 +117,8 @@ fn benchmark_tokenization_patterns(c: &mut Criterion) {
         for i in 0..100 {
             code.push_str(&format!(
                 "    println!(\"Iteration {}: value = {{}}\", {});\n",
-                i, i * 2
+                i,
+                i * 2
             ));
         }
         code.push_str("}\n");
@@ -146,21 +143,15 @@ fn benchmark_tokenization_patterns(c: &mut Criterion) {
     };
 
     c.bench_function("tokenize_function_heavy", |b| {
-        b.iter(|| {
-            tokenize(black_box(&function_heavy_code))
-        })
+        b.iter(|| tokenize(black_box(&function_heavy_code)))
     });
 
     c.bench_function("tokenize_io_heavy", |b| {
-        b.iter(|| {
-            tokenize(black_box(&io_heavy_code))
-        })
+        b.iter(|| tokenize(black_box(&io_heavy_code)))
     });
 
     c.bench_function("tokenize_loop_heavy", |b| {
-        b.iter(|| {
-            tokenize(black_box(&loop_heavy_code))
-        })
+        b.iter(|| tokenize(black_box(&loop_heavy_code)))
     });
 }
 

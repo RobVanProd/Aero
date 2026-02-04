@@ -1,6 +1,6 @@
 use compiler::lexer;
 use compiler::parser;
-use compiler::semantic_analyzer::{SemanticAnalyzer};
+use compiler::semantic_analyzer::SemanticAnalyzer;
 use insta::assert_debug_snapshot;
 
 #[test]
@@ -72,5 +72,3 @@ fn test_semantic_undeclared_variable() {
     let result = analyzer.analyze(ast);
     assert_debug_snapshot!(result);
 }
-
-

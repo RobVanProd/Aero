@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use compiler::{compile_program, CompilerOptions};
+use compiler::{CompilerOptions, compile_program};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use std::time::Instant;
 
 fn benchmark_function_call_overhead(c: &mut Criterion) {
@@ -71,7 +71,8 @@ fn benchmark_function_definition_parsing(c: &mut Criterion) {
     let many_functions_code = (0..100)
         .map(|i| format!("fn func{}(x: i32) -> i32 {{ return x + {}; }}", i, i))
         .collect::<Vec<_>>()
-        .join("\n") + "\nfn main() { let x = func0(1); }";
+        .join("\n")
+        + "\nfn main() { let x = func0(1); }";
 
     c.bench_function("many_function_definitions", |b| {
         b.iter(|| {

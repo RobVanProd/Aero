@@ -21,21 +21,21 @@ impl fmt::Display for Value {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
-    Add(Value, Value, Value), // result, lhs, rhs (integer)
+    Add(Value, Value, Value),  // result, lhs, rhs (integer)
     FAdd(Value, Value, Value), // result, lhs, rhs (float)
-    Sub(Value, Value, Value), // result, lhs, rhs (integer)
+    Sub(Value, Value, Value),  // result, lhs, rhs (integer)
     FSub(Value, Value, Value), // result, lhs, rhs (float)
-    Mul(Value, Value, Value), // result, lhs, rhs (integer)
+    Mul(Value, Value, Value),  // result, lhs, rhs (integer)
     FMul(Value, Value, Value), // result, lhs, rhs (float)
-    Div(Value, Value, Value), // result, lhs, rhs (integer)
+    Div(Value, Value, Value),  // result, lhs, rhs (integer)
     FDiv(Value, Value, Value), // result, lhs, rhs (float)
-    Alloca(Value, String), // pointer_reg, variable_name
-    Store(Value, Value), // pointer_reg, value_to_store
-    Load(Value, Value), // result_reg, pointer_reg
-    Return(Value), // value to return
-    SIToFP(Value, Value), // result_reg, int_value (signed integer to floating point)
-    FPToSI(Value, Value), // result_reg, float_value (floating point to signed integer)
-    
+    Alloca(Value, String),     // pointer_reg, variable_name
+    Store(Value, Value),       // pointer_reg, value_to_store
+    Load(Value, Value),        // result_reg, pointer_reg
+    Return(Value),             // value to return
+    SIToFP(Value, Value),      // result_reg, int_value (signed integer to floating point)
+    FPToSI(Value, Value),      // result_reg, float_value (floating point to signed integer)
+
     // Function operations
     FunctionDef {
         name: String,
@@ -48,16 +48,16 @@ pub enum Inst {
         arguments: Vec<Value>,
         result: Option<Value>,
     },
-    
+
     // Control flow operations
     Branch {
         condition: Value,
         true_label: String,
         false_label: String,
     },
-    Jump(String), // Unconditional jump to label
+    Jump(String),  // Unconditional jump to label
     Label(String), // Label for jumps and branches
-    
+
     // Comparison operations
     ICmp {
         op: String, // "eq", "ne", "slt", "sgt", "sle", "sge"
@@ -71,7 +71,7 @@ pub enum Inst {
         left: Value,
         right: Value,
     },
-    
+
     // I/O operations
     Print {
         format_string: String,
@@ -81,7 +81,7 @@ pub enum Inst {
         format_string: String,
         arguments: Vec<Value>,
     },
-    
+
     // Logical operations
     And {
         result: Value,
@@ -97,7 +97,7 @@ pub enum Inst {
         result: Value,
         operand: Value,
     },
-    
+
     // Unary operations
     Neg {
         result: Value,
@@ -112,5 +112,3 @@ pub struct Function {
     pub next_reg: u32,
     pub next_ptr: u32, // New field for unique pointer IDs
 }
-
-

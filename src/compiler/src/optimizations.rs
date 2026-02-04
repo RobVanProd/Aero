@@ -6,9 +6,9 @@
 // 4. Semantic analysis for large programs
 // 5. Compilation caching
 
-use std::collections::HashMap;
-use crate::ast::{Expression, Statement, AstNode, BinaryOp, UnaryOp};
+use crate::ast::{AstNode, BinaryOp, Expression, Statement, UnaryOp};
 use crate::types::Ty;
+use std::collections::HashMap;
 
 /// Cache for frequently accessed function signatures
 #[derive(Debug, Clone)]
@@ -58,7 +58,7 @@ pub struct OptimizedParser {
 impl OptimizedParser {
     pub fn new() -> Self {
         let mut precedence_table = HashMap::new();
-        
+
         // Set operator precedence (higher number = higher precedence)
         precedence_table.insert(BinaryOp::Multiply, 6);
         precedence_table.insert(BinaryOp::Divide, 6);
@@ -89,7 +89,9 @@ impl OptimizedParser {
 
     fn is_cacheable_expression(&self, expr: &Expression) -> bool {
         match expr {
-            Expression::IntegerLiteral(_) | Expression::FloatLiteral(_) | Expression::Identifier(_) => true,
+            Expression::IntegerLiteral(_)
+            | Expression::FloatLiteral(_)
+            | Expression::Identifier(_) => true,
             Expression::Binary { left, right, .. } => {
                 self.is_cacheable_expression(left) && self.is_cacheable_expression(right)
             }
@@ -112,7 +114,7 @@ pub struct OptimizedSemanticAnalyzer {
 impl OptimizedSemanticAnalyzer {
     pub fn new() -> Self {
         let mut compatibility_matrix = HashMap::new();
-        
+
         // Pre-compute type compatibility for common operations
         compatibility_matrix.insert((Ty::Int, Ty::Int), true);
         compatibility_matrix.insert((Ty::Float, Ty::Float), true);
@@ -143,7 +145,8 @@ impl OptimizedSemanticAnalyzer {
     }
 
     pub fn are_types_compatible(&self, left: &Ty, right: &Ty) -> bool {
-        self.compatibility_matrix.get(&(left.clone(), right.clone()))
+        self.compatibility_matrix
+            .get(&(left.clone(), right.clone()))
             .copied()
             .unwrap_or(false)
     }
@@ -181,13 +184,12 @@ impl OptimizedFunctionCallGenerator {
 
     pub fn should_inline_function(&self, function_name: &str, instruction_count: usize) -> bool {
         // Inline small functions and frequently called functions
-        instruction_count <= self.inline_threshold || 
-        self.is_frequently_called(function_name)
+        instruction_count <= self.inline_threshold || self.is_frequently_called(function_name)
     }
 
     pub fn generate_optimized_call(&mut self, function_name: &str, args: &[String]) -> String {
         let call_signature = format!("{}({})", function_name, args.join(","));
-        
+
         if let Some(cached_llvm) = self.call_cache.get(&call_signature) {
             self.cached_calls += 1;
             return cached_llvm.clone();
@@ -196,7 +198,7 @@ impl OptimizedFunctionCallGenerator {
         // Generate new call (simplified for this optimization example)
         let llvm_code = self.generate_function_call_llvm(function_name, args);
         self.call_cache.insert(call_signature, llvm_code.clone());
-        
+
         llvm_code
     }
 
@@ -208,15 +210,17 @@ impl OptimizedFunctionCallGenerator {
     fn generate_function_call_llvm(&self, function_name: &str, args: &[String]) -> String {
         // Optimized LLVM generation for function calls
         let mut llvm = String::new();
-        
+
         // Use more efficient register allocation
         let result_reg = format!("%call_result_{}", function_name);
-        
+
         // Generate optimized argument passing
         let args_str = args.join(", ");
-        llvm.push_str(&format!("  {} = call fastcc i32 @{}({})\n", 
-                              result_reg, function_name, args_str));
-        
+        llvm.push_str(&format!(
+            "  {} = call fastcc i32 @{}({})\n",
+            result_reg, function_name, args_str
+        ));
+
         llvm
     }
 
@@ -241,23 +245,34 @@ impl OptimizedControlFlowGenerator {
         }
     }
 
-    pub fn generate_optimized_if(&mut self, condition: &str, then_label: &str, else_label: &str) -> String {
+    pub fn generate_optimized_if(
+        &mut self,
+        condition: &str,
+        then_label: &str,
+        else_label: &str,
+    ) -> String {
         let pattern_key = format!("if_{}_{}", then_label, else_label);
-        
+
         if let Some(cached) = self.block_cache.get(&pattern_key) {
             return cached.replace("CONDITION", condition);
         }
 
         // Generate optimized if statement with branch prediction
         let mut llvm = String::new();
-        
+
         // Add branch prediction hint if available
         let likely_true = self.branch_hints.get(condition).copied().unwrap_or(true);
-        let branch_weight = if likely_true { "!prof !{!\"branch_weights\", i32 2000, i32 1}" } else { "" };
-        
-        llvm.push_str(&format!("  br i1 CONDITION, label %{}, label %{} {}\n", 
-                              then_label, else_label, branch_weight));
-        
+        let branch_weight = if likely_true {
+            "!prof !{!\"branch_weights\", i32 2000, i32 1}"
+        } else {
+            ""
+        };
+
+        llvm.push_str(&format!(
+            "  br i1 CONDITION, label %{}, label %{} {}\n",
+            then_label, else_label, branch_weight
+        ));
+
         self.block_cache.insert(pattern_key, llvm.clone());
         llvm.replace("CONDITION", condition)
     }
@@ -265,15 +280,15 @@ impl OptimizedControlFlowGenerator {
     pub fn generate_optimized_loop(&mut self, header: &str, body: &str, exit: &str) -> String {
         // Generate optimized loop structure with loop unrolling hints
         let mut llvm = String::new();
-        
+
         // Add loop metadata for optimization
         llvm.push_str(&format!("{}:\n", header));
         llvm.push_str("  ; Loop optimization metadata\n");
         llvm.push_str("  ; !llvm.loop !{!\"llvm.loop.unroll.enable\"}\n");
         llvm.push_str(&format!("  br label %{}\n", body));
-        
+
         llvm.push_str(&format!("{}:\n", body));
-        
+
         llvm
     }
 
@@ -322,18 +337,21 @@ impl CompilationCache {
     }
 
     pub fn add_dependency(&mut self, file: String, dependency: String) {
-        self.dependencies.entry(file).or_insert_with(Vec::new).push(dependency);
+        self.dependencies
+            .entry(file)
+            .or_insert_with(Vec::new)
+            .push(dependency);
     }
 
     pub fn invalidate_dependents(&mut self, changed_file: &str) {
         let mut to_invalidate = Vec::new();
-        
+
         for (file, deps) in &self.dependencies {
             if deps.contains(&changed_file.to_string()) {
                 to_invalidate.push(file.clone());
             }
         }
-        
+
         for file in to_invalidate {
             self.timestamps.remove(&file);
             // Also remove from module cache if we had the hash
@@ -342,7 +360,11 @@ impl CompilationCache {
     }
 
     pub fn get_cache_stats(&self) -> (usize, usize, usize) {
-        (self.module_cache.len(), self.dependencies.len(), self.timestamps.len())
+        (
+            self.module_cache.len(),
+            self.dependencies.len(),
+            self.timestamps.len(),
+        )
     }
 }
 
@@ -397,7 +419,11 @@ impl CompilerOptimizer {
                     self.optimize_expression(expr)?;
                 }
             }
-            Statement::If { condition, then_block, else_block } => {
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
                 self.optimize_expression(condition)?;
                 for stmt in &mut then_block.statements {
                     self.optimize_statement(stmt)?;
@@ -423,7 +449,9 @@ impl CompilerOptimizer {
                     self.optimize_statement(stmt)?;
                 }
             }
-            Statement::Let { value: Some(expr), .. } => {
+            Statement::Let {
+                value: Some(expr), ..
+            } => {
                 self.optimize_expression(expr)?;
             }
             Statement::Return(Some(expr)) => {
@@ -439,10 +467,12 @@ impl CompilerOptimizer {
 
     fn optimize_expression(&mut self, expr: &mut Expression) -> Result<(), String> {
         match expr {
-            Expression::Binary { left, right, op, .. } => {
+            Expression::Binary {
+                left, right, op, ..
+            } => {
                 self.optimize_expression(left)?;
                 self.optimize_expression(right)?;
-                
+
                 // Apply constant folding optimization
                 if let Some(folded) = self.try_constant_fold(left, right, op) {
                     *expr = folded;
@@ -474,48 +504,59 @@ impl CompilerOptimizer {
         Ok(())
     }
 
-    fn try_constant_fold(&self, left: &Expression, right: &Expression, op: &BinaryOp) -> Option<Expression> {
+    fn try_constant_fold(
+        &self,
+        left: &Expression,
+        right: &Expression,
+        op: &BinaryOp,
+    ) -> Option<Expression> {
         match (left, right) {
-            (Expression::IntegerLiteral(a), Expression::IntegerLiteral(b)) => {
-                match op {
-                    BinaryOp::Add => Some(Expression::IntegerLiteral(a + b)),
-                    BinaryOp::Subtract => Some(Expression::IntegerLiteral(a - b)),
-                    BinaryOp::Multiply => Some(Expression::IntegerLiteral(a * b)),
-                    BinaryOp::Divide if *b != 0 => Some(Expression::IntegerLiteral(a / b)),
-                    BinaryOp::Modulo if *b != 0 => Some(Expression::IntegerLiteral(a % b)),
-                    _ => None,
-                }
-            }
-            (Expression::FloatLiteral(a), Expression::FloatLiteral(b)) => {
-                match op {
-                    BinaryOp::Add => Some(Expression::FloatLiteral(a + b)),
-                    BinaryOp::Subtract => Some(Expression::FloatLiteral(a - b)),
-                    BinaryOp::Multiply => Some(Expression::FloatLiteral(a * b)),
-                    BinaryOp::Divide if *b != 0.0 => Some(Expression::FloatLiteral(a / b)),
-                    BinaryOp::Modulo if *b != 0.0 => Some(Expression::FloatLiteral(a % b)),
-                    _ => None,
-                }
-            }
+            (Expression::IntegerLiteral(a), Expression::IntegerLiteral(b)) => match op {
+                BinaryOp::Add => Some(Expression::IntegerLiteral(a + b)),
+                BinaryOp::Subtract => Some(Expression::IntegerLiteral(a - b)),
+                BinaryOp::Multiply => Some(Expression::IntegerLiteral(a * b)),
+                BinaryOp::Divide if *b != 0 => Some(Expression::IntegerLiteral(a / b)),
+                BinaryOp::Modulo if *b != 0 => Some(Expression::IntegerLiteral(a % b)),
+                _ => None,
+            },
+            (Expression::FloatLiteral(a), Expression::FloatLiteral(b)) => match op {
+                BinaryOp::Add => Some(Expression::FloatLiteral(a + b)),
+                BinaryOp::Subtract => Some(Expression::FloatLiteral(a - b)),
+                BinaryOp::Multiply => Some(Expression::FloatLiteral(a * b)),
+                BinaryOp::Divide if *b != 0.0 => Some(Expression::FloatLiteral(a / b)),
+                BinaryOp::Modulo if *b != 0.0 => Some(Expression::FloatLiteral(a % b)),
+                _ => None,
+            },
             _ => None,
         }
     }
 
     pub fn print_optimization_stats(&self) {
         println!("=== Compiler Optimization Statistics ===");
-        
+
         let (cache_size, cache_hits) = self.function_cache.get_cache_stats();
-        println!("Function Cache: {} entries, {} hits", cache_size, cache_hits);
-        
+        println!(
+            "Function Cache: {} entries, {} hits",
+            cache_size, cache_hits
+        );
+
         let semantic_efficiency = self.semantic_analyzer.get_cache_efficiency();
-        println!("Semantic Analysis Cache Efficiency: {:.2}%", semantic_efficiency * 100.0);
-        
+        println!(
+            "Semantic Analysis Cache Efficiency: {:.2}%",
+            semantic_efficiency * 100.0
+        );
+
         let (inlined, cached, call_cache_size) = self.function_generator.get_optimization_stats();
-        println!("Function Calls: {} inlined, {} cached, {} cache entries", 
-                inlined, cached, call_cache_size);
-        
+        println!(
+            "Function Calls: {} inlined, {} cached, {} cache entries",
+            inlined, cached, call_cache_size
+        );
+
         let (modules, deps, timestamps) = self.compilation_cache.get_cache_stats();
-        println!("Compilation Cache: {} modules, {} dependencies, {} timestamps", 
-                modules, deps, timestamps);
+        println!(
+            "Compilation Cache: {} modules, {} dependencies, {} timestamps",
+            modules, deps, timestamps
+        );
     }
 }
 
@@ -526,19 +567,19 @@ mod tests {
     #[test]
     fn test_function_signature_cache() {
         let mut cache = FunctionSignatureCache::new();
-        
+
         // Test cache miss
         assert!(cache.get("test_func").is_none());
-        
+
         // Test cache insert and hit
         cache.insert("test_func".to_string(), vec![Ty::Int, Ty::Float], Ty::Bool);
         let result = cache.get("test_func");
         assert!(result.is_some());
-        
+
         let (params, return_type) = result.unwrap();
         assert_eq!(params.len(), 2);
         assert_eq!(*return_type, Ty::Bool);
-        
+
         let (cache_size, hits) = cache.get_cache_stats();
         assert_eq!(cache_size, 1);
         assert_eq!(hits, 1);
@@ -547,16 +588,21 @@ mod tests {
     #[test]
     fn test_optimized_parser_precedence() {
         let parser = OptimizedParser::new();
-        
+
         assert!(parser.get_precedence(&BinaryOp::Multiply) > parser.get_precedence(&BinaryOp::Add));
-        assert!(parser.get_precedence(&BinaryOp::Divide) > parser.get_precedence(&BinaryOp::Subtract));
-        assert_eq!(parser.get_precedence(&BinaryOp::Add), parser.get_precedence(&BinaryOp::Subtract));
+        assert!(
+            parser.get_precedence(&BinaryOp::Divide) > parser.get_precedence(&BinaryOp::Subtract)
+        );
+        assert_eq!(
+            parser.get_precedence(&BinaryOp::Add),
+            parser.get_precedence(&BinaryOp::Subtract)
+        );
     }
 
     #[test]
     fn test_semantic_analyzer_type_compatibility() {
         let analyzer = OptimizedSemanticAnalyzer::new();
-        
+
         assert!(analyzer.are_types_compatible(&Ty::Int, &Ty::Int));
         assert!(analyzer.are_types_compatible(&Ty::Int, &Ty::Float));
         assert!(analyzer.are_types_compatible(&Ty::Float, &Ty::Int));
@@ -566,10 +612,10 @@ mod tests {
     #[test]
     fn test_function_call_generator_inlining() {
         let generator = OptimizedFunctionCallGenerator::new();
-        
+
         // Small functions should be inlined
         assert!(generator.should_inline_function("small_func", 5));
-        
+
         // Large functions should not be inlined
         assert!(!generator.should_inline_function("large_func", 50));
     }
@@ -577,14 +623,14 @@ mod tests {
     #[test]
     fn test_compilation_cache() {
         let mut cache = CompilationCache::new();
-        
+
         // Test cache miss
         assert!(cache.get_cached_compilation("hash123").is_none());
-        
+
         // Test cache hit
         cache.cache_compilation("hash123".to_string(), "llvm_ir_code".to_string());
         assert!(cache.get_cached_compilation("hash123").is_some());
-        
+
         // Test timestamp validation
         cache.update_timestamp("file.aero".to_string(), 1000);
         assert!(cache.is_cache_valid("file.aero", 999));
@@ -594,17 +640,17 @@ mod tests {
     #[test]
     fn test_constant_folding() {
         let optimizer = CompilerOptimizer::new();
-        
+
         let left = Expression::IntegerLiteral(5);
         let right = Expression::IntegerLiteral(3);
-        
+
         // Test addition folding
         let result = optimizer.try_constant_fold(&left, &right, &BinaryOp::Add);
         assert!(result.is_some());
         if let Some(Expression::IntegerLiteral(value)) = result {
             assert_eq!(value, 8);
         }
-        
+
         // Test multiplication folding
         let result = optimizer.try_constant_fold(&left, &right, &BinaryOp::Multiply);
         assert!(result.is_some());
