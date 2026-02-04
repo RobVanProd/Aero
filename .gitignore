@@ -1,0 +1,31 @@
+# Build artifacts / binaries
+
+# Rust
+/target/
+**/target/
+**/*.rlib
+**/*.rmeta
+
+# Cargo
+# (Intentionally not ignoring Cargo.lock; commit it if this project needs reproducible Rust builds.)
+
+# Windows / MSVC build artifacts
+*.exe
+*.pdb
+*.obj
+*.lib
+*.dll
+*.ilk
+*.exp
+
+# LLVM / compiler outputs
+/output.ll
+/simple_test.ll
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
