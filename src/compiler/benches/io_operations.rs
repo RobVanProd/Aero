@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use compiler::{compile_program, CompilerOptions};
+use compiler::{CompilerOptions, compile_program};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn benchmark_print_operations(c: &mut Criterion) {
     let simple_print_code = r#"

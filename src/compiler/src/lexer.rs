@@ -6,13 +6,13 @@ pub enum Token {
     IntegerLiteral(i64),
     FloatLiteral(f64),
     Identifier(String),
-    
+
     // Keywords
     Let,
     Fn,
     Return,
     Mut,
-    
+
     // Control flow keywords
     If,
     Else,
@@ -22,11 +22,11 @@ pub enum Token {
     Loop,
     Break,
     Continue,
-    
+
     // I/O Macros
-    PrintMacro,    // print!
-    PrintlnMacro,  // println!
-    
+    PrintMacro,   // print!
+    PrintlnMacro, // println!
+
     // Operators
     Plus,
     Minus,
@@ -34,8 +34,8 @@ pub enum Token {
     Divide,
     Modulo,
     Assign,
-    Arrow,  // ->
-    
+    Arrow, // ->
+
     // Comparison operators
     Equal,        // ==
     NotEqual,     // !=
@@ -43,12 +43,12 @@ pub enum Token {
     GreaterThan,  // >
     LessEqual,    // <=
     GreaterEqual, // >=
-    
+
     // Logical operators
-    LogicalAnd,   // &&
-    LogicalOr,    // ||
-    LogicalNot,   // !
-    
+    LogicalAnd, // &&
+    LogicalOr,  // ||
+    LogicalNot, // !
+
     // Delimiters
     Semicolon,
     LeftBrace,
@@ -58,7 +58,7 @@ pub enum Token {
     Dot,
     Colon,
     Comma,
-    
+
     // End of file
     Eof,
 }
@@ -88,11 +88,9 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
     let mut column = 1;
 
     // Helper function to create location
-    let make_location = |line: usize, column: usize| {
-        match &filename {
-            Some(f) => SourceLocation::with_filename(line, column, f.clone()),
-            None => SourceLocation::new(line, column),
-        }
+    let make_location = |line: usize, column: usize| match &filename {
+        Some(f) => SourceLocation::with_filename(line, column, f.clone()),
+        None => SourceLocation::new(line, column),
     };
 
     // Helper function to advance position tracking
@@ -108,7 +106,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
     while let Some(&c) = chars.peek() {
         let token_start_line = line;
         let token_start_column = column;
-        
+
         match c {
             // Whitespace
             ' ' | '\t' | '\n' | '\r' => {
@@ -116,15 +114,21 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 advance_position(ch, &mut line, &mut column);
             }
             // Operators and delimiters
-            '+' => { 
+            '+' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Plus, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::Plus,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
-            '*' => { 
+            '*' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Multiply, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::Multiply,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
             '/' => {
                 let ch = chars.next().unwrap(); // consume first '/'
@@ -141,48 +145,75 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         advance_position(ch, &mut line, &mut column);
                     }
                 } else {
-                    tokens.push(LocatedToken::new(Token::Divide, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::Divide,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
-            '%' => { 
+            '%' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Modulo, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::Modulo,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
-            ';' => { 
+            ';' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Semicolon, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::Semicolon,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
-            '{' => { 
+            '{' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::LeftBrace, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::LeftBrace,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
-            '}' => { 
+            '}' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::RightBrace, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::RightBrace,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
-            '(' => { 
+            '(' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::LeftParen, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::LeftParen,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
-            ')' => { 
+            ')' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::RightParen, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::RightParen,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
-            ':' => { 
+            ':' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Colon, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::Colon,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
-            ',' => { 
+            ',' => {
                 chars.next();
                 advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Comma, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::Comma,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
             // Handle minus and arrow (->)
             '-' => {
@@ -191,9 +222,15 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 if let Some(&'>') = chars.peek() {
                     let ch2 = chars.next().unwrap(); // consume '>'
                     advance_position(ch2, &mut line, &mut column);
-                    tokens.push(LocatedToken::new(Token::Arrow, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::Arrow,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
-                    tokens.push(LocatedToken::new(Token::Minus, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::Minus,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
             // Handle assignment and equality
@@ -203,9 +240,15 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 if let Some(&'=') = chars.peek() {
                     let ch2 = chars.next().unwrap(); // consume second '='
                     advance_position(ch2, &mut line, &mut column);
-                    tokens.push(LocatedToken::new(Token::Equal, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::Equal,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
-                    tokens.push(LocatedToken::new(Token::Assign, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::Assign,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
             // Handle not equal and logical not
@@ -215,9 +258,15 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 if let Some(&'=') = chars.peek() {
                     let ch2 = chars.next().unwrap(); // consume '='
                     advance_position(ch2, &mut line, &mut column);
-                    tokens.push(LocatedToken::new(Token::NotEqual, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::NotEqual,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
-                    tokens.push(LocatedToken::new(Token::LogicalNot, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::LogicalNot,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
             // Handle less than and less equal
@@ -227,9 +276,15 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 if let Some(&'=') = chars.peek() {
                     let ch2 = chars.next().unwrap(); // consume '='
                     advance_position(ch2, &mut line, &mut column);
-                    tokens.push(LocatedToken::new(Token::LessEqual, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::LessEqual,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
-                    tokens.push(LocatedToken::new(Token::LessThan, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::LessThan,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
             // Handle greater than and greater equal
@@ -239,9 +294,15 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 if let Some(&'=') = chars.peek() {
                     let ch2 = chars.next().unwrap(); // consume '='
                     advance_position(ch2, &mut line, &mut column);
-                    tokens.push(LocatedToken::new(Token::GreaterEqual, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::GreaterEqual,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
-                    tokens.push(LocatedToken::new(Token::GreaterThan, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::GreaterThan,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
             // Handle logical and
@@ -251,7 +312,10 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 if let Some(&'&') = chars.peek() {
                     let ch2 = chars.next().unwrap(); // consume second '&'
                     advance_position(ch2, &mut line, &mut column);
-                    tokens.push(LocatedToken::new(Token::LogicalAnd, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::LogicalAnd,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
                     // Single & not supported yet, treat as unexpected
                     eprintln!("Unexpected character: & at {}:{}", line, column);
@@ -264,7 +328,10 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 if let Some(&'|') = chars.peek() {
                     let ch2 = chars.next().unwrap(); // consume second '|'
                     advance_position(ch2, &mut line, &mut column);
-                    tokens.push(LocatedToken::new(Token::LogicalOr, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::LogicalOr,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
                     // Single | not supported yet, treat as unexpected
                     eprintln!("Unexpected character: | at {}:{}", line, column);
@@ -274,14 +341,17 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
             '.' => {
                 let ch = chars.next().unwrap(); // consume the '.'
                 advance_position(ch, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Dot, make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::Dot,
+                    make_location(token_start_line, token_start_column),
+                ));
             }
             // Integer and Float Literals
             '0'..='9' => {
                 let mut num_str = String::new();
                 let mut has_dot = false;
                 let mut has_exponent = false;
-                
+
                 // Collect digits and decimal point
                 while let Some(&d) = chars.peek() {
                     if d.is_ascii_digit() {
@@ -327,13 +397,19 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         break;
                     }
                 }
-                
+
                 if has_dot || has_exponent {
                     let float_val: f64 = num_str.parse().unwrap_or(0.0);
-                    tokens.push(LocatedToken::new(Token::FloatLiteral(float_val), make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::FloatLiteral(float_val),
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
                     let int_val: i64 = num_str.parse().unwrap_or(0);
-                    tokens.push(LocatedToken::new(Token::IntegerLiteral(int_val), make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        Token::IntegerLiteral(int_val),
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
             // String literals
@@ -363,7 +439,10 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         string_content.push(ch);
                     }
                 }
-                tokens.push(LocatedToken::new(Token::Identifier(string_content), make_location(token_start_line, token_start_column)));
+                tokens.push(LocatedToken::new(
+                    Token::Identifier(string_content),
+                    make_location(token_start_line, token_start_column),
+                ));
             }
             // Identifiers and Keywords
             'a'..='z' | 'A'..='Z' | '_' => {
@@ -377,7 +456,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         break;
                     }
                 }
-                
+
                 // Check for I/O macros (identifiers followed by !)
                 if let Some(&'!') = chars.peek() {
                     let token = match ident_str.as_str() {
@@ -393,7 +472,10 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         }
                         _ => Token::Identifier(ident_str), // Regular identifier, don't consume '!'
                     };
-                    tokens.push(LocatedToken::new(token, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        token,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 } else {
                     // Regular keywords and identifiers
                     let token = match ident_str.as_str() {
@@ -411,7 +493,10 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         "continue" => Token::Continue,
                         _ => Token::Identifier(ident_str),
                     };
-                    tokens.push(LocatedToken::new(token, make_location(token_start_line, token_start_column)));
+                    tokens.push(LocatedToken::new(
+                        token,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
             _ => {
@@ -422,7 +507,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
             }
         }
     }
-    
+
     tokens.push(LocatedToken::new(Token::Eof, make_location(line, column)));
     tokens
 }
@@ -435,15 +520,15 @@ mod tests {
     fn test_location_tracking() {
         let source = "let x = 5;\nlet y = 10;";
         let tokens = tokenize_with_locations(source, None);
-        
+
         assert_eq!(tokens[0].token, Token::Let);
         assert_eq!(tokens[0].location.line, 1);
         assert_eq!(tokens[0].location.column, 1);
-        
+
         assert_eq!(tokens[1].token, Token::Identifier("x".to_string()));
         assert_eq!(tokens[1].location.line, 1);
         assert_eq!(tokens[1].location.column, 5);
-        
+
         assert_eq!(tokens[5].token, Token::Let); // Second let on line 2
         assert_eq!(tokens[5].location.line, 2);
         assert_eq!(tokens[5].location.column, 1);
@@ -453,7 +538,7 @@ mod tests {
     fn test_function_tokens() {
         let source = "fn main() -> i32 { let mut x = 5; }";
         let tokens = tokenize(source);
-        
+
         assert_eq!(tokens[0], Token::Fn);
         assert_eq!(tokens[1], Token::Identifier("main".to_string()));
         assert_eq!(tokens[2], Token::LeftParen);
@@ -475,7 +560,7 @@ mod tests {
     fn test_comparison_operators() {
         let source = "== != < > <= >=";
         let tokens = tokenize(source);
-        
+
         assert_eq!(tokens[0], Token::Equal);
         assert_eq!(tokens[1], Token::NotEqual);
         assert_eq!(tokens[2], Token::LessThan);
@@ -489,7 +574,7 @@ mod tests {
     fn test_logical_operators() {
         let source = "&& || !";
         let tokens = tokenize(source);
-        
+
         assert_eq!(tokens[0], Token::LogicalAnd);
         assert_eq!(tokens[1], Token::LogicalOr);
         assert_eq!(tokens[2], Token::LogicalNot);
@@ -500,7 +585,7 @@ mod tests {
     fn test_io_macros() {
         let source = r#"print!("Hello") println!("World")"#;
         let tokens = tokenize(source);
-        
+
         assert_eq!(tokens[0], Token::PrintMacro);
         assert_eq!(tokens[1], Token::LeftParen);
         assert_eq!(tokens[2], Token::Identifier("\"Hello\"".to_string()));

@@ -1,18 +1,18 @@
 pub mod ast;
+mod code_generator;
+pub mod errors;
+mod ir;
+mod ir_generator;
 pub mod lexer;
 pub mod parser;
 pub mod semantic_analyzer;
-mod ir;
-mod ir_generator;
-mod code_generator;
 pub mod types;
-pub mod errors;
 
-pub use lexer::{tokenize, tokenize_with_locations, Token, LocatedToken};
-pub use parser::{parse, parse_with_locations, Parser};
-pub use semantic_analyzer::SemanticAnalyzer;
+pub use code_generator::{CodeGenerator, generate_code};
 pub use ir_generator::IrGenerator;
-pub use code_generator::{generate_code, CodeGenerator};
+pub use lexer::{LocatedToken, Token, tokenize, tokenize_with_locations};
+pub use parser::{Parser, parse, parse_with_locations};
+pub use semantic_analyzer::SemanticAnalyzer;
 
 #[cfg(test)]
 mod error_test;
@@ -29,23 +29,23 @@ pub struct CompilerOptions {
 pub fn compile_program(source: &str, _options: CompilerOptions) -> Result<String, String> {
     // Lexical analysis
     let tokens = tokenize(source);
-    
+
     // Parsing
     let ast = parse(tokens);
-    
+
     // Semantic analysis
     let mut semantic_analyzer = SemanticAnalyzer::new();
     let (_analyzed_result, analyzed_ast) = match semantic_analyzer.analyze(ast.clone()) {
         Ok((msg, typed_ast)) => (msg, typed_ast),
         Err(err) => return Err(format!("Semantic Analysis Error: {}", err)),
     };
-    
+
     // IR generation
     let mut ir_generator = IrGenerator::new();
     let ir = ir_generator.generate_ir(analyzed_ast);
-    
+
     // Code generation
     let llvm_code = generate_code(ir);
-    
+
     Ok(llvm_code)
 }

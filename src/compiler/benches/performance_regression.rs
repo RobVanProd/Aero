@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use compiler::{compile_program, CompilerOptions};
+use compiler::{CompilerOptions, compile_program};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use std::time::Instant;
 
 /// Performance regression tests to ensure Phase 3 features don't degrade performance
@@ -82,15 +82,12 @@ fn benchmark_memory_usage_regression(c: &mut Criterion) {
     // Test memory usage doesn't regress with new features
     let memory_intensive_code = {
         let mut code = String::new();
-        
+
         // Many function definitions
         for i in 0..200 {
-            code.push_str(&format!(
-                "fn func{}() -> i32 {{ return {}; }}\n",
-                i, i
-            ));
+            code.push_str(&format!("fn func{}() -> i32 {{ return {}; }}\n", i, i));
         }
-        
+
         // Complex control flow
         code.push_str("fn main() {\n");
         code.push_str("    for i in 0..100 {\n");
@@ -102,7 +99,7 @@ fn benchmark_memory_usage_regression(c: &mut Criterion) {
         code.push_str("        }\n");
         code.push_str("    }\n");
         code.push_str("}\n");
-        
+
         code
     };
 

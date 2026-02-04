@@ -1,4 +1,6 @@
-use crate::ast::{AstNode, Expression, Statement, Block, Parameter, ComparisonOp, LogicalOp, UnaryOp};
+use crate::ast::{
+    AstNode, Block, ComparisonOp, Expression, LogicalOp, Parameter, Statement, UnaryOp,
+};
 use crate::types::{Ty, infer_binary_type};
 use std::collections::HashMap;
 
@@ -41,7 +43,10 @@ impl FunctionTable {
 
     pub fn define_function(&mut self, info: FunctionInfo) -> Result<(), String> {
         if self.functions.contains_key(&info.name) {
-            return Err(format!("Error: Function `{}` is already defined.", info.name));
+            return Err(format!(
+                "Error: Function `{}` is already defined.",
+                info.name
+            ));
         }
         self.functions.insert(info.name.clone(), info);
         Ok(())
@@ -69,9 +74,9 @@ impl FunctionTable {
                         "f64" => Ty::Float,
                         "bool" => Ty::Bool,
                         _ => Ty::Int,
-                    }
+                    },
                 };
-                
+
                 if expected_type != *arg_type {
                     return Err(format!(
                         "Error: Function `{}` expects type `{}` for argument {}, but `{}` was provided.",
@@ -143,11 +148,20 @@ impl ScopeManager {
         }
     }
 
-    pub fn define_variable(&mut self, name: String, var_type: Ty, mutable: bool, initialized: bool) -> Result<String, String> {
+    pub fn define_variable(
+        &mut self,
+        name: String,
+        var_type: Ty,
+        mutable: bool,
+        initialized: bool,
+    ) -> Result<String, String> {
         // Check if variable already exists in current scope
         if let Some(current_scope) = self.scopes.last() {
             if current_scope.contains_key(&name) {
-                return Err(format!("Error: Variable `{}` is already defined in this scope.", name));
+                return Err(format!(
+                    "Error: Variable `{}` is already defined in this scope.",
+                    name
+                ));
             }
         }
 
@@ -217,7 +231,11 @@ impl ScopeManager {
         }
     }
 
-    pub fn update_variable_initialization(&mut self, name: &str, initialized: bool) -> Result<(), String> {
+    pub fn update_variable_initialization(
+        &mut self,
+        name: &str,
+        initialized: bool,
+    ) -> Result<(), String> {
         // Search from innermost to outermost scope
         for scope in self.scopes.iter_mut().rev() {
             if let Some(var_info) = scope.get_mut(name) {
@@ -361,7 +379,9 @@ impl SemanticAnalyzer {
                     Err(format!("Error: Use of undeclared variable `{}`.", name))
                 }
             }
-            Expression::Binary { op, left, right, .. } => {
+            Expression::Binary {
+                op, left, right, ..
+            } => {
                 let lhs_type = self.infer_and_validate_expression(left)?;
                 let rhs_type = self.infer_and_validate_expression(right)?;
                 infer_binary_type(op.as_str(), &lhs_type, &rhs_type)
@@ -372,11 +392,17 @@ impl SemanticAnalyzer {
                 }
                 Ok(Ty::Int)
             }
-            Expression::Print { format_string, arguments } => {
+            Expression::Print {
+                format_string,
+                arguments,
+            } => {
                 self.validate_format_string_and_args(format_string, arguments)?;
                 Ok(Ty::Int)
             }
-            Expression::Println { format_string, arguments } => {
+            Expression::Println {
+                format_string,
+                arguments,
+            } => {
                 self.validate_format_string_and_args(format_string, arguments)?;
                 Ok(Ty::Int)
             }
@@ -420,7 +446,9 @@ impl SemanticAnalyzer {
                     Err(format!("Error: Use of undeclared variable `{}`.", name))
                 }
             }
-            Expression::Binary { op, left, right, .. } => {
+            Expression::Binary {
+                op, left, right, ..
+            } => {
                 let lhs_type = self.infer_and_validate_expression_immutable(left)?;
                 let rhs_type = self.infer_and_validate_expression_immutable(right)?;
                 infer_binary_type(op.as_str(), &lhs_type, &rhs_type)
@@ -431,11 +459,17 @@ impl SemanticAnalyzer {
                 }
                 Ok(Ty::Int)
             }
-            Expression::Print { format_string, arguments } => {
+            Expression::Print {
+                format_string,
+                arguments,
+            } => {
                 self.validate_format_string_and_args_immutable(format_string, arguments)?;
                 Ok(Ty::Int)
             }
-            Expression::Println { format_string, arguments } => {
+            Expression::Println {
+                format_string,
+                arguments,
+            } => {
                 self.validate_format_string_and_args_immutable(format_string, arguments)?;
                 Ok(Ty::Int)
             }
@@ -458,9 +492,13 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn validate_format_string_and_args(&self, format_string: &str, arguments: &[Expression]) -> Result<(), String> {
+    fn validate_format_string_and_args(
+        &self,
+        format_string: &str,
+        arguments: &[Expression],
+    ) -> Result<(), String> {
         let placeholder_count = format_string.matches("{}").count();
-        
+
         if placeholder_count != arguments.len() {
             return Err(format!(
                 "Error: Format string has {} placeholders but {} arguments were provided.",
@@ -483,9 +521,13 @@ impl SemanticAnalyzer {
         Ok(())
     }
 
-    fn validate_format_string_and_args_immutable(&self, format_string: &str, arguments: &[Expression]) -> Result<(), String> {
+    fn validate_format_string_and_args_immutable(
+        &self,
+        format_string: &str,
+        arguments: &[Expression],
+    ) -> Result<(), String> {
         let placeholder_count = format_string.matches("{}").count();
-        
+
         if placeholder_count != arguments.len() {
             return Err(format!(
                 "Error: Format string has {} placeholders but {} arguments were provided.",
@@ -512,11 +554,17 @@ impl SemanticAnalyzer {
         matches!(ty, Ty::Int | Ty::Float | Ty::Bool)
     }
 
-    fn validate_comparison_operands(&self, _op: &ComparisonOp, left_type: &Ty, right_type: &Ty) -> Result<(), String> {
+    fn validate_comparison_operands(
+        &self,
+        _op: &ComparisonOp,
+        left_type: &Ty,
+        right_type: &Ty,
+    ) -> Result<(), String> {
         if left_type == right_type {
             Ok(())
-        } else if (left_type == &Ty::Int && right_type == &Ty::Float) || 
-                  (left_type == &Ty::Float && right_type == &Ty::Int) {
+        } else if (left_type == &Ty::Int && right_type == &Ty::Float)
+            || (left_type == &Ty::Float && right_type == &Ty::Int)
+        {
             Ok(()) // Allow int/float comparisons
         } else {
             Err(format!(
@@ -527,12 +575,23 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn validate_logical_operands(&self, _op: &LogicalOp, left_type: &Ty, right_type: &Ty) -> Result<(), String> {
+    fn validate_logical_operands(
+        &self,
+        _op: &LogicalOp,
+        left_type: &Ty,
+        right_type: &Ty,
+    ) -> Result<(), String> {
         if left_type != &Ty::Bool {
-            return Err(format!("Error: Left operand of logical operation must be boolean, found: {}", left_type.to_string()));
+            return Err(format!(
+                "Error: Left operand of logical operation must be boolean, found: {}",
+                left_type.to_string()
+            ));
         }
         if right_type != &Ty::Bool {
-            return Err(format!("Error: Right operand of logical operation must be boolean, found: {}", right_type.to_string()));
+            return Err(format!(
+                "Error: Right operand of logical operation must be boolean, found: {}",
+                right_type.to_string()
+            ));
         }
         Ok(())
     }
@@ -543,14 +602,20 @@ impl SemanticAnalyzer {
                 if operand_type == &Ty::Bool {
                     Ok(Ty::Bool)
                 } else {
-                    Err(format!("Error: Logical NOT operator requires boolean operand, found: {}", operand_type.to_string()))
+                    Err(format!(
+                        "Error: Logical NOT operator requires boolean operand, found: {}",
+                        operand_type.to_string()
+                    ))
                 }
             }
             UnaryOp::Negate => {
                 if operand_type == &Ty::Int || operand_type == &Ty::Float {
                     Ok(operand_type.clone())
                 } else {
-                    Err(format!("Error: Unary minus operator requires numeric operand, found: {}", operand_type.to_string()))
+                    Err(format!(
+                        "Error: Unary minus operator requires numeric operand, found: {}",
+                        operand_type.to_string()
+                    ))
                 }
             }
         }
@@ -558,17 +623,25 @@ impl SemanticAnalyzer {
 
     fn analyze_statement(&mut self, stmt: &Statement) -> Result<(), String> {
         match stmt {
-            Statement::Let { name, mutable: _, type_annotation: _, value } => {
+            Statement::Let {
+                name,
+                mutable: _,
+                type_annotation: _,
+                value,
+            } => {
                 if self.scope_manager.variable_exists_in_current_scope(name) {
-                    return Err(format!("Error: Variable `{}` is already defined in this scope.", name));
+                    return Err(format!(
+                        "Error: Variable `{}` is already defined in this scope.",
+                        name
+                    ));
                 }
 
-                let inferred_type = if let Some(val) = value { 
-                    self.infer_and_validate_expression_immutable(val)? 
-                } else { 
-                    Ty::Int 
+                let inferred_type = if let Some(val) = value {
+                    self.infer_and_validate_expression_immutable(val)?
+                } else {
+                    Ty::Int
                 };
-                
+
                 self.scope_manager.define_variable(
                     name.clone(),
                     inferred_type.clone(),
@@ -588,21 +661,26 @@ impl SemanticAnalyzer {
                 Ok(())
             }
             Statement::Return(expr) => {
-                if let Some(val) = expr { 
-                    self.check_expression_initialization(val)?; 
+                if let Some(val) = expr {
+                    self.check_expression_initialization(val)?;
                     self.infer_and_validate_expression_immutable(val)?;
                 }
                 Ok(())
             }
-            Statement::Function { .. } => {
-                Ok(())
-            }
-            Statement::If { condition, then_block, else_block } => {
+            Statement::Function { .. } => Ok(()),
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
                 self.check_expression_initialization(condition)?;
                 let condition_type = self.infer_and_validate_expression_immutable(condition)?;
-                
+
                 if condition_type != Ty::Bool {
-                    return Err(format!("Error: If condition must be boolean, found: {}", condition_type.to_string()));
+                    return Err(format!(
+                        "Error: If condition must be boolean, found: {}",
+                        condition_type.to_string()
+                    ));
                 }
 
                 self.scope_manager.enter_scope();
@@ -620,9 +698,12 @@ impl SemanticAnalyzer {
             Statement::While { condition, body } => {
                 self.check_expression_initialization(condition)?;
                 let condition_type = self.infer_and_validate_expression_immutable(condition)?;
-                
+
                 if condition_type != Ty::Bool {
-                    return Err(format!("Error: While condition must be boolean, found: {}", condition_type.to_string()));
+                    return Err(format!(
+                        "Error: While condition must be boolean, found: {}",
+                        condition_type.to_string()
+                    ));
                 }
 
                 self.scope_manager.enter_loop();
@@ -631,17 +712,17 @@ impl SemanticAnalyzer {
 
                 Ok(())
             }
-            Statement::For { variable, iterable, body } => {
+            Statement::For {
+                variable,
+                iterable,
+                body,
+            } => {
                 self.check_expression_initialization(iterable)?;
                 let _iterable_type = self.infer_and_validate_expression_immutable(iterable)?;
 
                 self.scope_manager.enter_loop();
-                self.scope_manager.define_variable(
-                    variable.clone(),
-                    Ty::Int,
-                    false,
-                    true,
-                )?;
+                self.scope_manager
+                    .define_variable(variable.clone(), Ty::Int, false, true)?;
                 self.analyze_block(body)?;
                 self.scope_manager.exit_loop();
 
