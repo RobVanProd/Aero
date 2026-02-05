@@ -21,10 +21,9 @@ fi
 cd "$COMPILER_DIR"
 
 cargo fmt --check
-# Clippy is advisory for now. The codebase has many experimental/unused paths (benches,
-# perf scaffolding, compatibility shims) that are expected to trigger `dead_code` and
-# other pedantic lints during development.
+# The codebase has many experimental/unused paths (benches, perf scaffolding,
+# compatibility shims) that are expected to trigger `dead_code` and other noisy lints.
 #
-# We still treat *correctness* lints as high-signal.
-cargo clippy --all-targets --all-features -- -D clippy::correctness || true
+# We treat *correctness* lints as high-signal and enforce them in CI.
+cargo clippy --all-targets --all-features -- -D clippy::correctness
 cargo test
