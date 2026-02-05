@@ -23,6 +23,12 @@
 /simple_test.ll
 /return15.ll
 
+# Aero examples: `aero run` currently emits build artifacts next to the source.
+# Keep the examples directory clean in `git status`.
+/examples/*
+!/examples/*.aero
+!/examples/*.md
+
 # OS / editor
 .DS_Store
 Thumbs.db
