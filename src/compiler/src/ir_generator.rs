@@ -163,9 +163,21 @@ impl IrGenerator {
                 let (lhs_val, lhs_type) = self.generate_expression_ir(*left, function);
                 let (rhs_val, rhs_type) = self.generate_expression_ir(*right, function);
 
-                // Get the result type from the AST (set by semantic analysis)
-                let result_type =
-                    ty.expect("Binary expression should have type set by semantic analysis");
+                // Prefer the result type from the AST (set by semantic analysis).
+                //
+                // Some transformation/compat codepaths may create `Expression::Binary` nodes
+                // without a `ty` annotation. In that case, fall back to local inference
+                // based on the operand types so we don't hard-panic during codegen.
+                let result_type = ty.unwrap_or_else(|| match (&lhs_type, &rhs_type) {
+                    (Ty::Float, _) | (_, Ty::Float) => Ty::Float,
+                    (Ty::Int, Ty::Int) => Ty::Int,
+                    (l, r) => panic!(
+                        "Cannot infer binary op result type for op '{}' with operand types {:?} and {:?}",
+                        op.as_str(),
+                        l,
+                        r
+                    ),
+                });
 
                 // Handle type promotion if needed
                 let (promoted_lhs, promoted_rhs) = self.handle_type_promotion(

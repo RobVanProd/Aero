@@ -21,6 +21,7 @@
 # LLVM / compiler outputs
 /output.ll
 /simple_test.ll
+/return15.ll
 
 # OS / editor
 .DS_Store

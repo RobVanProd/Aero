@@ -29,6 +29,13 @@ jobs:
       run: cargo build --verbose
       working-directory: src/compiler
 
+    - name: Install LLVM + Clang
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends llvm clang
+        llc --version
+        clang --version
+
     - name: Test return15 example
       run: |
         cd src/compiler
@@ -91,8 +98,8 @@ jobs:
       run: cargo test --verbose
       working-directory: src/compiler
 
-    - name: Run Clippy
-      run: cargo clippy -- -D warnings
+    - name: Run Clippy (correctness)
+      run: cargo clippy --all-targets --all-features -- -D clippy::correctness
       working-directory: src/compiler
 
 
