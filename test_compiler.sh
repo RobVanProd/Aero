@@ -39,8 +39,11 @@ echo
 
 # Test 1: return15.aero
 echo "Test 1: Testing return15.aero (should exit with code 15)"
+# This test expects a non-zero exit code, so we must temporarily disable `set -e`.
+set +e
 ./src/compiler/target/release/aero run examples/return15.aero
 exit_code=$?
+set -e
 if [ $exit_code -eq 15 ]; then
     echo "✓ Test 1 passed: exit code $exit_code"
 else
@@ -49,40 +52,35 @@ else
 fi
 echo
 
+# Helper: run a program expected to exit non-zero without tripping `set -e`.
+run_expect_exit() {
+  local expected="$1"
+  shift
+  set +e
+  "$@"
+  local got=$?
+  set -e
+  if [ "$got" -eq "$expected" ]; then
+    echo "✓ passed: exit code $got"
+  else
+    echo "✗ failed: expected exit code $expected, got $got"
+    exit 1
+  fi
+}
+
 # Test 2: variables.aero
 echo "Test 2: Testing variables.aero (should exit with code 6)"
-./src/compiler/target/release/aero run examples/variables.aero
-exit_code=$?
-if [ $exit_code -eq 6 ]; then
-    echo "✓ Test 2 passed: exit code $exit_code"
-else
-    echo "✗ Test 2 failed: expected exit code 6, got $exit_code"
-    exit 1
-fi
+run_expect_exit 6 ./src/compiler/target/release/aero run examples/variables.aero
 echo
 
 # Test 3: mixed.aero
 echo "Test 3: Testing mixed.aero (should exit with code 7)"
-./src/compiler/target/release/aero run examples/mixed.aero
-exit_code=$?
-if [ $exit_code -eq 7 ]; then
-    echo "✓ Test 3 passed: exit code $exit_code"
-else
-    echo "✗ Test 3 failed: expected exit code 7, got $exit_code"
-    exit 1
-fi
+run_expect_exit 7 ./src/compiler/target/release/aero run examples/mixed.aero
 echo
 
 # Test 4: float_ops.aero
 echo "Test 4: Testing float_ops.aero (should exit with code 7)"
-./src/compiler/target/release/aero run examples/float_ops.aero
-exit_code=$?
-if [ $exit_code -eq 7 ]; then
-    echo "✓ Test 4 passed: exit code $exit_code"
-else
-    echo "✗ Test 4 failed: expected exit code 7, got $exit_code"
-    exit 1
-fi
+run_expect_exit 7 ./src/compiler/target/release/aero run examples/float_ops.aero
 echo
 
 echo "=== All tests passed! ==="
