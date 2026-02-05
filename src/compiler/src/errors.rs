@@ -95,7 +95,15 @@ impl ErrorContext {
             current_scope_variables: Vec::new(),
         }
     }
+}
 
+impl Default for ErrorContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ErrorContext {
     pub fn in_function(mut self, name: String) -> Self {
         self.function_name = Some(name);
         self
@@ -556,6 +564,7 @@ impl fmt::Display for CompilerError {
 impl std::error::Error for CompilerError {}
 
 /// Result type for compiler operations
+#[allow(clippy::result_large_err)]
 pub type CompilerResult<T> = Result<T, CompilerError>;
 
 /// Collection of multiple enhanced compiler errors
@@ -568,7 +577,15 @@ impl CompilerErrors {
     pub fn new() -> Self {
         CompilerErrors { errors: Vec::new() }
     }
+}
 
+impl Default for CompilerErrors {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CompilerErrors {
     pub fn add(&mut self, error: CompilerError) {
         self.errors.push(EnhancedError::new(error));
     }
@@ -863,11 +880,11 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
 
     let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
-    for i in 0..=len1 {
-        matrix[i][0] = i;
+    for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
+        row[0] = i;
     }
-    for j in 0..=len2 {
-        matrix[0][j] = j;
+    for (j, cell) in matrix[0].iter_mut().enumerate().take(len2 + 1) {
+        *cell = j;
     }
 
     let s1_chars: Vec<char> = s1.chars().collect();

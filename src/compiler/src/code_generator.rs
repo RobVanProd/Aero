@@ -1,6 +1,8 @@
 use crate::ir::{Function, Inst, Value};
 use std::collections::HashMap;
 
+type FunctionDef = (Vec<(String, String)>, Option<String>);
+
 pub struct CodeGenerator {
     next_reg: u32,
     next_ptr: u32,
@@ -13,7 +15,15 @@ impl CodeGenerator {
             next_ptr: 0,
         }
     }
+}
 
+impl Default for CodeGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CodeGenerator {
     fn fresh_reg(&mut self) -> String {
         let reg = format!("reg{}", self.next_reg);
         self.next_reg += 1;
@@ -63,10 +73,9 @@ impl CodeGenerator {
         self.generate_printf_declaration(&mut llvm_ir);
 
         // First pass: collect function definitions from IR instructions
-        let mut function_defs: HashMap<String, (Vec<(String, String)>, Option<String>)> =
-            HashMap::new();
+        let mut function_defs: HashMap<String, FunctionDef> = HashMap::new();
 
-        for (func_name, func) in &ir_functions {
+        for func in ir_functions.values() {
             for inst in &func.body {
                 if let Inst::FunctionDef {
                     name,
@@ -533,6 +542,7 @@ impl CodeGenerator {
         }
     }
 
+    #[allow(dead_code)]
     fn generate_phi_node(
         &mut self,
         llvm_ir: &mut String,
@@ -553,6 +563,7 @@ impl CodeGenerator {
         llvm_ir.push_str(&phi_str);
     }
 
+    #[allow(dead_code)]
     fn generate_loop_structure(
         &mut self,
         llvm_ir: &mut String,
@@ -581,6 +592,7 @@ impl CodeGenerator {
         llvm_ir.push_str(&format!("{}:\n", loop_body));
     }
 
+    #[allow(dead_code)]
     fn generate_if_else_structure(
         &mut self,
         llvm_ir: &mut String,
@@ -734,6 +746,8 @@ pub fn generate_code(ir_functions: HashMap<String, Function>) -> String {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::approx_constant)]
+
     use super::*;
     use crate::ir::{Function, Inst, Value};
     use std::collections::HashMap;
@@ -1475,8 +1489,8 @@ fn test_comparison_operations() {
             Inst::FCmp {
                 op: "olt".to_string(),
                 result: Value::Reg(1),
-                left: Value::ImmFloat(3.14),
-                right: Value::ImmFloat(2.71),
+                left: Value::ImmFloat(std::f64::consts::PI),
+                right: Value::ImmFloat(std::f64::consts::E),
             },
             Inst::Return(Value::Reg(0)),
         ],

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 pub struct IrGenerator {
     functions: HashMap<String, Function>,
+    #[allow(dead_code)]
     current_function_name: String,
     next_reg: u32,
     next_ptr: u32,
@@ -21,7 +22,15 @@ impl IrGenerator {
             symbol_table: HashMap::new(),
         }
     }
+}
 
+impl Default for IrGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl IrGenerator {
     pub fn generate_ir(&mut self, ast: Vec<AstNode>) -> HashMap<String, Function> {
         let mut main_function = Function {
             name: "main".to_string(),
@@ -739,7 +748,7 @@ impl IrGenerator {
             .push(Inst::Load(loop_var_reg.clone(), var_ptr.clone()));
 
         // Simple condition: loop while var < 10 (this should be configurable)
-        let limit_value = Value::ImmInt(10);
+        let _limit_value = Value::ImmInt(10);
         let cond_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;
         // This would need a comparison instruction - for now use a placeholder

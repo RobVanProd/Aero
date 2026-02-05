@@ -15,7 +15,8 @@ Thanks for your interest in contributing!
 ```bash
 cd src/compiler
 cargo fmt
-cargo clippy
+# Clippy is advisory for now; prefer fixing correctness lints first.
+cargo clippy --all-targets --all-features -- -D clippy::correctness
 cargo test
 ```
 

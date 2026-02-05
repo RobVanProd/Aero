@@ -40,7 +40,15 @@ impl FunctionTable {
             functions: HashMap::new(),
         }
     }
+}
 
+impl Default for FunctionTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FunctionTable {
     pub fn define_function(&mut self, info: FunctionInfo) -> Result<(), String> {
         if self.functions.contains_key(&info.name) {
             return Err(format!(
@@ -81,9 +89,9 @@ impl FunctionTable {
                     return Err(format!(
                         "Error: Function `{}` expects type `{}` for argument {}, but `{}` was provided.",
                         name,
-                        expected_type.to_string(),
+                        expected_type,
                         i + 1,
-                        arg_type.to_string()
+                        arg_type
                     ));
                 }
             }
@@ -115,7 +123,15 @@ impl ScopeManager {
             next_ptr: 0,
         }
     }
+}
 
+impl Default for ScopeManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ScopeManager {
     pub fn enter_scope(&mut self) {
         self.scopes.push(HashMap::new());
     }
@@ -156,13 +172,13 @@ impl ScopeManager {
         initialized: bool,
     ) -> Result<String, String> {
         // Check if variable already exists in current scope
-        if let Some(current_scope) = self.scopes.last() {
-            if current_scope.contains_key(&name) {
-                return Err(format!(
-                    "Error: Variable `{}` is already defined in this scope.",
-                    name
-                ));
-            }
+        if let Some(current_scope) = self.scopes.last()
+            && current_scope.contains_key(&name)
+        {
+            return Err(format!(
+                "Error: Variable `{}` is already defined in this scope.",
+                name
+            ));
         }
 
         // Generate unique pointer name
@@ -280,6 +296,7 @@ impl ScopeManager {
 
 pub struct SemanticAnalyzer {
     symbol_table: HashMap<String, VariableInfo>,
+    #[allow(dead_code)]
     function_table: FunctionTable,
     scope_manager: ScopeManager,
 }
@@ -292,7 +309,15 @@ impl SemanticAnalyzer {
             scope_manager: ScopeManager::new(),
         }
     }
+}
 
+impl Default for SemanticAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
         for node in &ast {
             match node {
@@ -358,6 +383,7 @@ impl SemanticAnalyzer {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn infer_and_validate_expression(&self, expr: &mut Expression) -> Result<Ty, String> {
         match expr {
             Expression::IntegerLiteral(_) => Ok(Ty::Int),
@@ -492,6 +518,7 @@ impl SemanticAnalyzer {
         }
     }
 
+    #[allow(dead_code)]
     fn validate_format_string_and_args(
         &self,
         format_string: &str,
@@ -513,7 +540,7 @@ impl SemanticAnalyzer {
                 return Err(format!(
                     "Error: Argument {} of type `{}` is not printable.",
                     i + 1,
-                    arg_type.to_string()
+                    arg_type
                 ));
             }
         }
@@ -542,7 +569,7 @@ impl SemanticAnalyzer {
                 return Err(format!(
                     "Error: Argument {} of type `{}` is not printable.",
                     i + 1,
-                    arg_type.to_string()
+                    arg_type
                 ));
             }
         }
@@ -560,17 +587,15 @@ impl SemanticAnalyzer {
         left_type: &Ty,
         right_type: &Ty,
     ) -> Result<(), String> {
-        if left_type == right_type {
-            Ok(())
-        } else if (left_type == &Ty::Int && right_type == &Ty::Float)
+        if left_type == right_type
+            || (left_type == &Ty::Int && right_type == &Ty::Float)
             || (left_type == &Ty::Float && right_type == &Ty::Int)
         {
-            Ok(()) // Allow int/float comparisons
+            Ok(()) // Allow same-type comparisons and int/float comparisons
         } else {
             Err(format!(
                 "Error: Cannot compare types `{}` and `{}`.",
-                left_type.to_string(),
-                right_type.to_string()
+                left_type, right_type
             ))
         }
     }
@@ -584,13 +609,13 @@ impl SemanticAnalyzer {
         if left_type != &Ty::Bool {
             return Err(format!(
                 "Error: Left operand of logical operation must be boolean, found: {}",
-                left_type.to_string()
+                left_type
             ));
         }
         if right_type != &Ty::Bool {
             return Err(format!(
                 "Error: Right operand of logical operation must be boolean, found: {}",
-                right_type.to_string()
+                right_type
             ));
         }
         Ok(())
@@ -604,7 +629,7 @@ impl SemanticAnalyzer {
                 } else {
                     Err(format!(
                         "Error: Logical NOT operator requires boolean operand, found: {}",
-                        operand_type.to_string()
+                        operand_type
                     ))
                 }
             }
@@ -614,7 +639,7 @@ impl SemanticAnalyzer {
                 } else {
                     Err(format!(
                         "Error: Unary minus operator requires numeric operand, found: {}",
-                        operand_type.to_string()
+                        operand_type
                     ))
                 }
             }
@@ -679,7 +704,7 @@ impl SemanticAnalyzer {
                 if condition_type != Ty::Bool {
                     return Err(format!(
                         "Error: If condition must be boolean, found: {}",
-                        condition_type.to_string()
+                        condition_type
                     ));
                 }
 
@@ -702,7 +727,7 @@ impl SemanticAnalyzer {
                 if condition_type != Ty::Bool {
                     return Err(format!(
                         "Error: While condition must be boolean, found: {}",
-                        condition_type.to_string()
+                        condition_type
                     ));
                 }
 

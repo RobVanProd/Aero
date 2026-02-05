@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use crate::ast::{AstNode, Block, Expression, Parameter, Statement, Type};
 use crate::errors::{CompilerError, CompilerResult, SourceLocation};
 use crate::lexer::{LocatedToken, Token};
@@ -57,7 +59,7 @@ impl Parser {
     }
 
     fn parse_function_definition(&mut self) -> CompilerResult<Statement> {
-        let fn_location = self.peek().location.clone();
+        let _fn_location = self.peek().location.clone();
         self.consume(Token::Fn, "Expected 'fn'")?;
 
         let name = match &self.peek().token {
@@ -621,7 +623,7 @@ impl Parser {
         &self.tokens[self.current - 1]
     }
 
-    fn consume(&mut self, token: Token, message: &str) -> CompilerResult<&LocatedToken> {
+    fn consume(&mut self, token: Token, _message: &str) -> CompilerResult<&LocatedToken> {
         if self.check(&token) {
             Ok(self.advance())
         } else {

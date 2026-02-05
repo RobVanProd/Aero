@@ -21,5 +21,10 @@ fi
 cd "$COMPILER_DIR"
 
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings || true
+# Clippy is advisory for now. The codebase has many experimental/unused paths (benches,
+# perf scaffolding, compatibility shims) that are expected to trigger `dead_code` and
+# other pedantic lints during development.
+#
+# We still treat *correctness* lints as high-signal.
+cargo clippy --all-targets --all-features -- -D clippy::correctness || true
 cargo test

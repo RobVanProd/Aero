@@ -52,7 +52,7 @@ fn main() {
         // Generate main function that calls all of them
         code.push_str("fn main() {\n");
         for i in 0..50 {
-            code.push_str(&format("    let result{} = func{}({});\n", i, i, i));
+            code.push_str(&format!("    let result{} = func{}({});\n", i, i, i));
         }
         code.push_str("    println!(\"All functions executed\");\n");
         code.push_str("}\n");

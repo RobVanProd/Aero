@@ -129,7 +129,7 @@ impl Type {
 }
 
 /// Display implementation for BinaryOp (fixes compilation error)
-
+///
 /// Helper functions for type inference compatibility
 pub fn infer_binary_type_compat(op: &BinaryOp, lhs: &Ty, rhs: &Ty) -> Result<Ty, String> {
     crate::types::infer_binary_type(op.as_str(), lhs, rhs)
@@ -182,6 +182,7 @@ pub fn unwrap_expression_option_mut<'a>(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::approx_constant)]
     use super::*;
 
     #[test]

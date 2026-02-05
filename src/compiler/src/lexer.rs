@@ -94,7 +94,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
     };
 
     // Helper function to advance position tracking
-    let mut advance_position = |c: char, line: &mut usize, column: &mut usize| {
+    let advance_position = |c: char, line: &mut usize, column: &mut usize| {
         if c == '\n' {
             *line += 1;
             *column = 1;
@@ -386,12 +386,12 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         advance_position(ch, &mut line, &mut column);
                         num_str.push(ch);
                         // Handle optional sign after exponent
-                        if let Some(&sign) = chars.peek() {
-                            if sign == '+' || sign == '-' {
-                                let ch = chars.next().unwrap();
-                                advance_position(ch, &mut line, &mut column);
-                                num_str.push(ch);
-                            }
+                        if let Some(&sign) = chars.peek()
+                            && (sign == '+' || sign == '-')
+                        {
+                            let ch = chars.next().unwrap();
+                            advance_position(ch, &mut line, &mut column);
+                            num_str.push(ch);
                         }
                     } else {
                         break;
@@ -428,7 +428,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         let ch = chars.next().unwrap(); // consume backslash
                         advance_position(ch, &mut line, &mut column);
                         string_content.push(ch);
-                        if let Some(&escaped) = chars.peek() {
+                        if let Some(&_) = chars.peek() {
                             let ch = chars.next().unwrap(); // consume escaped char
                             advance_position(ch, &mut line, &mut column);
                             string_content.push(ch);
