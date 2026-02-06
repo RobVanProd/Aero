@@ -10,6 +10,7 @@ pub struct IrGenerator {
     next_reg: u32,
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
+    loop_label_stack: Vec<(String, String)>,     // Stack of (loop_start, loop_end) labels
 }
 
 impl IrGenerator {
@@ -20,6 +21,7 @@ impl IrGenerator {
             next_reg: 0,
             next_ptr: 0,
             symbol_table: HashMap::new(),
+            loop_label_stack: Vec::new(),
         }
     }
 }
@@ -690,6 +692,10 @@ impl IrGenerator {
         let loop_end = format!("while_end_{}", self.next_reg);
         self.next_reg += 1;
 
+        // Push loop labels onto stack for break/continue
+        self.loop_label_stack
+            .push((loop_start.clone(), loop_end.clone()));
+
         // Jump to loop start
         current_function.body.push(Inst::Jump(loop_start.clone()));
 
@@ -711,6 +717,9 @@ impl IrGenerator {
             self.generate_expression_ir(expr, current_function);
         }
         current_function.body.push(Inst::Jump(loop_start));
+
+        // Pop loop labels
+        self.loop_label_stack.pop();
 
         // Loop end
         current_function.body.push(Inst::Label(loop_end));
@@ -734,6 +743,10 @@ impl IrGenerator {
         let loop_end = format!("for_end_{}", self.next_reg);
         self.next_reg += 1;
 
+        // Push loop labels onto stack for break/continue
+        self.loop_label_stack
+            .push((loop_start.clone(), loop_end.clone()));
+
         // Initialize loop variable (simplified - assumes iterable evaluates to start value)
         let (start_value, var_type) = self.generate_expression_ir(iterable, current_function);
         let var_ptr = Value::Reg(self.next_ptr);
@@ -751,7 +764,7 @@ impl IrGenerator {
         // In a real implementation, this would check against the range end
         current_function.body.push(Inst::Jump(loop_start.clone()));
 
-        // Loop start - check condition (simplified)
+        // Loop start - check condition
         current_function.body.push(Inst::Label(loop_start.clone()));
         let loop_var_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;
@@ -759,11 +772,16 @@ impl IrGenerator {
             .body
             .push(Inst::Load(loop_var_reg.clone(), var_ptr.clone()));
 
-        // Simple condition: loop while var < 10 (this should be configurable)
-        let _limit_value = Value::ImmInt(10);
+        // Generate a comparison: loop_var < limit (default limit 10 until range syntax is fully supported)
+        let limit_value = Value::ImmInt(10);
         let cond_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;
-        // This would need a comparison instruction - for now use a placeholder
+        current_function.body.push(Inst::ICmp {
+            op: "slt".to_string(),
+            result: cond_reg.clone(),
+            left: loop_var_reg.clone(),
+            right: limit_value,
+        });
         current_function.body.push(Inst::Branch {
             condition: cond_reg,
             true_label: loop_body.clone(),
@@ -793,6 +811,9 @@ impl IrGenerator {
 
         current_function.body.push(Inst::Jump(loop_start));
 
+        // Pop loop labels
+        self.loop_label_stack.pop();
+
         // Loop end
         current_function.body.push(Inst::Label(loop_end));
     }
@@ -805,6 +826,12 @@ impl IrGenerator {
         // Generate unique labels
         let loop_start = format!("loop_start_{}", self.next_reg);
         self.next_reg += 1;
+        let loop_end = format!("loop_end_{}", self.next_reg);
+        self.next_reg += 1;
+
+        // Push loop labels onto stack for break/continue
+        self.loop_label_stack
+            .push((loop_start.clone(), loop_end.clone()));
 
         // Jump to loop start
         current_function.body.push(Inst::Jump(loop_start.clone()));
@@ -822,22 +849,30 @@ impl IrGenerator {
 
         // Jump back to start (infinite loop)
         current_function.body.push(Inst::Jump(loop_start));
+
+        // Pop loop labels
+        self.loop_label_stack.pop();
+
+        // Loop end (reachable via break)
+        current_function.body.push(Inst::Label(loop_end));
     }
 
     fn generate_break_ir(&mut self, current_function: &mut Function) {
-        // For now, generate a placeholder jump
-        // In a real implementation, this would jump to the appropriate loop end label
-        // This requires maintaining a stack of loop labels
-        let break_label = "loop_end_placeholder".to_string();
-        current_function.body.push(Inst::Jump(break_label));
+        if let Some((_loop_start, loop_end)) = self.loop_label_stack.last() {
+            let break_label = loop_end.clone();
+            current_function.body.push(Inst::Jump(break_label));
+        } else {
+            panic!("Break statement outside of loop");
+        }
     }
 
     fn generate_continue_ir(&mut self, current_function: &mut Function) {
-        // For now, generate a placeholder jump
-        // In a real implementation, this would jump to the appropriate loop start label
-        // This requires maintaining a stack of loop labels
-        let continue_label = "loop_start_placeholder".to_string();
-        current_function.body.push(Inst::Jump(continue_label));
+        if let Some((loop_start, _loop_end)) = self.loop_label_stack.last() {
+            let continue_label = loop_start.clone();
+            current_function.body.push(Inst::Jump(continue_label));
+        } else {
+            panic!("Continue statement outside of loop");
+        }
     }
 
     // I/O and enhanced expression IR generation methods

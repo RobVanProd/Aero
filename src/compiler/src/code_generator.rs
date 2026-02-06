@@ -51,6 +51,14 @@ impl CodeGenerator {
         }
     }
 
+    fn value_to_int_string(&self, value: &Value) -> String {
+        match value {
+            Value::ImmInt(n) => format!("{}", n),
+            Value::ImmFloat(f) => format!("{}", *f as i64),
+            Value::Reg(r) => format!("%reg{}", r),
+        }
+    }
+
     fn type_to_llvm(&self, type_name: &str) -> &str {
         match type_name {
             "i32" => "i32",
@@ -377,8 +385,8 @@ impl CodeGenerator {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for icmp result"),
                     };
-                    let left_str = self.value_to_string(left);
-                    let right_str = self.value_to_string(right);
+                    let left_str = self.value_to_int_string(left);
+                    let right_str = self.value_to_int_string(right);
                     llvm_ir.push_str(&format!(
                         "  %{} = icmp {} i32 {}, {}\n",
                         result_str, op, left_str, right_str

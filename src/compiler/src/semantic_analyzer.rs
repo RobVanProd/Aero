@@ -692,7 +692,49 @@ impl SemanticAnalyzer {
                 }
                 Ok(())
             }
-            Statement::Function { .. } => Ok(()),
+            Statement::Function {
+                name,
+                parameters,
+                body,
+                return_type: _,
+            } => {
+                // Enter a new scope for the function body
+                self.scope_manager.enter_function(name.clone());
+
+                // Declare parameters as variables in the function scope
+                for param in parameters {
+                    let param_type = match &param.param_type {
+                        crate::ast::Type::Named(type_name) => match type_name.as_str() {
+                            "i32" => Ty::Int,
+                            "f64" => Ty::Float,
+                            "bool" => Ty::Bool,
+                            _ => Ty::Int, // Default fallback
+                        },
+                    };
+                    self.scope_manager.define_variable(
+                        param.name.clone(),
+                        param_type.clone(),
+                        false,
+                        true, // Parameters are always initialized
+                    )?;
+                    // Also add to old symbol table for backward compatibility
+                    let var_info = VariableInfo {
+                        name: param.name.clone(),
+                        ty: param_type,
+                        mutable: false,
+                        initialized: true,
+                    };
+                    self.symbol_table.insert(param.name.clone(), var_info);
+                }
+
+                // Analyze each statement in the function body
+                self.analyze_block(body)?;
+
+                // Exit the function scope
+                self.scope_manager.exit_function();
+
+                Ok(())
+            }
             Statement::If {
                 condition,
                 then_block,
