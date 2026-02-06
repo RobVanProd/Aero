@@ -456,3 +456,92 @@ fn test_semantic_move_once_ok() {
     let result = analyzer.analyze(ast);
     assert!(result.is_ok(), "Moving a value once should be ok");
 }
+
+// --- Phase 5b: Borrow Checker Tests ---
+
+#[test]
+fn test_semantic_immutable_borrow_ok() {
+    // Multiple immutable borrows are fine
+    let source = "let x = 10; let r1 = &x; let r2 = &x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_ok(), "Multiple immutable borrows should be allowed");
+}
+
+#[test]
+fn test_semantic_mutable_borrow_requires_mut() {
+    // Mutable borrow of non-mut variable should fail
+    let source = "let x = 10; let r = &mut x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_err(), "Mutable borrow of non-mut variable should fail");
+    let err = result.unwrap_err();
+    assert!(err.contains("not declared as mutable"), "Error: {}", err);
+}
+
+#[test]
+fn test_semantic_mutable_borrow_ok() {
+    // Mutable borrow of mut variable is fine
+    let source = "let mut x = 10; let r = &mut x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_ok(), "Mutable borrow of mut variable should work: {:?}", result);
+}
+
+#[test]
+fn test_semantic_double_mutable_borrow_fails() {
+    // Two mutable borrows of same variable should fail
+    let source = "let mut x = 10; let r1 = &mut x; let r2 = &mut x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_err(), "Double mutable borrow should fail");
+    let err = result.unwrap_err();
+    assert!(err.contains("mutable more than once"), "Error: {}", err);
+}
+
+#[test]
+fn test_semantic_mut_and_immut_borrow_conflict() {
+    // Mutable borrow while immutably borrowed should fail
+    let source = "let mut x = 10; let r1 = &x; let r2 = &mut x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_err(), "Mutable borrow while immutably borrowed should fail");
+    let err = result.unwrap_err();
+    assert!(err.contains("immutable"), "Error should mention immutable conflict: {}", err);
+}
+
+#[test]
+fn test_semantic_immut_borrow_while_mut_borrowed_fails() {
+    // Immutable borrow while mutably borrowed should fail
+    let source = "let mut x = 10; let r1 = &mut x; let r2 = &x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_err(), "Immutable borrow while mutably borrowed should fail");
+    let err = result.unwrap_err();
+    assert!(err.contains("mutable"), "Error should mention mutable conflict: {}", err);
+}
+
+#[test]
+fn test_semantic_borrow_of_moved_value_fails() {
+    // Borrowing a moved value should fail
+    let source = r#"let s1 = "hello"; let s2 = s1; let r = &s1;"#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_err(), "Borrowing a moved value should fail");
+    let err = result.unwrap_err();
+    assert!(err.contains("moved"), "Error: {}", err);
+}

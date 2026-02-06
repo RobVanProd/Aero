@@ -340,6 +340,76 @@ impl ScopeManager {
         }
         None
     }
+
+    /// Add an immutable borrow to a variable. Fails if mutably borrowed.
+    pub fn add_immutable_borrow(&mut self, name: &str) -> Result<(), String> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(var_info) = scope.get_mut(name) {
+                match &var_info.ownership {
+                    OwnershipState::Moved => {
+                        return Err(format!(
+                            "Error: Cannot borrow `{}` because it was moved.",
+                            name
+                        ));
+                    }
+                    OwnershipState::MutablyBorrowed => {
+                        return Err(format!(
+                            "Error: Cannot borrow `{}` as immutable because it is also borrowed as mutable.",
+                            name
+                        ));
+                    }
+                    OwnershipState::ImmutablyBorrowed(count) => {
+                        var_info.ownership = OwnershipState::ImmutablyBorrowed(count + 1);
+                        return Ok(());
+                    }
+                    OwnershipState::Owned => {
+                        var_info.ownership = OwnershipState::ImmutablyBorrowed(1);
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        Err(format!("Error: Variable `{}` not found.", name))
+    }
+
+    /// Add a mutable borrow to a variable. Fails if any borrows exist.
+    pub fn add_mutable_borrow(&mut self, name: &str) -> Result<(), String> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(var_info) = scope.get_mut(name) {
+                match &var_info.ownership {
+                    OwnershipState::Moved => {
+                        return Err(format!(
+                            "Error: Cannot borrow `{}` as mutable because it was moved.",
+                            name
+                        ));
+                    }
+                    OwnershipState::MutablyBorrowed => {
+                        return Err(format!(
+                            "Error: Cannot borrow `{}` as mutable more than once at a time.",
+                            name
+                        ));
+                    }
+                    OwnershipState::ImmutablyBorrowed(_) => {
+                        return Err(format!(
+                            "Error: Cannot borrow `{}` as mutable because it is also borrowed as immutable.",
+                            name
+                        ));
+                    }
+                    OwnershipState::Owned => {
+                        if !var_info.mutable {
+                            return Err(format!(
+                                "Error: Cannot borrow `{}` as mutable because it is not declared as mutable.",
+                                name
+                            ));
+                        }
+                        var_info.ownership = OwnershipState::MutablyBorrowed;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        Err(format!("Error: Variable `{}` not found.", name))
+    }
 }
 
 pub struct SemanticAnalyzer {
@@ -807,12 +877,26 @@ impl SemanticAnalyzer {
                     Ty::Int
                 };
 
-                // Phase 5: Track ownership transfers.
-                // If the value is an identifier of a non-Copy type, the source is moved.
-                if let Some(Expression::Identifier(source_name)) = value {
-                    if !inferred_type.is_copy_type() {
-                        // Move semantics: mark source as moved
-                        self.scope_manager.mark_moved(source_name)?;
+                // Phase 5: Track ownership transfers and borrows.
+                if let Some(val_expr) = value {
+                    match val_expr {
+                        // Move semantics: let x = y (non-Copy type moves)
+                        Expression::Identifier(source_name) => {
+                            if !inferred_type.is_copy_type() {
+                                self.scope_manager.mark_moved(source_name)?;
+                            }
+                        }
+                        // Borrow checking: let r = &x or let r = &mut x
+                        Expression::Borrow { expr, mutable: is_mut_borrow } => {
+                            if let Expression::Identifier(source_name) = expr.as_ref() {
+                                if *is_mut_borrow {
+                                    self.scope_manager.add_mutable_borrow(source_name)?;
+                                } else {
+                                    self.scope_manager.add_immutable_borrow(source_name)?;
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
 
