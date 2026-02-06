@@ -30,6 +30,10 @@ pub enum Token {
     Impl,
     Self_,
 
+    // Phase 5 keywords
+    Trait,
+    Where,
+
     // String literal
     StringLiteral(String),
 
@@ -73,6 +77,8 @@ pub enum Token {
     Comma,
     FatArrow,    // =>
     Underscore,  // _ (wildcard pattern)
+    Ampersand,   // & (borrow / reference)
+    Pipe,        // | (single pipe, for closures/patterns)
 
     // End of file
     Eof,
@@ -352,7 +358,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     ));
                 }
             }
-            // Handle logical and
+            // Handle & (reference/borrow) and && (logical and)
             '&' => {
                 let ch = chars.next().unwrap(); // consume '&'
                 advance_position(ch, &mut line, &mut column);
@@ -364,11 +370,13 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         make_location(token_start_line, token_start_column),
                     ));
                 } else {
-                    // Single & not supported yet, treat as unexpected
-                    eprintln!("Unexpected character: & at {}:{}", line, column);
+                    tokens.push(LocatedToken::new(
+                        Token::Ampersand,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
-            // Handle logical or
+            // Handle | (single pipe) and || (logical or)
             '|' => {
                 let ch = chars.next().unwrap(); // consume '|'
                 advance_position(ch, &mut line, &mut column);
@@ -380,8 +388,10 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         make_location(token_start_line, token_start_column),
                     ));
                 } else {
-                    // Single | not supported yet, treat as unexpected
-                    eprintln!("Unexpected character: | at {}:{}", line, column);
+                    tokens.push(LocatedToken::new(
+                        Token::Pipe,
+                        make_location(token_start_line, token_start_column),
+                    ));
                 }
             }
             // Dot operator
@@ -552,6 +562,8 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         "enum" => Token::Enum,
                         "impl" => Token::Impl,
                         "self" => Token::Self_,
+                        "trait" => Token::Trait,
+                        "where" => Token::Where,
                         "_" => Token::Underscore,
                         _ => Token::Identifier(ident_str),
                     };

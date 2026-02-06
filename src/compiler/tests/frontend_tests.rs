@@ -56,7 +56,7 @@ fn test_parse_struct_def() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef { name, fields }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef { name, fields, .. }) => {
             assert_eq!(name, "Point");
             assert_eq!(fields.len(), 2);
             assert_eq!(fields[0].name, "x");
@@ -73,7 +73,7 @@ fn test_parse_enum_def() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef { name, variants }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef { name, variants, .. }) => {
             assert_eq!(name, "Color");
             assert_eq!(variants.len(), 3);
             assert_eq!(variants[0].name, "Red");
@@ -91,7 +91,7 @@ fn test_parse_enum_with_data() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef { name, variants }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef { name, variants, .. }) => {
             assert_eq!(name, "Shape");
             assert_eq!(variants.len(), 2);
             assert!(matches!(&variants[0].kind, compiler::ast::VariantDeclKind::Tuple(types) if types.len() == 1));
@@ -175,7 +175,7 @@ fn test_parse_impl_block() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock { type_name, methods }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock { type_name, methods, .. }) => {
             assert_eq!(type_name, "Point");
             assert_eq!(methods.len(), 1);
         }
@@ -265,4 +265,194 @@ fn test_semantic_undeclared_variable() {
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
     assert_debug_snapshot!(result);
+}
+
+// --- Phase 5: Ownership & Borrowing Tests ---
+
+#[test]
+fn test_lexer_ampersand_token() {
+    let source = "let r = &x;";
+    let tokens = lexer::tokenize(source);
+    assert!(tokens.iter().any(|t| *t == compiler::lexer::Token::Ampersand));
+}
+
+#[test]
+fn test_lexer_trait_keyword() {
+    let source = "trait Display { fn show(&self); }";
+    let tokens = lexer::tokenize(source);
+    assert!(tokens.iter().any(|t| *t == compiler::lexer::Token::Trait));
+}
+
+#[test]
+fn test_parse_borrow_expression() {
+    let source = "let r = &x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
+            assert!(matches!(value, Some(compiler::ast::Expression::Borrow { mutable: false, .. })));
+        }
+        _ => panic!("Expected let statement with borrow expression"),
+    }
+}
+
+#[test]
+fn test_parse_mut_borrow_expression() {
+    let source = "let r = &mut x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
+            assert!(matches!(value, Some(compiler::ast::Expression::Borrow { mutable: true, .. })));
+        }
+        _ => panic!("Expected let statement with mutable borrow expression"),
+    }
+}
+
+#[test]
+fn test_parse_deref_expression() {
+    let source = "let x = *r;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
+            assert!(matches!(value, Some(compiler::ast::Expression::Deref(_))));
+        }
+        _ => panic!("Expected let statement with deref expression"),
+    }
+}
+
+#[test]
+fn test_parse_reference_type_annotation() {
+    let source = "let r: &i32 = &x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { type_annotation, .. }) => {
+            assert!(matches!(type_annotation, Some(compiler::ast::Type::Reference(_, false))));
+        }
+        _ => panic!("Expected let with reference type"),
+    }
+}
+
+#[test]
+fn test_parse_mut_reference_type() {
+    let source = "let r: &mut i32 = &mut x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { type_annotation, .. }) => {
+            assert!(matches!(type_annotation, Some(compiler::ast::Type::Reference(_, true))));
+        }
+        _ => panic!("Expected let with mutable reference type"),
+    }
+}
+
+#[test]
+fn test_parse_trait_def() {
+    let source = "trait Display { fn show(&self) -> i32; }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::TraitDef { name, methods, .. }) => {
+            assert_eq!(name, "Display");
+            assert_eq!(methods.len(), 1);
+            assert_eq!(methods[0].name, "show");
+        }
+        _ => panic!("Expected trait definition"),
+    }
+}
+
+#[test]
+fn test_parse_impl_trait_for_type() {
+    let source = "impl Display for Point { fn show(&self) -> i32 { return 0; } }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock {
+            type_name, trait_name, methods, ..
+        }) => {
+            assert_eq!(type_name, "Point");
+            assert_eq!(trait_name.as_deref(), Some("Display"));
+            assert_eq!(methods.len(), 1);
+        }
+        _ => panic!("Expected impl Trait for Type block"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function() {
+    let source = "fn identity<T>(x: T) -> T { return x; }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
+            name, type_params, ..
+        }) => {
+            assert_eq!(name, "identity");
+            assert_eq!(type_params, &vec!["T".to_string()]);
+        }
+        _ => panic!("Expected generic function"),
+    }
+}
+
+#[test]
+fn test_parse_generic_struct() {
+    let source = "struct Container<T> { value: T }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef {
+            name, type_params, fields, ..
+        }) => {
+            assert_eq!(name, "Container");
+            assert_eq!(type_params, &vec!["T".to_string()]);
+            assert_eq!(fields.len(), 1);
+        }
+        _ => panic!("Expected generic struct"),
+    }
+}
+
+#[test]
+fn test_semantic_copy_type_no_move() {
+    // Integers are Copy types - should not trigger move
+    let source = "let x = 10; let y = x; let z = x;";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_ok(), "Copy types should not trigger use-after-move");
+}
+
+#[test]
+fn test_semantic_move_detection() {
+    // String is a non-Copy type - second use should fail
+    let source = r#"let s1 = "hello"; let s2 = s1; let s3 = s1;"#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_err(), "Use of moved String value should be an error");
+    let err = result.unwrap_err();
+    assert!(err.contains("moved"), "Error should mention 'moved': {}", err);
+}
+
+#[test]
+fn test_semantic_move_once_ok() {
+    // Moving a value once is fine
+    let source = r#"let s1 = "hello"; let s2 = s1;"#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_ok(), "Moving a value once should be ok");
 }

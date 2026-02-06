@@ -96,6 +96,7 @@ impl IrGenerator {
                 parameters,
                 return_type: _,
                 body,
+                ..
             } => {
                 self.generate_function_definition_ir(name, parameters, body, current_function);
             }
@@ -142,7 +143,8 @@ impl IrGenerator {
             // they don't generate body IR in the same way as executable statements.
             Statement::StructDef { .. }
             | Statement::EnumDef { .. }
-            | Statement::ImplBlock { .. } => {
+            | Statement::ImplBlock { .. }
+            | Statement::TraitDef { .. } => {
                 // Type definitions are registered in the type registry (semantic pass).
                 // No runtime IR to generate.
             }
@@ -368,8 +370,10 @@ impl IrGenerator {
             | Expression::TupleIndex { .. }
             | Expression::StructLiteral { .. }
             | Expression::EnumVariant { .. }
-            | Expression::Match { .. } => {
-                // Stub: these will be implemented as remaining Phase 4 tasks progress
+            | Expression::Match { .. }
+            | Expression::Borrow { .. }
+            | Expression::Deref(_) => {
+                // Stub: these will be implemented as remaining Phase 4/5 tasks progress
                 (Value::ImmInt(0), Ty::Int)
             }
         }
@@ -468,6 +472,10 @@ impl IrGenerator {
                         Type::Named(name) => name.clone(),
                         Type::Array(_, _) => "array".to_string(),
                         Type::Tuple(_) => "tuple".to_string(),
+                        Type::Reference(_, mutable) => {
+                            if *mutable { "&mut".to_string() } else { "&".to_string() }
+                        }
+                        Type::Generic(name, _) => name.clone(),
                     },
                 )
             })
@@ -687,7 +695,9 @@ impl IrGenerator {
             | Expression::TupleIndex { .. }
             | Expression::StructLiteral { .. }
             | Expression::EnumVariant { .. }
-            | Expression::Match { .. } => (Value::ImmInt(0), Ty::Int),
+            | Expression::Match { .. }
+            | Expression::Borrow { .. }
+            | Expression::Deref(_) => (Value::ImmInt(0), Ty::Int),
         }
     }
 
@@ -1006,6 +1016,10 @@ impl IrGenerator {
             },
             Type::Array(elem, size) => Ty::Array(Box::new(self.ast_type_to_ty(elem)), *size),
             Type::Tuple(types) => Ty::Tuple(types.iter().map(|t| self.ast_type_to_ty(t)).collect()),
+            Type::Reference(inner, mutable) => {
+                Ty::Reference(Box::new(self.ast_type_to_ty(inner)), *mutable)
+            }
+            Type::Generic(name, _) => Ty::TypeParam(name.clone()),
         }
     }
 

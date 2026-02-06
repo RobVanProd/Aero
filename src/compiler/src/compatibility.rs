@@ -121,6 +121,8 @@ impl Type {
             Type::Named(name) => name,
             Type::Array(_, _) => "array",
             Type::Tuple(_) => "tuple",
+            Type::Reference(_, _) => "ref",
+            Type::Generic(name, _) => name,
         }
     }
 

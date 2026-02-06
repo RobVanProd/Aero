@@ -1,7 +1,7 @@
 use crate::ast::{
     AstNode, Block, ComparisonOp, Expression, LogicalOp, Parameter, Statement, UnaryOp,
 };
-use crate::types::{Ty, infer_binary_type};
+use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -28,6 +28,7 @@ pub struct VariableInfoNew {
     pub initialized: bool,
     pub scope_level: u32,
     pub ptr_name: String,
+    pub ownership: OwnershipState,
 }
 
 pub struct FunctionTable {
@@ -85,6 +86,7 @@ impl FunctionTable {
                         _ => Ty::Int,
                     },
                     crate::ast::Type::Array(_, _) | crate::ast::Type::Tuple(_) => Ty::Int,
+                    crate::ast::Type::Reference(_, _) | crate::ast::Type::Generic(_, _) => Ty::Int,
                 };
 
                 if expected_type != *arg_type {
@@ -194,6 +196,7 @@ impl ScopeManager {
             initialized,
             scope_level: (self.scopes.len() - 1) as u32,
             ptr_name: ptr_name.clone(),
+            ownership: OwnershipState::Owned,
         };
 
         if let Some(current_scope) = self.scopes.last_mut() {
@@ -294,6 +297,49 @@ impl ScopeManager {
         }
         all_vars
     }
+
+    /// Mark a variable as moved. Returns error if already moved.
+    pub fn mark_moved(&mut self, name: &str) -> Result<(), String> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(var_info) = scope.get_mut(name) {
+                if var_info.ownership == OwnershipState::Moved {
+                    return Err(format!(
+                        "Error: Use of moved value `{}`. Value was previously moved.",
+                        name
+                    ));
+                }
+                var_info.ownership = OwnershipState::Moved;
+                return Ok(());
+            }
+        }
+        Err(format!("Error: Variable `{}` not found.", name))
+    }
+
+    /// Check if a variable is in a valid (non-moved) state for use.
+    pub fn check_not_moved(&self, name: &str) -> Result<(), String> {
+        for scope in self.scopes.iter().rev() {
+            if let Some(var_info) = scope.get(name) {
+                if var_info.ownership == OwnershipState::Moved {
+                    return Err(format!(
+                        "Error: Use of moved value `{}`. Value was previously moved.",
+                        name
+                    ));
+                }
+                return Ok(());
+            }
+        }
+        Ok(()) // Not found in scope manager, might be in old symbol table
+    }
+
+    /// Get the ownership state of a variable.
+    pub fn get_ownership(&self, name: &str) -> Option<&OwnershipState> {
+        for scope in self.scopes.iter().rev() {
+            if let Some(var_info) = scope.get(name) {
+                return Some(&var_info.ownership);
+            }
+        }
+        None
+    }
 }
 
 pub struct SemanticAnalyzer {
@@ -338,6 +384,9 @@ impl SemanticAnalyzer {
     fn check_expression_initialization(&self, expr: &Expression) -> Result<(), String> {
         match expr {
             Expression::Identifier(name) => {
+                // Phase 5: Check for use-after-move
+                self.scope_manager.check_not_moved(name)?;
+
                 if let Some(var_info) = self.scope_manager.get_variable(name) {
                     if !var_info.initialized {
                         return Err(format!("Error: Use of uninitialized variable `{}`.", name));
@@ -482,6 +531,18 @@ impl SemanticAnalyzer {
             | Expression::StructLiteral { .. }
             | Expression::EnumVariant { .. }
             | Expression::Match { .. } => Ok(Ty::Int), // Stub
+            // Phase 5: Borrow and Deref
+            Expression::Borrow { expr, mutable } => {
+                let inner_ty = self.infer_and_validate_expression(expr)?;
+                Ok(Ty::Reference(Box::new(inner_ty), *mutable))
+            }
+            Expression::Deref(expr) => {
+                let inner_ty = self.infer_and_validate_expression(expr)?;
+                match inner_ty {
+                    Ty::Reference(inner, _) => Ok(*inner),
+                    _ => Err("Cannot dereference non-reference type".to_string()),
+                }
+            }
         }
     }
 
@@ -581,6 +642,18 @@ impl SemanticAnalyzer {
             | Expression::StructLiteral { .. }
             | Expression::EnumVariant { .. }
             | Expression::Match { .. } => Ok(Ty::Int), // Stub
+            // Phase 5: Borrow and Deref
+            Expression::Borrow { expr, mutable } => {
+                let inner_ty = self.infer_and_validate_expression_immutable(expr)?;
+                Ok(Ty::Reference(Box::new(inner_ty), *mutable))
+            }
+            Expression::Deref(expr) => {
+                let inner_ty = self.infer_and_validate_expression_immutable(expr)?;
+                match inner_ty {
+                    Ty::Reference(inner, _) => Ok(*inner),
+                    _ => Err("Cannot dereference non-reference type".to_string()),
+                }
+            }
         }
     }
 
@@ -716,7 +789,7 @@ impl SemanticAnalyzer {
         match stmt {
             Statement::Let {
                 name,
-                mutable: _,
+                mutable,
                 type_annotation: _,
                 value,
             } => {
@@ -728,15 +801,25 @@ impl SemanticAnalyzer {
                 }
 
                 let inferred_type = if let Some(val) = value {
+                    self.check_expression_initialization(val)?;
                     self.infer_and_validate_expression_immutable(val)?
                 } else {
                     Ty::Int
                 };
 
+                // Phase 5: Track ownership transfers.
+                // If the value is an identifier of a non-Copy type, the source is moved.
+                if let Some(Expression::Identifier(source_name)) = value {
+                    if !inferred_type.is_copy_type() {
+                        // Move semantics: mark source as moved
+                        self.scope_manager.mark_moved(source_name)?;
+                    }
+                }
+
                 self.scope_manager.define_variable(
                     name.clone(),
                     inferred_type.clone(),
-                    false,
+                    *mutable,
                     value.is_some(),
                 )?;
 
@@ -744,7 +827,7 @@ impl SemanticAnalyzer {
                 let var_info = VariableInfo {
                     name: name.clone(),
                     ty: inferred_type.clone(),
-                    mutable: false,
+                    mutable: *mutable,
                     initialized: value.is_some(),
                 };
                 self.symbol_table.insert(name.clone(), var_info);
@@ -763,6 +846,7 @@ impl SemanticAnalyzer {
                 parameters,
                 body,
                 return_type: _,
+                ..
             } => {
                 // Enter a new scope for the function body
                 self.scope_manager.enter_function(name.clone());
@@ -883,10 +967,11 @@ impl SemanticAnalyzer {
                 self.scope_manager.exit_scope();
                 Ok(())
             }
-            // Phase 4: type definitions are validated but don't produce runtime code
+            // Phase 4/5: type definitions are validated but don't produce runtime code
             Statement::StructDef { .. }
             | Statement::EnumDef { .. }
-            | Statement::ImplBlock { .. } => Ok(()),
+            | Statement::ImplBlock { .. }
+            | Statement::TraitDef { .. } => Ok(()),
         }
     }
 
@@ -905,6 +990,10 @@ impl SemanticAnalyzer {
             crate::ast::Type::Tuple(types) => {
                 Ty::Tuple(types.iter().map(|t| self.ast_type_to_ty(t)).collect())
             }
+            crate::ast::Type::Reference(inner, mutable) => {
+                Ty::Reference(Box::new(self.ast_type_to_ty(inner)), *mutable)
+            }
+            crate::ast::Type::Generic(name, _) => Ty::TypeParam(name.clone()),
         }
     }
 

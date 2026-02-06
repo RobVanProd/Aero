@@ -77,6 +77,12 @@ pub enum Expression {
         expr: Box<Expression>,
         arms: Vec<MatchArm>,
     },
+    // Phase 5: Ownership & borrowing
+    Borrow {
+        expr: Box<Expression>,
+        mutable: bool,
+    },
+    Deref(Box<Expression>),
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +101,7 @@ pub enum Statement {
         parameters: Vec<Parameter>,
         return_type: Option<Type>,
         body: Block,
+        type_params: Vec<String>,  // Phase 5: generic type parameters <T, U>
     },
     If {
         condition: Expression,
@@ -119,14 +126,24 @@ pub enum Statement {
     StructDef {
         name: String,
         fields: Vec<FieldDecl>,
+        type_params: Vec<String>,  // Phase 5: generic type parameters
     },
     EnumDef {
         name: String,
         variants: Vec<VariantDecl>,
+        type_params: Vec<String>,  // Phase 5: generic type parameters
     },
     ImplBlock {
         type_name: String,
-        methods: Vec<Statement>, // Function statements
+        methods: Vec<Statement>,
+        type_params: Vec<String>,  // Phase 5: generic type parameters
+        trait_name: Option<String>, // Phase 5: impl Trait for Type
+    },
+    // Phase 5: Traits
+    TraitDef {
+        name: String,
+        type_params: Vec<String>,
+        methods: Vec<TraitMethod>,
     },
 }
 
@@ -169,6 +186,15 @@ pub struct VariantDecl {
     pub kind: VariantDeclKind,
 }
 
+/// Trait method signature (may have default body)
+#[derive(Debug, Clone)]
+pub struct TraitMethod {
+    pub name: String,
+    pub parameters: Vec<Parameter>,
+    pub return_type: Option<Type>,
+    pub body: Option<Block>, // None = required, Some = default impl
+}
+
 #[derive(Debug, Clone)]
 pub enum VariantDeclKind {
     Unit,
@@ -199,6 +225,9 @@ pub enum Type {
     Named(String),
     Array(Box<Type>, usize),    // [T; N]
     Tuple(Vec<Type>),           // (T1, T2, ...)
+    // Phase 5
+    Reference(Box<Type>, bool), // &T (false) or &mut T (true)
+    Generic(String, Vec<Type>), // Name<T1, T2> e.g., Vec<i32>
 }
 
 #[derive(Debug, Clone)]
@@ -277,6 +306,8 @@ impl Expression {
             Expression::StructLiteral { .. } => None,
             Expression::EnumVariant { .. } => None,
             Expression::Match { .. } => None,
+            Expression::Borrow { .. } => None,
+            Expression::Deref(_) => None,
         }
     }
 }

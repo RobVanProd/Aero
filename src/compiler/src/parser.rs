@@ -1,8 +1,8 @@
 #![allow(clippy::result_large_err)]
 
 use crate::ast::{
-    AstNode, Block, Expression, FieldDecl, MatchArm, Parameter, Pattern, Statement, Type,
-    VariantDecl, VariantDeclKind,
+    AstNode, Block, Expression, FieldDecl, MatchArm, Parameter, Pattern, Statement, TraitMethod,
+    Type, VariantDecl, VariantDeclKind,
 };
 use crate::errors::{CompilerError, CompilerResult, SourceLocation};
 use crate::lexer::{LocatedToken, Token};
@@ -55,6 +55,7 @@ impl Parser {
             Token::Struct => self.parse_struct_def(),
             Token::Enum => self.parse_enum_def(),
             Token::Impl => self.parse_impl_block(),
+            Token::Trait => self.parse_trait_def(),
             _ => {
                 // Try to parse as expression statement
                 let expr = self.parse_expression()?;
@@ -83,11 +84,47 @@ impl Parser {
             }
         };
 
+        // Parse optional generic type parameters: fn name<T, U>(...)
+        let type_params = self.parse_optional_type_params()?;
+
         self.consume(Token::LeftParen, "Expected '(' after function name")?;
 
         let mut parameters = Vec::new();
         if !self.check(&Token::RightParen) {
             loop {
+                // Phase 5: Handle &self, &mut self, and self parameters
+                if self.check(&Token::Ampersand) {
+                    self.advance(); // consume &
+                    let mutable = self.match_token(&Token::Mut);
+                    if self.check(&Token::Self_) {
+                        self.advance(); // consume self
+                        parameters.push(Parameter {
+                            name: "self".to_string(),
+                            param_type: Type::Reference(
+                                Box::new(Type::Named("Self".to_string())),
+                                mutable,
+                            ),
+                        });
+                        if !self.match_token(&Token::Comma) {
+                            break;
+                        }
+                        continue;
+                    } else {
+                        // Not &self, backtrack: this was a reference type parameter
+                        self.current -= if mutable { 2 } else { 1 };
+                    }
+                } else if self.check(&Token::Self_) {
+                    self.advance();
+                    parameters.push(Parameter {
+                        name: "self".to_string(),
+                        param_type: Type::Named("Self".to_string()),
+                    });
+                    if !self.match_token(&Token::Comma) {
+                        break;
+                    }
+                    continue;
+                }
+
                 let param_name = match &self.peek().token {
                     Token::Identifier(name) => {
                         let name = name.clone();
@@ -132,6 +169,7 @@ impl Parser {
             parameters,
             return_type,
             body,
+            type_params,
         })
     }
 
@@ -445,6 +483,22 @@ impl Parser {
             });
         }
 
+        // Phase 5: Borrow expressions &x and &mut x
+        if self.match_token(&Token::Ampersand) {
+            let mutable = self.match_token(&Token::Mut);
+            let expr = self.parse_unary()?;
+            return Ok(Expression::Borrow {
+                expr: Box::new(expr),
+                mutable,
+            });
+        }
+
+        // Phase 5: Dereference expression *x
+        if self.match_token(&Token::Multiply) {
+            let expr = self.parse_unary()?;
+            return Ok(Expression::Deref(Box::new(expr)));
+        }
+
         self.parse_call()
     }
 
@@ -648,9 +702,43 @@ impl Parser {
 
     fn parse_type(&mut self) -> CompilerResult<Type> {
         match &self.peek().token {
+            // Phase 5: Reference types &T and &mut T
+            Token::Ampersand => {
+                self.advance();
+                let mutable = self.match_token(&Token::Mut);
+                let inner = self.parse_type()?;
+                Ok(Type::Reference(Box::new(inner), mutable))
+            }
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
+                // Check for generic type: Name<T1, T2>
+                if self.check(&Token::LessThan) {
+                    let checkpoint = self.current;
+                    self.advance(); // consume '<'
+                    let mut type_args = Vec::new();
+                    if !self.check(&Token::GreaterThan) {
+                        loop {
+                            match self.parse_type() {
+                                Ok(t) => type_args.push(t),
+                                Err(_) => {
+                                    // Not a generic type, backtrack
+                                    self.current = checkpoint;
+                                    return Ok(Type::Named(name));
+                                }
+                            }
+                            if !self.match_token(&Token::Comma) {
+                                break;
+                            }
+                        }
+                    }
+                    if self.match_token(&Token::GreaterThan) {
+                        return Ok(Type::Generic(name, type_args));
+                    } else {
+                        // Backtrack - not a generic type
+                        self.current = checkpoint;
+                    }
+                }
                 Ok(Type::Named(name))
             }
             Token::LeftBracket => {
@@ -757,6 +845,7 @@ impl Parser {
                 ));
             }
         };
+        let type_params = self.parse_optional_type_params()?;
         self.consume(Token::LeftBrace, "Expected '{' after struct name")?;
         let mut fields = Vec::new();
         while !self.check(&Token::RightBrace) && !self.is_at_end() {
@@ -785,7 +874,7 @@ impl Parser {
             }
         }
         self.consume(Token::RightBrace, "Expected '}' after struct fields")?;
-        Ok(Statement::StructDef { name, fields })
+        Ok(Statement::StructDef { name, fields, type_params })
     }
 
     fn parse_enum_def(&mut self) -> CompilerResult<Statement> {
@@ -804,6 +893,7 @@ impl Parser {
                 ));
             }
         };
+        let type_params = self.parse_optional_type_params()?;
         self.consume(Token::LeftBrace, "Expected '{' after enum name")?;
         let mut variants = Vec::new();
         while !self.check(&Token::RightBrace) && !self.is_at_end() {
@@ -870,12 +960,16 @@ impl Parser {
             }
         }
         self.consume(Token::RightBrace, "Expected '}' after enum variants")?;
-        Ok(Statement::EnumDef { name, variants })
+        Ok(Statement::EnumDef { name, variants, type_params })
     }
 
     fn parse_impl_block(&mut self) -> CompilerResult<Statement> {
         self.consume(Token::Impl, "Expected 'impl'")?;
-        let type_name = match &self.peek().token {
+
+        // Parse optional generic type parameters: impl<T>
+        let type_params = self.parse_optional_type_params()?;
+
+        let first_name = match &self.peek().token {
             Token::Identifier(n) => {
                 let n = n.clone();
                 self.advance();
@@ -889,6 +983,28 @@ impl Parser {
                 ));
             }
         };
+
+        // Check for "impl Trait for Type" syntax
+        let (trait_name, type_name) = if self.match_token(&Token::For) {
+            let type_name = match &self.peek().token {
+                Token::Identifier(n) => {
+                    let n = n.clone();
+                    self.advance();
+                    n
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "type name after 'for'",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            };
+            (Some(first_name), type_name)
+        } else {
+            (None, first_name)
+        };
+
         self.consume(Token::LeftBrace, "Expected '{' after impl type")?;
         let mut methods = Vec::new();
         while !self.check(&Token::RightBrace) && !self.is_at_end() {
@@ -898,6 +1014,8 @@ impl Parser {
         Ok(Statement::ImplBlock {
             type_name,
             methods,
+            type_params,
+            trait_name,
         })
     }
 
@@ -1062,6 +1180,144 @@ impl Parser {
         }
     }
 
+    // --- Phase 5 parsing methods ---
+
+    /// Parse optional generic type parameters: <T, U, V>
+    fn parse_optional_type_params(&mut self) -> CompilerResult<Vec<String>> {
+        if !self.match_token(&Token::LessThan) {
+            return Ok(vec![]);
+        }
+        let mut params = Vec::new();
+        loop {
+            match &self.peek().token {
+                Token::Identifier(name) => {
+                    params.push(name.clone());
+                    self.advance();
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "type parameter name",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            }
+            if !self.match_token(&Token::Comma) {
+                break;
+            }
+        }
+        self.consume(Token::GreaterThan, "Expected '>' after type parameters")?;
+        Ok(params)
+    }
+
+    fn parse_trait_def(&mut self) -> CompilerResult<Statement> {
+        self.consume(Token::Trait, "Expected 'trait'")?;
+        let name = match &self.peek().token {
+            Token::Identifier(n) => {
+                let n = n.clone();
+                self.advance();
+                n
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "trait name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        };
+        let type_params = self.parse_optional_type_params()?;
+        self.consume(Token::LeftBrace, "Expected '{' after trait name")?;
+        let mut methods = Vec::new();
+        while !self.check(&Token::RightBrace) && !self.is_at_end() {
+            self.consume(Token::Fn, "Expected 'fn' in trait body")?;
+            let method_name = match &self.peek().token {
+                Token::Identifier(n) => {
+                    let n = n.clone();
+                    self.advance();
+                    n
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "method name",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            };
+            self.consume(Token::LeftParen, "Expected '(' after method name")?;
+            let mut parameters = Vec::new();
+            if !self.check(&Token::RightParen) {
+                loop {
+                    // Handle &self and &mut self
+                    if self.check(&Token::Ampersand) {
+                        self.advance(); // consume &
+                        let mutable = self.match_token(&Token::Mut);
+                        if self.check(&Token::Self_) {
+                            self.advance(); // consume self
+                            parameters.push(Parameter {
+                                name: "self".to_string(),
+                                param_type: Type::Reference(
+                                    Box::new(Type::Named("Self".to_string())),
+                                    mutable,
+                                ),
+                            });
+                        }
+                    } else if self.check(&Token::Self_) {
+                        self.advance(); // consume self
+                        parameters.push(Parameter {
+                            name: "self".to_string(),
+                            param_type: Type::Named("Self".to_string()),
+                        });
+                    } else {
+                        let param_name = match &self.peek().token {
+                            Token::Identifier(n) => {
+                                let n = n.clone();
+                                self.advance();
+                                n
+                            }
+                            _ => break,
+                        };
+                        self.consume(Token::Colon, "Expected ':' after parameter name")?;
+                        let param_type = self.parse_type()?;
+                        parameters.push(Parameter {
+                            name: param_name,
+                            param_type,
+                        });
+                    }
+                    if !self.match_token(&Token::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.consume(Token::RightParen, "Expected ')'")?;
+            let return_type = if self.match_token(&Token::Arrow) {
+                Some(self.parse_type()?)
+            } else {
+                None
+            };
+            // Check for default body or just a semicolon
+            let body = if self.check(&Token::LeftBrace) {
+                Some(self.parse_block()?)
+            } else {
+                self.consume(Token::Semicolon, "Expected ';' or '{' after trait method signature")?;
+                None
+            };
+            methods.push(TraitMethod {
+                name: method_name,
+                parameters,
+                return_type,
+                body,
+            });
+        }
+        self.consume(Token::RightBrace, "Expected '}' after trait body")?;
+        Ok(Statement::TraitDef {
+            name,
+            type_params,
+            methods,
+        })
+    }
+
     /// Check if the next tokens look like a struct literal (Name { field: ... })
     /// as opposed to a block statement after an identifier
     fn is_struct_literal_start(&self) -> bool {
@@ -1163,6 +1419,8 @@ impl Parser {
                 | Token::Match
                 | Token::PrintMacro
                 | Token::PrintlnMacro
+                | Token::Ampersand
+                | Token::Multiply
         )
     }
 
@@ -1184,7 +1442,8 @@ impl Parser {
                 | Token::Return
                 | Token::Struct
                 | Token::Enum
-                | Token::Impl => return,
+                | Token::Impl
+                | Token::Trait => return,
                 _ => {}
             }
 

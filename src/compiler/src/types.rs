@@ -13,6 +13,9 @@ pub enum Ty {
     Struct(String),               // struct name (fields resolved via StructRegistry)
     Enum(String),                 // enum name (variants resolved via EnumRegistry)
     Void,                         // unit / no value
+    // Phase 5: Ownership & borrowing
+    Reference(Box<Ty>, bool),     // &T (false=immutable) or &mut T (true=mutable)
+    TypeParam(String),            // generic type parameter (e.g., T)
 }
 
 impl fmt::Display for Ty {
@@ -34,6 +37,14 @@ impl fmt::Display for Ty {
             Ty::Struct(name) => write!(f, "{}", name),
             Ty::Enum(name) => write!(f, "{}", name),
             Ty::Void => f.write_str("()"),
+            Ty::Reference(inner, mutable) => {
+                if *mutable {
+                    write!(f, "&mut {}", inner)
+                } else {
+                    write!(f, "&{}", inner)
+                }
+            }
+            Ty::TypeParam(name) => write!(f, "{}", name),
         }
     }
 }
@@ -90,6 +101,15 @@ impl EnumDef {
     }
 }
 
+/// Ownership state of a variable
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OwnershipState {
+    Owned,                  // Variable owns its value
+    Moved,                  // Value has been moved out
+    ImmutablyBorrowed(u32), // Number of active immutable borrows
+    MutablyBorrowed,        // Active mutable borrow
+}
+
 impl Ty {
     pub fn from_string(s: &str) -> Option<Ty> {
         match s {
@@ -99,6 +119,33 @@ impl Ty {
             "String" => Some(Ty::String),
             _ => None,
         }
+    }
+
+    /// Returns true if this type is a Copy type (cheap stack copy, no move semantics).
+    /// Copy types: integers, floats, booleans, references, and tuples/arrays of Copy types.
+    pub fn is_copy_type(&self) -> bool {
+        match self {
+            Ty::Int | Ty::Float | Ty::Bool | Ty::Void => true,
+            Ty::Reference(_, _) => true, // references are always Copy
+            Ty::Tuple(elems) => elems.iter().all(|t| t.is_copy_type()),
+            Ty::Array(elem, _) => elem.is_copy_type(),
+            // Move types: String, Struct, Enum
+            Ty::String | Ty::Struct(_) | Ty::Enum(_) => false,
+            Ty::TypeParam(_) => false, // conservative: generics are not Copy by default
+        }
+    }
+
+    /// Returns the inner type if this is a reference, otherwise None.
+    pub fn deref_type(&self) -> Option<&Ty> {
+        match self {
+            Ty::Reference(inner, _) => Some(inner),
+            _ => None,
+        }
+    }
+
+    /// Returns true if this is a mutable reference.
+    pub fn is_mut_ref(&self) -> bool {
+        matches!(self, Ty::Reference(_, true))
     }
 }
 
