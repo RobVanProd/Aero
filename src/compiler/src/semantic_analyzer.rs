@@ -417,6 +417,8 @@ pub struct SemanticAnalyzer {
     #[allow(dead_code)]
     function_table: FunctionTable,
     scope_manager: ScopeManager,
+    /// Stack of active generic type parameter sets (e.g., ["T", "U"] for fn<T, U>)
+    type_param_scopes: Vec<Vec<String>>,
 }
 
 impl SemanticAnalyzer {
@@ -425,7 +427,15 @@ impl SemanticAnalyzer {
             symbol_table: HashMap::new(),
             function_table: FunctionTable::new(),
             scope_manager: ScopeManager::new(),
+            type_param_scopes: Vec::new(),
         }
+    }
+
+    /// Check if a name is an in-scope type parameter.
+    fn is_type_param(&self, name: &str) -> bool {
+        self.type_param_scopes
+            .iter()
+            .any(|scope| scope.iter().any(|p| p == name))
     }
 }
 
@@ -597,10 +607,10 @@ impl SemanticAnalyzer {
             }
             Expression::FieldAccess { .. }
             | Expression::TupleLiteral(_)
-            | Expression::TupleIndex { .. }
-            | Expression::StructLiteral { .. }
-            | Expression::EnumVariant { .. }
-            | Expression::Match { .. } => Ok(Ty::Int), // Stub
+            | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
+            Expression::StructLiteral { name, .. } => Ok(Ty::Struct(name.clone())),
+            Expression::EnumVariant { enum_name, .. } => Ok(Ty::Enum(enum_name.clone())),
+            Expression::Match { .. } => Ok(Ty::Int), // Stub
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
                 let inner_ty = self.infer_and_validate_expression(expr)?;
@@ -708,10 +718,10 @@ impl SemanticAnalyzer {
             }
             Expression::FieldAccess { .. }
             | Expression::TupleLiteral(_)
-            | Expression::TupleIndex { .. }
-            | Expression::StructLiteral { .. }
-            | Expression::EnumVariant { .. }
-            | Expression::Match { .. } => Ok(Ty::Int), // Stub
+            | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
+            Expression::StructLiteral { name, .. } => Ok(Ty::Struct(name.clone())),
+            Expression::EnumVariant { enum_name, .. } => Ok(Ty::Enum(enum_name.clone())),
+            Expression::Match { .. } => Ok(Ty::Int), // Stub
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
                 let inner_ty = self.infer_and_validate_expression_immutable(expr)?;
@@ -887,7 +897,10 @@ impl SemanticAnalyzer {
                             }
                         }
                         // Borrow checking: let r = &x or let r = &mut x
-                        Expression::Borrow { expr, mutable: is_mut_borrow } => {
+                        Expression::Borrow {
+                            expr,
+                            mutable: is_mut_borrow,
+                        } => {
                             if let Expression::Identifier(source_name) = expr.as_ref() {
                                 if *is_mut_borrow {
                                     self.scope_manager.add_mutable_borrow(source_name)?;
@@ -930,8 +943,13 @@ impl SemanticAnalyzer {
                 parameters,
                 body,
                 return_type: _,
-                ..
+                type_params,
             } => {
+                // Phase 5: Register generic type parameters in scope
+                if !type_params.is_empty() {
+                    self.type_param_scopes.push(type_params.clone());
+                }
+
                 // Enter a new scope for the function body
                 self.scope_manager.enter_function(name.clone());
 
@@ -959,6 +977,11 @@ impl SemanticAnalyzer {
 
                 // Exit the function scope
                 self.scope_manager.exit_function();
+
+                // Pop generic type parameters
+                if !type_params.is_empty() {
+                    self.type_param_scopes.pop();
+                }
 
                 Ok(())
             }
@@ -1043,6 +1066,8 @@ impl SemanticAnalyzer {
             Statement::Expression(expr) => {
                 self.check_expression_initialization(expr)?;
                 self.infer_and_validate_expression_immutable(expr)?;
+                // Phase 5: Track moves for non-Copy function call arguments
+                self.track_expression_moves(expr)?;
                 Ok(())
             }
             Statement::Block(block) => {
@@ -1051,11 +1076,25 @@ impl SemanticAnalyzer {
                 self.scope_manager.exit_scope();
                 Ok(())
             }
-            // Phase 4/5: type definitions are validated but don't produce runtime code
-            Statement::StructDef { .. }
-            | Statement::EnumDef { .. }
-            | Statement::ImplBlock { .. }
-            | Statement::TraitDef { .. } => Ok(()),
+            // Phase 4/5: type definitions — register type params during analysis
+            Statement::StructDef { type_params, .. }
+            | Statement::EnumDef { type_params, .. }
+            | Statement::ImplBlock { type_params, .. }
+            | Statement::TraitDef { type_params, .. } => {
+                if !type_params.is_empty() {
+                    self.type_param_scopes.push(type_params.clone());
+                }
+                // For impl blocks, analyze method bodies
+                if let Statement::ImplBlock { methods, .. } = stmt {
+                    for method in methods {
+                        self.analyze_statement(method)?;
+                    }
+                }
+                if !type_params.is_empty() {
+                    self.type_param_scopes.pop();
+                }
+                Ok(())
+            }
         }
     }
 
@@ -1066,7 +1105,14 @@ impl SemanticAnalyzer {
                 "f64" | "float" => Ty::Float,
                 "bool" => Ty::Bool,
                 "String" => Ty::String,
-                other => Ty::Struct(other.to_string()),
+                other => {
+                    // Phase 5: Check if this is a generic type parameter
+                    if self.is_type_param(other) {
+                        Ty::TypeParam(other.to_string())
+                    } else {
+                        Ty::Struct(other.to_string())
+                    }
+                }
             },
             crate::ast::Type::Array(elem, size) => {
                 Ty::Array(Box::new(self.ast_type_to_ty(elem)), *size)
@@ -1079,6 +1125,34 @@ impl SemanticAnalyzer {
             }
             crate::ast::Type::Generic(name, _) => Ty::TypeParam(name.clone()),
         }
+    }
+
+    /// Track moves caused by non-Copy arguments in function calls and other expressions.
+    fn track_expression_moves(&mut self, expr: &Expression) -> Result<(), String> {
+        match expr {
+            Expression::FunctionCall { arguments, .. } => {
+                for arg in arguments {
+                    if let Expression::Identifier(arg_name) = arg {
+                        let arg_type = self.infer_and_validate_expression_immutable(arg)?;
+                        if !arg_type.is_copy_type() {
+                            self.scope_manager.mark_moved(arg_name)?;
+                        }
+                    }
+                }
+            }
+            Expression::MethodCall { arguments, .. } => {
+                for arg in arguments {
+                    if let Expression::Identifier(arg_name) = arg {
+                        let arg_type = self.infer_and_validate_expression_immutable(arg)?;
+                        if !arg_type.is_copy_type() {
+                            self.scope_manager.mark_moved(arg_name)?;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     fn analyze_block(&mut self, block: &Block) -> Result<(), String> {

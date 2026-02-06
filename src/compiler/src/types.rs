@@ -8,14 +8,14 @@ pub enum Ty {
     Float,
     Bool,
     String,
-    Array(Box<Ty>, usize),        // element type, size
-    Tuple(Vec<Ty>),               // product type
-    Struct(String),               // struct name (fields resolved via StructRegistry)
-    Enum(String),                 // enum name (variants resolved via EnumRegistry)
-    Void,                         // unit / no value
+    Array(Box<Ty>, usize), // element type, size
+    Tuple(Vec<Ty>),        // product type
+    Struct(String),        // struct name (fields resolved via StructRegistry)
+    Enum(String),          // enum name (variants resolved via EnumRegistry)
+    Void,                  // unit / no value
     // Phase 5: Ownership & borrowing
-    Reference(Box<Ty>, bool),     // &T (false=immutable) or &mut T (true=mutable)
-    TypeParam(String),            // generic type parameter (e.g., T)
+    Reference(Box<Ty>, bool), // &T (false=immutable) or &mut T (true=mutable)
+    TypeParam(String),        // generic type parameter (e.g., T)
 }
 
 impl fmt::Display for Ty {
@@ -29,7 +29,9 @@ impl fmt::Display for Ty {
             Ty::Tuple(elems) => {
                 write!(f, "(")?;
                 for (i, e) in elems.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", e)?;
                 }
                 write!(f, ")")

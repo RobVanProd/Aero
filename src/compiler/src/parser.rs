@@ -162,6 +162,33 @@ impl Parser {
             None
         };
 
+        // Phase 5: Skip optional where clause: where T: Bound, U: Bound
+        if self.match_token(&Token::Where) {
+            loop {
+                // Consume type param name
+                if matches!(self.peek().token, Token::Identifier(_)) {
+                    self.advance();
+                } else {
+                    break;
+                }
+                // Consume : Bound1 + Bound2
+                if self.match_token(&Token::Colon) {
+                    if matches!(self.peek().token, Token::Identifier(_)) {
+                        self.advance();
+                    }
+                    while self.check(&Token::Plus) {
+                        self.advance();
+                        if matches!(self.peek().token, Token::Identifier(_)) {
+                            self.advance();
+                        }
+                    }
+                }
+                if !self.match_token(&Token::Comma) {
+                    break;
+                }
+            }
+        }
+
         let body = self.parse_block()?;
 
         Ok(Statement::Function {
@@ -874,7 +901,11 @@ impl Parser {
             }
         }
         self.consume(Token::RightBrace, "Expected '}' after struct fields")?;
-        Ok(Statement::StructDef { name, fields, type_params })
+        Ok(Statement::StructDef {
+            name,
+            fields,
+            type_params,
+        })
     }
 
     fn parse_enum_def(&mut self) -> CompilerResult<Statement> {
@@ -960,7 +991,11 @@ impl Parser {
             }
         }
         self.consume(Token::RightBrace, "Expected '}' after enum variants")?;
-        Ok(Statement::EnumDef { name, variants, type_params })
+        Ok(Statement::EnumDef {
+            name,
+            variants,
+            type_params,
+        })
     }
 
     fn parse_impl_block(&mut self) -> CompilerResult<Statement> {
@@ -983,6 +1018,8 @@ impl Parser {
                 ));
             }
         };
+        // Skip generic type args on the first name: Container<T> or Container<T, U>
+        self.skip_generic_type_args();
 
         // Check for "impl Trait for Type" syntax
         let (trait_name, type_name) = if self.match_token(&Token::For) {
@@ -1000,6 +1037,8 @@ impl Parser {
                     ));
                 }
             };
+            // Skip generic type args on the type name after 'for': Container<T>
+            self.skip_generic_type_args();
             (Some(first_name), type_name)
         } else {
             (None, first_name)
@@ -1202,12 +1241,43 @@ impl Parser {
                     ));
                 }
             }
+            // Phase 5: Skip optional trait bounds  T: Bound1 + Bound2
+            if self.match_token(&Token::Colon) {
+                // Consume the first bound name
+                if matches!(self.peek().token, Token::Identifier(_)) {
+                    self.advance();
+                }
+                // Consume additional bounds: + Bound2 + Bound3 ...
+                while self.check(&Token::Plus) {
+                    self.advance(); // consume +
+                    if matches!(self.peek().token, Token::Identifier(_)) {
+                        self.advance();
+                    }
+                }
+            }
             if !self.match_token(&Token::Comma) {
                 break;
             }
         }
         self.consume(Token::GreaterThan, "Expected '>' after type parameters")?;
         Ok(params)
+    }
+
+    /// Skip generic type arguments like `<T>` or `<T, U>` if present.
+    /// Used after type names in impl blocks where we don't need to store the args.
+    fn skip_generic_type_args(&mut self) {
+        if self.check(&Token::LessThan) {
+            self.advance(); // consume <
+            let mut depth = 1;
+            while depth > 0 && !self.is_at_end() {
+                if self.check(&Token::LessThan) {
+                    depth += 1;
+                } else if self.check(&Token::GreaterThan) {
+                    depth -= 1;
+                }
+                self.advance();
+            }
+        }
     }
 
     fn parse_trait_def(&mut self) -> CompilerResult<Statement> {
@@ -1300,7 +1370,10 @@ impl Parser {
             let body = if self.check(&Token::LeftBrace) {
                 Some(self.parse_block()?)
             } else {
-                self.consume(Token::Semicolon, "Expected ';' or '{' after trait method signature")?;
+                self.consume(
+                    Token::Semicolon,
+                    "Expected ';' or '{' after trait method signature",
+                )?;
                 None
             };
             methods.push(TraitMethod {

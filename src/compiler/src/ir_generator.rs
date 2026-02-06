@@ -10,7 +10,7 @@ pub struct IrGenerator {
     next_reg: u32,
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
-    loop_label_stack: Vec<(String, String)>,     // Stack of (loop_start, loop_end) labels
+    loop_label_stack: Vec<(String, String)>,    // Stack of (loop_start, loop_end) labels
 }
 
 impl IrGenerator {
@@ -283,7 +283,8 @@ impl IrGenerator {
                 self.next_ptr += 1;
                 // Determine element type from first element
                 let elem_type = if count > 0 {
-                    let (first_val, first_ty) = self.generate_expression_ir(elements[0].clone(), function);
+                    let (first_val, first_ty) =
+                        self.generate_expression_ir(elements[0].clone(), function);
                     function.body.push(Inst::AllocaArray {
                         result: arr_ptr.clone(),
                         elem_type: "double".to_string(),
@@ -473,7 +474,11 @@ impl IrGenerator {
                         Type::Array(_, _) => "array".to_string(),
                         Type::Tuple(_) => "tuple".to_string(),
                         Type::Reference(_, mutable) => {
-                            if *mutable { "&mut".to_string() } else { "&".to_string() }
+                            if *mutable {
+                                "&mut".to_string()
+                            } else {
+                                "&".to_string()
+                            }
                         }
                         Type::Generic(name, _) => name.clone(),
                     },

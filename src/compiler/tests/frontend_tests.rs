@@ -13,9 +13,13 @@ fn test_parse_array_literal() {
     assert_eq!(ast.len(), 1);
     // Verify it parsed as a Let with an ArrayLiteral value
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { name, value, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
+            name, value, ..
+        }) => {
             assert_eq!(name, "arr");
-            assert!(matches!(value, Some(compiler::ast::Expression::ArrayLiteral(elems)) if elems.len() == 3));
+            assert!(
+                matches!(value, Some(compiler::ast::Expression::ArrayLiteral(elems)) if elems.len() == 3)
+            );
         }
         _ => panic!("Expected let statement with array literal"),
     }
@@ -29,7 +33,10 @@ fn test_parse_array_repeat() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
-            assert!(matches!(value, Some(compiler::ast::Expression::ArrayRepeat { count: 5, .. })));
+            assert!(matches!(
+                value,
+                Some(compiler::ast::Expression::ArrayRepeat { count: 5, .. })
+            ));
         }
         _ => panic!("Expected let statement with array repeat"),
     }
@@ -43,7 +50,10 @@ fn test_parse_index_access() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
-            assert!(matches!(value, Some(compiler::ast::Expression::IndexAccess { .. })));
+            assert!(matches!(
+                value,
+                Some(compiler::ast::Expression::IndexAccess { .. })
+            ));
         }
         _ => panic!("Expected let statement with index access"),
     }
@@ -56,7 +66,11 @@ fn test_parse_struct_def() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef { name, fields, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef {
+            name,
+            fields,
+            ..
+        }) => {
             assert_eq!(name, "Point");
             assert_eq!(fields.len(), 2);
             assert_eq!(fields[0].name, "x");
@@ -73,7 +87,11 @@ fn test_parse_enum_def() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef { name, variants, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef {
+            name,
+            variants,
+            ..
+        }) => {
             assert_eq!(name, "Color");
             assert_eq!(variants.len(), 3);
             assert_eq!(variants[0].name, "Red");
@@ -91,11 +109,19 @@ fn test_parse_enum_with_data() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef { name, variants, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef {
+            name,
+            variants,
+            ..
+        }) => {
             assert_eq!(name, "Shape");
             assert_eq!(variants.len(), 2);
-            assert!(matches!(&variants[0].kind, compiler::ast::VariantDeclKind::Tuple(types) if types.len() == 1));
-            assert!(matches!(&variants[1].kind, compiler::ast::VariantDeclKind::Tuple(types) if types.len() == 2));
+            assert!(
+                matches!(&variants[0].kind, compiler::ast::VariantDeclKind::Tuple(types) if types.len() == 1)
+            );
+            assert!(
+                matches!(&variants[1].kind, compiler::ast::VariantDeclKind::Tuple(types) if types.len() == 2)
+            );
         }
         _ => panic!("Expected enum definition"),
     }
@@ -129,7 +155,9 @@ fn test_parse_tuple_literal() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
-            assert!(matches!(value, Some(compiler::ast::Expression::TupleLiteral(elems)) if elems.len() == 3));
+            assert!(
+                matches!(value, Some(compiler::ast::Expression::TupleLiteral(elems)) if elems.len() == 3)
+            );
         }
         _ => panic!("Expected let statement with tuple"),
     }
@@ -143,7 +171,9 @@ fn test_parse_string_literal() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
-            assert!(matches!(value, Some(compiler::ast::Expression::StringLiteral(s)) if s == "hello world"));
+            assert!(
+                matches!(value, Some(compiler::ast::Expression::StringLiteral(s)) if s == "hello world")
+            );
         }
         _ => panic!("Expected let statement with string"),
     }
@@ -175,7 +205,11 @@ fn test_parse_impl_block() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock { type_name, methods, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock {
+            type_name,
+            methods,
+            ..
+        }) => {
             assert_eq!(type_name, "Point");
             assert_eq!(methods.len(), 1);
         }
@@ -190,8 +224,14 @@ fn test_parse_array_type_annotation() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { type_annotation, .. }) => {
-            assert!(matches!(type_annotation, Some(compiler::ast::Type::Array(_, 3))));
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
+            type_annotation,
+            ..
+        }) => {
+            assert!(matches!(
+                type_annotation,
+                Some(compiler::ast::Type::Array(_, 3))
+            ));
         }
         _ => panic!("Expected let with array type"),
     }
@@ -273,7 +313,11 @@ fn test_semantic_undeclared_variable() {
 fn test_lexer_ampersand_token() {
     let source = "let r = &x;";
     let tokens = lexer::tokenize(source);
-    assert!(tokens.iter().any(|t| *t == compiler::lexer::Token::Ampersand));
+    assert!(
+        tokens
+            .iter()
+            .any(|t| *t == compiler::lexer::Token::Ampersand)
+    );
 }
 
 #[test]
@@ -291,7 +335,10 @@ fn test_parse_borrow_expression() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
-            assert!(matches!(value, Some(compiler::ast::Expression::Borrow { mutable: false, .. })));
+            assert!(matches!(
+                value,
+                Some(compiler::ast::Expression::Borrow { mutable: false, .. })
+            ));
         }
         _ => panic!("Expected let statement with borrow expression"),
     }
@@ -305,7 +352,10 @@ fn test_parse_mut_borrow_expression() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { value, .. }) => {
-            assert!(matches!(value, Some(compiler::ast::Expression::Borrow { mutable: true, .. })));
+            assert!(matches!(
+                value,
+                Some(compiler::ast::Expression::Borrow { mutable: true, .. })
+            ));
         }
         _ => panic!("Expected let statement with mutable borrow expression"),
     }
@@ -332,8 +382,14 @@ fn test_parse_reference_type_annotation() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { type_annotation, .. }) => {
-            assert!(matches!(type_annotation, Some(compiler::ast::Type::Reference(_, false))));
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
+            type_annotation,
+            ..
+        }) => {
+            assert!(matches!(
+                type_annotation,
+                Some(compiler::ast::Type::Reference(_, false))
+            ));
         }
         _ => panic!("Expected let with reference type"),
     }
@@ -346,8 +402,14 @@ fn test_parse_mut_reference_type() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { type_annotation, .. }) => {
-            assert!(matches!(type_annotation, Some(compiler::ast::Type::Reference(_, true))));
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
+            type_annotation,
+            ..
+        }) => {
+            assert!(matches!(
+                type_annotation,
+                Some(compiler::ast::Type::Reference(_, true))
+            ));
         }
         _ => panic!("Expected let with mutable reference type"),
     }
@@ -360,7 +422,11 @@ fn test_parse_trait_def() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::TraitDef { name, methods, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::TraitDef {
+            name,
+            methods,
+            ..
+        }) => {
             assert_eq!(name, "Display");
             assert_eq!(methods.len(), 1);
             assert_eq!(methods[0].name, "show");
@@ -377,7 +443,10 @@ fn test_parse_impl_trait_for_type() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock {
-            type_name, trait_name, methods, ..
+            type_name,
+            trait_name,
+            methods,
+            ..
         }) => {
             assert_eq!(type_name, "Point");
             assert_eq!(trait_name.as_deref(), Some("Display"));
@@ -395,7 +464,9 @@ fn test_parse_generic_function() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
-            name, type_params, ..
+            name,
+            type_params,
+            ..
         }) => {
             assert_eq!(name, "identity");
             assert_eq!(type_params, &vec!["T".to_string()]);
@@ -412,7 +483,10 @@ fn test_parse_generic_struct() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef {
-            name, type_params, fields, ..
+            name,
+            type_params,
+            fields,
+            ..
         }) => {
             assert_eq!(name, "Container");
             assert_eq!(type_params, &vec!["T".to_string()]);
@@ -430,7 +504,10 @@ fn test_semantic_copy_type_no_move() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_ok(), "Copy types should not trigger use-after-move");
+    assert!(
+        result.is_ok(),
+        "Copy types should not trigger use-after-move"
+    );
 }
 
 #[test]
@@ -441,9 +518,16 @@ fn test_semantic_move_detection() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Use of moved String value should be an error");
+    assert!(
+        result.is_err(),
+        "Use of moved String value should be an error"
+    );
     let err = result.unwrap_err();
-    assert!(err.contains("moved"), "Error should mention 'moved': {}", err);
+    assert!(
+        err.contains("moved"),
+        "Error should mention 'moved': {}",
+        err
+    );
 }
 
 #[test]
@@ -467,7 +551,10 @@ fn test_semantic_immutable_borrow_ok() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_ok(), "Multiple immutable borrows should be allowed");
+    assert!(
+        result.is_ok(),
+        "Multiple immutable borrows should be allowed"
+    );
 }
 
 #[test]
@@ -478,7 +565,10 @@ fn test_semantic_mutable_borrow_requires_mut() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Mutable borrow of non-mut variable should fail");
+    assert!(
+        result.is_err(),
+        "Mutable borrow of non-mut variable should fail"
+    );
     let err = result.unwrap_err();
     assert!(err.contains("not declared as mutable"), "Error: {}", err);
 }
@@ -491,7 +581,11 @@ fn test_semantic_mutable_borrow_ok() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_ok(), "Mutable borrow of mut variable should work: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Mutable borrow of mut variable should work: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -515,9 +609,16 @@ fn test_semantic_mut_and_immut_borrow_conflict() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Mutable borrow while immutably borrowed should fail");
+    assert!(
+        result.is_err(),
+        "Mutable borrow while immutably borrowed should fail"
+    );
     let err = result.unwrap_err();
-    assert!(err.contains("immutable"), "Error should mention immutable conflict: {}", err);
+    assert!(
+        err.contains("immutable"),
+        "Error should mention immutable conflict: {}",
+        err
+    );
 }
 
 #[test]
@@ -528,9 +629,16 @@ fn test_semantic_immut_borrow_while_mut_borrowed_fails() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Immutable borrow while mutably borrowed should fail");
+    assert!(
+        result.is_err(),
+        "Immutable borrow while mutably borrowed should fail"
+    );
     let err = result.unwrap_err();
-    assert!(err.contains("mutable"), "Error should mention mutable conflict: {}", err);
+    assert!(
+        err.contains("mutable"),
+        "Error should mention mutable conflict: {}",
+        err
+    );
 }
 
 #[test]
@@ -544,4 +652,280 @@ fn test_semantic_borrow_of_moved_value_fails() {
     assert!(result.is_err(), "Borrowing a moved value should fail");
     let err = result.unwrap_err();
     assert!(err.contains("moved"), "Error: {}", err);
+}
+
+// --- Phase 5c: Generics Tests ---
+
+#[test]
+fn test_parse_generic_function_single_param() {
+    let source = "fn identity<T>(x: T) -> T { return x; }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
+            name,
+            type_params,
+            parameters,
+            return_type,
+            ..
+        }) => {
+            assert_eq!(name, "identity");
+            assert_eq!(type_params, &vec!["T".to_string()]);
+            assert_eq!(parameters.len(), 1);
+            assert!(matches!(&parameters[0].param_type, compiler::ast::Type::Named(n) if n == "T"));
+            assert!(matches!(return_type, Some(compiler::ast::Type::Named(n)) if n == "T"));
+        }
+        _ => panic!("Expected generic function"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function_multi_params() {
+    let source = "fn pair<A, B>(a: A, b: B) -> (A, B) { return (a, b); }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
+            type_params,
+            ..
+        }) => {
+            assert_eq!(type_params, &vec!["A".to_string(), "B".to_string()]);
+        }
+        _ => panic!("Expected generic function"),
+    }
+}
+
+#[test]
+fn test_parse_generic_struct_definition() {
+    let source = "struct Container<T> { value: T }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef {
+            name,
+            type_params,
+            fields,
+            ..
+        }) => {
+            assert_eq!(name, "Container");
+            assert_eq!(type_params, &vec!["T".to_string()]);
+            assert_eq!(fields.len(), 1);
+            assert!(matches!(&fields[0].field_type, compiler::ast::Type::Named(n) if n == "T"));
+        }
+        _ => panic!("Expected generic struct definition"),
+    }
+}
+
+#[test]
+fn test_parse_generic_enum_definition() {
+    let source = "enum Result<T, E> { Ok(T), Err(E) }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef {
+            name,
+            type_params,
+            variants,
+            ..
+        }) => {
+            assert_eq!(name, "Result");
+            assert_eq!(type_params, &vec!["T".to_string(), "E".to_string()]);
+            assert_eq!(variants.len(), 2);
+        }
+        _ => panic!("Expected generic enum"),
+    }
+}
+
+#[test]
+fn test_parse_generic_type_annotation() {
+    let source = "let x: Container<i32> = Container { value: 42 };";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
+            type_annotation,
+            ..
+        }) => {
+            assert!(matches!(
+                type_annotation,
+                Some(compiler::ast::Type::Generic(name, params))
+                if name == "Container" && params.len() == 1
+            ));
+        }
+        _ => panic!("Expected let with generic type annotation"),
+    }
+}
+
+#[test]
+fn test_parse_generic_impl_block() {
+    let source = r#"
+        impl<T> Container<T> {
+            fn new(value: T) -> Container<T> {
+                return value;
+            }
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock {
+            type_name,
+            type_params,
+            trait_name,
+            methods,
+        }) => {
+            assert_eq!(type_name, "Container");
+            assert_eq!(type_params, &vec!["T".to_string()]);
+            assert!(trait_name.is_none());
+            assert_eq!(methods.len(), 1);
+        }
+        _ => panic!("Expected generic impl block"),
+    }
+}
+
+#[test]
+fn test_parse_trait_bounds_on_generic() {
+    let source = "fn print_item<T: Display>(item: T) { return; }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
+            name,
+            type_params,
+            ..
+        }) => {
+            assert_eq!(name, "print_item");
+            assert_eq!(type_params, &vec!["T".to_string()]);
+        }
+        _ => panic!("Expected function with trait-bounded generic"),
+    }
+}
+
+#[test]
+fn test_parse_multiple_trait_bounds() {
+    let source = "fn foo<T: Clone + Display>(item: T) -> T { return item; }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
+            type_params,
+            ..
+        }) => {
+            assert_eq!(type_params, &vec!["T".to_string()]);
+        }
+        _ => panic!("Expected function with multiple trait bounds"),
+    }
+}
+
+#[test]
+fn test_parse_where_clause() {
+    let source = "fn process<T, U>(s: T, d: U) where T: Clone, U: Default { return; }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
+            type_params,
+            parameters,
+            ..
+        }) => {
+            assert_eq!(type_params.len(), 2);
+            assert_eq!(parameters.len(), 2);
+        }
+        _ => panic!("Expected function with where clause"),
+    }
+}
+
+#[test]
+fn test_parse_impl_trait_for_generic_struct() {
+    let source = r#"
+        impl<T> Printable for Container<T> {
+            fn to_string(&self) -> String {
+                return "container";
+            }
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock {
+            type_name,
+            trait_name,
+            type_params,
+            methods,
+        }) => {
+            assert_eq!(type_name, "Container");
+            assert_eq!(trait_name, &Some("Printable".to_string()));
+            assert_eq!(type_params, &vec!["T".to_string()]);
+            assert_eq!(methods.len(), 1);
+        }
+        _ => panic!("Expected impl Trait for generic struct"),
+    }
+}
+
+#[test]
+fn test_semantic_move_into_function() {
+    // Passing a non-Copy value to a function should move it
+    let source = r#"
+        fn take_ownership(s: String) { return; }
+        fn main() {
+            let s1 = "hello";
+            take_ownership(s1);
+            let s2 = s1;
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(
+        result.is_err(),
+        "Should detect use of moved value after function call"
+    );
+}
+
+#[test]
+fn test_semantic_struct_is_non_copy() {
+    // Struct values should use move semantics
+    let source = r#"
+        struct Point { x: i32, y: i32 }
+        fn main() {
+            let p1 = Point { x: 1, y: 2 };
+            let p2 = p1;
+            let p3 = p1;
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_err(), "Struct should use move semantics");
+}
+
+#[test]
+fn test_semantic_generic_type_param_in_function() {
+    // Generic function with T parameter should analyze without error
+    let source = r#"
+        fn identity<T>(x: T) -> T {
+            return x;
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(
+        result.is_ok(),
+        "Generic function should analyze successfully: {:?}",
+        result
+    );
 }

@@ -101,7 +101,7 @@ pub enum Statement {
         parameters: Vec<Parameter>,
         return_type: Option<Type>,
         body: Block,
-        type_params: Vec<String>,  // Phase 5: generic type parameters <T, U>
+        type_params: Vec<String>, // Phase 5: generic type parameters <T, U>
     },
     If {
         condition: Expression,
@@ -126,17 +126,17 @@ pub enum Statement {
     StructDef {
         name: String,
         fields: Vec<FieldDecl>,
-        type_params: Vec<String>,  // Phase 5: generic type parameters
+        type_params: Vec<String>, // Phase 5: generic type parameters
     },
     EnumDef {
         name: String,
         variants: Vec<VariantDecl>,
-        type_params: Vec<String>,  // Phase 5: generic type parameters
+        type_params: Vec<String>, // Phase 5: generic type parameters
     },
     ImplBlock {
         type_name: String,
         methods: Vec<Statement>,
-        type_params: Vec<String>,  // Phase 5: generic type parameters
+        type_params: Vec<String>,   // Phase 5: generic type parameters
         trait_name: Option<String>, // Phase 5: impl Trait for Type
     },
     // Phase 5: Traits
@@ -157,10 +157,10 @@ pub struct MatchArm {
 /// Patterns for match expressions and destructuring
 #[derive(Debug, Clone)]
 pub enum Pattern {
-    Wildcard,                                    // _
-    Literal(Expression),                         // 42, "hello", true
-    Identifier(String),                          // x (binds value)
-    Tuple(Vec<Pattern>),                         // (a, b, c)
+    Wildcard,            // _
+    Literal(Expression), // 42, "hello", true
+    Identifier(String),  // x (binds value)
+    Tuple(Vec<Pattern>), // (a, b, c)
     Struct {
         name: String,
         fields: Vec<(String, Pattern)>,
@@ -223,8 +223,8 @@ pub struct Block {
 #[derive(Debug, Clone)]
 pub enum Type {
     Named(String),
-    Array(Box<Type>, usize),    // [T; N]
-    Tuple(Vec<Type>),           // (T1, T2, ...)
+    Array(Box<Type>, usize), // [T; N]
+    Tuple(Vec<Type>),        // (T1, T2, ...)
     // Phase 5
     Reference(Box<Type>, bool), // &T (false) or &mut T (true)
     Generic(String, Vec<Type>), // Name<T1, T2> e.g., Vec<i32>

@@ -48,7 +48,10 @@ fn test_semantic_copy_types_not_moved() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_ok(), "Copy types should not trigger use-after-move");
+    assert!(
+        result.is_ok(),
+        "Copy types should not trigger use-after-move"
+    );
 }
 
 #[test]
@@ -72,7 +75,10 @@ fn test_semantic_move_into_function() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Should detect use of moved value after function call");
+    assert!(
+        result.is_err(),
+        "Should detect use of moved value after function call"
+    );
 }
 
 #[test]
@@ -118,7 +124,10 @@ fn test_semantic_move_in_struct_field() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Struct with non-Copy field should move, not copy");
+    assert!(
+        result.is_err(),
+        "Struct with non-Copy field should move, not copy"
+    );
 }
 
 // =============================================================================
@@ -168,7 +177,8 @@ fn test_parse_immutable_reference_param() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
-            parameters, ..
+            parameters,
+            ..
         }) => {
             assert_eq!(parameters.len(), 1);
             assert_eq!(parameters[0].name, "s");
@@ -195,7 +205,8 @@ fn test_parse_mutable_reference_param() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
-            parameters, ..
+            parameters,
+            ..
         }) => {
             assert_eq!(parameters.len(), 1);
             assert_eq!(parameters[0].name, "s");
@@ -220,10 +231,13 @@ fn test_parse_borrow_expression() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { name, value, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
+            name, value, ..
+        }) => {
             assert_eq!(name, "r");
             assert!(
-                matches!(value,
+                matches!(
+                    value,
                     Some(compiler::ast::Expression::Borrow { mutable: false, .. })
                 ),
                 "Should parse & as an immutable borrow expression"
@@ -242,10 +256,13 @@ fn test_parse_mutable_borrow_expression() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { name, value, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
+            name, value, ..
+        }) => {
             assert_eq!(name, "r");
             assert!(
-                matches!(value,
+                matches!(
+                    value,
                     Some(compiler::ast::Expression::Borrow { mutable: true, .. })
                 ),
                 "Should parse &mut as a mutable borrow expression"
@@ -264,7 +281,9 @@ fn test_parse_deref_expression() {
     let ast = parser::parse(tokens);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
-        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let { name, value, .. }) => {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
+            name, value, ..
+        }) => {
             assert_eq!(name, "val");
             assert!(
                 matches!(value, Some(compiler::ast::Expression::Deref(_))),
@@ -291,7 +310,10 @@ fn test_semantic_multiple_immutable_borrows_ok() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_ok(), "Multiple immutable borrows should be allowed");
+    assert!(
+        result.is_ok(),
+        "Multiple immutable borrows should be allowed"
+    );
 }
 
 #[test]
@@ -310,7 +332,10 @@ fn test_semantic_mutable_and_immutable_borrow_conflict() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Should reject simultaneous mutable and immutable borrows");
+    assert!(
+        result.is_err(),
+        "Should reject simultaneous mutable and immutable borrows"
+    );
 }
 
 #[test]
@@ -329,7 +354,10 @@ fn test_semantic_double_mutable_borrow_conflict() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Should reject two simultaneous mutable borrows");
+    assert!(
+        result.is_err(),
+        "Should reject two simultaneous mutable borrows"
+    );
 }
 
 #[test]
@@ -371,7 +399,10 @@ fn test_semantic_cannot_mutate_through_immutable_ref() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Should reject mutation through an immutable reference");
+    assert!(
+        result.is_err(),
+        "Should reject mutation through an immutable reference"
+    );
 }
 
 // =============================================================================
@@ -436,7 +467,9 @@ fn test_parse_generic_function_multiple_params() {
             assert_eq!(name, "pair");
             assert_eq!(type_params, &vec!["A".to_string(), "B".to_string()]);
             assert_eq!(parameters.len(), 2);
-            assert!(matches!(return_type, Some(compiler::ast::Type::Tuple(types)) if types.len() == 2));
+            assert!(
+                matches!(return_type, Some(compiler::ast::Type::Tuple(types)) if types.len() == 2)
+            );
         }
         _ => panic!("Expected generic function definition"),
     }
@@ -503,14 +536,18 @@ fn test_parse_generic_type_annotation() {
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
-            type_annotation, ..
+            type_annotation,
+            ..
         }) => {
-            assert!(matches!(
-                type_annotation,
-                Some(compiler::ast::Type::Generic(name, params))
-                if name == "Container" && params.len() == 1
-                   && matches!(&params[0], compiler::ast::Type::Named(n) if n == "i32")
-            ), "Should parse as Type::Generic(\"Container\", [Named(\"i32\")])");
+            assert!(
+                matches!(
+                    type_annotation,
+                    Some(compiler::ast::Type::Generic(name, params))
+                    if name == "Container" && params.len() == 1
+                       && matches!(&params[0], compiler::ast::Type::Named(n) if n == "i32")
+                ),
+                "Should parse as Type::Generic(\"Container\", [Named(\"i32\")])"
+            );
         }
         _ => panic!("Expected let with generic type annotation"),
     }
@@ -540,7 +577,10 @@ fn test_parse_generic_impl_block() {
         }) => {
             assert_eq!(type_name, "Container");
             assert_eq!(type_params, &vec!["T".to_string()]);
-            assert!(trait_name.is_none(), "This is a plain impl, not impl Trait for");
+            assert!(
+                trait_name.is_none(),
+                "This is a plain impl, not impl Trait for"
+            );
             assert_eq!(methods.len(), 1);
         }
         _ => panic!("Expected generic impl block"),
@@ -606,7 +646,10 @@ fn test_parse_trait_definition_single_method() {
             assert!(type_params.is_empty());
             assert_eq!(methods.len(), 1);
             assert_eq!(methods[0].name, "to_string");
-            assert!(methods[0].body.is_none(), "Trait method signatures have no body");
+            assert!(
+                methods[0].body.is_none(),
+                "Trait method signatures have no body"
+            );
             assert!(methods[0].return_type.is_some());
         }
         _ => panic!("Expected trait definition"),
@@ -777,7 +820,10 @@ fn test_semantic_trait_method_not_implemented() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Should detect missing trait method 'perimeter'");
+    assert!(
+        result.is_err(),
+        "Should detect missing trait method 'perimeter'"
+    );
 }
 
 #[test]
@@ -804,7 +850,10 @@ fn test_semantic_unsatisfied_trait_bound() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Should detect that Opaque does not implement Display");
+    assert!(
+        result.is_err(),
+        "Should detect that Opaque does not implement Display"
+    );
 }
 
 // =============================================================================
@@ -859,7 +908,10 @@ fn test_semantic_generic_ownership_transfer() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Generic container with non-Copy content should move");
+    assert!(
+        result.is_err(),
+        "Generic container with non-Copy content should move"
+    );
 }
 
 #[test]
@@ -889,7 +941,10 @@ fn test_semantic_trait_method_borrows_self() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_ok(), "Calling &self methods should not move the receiver");
+    assert!(
+        result.is_ok(),
+        "Calling &self methods should not move the receiver"
+    );
 }
 
 #[test]
@@ -916,7 +971,8 @@ fn test_parse_generic_function_with_trait_bound_and_ref() {
             assert!(!type_params.is_empty());
             assert_eq!(parameters.len(), 1);
             assert!(
-                matches!(&parameters[0].param_type,
+                matches!(
+                    &parameters[0].param_type,
                     compiler::ast::Type::Reference(_, false)
                 ),
                 "Parameter should be a reference type"

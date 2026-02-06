@@ -75,10 +75,10 @@ pub enum Token {
     Colon,
     DoubleColon, // ::
     Comma,
-    FatArrow,    // =>
-    Underscore,  // _ (wildcard pattern)
-    Ampersand,   // & (borrow / reference)
-    Pipe,        // | (single pipe, for closures/patterns)
+    FatArrow,   // =>
+    Underscore, // _ (wildcard pattern)
+    Ampersand,  // & (borrow / reference)
+    Pipe,       // | (single pipe, for closures/patterns)
 
     // End of file
     Eof,

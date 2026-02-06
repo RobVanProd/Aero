@@ -106,15 +106,15 @@ pub enum Inst {
 
     // Aggregate operations (Phase 4)
     AllocaArray {
-        result: Value,       // pointer to array
-        elem_type: String,   // LLVM element type
-        count: usize,        // number of elements
+        result: Value,     // pointer to array
+        elem_type: String, // LLVM element type
+        count: usize,      // number of elements
     },
     GetElementPtr {
-        result: Value,       // pointer to element
-        base: Value,         // base pointer
-        index: Value,        // element index
-        elem_type: String,   // LLVM element type
+        result: Value,     // pointer to element
+        base: Value,       // base pointer
+        index: Value,      // element index
+        elem_type: String, // LLVM element type
     },
     AllocaStruct {
         result: Value,       // pointer to struct
