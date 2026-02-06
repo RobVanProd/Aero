@@ -1,6 +1,9 @@
 #![allow(clippy::result_large_err)]
 
-use crate::ast::{AstNode, Block, Expression, Parameter, Statement, Type};
+use crate::ast::{
+    AstNode, Block, Expression, FieldDecl, MatchArm, Parameter, Pattern, Statement, Type,
+    VariantDecl, VariantDeclKind,
+};
 use crate::errors::{CompilerError, CompilerResult, SourceLocation};
 use crate::lexer::{LocatedToken, Token};
 
@@ -49,6 +52,9 @@ impl Parser {
             Token::Break => self.parse_break_statement(),
             Token::Continue => self.parse_continue_statement(),
             Token::LeftBrace => self.parse_block_statement(),
+            Token::Struct => self.parse_struct_def(),
+            Token::Enum => self.parse_enum_def(),
+            Token::Impl => self.parse_impl_block(),
             _ => {
                 // Try to parse as expression statement
                 let expr = self.parse_expression()?;
@@ -445,25 +451,72 @@ impl Parser {
     fn parse_call(&mut self) -> CompilerResult<Expression> {
         let mut expr = self.parse_primary()?;
 
-        while self.match_token(&Token::LeftParen) {
-            let mut arguments = Vec::new();
-            if !self.check(&Token::RightParen) {
-                loop {
-                    arguments.push(self.parse_expression()?);
-                    if !self.match_token(&Token::Comma) {
-                        break;
+        loop {
+            if self.match_token(&Token::LeftParen) {
+                // Function call
+                let mut arguments = Vec::new();
+                if !self.check(&Token::RightParen) {
+                    loop {
+                        arguments.push(self.parse_expression()?);
+                        if !self.match_token(&Token::Comma) {
+                            break;
+                        }
                     }
                 }
-            }
-            self.consume(Token::RightParen, "Expected ')' after arguments")?;
+                self.consume(Token::RightParen, "Expected ')' after arguments")?;
 
-            if let Expression::Identifier(name) = expr {
-                expr = Expression::FunctionCall { name, arguments };
+                if let Expression::Identifier(name) = expr {
+                    expr = Expression::FunctionCall { name, arguments };
+                } else if let Expression::FieldAccess { object, field } = expr {
+                    // method call: obj.method(args)
+                    expr = Expression::MethodCall {
+                        object,
+                        method: field,
+                        arguments,
+                    };
+                } else {
+                    return Err(CompilerError::InvalidSyntax {
+                        message: "Only identifiers can be called as functions".to_string(),
+                        location: self.previous().location.clone(),
+                    });
+                }
+            } else if self.match_token(&Token::LeftBracket) {
+                // Index access: expr[index]
+                let index = self.parse_expression()?;
+                self.consume(Token::RightBracket, "Expected ']' after index")?;
+                expr = Expression::IndexAccess {
+                    object: Box::new(expr),
+                    index: Box::new(index),
+                };
+            } else if self.match_token(&Token::Dot) {
+                // Field access or tuple index: expr.field or expr.0
+                match &self.peek().token {
+                    Token::IntegerLiteral(idx) => {
+                        let idx = *idx as usize;
+                        self.advance();
+                        expr = Expression::TupleIndex {
+                            object: Box::new(expr),
+                            index: idx,
+                        };
+                    }
+                    Token::Identifier(field) => {
+                        let field = field.clone();
+                        self.advance();
+                        expr = Expression::FieldAccess {
+                            object: Box::new(expr),
+                            field,
+                        };
+                    }
+                    _ => {
+                        return Err(CompilerError::unexpected_token(
+                            "field name or tuple index",
+                            &format!("{:?}", self.peek().token),
+                            self.peek().location.clone(),
+                        ));
+                    }
+                }
             } else {
-                return Err(CompilerError::InvalidSyntax {
-                    message: "Only identifiers can be called as functions".to_string(),
-                    location: self.previous().location.clone(),
-                });
+                break;
             }
         }
 
@@ -482,17 +535,57 @@ impl Parser {
                 self.advance();
                 Ok(Expression::FloatLiteral(value))
             }
+            Token::StringLiteral(s) => {
+                let s = s.clone();
+                self.advance();
+                Ok(Expression::StringLiteral(s))
+            }
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
+                // Check for struct literal: Name { field: value, ... }
+                if self.check(&Token::LeftBrace) {
+                    // Peek ahead to see if this looks like a struct literal
+                    // (identifier followed by colon means struct literal)
+                    if self.is_struct_literal_start() {
+                        return self.parse_struct_literal(name);
+                    }
+                }
+                // Check for enum variant: Name::Variant
+                if self.check(&Token::DoubleColon) {
+                    return self.parse_enum_variant(name);
+                }
                 Ok(Expression::Identifier(name))
             }
             Token::LeftParen => {
                 self.advance();
-                let expr = self.parse_expression()?;
-                self.consume(Token::RightParen, "Expected ')' after expression")?;
-                Ok(expr)
+                // Check for unit tuple or tuple literal
+                if self.check(&Token::RightParen) {
+                    self.advance();
+                    return Ok(Expression::TupleLiteral(vec![]));
+                }
+                let first = self.parse_expression()?;
+                if self.match_token(&Token::Comma) {
+                    // This is a tuple literal
+                    let mut elements = vec![first];
+                    if !self.check(&Token::RightParen) {
+                        loop {
+                            elements.push(self.parse_expression()?);
+                            if !self.match_token(&Token::Comma) {
+                                break;
+                            }
+                        }
+                    }
+                    self.consume(Token::RightParen, "Expected ')' after tuple elements")?;
+                    Ok(Expression::TupleLiteral(elements))
+                } else {
+                    // Parenthesized expression
+                    self.consume(Token::RightParen, "Expected ')' after expression")?;
+                    Ok(first)
+                }
             }
+            Token::LeftBracket => self.parse_array_literal(),
+            Token::Match => self.parse_match_expression(),
             Token::PrintMacro => self.parse_print_macro(false),
             Token::PrintlnMacro => self.parse_print_macro(true),
             _ => Err(CompilerError::unexpected_token(
@@ -513,6 +606,12 @@ impl Parser {
         self.consume(Token::LeftParen, "Expected '(' after print macro")?;
 
         let format_string = match &self.peek().token {
+            Token::StringLiteral(s) => {
+                let s = format!("\"{}\"", s);
+                self.advance();
+                s
+            }
+            // Backward compat: old-style string-as-identifier
             Token::Identifier(s) if s.starts_with('"') && s.ends_with('"') => {
                 let s = s.clone();
                 self.advance();
@@ -554,11 +653,426 @@ impl Parser {
                 self.advance();
                 Ok(Type::Named(name))
             }
+            Token::LeftBracket => {
+                // Array type: [T; N]
+                self.advance();
+                let elem_type = self.parse_type()?;
+                self.consume(Token::Semicolon, "Expected ';' in array type [T; N]")?;
+                let size = match &self.peek().token {
+                    Token::IntegerLiteral(n) => {
+                        let n = *n as usize;
+                        self.advance();
+                        n
+                    }
+                    _ => {
+                        return Err(CompilerError::unexpected_token(
+                            "array size",
+                            &format!("{:?}", self.peek().token),
+                            self.peek().location.clone(),
+                        ));
+                    }
+                };
+                self.consume(Token::RightBracket, "Expected ']' after array type")?;
+                Ok(Type::Array(Box::new(elem_type), size))
+            }
+            Token::LeftParen => {
+                // Tuple type: (T1, T2, ...)
+                self.advance();
+                let mut types = Vec::new();
+                if !self.check(&Token::RightParen) {
+                    loop {
+                        types.push(self.parse_type()?);
+                        if !self.match_token(&Token::Comma) {
+                            break;
+                        }
+                    }
+                }
+                self.consume(Token::RightParen, "Expected ')' after tuple type")?;
+                Ok(Type::Tuple(types))
+            }
             _ => Err(CompilerError::unexpected_token(
                 "type",
                 &format!("{:?}", self.peek().token),
                 self.peek().location.clone(),
             )),
+        }
+    }
+
+    // --- Phase 4 parsing methods ---
+
+    fn parse_array_literal(&mut self) -> CompilerResult<Expression> {
+        self.consume(Token::LeftBracket, "Expected '['")?;
+        if self.check(&Token::RightBracket) {
+            self.advance();
+            return Ok(Expression::ArrayLiteral(vec![]));
+        }
+        let first = self.parse_expression()?;
+        // Check for repeat syntax: [value; count]
+        if self.match_token(&Token::Semicolon) {
+            let count = match &self.peek().token {
+                Token::IntegerLiteral(n) => {
+                    let n = *n as usize;
+                    self.advance();
+                    n
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "array repeat count",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            };
+            self.consume(Token::RightBracket, "Expected ']' after array repeat")?;
+            return Ok(Expression::ArrayRepeat {
+                value: Box::new(first),
+                count,
+            });
+        }
+        // Comma-separated elements: [a, b, c]
+        let mut elements = vec![first];
+        while self.match_token(&Token::Comma) {
+            if self.check(&Token::RightBracket) {
+                break; // trailing comma
+            }
+            elements.push(self.parse_expression()?);
+        }
+        self.consume(Token::RightBracket, "Expected ']' after array elements")?;
+        Ok(Expression::ArrayLiteral(elements))
+    }
+
+    fn parse_struct_def(&mut self) -> CompilerResult<Statement> {
+        self.consume(Token::Struct, "Expected 'struct'")?;
+        let name = match &self.peek().token {
+            Token::Identifier(n) => {
+                let n = n.clone();
+                self.advance();
+                n
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "struct name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        };
+        self.consume(Token::LeftBrace, "Expected '{' after struct name")?;
+        let mut fields = Vec::new();
+        while !self.check(&Token::RightBrace) && !self.is_at_end() {
+            let field_name = match &self.peek().token {
+                Token::Identifier(n) => {
+                    let n = n.clone();
+                    self.advance();
+                    n
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "field name",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            };
+            self.consume(Token::Colon, "Expected ':' after field name")?;
+            let field_type = self.parse_type()?;
+            fields.push(FieldDecl {
+                name: field_name,
+                field_type,
+            });
+            if !self.match_token(&Token::Comma) {
+                break;
+            }
+        }
+        self.consume(Token::RightBrace, "Expected '}' after struct fields")?;
+        Ok(Statement::StructDef { name, fields })
+    }
+
+    fn parse_enum_def(&mut self) -> CompilerResult<Statement> {
+        self.consume(Token::Enum, "Expected 'enum'")?;
+        let name = match &self.peek().token {
+            Token::Identifier(n) => {
+                let n = n.clone();
+                self.advance();
+                n
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "enum name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        };
+        self.consume(Token::LeftBrace, "Expected '{' after enum name")?;
+        let mut variants = Vec::new();
+        while !self.check(&Token::RightBrace) && !self.is_at_end() {
+            let variant_name = match &self.peek().token {
+                Token::Identifier(n) => {
+                    let n = n.clone();
+                    self.advance();
+                    n
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "variant name",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            };
+            let kind = if self.match_token(&Token::LeftParen) {
+                // Tuple variant: Variant(T1, T2)
+                let mut types = Vec::new();
+                if !self.check(&Token::RightParen) {
+                    loop {
+                        types.push(self.parse_type()?);
+                        if !self.match_token(&Token::Comma) {
+                            break;
+                        }
+                    }
+                }
+                self.consume(Token::RightParen, "Expected ')' after variant types")?;
+                VariantDeclKind::Tuple(types)
+            } else if self.match_token(&Token::LeftBrace) {
+                // Struct variant: Variant { field: Type }
+                let mut fields = Vec::new();
+                while !self.check(&Token::RightBrace) && !self.is_at_end() {
+                    let field_name = match &self.peek().token {
+                        Token::Identifier(n) => {
+                            let n = n.clone();
+                            self.advance();
+                            n
+                        }
+                        _ => break,
+                    };
+                    self.consume(Token::Colon, "Expected ':'")?;
+                    let field_type = self.parse_type()?;
+                    fields.push(FieldDecl {
+                        name: field_name,
+                        field_type,
+                    });
+                    if !self.match_token(&Token::Comma) {
+                        break;
+                    }
+                }
+                self.consume(Token::RightBrace, "Expected '}'")?;
+                VariantDeclKind::Struct(fields)
+            } else {
+                VariantDeclKind::Unit
+            };
+            variants.push(VariantDecl {
+                name: variant_name,
+                kind,
+            });
+            if !self.match_token(&Token::Comma) {
+                break;
+            }
+        }
+        self.consume(Token::RightBrace, "Expected '}' after enum variants")?;
+        Ok(Statement::EnumDef { name, variants })
+    }
+
+    fn parse_impl_block(&mut self) -> CompilerResult<Statement> {
+        self.consume(Token::Impl, "Expected 'impl'")?;
+        let type_name = match &self.peek().token {
+            Token::Identifier(n) => {
+                let n = n.clone();
+                self.advance();
+                n
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "type name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        };
+        self.consume(Token::LeftBrace, "Expected '{' after impl type")?;
+        let mut methods = Vec::new();
+        while !self.check(&Token::RightBrace) && !self.is_at_end() {
+            methods.push(self.parse_function_definition()?);
+        }
+        self.consume(Token::RightBrace, "Expected '}' after impl block")?;
+        Ok(Statement::ImplBlock {
+            type_name,
+            methods,
+        })
+    }
+
+    fn parse_struct_literal(&mut self, name: String) -> CompilerResult<Expression> {
+        self.consume(Token::LeftBrace, "Expected '{'")?;
+        let mut fields = Vec::new();
+        while !self.check(&Token::RightBrace) && !self.is_at_end() {
+            let field_name = match &self.peek().token {
+                Token::Identifier(n) => {
+                    let n = n.clone();
+                    self.advance();
+                    n
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "field name",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            };
+            self.consume(Token::Colon, "Expected ':' after field name")?;
+            let value = self.parse_expression()?;
+            fields.push((field_name, value));
+            if !self.match_token(&Token::Comma) {
+                break;
+            }
+        }
+        self.consume(Token::RightBrace, "Expected '}' after struct literal")?;
+        Ok(Expression::StructLiteral { name, fields })
+    }
+
+    fn parse_enum_variant(&mut self, enum_name: String) -> CompilerResult<Expression> {
+        self.consume(Token::DoubleColon, "Expected '::'")?;
+        let variant = match &self.peek().token {
+            Token::Identifier(n) => {
+                let n = n.clone();
+                self.advance();
+                n
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "variant name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        };
+        // Check for variant data: Variant(expr)
+        let data = if self.match_token(&Token::LeftParen) {
+            let expr = self.parse_expression()?;
+            self.consume(Token::RightParen, "Expected ')' after variant data")?;
+            Some(Box::new(expr))
+        } else {
+            None
+        };
+        Ok(Expression::EnumVariant {
+            enum_name,
+            variant,
+            data,
+        })
+    }
+
+    fn parse_match_expression(&mut self) -> CompilerResult<Expression> {
+        self.consume(Token::Match, "Expected 'match'")?;
+        let expr = self.parse_expression()?;
+        self.consume(Token::LeftBrace, "Expected '{' after match expression")?;
+        let mut arms = Vec::new();
+        while !self.check(&Token::RightBrace) && !self.is_at_end() {
+            let pattern = self.parse_pattern()?;
+            self.consume(Token::FatArrow, "Expected '=>' after pattern")?;
+            let body = self.parse_expression()?;
+            arms.push(MatchArm { pattern, body });
+            // Comma is optional between arms
+            self.match_token(&Token::Comma);
+        }
+        self.consume(Token::RightBrace, "Expected '}' after match arms")?;
+        Ok(Expression::Match {
+            expr: Box::new(expr),
+            arms,
+        })
+    }
+
+    fn parse_pattern(&mut self) -> CompilerResult<Pattern> {
+        match &self.peek().token {
+            Token::Underscore => {
+                self.advance();
+                Ok(Pattern::Wildcard)
+            }
+            Token::IntegerLiteral(n) => {
+                let n = *n;
+                self.advance();
+                Ok(Pattern::Literal(Expression::IntegerLiteral(n)))
+            }
+            Token::FloatLiteral(f) => {
+                let f = *f;
+                self.advance();
+                Ok(Pattern::Literal(Expression::FloatLiteral(f)))
+            }
+            Token::StringLiteral(s) => {
+                let s = s.clone();
+                self.advance();
+                Ok(Pattern::Literal(Expression::StringLiteral(s)))
+            }
+            Token::Identifier(name) => {
+                let name = name.clone();
+                self.advance();
+                if self.check(&Token::DoubleColon) {
+                    // Enum pattern: EnumName::Variant or EnumName::Variant(pattern)
+                    self.advance();
+                    let variant = match &self.peek().token {
+                        Token::Identifier(v) => {
+                            let v = v.clone();
+                            self.advance();
+                            v
+                        }
+                        _ => {
+                            return Err(CompilerError::unexpected_token(
+                                "variant name",
+                                &format!("{:?}", self.peek().token),
+                                self.peek().location.clone(),
+                            ));
+                        }
+                    };
+                    let data = if self.match_token(&Token::LeftParen) {
+                        let inner = self.parse_pattern()?;
+                        self.consume(Token::RightParen, "Expected ')'")?;
+                        Some(Box::new(inner))
+                    } else {
+                        None
+                    };
+                    Ok(Pattern::Enum {
+                        enum_name: name,
+                        variant,
+                        data,
+                    })
+                } else {
+                    // Variable binding pattern
+                    Ok(Pattern::Identifier(name))
+                }
+            }
+            Token::LeftParen => {
+                // Tuple pattern
+                self.advance();
+                let mut patterns = Vec::new();
+                if !self.check(&Token::RightParen) {
+                    loop {
+                        patterns.push(self.parse_pattern()?);
+                        if !self.match_token(&Token::Comma) {
+                            break;
+                        }
+                    }
+                }
+                self.consume(Token::RightParen, "Expected ')'")?;
+                Ok(Pattern::Tuple(patterns))
+            }
+            _ => Err(CompilerError::unexpected_token(
+                "pattern",
+                &format!("{:?}", self.peek().token),
+                self.peek().location.clone(),
+            )),
+        }
+    }
+
+    /// Check if the next tokens look like a struct literal (Name { field: ... })
+    /// as opposed to a block statement after an identifier
+    fn is_struct_literal_start(&self) -> bool {
+        // Look for pattern: { identifier : ... }
+        if self.current + 2 < self.tokens.len() {
+            let after_brace = &self.tokens[self.current + 1];
+            let after_ident = &self.tokens[self.current + 2];
+            matches!(after_brace.token, Token::Identifier(_))
+                && matches!(after_ident.token, Token::Colon)
+        } else {
+            false
         }
     }
 
@@ -640,10 +1154,13 @@ impl Parser {
             self.peek().token,
             Token::IntegerLiteral(_)
                 | Token::FloatLiteral(_)
+                | Token::StringLiteral(_)
                 | Token::Identifier(_)
                 | Token::LeftParen
+                | Token::LeftBracket
                 | Token::LogicalNot
                 | Token::Minus
+                | Token::Match
                 | Token::PrintMacro
                 | Token::PrintlnMacro
         )
@@ -664,7 +1181,10 @@ impl Parser {
                 | Token::While
                 | Token::For
                 | Token::Loop
-                | Token::Return => return,
+                | Token::Return
+                | Token::Struct
+                | Token::Enum
+                | Token::Impl => return,
                 _ => {}
             }
 

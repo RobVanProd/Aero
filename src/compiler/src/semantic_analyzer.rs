@@ -78,11 +78,13 @@ impl FunctionTable {
             for (i, (param, arg_type)) in func.parameters.iter().zip(args.iter()).enumerate() {
                 let expected_type = match &param.param_type {
                     crate::ast::Type::Named(type_name) => match type_name.as_str() {
-                        "i32" => Ty::Int,
-                        "f64" => Ty::Float,
+                        "i32" | "int" => Ty::Int,
+                        "f64" | "float" => Ty::Float,
                         "bool" => Ty::Bool,
+                        "String" => Ty::String,
                         _ => Ty::Int,
                     },
+                    crate::ast::Type::Array(_, _) | crate::ast::Type::Tuple(_) => Ty::Int,
                 };
 
                 if expected_type != *arg_type {
@@ -448,6 +450,38 @@ impl SemanticAnalyzer {
                 let operand_type = self.infer_and_validate_expression(operand)?;
                 self.validate_unary_operation(op, &operand_type)
             }
+            // Phase 4 expressions
+            Expression::StringLiteral(_) => Ok(Ty::String),
+            Expression::MethodCall { object, .. } => {
+                self.infer_and_validate_expression(object)?;
+                Ok(Ty::Int) // Stub - method return types need resolution
+            }
+            Expression::ArrayLiteral(elements) => {
+                let elem_type = if let Some(first) = elements.first() {
+                    self.infer_and_validate_expression(&mut first.clone())?
+                } else {
+                    Ty::Int
+                };
+                Ok(Ty::Array(Box::new(elem_type), elements.len()))
+            }
+            Expression::ArrayRepeat { value, count } => {
+                let elem_type = self.infer_and_validate_expression(value)?;
+                Ok(Ty::Array(Box::new(elem_type), *count))
+            }
+            Expression::IndexAccess { object, index } => {
+                let obj_type = self.infer_and_validate_expression(object)?;
+                self.infer_and_validate_expression(index)?;
+                match obj_type {
+                    Ty::Array(elem, _) => Ok(*elem),
+                    _ => Err("Cannot index into non-array type".to_string()),
+                }
+            }
+            Expression::FieldAccess { .. }
+            | Expression::TupleLiteral(_)
+            | Expression::TupleIndex { .. }
+            | Expression::StructLiteral { .. }
+            | Expression::EnumVariant { .. }
+            | Expression::Match { .. } => Ok(Ty::Int), // Stub
         }
     }
 
@@ -515,6 +549,38 @@ impl SemanticAnalyzer {
                 let operand_type = self.infer_and_validate_expression_immutable(operand)?;
                 self.validate_unary_operation(op, &operand_type)
             }
+            // Phase 4 expressions
+            Expression::StringLiteral(_) => Ok(Ty::String),
+            Expression::MethodCall { object, .. } => {
+                self.infer_and_validate_expression_immutable(object)?;
+                Ok(Ty::Int)
+            }
+            Expression::ArrayLiteral(elements) => {
+                let elem_type = if let Some(first) = elements.first() {
+                    self.infer_and_validate_expression_immutable(first)?
+                } else {
+                    Ty::Int
+                };
+                Ok(Ty::Array(Box::new(elem_type), elements.len()))
+            }
+            Expression::ArrayRepeat { value, count } => {
+                let elem_type = self.infer_and_validate_expression_immutable(value)?;
+                Ok(Ty::Array(Box::new(elem_type), *count))
+            }
+            Expression::IndexAccess { object, index } => {
+                let obj_type = self.infer_and_validate_expression_immutable(object)?;
+                self.infer_and_validate_expression_immutable(index)?;
+                match obj_type {
+                    Ty::Array(elem, _) => Ok(*elem),
+                    _ => Err("Cannot index into non-array type".to_string()),
+                }
+            }
+            Expression::FieldAccess { .. }
+            | Expression::TupleLiteral(_)
+            | Expression::TupleIndex { .. }
+            | Expression::StructLiteral { .. }
+            | Expression::EnumVariant { .. }
+            | Expression::Match { .. } => Ok(Ty::Int), // Stub
         }
     }
 
@@ -703,14 +769,7 @@ impl SemanticAnalyzer {
 
                 // Declare parameters as variables in the function scope
                 for param in parameters {
-                    let param_type = match &param.param_type {
-                        crate::ast::Type::Named(type_name) => match type_name.as_str() {
-                            "i32" => Ty::Int,
-                            "f64" => Ty::Float,
-                            "bool" => Ty::Bool,
-                            _ => Ty::Int, // Default fallback
-                        },
-                    };
+                    let param_type = self.ast_type_to_ty(&param.param_type);
                     self.scope_manager.define_variable(
                         param.name.clone(),
                         param_type.clone(),
@@ -823,6 +882,28 @@ impl SemanticAnalyzer {
                 self.analyze_block(block)?;
                 self.scope_manager.exit_scope();
                 Ok(())
+            }
+            // Phase 4: type definitions are validated but don't produce runtime code
+            Statement::StructDef { .. }
+            | Statement::EnumDef { .. }
+            | Statement::ImplBlock { .. } => Ok(()),
+        }
+    }
+
+    fn ast_type_to_ty(&self, ty: &crate::ast::Type) -> Ty {
+        match ty {
+            crate::ast::Type::Named(name) => match name.as_str() {
+                "i32" | "int" => Ty::Int,
+                "f64" | "float" => Ty::Float,
+                "bool" => Ty::Bool,
+                "String" => Ty::String,
+                other => Ty::Struct(other.to_string()),
+            },
+            crate::ast::Type::Array(elem, size) => {
+                Ty::Array(Box::new(self.ast_type_to_ty(elem)), *size)
+            }
+            crate::ast::Type::Tuple(types) => {
+                Ty::Tuple(types.iter().map(|t| self.ast_type_to_ty(t)).collect())
             }
         }
     }

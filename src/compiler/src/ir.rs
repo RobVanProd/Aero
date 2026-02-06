@@ -103,6 +103,29 @@ pub enum Inst {
         result: Value,
         operand: Value,
     },
+
+    // Aggregate operations (Phase 4)
+    AllocaArray {
+        result: Value,       // pointer to array
+        elem_type: String,   // LLVM element type
+        count: usize,        // number of elements
+    },
+    GetElementPtr {
+        result: Value,       // pointer to element
+        base: Value,         // base pointer
+        index: Value,        // element index
+        elem_type: String,   // LLVM element type
+    },
+    AllocaStruct {
+        result: Value,       // pointer to struct
+        struct_type: String, // LLVM struct type name
+    },
+    GetFieldPtr {
+        result: Value,       // pointer to field
+        base: Value,         // struct pointer
+        field_index: u32,    // field index
+        struct_type: String, // LLVM struct type name
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]

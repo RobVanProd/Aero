@@ -476,6 +476,73 @@ impl CodeGenerator {
                         result_str, operand_str
                     ));
                 }
+                // Phase 4: Aggregate operations
+                Inst::AllocaArray {
+                    result,
+                    elem_type,
+                    count,
+                } => {
+                    let result_str = match result {
+                        Value::Reg(r) => format!("ptr{}", r),
+                        _ => panic!("Expected register for array alloca"),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %{} = alloca [{} x {}], align 8\n",
+                        result_str, count, elem_type
+                    ));
+                }
+                Inst::GetElementPtr {
+                    result,
+                    base,
+                    index,
+                    elem_type,
+                } => {
+                    let result_str = match result {
+                        Value::Reg(r) => format!("reg{}", r),
+                        _ => panic!("Expected register for GEP result"),
+                    };
+                    let base_str = match base {
+                        Value::Reg(r) => format!("ptr{}", r),
+                        _ => panic!("Expected register for GEP base"),
+                    };
+                    let index_str = self.value_to_int_string(index);
+                    llvm_ir.push_str(&format!(
+                        "  %{} = getelementptr inbounds {}, {}* %{}, i64 0, i64 {}\n",
+                        result_str, elem_type, elem_type, base_str, index_str
+                    ));
+                }
+                Inst::AllocaStruct {
+                    result,
+                    struct_type,
+                } => {
+                    let result_str = match result {
+                        Value::Reg(r) => format!("ptr{}", r),
+                        _ => panic!("Expected register for struct alloca"),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %{} = alloca %{}, align 8\n",
+                        result_str, struct_type
+                    ));
+                }
+                Inst::GetFieldPtr {
+                    result,
+                    base,
+                    field_index,
+                    struct_type,
+                } => {
+                    let result_str = match result {
+                        Value::Reg(r) => format!("reg{}", r),
+                        _ => panic!("Expected register for field GEP result"),
+                    };
+                    let base_str = match base {
+                        Value::Reg(r) => format!("ptr{}", r),
+                        _ => panic!("Expected register for field GEP base"),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %{} = getelementptr inbounds %{}, %{}* %{}, i32 0, i32 {}\n",
+                        result_str, struct_type, struct_type, base_str, field_index
+                    ));
+                }
             }
         }
         // If no explicit return, return 0

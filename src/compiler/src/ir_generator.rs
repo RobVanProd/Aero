@@ -138,6 +138,14 @@ impl IrGenerator {
                     self.generate_expression_ir(expr, current_function);
                 }
             }
+            // Phase 4: struct/enum/impl definitions are processed at a higher level;
+            // they don't generate body IR in the same way as executable statements.
+            Statement::StructDef { .. }
+            | Statement::EnumDef { .. }
+            | Statement::ImplBlock { .. } => {
+                // Type definitions are registered in the type registry (semantic pass).
+                // No runtime IR to generate.
+            }
         }
     }
 
@@ -259,6 +267,111 @@ impl IrGenerator {
                 self.generate_logical_ir(op, *left, *right, function)
             }
             Expression::Unary { op, operand } => self.generate_unary_ir(op, *operand, function),
+            Expression::StringLiteral(_) => {
+                // Strings will be handled with pointer type later
+                (Value::ImmInt(0), Ty::String)
+            }
+            Expression::MethodCall { .. } => {
+                // Method calls will be resolved to function calls
+                (Value::ImmInt(0), Ty::Int)
+            }
+            Expression::ArrayLiteral(elements) => {
+                let count = elements.len();
+                let arr_ptr = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                // Determine element type from first element
+                let elem_type = if count > 0 {
+                    let (first_val, first_ty) = self.generate_expression_ir(elements[0].clone(), function);
+                    function.body.push(Inst::AllocaArray {
+                        result: arr_ptr.clone(),
+                        elem_type: "double".to_string(),
+                        count,
+                    });
+                    // Store first element
+                    let elem_ptr = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(Inst::GetElementPtr {
+                        result: elem_ptr.clone(),
+                        base: arr_ptr.clone(),
+                        index: Value::ImmInt(0),
+                        elem_type: format!("[{} x double]", count),
+                    });
+                    function.body.push(Inst::Store(elem_ptr, first_val));
+                    // Store remaining elements
+                    for (i, elem) in elements.into_iter().skip(1).enumerate() {
+                        let (val, _) = self.generate_expression_ir(elem, function);
+                        let ep = Value::Reg(self.next_reg);
+                        self.next_reg += 1;
+                        function.body.push(Inst::GetElementPtr {
+                            result: ep.clone(),
+                            base: arr_ptr.clone(),
+                            index: Value::ImmInt((i + 1) as i64),
+                            elem_type: format!("[{} x double]", count),
+                        });
+                        function.body.push(Inst::Store(ep, val));
+                    }
+                    first_ty
+                } else {
+                    function.body.push(Inst::AllocaArray {
+                        result: arr_ptr.clone(),
+                        elem_type: "double".to_string(),
+                        count: 0,
+                    });
+                    Ty::Int
+                };
+                (arr_ptr, Ty::Array(Box::new(elem_type), count))
+            }
+            Expression::ArrayRepeat { value, count } => {
+                let (val, elem_ty) = self.generate_expression_ir(*value, function);
+                let arr_ptr = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(Inst::AllocaArray {
+                    result: arr_ptr.clone(),
+                    elem_type: "double".to_string(),
+                    count,
+                });
+                for i in 0..count {
+                    let ep = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(Inst::GetElementPtr {
+                        result: ep.clone(),
+                        base: arr_ptr.clone(),
+                        index: Value::ImmInt(i as i64),
+                        elem_type: format!("[{} x double]", count),
+                    });
+                    function.body.push(Inst::Store(ep, val.clone()));
+                }
+                (arr_ptr, Ty::Array(Box::new(elem_ty), count))
+            }
+            Expression::IndexAccess { object, index } => {
+                let (arr_val, arr_ty) = self.generate_expression_ir(*object, function);
+                let (idx_val, _) = self.generate_expression_ir(*index, function);
+                let elem_ty = match &arr_ty {
+                    Ty::Array(et, _) => *et.clone(),
+                    _ => Ty::Int,
+                };
+                let elem_ptr = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::GetElementPtr {
+                    result: elem_ptr.clone(),
+                    base: arr_val,
+                    index: idx_val,
+                    elem_type: "double".to_string(),
+                });
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::Load(result.clone(), elem_ptr));
+                (result, elem_ty)
+            }
+            Expression::FieldAccess { .. }
+            | Expression::TupleLiteral(_)
+            | Expression::TupleIndex { .. }
+            | Expression::StructLiteral { .. }
+            | Expression::EnumVariant { .. }
+            | Expression::Match { .. } => {
+                // Stub: these will be implemented as remaining Phase 4 tasks progress
+                (Value::ImmInt(0), Ty::Int)
+            }
         }
     }
 
@@ -353,6 +466,8 @@ impl IrGenerator {
                     p.name.clone(),
                     match &p.param_type {
                         Type::Named(name) => name.clone(),
+                        Type::Array(_, _) => "array".to_string(),
+                        Type::Tuple(_) => "tuple".to_string(),
                     },
                 )
             })
@@ -364,14 +479,7 @@ impl IrGenerator {
             self.next_ptr += 1;
 
             // Convert AST Type to Ty
-            let param_type = match &param.param_type {
-                Type::Named(name) => match name.as_str() {
-                    "i32" => Ty::Int,
-                    "f64" => Ty::Float,
-                    "bool" => Ty::Bool,
-                    _ => Ty::Int, // Default fallback
-                },
-            };
+            let param_type = self.ast_type_to_ty(&param.param_type);
 
             self.symbol_table
                 .insert(param.name.clone(), (ptr_reg, param_type));
@@ -568,6 +676,18 @@ impl IrGenerator {
             Expression::Unary { op, operand } => {
                 self.generate_unary_ir_for_function(op, *operand, function_body)
             }
+            // Phase 4 stubs for function-level IR
+            Expression::StringLiteral(_) => (Value::ImmInt(0), Ty::String),
+            Expression::MethodCall { .. } => (Value::ImmInt(0), Ty::Int),
+            Expression::ArrayLiteral(_)
+            | Expression::ArrayRepeat { .. }
+            | Expression::IndexAccess { .. }
+            | Expression::FieldAccess { .. }
+            | Expression::TupleLiteral(_)
+            | Expression::TupleIndex { .. }
+            | Expression::StructLiteral { .. }
+            | Expression::EnumVariant { .. }
+            | Expression::Match { .. } => (Value::ImmInt(0), Ty::Int),
         }
     }
 
@@ -872,6 +992,20 @@ impl IrGenerator {
             current_function.body.push(Inst::Jump(continue_label));
         } else {
             panic!("Continue statement outside of loop");
+        }
+    }
+
+    fn ast_type_to_ty(&self, ty: &Type) -> Ty {
+        match ty {
+            Type::Named(name) => match name.as_str() {
+                "i32" | "int" => Ty::Int,
+                "f64" | "float" => Ty::Float,
+                "bool" => Ty::Bool,
+                "String" => Ty::String,
+                other => Ty::Struct(other.to_string()),
+            },
+            Type::Array(elem, size) => Ty::Array(Box::new(self.ast_type_to_ty(elem)), *size),
+            Type::Tuple(types) => Ty::Tuple(types.iter().map(|t| self.ast_type_to_ty(t)).collect()),
         }
     }
 

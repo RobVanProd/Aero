@@ -116,9 +116,11 @@ impl UnaryOp {
 /// Compatibility extensions for Type enum
 impl Type {
     /// Get type name (backward compatibility)
-    pub fn name(&self) -> &String {
+    pub fn name(&self) -> &str {
         match self {
             Type::Named(name) => name,
+            Type::Array(_, _) => "array",
+            Type::Tuple(_) => "tuple",
         }
     }
 
