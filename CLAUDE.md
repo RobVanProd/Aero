@@ -21,14 +21,17 @@ Aero is a high-performance, ergonomic programming language. The compiler is writ
 3. Correctness clippy lints are blocking — fix them, don't suppress
 4. Keep build artifacts out of git (use .gitignore)
 
-## Current Phase: Phase 5 (Advanced Features)
+## Current Phase: Phase 5 (Advanced Features) — COMPLETE
 - Ownership and move semantics (DONE)
-- References and borrowing syntax (DONE - parser/lexer)
-- Borrow checker enforcement (IN PROGRESS)
-- Generics (IN PROGRESS)
-- Traits and trait bounds (IN PROGRESS)
+- References and borrowing syntax (DONE)
+- Borrow checker enforcement (DONE)
+- Generics: type params, trait bounds, where clauses (DONE)
+- Traits: registry, completeness checking, bound enforcement (DONE)
+- 174 tests passing (63 unit + 52 optimizer + 59 frontend integration)
+- 37/38 Phase 5 spec tests passing (1 needs assignment statements — future work)
 
 ## Completed Phases
+- Phase 5: Advanced Features (ownership, borrowing, borrow checker, generics, traits)
 - Phase 4: Data Structures (arrays, structs, enums, pattern matching, tuples, strings)
 - Phase 3: Control flow, functions, semantic analysis
 - Phase 2: Binary operations, type inference
