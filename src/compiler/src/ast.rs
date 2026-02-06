@@ -102,6 +102,7 @@ pub enum Statement {
         return_type: Option<Type>,
         body: Block,
         type_params: Vec<String>, // Phase 5: generic type parameters <T, U>
+        trait_bounds: Vec<(String, Vec<String>)>, // Phase 5: T: Display + Clone -> [("T", ["Display", "Clone"])]
     },
     If {
         condition: Expression,

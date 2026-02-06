@@ -929,3 +929,136 @@ fn test_semantic_generic_type_param_in_function() {
         result
     );
 }
+
+// --- Phase 5d: Trait Enforcement Tests ---
+
+#[test]
+fn test_semantic_trait_missing_method() {
+    // impl Trait for Type that's missing a required method should fail
+    let source = r#"
+        trait Shape {
+            fn area(&self) -> f64;
+            fn perimeter(&self) -> f64;
+        }
+        struct Circle { radius: f64 }
+        impl Shape for Circle {
+            fn area(&self) -> f64 { return 3.14; }
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(result.is_err(), "Should detect missing trait method");
+    let err = result.unwrap_err();
+    assert!(
+        err.contains("perimeter"),
+        "Error should mention missing method: {}",
+        err
+    );
+}
+
+#[test]
+fn test_semantic_trait_all_methods_implemented_ok() {
+    // impl Trait for Type with all methods implemented should pass
+    let source = r#"
+        trait Shape {
+            fn area(&self) -> f64;
+        }
+        struct Square { side: f64 }
+        impl Shape for Square {
+            fn area(&self) -> f64 { return 1.0; }
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(
+        result.is_ok(),
+        "Complete trait impl should pass: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_semantic_unsatisfied_trait_bound() {
+    // Calling a function with trait-bounded generic using a type
+    // that doesn't implement the trait should fail
+    let source = r#"
+        trait Display {
+            fn display(&self) -> String;
+        }
+        fn print_item<T: Display>(item: T) {
+            return;
+        }
+        struct Opaque { data: i32 }
+        fn main() {
+            let o = Opaque { data: 42 };
+            print_item(o);
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(
+        result.is_err(),
+        "Should detect unsatisfied trait bound: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_semantic_trait_bound_satisfied_ok() {
+    // Calling a function with trait-bounded generic using a type
+    // that DOES implement the trait should pass
+    let source = r#"
+        trait Display {
+            fn display(&self) -> String;
+        }
+        fn print_item<T: Display>(item: T) {
+            return;
+        }
+        struct Widget { name: String }
+        impl Display for Widget {
+            fn display(&self) -> String { return "widget"; }
+        }
+        fn main() {
+            let w = Widget { name: "foo" };
+            print_item(w);
+        }
+    "#;
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(
+        result.is_ok(),
+        "Satisfied trait bound should pass: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_parse_trait_bounds_stored_in_ast() {
+    // Verify trait bounds are stored in the Function AST node
+    let source = "fn foo<T: Clone + Display>(item: T) { return; }";
+    let tokens = lexer::tokenize(source);
+    let ast = parser::parse(tokens);
+    assert_eq!(ast.len(), 1);
+    match &ast[0] {
+        compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
+            trait_bounds,
+            ..
+        }) => {
+            assert_eq!(trait_bounds.len(), 1);
+            assert_eq!(trait_bounds[0].0, "T");
+            assert_eq!(
+                trait_bounds[0].1,
+                vec!["Clone".to_string(), "Display".to_string()]
+            );
+        }
+        _ => panic!("Expected function with trait bounds"),
+    }
+}

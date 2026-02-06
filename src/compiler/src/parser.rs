@@ -84,8 +84,8 @@ impl Parser {
             }
         };
 
-        // Parse optional generic type parameters: fn name<T, U>(...)
-        let type_params = self.parse_optional_type_params()?;
+        // Parse optional generic type parameters: fn name<T: Bound, U>(...)
+        let (type_params, trait_bounds) = self.parse_optional_type_params()?;
 
         self.consume(Token::LeftParen, "Expected '(' after function name")?;
 
@@ -162,25 +162,35 @@ impl Parser {
             None
         };
 
-        // Phase 5: Skip optional where clause: where T: Bound, U: Bound
+        // Phase 5: Parse optional where clause: where T: Bound, U: Bound
+        let mut all_bounds = trait_bounds;
         if self.match_token(&Token::Where) {
             loop {
                 // Consume type param name
-                if matches!(self.peek().token, Token::Identifier(_)) {
-                    self.advance();
-                } else {
-                    break;
-                }
+                let where_param = match &self.peek().token {
+                    Token::Identifier(n) => {
+                        let n = n.clone();
+                        self.advance();
+                        n
+                    }
+                    _ => break,
+                };
                 // Consume : Bound1 + Bound2
                 if self.match_token(&Token::Colon) {
-                    if matches!(self.peek().token, Token::Identifier(_)) {
+                    let mut param_bounds = Vec::new();
+                    if let Token::Identifier(bound_name) = &self.peek().token {
+                        param_bounds.push(bound_name.clone());
                         self.advance();
                     }
                     while self.check(&Token::Plus) {
                         self.advance();
-                        if matches!(self.peek().token, Token::Identifier(_)) {
+                        if let Token::Identifier(bound_name) = &self.peek().token {
+                            param_bounds.push(bound_name.clone());
                             self.advance();
                         }
+                    }
+                    if !param_bounds.is_empty() {
+                        all_bounds.push((where_param, param_bounds));
                     }
                 }
                 if !self.match_token(&Token::Comma) {
@@ -197,6 +207,7 @@ impl Parser {
             return_type,
             body,
             type_params,
+            trait_bounds: all_bounds,
         })
     }
 
@@ -872,7 +883,7 @@ impl Parser {
                 ));
             }
         };
-        let type_params = self.parse_optional_type_params()?;
+        let (type_params, _bounds) = self.parse_optional_type_params()?;
         self.consume(Token::LeftBrace, "Expected '{' after struct name")?;
         let mut fields = Vec::new();
         while !self.check(&Token::RightBrace) && !self.is_at_end() {
@@ -924,7 +935,7 @@ impl Parser {
                 ));
             }
         };
-        let type_params = self.parse_optional_type_params()?;
+        let (type_params, _bounds) = self.parse_optional_type_params()?;
         self.consume(Token::LeftBrace, "Expected '{' after enum name")?;
         let mut variants = Vec::new();
         while !self.check(&Token::RightBrace) && !self.is_at_end() {
@@ -1002,7 +1013,7 @@ impl Parser {
         self.consume(Token::Impl, "Expected 'impl'")?;
 
         // Parse optional generic type parameters: impl<T>
-        let type_params = self.parse_optional_type_params()?;
+        let (type_params, _bounds) = self.parse_optional_type_params()?;
 
         let first_name = match &self.peek().token {
             Token::Identifier(n) => {
@@ -1222,16 +1233,20 @@ impl Parser {
     // --- Phase 5 parsing methods ---
 
     /// Parse optional generic type parameters: <T, U, V>
-    fn parse_optional_type_params(&mut self) -> CompilerResult<Vec<String>> {
+    fn parse_optional_type_params(
+        &mut self,
+    ) -> CompilerResult<(Vec<String>, Vec<(String, Vec<String>)>)> {
         if !self.match_token(&Token::LessThan) {
-            return Ok(vec![]);
+            return Ok((vec![], vec![]));
         }
         let mut params = Vec::new();
+        let mut bounds = Vec::new();
         loop {
-            match &self.peek().token {
+            let param_name = match &self.peek().token {
                 Token::Identifier(name) => {
-                    params.push(name.clone());
+                    let name = name.clone();
                     self.advance();
+                    name
                 }
                 _ => {
                     return Err(CompilerError::unexpected_token(
@@ -1240,19 +1255,26 @@ impl Parser {
                         self.peek().location.clone(),
                     ));
                 }
-            }
-            // Phase 5: Skip optional trait bounds  T: Bound1 + Bound2
+            };
+            params.push(param_name.clone());
+            // Phase 5: Parse optional trait bounds  T: Bound1 + Bound2
             if self.match_token(&Token::Colon) {
+                let mut param_bounds = Vec::new();
                 // Consume the first bound name
-                if matches!(self.peek().token, Token::Identifier(_)) {
+                if let Token::Identifier(bound_name) = &self.peek().token {
+                    param_bounds.push(bound_name.clone());
                     self.advance();
                 }
                 // Consume additional bounds: + Bound2 + Bound3 ...
                 while self.check(&Token::Plus) {
                     self.advance(); // consume +
-                    if matches!(self.peek().token, Token::Identifier(_)) {
+                    if let Token::Identifier(bound_name) = &self.peek().token {
+                        param_bounds.push(bound_name.clone());
                         self.advance();
                     }
+                }
+                if !param_bounds.is_empty() {
+                    bounds.push((param_name, param_bounds));
                 }
             }
             if !self.match_token(&Token::Comma) {
@@ -1260,7 +1282,7 @@ impl Parser {
             }
         }
         self.consume(Token::GreaterThan, "Expected '>' after type parameters")?;
-        Ok(params)
+        Ok((params, bounds))
     }
 
     /// Skip generic type arguments like `<T>` or `<T, U>` if present.
@@ -1296,7 +1318,7 @@ impl Parser {
                 ));
             }
         };
-        let type_params = self.parse_optional_type_params()?;
+        let (type_params, _bounds) = self.parse_optional_type_params()?;
         self.consume(Token::LeftBrace, "Expected '{' after trait name")?;
         let mut methods = Vec::new();
         while !self.check(&Token::RightBrace) && !self.is_at_end() {

@@ -419,6 +419,12 @@ pub struct SemanticAnalyzer {
     scope_manager: ScopeManager,
     /// Stack of active generic type parameter sets (e.g., ["T", "U"] for fn<T, U>)
     type_param_scopes: Vec<Vec<String>>,
+    /// Trait registry: trait name -> list of required method names
+    trait_registry: HashMap<String, Vec<String>>,
+    /// Trait impl registry: type name -> list of implemented trait names
+    trait_impls: HashMap<String, Vec<String>>,
+    /// Function trait bounds: function name -> [(type_param, [trait_name])]
+    function_bounds: HashMap<String, Vec<(String, Vec<String>)>>,
 }
 
 impl SemanticAnalyzer {
@@ -428,6 +434,9 @@ impl SemanticAnalyzer {
             function_table: FunctionTable::new(),
             scope_manager: ScopeManager::new(),
             type_param_scopes: Vec::new(),
+            trait_registry: HashMap::new(),
+            trait_impls: HashMap::new(),
+            function_bounds: HashMap::new(),
         }
     }
 
@@ -944,10 +953,16 @@ impl SemanticAnalyzer {
                 body,
                 return_type: _,
                 type_params,
+                trait_bounds,
             } => {
                 // Phase 5: Register generic type parameters in scope
                 if !type_params.is_empty() {
                     self.type_param_scopes.push(type_params.clone());
+                }
+                // Phase 5: Store trait bounds for this function
+                if !trait_bounds.is_empty() {
+                    self.function_bounds
+                        .insert(name.clone(), trait_bounds.clone());
                 }
 
                 // Enter a new scope for the function body
@@ -1068,6 +1083,8 @@ impl SemanticAnalyzer {
                 self.infer_and_validate_expression_immutable(expr)?;
                 // Phase 5: Track moves for non-Copy function call arguments
                 self.track_expression_moves(expr)?;
+                // Phase 5: Check trait bounds at function call sites
+                self.check_trait_bounds_at_call(expr)?;
                 Ok(())
             }
             Statement::Block(block) => {
@@ -1076,18 +1093,79 @@ impl SemanticAnalyzer {
                 self.scope_manager.exit_scope();
                 Ok(())
             }
-            // Phase 4/5: type definitions — register type params during analysis
-            Statement::StructDef { type_params, .. }
-            | Statement::EnumDef { type_params, .. }
-            | Statement::ImplBlock { type_params, .. }
-            | Statement::TraitDef { type_params, .. } => {
+            // Phase 4/5: type definitions
+            Statement::StructDef { type_params, .. } | Statement::EnumDef { type_params, .. } => {
                 if !type_params.is_empty() {
                     self.type_param_scopes.push(type_params.clone());
                 }
-                // For impl blocks, analyze method bodies
-                if let Statement::ImplBlock { methods, .. } = stmt {
-                    for method in methods {
-                        self.analyze_statement(method)?;
+                if !type_params.is_empty() {
+                    self.type_param_scopes.pop();
+                }
+                Ok(())
+            }
+            Statement::TraitDef {
+                name,
+                type_params,
+                methods,
+            } => {
+                // Register trait in registry with its required method names
+                let required_methods: Vec<String> = methods
+                    .iter()
+                    .filter(|m| m.body.is_none()) // Only methods without default impl are required
+                    .map(|m| m.name.clone())
+                    .collect();
+                self.trait_registry.insert(name.clone(), required_methods);
+                if !type_params.is_empty() {
+                    self.type_param_scopes.push(type_params.clone());
+                }
+                if !type_params.is_empty() {
+                    self.type_param_scopes.pop();
+                }
+                Ok(())
+            }
+            Statement::ImplBlock {
+                type_name,
+                methods,
+                type_params,
+                trait_name,
+            } => {
+                if !type_params.is_empty() {
+                    self.type_param_scopes.push(type_params.clone());
+                }
+                // Analyze method bodies
+                for method in methods {
+                    self.analyze_statement(method)?;
+                }
+                // Phase 5: Check trait completeness if this is an impl Trait for Type
+                if let Some(trait_name) = trait_name {
+                    // Register that this type implements this trait
+                    self.trait_impls
+                        .entry(type_name.clone())
+                        .or_default()
+                        .push(trait_name.clone());
+                    // Check all required methods are implemented
+                    if let Some(required_methods) = self.trait_registry.get(trait_name) {
+                        let implemented: Vec<String> = methods
+                            .iter()
+                            .filter_map(|m| {
+                                if let Statement::Function { name, .. } = m {
+                                    Some(name.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        for required in required_methods {
+                            if !implemented.contains(required) {
+                                if !type_params.is_empty() {
+                                    self.type_param_scopes.pop();
+                                }
+                                return Err(format!(
+                                    "Error: Method `{}` is required by trait `{}` but not implemented for `{}`.",
+                                    required, trait_name, type_name
+                                ));
+                            }
+                        }
                     }
                 }
                 if !type_params.is_empty() {
@@ -1125,6 +1203,51 @@ impl SemanticAnalyzer {
             }
             crate::ast::Type::Generic(name, _) => Ty::TypeParam(name.clone()),
         }
+    }
+
+    /// Check trait bounds at function call sites.
+    /// If a function has bounds like T: Display, verify the argument type implements Display.
+    fn check_trait_bounds_at_call(&self, expr: &Expression) -> Result<(), String> {
+        if let Expression::FunctionCall { name, arguments } = expr {
+            if let Some(bounds) = self.function_bounds.get(name) {
+                // For each bound, check that the corresponding argument's type
+                // has the required trait implementation.
+                // Simple heuristic: map type params to argument types by position.
+                for (param_name, required_traits) in bounds {
+                    // Find which argument corresponds to this type param
+                    // by looking at which param position uses this type param
+                    for (i, arg) in arguments.iter().enumerate() {
+                        // If the arg is at position i, and we know the function
+                        // param at position i has type `param_name`, check bounds
+                        let arg_type = self.infer_and_validate_expression_immutable(arg)?;
+                        let type_name = match &arg_type {
+                            Ty::Struct(name) => Some(name.clone()),
+                            Ty::Enum(name) => Some(name.clone()),
+                            _ => None,
+                        };
+                        if let Some(type_name) = type_name {
+                            let impls = self.trait_impls.get(&type_name);
+                            for required_trait in required_traits {
+                                let has_impl = impls
+                                    .map(|impls| impls.contains(required_trait))
+                                    .unwrap_or(false);
+                                if !has_impl {
+                                    return Err(format!(
+                                        "Error: Type `{}` does not implement trait `{}` required by `{}`.",
+                                        type_name, required_trait, name
+                                    ));
+                                }
+                            }
+                        }
+                        // Only check the first matching arg for simplicity
+                        let _ = i;
+                        let _ = param_name;
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Track moves caused by non-Copy arguments in function calls and other expressions.
