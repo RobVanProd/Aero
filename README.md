@@ -1,6 +1,6 @@
 # Aero Programming Language
 
-[![License: MIT](httpsa://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 <!-- Add other badges as appropriate, e.g., build status, version -->
 
 ## Overview
@@ -15,52 +15,55 @@ Aero is a modern, statically-typed programming language designed for performance
 
 ## Key Features
 
-### Currently Implemented ✅
+### Core Language ✅
 
--   **Static Typing:** A strong, static type system with compile-time type checking and automatic type inference
--   **Type Inference:** Automatic type deduction for variables and expressions while maintaining type safety
--   **Memory Safety:** Stack-allocated variables with proper lifetime management
--   **Arithmetic Operations:** Full support for integer and floating-point arithmetic with automatic type promotion
--   **Variable System:** Immutable variables by default with explicit mutability support (`let` vs `let mut`)
--   **Comprehensive Error Reporting:** Clear error messages with type information and validation
+-   **Static Typing:** Strong, static type system with compile-time type checking and automatic type inference
+-   **Memory Safety:** Ownership and borrowing system prevents memory bugs at compile time
+-   **Type Inference:** Automatic type deduction for variables and expressions
 -   **LLVM Backend:** Native code generation through LLVM for optimal performance
 -   **CLI Tooling:** Complete command-line interface with `aero build` and `aero run` commands
 
-### Phase 3 Features (Recently Implemented) ✅
+### Phase 3: Control Flow & Functions ✅
 
--   **Function Definitions:** Complete support for defining and calling functions with parameters and return types (`fn name(params) -> type`)
--   **Control Flow:** Full implementation of if/else statements, while loops, for loops, and infinite loops with break/continue
--   **I/O Operations:** Working print macros (`print!`, `println!`) with format string validation and printf integration
--   **Enhanced Type System:** All comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`) and logical operators (`&&`, `||`, `!`) implemented
--   **Advanced Scoping:** Complete nested scopes, variable shadowing, and function-local variables
--   **Variable Mutability:** Full support for mutable (`let mut`) and immutable (`let`) variables with compile-time enforcement
--   **Semantic Validation:** Comprehensive compile-time checking for all language constructs with detailed error reporting
--   **LLVM Code Generation:** Full LLVM IR generation for functions, control flow, I/O operations, and enhanced expressions
--   **Enhanced Error Reporting:** Source location tracking with line/column information and helpful error suggestions
+-   **Function Definitions:** Complete support for defining and calling functions with parameters and return types
+-   **Control Flow:** if/else statements, while/for loops, break/continue
+-   **I/O Operations:** `print!` and `println!` macros with format string validation
+-   **Advanced Scoping:** Nested scopes, variable shadowing, and function-local variables
+
+### Phase 4: Data Structures ✅
+
+-   **Arrays and Slices:** Fixed-size and dynamic array support
+-   **Structs and Methods:** Custom data types with associated functions
+-   **Enums and Pattern Matching:** Algebraic data types with exhaustive matching
+-   **Tuples and Strings:** Built-in composite types
+
+### Phase 5: Advanced Features ✅
+
+-   **Ownership and Borrowing:** Compile-time memory management without garbage collection
+-   **Generics:** Type parameters, trait bounds, and where clauses
+-   **Traits:** Trait definitions, implementations, and bound enforcement
+-   **Borrow Checker:** Full enforcement of borrowing rules
 
 ### Planned Features 📋
 
--   **Ownership and Borrowing:** A compile-time memory management system that prevents dangling pointers, data races, and other common memory-related bugs without a garbage collector
--   **Generics and Traits:** Powerful tools for creating reusable abstractions and achieving polymorphism
--   **Pattern Matching:** Expressive control flow and destructuring of data
--   **Data Structures:** Structs, enums, arrays, and other composite types
--   **Modular Design:** Code organization into modules for better structure and reusability
--   **Comprehensive Standard Library:** Essential utilities for common programming tasks
+-   **Comprehensive Standard Library:** Collections, I/O, networking, concurrency primitives
+-   **Module System:** Code organization with imports and visibility controls
+-   **Error Handling:** Result types and propagation operators
 
 ## Current Status
 
-**Version:** 0.3.0 (Phase 3 Complete)  
-**Status:** Core Language Features Implemented
+**Version:** 0.5.0 (Phase 5 Complete)  
+**Status:** Advanced Features Implemented
 
-Aero has successfully completed Phase 3 development, transforming from a basic arithmetic calculator into a functional programming language with modern features. The compiler now supports:
+Aero has successfully completed Phase 5 development with ownership, borrowing, generics, and traits. The compiler features:
 
-- ✅ Complete function definition and call system
-- ✅ Full control flow constructs (if/else, loops, break/continue)
-- ✅ I/O operations with format string support
-- ✅ Enhanced type system with all operators
-- ✅ Advanced variable scoping and mutability
-- ✅ Comprehensive error reporting and validation
-- ✅ LLVM code generation for all features
+- ✅ Ownership and move semantics
+- ✅ References and borrowing with borrow checker
+- ✅ Generics with type parameters and trait bounds
+- ✅ Traits with registry and bound enforcement
+- ✅ Data structures: arrays, structs, enums, tuples, strings
+- ✅ Pattern matching with exhaustiveness checking
+- ✅ 174 tests passing (63 unit + 52 optimizer + 59 frontend)
 
 ## Quick Start
 
@@ -205,23 +208,19 @@ aero/
 
 ## Development Roadmap
 
-### Phase 4: Data Structures (Next)
-- Arrays and slices
-- Structs and methods
-- Enums and pattern matching
-- Tuple types
+### Completed Phases
 
-### Phase 5: Advanced Features
-- Ownership and borrowing system
-- Generics and traits
-- Module system and imports
-- Error handling with Result types
+- **Phase 3:** Control Flow & Functions ✅
+- **Phase 4:** Data Structures (arrays, structs, enums, pattern matching) ✅
+- **Phase 5:** Advanced Features (ownership, borrowing, generics, traits) ✅
 
-### Phase 6: Standard Library
+### Phase 6: Standard Library (Next)
 - Collections (Vec, HashMap, etc.)
 - String manipulation
 - File I/O and networking
 - Concurrency primitives
+- Module system and imports
+- Error handling with Result types
 
 ## Contributing
 
@@ -277,27 +276,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Status:** Active Development | **Version:** 0.3.0 | **License:** MIT
+**Status:** Active Development | **Version:** 0.5.0 | **License:** MIT
 
-Aero is an actively developed programming language. It is currently in **Phase 3: Core Language Features** (as outlined in our [Roadmap.md](Roadmap.md)). Phase 2 has been completed successfully, and we are now implementing advanced language features including functions, control flow, and I/O operations.
+**All Core Phases Complete ✅** - The compiler now features:
+- Ownership, borrowing, and borrow checker enforcement
+- Generics with type parameters, trait bounds, and where clauses
+- Traits with registry, completeness checking, and bound enforcement
+- Data structures: arrays, structs, enums, tuples, strings, pattern matching
+- Full control flow, functions, and I/O operations
+- 174 tests passing across unit, optimizer, and integration suites
 
-**Phase 2 Complete ✅** - The compiler now has:
-- Full lexical analysis and parsing
-- Complete semantic analysis with type checking
-- LLVM IR generation and native compilation
-- Working CLI tools (`aero build` and `aero run`)
-- Comprehensive test suite and CI/CD
-
-**Phase 3 Nearly Complete ✅** - Successfully implemented:
-- ✅ Function definitions and calls with full semantic validation
-- ✅ Control flow statements (if/else, loops) with break/continue support
-- ✅ I/O operations (print!, println!) with printf integration
-- ✅ Enhanced type system with all comparison and logical operators
-- ✅ Advanced scope management with variable mutability and shadowing
-- ✅ Complete LLVM code generation for all new features
-- 🚧 Enhanced error reporting with source locations (remaining work)
-
-The language is not yet production-ready but has a solid foundation and is rapidly evolving. We welcome feedback and contributions!
+The language has a solid foundation and is ready for Phase 6 (Standard Library). We welcome contributions!
 
 ## Getting Started
 

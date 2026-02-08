@@ -1,74 +1,91 @@
+# Aero Development Roadmap
 
-# Roadmap
+This document outlines the development roadmap for the Aero programming language.
 
-This document outlines the roadmap for the Aero programming language project, focusing on the objectives and deliverables for Phase 2.
+## Completed Phases
 
-## Phase 2: Real MVP Compiler
+### Phase 1-2: Foundation ✅
 
-**Objective**: Deliver a real MVP compiler that can parse, type-check, and run simple programs with variables & arithmetic, emitting LLVM IR.
+- **Lexer & Parser:** Complete tokenization and AST generation
+- **Semantic Analysis:** Symbol table, type inference, validation
+- **Type System:** Static typing with int/float distinction and promotion
+- **IR & Code Generation:** SSA-style IR with LLVM backend
+- **CLI Tools:** `aero build` and `aero run` commands
+- **CI/CD:** GitHub Actions with comprehensive test matrix
 
-### 0. Planning & CI
+### Phase 3: Control Flow & Functions ✅
 
--   **GitHub Actions CI**: Implement `cargo test`, `cargo clippy -- -D warnings`, and a unit-test matrix (stable + nightly).
-    -   *Acceptance Criteria*: CI passes on all pushes and pull requests to the `master` branch.
+- **Function Definitions:** Parameters, return types, recursion
+- **Control Flow:** if/else, while/for loops, break/continue
+- **I/O Operations:** `print!` and `println!` macros
+- **Scoping:** Nested scopes, variable shadowing, mutability
 
--   **Roadmap.md**: This document, outlining Phase 2 epics with acceptance criteria.
-    -   *Acceptance Criteria*: Roadmap is clear, comprehensive, and kept up-to-date.
+### Phase 4: Data Structures ✅
 
-### 1. Front-end: Variables & Expressions
+- **Arrays:** Fixed-size and dynamic arrays with indexing
+- **Structs:** Custom data types with field access and methods
+- **Enums:** Algebraic data types with variants
+- **Pattern Matching:** Match expressions with exhaustiveness checking
+- **Tuples:** Anonymous composite types
+- **Strings:** Built-in string type
 
--   **Lexer**: Add tokens for `let`, identifiers, integer & float literals, `+-*/%`, `;`, `=`. 
-    -   *Acceptance Criteria*: Lexer correctly tokenizes all specified elements.
+### Phase 5: Advanced Features ✅
 
--   **Parser**: Implement Pratt or recursive-descent parsing for expression precedence. Define AST nodes for `Let {name, expr}`, `Binary {op, lhs, rhs}`, `Number`, `Ident`.
-    -   *Acceptance Criteria*: Parser correctly constructs AST for simple variable declarations and arithmetic expressions.
+- **Ownership:** Move semantics for value transfer
+- **Borrowing:** Shared (`&T`) and mutable (`&mut T`) references
+- **Borrow Checker:** Compile-time enforcement of borrowing rules
+- **Generics:** Type parameters with trait bounds and where clauses
+- **Traits:** Trait definitions, implementations, and bound enforcement
 
--   **Semantic Analysis**: Implement a symbol-table (scoped HashMap) to detect re-declaration & use-before-initialize. Implement basic type inference for numeric literals.
-    -   *Acceptance Criteria*: Semantic analyzer correctly identifies and reports errors for re-declarations and use-before-initialize. Basic numeric type inference works as expected.
+**Current Status:** 174 tests passing (63 unit + 52 optimizer + 59 frontend)
 
--   **Tests**: Add `tests/parser.rs` and `tests/semantic.rs` using `insta` or `pretty_assertions` snapshots.
-    -   *Acceptance Criteria*: Comprehensive unit tests for lexer, parser, and semantic analysis are in place and passing.
+---
 
-### 2. Mid-end: Typed IR
+## Phase 6: Standard Library (Next)
 
--   **IR Design**: Design a simple SSA-ish struct for the Intermediate Representation (IR), including `enum Value { Reg(u32), Imm(i64) }`, `enum Inst { Add(Value, Value), Sub, Mul, Div, Store(String, Value), Load(String) }`, and `struct Function { body: Vec<Inst> }`.
-    -   *Acceptance Criteria*: IR structure is well-defined and capable of representing simple programs.
+The next phase focuses on building a comprehensive standard library.
 
--   **Lowering Pass**: Implement a lowering pass from AST to IR with a fresh-register allocator.
-    -   *Acceptance Criteria*: AST is correctly translated into the defined IR.
+### 6.1 Core Collections
+- `Vec<T>` - Dynamic arrays
+- `HashMap<K, V>` - Hash maps
+- `HashSet<T>` - Hash sets
+- `String` - UTF-8 string handling
 
--   **Constant-folding (optional but tiny win)**: Implement basic constant folding optimization.
-    -   *Acceptance Criteria*: Simple constant expressions are folded during IR generation.
+### 6.2 I/O Operations
+- File reading and writing
+- Standard input/output streams
+- Buffered I/O
 
-### 3. Back-end: LLVM IR via Inkwell
+### 6.3 Error Handling
+- `Result<T, E>` type
+- `Option<T>` type
+- `?` operator for error propagation
 
--   **Inkwell Integration**: Add `inkwell = "0.4"` to `Cargo.toml`.
-    -   *Acceptance Criteria*: Inkwell dependency is correctly integrated.
+### 6.4 Module System
+- `mod` declarations
+- `use` imports
+- Visibility controls (`pub`, `pub(crate)`)
 
--   **IR to LLVM Builder**: Map IR instructions to LLVM builder functions (e.g., `Add` to `build_int_add`).
-    -   *Acceptance Criteria*: IR is correctly translated into LLVM IR.
+### 6.5 Concurrency (Stretch Goal)
+- Threads
+- Channels
+- Synchronization primitives
 
--   **Emit and JIT-run**: Implement functionality to emit `.ll` files and JIT-run (using `ExecutionEngine::run_function`).
-    -   *Acceptance Criteria*: Compiler can produce LLVM IR files and execute them via JIT.
+---
 
--   **CLI**: Implement `aero build prog.aero -o prog` to produce native binary via `llc + clang`, or `aero run prog.aero` to JIT-execute.
-    -   *Acceptance Criteria*: Command-line interface for building and running Aero programs is functional.
+## Future Phases
 
-### 4. User-Facing Improvements
+### Phase 7: Tooling & Ecosystem
+- Language Server Protocol (LSP) implementation
+- Package manager
+- Documentation generator
+- Formatter and linter
 
--   **`examples/` folder**: Create `hello.aero`, `fib.aero`, `calc.aero` examples that compile in CI.
-    -   *Acceptance Criteria*: Examples are clear, functional, and pass CI checks.
+### Phase 8: Optimization & Performance
+- Advanced LLVM optimizations
+- Profile-guided optimization
+- Link-time optimization
 
--   **`cargo install --path src/compiler` instructions**: Provide easy installation instructions for testers.
-    -   *Acceptance Criteria*: Users can easily install the Aero compiler.
+---
 
--   **RFC process kickoff**: Open `RFCs/` directory & template (borrow Rust’s process).
-    -   *Acceptance Criteria*: RFC process is initiated with a clear template.
-
-### 5. Stretch Targets (Phase 2½)
-
--   Simple unit type `()` and `print!` intrinsic.
--   Error reporting with `codespan-reporting` (underline faulty code).
--   `Docs.rs` automated build for the compiler crate.
-
-
+**Version:** 0.5.0 | **License:** MIT
