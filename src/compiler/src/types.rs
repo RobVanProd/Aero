@@ -20,6 +20,7 @@ pub enum Ty {
     Option(Box<Ty>),                  // Option<T> - Some(T) or None
     Result(Box<Ty>, Box<Ty>),         // Result<T, E> - Ok(T) or Err(E)
     Vec(Box<Ty>),                     // Vec<T> - dynamic/growable array
+    HashMap(Box<Ty>, Box<Ty>),        // HashMap<K, V> - key-value store
 }
 
 impl fmt::Display for Ty {
@@ -55,6 +56,7 @@ impl fmt::Display for Ty {
             Ty::Option(inner) => write!(f, "Option<{}>", inner),
             Ty::Result(ok_ty, err_ty) => write!(f, "Result<{}, {}>", ok_ty, err_ty),
             Ty::Vec(elem) => write!(f, "Vec<{}>", elem),
+            Ty::HashMap(key, val) => write!(f, "HashMap<{}, {}>", key, val),
         }
     }
 }
@@ -139,9 +141,9 @@ impl Ty {
             Ty::Reference(_, _) => true, // references are always Copy
             Ty::Tuple(elems) => elems.iter().all(|t| t.is_copy_type()),
             Ty::Array(elem, _) => elem.is_copy_type(),
-            // Move types: String, Struct, Enum, Option, Result, Vec
+            // Move types: String, Struct, Enum, Option, Result, Vec, HashMap
             Ty::String | Ty::Struct(_) | Ty::Enum(_) => false,
-            Ty::Option(_) | Ty::Result(_, _) | Ty::Vec(_) => false, // heap types are move
+            Ty::Option(_) | Ty::Result(_, _) | Ty::Vec(_) | Ty::HashMap(_, _) => false,
             Ty::TypeParam(_) => false, // conservative: generics are not Copy by default
         }
     }
