@@ -635,6 +635,53 @@ impl Parser {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
+                
+                // Phase 6: Standard library constructors Some, None, Ok, Err
+                match name.as_str() {
+                    "Some" => {
+                        // Some(value) - Option::Some
+                        self.consume(Token::LeftParen, "Expected '(' after 'Some'")?;
+                        let value = self.parse_expression()?;
+                        self.consume(Token::RightParen, "Expected ')' after Some value")?;
+                        return Ok(Expression::EnumVariant {
+                            enum_name: "Option".to_string(),
+                            variant: "Some".to_string(),
+                            data: Some(Box::new(value)),
+                        });
+                    }
+                    "None" => {
+                        // None - Option::None (no data)
+                        return Ok(Expression::EnumVariant {
+                            enum_name: "Option".to_string(),
+                            variant: "None".to_string(),
+                            data: None,
+                        });
+                    }
+                    "Ok" => {
+                        // Ok(value) - Result::Ok
+                        self.consume(Token::LeftParen, "Expected '(' after 'Ok'")?;
+                        let value = self.parse_expression()?;
+                        self.consume(Token::RightParen, "Expected ')' after Ok value")?;
+                        return Ok(Expression::EnumVariant {
+                            enum_name: "Result".to_string(),
+                            variant: "Ok".to_string(),
+                            data: Some(Box::new(value)),
+                        });
+                    }
+                    "Err" => {
+                        // Err(error) - Result::Err
+                        self.consume(Token::LeftParen, "Expected '(' after 'Err'")?;
+                        let value = self.parse_expression()?;
+                        self.consume(Token::RightParen, "Expected ')' after Err value")?;
+                        return Ok(Expression::EnumVariant {
+                            enum_name: "Result".to_string(),
+                            variant: "Err".to_string(),
+                            data: Some(Box::new(value)),
+                        });
+                    }
+                    _ => {}
+                }
+                
                 // Check for struct literal: Name { field: value, ... }
                 if self.check(&Token::LeftBrace) {
                     // Peek ahead to see if this looks like a struct literal

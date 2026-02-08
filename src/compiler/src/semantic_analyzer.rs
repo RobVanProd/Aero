@@ -618,7 +618,54 @@ impl SemanticAnalyzer {
             | Expression::TupleLiteral(_)
             | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
             Expression::StructLiteral { name, .. } => Ok(Ty::Struct(name.clone())),
-            Expression::EnumVariant { enum_name, .. } => Ok(Ty::Enum(enum_name.clone())),
+            // Phase 6: Special handling for Option and Result constructors
+            Expression::EnumVariant { enum_name, variant, data } => {
+                match enum_name.as_str() {
+                    "Option" => {
+                        match variant.as_str() {
+                            "Some" => {
+                                // Some(value) -> Option<typeof(value)>
+                                if let Some(inner_expr) = data {
+                                    let inner_ty = self.infer_and_validate_expression(&mut inner_expr.clone())?;
+                                    Ok(Ty::Option(Box::new(inner_ty)))
+                                } else {
+                                    Err("Some variant requires a value".to_string())
+                                }
+                            }
+                            "None" => {
+                                // None -> Option<unknown>, type must be inferred from context
+                                // For now, default to Option<Int> - proper inference would need context
+                                Ok(Ty::Option(Box::new(Ty::Int)))
+                            }
+                            _ => Err(format!("Unknown Option variant: {}", variant)),
+                        }
+                    }
+                    "Result" => {
+                        match variant.as_str() {
+                            "Ok" => {
+                                // Ok(value) -> Result<typeof(value), String> (default error type)
+                                if let Some(inner_expr) = data {
+                                    let inner_ty = self.infer_and_validate_expression(&mut inner_expr.clone())?;
+                                    Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
+                                } else {
+                                    Err("Ok variant requires a value".to_string())
+                                }
+                            }
+                            "Err" => {
+                                // Err(error) -> Result<Int, typeof(error)> (default ok type)
+                                if let Some(inner_expr) = data {
+                                    let inner_ty = self.infer_and_validate_expression(&mut inner_expr.clone())?;
+                                    Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
+                                } else {
+                                    Err("Err variant requires a value".to_string())
+                                }
+                            }
+                            _ => Err(format!("Unknown Result variant: {}", variant)),
+                        }
+                    }
+                    _ => Ok(Ty::Enum(enum_name.clone())),
+                }
+            }
             Expression::Match { .. } => Ok(Ty::Int), // Stub
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
@@ -729,7 +776,47 @@ impl SemanticAnalyzer {
             | Expression::TupleLiteral(_)
             | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
             Expression::StructLiteral { name, .. } => Ok(Ty::Struct(name.clone())),
-            Expression::EnumVariant { enum_name, .. } => Ok(Ty::Enum(enum_name.clone())),
+            // Phase 6: Special handling for Option and Result constructors
+            Expression::EnumVariant { enum_name, variant, data } => {
+                match enum_name.as_str() {
+                    "Option" => {
+                        match variant.as_str() {
+                            "Some" => {
+                                if let Some(inner_expr) = data {
+                                    let inner_ty = self.infer_and_validate_expression_immutable(inner_expr)?;
+                                    Ok(Ty::Option(Box::new(inner_ty)))
+                                } else {
+                                    Err("Some variant requires a value".to_string())
+                                }
+                            }
+                            "None" => Ok(Ty::Option(Box::new(Ty::Int))),
+                            _ => Err(format!("Unknown Option variant: {}", variant)),
+                        }
+                    }
+                    "Result" => {
+                        match variant.as_str() {
+                            "Ok" => {
+                                if let Some(inner_expr) = data {
+                                    let inner_ty = self.infer_and_validate_expression_immutable(inner_expr)?;
+                                    Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
+                                } else {
+                                    Err("Ok variant requires a value".to_string())
+                                }
+                            }
+                            "Err" => {
+                                if let Some(inner_expr) = data {
+                                    let inner_ty = self.infer_and_validate_expression_immutable(inner_expr)?;
+                                    Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
+                                } else {
+                                    Err("Err variant requires a value".to_string())
+                                }
+                            }
+                            _ => Err(format!("Unknown Result variant: {}", variant)),
+                        }
+                    }
+                    _ => Ok(Ty::Enum(enum_name.clone())),
+                }
+            }
             Expression::Match { .. } => Ok(Ty::Int), // Stub
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
@@ -1201,7 +1288,24 @@ impl SemanticAnalyzer {
             crate::ast::Type::Reference(inner, mutable) => {
                 Ty::Reference(Box::new(self.ast_type_to_ty(inner)), *mutable)
             }
-            crate::ast::Type::Generic(name, _) => Ty::TypeParam(name.clone()),
+            // Phase 6: Standard library types Option<T> and Result<T, E>
+            crate::ast::Type::Generic(name, type_args) => {
+                match name.as_str() {
+                    "Option" if type_args.len() == 1 => {
+                        let inner_ty = self.ast_type_to_ty(&type_args[0]);
+                        Ty::Option(Box::new(inner_ty))
+                    }
+                    "Result" if type_args.len() == 2 => {
+                        let ok_ty = self.ast_type_to_ty(&type_args[0]);
+                        let err_ty = self.ast_type_to_ty(&type_args[1]);
+                        Ty::Result(Box::new(ok_ty), Box::new(err_ty))
+                    }
+                    _ => {
+                        // Other generic types - treat as type parameter for now
+                        Ty::TypeParam(name.clone())
+                    }
+                }
+            }
         }
     }
 

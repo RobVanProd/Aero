@@ -16,6 +16,9 @@ pub enum Ty {
     // Phase 5: Ownership & borrowing
     Reference(Box<Ty>, bool), // &T (false=immutable) or &mut T (true=mutable)
     TypeParam(String),        // generic type parameter (e.g., T)
+    // Phase 6: Standard library types
+    Option(Box<Ty>),                  // Option<T> - Some(T) or None
+    Result(Box<Ty>, Box<Ty>),         // Result<T, E> - Ok(T) or Err(E)
 }
 
 impl fmt::Display for Ty {
@@ -47,6 +50,9 @@ impl fmt::Display for Ty {
                 }
             }
             Ty::TypeParam(name) => write!(f, "{}", name),
+            // Phase 6: Standard library types
+            Ty::Option(inner) => write!(f, "Option<{}>", inner),
+            Ty::Result(ok_ty, err_ty) => write!(f, "Result<{}, {}>", ok_ty, err_ty),
         }
     }
 }
@@ -131,8 +137,9 @@ impl Ty {
             Ty::Reference(_, _) => true, // references are always Copy
             Ty::Tuple(elems) => elems.iter().all(|t| t.is_copy_type()),
             Ty::Array(elem, _) => elem.is_copy_type(),
-            // Move types: String, Struct, Enum
+            // Move types: String, Struct, Enum, Option, Result
             Ty::String | Ty::Struct(_) | Ty::Enum(_) => false,
+            Ty::Option(_) | Ty::Result(_, _) => false, // Option and Result are move types
             Ty::TypeParam(_) => false, // conservative: generics are not Copy by default
         }
     }
@@ -188,4 +195,46 @@ pub fn infer_binary_type(op: &str, lhs: &Ty, rhs: &Ty) -> Result<Ty, String> {
 /// Check if a type promotion is needed from source to target
 pub fn needs_promotion(from: &Ty, to: &Ty) -> bool {
     matches!((from, to), (Ty::Int, Ty::Float))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_option_type_display() {
+        let opt_int = Ty::Option(Box::new(Ty::Int));
+        assert_eq!(format!("{}", opt_int), "Option<int>");
+        
+        let opt_string = Ty::Option(Box::new(Ty::String));
+        assert_eq!(format!("{}", opt_string), "Option<String>");
+    }
+
+    #[test]
+    fn test_result_type_display() {
+        let result_int_string = Ty::Result(Box::new(Ty::Int), Box::new(Ty::String));
+        assert_eq!(format!("{}", result_int_string), "Result<int, String>");
+    }
+
+    #[test]
+    fn test_option_not_copy() {
+        let opt = Ty::Option(Box::new(Ty::Int));
+        assert!(!opt.is_copy_type(), "Option should not be Copy");
+    }
+
+    #[test]
+    fn test_result_not_copy() {
+        let res = Ty::Result(Box::new(Ty::Int), Box::new(Ty::String));
+        assert!(!res.is_copy_type(), "Result should not be Copy");
+    }
+
+    #[test]
+    fn test_option_equality() {
+        let opt1 = Ty::Option(Box::new(Ty::Int));
+        let opt2 = Ty::Option(Box::new(Ty::Int));
+        let opt3 = Ty::Option(Box::new(Ty::Float));
+        
+        assert_eq!(opt1, opt2);
+        assert_ne!(opt1, opt3);
+    }
 }
