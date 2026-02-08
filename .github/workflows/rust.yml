@@ -43,8 +43,10 @@ jobs:
         llc -verify-machineinstrs ../../return15.ll -o /dev/null
         llc -filetype=obj ../../return15.ll -o ../../return15.o
         clang ../../return15.o -o ../../return15
+        set +e
         ../../return15
         exit_code=$?
+        set -e
         if [ $exit_code -ne 15 ]; then
           echo "Expected exit code 15, got $exit_code"
           exit 1
@@ -58,8 +60,10 @@ jobs:
         llc -verify-machineinstrs ../../variables.ll -o /dev/null
         llc -filetype=obj ../../variables.ll -o ../../variables.o
         clang ../../variables.o -o ../../variables
+        set +e
         ../../variables
         exit_code=$?
+        set -e
         if [ $exit_code -ne 6 ]; then
           echo "Expected exit code 6, got $exit_code"
           exit 1
@@ -71,8 +75,10 @@ jobs:
         llc -verify-machineinstrs ../../mixed.ll -o /dev/null
         llc -filetype=obj ../../mixed.ll -o ../../mixed.o
         clang ../../mixed.o -o ../../mixed
+        set +e
         ../../mixed
         exit_code=$?
+        set -e
         if [ $exit_code -ne 7 ]; then
           echo "Expected exit code 7, got $exit_code"
           exit 1
@@ -86,8 +92,10 @@ jobs:
         llc -verify-machineinstrs ../../float_ops.ll -o /dev/null
         llc -filetype=obj ../../float_ops.ll -o ../../float_ops.o
         clang ../../float_ops.o -o ../../float_ops
+        set +e
         ../../float_ops
         exit_code=$?
+        set -e
         if [ $exit_code -ne 7 ]; then
           echo "Expected exit code 7, got $exit_code"
           exit 1

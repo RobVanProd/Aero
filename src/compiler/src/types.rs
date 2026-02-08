@@ -17,10 +17,10 @@ pub enum Ty {
     Reference(Box<Ty>, bool), // &T (false=immutable) or &mut T (true=mutable)
     TypeParam(String),        // generic type parameter (e.g., T)
     // Phase 6: Standard library types
-    Option(Box<Ty>),                  // Option<T> - Some(T) or None
-    Result(Box<Ty>, Box<Ty>),         // Result<T, E> - Ok(T) or Err(E)
-    Vec(Box<Ty>),                     // Vec<T> - dynamic/growable array
-    HashMap(Box<Ty>, Box<Ty>),        // HashMap<K, V> - key-value store
+    Option(Box<Ty>),           // Option<T> - Some(T) or None
+    Result(Box<Ty>, Box<Ty>),  // Result<T, E> - Ok(T) or Err(E)
+    Vec(Box<Ty>),              // Vec<T> - dynamic/growable array
+    HashMap(Box<Ty>, Box<Ty>), // HashMap<K, V> - key-value store
 }
 
 impl fmt::Display for Ty {
@@ -209,7 +209,7 @@ mod tests {
     fn test_option_type_display() {
         let opt_int = Ty::Option(Box::new(Ty::Int));
         assert_eq!(format!("{}", opt_int), "Option<int>");
-        
+
         let opt_string = Ty::Option(Box::new(Ty::String));
         assert_eq!(format!("{}", opt_string), "Option<String>");
     }
@@ -237,7 +237,7 @@ mod tests {
         let opt1 = Ty::Option(Box::new(Ty::Int));
         let opt2 = Ty::Option(Box::new(Ty::Int));
         let opt3 = Ty::Option(Box::new(Ty::Float));
-        
+
         assert_eq!(opt1, opt2);
         assert_ne!(opt1, opt3);
     }

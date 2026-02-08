@@ -622,9 +622,11 @@ impl SemanticAnalyzer {
                     Ty::String => match method.as_str() {
                         "len" => Ok(Ty::Int),
                         "is_empty" | "contains" | "starts_with" | "ends_with" => Ok(Ty::Bool),
-                        "to_uppercase" | "to_lowercase" | "trim" | "trim_start" | "trim_end" => Ok(Ty::String),
+                        "to_uppercase" | "to_lowercase" | "trim" | "trim_start" | "trim_end" => {
+                            Ok(Ty::String)
+                        }
                         "chars" => Ok(Ty::Vec(Box::new(Ty::Int))), // char as int
-                        _ => Ok(Ty::Int), // Unknown method
+                        _ => Ok(Ty::Int),                          // Unknown method
                     },
                     _ => Ok(Ty::Int), // Other method calls - stub
                 }
@@ -654,14 +656,19 @@ impl SemanticAnalyzer {
             | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
             Expression::StructLiteral { name, .. } => Ok(Ty::Struct(name.clone())),
             // Phase 6: Special handling for Option and Result constructors
-            Expression::EnumVariant { enum_name, variant, data } => {
+            Expression::EnumVariant {
+                enum_name,
+                variant,
+                data,
+            } => {
                 match enum_name.as_str() {
                     "Option" => {
                         match variant.as_str() {
                             "Some" => {
                                 // Some(value) -> Option<typeof(value)>
                                 if let Some(inner_expr) = data {
-                                    let inner_ty = self.infer_and_validate_expression(&mut inner_expr.clone())?;
+                                    let inner_ty = self
+                                        .infer_and_validate_expression(&mut inner_expr.clone())?;
                                     Ok(Ty::Option(Box::new(inner_ty)))
                                 } else {
                                     Err("Some variant requires a value".to_string())
@@ -680,7 +687,8 @@ impl SemanticAnalyzer {
                             "Ok" => {
                                 // Ok(value) -> Result<typeof(value), String> (default error type)
                                 if let Some(inner_expr) = data {
-                                    let inner_ty = self.infer_and_validate_expression(&mut inner_expr.clone())?;
+                                    let inner_ty = self
+                                        .infer_and_validate_expression(&mut inner_expr.clone())?;
                                     Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
                                 } else {
                                     Err("Ok variant requires a value".to_string())
@@ -689,7 +697,8 @@ impl SemanticAnalyzer {
                             "Err" => {
                                 // Err(error) -> Result<Int, typeof(error)> (default ok type)
                                 if let Some(inner_expr) = data {
-                                    let inner_ty = self.infer_and_validate_expression(&mut inner_expr.clone())?;
+                                    let inner_ty = self
+                                        .infer_and_validate_expression(&mut inner_expr.clone())?;
                                     Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
                                 } else {
                                     Err("Err variant requires a value".to_string())
@@ -815,9 +824,11 @@ impl SemanticAnalyzer {
                     Ty::String => match method.as_str() {
                         "len" => Ok(Ty::Int),
                         "is_empty" | "contains" | "starts_with" | "ends_with" => Ok(Ty::Bool),
-                        "to_uppercase" | "to_lowercase" | "trim" | "trim_start" | "trim_end" => Ok(Ty::String),
+                        "to_uppercase" | "to_lowercase" | "trim" | "trim_start" | "trim_end" => {
+                            Ok(Ty::String)
+                        }
                         "chars" => Ok(Ty::Vec(Box::new(Ty::Int))), // char as int
-                        _ => Ok(Ty::Int), // Unknown method
+                        _ => Ok(Ty::Int),                          // Unknown method
                     },
                     _ => Ok(Ty::Int), // Other method calls - stub
                 }
@@ -847,46 +858,47 @@ impl SemanticAnalyzer {
             | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
             Expression::StructLiteral { name, .. } => Ok(Ty::Struct(name.clone())),
             // Phase 6: Special handling for Option and Result constructors
-            Expression::EnumVariant { enum_name, variant, data } => {
-                match enum_name.as_str() {
-                    "Option" => {
-                        match variant.as_str() {
-                            "Some" => {
-                                if let Some(inner_expr) = data {
-                                    let inner_ty = self.infer_and_validate_expression_immutable(inner_expr)?;
-                                    Ok(Ty::Option(Box::new(inner_ty)))
-                                } else {
-                                    Err("Some variant requires a value".to_string())
-                                }
-                            }
-                            "None" => Ok(Ty::Option(Box::new(Ty::Int))),
-                            _ => Err(format!("Unknown Option variant: {}", variant)),
+            Expression::EnumVariant {
+                enum_name,
+                variant,
+                data,
+            } => match enum_name.as_str() {
+                "Option" => match variant.as_str() {
+                    "Some" => {
+                        if let Some(inner_expr) = data {
+                            let inner_ty =
+                                self.infer_and_validate_expression_immutable(inner_expr)?;
+                            Ok(Ty::Option(Box::new(inner_ty)))
+                        } else {
+                            Err("Some variant requires a value".to_string())
                         }
                     }
-                    "Result" => {
-                        match variant.as_str() {
-                            "Ok" => {
-                                if let Some(inner_expr) = data {
-                                    let inner_ty = self.infer_and_validate_expression_immutable(inner_expr)?;
-                                    Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
-                                } else {
-                                    Err("Ok variant requires a value".to_string())
-                                }
-                            }
-                            "Err" => {
-                                if let Some(inner_expr) = data {
-                                    let inner_ty = self.infer_and_validate_expression_immutable(inner_expr)?;
-                                    Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
-                                } else {
-                                    Err("Err variant requires a value".to_string())
-                                }
-                            }
-                            _ => Err(format!("Unknown Result variant: {}", variant)),
+                    "None" => Ok(Ty::Option(Box::new(Ty::Int))),
+                    _ => Err(format!("Unknown Option variant: {}", variant)),
+                },
+                "Result" => match variant.as_str() {
+                    "Ok" => {
+                        if let Some(inner_expr) = data {
+                            let inner_ty =
+                                self.infer_and_validate_expression_immutable(inner_expr)?;
+                            Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
+                        } else {
+                            Err("Ok variant requires a value".to_string())
                         }
                     }
-                    _ => Ok(Ty::Enum(enum_name.clone())),
-                }
-            }
+                    "Err" => {
+                        if let Some(inner_expr) = data {
+                            let inner_ty =
+                                self.infer_and_validate_expression_immutable(inner_expr)?;
+                            Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
+                        } else {
+                            Err("Err variant requires a value".to_string())
+                        }
+                    }
+                    _ => Err(format!("Unknown Result variant: {}", variant)),
+                },
+                _ => Ok(Ty::Enum(enum_name.clone())),
+            },
             Expression::Match { .. } => Ok(Ty::Int), // Stub
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
@@ -1396,10 +1408,11 @@ impl SemanticAnalyzer {
                 // For each bound, check that the corresponding argument's type
                 // has the required trait implementation.
                 // Simple heuristic: map type params to argument types by position.
+                // Simple heuristic: map type params to argument types by position.
                 for (param_name, required_traits) in bounds {
                     // Find which argument corresponds to this type param
                     // by looking at which param position uses this type param
-                    for (i, arg) in arguments.iter().enumerate() {
+                    if let Some((i, arg)) = arguments.iter().enumerate().next() {
                         // If the arg is at position i, and we know the function
                         // param at position i has type `param_name`, check bounds
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;
@@ -1425,7 +1438,6 @@ impl SemanticAnalyzer {
                         // Only check the first matching arg for simplicity
                         let _ = i;
                         let _ = param_name;
-                        break;
                     }
                 }
             }

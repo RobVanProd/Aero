@@ -635,7 +635,7 @@ impl Parser {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
-                
+
                 // Phase 6: Standard library constructors Some, None, Ok, Err
                 match name.as_str() {
                     "Some" => {
@@ -681,7 +681,7 @@ impl Parser {
                     }
                     _ => {}
                 }
-                
+
                 // Check for struct literal: Name { field: value, ... }
                 if self.check(&Token::LeftBrace) {
                     // Peek ahead to see if this looks like a struct literal
@@ -1220,7 +1220,7 @@ impl Parser {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
-                
+
                 // Phase 6: Standard library pattern shortcuts Some, None, Ok, Err
                 match name.as_str() {
                     "Some" => {
@@ -1266,7 +1266,7 @@ impl Parser {
                     }
                     _ => {}
                 }
-                
+
                 if self.check(&Token::DoubleColon) {
                     // Enum pattern: EnumName::Variant or EnumName::Variant(pattern)
                     self.advance();
