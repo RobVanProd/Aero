@@ -1220,6 +1220,53 @@ impl Parser {
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
+                
+                // Phase 6: Standard library pattern shortcuts Some, None, Ok, Err
+                match name.as_str() {
+                    "Some" => {
+                        // Some(pattern) - matches Option::Some
+                        self.consume(Token::LeftParen, "Expected '(' after 'Some' in pattern")?;
+                        let inner = self.parse_pattern()?;
+                        self.consume(Token::RightParen, "Expected ')' after Some pattern")?;
+                        return Ok(Pattern::Enum {
+                            enum_name: "Option".to_string(),
+                            variant: "Some".to_string(),
+                            data: Some(Box::new(inner)),
+                        });
+                    }
+                    "None" => {
+                        // None - matches Option::None
+                        return Ok(Pattern::Enum {
+                            enum_name: "Option".to_string(),
+                            variant: "None".to_string(),
+                            data: None,
+                        });
+                    }
+                    "Ok" => {
+                        // Ok(pattern) - matches Result::Ok
+                        self.consume(Token::LeftParen, "Expected '(' after 'Ok' in pattern")?;
+                        let inner = self.parse_pattern()?;
+                        self.consume(Token::RightParen, "Expected ')' after Ok pattern")?;
+                        return Ok(Pattern::Enum {
+                            enum_name: "Result".to_string(),
+                            variant: "Ok".to_string(),
+                            data: Some(Box::new(inner)),
+                        });
+                    }
+                    "Err" => {
+                        // Err(pattern) - matches Result::Err
+                        self.consume(Token::LeftParen, "Expected '(' after 'Err' in pattern")?;
+                        let inner = self.parse_pattern()?;
+                        self.consume(Token::RightParen, "Expected ')' after Err pattern")?;
+                        return Ok(Pattern::Enum {
+                            enum_name: "Result".to_string(),
+                            variant: "Err".to_string(),
+                            data: Some(Box::new(inner)),
+                        });
+                    }
+                    _ => {}
+                }
+                
                 if self.check(&Token::DoubleColon) {
                     // Enum pattern: EnumName::Variant or EnumName::Variant(pattern)
                     self.advance();

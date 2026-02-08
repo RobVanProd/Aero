@@ -590,9 +590,23 @@ impl SemanticAnalyzer {
             }
             // Phase 4 expressions
             Expression::StringLiteral(_) => Ok(Ty::String),
-            Expression::MethodCall { object, .. } => {
-                self.infer_and_validate_expression(object)?;
-                Ok(Ty::Int) // Stub - method return types need resolution
+            Expression::MethodCall { object, method, .. } => {
+                let obj_ty = self.infer_and_validate_expression(object)?;
+                // Phase 6: Option and Result methods
+                match &obj_ty {
+                    Ty::Option(inner) => match method.as_str() {
+                        "is_some" | "is_none" => Ok(Ty::Bool),
+                        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*inner.clone()),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    Ty::Result(ok_ty, err_ty) => match method.as_str() {
+                        "is_ok" | "is_err" => Ok(Ty::Bool),
+                        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*ok_ty.clone()),
+                        "unwrap_err" | "expect_err" => Ok(*err_ty.clone()),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    _ => Ok(Ty::Int), // Other method calls - stub
+                }
             }
             Expression::ArrayLiteral(elements) => {
                 let elem_type = if let Some(first) = elements.first() {
@@ -748,9 +762,23 @@ impl SemanticAnalyzer {
             }
             // Phase 4 expressions
             Expression::StringLiteral(_) => Ok(Ty::String),
-            Expression::MethodCall { object, .. } => {
-                self.infer_and_validate_expression_immutable(object)?;
-                Ok(Ty::Int)
+            Expression::MethodCall { object, method, .. } => {
+                let obj_ty = self.infer_and_validate_expression_immutable(object)?;
+                // Phase 6: Option and Result methods
+                match &obj_ty {
+                    Ty::Option(inner) => match method.as_str() {
+                        "is_some" | "is_none" => Ok(Ty::Bool),
+                        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*inner.clone()),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    Ty::Result(ok_ty, err_ty) => match method.as_str() {
+                        "is_ok" | "is_err" => Ok(Ty::Bool),
+                        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*ok_ty.clone()),
+                        "unwrap_err" | "expect_err" => Ok(*err_ty.clone()),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    _ => Ok(Ty::Int), // Other method calls - stub
+                }
             }
             Expression::ArrayLiteral(elements) => {
                 let elem_type = if let Some(first) = elements.first() {
