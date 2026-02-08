@@ -592,7 +592,7 @@ impl SemanticAnalyzer {
             Expression::StringLiteral(_) => Ok(Ty::String),
             Expression::MethodCall { object, method, .. } => {
                 let obj_ty = self.infer_and_validate_expression(object)?;
-                // Phase 6: Option and Result methods
+                // Phase 6: Option, Result, and Vec methods
                 match &obj_ty {
                     Ty::Option(inner) => match method.as_str() {
                         "is_some" | "is_none" => Ok(Ty::Bool),
@@ -603,6 +603,13 @@ impl SemanticAnalyzer {
                         "is_ok" | "is_err" => Ok(Ty::Bool),
                         "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*ok_ty.clone()),
                         "unwrap_err" | "expect_err" => Ok(*err_ty.clone()),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    Ty::Vec(elem) => match method.as_str() {
+                        "len" => Ok(Ty::Int),
+                        "is_empty" => Ok(Ty::Bool),
+                        "push" | "clear" => Ok(Ty::Void),
+                        "pop" | "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
                         _ => Ok(Ty::Int), // Unknown method
                     },
                     _ => Ok(Ty::Int), // Other method calls - stub
@@ -764,7 +771,7 @@ impl SemanticAnalyzer {
             Expression::StringLiteral(_) => Ok(Ty::String),
             Expression::MethodCall { object, method, .. } => {
                 let obj_ty = self.infer_and_validate_expression_immutable(object)?;
-                // Phase 6: Option and Result methods
+                // Phase 6: Option, Result, and Vec methods
                 match &obj_ty {
                     Ty::Option(inner) => match method.as_str() {
                         "is_some" | "is_none" => Ok(Ty::Bool),
@@ -775,6 +782,13 @@ impl SemanticAnalyzer {
                         "is_ok" | "is_err" => Ok(Ty::Bool),
                         "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*ok_ty.clone()),
                         "unwrap_err" | "expect_err" => Ok(*err_ty.clone()),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    Ty::Vec(elem) => match method.as_str() {
+                        "len" => Ok(Ty::Int),
+                        "is_empty" => Ok(Ty::Bool),
+                        "push" | "clear" => Ok(Ty::Void),
+                        "pop" | "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
                         _ => Ok(Ty::Int), // Unknown method
                     },
                     _ => Ok(Ty::Int), // Other method calls - stub
@@ -1316,7 +1330,7 @@ impl SemanticAnalyzer {
             crate::ast::Type::Reference(inner, mutable) => {
                 Ty::Reference(Box::new(self.ast_type_to_ty(inner)), *mutable)
             }
-            // Phase 6: Standard library types Option<T> and Result<T, E>
+            // Phase 6: Standard library types Option<T>, Result<T, E>, Vec<T>
             crate::ast::Type::Generic(name, type_args) => {
                 match name.as_str() {
                     "Option" if type_args.len() == 1 => {
@@ -1327,6 +1341,10 @@ impl SemanticAnalyzer {
                         let ok_ty = self.ast_type_to_ty(&type_args[0]);
                         let err_ty = self.ast_type_to_ty(&type_args[1]);
                         Ty::Result(Box::new(ok_ty), Box::new(err_ty))
+                    }
+                    "Vec" if type_args.len() == 1 => {
+                        let elem_ty = self.ast_type_to_ty(&type_args[0]);
+                        Ty::Vec(Box::new(elem_ty))
                     }
                     _ => {
                         // Other generic types - treat as type parameter for now

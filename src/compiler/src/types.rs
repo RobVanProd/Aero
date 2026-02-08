@@ -8,7 +8,7 @@ pub enum Ty {
     Float,
     Bool,
     String,
-    Array(Box<Ty>, usize), // element type, size
+    Array(Box<Ty>, usize), // element type, size (fixed-size array)
     Tuple(Vec<Ty>),        // product type
     Struct(String),        // struct name (fields resolved via StructRegistry)
     Enum(String),          // enum name (variants resolved via EnumRegistry)
@@ -19,6 +19,7 @@ pub enum Ty {
     // Phase 6: Standard library types
     Option(Box<Ty>),                  // Option<T> - Some(T) or None
     Result(Box<Ty>, Box<Ty>),         // Result<T, E> - Ok(T) or Err(E)
+    Vec(Box<Ty>),                     // Vec<T> - dynamic/growable array
 }
 
 impl fmt::Display for Ty {
@@ -53,6 +54,7 @@ impl fmt::Display for Ty {
             // Phase 6: Standard library types
             Ty::Option(inner) => write!(f, "Option<{}>", inner),
             Ty::Result(ok_ty, err_ty) => write!(f, "Result<{}, {}>", ok_ty, err_ty),
+            Ty::Vec(elem) => write!(f, "Vec<{}>", elem),
         }
     }
 }
@@ -137,9 +139,9 @@ impl Ty {
             Ty::Reference(_, _) => true, // references are always Copy
             Ty::Tuple(elems) => elems.iter().all(|t| t.is_copy_type()),
             Ty::Array(elem, _) => elem.is_copy_type(),
-            // Move types: String, Struct, Enum, Option, Result
+            // Move types: String, Struct, Enum, Option, Result, Vec
             Ty::String | Ty::Struct(_) | Ty::Enum(_) => false,
-            Ty::Option(_) | Ty::Result(_, _) => false, // Option and Result are move types
+            Ty::Option(_) | Ty::Result(_, _) | Ty::Vec(_) => false, // heap types are move
             Ty::TypeParam(_) => false, // conservative: generics are not Copy by default
         }
     }
