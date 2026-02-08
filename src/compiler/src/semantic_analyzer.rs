@@ -619,6 +619,13 @@ impl SemanticAnalyzer {
                         "get" => Ok(Ty::Option(val.clone())),
                         _ => Ok(Ty::Int), // Unknown method
                     },
+                    Ty::String => match method.as_str() {
+                        "len" => Ok(Ty::Int),
+                        "is_empty" | "contains" | "starts_with" | "ends_with" => Ok(Ty::Bool),
+                        "to_uppercase" | "to_lowercase" | "trim" | "trim_start" | "trim_end" => Ok(Ty::String),
+                        "chars" => Ok(Ty::Vec(Box::new(Ty::Int))), // char as int
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
                     _ => Ok(Ty::Int), // Other method calls - stub
                 }
             }
@@ -803,6 +810,13 @@ impl SemanticAnalyzer {
                         "is_empty" | "contains_key" => Ok(Ty::Bool),
                         "insert" | "remove" | "clear" => Ok(Ty::Void),
                         "get" => Ok(Ty::Option(val.clone())),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    Ty::String => match method.as_str() {
+                        "len" => Ok(Ty::Int),
+                        "is_empty" | "contains" | "starts_with" | "ends_with" => Ok(Ty::Bool),
+                        "to_uppercase" | "to_lowercase" | "trim" | "trim_start" | "trim_end" => Ok(Ty::String),
+                        "chars" => Ok(Ty::Vec(Box::new(Ty::Int))), // char as int
                         _ => Ok(Ty::Int), // Unknown method
                     },
                     _ => Ok(Ty::Int), // Other method calls - stub
