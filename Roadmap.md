@@ -10,7 +10,7 @@ This document outlines the development roadmap for the Aero programming language
 - **Semantic Analysis:** Symbol table, type inference, validation
 - **Type System:** Static typing with int/float distinction and promotion
 - **IR & Code Generation:** SSA-style IR with LLVM backend
-- **CLI Tools:** `aero build` and `aero run` commands
+- **CLI Tools:** `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`
 - **CI/CD:** GitHub Actions with comprehensive test matrix
 
 ### Phase 3: Control Flow & Functions ✅
@@ -37,55 +37,36 @@ This document outlines the development roadmap for the Aero programming language
 - **Generics:** Type parameters with trait bounds and where clauses
 - **Traits:** Trait definitions, implementations, and bound enforcement
 
-**Current Status:** 174 tests passing (63 unit + 52 optimizer + 59 frontend)
+### Phase 6: Standard Library ✅
 
----
+- **Core Collections:** `Vec<T>`, `HashMap<K, V>`, `HashSet<T>`, `String`
+- **Error Handling:** `Result<T, E>`, `Option<T>`, `?` operator
+- **I/O:** File reading/writing, standard streams, buffered I/O
+- **Module System:** `mod` declarations, `use` imports, `pub` visibility
+- **Concurrency:** `Arc`, `Mutex` synchronization primitives
 
-## Phase 6: Standard Library (Next)
+### Phase 7: Tooling & Developer Experience ✅
 
-The next phase focuses on building a comprehensive standard library.
+- **Package Manager:** `aero-pkg` with dependency resolution and workspaces
+- **CLI Expansion:** `aero check` (type-check only), `aero test`, `aero fmt`
+- **Compiler Diagnostics:** Colored errors, source snippets, suggestions
+- **Closures & Lambdas:** `|x, y| { ... }` syntax with capture semantics
 
-### 6.1 Core Collections
-- `Vec<T>` - Dynamic arrays
-- `HashMap<K, V>` - Hash maps
-- `HashSet<T>` - Hash sets
-- `String` - UTF-8 string handling
-
-### 6.2 I/O Operations
-- File reading and writing
-- Standard input/output streams
-- Buffered I/O
-
-### 6.3 Error Handling
-- `Result<T, E>` type
-- `Option<T>` type
-- `?` operator for error propagation
-
-### 6.4 Module System
-- `mod` declarations
-- `use` imports
-- Visibility controls (`pub`, `pub(crate)`)
-
-### 6.5 Concurrency (Stretch Goal)
-- Threads
-- Channels
-- Synchronization primitives
+**Current Status:** 189+ tests passing | **Version:** 1.0.0
 
 ---
 
 ## Future Phases
 
-### Phase 7: Tooling & Ecosystem
+### Phase 8: Optimization & Ecosystem (v1.1.0+)
 - Language Server Protocol (LSP) implementation
-- Package manager
-- Documentation generator
-- Formatter and linter
-
-### Phase 8: Optimization & Performance
-- Advanced LLVM optimizations
-- Profile-guided optimization
-- Link-time optimization
+- Documentation generator (`aero doc`)
+- INT8/FP8 quantization interfaces
+- Kernel fusion & advanced graph compilation
+- Native profiler & flame graphs
+- Central package registry (registry.aero)
+- Formal language specification
 
 ---
 
-**Version:** 0.5.0 | **License:** MIT
+**Version:** 1.0.0 | **License:** MIT

@@ -34,6 +34,12 @@ pub enum Token {
     Trait,
     Where,
 
+    // Phase 7 keywords (v1.0.0 module system + closures)
+    Mod,
+    Use,
+    Pub,
+    As,
+
     // String literal
     StringLiteral(String),
 
@@ -564,6 +570,10 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         "self" => Token::Self_,
                         "trait" => Token::Trait,
                         "where" => Token::Where,
+                        "mod" => Token::Mod,
+                        "use" => Token::Use,
+                        "pub" => Token::Pub,
+                        "as" => Token::As,
                         "_" => Token::Underscore,
                         _ => Token::Identifier(ident_str),
                     };

@@ -83,6 +83,11 @@ pub enum Expression {
         mutable: bool,
     },
     Deref(Box<Expression>),
+    // Phase 7: Closures (v1.0.0)
+    Closure {
+        params: Vec<Parameter>,
+        body: Box<Expression>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -145,6 +150,15 @@ pub enum Statement {
         name: String,
         type_params: Vec<String>,
         methods: Vec<TraitMethod>,
+    },
+    // Phase 7: Module system (v1.0.0)
+    ModDecl {
+        name: String,
+        is_public: bool,
+    },
+    UseImport {
+        path: Vec<String>,     // e.g. ["std", "collections", "HashMap"]
+        alias: Option<String>, // e.g. `as Foo`
     },
 }
 
@@ -309,6 +323,7 @@ impl Expression {
             Expression::Match { .. } => None,
             Expression::Borrow { .. } => None,
             Expression::Deref(_) => None,
+            Expression::Closure { .. } => None,
         }
     }
 }

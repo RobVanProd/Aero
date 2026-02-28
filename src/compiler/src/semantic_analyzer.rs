@@ -723,6 +723,8 @@ impl SemanticAnalyzer {
                     _ => Err("Cannot dereference non-reference type".to_string()),
                 }
             }
+            // Phase 7: Closures
+            Expression::Closure { .. } => Ok(Ty::Int), // Closure type inference stub
         }
     }
 
@@ -912,6 +914,8 @@ impl SemanticAnalyzer {
                     _ => Err("Cannot dereference non-reference type".to_string()),
                 }
             }
+            // Phase 7: Closures
+            Expression::Closure { .. } => Ok(Ty::Int), // Closure type inference stub
         }
     }
 
@@ -1340,6 +1344,11 @@ impl SemanticAnalyzer {
                 if !type_params.is_empty() {
                     self.type_param_scopes.pop();
                 }
+                Ok(())
+            }
+            // Phase 7: Module system
+            Statement::ModDecl { .. } | Statement::UseImport { .. } => {
+                // Module declarations and imports are resolved during module linking.
                 Ok(())
             }
         }

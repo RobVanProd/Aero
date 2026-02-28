@@ -144,8 +144,10 @@ impl IrGenerator {
             Statement::StructDef { .. }
             | Statement::EnumDef { .. }
             | Statement::ImplBlock { .. }
-            | Statement::TraitDef { .. } => {
-                // Type definitions are registered in the type registry (semantic pass).
+            | Statement::TraitDef { .. }
+            | Statement::ModDecl { .. }
+            | Statement::UseImport { .. } => {
+                // Type/module definitions are registered in the semantic pass.
                 // No runtime IR to generate.
             }
         }
@@ -373,8 +375,9 @@ impl IrGenerator {
             | Expression::EnumVariant { .. }
             | Expression::Match { .. }
             | Expression::Borrow { .. }
-            | Expression::Deref(_) => {
-                // Stub: these will be implemented as remaining Phase 4/5 tasks progress
+            | Expression::Deref(_)
+            | Expression::Closure { .. } => {
+                // Stub: these will be implemented as remaining Phase 4/5/7 tasks progress
                 (Value::ImmInt(0), Ty::Int)
             }
         }
@@ -702,7 +705,8 @@ impl IrGenerator {
             | Expression::EnumVariant { .. }
             | Expression::Match { .. }
             | Expression::Borrow { .. }
-            | Expression::Deref(_) => (Value::ImmInt(0), Ty::Int),
+            | Expression::Deref(_)
+            | Expression::Closure { .. } => (Value::ImmInt(0), Ty::Int),
         }
     }
 

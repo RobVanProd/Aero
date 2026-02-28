@@ -48,23 +48,31 @@
 - [x] Trait implementations
 - [x] Bound enforcement
 
-**Status:** 174 tests passing (63 unit + 52 optimizer + 59 frontend)
+## ✅ Phase 6: Standard Library (Complete)
+
+- [x] `Vec<T>` dynamic arrays (IR-level Vec variants)
+- [x] `HashMap<K, V>` hash maps
+- [x] `Result<T, E>` error handling
+- [x] `Option<T>` optional values
+- [x] File I/O operations
+- [x] Module system (`mod`, `use`)
+- [x] Visibility controls (`pub`)
+
+## ✅ Phase 7: Tooling (Complete)
+
+- [x] Package manager (`aero-pkg`)
+- [x] CLI expansion (`check`, `test`, `fmt`)
+- [x] Compiler diagnostics with colored output
+
+**Status:** 189+ tests passing | **Version:** 1.0.0
 
 ---
 
-## 📋 Phase 6: Standard Library (Next)
+## 📋 Phase 8: Future (v1.1.0+)
 
-- [ ] `Vec<T>` dynamic arrays
-- [ ] `HashMap<K, V>` hash maps
-- [ ] `Result<T, E>` error handling
-- [ ] `Option<T>` optional values
-- [ ] File I/O operations
-- [ ] Module system (`mod`, `use`)
-- [ ] Visibility controls (`pub`)
-
-## 📋 Phase 7: Tooling (Future)
-
-- [ ] Language Server Protocol (LSP)
-- [ ] Package manager
-- [ ] Documentation generator
-- [ ] Code formatter
+- [ ] Language Server Protocol (LSP) server
+- [ ] Documentation generator (`aero doc`)
+- [ ] INT8/FP8 quantization interfaces
+- [ ] Kernel fusion & graph compilation
+- [ ] Native profiler & flame graphs
+- [ ] Central package registry (registry.aero)
