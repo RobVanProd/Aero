@@ -1,89 +1,75 @@
 <div align="center">
   <h1>Aero v0.6.0</h1>
   <p><strong>The First Complete AI-Native Systems Language</strong></p>
-  
-  [![GitHub stars](https://img.shields.io/github/stars/RobVanProd/Aero.svg?style=social&label=Star)](https://github.com/RobVanProd/Aero)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-  [![CI Build](https://github.com/RobVanProd/Aero/actions/workflows/build.yml/badge.svg)](https://github.com/RobVanProd/Aero/actions)
+  <a href="https://github.com/RobVanProd/Aero/stargazers">
+    <img src="https://img.shields.io/github/stars/RobVanProd/Aero?style=social" alt="GitHub stars">
+  </a>
+  <a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License">
+  </a>
+  <a href="https://github.com/RobVanProd/Aero/actions/workflows/ci.yml">
+    <img src="https://github.com/RobVanProd/Aero/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  </a>
 </div>
 
-Aero provides **Rust-level safety, C-level speed, and Python-level ergonomics for AI**. It is a systems programming language designed from the ground up to solve the two-language problem in deep learning and numerical computing.
+**Rust-level safety • C-level speed • Python-level ergonomics** for AI and numerical computing.
+
+Aero solves the two-language problem by providing a single, memory-safe systems language that delivers production-grade deep learning performance without Python or garbage collection overhead.
 
 ## 🚀 Live Ecosystem
 
-- **[Interactive WebAssembly Playground](https://github.com/RobVanProd/AeroNum/tree/main/playground)**: Try Aero entirely in your browser. Zero-cost limits evaluated dynamically without local installation.
-- **[AeroNum Benchmarking Dashboard](https://github.com/RobVanProd/AeroNum/tree/main/benchmarks/dashboard)**: Live telemetry proving our mathematically precise performance boundaries.
-- **[Documentation & Guides](https://github.com/RobVanProd/AeroNum/tree/main/docs)**: From "NumPy to AeroNum" and full API references.
+- **[Interactive WebAssembly Playground](https://github.com/RobVanProd/Aero/tree/main/playground)** – Compile and run Aero code directly in your browser  
+- **[Benchmarking Dashboard](https://github.com/RobVanProd/AeroNum/tree/main/benchmarks/dashboard)** – Live performance telemetry  
+- **[Full Documentation](https://github.com/RobVanProd/Aero/tree/main/docs)** – “NumPy to AeroNum in 10 minutes” and API reference  
 
 ## ⚡ Performance Highlights
 
-Powered by intrinsic zero-cost abstractions, linear memory types, and a standard library designed for ML:
-- **`≥ 1.4x` Speedup over PyTorch** in End-to-End GPT-2 Transformer sequence generation natively.
-- **`≥ 5.3x` Speedup traversing CPU to GPU** on massive 4096x4096 MatMul calculations automatically mapping `.to("cuda")`.
-- **`0` Garbage Collection Pauses**: Memory tracking utilizes pure AST static graph optimizations resolving bounds with OS-native speeds.
+- **≥1.4× faster** than PyTorch on end-to-end GPT-2 mini-transformer training (1047 vs 748 tokens/sec)  
+- **≥5.3× GPU acceleration** on 4096×4096 matrix multiplication with automatic `.to("cuda")` dispatch  
+- **Zero garbage collection pauses** – full ownership model with compile-time safety  
 
 ## 🧠 Why Aero Wins
 
-1. **Zero-Cost Topology**: Neural iterations trace explicitly across `aero::vec` limits directly without Garbage Collection tracing memory allocations. Overhead delays typically costing 15%-20% throughput structurally drop exactly to hardware limits.
-2. **Cross-Device Memory Security**: Aero asserts ownership natively verifying CUDA allocations, enforcing that references cannot be dropped randomly onto Host targets.
-3. **Ergonomic Parity**: Syntactic layout maps directly to PyTorch standard limits (`optimizer.step()`, `loss.backward()`) without the Python interpreter boundaries!
+1. **Zero-Cost Abstractions** – Neural networks compile to native code with no runtime overhead  
+2. **Memory Safety by Construction** – Ownership and borrowing eliminate use-after-free and data races  
+3. **Familiar Ergonomics** – `Sequential`, `Dense`, `to("cuda")`, `save()`/`load()` feel like PyTorch  
 
 ## 📦 Quick Start
 
-### 1. Try it out instantly
-**[Click here to open the Aero Playground](#)** and train a neural network right in your browser!
-
-### 2. Install locally via `aero-pkg`
-
 ```bash
-# Clone the repository
 git clone https://github.com/RobVanProd/Aero.git
 cd Aero
-
-# Build the Aero compiler
 cargo build --release
 export PATH="$PWD/target/release:$PATH"
 
-# Create a new AI project using the package manager
 aero new my_ai_project
 cd my_ai_project
-
-# Add the official Deep Learning backend
-aero add aeronum
+aero add aeronum aeronn
 aero run
 ```
 
-### 3. Build a Transformer & MLP
+Try the flagship example directly in the Interactive Playground:
 
-```rust
-use aeronum::{Array};
-use aeronn::{Transformer, Dense, Sequential};
+```aero
+use aeronum::Array;
+use aeronn::{Transformer, Sequential};
 
 fn main() {
-    // 1. MLP execution
-    let mut mlp = Sequential::new();
-    mlp.add(Box::new(Dense::new(64, 128)));
-    
-    // 2. Transformer Flagship (6 Layers, 6 Heads, 384 Dim)
-    let mut model = Transformer::new(6, 384, 6);
-    
-    // 3. Dispatch to Nvidia GPU 
-    model.to("cuda"); 
-    
-    // Train at C-level speeds!
-    println("Aero Flagship NLP Model Deployed!");
+    let mut model = Transformer::new(layers: 6, dim: 384, heads: 6);
+    model.to("cuda");
+    // Train at native speed...
 }
 ```
 
 ## 🗺️ Roadmap to v1.0.0 (Q2–Q3 2026)
-- [ ] Distributed Training (Multi-GPU & Node scaling mappings) (Q2)
-- [ ] Direct Quantization Interfaces (INT8/FP8 native unrolling) (Q2)
-- [ ] Improved Compiler Diagnostics & Borrow Checker Errors (Q2)
-- [ ] Formal Language Specification (Q3)
-- [ ] Advanced Graph Compilation (Kernel Fusion API) (Q3)
-- [ ] Profiler API hooks & Native Flamegraphs (Q3)
-- [ ] LLVM-backend Optimization parity (Q3)
-- [ ] aero-pkg Central Registry (registry.aero) (Q3)
 
-## 📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+- Distributed Training (Multi-GPU / multi-node) – Q2 2026
+- INT8 / FP8 Quantization – Q2 2026
+- Enhanced Compiler Diagnostics – Q2 2026
+- Formal Language Specification – Q3 2026
+- Kernel Fusion & Advanced Graph Compilation – Q3 2026
+- Native Profiler & Flame Graphs – Q3 2026
+- Central aero-pkg Registry (registry.aero) – Q3 2026
+
+## License
+MIT © RobVanProd and contributors. See LICENSE for details.
