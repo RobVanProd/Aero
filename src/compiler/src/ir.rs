@@ -189,7 +189,6 @@ pub enum Inst {
     },
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function {
     pub name: String,

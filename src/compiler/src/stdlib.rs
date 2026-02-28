@@ -1,8 +1,8 @@
 // Built-in Collections Library for Task 11 and Error Handling for Task 12
 // This module implements Vec, array operations, string operations, Result, and Option types
 
-use std::collections::HashMap;
 use crate::ir::{Function, Inst, Value};
+use std::collections::HashMap;
 
 /// Built-in Vec<T> implementation
 pub struct VecType {
@@ -29,7 +29,7 @@ pub enum VecMethod {
 impl VecType {
     pub fn new(element_type: String) -> Self {
         let mut methods = HashMap::new();
-        
+
         // Add all Vec methods
         methods.insert("new".to_string(), VecMethod::New);
         methods.insert("push".to_string(), VecMethod::Push);
@@ -43,13 +43,13 @@ impl VecType {
         methods.insert("remove".to_string(), VecMethod::Remove);
         methods.insert("contains".to_string(), VecMethod::Contains);
         methods.insert("iter".to_string(), VecMethod::Iter);
-        
+
         VecType {
             element_type,
             methods,
         }
     }
-    
+
     /// Generate LLVM IR for Vec method call
     pub fn generate_method_call(&self, method: &str, args: &[Value]) -> Vec<Inst> {
         match self.methods.get(method) {
@@ -68,64 +68,54 @@ impl VecType {
             None => panic!("Unknown Vec method: {}", method),
         }
     }
-    
+
     fn generate_vec_new(&self) -> Vec<Inst> {
-        vec![
-            Inst::VecAlloca {
-                result: Value::Reg(1),
-                element_type: self.element_type.clone(),
-            }
-        ]
+        vec![Inst::VecAlloca {
+            result: Value::Reg(1),
+            element_type: self.element_type.clone(),
+        }]
     }
-    
+
     fn generate_vec_push(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Vec::push requires 2 arguments (self, value)");
         }
-        vec![
-            Inst::VecPush {
-                vec_ptr: args[0].clone(),
-                value: args[1].clone(),
-            }
-        ]
+        vec![Inst::VecPush {
+            vec_ptr: args[0].clone(),
+            value: args[1].clone(),
+        }]
     }
-    
+
     fn generate_vec_pop(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Vec::pop requires 1 argument (self)");
         }
-        vec![
-            Inst::VecPop {
-                result: Value::Reg(2),
-                vec_ptr: args[0].clone(),
-            }
-        ]
+        vec![Inst::VecPop {
+            result: Value::Reg(2),
+            vec_ptr: args[0].clone(),
+        }]
     }
-    
+
     fn generate_vec_len(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Vec::len requires 1 argument (self)");
         }
-        vec![
-            Inst::VecLength {
-                result: Value::Reg(3),
-                vec_ptr: args[0].clone(),
-            }
-        ]
+        vec![Inst::VecLength {
+            result: Value::Reg(3),
+            vec_ptr: args[0].clone(),
+        }]
     }
-    
+
     fn generate_vec_capacity(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Vec::capacity requires 1 argument (self)");
         }
-        vec![
-            Inst::VecCapacity {
-                result: Value::Reg(4),
-                vec_ptr: args[0].clone(),
-            }
-        ]
+        vec![Inst::VecCapacity {
+            result: Value::Reg(4),
+            vec_ptr: args[0].clone(),
+        }]
     }
-    
+
     fn generate_vec_is_empty(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Vec::is_empty requires 1 argument (self)");
@@ -140,10 +130,10 @@ impl VecType {
                 result: Value::Reg(6),
                 left: Value::Reg(5),
                 right: Value::ImmFloat(0.0),
-            }
+            },
         ]
     }
-    
+
     fn generate_vec_clear(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Vec::clear requires 1 argument (self)");
@@ -153,72 +143,62 @@ impl VecType {
             Inst::Store(Value::Reg(100), Value::ImmFloat(0.0)), // Simplified - should access length field
         ]
     }
-    
+
     fn generate_vec_get(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Vec::get requires 2 arguments (self, index)");
         }
-        vec![
-            Inst::VecAccess {
-                result: Value::Reg(7),
-                vec_ptr: args[0].clone(),
-                index: args[1].clone(),
-            }
-        ]
+        vec![Inst::VecAccess {
+            result: Value::Reg(7),
+            vec_ptr: args[0].clone(),
+            index: args[1].clone(),
+        }]
     }
-    
+
     fn generate_vec_insert(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 3 {
             panic!("Vec::insert requires 3 arguments (self, index, value)");
         }
         // Simplified implementation - should shift elements
-        vec![
-            Inst::VecPush {
-                vec_ptr: args[0].clone(),
-                value: args[2].clone(),
-            }
-        ]
+        vec![Inst::VecPush {
+            vec_ptr: args[0].clone(),
+            value: args[2].clone(),
+        }]
     }
-    
+
     fn generate_vec_remove(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Vec::remove requires 2 arguments (self, index)");
         }
         // Simplified implementation - should shift elements
-        vec![
-            Inst::VecPop {
-                result: Value::Reg(8),
-                vec_ptr: args[0].clone(),
-            }
-        ]
+        vec![Inst::VecPop {
+            result: Value::Reg(8),
+            vec_ptr: args[0].clone(),
+        }]
     }
-    
+
     fn generate_vec_contains(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Vec::contains requires 2 arguments (self, value)");
         }
         // Simplified implementation - should iterate and compare
-        vec![
-            Inst::FCmp {
-                op: "oeq".to_string(),
-                result: Value::Reg(9),
-                left: args[1].clone(),
-                right: Value::ImmFloat(0.0),
-            }
-        ]
+        vec![Inst::FCmp {
+            op: "oeq".to_string(),
+            result: Value::Reg(9),
+            left: args[1].clone(),
+            right: Value::ImmFloat(0.0),
+        }]
     }
-    
+
     fn generate_vec_iter(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Vec::iter requires 1 argument (self)");
         }
         // Return iterator (simplified)
-        vec![
-            Inst::VecLength {
-                result: Value::Reg(10),
-                vec_ptr: args[0].clone(),
-            }
-        ]
+        vec![Inst::VecLength {
+            result: Value::Reg(10),
+            vec_ptr: args[0].clone(),
+        }]
     }
 }
 
@@ -237,10 +217,10 @@ impl ArrayOps {
                 result: Value::Reg(13),
                 array_ptr: array,
                 index: Value::Reg(11),
-            }
+            },
         ]
     }
-    
+
     /// Generate array iteration
     pub fn generate_iter(array: Value) -> Vec<Inst> {
         vec![
@@ -252,16 +232,14 @@ impl ArrayOps {
             Inst::Alloca(Value::Reg(15), "iterator".to_string()),
         ]
     }
-    
+
     /// Generate array method calls
     pub fn generate_method_call(method: &str, args: &[Value]) -> Vec<Inst> {
         match method {
-            "len" => vec![
-                Inst::ArrayLength {
-                    result: Value::Reg(16),
-                    array_ptr: args[0].clone(),
-                }
-            ],
+            "len" => vec![Inst::ArrayLength {
+                result: Value::Reg(16),
+                array_ptr: args[0].clone(),
+            }],
             "is_empty" => vec![
                 Inst::ArrayLength {
                     result: Value::Reg(17),
@@ -272,15 +250,13 @@ impl ArrayOps {
                     result: Value::Reg(18),
                     left: Value::Reg(17),
                     right: Value::ImmFloat(0.0),
-                }
+                },
             ],
-            "first" => vec![
-                Inst::ArrayAccess {
-                    result: Value::Reg(19),
-                    array_ptr: args[0].clone(),
-                    index: Value::ImmInt(0),
-                }
-            ],
+            "first" => vec![Inst::ArrayAccess {
+                result: Value::Reg(19),
+                array_ptr: args[0].clone(),
+                index: Value::ImmInt(0),
+            }],
             "last" => vec![
                 Inst::ArrayLength {
                     result: Value::Reg(20),
@@ -291,7 +267,7 @@ impl ArrayOps {
                     result: Value::Reg(22),
                     array_ptr: args[0].clone(),
                     index: Value::Reg(21),
-                }
+                },
             ],
             "contains" => vec![
                 // Simplified - should iterate and compare
@@ -300,7 +276,7 @@ impl ArrayOps {
                     result: Value::Reg(23),
                     left: args[1].clone(),
                     right: Value::ImmFloat(0.0),
-                }
+                },
             ],
             _ => panic!("Unknown array method: {}", method),
         }
@@ -322,7 +298,7 @@ impl StringOps {
             Inst::Store(Value::Reg(25), right),
         ]
     }
-    
+
     /// Generate string length
     pub fn generate_len(string: Value) -> Vec<Inst> {
         vec![
@@ -331,7 +307,7 @@ impl StringOps {
             Inst::Store(Value::Reg(26), Value::ImmFloat(10.0)), // Placeholder length
         ]
     }
-    
+
     /// Generate string slicing
     pub fn generate_slice(string: Value, start: Value, end: Value) -> Vec<Inst> {
         vec![
@@ -341,7 +317,7 @@ impl StringOps {
             Inst::Alloca(Value::Reg(29), "string_slice".to_string()),
         ]
     }
-    
+
     /// Generate string comparison
     pub fn generate_eq(left: Value, right: Value) -> Vec<Inst> {
         vec![
@@ -351,22 +327,20 @@ impl StringOps {
                 result: Value::Reg(30),
                 left,
                 right,
-            }
+            },
         ]
     }
-    
+
     /// Generate string method calls
     pub fn generate_method_call(method: &str, args: &[Value]) -> Vec<Inst> {
         match method {
             "len" => Self::generate_len(args[0].clone()),
-            "is_empty" => vec![
-                Inst::FCmp {
-                    op: "oeq".to_string(),
-                    result: Value::Reg(31),
-                    left: args[0].clone(),
-                    right: Value::ImmFloat(0.0),
-                }
-            ],
+            "is_empty" => vec![Inst::FCmp {
+                op: "oeq".to_string(),
+                result: Value::Reg(31),
+                left: args[0].clone(),
+                right: Value::ImmFloat(0.0),
+            }],
             "chars" => vec![
                 // Return character iterator (simplified)
                 Inst::Alloca(Value::Reg(32), "char_iter".to_string()),
@@ -378,7 +352,7 @@ impl StringOps {
                     result: Value::Reg(33),
                     left: args[0].clone(),
                     right: args[1].clone(),
-                }
+                },
             ],
             "starts_with" => vec![
                 // String starts_with (simplified)
@@ -387,7 +361,7 @@ impl StringOps {
                     result: Value::Reg(34),
                     left: args[0].clone(),
                     right: args[1].clone(),
-                }
+                },
             ],
             "ends_with" => vec![
                 // String ends_with (simplified)
@@ -396,7 +370,7 @@ impl StringOps {
                     result: Value::Reg(35),
                     left: args[0].clone(),
                     right: args[1].clone(),
-                }
+                },
             ],
             "to_uppercase" => vec![
                 // String to_uppercase (simplified)
@@ -434,29 +408,27 @@ impl CollectionLibrary {
             vec_types: HashMap::new(),
         }
     }
-    
+
     /// Register a new Vec type
     pub fn register_vec_type(&mut self, element_type: String) {
         let vec_type = VecType::new(element_type.clone());
         self.vec_types.insert(element_type, vec_type);
     }
-    
+
     /// Get Vec type for element type
     pub fn get_vec_type(&self, element_type: &str) -> Option<&VecType> {
         self.vec_types.get(element_type)
     }
-    
+
     /// Generate vec! macro
     pub fn generate_vec_macro(elements: Vec<Value>, element_type: String) -> Vec<Inst> {
-        vec![
-            Inst::VecInit {
-                result: Value::Reg(41),
-                element_type,
-                elements,
-            }
-        ]
+        vec![Inst::VecInit {
+            result: Value::Reg(41),
+            element_type,
+            elements,
+        }]
     }
-    
+
     /// Generate for loop over collection
     pub fn generate_for_loop(collection: Value, loop_var: String, body: Vec<Inst>) -> Vec<Inst> {
         let mut instructions = vec![
@@ -495,10 +467,10 @@ impl CollectionLibrary {
             Inst::Alloca(Value::Reg(47), loop_var),
             Inst::Store(Value::Reg(47), Value::Reg(46)),
         ];
-        
+
         // Add body instructions
         instructions.extend(body);
-        
+
         // Add loop increment and jump
         instructions.extend(vec![
             // Increment counter
@@ -509,7 +481,7 @@ impl CollectionLibrary {
             // Loop exit
             Inst::Label("loop_exit".to_string()),
         ]);
-        
+
         instructions
     }
 }
@@ -517,7 +489,7 @@ impl CollectionLibrary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_vec_type_creation() {
         let vec_type = VecType::new("i32".to_string());
@@ -526,26 +498,26 @@ mod tests {
         assert!(vec_type.methods.contains_key("pop"));
         assert!(vec_type.methods.contains_key("len"));
     }
-    
+
     #[test]
     fn test_vec_method_generation() {
         let vec_type = VecType::new("f64".to_string());
         let instructions = vec_type.generate_method_call("new", &[]);
         assert!(!instructions.is_empty());
     }
-    
+
     #[test]
     fn test_array_operations() {
         let instructions = ArrayOps::generate_method_call("len", &[Value::Reg(1)]);
         assert!(!instructions.is_empty());
     }
-    
+
     #[test]
     fn test_string_operations() {
         let instructions = StringOps::generate_method_call("len", &[Value::Reg(1)]);
         assert!(!instructions.is_empty());
     }
-    
+
     #[test]
     fn test_collection_library() {
         let mut library = CollectionLibrary::new();
@@ -589,7 +561,7 @@ pub enum ResultMethod {
 impl ResultImpl {
     pub fn new(ok_type: String, err_type: String) -> Self {
         let mut methods = HashMap::new();
-        
+
         // Add all Result methods
         methods.insert("is_ok".to_string(), ResultMethod::IsOk);
         methods.insert("is_err".to_string(), ResultMethod::IsErr);
@@ -605,14 +577,14 @@ impl ResultImpl {
         methods.insert("and_then".to_string(), ResultMethod::AndThen);
         methods.insert("or".to_string(), ResultMethod::Or);
         methods.insert("or_else".to_string(), ResultMethod::OrElse);
-        
+
         ResultImpl {
             ok_type,
             err_type,
             methods,
         }
     }
-    
+
     /// Generate LLVM IR for Result method call
     pub fn generate_method_call(&self, method: &str, args: &[Value]) -> Vec<Inst> {
         match self.methods.get(method) {
@@ -633,7 +605,7 @@ impl ResultImpl {
             None => panic!("Unknown Result method: {}", method),
         }
     }
-    
+
     fn generate_is_ok(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Result::is_ok requires 1 argument (self)");
@@ -649,10 +621,10 @@ impl ResultImpl {
                 result: Value::Reg(101),
                 left: Value::Reg(100),
                 right: Value::ImmInt(0),
-            }
+            },
         ]
     }
-    
+
     fn generate_is_err(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Result::is_err requires 1 argument (self)");
@@ -668,9 +640,9 @@ impl ResultImpl {
                 result: Value::Reg(103),
                 left: Value::Reg(102),
                 right: Value::ImmInt(1),
-            }
+            },
         ]
-    }    
+    }
 
     fn generate_ok(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
@@ -721,7 +693,7 @@ impl ResultImpl {
             Inst::Label("end_ok".to_string()),
         ]
     }
-    
+
     fn generate_err(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Result::err requires 1 argument (self)");
@@ -770,7 +742,7 @@ impl ResultImpl {
             },
             Inst::Label("end_err".to_string()),
         ]
-    }    
+    }
 
     fn generate_unwrap(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
@@ -811,7 +783,7 @@ impl ResultImpl {
             Inst::Label("end_unwrap".to_string()),
         ]
     }
-    
+
     fn generate_unwrap_or(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::unwrap_or requires 2 arguments (self, default)");
@@ -848,7 +820,7 @@ impl ResultImpl {
             Inst::Label("end_unwrap_or".to_string()),
         ]
     }
-    
+
     fn generate_unwrap_or_else(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::unwrap_or_else requires 2 arguments (self, closure)");
@@ -892,9 +864,9 @@ impl ResultImpl {
             },
             Inst::Label("end_unwrap_or_else".to_string()),
         ]
-    }    
-    
-fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
+    }
+
+    fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::expect requires 2 arguments (self, message)");
         }
@@ -933,7 +905,7 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Label("end_expect".to_string()),
         ]
     }
-    
+
     fn generate_map(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::map requires 2 arguments (self, closure)");
@@ -993,9 +965,9 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             },
             Inst::Label("end_map".to_string()),
         ]
-    }    
-  
-  fn generate_map_err(&self, args: &[Value]) -> Vec<Inst> {
+    }
+
+    fn generate_map_err(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::map_err requires 2 arguments (self, closure)");
         }
@@ -1055,7 +1027,7 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Label("end_map_err".to_string()),
         ]
     }
-    
+
     fn generate_and(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::and requires 2 arguments (self, other)");
@@ -1089,9 +1061,9 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Store(Value::Reg(146), args[0].clone()),
             Inst::Label("end_and".to_string()),
         ]
-    }    
-  
-  fn generate_and_then(&self, args: &[Value]) -> Vec<Inst> {
+    }
+
+    fn generate_and_then(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::and_then requires 2 arguments (self, closure)");
         }
@@ -1143,7 +1115,7 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Label("end_and_then".to_string()),
         ]
     }
-    
+
     fn generate_or(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::or requires 2 arguments (self, other)");
@@ -1178,7 +1150,7 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Label("end_or".to_string()),
         ]
     }
-    
+
     fn generate_or_else(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Result::or_else requires 2 arguments (self, closure)");
@@ -1269,7 +1241,7 @@ pub enum OptionMethod {
 impl OptionImpl {
     pub fn new(inner_type: String) -> Self {
         let mut methods = HashMap::new();
-        
+
         // Add all Option methods
         methods.insert("is_some".to_string(), OptionMethod::IsSome);
         methods.insert("is_none".to_string(), OptionMethod::IsNone);
@@ -1287,13 +1259,13 @@ impl OptionImpl {
         methods.insert("filter".to_string(), OptionMethod::Filter);
         methods.insert("take".to_string(), OptionMethod::Take);
         methods.insert("replace".to_string(), OptionMethod::Replace);
-        
+
         OptionImpl {
             inner_type,
             methods,
         }
     }
-    
+
     /// Generate LLVM IR for Option method call
     pub fn generate_method_call(&self, method: &str, args: &[Value]) -> Vec<Inst> {
         match self.methods.get(method) {
@@ -1315,7 +1287,7 @@ impl OptionImpl {
             Some(OptionMethod::Replace) => self.generate_replace(args),
             None => panic!("Unknown Option method: {}", method),
         }
-    }    
+    }
 
     fn generate_is_some(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
@@ -1332,10 +1304,10 @@ impl OptionImpl {
                 result: Value::Reg(201),
                 left: Value::Reg(200),
                 right: Value::ImmInt(1),
-            }
+            },
         ]
     }
-    
+
     fn generate_is_none(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Option::is_none requires 1 argument (self)");
@@ -1351,10 +1323,10 @@ impl OptionImpl {
                 result: Value::Reg(203),
                 left: Value::Reg(202),
                 right: Value::ImmInt(0),
-            }
+            },
         ]
     }
-    
+
     fn generate_unwrap(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Option::unwrap requires 1 argument (self)");
@@ -1394,7 +1366,7 @@ impl OptionImpl {
             Inst::Label("end_unwrap_option".to_string()),
         ]
     }
-    
+
     fn generate_unwrap_or(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::unwrap_or requires 2 arguments (self, default)");
@@ -1430,9 +1402,9 @@ impl OptionImpl {
             Inst::Store(Value::Reg(210), args[1].clone()),
             Inst::Label("end_unwrap_or_option".to_string()),
         ]
-    }    
- 
-   fn generate_unwrap_or_else(&self, args: &[Value]) -> Vec<Inst> {
+    }
+
+    fn generate_unwrap_or_else(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::unwrap_or_else requires 2 arguments (self, closure)");
         }
@@ -1471,7 +1443,7 @@ impl OptionImpl {
             Inst::Label("end_unwrap_or_else_option".to_string()),
         ]
     }
-    
+
     fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::expect requires 2 arguments (self, message)");
@@ -1511,7 +1483,7 @@ impl OptionImpl {
             Inst::Label("end_expect_option".to_string()),
         ]
     }
-    
+
     fn generate_map(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::map requires 2 arguments (self, closure)");
@@ -1566,8 +1538,8 @@ impl OptionImpl {
             },
             Inst::Label("end_map_option".to_string()),
         ]
-    }   
- 
+    }
+
     fn generate_map_or(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 3 {
             panic!("Option::map_or requires 3 arguments (self, default, closure)");
@@ -1610,7 +1582,7 @@ impl OptionImpl {
             Inst::Label("end_map_or_option".to_string()),
         ]
     }
-    
+
     fn generate_map_or_else(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 3 {
             panic!("Option::map_or_else requires 3 arguments (self, default_closure, map_closure)");
@@ -1656,7 +1628,7 @@ impl OptionImpl {
             Inst::Label("end_map_or_else_option".to_string()),
         ]
     }
-    
+
     fn generate_and(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::and requires 2 arguments (self, other)");
@@ -1695,8 +1667,8 @@ impl OptionImpl {
             },
             Inst::Label("end_and_option".to_string()),
         ]
-    } 
-   
+    }
+
     fn generate_and_then(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::and_then requires 2 arguments (self, closure)");
@@ -1744,7 +1716,7 @@ impl OptionImpl {
             Inst::Label("end_and_then_option".to_string()),
         ]
     }
-    
+
     fn generate_or(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::or requires 2 arguments (self, other)");
@@ -1779,7 +1751,7 @@ impl OptionImpl {
             Inst::Label("end_or_option".to_string()),
         ]
     }
-    
+
     fn generate_or_else(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::or_else requires 2 arguments (self, closure)");
@@ -1826,7 +1798,7 @@ impl OptionImpl {
             },
             Inst::Label("end_or_else_option".to_string()),
         ]
-    }    
+    }
 
     fn generate_filter(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
@@ -1900,7 +1872,7 @@ impl OptionImpl {
             Inst::Label("end_filter_option".to_string()),
         ]
     }
-    
+
     fn generate_take(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 1 {
             panic!("Option::take requires 1 argument (self)");
@@ -1960,7 +1932,7 @@ impl OptionImpl {
             Inst::Label("end_take_option".to_string()),
         ]
     }
-    
+
     fn generate_replace(&self, args: &[Value]) -> Vec<Inst> {
         if args.len() != 2 {
             panic!("Option::replace requires 2 arguments (self, value)");
@@ -2036,87 +2008,83 @@ impl ErrorHandlingLibrary {
             option_types: HashMap::new(),
         }
     }
-    
+
     /// Register a new Result<T, E> type
     pub fn register_result_type(&mut self, ok_type: String, err_type: String) {
         let result_impl = ResultImpl::new(ok_type.clone(), err_type.clone());
         let type_key = format!("Result<{}, {}>", ok_type, err_type);
         self.result_types.insert(type_key, result_impl);
     }
-    
+
     /// Register a new Option<T> type
     pub fn register_option_type(&mut self, inner_type: String) {
         let option_impl = OptionImpl::new(inner_type.clone());
         let type_key = format!("Option<{}>", inner_type);
         self.option_types.insert(type_key, option_impl);
     }
-    
+
     /// Get Result type implementation
     pub fn get_result_type(&self, ok_type: &str, err_type: &str) -> Option<&ResultImpl> {
         let type_key = format!("Result<{}, {}>", ok_type, err_type);
         self.result_types.get(&type_key)
     }
-    
+
     /// Get Option type implementation
     pub fn get_option_type(&self, inner_type: &str) -> Option<&OptionImpl> {
         let type_key = format!("Option<{}>", inner_type);
         self.option_types.get(&type_key)
     }
-    
+
     /// Generate Result::Ok constructor
     pub fn generate_result_ok(ok_type: String, err_type: String, value: Value) -> Vec<Inst> {
-        vec![
-            Inst::EnumConstruct {
-                result: Value::Reg(300),
-                enum_name: format!("Result<{}, {}>", ok_type, err_type),
-                variant_name: "Ok".to_string(),
-                variant_index: 0,
-                data: vec![value],
-            }
-        ]
+        vec![Inst::EnumConstruct {
+            result: Value::Reg(300),
+            enum_name: format!("Result<{}, {}>", ok_type, err_type),
+            variant_name: "Ok".to_string(),
+            variant_index: 0,
+            data: vec![value],
+        }]
     }
-    
+
     /// Generate Result::Err constructor
     pub fn generate_result_err(ok_type: String, err_type: String, error: Value) -> Vec<Inst> {
-        vec![
-            Inst::EnumConstruct {
-                result: Value::Reg(301),
-                enum_name: format!("Result<{}, {}>", ok_type, err_type),
-                variant_name: "Err".to_string(),
-                variant_index: 1,
-                data: vec![error],
-            }
-        ]
+        vec![Inst::EnumConstruct {
+            result: Value::Reg(301),
+            enum_name: format!("Result<{}, {}>", ok_type, err_type),
+            variant_name: "Err".to_string(),
+            variant_index: 1,
+            data: vec![error],
+        }]
     }
-    
+
     /// Generate Option::Some constructor
     pub fn generate_option_some(inner_type: String, value: Value) -> Vec<Inst> {
-        vec![
-            Inst::EnumConstruct {
-                result: Value::Reg(302),
-                enum_name: format!("Option<{}>", inner_type),
-                variant_name: "Some".to_string(),
-                variant_index: 1,
-                data: vec![value],
-            }
-        ]
+        vec![Inst::EnumConstruct {
+            result: Value::Reg(302),
+            enum_name: format!("Option<{}>", inner_type),
+            variant_name: "Some".to_string(),
+            variant_index: 1,
+            data: vec![value],
+        }]
     }
-    
+
     /// Generate Option::None constructor
     pub fn generate_option_none(inner_type: String) -> Vec<Inst> {
-        vec![
-            Inst::EnumConstruct {
-                result: Value::Reg(303),
-                enum_name: format!("Option<{}>", inner_type),
-                variant_name: "None".to_string(),
-                variant_index: 0,
-                data: vec![],
-            }
-        ]
+        vec![Inst::EnumConstruct {
+            result: Value::Reg(303),
+            enum_name: format!("Option<{}>", inner_type),
+            variant_name: "None".to_string(),
+            variant_index: 0,
+            data: vec![],
+        }]
     }
-    
+
     /// Generate ? operator for Result types
-    pub fn generate_question_mark_operator(result_value: Value, ok_type: String, err_type: String) -> Vec<Inst> {
+    pub fn generate_question_mark_operator(
+        result_value: Value,
+        ok_type: String,
+        err_type: String,
+    ) -> Vec<Inst> {
         vec![
             // Check if Result is Ok
             Inst::EnumDiscriminant {
@@ -2163,15 +2131,19 @@ impl ErrorHandlingLibrary {
             Inst::Label("question_mark_continue".to_string()),
         ]
     }
-    
+
     /// Generate try! macro (legacy ? operator)
     pub fn generate_try_macro(result_value: Value, ok_type: String, err_type: String) -> Vec<Inst> {
         // try! macro is equivalent to ? operator
         Self::generate_question_mark_operator(result_value, ok_type, err_type)
     }
-    
+
     /// Generate pattern matching for Result
-    pub fn generate_result_match(result_value: Value, ok_arm: Vec<Inst>, err_arm: Vec<Inst>) -> Vec<Inst> {
+    pub fn generate_result_match(
+        result_value: Value,
+        ok_arm: Vec<Inst>,
+        err_arm: Vec<Inst>,
+    ) -> Vec<Inst> {
         let mut instructions = vec![
             // Check Result discriminant
             Inst::EnumDiscriminant {
@@ -2198,11 +2170,11 @@ impl ErrorHandlingLibrary {
                 variant_index: 0,
             },
         ];
-        
+
         // Add Ok arm instructions
         instructions.extend(ok_arm);
         instructions.push(Inst::Jump("match_result_end".to_string()));
-        
+
         instructions.push(Inst::Label("match_result_err".to_string()));
         // Extract Err value
         instructions.push(Inst::EnumVariantData {
@@ -2210,16 +2182,20 @@ impl ErrorHandlingLibrary {
             enum_ptr: result_value,
             variant_index: 1,
         });
-        
+
         // Add Err arm instructions
         instructions.extend(err_arm);
         instructions.push(Inst::Label("match_result_end".to_string()));
-        
+
         instructions
     }
-    
+
     /// Generate pattern matching for Option
-    pub fn generate_option_match(option_value: Value, some_arm: Vec<Inst>, none_arm: Vec<Inst>) -> Vec<Inst> {
+    pub fn generate_option_match(
+        option_value: Value,
+        some_arm: Vec<Inst>,
+        none_arm: Vec<Inst>,
+    ) -> Vec<Inst> {
         let mut instructions = vec![
             // Check Option discriminant
             Inst::EnumDiscriminant {
@@ -2246,17 +2222,17 @@ impl ErrorHandlingLibrary {
                 variant_index: 1,
             },
         ];
-        
+
         // Add Some arm instructions
         instructions.extend(some_arm);
         instructions.push(Inst::Jump("match_option_end".to_string()));
-        
+
         instructions.push(Inst::Label("match_option_none".to_string()));
-        
+
         // Add None arm instructions
         instructions.extend(none_arm);
         instructions.push(Inst::Label("match_option_end".to_string()));
-        
+
         instructions
     }
 }
