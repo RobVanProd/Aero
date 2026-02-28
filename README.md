@@ -18,9 +18,9 @@ Aero solves the two-language problem by providing a single, memory-safe systems 
 
 ## 🚀 Live Ecosystem
 
-- **[Interactive WebAssembly Playground](https://github.com/RobVanProd/Aero/tree/main/playground)** – Compile and run Aero code directly in your browser  
+- **[Interactive WebAssembly Playground](https://github.com/RobVanProd/AeroNum/tree/main/playground)** – Compile and run Aero code directly in your browser  
 - **[Benchmarking Dashboard](https://github.com/RobVanProd/AeroNum/tree/main/benchmarks/dashboard)** – Live performance telemetry  
-- **[Full Documentation](https://github.com/RobVanProd/Aero/tree/main/docs)** – “NumPy to AeroNum in 10 minutes” and API reference  
+- **[Full Documentation](https://github.com/RobVanProd/AeroNum/tree/main/docs)** – “NumPy to AeroNum in 10 minutes” and API reference  
 
 ## ⚡ Performance Highlights
 
