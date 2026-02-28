@@ -261,18 +261,6 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     make_location(token_start_line, token_start_column),
                 ));
             }
-            // At operator for pattern matching
-            '@' => { 
-                chars.next();
-                advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::At, make_location(token_start_line, token_start_column)));
-            }
-            // Question mark operator for error propagation
-            '?' => { 
-                chars.next();
-                advance_position(c, &mut line, &mut column);
-                tokens.push(LocatedToken::new(Token::Question, make_location(token_start_line, token_start_column)));
-            }
             // Handle minus and arrow (->)
             '-' => {
                 let ch = chars.next().unwrap(); // consume '-'
@@ -406,7 +394,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     ));
                 }
             }
-            // Dot operator and range operators
+            // Dot operator
             '.' => {
                 let ch = chars.next().unwrap(); // consume the '.'
                 advance_position(ch, &mut line, &mut column);
@@ -522,76 +510,8 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     make_location(token_start_line, token_start_column),
                 ));
             }
-            // Handle underscore (could be wildcard pattern or identifier)
-            '_' => {
-                let ch = chars.next().unwrap(); // consume '_'
-                advance_position(ch, &mut line, &mut column);
-                
-                // Check if this is a standalone underscore (wildcard pattern)
-                if let Some(&next_char) = chars.peek() {
-                    if next_char.is_ascii_alphanumeric() || next_char == '_' {
-                        // This is part of an identifier, put the '_' back and handle as identifier
-                        let mut ident_str = String::from("_");
-                        while let Some(&d) = chars.peek() {
-                            if d.is_ascii_alphanumeric() || d == '_' {
-                                let ch = chars.next().unwrap();
-                                advance_position(ch, &mut line, &mut column);
-                                ident_str.push(ch);
-                            } else {
-                                break;
-                            }
-                        }
-                        
-                        // Check for I/O macros (identifiers followed by !)
-                        if let Some(&'!') = chars.peek() {
-                            let token = match ident_str.as_str() {
-                                "print" => {
-                                    let ch = chars.next().unwrap(); // consume '!'
-                                    advance_position(ch, &mut line, &mut column);
-                                    Token::PrintMacro
-                                }
-                                "println" => {
-                                    let ch = chars.next().unwrap(); // consume '!'
-                                    advance_position(ch, &mut line, &mut column);
-                                    Token::PrintlnMacro
-                                }
-                                _ => Token::Identifier(ident_str), // Regular identifier, don't consume '!'
-                            };
-                            tokens.push(LocatedToken::new(token, make_location(token_start_line, token_start_column)));
-                        } else {
-                            // Regular keywords and identifiers
-                            let token = match ident_str.as_str() {
-                                "let" => Token::Let,
-                                "fn" => Token::Fn,
-                                "return" => Token::Return,
-                                "mut" => Token::Mut,
-                                "struct" => Token::Struct,
-                                "enum" => Token::Enum,
-                                "impl" => Token::Impl,
-                                "if" => Token::If,
-                                "else" => Token::Else,
-                                "while" => Token::While,
-                                "for" => Token::For,
-                                "in" => Token::In,
-                                "loop" => Token::Loop,
-                                "break" => Token::Break,
-                                "continue" => Token::Continue,
-                                "match" => Token::Match,
-                                _ => Token::Identifier(ident_str),
-                            };
-                            tokens.push(LocatedToken::new(token, make_location(token_start_line, token_start_column)));
-                        }
-                    } else {
-                        // Standalone underscore - wildcard pattern
-                        tokens.push(LocatedToken::new(Token::Underscore, make_location(token_start_line, token_start_column)));
-                    }
-                } else {
-                    // End of input, standalone underscore
-                    tokens.push(LocatedToken::new(Token::Underscore, make_location(token_start_line, token_start_column)));
-                }
-            }
             // Identifiers and Keywords
-            'a'..='z' | 'A'..='Z' => {
+            'a'..='z' | 'A'..='Z' | '_' => {
                 let mut ident_str = String::new();
                 while let Some(&d) = chars.peek() {
                     if d.is_ascii_alphanumeric() || d == '_' {
@@ -616,11 +536,6 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                             advance_position(ch, &mut line, &mut column);
                             Token::PrintlnMacro
                         }
-                        "format" => {
-                            let ch = chars.next().unwrap(); // consume '!'
-                            advance_position(ch, &mut line, &mut column);
-                            Token::Format
-                        }
                         _ => Token::Identifier(ident_str), // Regular identifier, don't consume '!'
                     };
                     tokens.push(LocatedToken::new(
@@ -634,9 +549,6 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         "fn" => Token::Fn,
                         "return" => Token::Return,
                         "mut" => Token::Mut,
-                        "struct" => Token::Struct,
-                        "enum" => Token::Enum,
-                        "impl" => Token::Impl,
                         "if" => Token::If,
                         "else" => Token::Else,
                         "while" => Token::While,

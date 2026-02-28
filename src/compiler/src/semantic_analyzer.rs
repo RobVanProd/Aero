@@ -3,8 +3,6 @@ use crate::ast::{
 };
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::collections::HashMap;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 #[derive(Debug, Clone)]
 pub struct VariableInfo {
@@ -431,9 +429,6 @@ pub struct SemanticAnalyzer {
 
 impl SemanticAnalyzer {
     pub fn new() -> Self {
-        let type_manager = Rc::new(RefCell::new(TypeDefinitionManager::new()));
-        let pattern_matcher = PatternMatcher::new(type_manager.clone());
-        
         Self {
             symbol_table: HashMap::new(),
             function_table: FunctionTable::new(),
@@ -522,51 +517,6 @@ impl SemanticAnalyzer {
             }
             Expression::Unary { operand, .. } => {
                 self.check_expression_initialization(operand)?;
-            }
-            Expression::Match { expression, arms } => {
-                self.check_expression_initialization(expression)?;
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        self.check_expression_initialization(guard)?;
-                    }
-                    self.check_expression_initialization(&arm.body)?;
-                }
-            }
-            Expression::StructLiteral { fields, base, .. } => {
-                for (_, field_expr) in fields {
-                    self.check_expression_initialization(field_expr)?;
-                }
-                if let Some(base_expr) = base {
-                    self.check_expression_initialization(base_expr)?;
-                }
-            }
-            Expression::FieldAccess { object, .. } => {
-                self.check_expression_initialization(object)?;
-            }
-            Expression::MethodCall { object, arguments, .. } => {
-                self.check_expression_initialization(object)?;
-                for arg in arguments {
-                    self.check_expression_initialization(arg)?;
-                }
-            }
-            Expression::ArrayLiteral { elements } => {
-                for element in elements {
-                    self.check_expression_initialization(element)?;
-                }
-            }
-            Expression::ArrayAccess { array, index } => {
-                self.check_expression_initialization(array)?;
-                self.check_expression_initialization(index)?;
-            }
-            Expression::VecMacro { elements } => {
-                for element in elements {
-                    self.check_expression_initialization(element)?;
-                }
-            }
-            Expression::FormatMacro { arguments, .. } => {
-                for arg in arguments {
-                    self.check_expression_initialization(arg)?;
-                }
             }
             _ => {} // Literals don't need initialization checks
         }
@@ -1024,7 +974,9 @@ impl SemanticAnalyzer {
         Ok(())
     }
 
-
+    fn is_printable_type(&self, ty: &Ty) -> bool {
+        matches!(ty, Ty::Int | Ty::Float | Ty::Bool)
+    }
 
     fn validate_comparison_operands(
         &self,

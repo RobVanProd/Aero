@@ -17,14 +17,6 @@ pub use semantic_analyzer::SemanticAnalyzer;
 #[cfg(test)]
 mod error_test;
 
-#[cfg(test)]
-mod ast_generic_collection_test;
-
-#[cfg(test)]
-mod types_enum_test;
-
-
-
 /// Compiler options for benchmarking
 #[derive(Debug, Clone, Default)]
 pub struct CompilerOptions {

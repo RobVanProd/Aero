@@ -1,6 +1,6 @@
 [package]
 name = "compiler"
-version = "0.4.0"
+version = "0.3.0"
 edition = "2024"
 
 [lib]
@@ -11,12 +11,6 @@ md5 = "0.7"
 thiserror = "1.0"
 miette = { version = "7.0", features = ["fancy"] }
 ariadne = "0.4"
-# Phase 4: Data structures and advanced pattern matching dependencies
-indexmap = "2.0"  # For ordered maps and memory-efficient collections
-smallvec = "1.11"  # For stack-allocated vectors for small collections
-bitvec = "1.0"  # For efficient bit manipulation in pattern matching
-memoffset = "0.9"  # For calculating struct field offsets
-bytemuck = "1.14"  # For safe transmutation and memory layout operations
 
 [[bin]]
 name = "aero"
