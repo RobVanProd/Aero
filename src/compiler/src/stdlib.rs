@@ -552,7 +552,8 @@ mod tests {
         library.register_vec_type("i32".to_string());
         assert!(library.get_vec_type("i32").is_some());
     }
-}/
+}
+
 // Built-in Result<T, E> type for error handling - Task 12.1
 #[derive(Debug, Clone)]
 pub enum ResultType<T, E> {
@@ -805,7 +806,7 @@ impl ResultImpl {
             Inst::Call {
                 result: None,
                 function: "panic".to_string(),
-                args: vec![Value::ImmString("called `Result::unwrap()` on an `Err` value".to_string())],
+                arguments: vec![Value::ImmFloat(0.0)],
             },
             Inst::Label("end_unwrap".to_string()),
         ]
@@ -887,7 +888,7 @@ impl ResultImpl {
             Inst::Call {
                 result: Some(Value::Reg(125)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone(), Value::Reg(124)],
+                arguments: vec![args[1].clone(), Value::Reg(124)],
             },
             Inst::Label("end_unwrap_or_else".to_string()),
         ]
@@ -927,7 +928,7 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Call {
                 result: None,
                 function: "panic".to_string(),
-                args: vec![args[1].clone()],
+                arguments: vec![args[1].clone()],
             },
             Inst::Label("end_expect".to_string()),
         ]
@@ -965,7 +966,7 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Call {
                 result: Some(Value::Reg(132)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone(), Value::Reg(131)],
+                arguments: vec![args[1].clone(), Value::Reg(131)],
             },
             // Create new Ok with mapped value
             Inst::EnumConstruct {
@@ -1026,7 +1027,7 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Call {
                 result: Some(Value::Reg(139)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone(), Value::Reg(138)],
+                arguments: vec![args[1].clone(), Value::Reg(138)],
             },
             // Create new Err with mapped error
             Inst::EnumConstruct {
@@ -1122,7 +1123,7 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Call {
                 result: Some(Value::Reg(150)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone(), Value::Reg(149)],
+                arguments: vec![args[1].clone(), Value::Reg(149)],
             },
             Inst::Jump("end_and_then".to_string()),
             Inst::Label("and_then_err_passthrough".to_string()),
@@ -1225,13 +1226,14 @@ fn generate_expect(&self, args: &[Value]) -> Vec<Inst> {
             Inst::Call {
                 result: Some(Value::Reg(162)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone(), Value::Reg(161)],
+                arguments: vec![args[1].clone(), Value::Reg(161)],
             },
             Inst::Label("end_or_else".to_string()),
         ]
     }
-}///
- Built-in Option<T> type for nullable values - Task 12.1
+}
+
+/// Built-in Option<T> type for nullable values - Task 12.1
 #[derive(Debug, Clone)]
 pub enum OptionType<T> {
     Some(T),
@@ -1387,7 +1389,7 @@ impl OptionImpl {
             Inst::Call {
                 result: None,
                 function: "panic".to_string(),
-                args: vec![Value::ImmString("called `Option::unwrap()` on a `None` value".to_string())],
+                arguments: vec![Value::ImmFloat(0.0)],
             },
             Inst::Label("end_unwrap_option".to_string()),
         ]
@@ -1464,7 +1466,7 @@ impl OptionImpl {
             Inst::Call {
                 result: Some(Value::Reg(214)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone()],
+                arguments: vec![args[1].clone()],
             },
             Inst::Label("end_unwrap_or_else_option".to_string()),
         ]
@@ -1504,7 +1506,7 @@ impl OptionImpl {
             Inst::Call {
                 result: None,
                 function: "panic".to_string(),
-                args: vec![args[1].clone()],
+                arguments: vec![args[1].clone()],
             },
             Inst::Label("end_expect_option".to_string()),
         ]
@@ -1542,7 +1544,7 @@ impl OptionImpl {
             Inst::Call {
                 result: Some(Value::Reg(221)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone(), Value::Reg(220)],
+                arguments: vec![args[1].clone(), Value::Reg(220)],
             },
             // Create new Some with mapped value
             Inst::EnumConstruct {
@@ -1598,7 +1600,7 @@ impl OptionImpl {
             Inst::Call {
                 result: Some(Value::Reg(227)),
                 function: "closure_call".to_string(),
-                args: vec![args[2].clone(), Value::Reg(226)],
+                arguments: vec![args[2].clone(), Value::Reg(226)],
             },
             Inst::Jump("end_map_or_option".to_string()),
             Inst::Label("map_or_default".to_string()),
@@ -1641,7 +1643,7 @@ impl OptionImpl {
             Inst::Call {
                 result: Some(Value::Reg(232)),
                 function: "closure_call".to_string(),
-                args: vec![args[2].clone(), Value::Reg(231)],
+                arguments: vec![args[2].clone(), Value::Reg(231)],
             },
             Inst::Jump("end_map_or_else_option".to_string()),
             Inst::Label("map_or_else_default".to_string()),
@@ -1649,7 +1651,7 @@ impl OptionImpl {
             Inst::Call {
                 result: Some(Value::Reg(233)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone()],
+                arguments: vec![args[1].clone()],
             },
             Inst::Label("end_map_or_else_option".to_string()),
         ]
@@ -1727,7 +1729,7 @@ impl OptionImpl {
             Inst::Call {
                 result: Some(Value::Reg(241)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone(), Value::Reg(240)],
+                arguments: vec![args[1].clone(), Value::Reg(240)],
             },
             Inst::Jump("end_and_then_option".to_string()),
             Inst::Label("and_then_none_passthrough".to_string()),
@@ -1820,7 +1822,7 @@ impl OptionImpl {
             Inst::Call {
                 result: Some(Value::Reg(251)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone()],
+                arguments: vec![args[1].clone()],
             },
             Inst::Label("end_or_else_option".to_string()),
         ]
@@ -1858,7 +1860,7 @@ impl OptionImpl {
             Inst::Call {
                 result: Some(Value::Reg(255)),
                 function: "closure_call".to_string(),
-                args: vec![args[1].clone(), Value::Reg(254)],
+                arguments: vec![args[1].clone(), Value::Reg(254)],
             },
             // Branch based on predicate result
             Inst::Branch {
@@ -2018,8 +2020,10 @@ impl OptionImpl {
             Inst::Store(args[0].clone(), Value::Reg(270)),
         ]
     }
-}/// Er
-ror handling library manager for Result and Option types - Task 12.1
+}
+
+/// Error handling library manager for Result and Option types - Task 12.1
+
 pub struct ErrorHandlingLibrary {
     pub result_types: HashMap<String, ResultImpl>,
     pub option_types: HashMap<String, OptionImpl>,

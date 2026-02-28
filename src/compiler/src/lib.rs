@@ -6,6 +6,7 @@ mod ir_generator;
 pub mod lexer;
 pub mod parser;
 pub mod semantic_analyzer;
+pub mod stdlib;
 pub mod types;
 
 pub use code_generator::{CodeGenerator, generate_code};

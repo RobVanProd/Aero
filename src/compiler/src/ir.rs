@@ -126,7 +126,69 @@ pub enum Inst {
         field_index: u32,    // field index
         struct_type: String, // LLVM struct type name
     },
+
+    // Phase 6: Vec/Collection IR operations
+    VecAlloca {
+        result: Value,
+        element_type: String,
+    },
+    VecPush {
+        vec_ptr: Value,
+        value: Value,
+    },
+    VecPop {
+        result: Value,
+        vec_ptr: Value,
+    },
+    VecLength {
+        result: Value,
+        vec_ptr: Value,
+    },
+    VecCapacity {
+        result: Value,
+        vec_ptr: Value,
+    },
+    VecAccess {
+        result: Value,
+        vec_ptr: Value,
+        index: Value,
+    },
+    VecInit {
+        result: Value,
+        element_type: String,
+        elements: Vec<Value>,
+    },
+
+    // Array aliases (used by stdlib ArrayOps)
+    ArrayLength {
+        result: Value,
+        array_ptr: Value,
+    },
+    ArrayAccess {
+        result: Value,
+        array_ptr: Value,
+        index: Value,
+    },
+
+    // Phase 6: Enum/ADT IR operations (for Result<T,E> and Option<T>)
+    EnumDiscriminant {
+        result: Value,
+        enum_ptr: Value,
+    },
+    EnumVariantData {
+        result: Value,
+        enum_ptr: Value,
+        variant_index: usize,
+    },
+    EnumConstruct {
+        result: Value,
+        enum_name: String,
+        variant_name: String,
+        variant_index: usize,
+        data: Vec<Value>,
+    },
 }
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function {

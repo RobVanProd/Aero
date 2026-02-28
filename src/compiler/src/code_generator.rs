@@ -543,6 +543,8 @@ impl CodeGenerator {
                         result_str, struct_type, struct_type, base_str, field_index
                     ));
                 }
+                // Phase 6: stdlib IR variants (Vec, Array, Enum) — LLVM lowering is a future task
+                _ => {}
             }
         }
         // If no explicit return, return 0
