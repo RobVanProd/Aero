@@ -1,4 +1,4 @@
-// Integration test for semantic analyzer function validation
+// Comprehensive integration test for enhanced error reporton
 // This test demonstrates that task 6.1 has been implemented successfully
 
 fn main() {

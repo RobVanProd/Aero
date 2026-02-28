@@ -543,6 +543,131 @@ impl CodeGenerator {
                         result_str, struct_type, struct_type, base_str, field_index
                     ));
                 }
+                // Struct operations - TODO: Implement proper LLVM struct generation
+                Inst::StructDef { .. } => {
+                    // Struct definitions are handled at module level, skip here
+                }
+                Inst::StructAlloca { .. } => {
+                    // TODO: Implement struct allocation
+                    llvm_ir.push_str("  ; TODO: struct alloca\n");
+                }
+                Inst::StructInit { .. } => {
+                    // TODO: Implement struct initialization
+                    llvm_ir.push_str("  ; TODO: struct init\n");
+                }
+                Inst::FieldAccess { .. } => {
+                    // TODO: Implement field access
+                    llvm_ir.push_str("  ; TODO: field access\n");
+                }
+                Inst::FieldStore { .. } => {
+                    // TODO: Implement field store
+                    llvm_ir.push_str("  ; TODO: field store\n");
+                }
+                Inst::StructCopy { .. } => {
+                    // TODO: Implement struct copy
+                    llvm_ir.push_str("  ; TODO: struct copy\n");
+                }
+                // Enum operations - TODO: Implement proper LLVM enum generation
+                Inst::EnumDef { .. } => {
+                    // Enum definitions are handled at module level, skip here
+                }
+                Inst::EnumAlloca { .. } => {
+                    // TODO: Implement enum allocation
+                    llvm_ir.push_str("  ; TODO: enum alloca\n");
+                }
+                Inst::EnumConstruct { .. } => {
+                    // TODO: Implement enum construction
+                    llvm_ir.push_str("  ; TODO: enum construct\n");
+                }
+                Inst::EnumDiscriminant { .. } => {
+                    // TODO: Implement discriminant extraction
+                    llvm_ir.push_str("  ; TODO: enum discriminant\n");
+                }
+                Inst::EnumExtract { .. } => {
+                    // TODO: Implement variant data extraction
+                    llvm_ir.push_str("  ; TODO: enum extract\n");
+                }
+                // Pattern matching operations - TODO: Implement proper LLVM pattern matching
+                Inst::Match { .. } => {
+                    // TODO: Implement match expression
+                    llvm_ir.push_str("  ; TODO: match expression\n");
+                }
+                Inst::PatternCheck { .. } => {
+                    // TODO: Implement pattern check
+                    llvm_ir.push_str("  ; TODO: pattern check\n");
+                }
+                Inst::Switch { discriminant, cases, default_label } => {
+                    // Generate LLVM switch instruction
+                    let disc_str = self.value_to_string(discriminant);
+                    llvm_ir.push_str(&format!("  switch i32 {}, label %{} [\n", disc_str, default_label));
+                    for (value, label) in cases {
+                        llvm_ir.push_str(&format!("    i32 {}, label %{}\n", value, label));
+                    }
+                    llvm_ir.push_str("  ]\n");
+                }
+                // Array and collection operations - TODO: Implement proper LLVM array/collection generation
+                Inst::ArrayAlloca { .. } => {
+                    // TODO: Implement array allocation
+                    llvm_ir.push_str("  ; TODO: array alloca\n");
+                }
+                Inst::ArrayInit { .. } => {
+                    // TODO: Implement array initialization
+                    llvm_ir.push_str("  ; TODO: array init\n");
+                }
+                Inst::ArrayAccess { .. } => {
+                    // TODO: Implement array access
+                    llvm_ir.push_str("  ; TODO: array access\n");
+                }
+                Inst::ArrayStore { .. } => {
+                    // TODO: Implement array store
+                    llvm_ir.push_str("  ; TODO: array store\n");
+                }
+                Inst::ArrayLength { .. } => {
+                    // TODO: Implement array length
+                    llvm_ir.push_str("  ; TODO: array length\n");
+                }
+                Inst::BoundsCheck { .. } => {
+                    // TODO: Implement bounds checking
+                    llvm_ir.push_str("  ; TODO: bounds check\n");
+                }
+                // Vec operations - TODO: Implement proper LLVM Vec generation
+                Inst::VecAlloca { .. } => {
+                    // TODO: Implement Vec allocation
+                    llvm_ir.push_str("  ; TODO: vec alloca\n");
+                }
+                Inst::VecInit { .. } => {
+                    // TODO: Implement Vec initialization
+                    llvm_ir.push_str("  ; TODO: vec init\n");
+                }
+                Inst::VecPush { .. } => {
+                    // TODO: Implement Vec push
+                    llvm_ir.push_str("  ; TODO: vec push\n");
+                }
+                Inst::VecPop { .. } => {
+                    // TODO: Implement Vec pop
+                    llvm_ir.push_str("  ; TODO: vec pop\n");
+                }
+                Inst::VecLength { .. } => {
+                    // TODO: Implement Vec length
+                    llvm_ir.push_str("  ; TODO: vec length\n");
+                }
+                Inst::VecCapacity { .. } => {
+                    // TODO: Implement Vec capacity
+                    llvm_ir.push_str("  ; TODO: vec capacity\n");
+                }
+                Inst::VecAccess { .. } => {
+                    // TODO: Implement Vec access
+                    llvm_ir.push_str("  ; TODO: vec access\n");
+                }
+                // Generic operations - TODO: Implement proper LLVM generic generation
+                Inst::GenericInstantiate { .. } => {
+                    // TODO: Implement generic instantiation
+                    llvm_ir.push_str("  ; TODO: generic instantiate\n");
+                }
+                Inst::GenericMethodCall { .. } => {
+                    // TODO: Implement generic method call
+                    llvm_ir.push_str("  ; TODO: generic method call\n");
+                }
             }
         }
         // If no explicit return, return 0
