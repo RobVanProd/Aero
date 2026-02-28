@@ -1,8 +1,0 @@
-struct Point {
-    x: int,
-    x: int,
-}
-
-fn main() {
-    println!("This should fail");
-}

@@ -1,5 +1,0 @@
-fn main() {
-    let arr = [1, 2, 3];
-    let element = arr[0];
-    println!("Element: {}", element);
-}

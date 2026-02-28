@@ -1,9 +1,0 @@
-enum Color {
-    Red,
-    Green,
-    Blue,
-}
-
-fn main() {
-    println!("Testing enum parsing");
-}
