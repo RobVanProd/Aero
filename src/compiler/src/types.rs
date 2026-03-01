@@ -21,6 +21,8 @@ pub enum Ty {
     Result(Box<Ty>, Box<Ty>),  // Result<T, E> - Ok(T) or Err(E)
     Vec(Box<Ty>),              // Vec<T> - dynamic/growable array
     HashMap(Box<Ty>, Box<Ty>), // HashMap<K, V> - key-value store
+    // Phase 7: Function pointer type (closures)
+    Fn(String), // Function pointer referencing a named function
 }
 
 impl fmt::Display for Ty {
@@ -57,6 +59,7 @@ impl fmt::Display for Ty {
             Ty::Result(ok_ty, err_ty) => write!(f, "Result<{}, {}>", ok_ty, err_ty),
             Ty::Vec(elem) => write!(f, "Vec<{}>", elem),
             Ty::HashMap(key, val) => write!(f, "HashMap<{}, {}>", key, val),
+            Ty::Fn(name) => write!(f, "fn({})", name),
         }
     }
 }
@@ -145,6 +148,7 @@ impl Ty {
             Ty::String | Ty::Struct(_) | Ty::Enum(_) => false,
             Ty::Option(_) | Ty::Result(_, _) | Ty::Vec(_) | Ty::HashMap(_, _) => false,
             Ty::TypeParam(_) => false, // conservative: generics are not Copy by default
+            Ty::Fn(_) => true,         // function pointers are Copy
         }
     }
 

@@ -58,7 +58,7 @@ fn main() {
                 }
             };
 
-            compile_to_llvm_ir(&source_code, output_file);
+            compile_to_llvm_ir(&source_code, output_file, input_file);
         }
         "run" => {
             if args.len() < 3 {
@@ -188,7 +188,7 @@ fn main() {
     }
 }
 
-fn compile_to_llvm_ir(source_code: &str, output_file: &str) {
+fn compile_to_llvm_ir(source_code: &str, output_file: &str, input_file: &str) {
     println!("Compiling with performance optimizations enabled");
 
     // Initialize performance optimizer
@@ -230,6 +230,34 @@ fn compile_to_llvm_ir(source_code: &str, output_file: &str) {
 
     let parsing_time = parsing_start.elapsed();
     println!("Optimized parsing completed in {:?}", parsing_time);
+
+    // Phase 7: Module resolution — resolve `mod foo;` to files
+    let mut resolver = module_resolver::ModuleResolver::new(input_file);
+    let mut module_asts = Vec::new();
+    for node in &ast {
+        if let crate::ast::AstNode::Statement(crate::ast::Statement::ModDecl {
+            name,
+            is_public: _,
+        }) = node
+        {
+            match resolver.resolve(name) {
+                Ok(resolved) => {
+                    println!(
+                        "  Resolved module `{}` → {}",
+                        name,
+                        resolved.file_path.display()
+                    );
+                    let mod_tokens = lexer::tokenize(&resolved.source);
+                    let mod_ast = parser::parse(mod_tokens);
+                    module_asts.extend(mod_ast);
+                }
+                Err(err) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                }
+            }
+        }
+    }
+    ast.extend(module_asts);
 
     // Optimized semantic analysis
     let semantic_start = Instant::now();
@@ -310,7 +338,7 @@ fn run_aero_program(source_code: &str, input_file: &str) {
     };
 
     // Compile to LLVM IR
-    compile_to_llvm_ir(source_code, &ll_file);
+    compile_to_llvm_ir(source_code, &ll_file, input_file);
 
     // Compile LLVM IR to object file using llc
     let llc_output = Command::new("llc")
