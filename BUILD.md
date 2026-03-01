@@ -45,7 +45,7 @@ This installs `aero` into your Cargo bin directory (typically `~/.cargo/bin`).
 - `aero test`: discover and run `*_test.aero` files
 - `aero fmt <input.aero>`: auto-format source
 - `aero init [path]`: create a project scaffold (`aero.toml` + `src/main.aero`)
-- `aero lsp`: run the Aero language server over stdio
+- `aero lsp`: run the Aero language server over stdio (diagnostics, completion, hover, go-to-definition, document symbols)
 
 ## "Hello, world" (compile to LLVM IR)
 

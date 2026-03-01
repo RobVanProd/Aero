@@ -106,13 +106,21 @@ Use `check` when you only want diagnostics:
 aero check src/main.aero
 ```
 
-### 4. Optional: editor diagnostics with LSP
+### 4. Optional: editor tooling with LSP
 
 Start the language server over stdio:
 
 ```bash
 aero lsp
 ```
+
+Current `aero lsp` support in v1.0.0 includes:
+
+- Syntax diagnostics as you type
+- Completion suggestions
+- Hover information
+- Go-to-definition
+- Document symbols
 
 ## What's Next?
 

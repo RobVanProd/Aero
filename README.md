@@ -82,6 +82,7 @@ fn main() {
 | **Modules** | `mod`/`use` imports, `pub` visibility, multi-file projects |
 | **Codegen** | LLVM IR backend with optimization passes |
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero init`, `aero lsp` |
+| **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
 ## 🗺️ Roadmap (v1.1.0+)

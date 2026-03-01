@@ -49,7 +49,7 @@ This document outlines the development roadmap for the Aero programming language
 
 - **Package Manager:** `aero-pkg` with dependency resolution and workspaces
 - **CLI Expansion:** `aero check` (type-check only), `aero test`, `aero fmt`, `aero init`
-- **Basic LSP Diagnostics:** `aero lsp` with syntax diagnostics from parser multi-error recovery
+- **LSP Support:** `aero lsp` provides syntax diagnostics, completion, hover, go-to-definition, and document symbols
 - **Compiler Diagnostics:** Colored errors, source snippets, suggestions
 - **Closures & Lambdas:** `|x, y| { ... }` syntax with capture semantics
 
@@ -60,7 +60,6 @@ This document outlines the development roadmap for the Aero programming language
 ## Future Phases
 
 ### Phase 8: Optimization & Ecosystem (v1.1.0+)
-- Advanced LSP features (completion, hover, go-to-definition, symbols)
 - Documentation generator (`aero doc`)
 - INT8/FP8 quantization interfaces
 - Kernel fusion & advanced graph compilation
