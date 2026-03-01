@@ -106,11 +106,17 @@ impl IrGenerator {
             Statement::Function {
                 name,
                 parameters,
-                return_type: _,
+                return_type,
                 body,
                 ..
             } => {
-                self.generate_function_definition_ir(name, parameters, body, current_function);
+                self.generate_function_definition_ir(
+                    name,
+                    parameters,
+                    return_type,
+                    body,
+                    current_function,
+                );
             }
             Statement::If {
                 condition,
@@ -481,6 +487,7 @@ impl IrGenerator {
         &mut self,
         name: String,
         parameters: Vec<crate::ast::Parameter>,
+        return_type: Option<Type>,
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
@@ -530,35 +537,48 @@ impl IrGenerator {
         }
 
         // Generate function body IR
-        let mut function_body = Vec::new();
+        let mut function_ir = Function {
+            name: name.clone(),
+            body: Vec::new(),
+            next_reg: 0,
+            next_ptr: 0,
+        };
 
         // Allocate parameters
         for param in &parameters {
             let (ptr_reg, _) = self.symbol_table.get(&param.name).unwrap().clone();
-            function_body.push(Inst::Alloca(ptr_reg.clone(), param.name.clone()));
+            function_ir
+                .body
+                .push(Inst::Alloca(ptr_reg.clone(), param.name.clone()));
         }
 
         // Generate statements
         for stmt in body.statements {
-            self.generate_statement_ir_for_function(stmt, &mut function_body);
+            self.generate_statement_ir(stmt, &mut function_ir);
         }
 
-        // Handle block expression (implicit return)
+        // Handle block expression (implicit return) or default return when needed.
         if let Some(expr) = body.expression {
-            let (return_value, _) =
-                self.generate_expression_ir_for_function(expr, &mut function_body);
-            function_body.push(Inst::Return(return_value));
-        } else {
-            // If no explicit return, return unit/void (represented as 0 for now)
-            function_body.push(Inst::Return(Value::ImmInt(0)));
+            let (return_value, _) = self.generate_expression_ir(expr, &mut function_ir);
+            function_ir.body.push(Inst::Return(return_value));
+        } else if !function_ir
+            .body
+            .iter()
+            .any(|inst| matches!(inst, Inst::Return(_)))
+        {
+            // If no explicit return exists, emit a default scalar return.
+            // `None` return type is lowered as `void` in codegen.
+            function_ir.body.push(Inst::Return(Value::ImmInt(0)));
         }
+
+        let ir_return_type = return_type.as_ref().map(|ty| self.ast_type_to_ir_name(ty));
 
         // Create function definition instruction
         let func_def = Inst::FunctionDef {
             name: name.clone(),
             parameters: param_names,
-            return_type: None, // TODO: Extract return type from AST
-            body: function_body,
+            return_type: ir_return_type,
+            body: function_ir.body.clone(),
         };
 
         // Add function definition to current function (main)
@@ -1210,6 +1230,33 @@ impl IrGenerator {
                 Ty::Reference(Box::new(self.ast_type_to_ty(inner)), *mutable)
             }
             Type::Generic(name, _) => Ty::TypeParam(name.clone()),
+        }
+    }
+
+    fn ast_type_to_ir_name(&self, ty: &Type) -> String {
+        match self.ast_type_to_ty(ty) {
+            Ty::Int => "i32".to_string(),
+            Ty::Float => "f64".to_string(),
+            Ty::Bool => "bool".to_string(),
+            Ty::String => "String".to_string(),
+            Ty::Void => "void".to_string(),
+            Ty::Array(_, _) => "array".to_string(),
+            Ty::Tuple(_) => "tuple".to_string(),
+            Ty::Struct(name) => name,
+            Ty::Enum(name) => name,
+            Ty::Reference(_, mutable) => {
+                if mutable {
+                    "&mut".to_string()
+                } else {
+                    "&".to_string()
+                }
+            }
+            Ty::TypeParam(name) => name,
+            Ty::Option(_) => "Option".to_string(),
+            Ty::Result(_, _) => "Result".to_string(),
+            Ty::Vec(_) => "Vec".to_string(),
+            Ty::HashMap(_, _) => "HashMap".to_string(),
+            Ty::Fn(name) => name,
         }
     }
 

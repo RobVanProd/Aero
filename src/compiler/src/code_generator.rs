@@ -24,6 +24,170 @@ impl Default for CodeGenerator {
 }
 
 impl CodeGenerator {
+    fn bump_seed_from_value(max_seed: &mut u32, value: &Value) {
+        if let Value::Reg(r) = value {
+            *max_seed = (*max_seed).max(r.saturating_add(1));
+        }
+    }
+
+    fn infer_next_reg_seed(instructions: &[Inst]) -> u32 {
+        let mut seed = 0u32;
+
+        for inst in instructions {
+            match inst {
+                Inst::Add(result, lhs, rhs)
+                | Inst::FAdd(result, lhs, rhs)
+                | Inst::Sub(result, lhs, rhs)
+                | Inst::FSub(result, lhs, rhs)
+                | Inst::Mul(result, lhs, rhs)
+                | Inst::FMul(result, lhs, rhs)
+                | Inst::Div(result, lhs, rhs)
+                | Inst::FDiv(result, lhs, rhs)
+                | Inst::And {
+                    result,
+                    left: lhs,
+                    right: rhs,
+                }
+                | Inst::Or {
+                    result,
+                    left: lhs,
+                    right: rhs,
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, lhs);
+                    Self::bump_seed_from_value(&mut seed, rhs);
+                }
+                Inst::Alloca(ptr, _) | Inst::AllocaArray { result: ptr, .. } => {
+                    Self::bump_seed_from_value(&mut seed, ptr);
+                }
+                Inst::Store(ptr, value)
+                | Inst::Load(value, ptr)
+                | Inst::SIToFP(value, ptr)
+                | Inst::FPToSI(value, ptr) => {
+                    Self::bump_seed_from_value(&mut seed, value);
+                    Self::bump_seed_from_value(&mut seed, ptr);
+                }
+                Inst::Return(value)
+                | Inst::Branch {
+                    condition: value, ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, value);
+                }
+                Inst::Not { result, operand } | Inst::Neg { result, operand } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, operand);
+                }
+                Inst::Call {
+                    arguments, result, ..
+                } => {
+                    for arg in arguments {
+                        Self::bump_seed_from_value(&mut seed, arg);
+                    }
+                    if let Some(result) = result {
+                        Self::bump_seed_from_value(&mut seed, result);
+                    }
+                }
+                Inst::ICmp {
+                    result,
+                    left,
+                    right,
+                    ..
+                }
+                | Inst::FCmp {
+                    result,
+                    left,
+                    right,
+                    ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, left);
+                    Self::bump_seed_from_value(&mut seed, right);
+                }
+                Inst::Print { arguments, .. } | Inst::Println { arguments, .. } => {
+                    for arg in arguments {
+                        Self::bump_seed_from_value(&mut seed, arg);
+                    }
+                }
+                Inst::GetElementPtr {
+                    result,
+                    base,
+                    index,
+                    ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, base);
+                    Self::bump_seed_from_value(&mut seed, index);
+                }
+                Inst::AllocaStruct { result, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                }
+                Inst::GetFieldPtr { result, base, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, base);
+                }
+                Inst::VecAlloca { result, .. }
+                | Inst::VecPop { result, .. }
+                | Inst::VecLength { result, .. }
+                | Inst::VecCapacity { result, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                }
+                Inst::VecPush { vec_ptr, value } => {
+                    Self::bump_seed_from_value(&mut seed, vec_ptr);
+                    Self::bump_seed_from_value(&mut seed, value);
+                }
+                Inst::VecAccess {
+                    result,
+                    vec_ptr,
+                    index,
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, vec_ptr);
+                    Self::bump_seed_from_value(&mut seed, index);
+                }
+                Inst::VecInit {
+                    result, elements, ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    for element in elements {
+                        Self::bump_seed_from_value(&mut seed, element);
+                    }
+                }
+                Inst::ArrayLength { result, array_ptr } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, array_ptr);
+                }
+                Inst::ArrayAccess {
+                    result,
+                    array_ptr,
+                    index,
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, array_ptr);
+                    Self::bump_seed_from_value(&mut seed, index);
+                }
+                Inst::EnumDiscriminant { result, enum_ptr }
+                | Inst::EnumVariantData {
+                    result, enum_ptr, ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, enum_ptr);
+                }
+                Inst::EnumConstruct { result, data, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    for value in data {
+                        Self::bump_seed_from_value(&mut seed, value);
+                    }
+                }
+                Inst::FunctionDef { body, .. } => {
+                    seed = seed.max(Self::infer_next_reg_seed(body));
+                }
+                Inst::Jump(_) | Inst::Label(_) => {}
+            }
+        }
+
+        seed
+    }
+
     fn fresh_reg(&mut self) -> String {
         let reg = format!("reg{}", self.next_reg);
         self.next_reg += 1;
@@ -86,6 +250,25 @@ impl CodeGenerator {
                 format!("%{}", tmp)
             }
             Value::ImmString(_) => panic!("String value cannot be lowered as i64 operand"),
+        }
+    }
+
+    fn value_to_win_printf_f64_bits_operand(
+        &mut self,
+        llvm_ir: &mut String,
+        value: &Value,
+    ) -> String {
+        match value {
+            Value::ImmInt(n) => ((*n as f64).to_bits() as i64).to_string(),
+            Value::ImmFloat(f) => (f.to_bits() as i64).to_string(),
+            Value::Reg(r) => {
+                let tmp = self.fresh_reg();
+                llvm_ir.push_str(&format!("  %{} = bitcast double %reg{} to i64\n", tmp, r));
+                format!("%{}", tmp)
+            }
+            Value::ImmString(_) => {
+                panic!("String value cannot be lowered as Windows printf floating operand")
+            }
         }
     }
 
@@ -175,6 +358,10 @@ impl CodeGenerator {
         // Generate function signature
         let return_llvm_type = if let Some(ret_type) = return_type {
             self.type_to_llvm(ret_type).to_string()
+        } else if func_name == "main" {
+            // Keep C ABI-compatible entrypoint semantics even when source omits
+            // an explicit return type.
+            "i32".to_string()
         } else {
             "void".to_string()
         };
@@ -221,7 +408,7 @@ impl CodeGenerator {
         function_defs: &HashMap<String, FunctionDef>,
         next_reg_seed: u32,
     ) {
-        self.next_reg = next_reg_seed;
+        self.next_reg = next_reg_seed.max(Self::infer_next_reg_seed(instructions));
 
         for inst in instructions {
             match inst {
@@ -933,8 +1120,16 @@ impl CodeGenerator {
                     printf_args.push_str(&arg_ptr);
                 }
                 _ => {
-                    printf_args.push_str(", double ");
-                    printf_args.push_str(&self.value_to_string(arg));
+                    if cfg!(windows) {
+                        // MSVC varargs require floating arguments in integer vararg slots.
+                        // Pass raw f64 bits so `%g` can reconstruct the correct value.
+                        printf_args.push_str(", i64 ");
+                        printf_args
+                            .push_str(&self.value_to_win_printf_f64_bits_operand(llvm_ir, arg));
+                    } else {
+                        printf_args.push_str(", double ");
+                        printf_args.push_str(&self.value_to_string(arg));
+                    }
                 }
             }
         }
@@ -1298,7 +1493,11 @@ mod tests {
         assert!(llvm_ir.contains("Value: %g"));
 
         // Check that argument is passed
-        assert!(llvm_ir.contains("double 0x4045000000000000")); // 42.0 in hex
+        if cfg!(windows) {
+            assert!(llvm_ir.contains("i64 4631107791820423168")); // f64 bits for 42.0
+        } else {
+            assert!(llvm_ir.contains("double 0x4045000000000000")); // 42.0 in hex
+        }
     }
 
     #[test]
@@ -1480,9 +1679,15 @@ mod tests {
         assert!(llvm_ir.contains("Sum: %g + %g = %g"));
 
         // Check that all arguments are passed
-        assert!(llvm_ir.contains("double 0x4014000000000000")); // 5.0
-        assert!(llvm_ir.contains("double 0x4008000000000000")); // 3.0
-        assert!(llvm_ir.contains("double 0x4020000000000000")); // 8.0
+        if cfg!(windows) {
+            assert!(llvm_ir.contains("i64 4617315517961601024")); // 5.0 bits
+            assert!(llvm_ir.contains("i64 4613937818241073152")); // 3.0 bits
+            assert!(llvm_ir.contains("i64 4620693217682128896")); // 8.0 bits
+        } else {
+            assert!(llvm_ir.contains("double 0x4014000000000000")); // 5.0
+            assert!(llvm_ir.contains("double 0x4008000000000000")); // 3.0
+            assert!(llvm_ir.contains("double 0x4020000000000000")); // 8.0
+        }
     }
 
     #[test]
@@ -1571,9 +1776,15 @@ mod tests {
         // Check that printf call is generated with multiple arguments
         assert!(llvm_ir.contains("call i32 @printf"));
         assert!(llvm_ir.contains("Values: %g, %g, %g"));
-        assert!(llvm_ir.contains("double 0x3FF0000000000000")); // 1.0 in hex
-        assert!(llvm_ir.contains("double 0x40091EB851EB851F")); // 3.14 in hex
-        assert!(llvm_ir.contains("double %reg5"));
+        if cfg!(windows) {
+            assert!(llvm_ir.contains("i64 4607182418800017408")); // 1.0 bits
+            assert!(llvm_ir.contains("i64 4614253070214989087")); // 3.14 bits
+            assert!(llvm_ir.contains("bitcast double %reg5 to i64"));
+        } else {
+            assert!(llvm_ir.contains("double 0x3FF0000000000000")); // 1.0 in hex
+            assert!(llvm_ir.contains("double 0x40091EB851EB851F")); // 3.14 in hex
+            assert!(llvm_ir.contains("double %reg5"));
+        }
     }
 
     #[test]

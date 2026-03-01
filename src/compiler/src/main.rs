@@ -173,7 +173,15 @@ impl BuildConfig {
 
     fn llvm_target_triple(&self) -> &str {
         match self.target {
-            BuildTarget::Cpu => "x86_64-pc-linux-gnu",
+            BuildTarget::Cpu => {
+                if cfg!(target_os = "windows") {
+                    "x86_64-pc-windows-msvc"
+                } else if cfg!(target_os = "macos") {
+                    "x86_64-apple-darwin"
+                } else {
+                    "x86_64-pc-linux-gnu"
+                }
+            }
             BuildTarget::Rocm => "amdgcn-amd-amdhsa",
             BuildTarget::Cuda => "nvptx64-nvidia-cuda",
         }
@@ -182,7 +190,11 @@ impl BuildConfig {
     fn llvm_data_layout(&self) -> &str {
         match self.target {
             BuildTarget::Cpu => {
-                "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+                if cfg!(target_os = "windows") {
+                    "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+                } else {
+                    "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+                }
             }
             BuildTarget::Rocm => {
                 "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:32-p8:128:128-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64"
@@ -1596,38 +1608,52 @@ fn run_aero_program(
 
     match build_config.target {
         BuildTarget::Cpu => {
-            let llc_output = Command::new("llc")
-                .args(["-filetype=obj", &ll_path, "-o", &obj_path])
-                .output()
-                .map_err(|err| {
-                    format!(
-                        "Error executing llc: {}. Make sure LLVM is installed and llc is in your PATH.",
-                        err
-                    )
-                })?;
+            let clang_bin = find_llvm_tool("clang").ok_or_else(|| {
+                "Error executing clang: program not found. Make sure LLVM/clang is installed and in your PATH."
+                    .to_string()
+            })?;
 
-            if !llc_output.status.success() {
-                return Err(format!(
-                    "Error running llc: {}",
-                    String::from_utf8_lossy(&llc_output.stderr)
-                ));
-            }
+            if let Some(llc_bin) = find_llvm_tool("llc") {
+                let llc_output = Command::new(&llc_bin)
+                    .args(["-filetype=obj", &ll_path, "-o", &obj_path])
+                    .output()
+                    .map_err(|err| format!("Error executing llc ({}): {}", llc_bin, err))?;
 
-            let clang_output = Command::new("clang")
-                .args([&obj_path, "-o", &exe_path])
-                .output()
-                .map_err(|err| {
-                    format!(
-                        "Error executing clang: {}. Make sure clang is installed and in your PATH.",
-                        err
-                    )
-                })?;
+                if !llc_output.status.success() {
+                    return Err(format!(
+                        "Error running llc: {}",
+                        String::from_utf8_lossy(&llc_output.stderr)
+                    ));
+                }
 
-            if !clang_output.status.success() {
-                return Err(format!(
-                    "Error running clang: {}",
-                    String::from_utf8_lossy(&clang_output.stderr)
-                ));
+                let clang_output = Command::new(&clang_bin)
+                    .args([&obj_path, "-o", &exe_path])
+                    .output()
+                    .map_err(|err| format!("Error executing clang ({}): {}", clang_bin, err))?;
+
+                if !clang_output.status.success() {
+                    return Err(format!(
+                        "Error running clang: {}",
+                        String::from_utf8_lossy(&clang_output.stderr)
+                    ));
+                }
+            } else {
+                // Fallback path: clang can compile textual LLVM IR directly.
+                println!(
+                    "llc not found in PATH. Falling back to direct clang LLVM IR compilation."
+                );
+
+                let clang_output = Command::new(&clang_bin)
+                    .args([&ll_path, "-o", &exe_path])
+                    .output()
+                    .map_err(|err| format!("Error executing clang ({}): {}", clang_bin, err))?;
+
+                if !clang_output.status.success() {
+                    return Err(format!(
+                        "Error running clang on LLVM IR fallback path: {}",
+                        String::from_utf8_lossy(&clang_output.stderr)
+                    ));
+                }
             }
 
             let run_output = Command::new(&exe_path)
@@ -1657,7 +1683,14 @@ fn run_aero_program(
             exit(exit_code);
         }
         BuildTarget::Rocm => {
-            let llc_output = Command::new("llc")
+            let llc_bin = find_llvm_tool("llc").ok_or_else(|| {
+                format!(
+                    "Error executing llc for ROCm target: program not found. Make sure LLVM is installed and llc is in your PATH. LLVM IR remains at {}",
+                    artifacts.ll_file.display()
+                )
+            })?;
+
+            let llc_output = Command::new(&llc_bin)
                 .args([
                     "-march=amdgcn",
                     "-mcpu",
@@ -1691,7 +1724,8 @@ fn run_aero_program(
                 }
                 Err(err) => {
                     return Err(format!(
-                        "Error executing llc for ROCm target: {}. Make sure LLVM is installed and llc is in your PATH. LLVM IR remains at {}",
+                        "Error executing llc for ROCm target ({}): {}. LLVM IR remains at {}",
+                        llc_bin,
                         err,
                         artifacts.ll_file.display()
                     ));
@@ -1707,6 +1741,21 @@ fn run_aero_program(
     }
 
     Ok(())
+}
+
+fn find_llvm_tool(tool: &str) -> Option<String> {
+    if Command::new(tool).arg("--version").output().is_ok() {
+        return Some(tool.to_string());
+    }
+
+    if cfg!(windows) {
+        let candidate = PathBuf::from(r"C:\Program Files\LLVM\bin").join(format!("{}.exe", tool));
+        if candidate.exists() {
+            return Some(candidate.to_string_lossy().into_owned());
+        }
+    }
+
+    None
 }
 
 fn print_help(program_name: &str) {
