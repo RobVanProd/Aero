@@ -745,9 +745,11 @@ mod tests {
     fn test_f_string_token() {
         let source = r#"println!(f"hello {name}")"#;
         let tokens = tokenize(source);
-        assert!(tokens
-            .iter()
-            .any(|t| matches!(t, Token::FStringLiteral(s) if s == "hello {name}")));
+        assert!(
+            tokens
+                .iter()
+                .any(|t| matches!(t, Token::FStringLiteral(s) if s == "hello {name}"))
+        );
     }
 
     #[test]

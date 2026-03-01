@@ -379,7 +379,9 @@ impl CodeGenerator {
                     function,
                     arguments,
                     result,
-                } => self.generate_function_call(llvm_ir, function, arguments, result, function_defs),
+                } => {
+                    self.generate_function_call(llvm_ir, function, arguments, result, function_defs)
+                }
                 Inst::Branch {
                     condition,
                     true_label,
@@ -467,7 +469,10 @@ impl CodeGenerator {
                         _ => panic!("Expected register for not result"),
                     };
                     let operand_str = self.value_to_string(operand);
-                    llvm_ir.push_str(&format!("  %{} = xor i1 {}, true\n", result_str, operand_str));
+                    llvm_ir.push_str(&format!(
+                        "  %{} = xor i1 {}, true\n",
+                        result_str, operand_str
+                    ));
                 }
                 Inst::Neg { result, operand } => {
                     let result_str = match result {
@@ -475,7 +480,10 @@ impl CodeGenerator {
                         _ => panic!("Expected register for neg result"),
                     };
                     let operand_str = self.value_to_string(operand);
-                    llvm_ir.push_str(&format!("  %{} = fsub double 0.0, {}\n", result_str, operand_str));
+                    llvm_ir.push_str(&format!(
+                        "  %{} = fsub double 0.0, {}\n",
+                        result_str, operand_str
+                    ));
                 }
                 Inst::AllocaArray {
                     result,
@@ -519,7 +527,10 @@ impl CodeGenerator {
                         Value::Reg(r) => format!("ptr{}", r),
                         _ => panic!("Expected register for struct alloca"),
                     };
-                    llvm_ir.push_str(&format!("  %{} = alloca %{}, align 8\n", result_str, struct_type));
+                    llvm_ir.push_str(&format!(
+                        "  %{} = alloca %{}, align 8\n",
+                        result_str, struct_type
+                    ));
                 }
                 Inst::GetFieldPtr {
                     result,
@@ -567,12 +578,12 @@ impl CodeGenerator {
         result: &Option<Value>,
         function_defs: &HashMap<String, FunctionDef>,
     ) {
-        let (param_defs, return_type) = if let Some((params, ret, _body)) = function_defs.get(function)
-        {
-            (params.clone(), ret.clone())
-        } else {
-            (Vec::new(), None)
-        };
+        let (param_defs, return_type) =
+            if let Some((params, ret, _body)) = function_defs.get(function) {
+                (params.clone(), ret.clone())
+            } else {
+                (Vec::new(), None)
+            };
 
         let mut args = Vec::new();
         for (i, arg) in arguments.iter().enumerate() {
@@ -724,7 +735,9 @@ impl CodeGenerator {
     fn emit_return(&mut self, llvm_ir: &mut String, value: &Value, return_llvm_type: &str) {
         match return_llvm_type {
             "void" => llvm_ir.push_str("  ret void\n"),
-            "double" => llvm_ir.push_str(&format!("  ret double {}\n", self.value_to_string(value))),
+            "double" => {
+                llvm_ir.push_str(&format!("  ret double {}\n", self.value_to_string(value)))
+            }
             "i64" => match value {
                 Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i64 {}\n", n)),
                 Value::ImmFloat(f) => llvm_ir.push_str(&format!("  ret i64 {}\n", *f as i64)),
@@ -1954,4 +1967,3 @@ fn test_infinite_loop_structure() {
     assert!(llvm_ir.contains("br label %loop_body"));
     assert!(llvm_ir.contains("loop_body:"));
 }
-

@@ -990,9 +990,10 @@ impl IrGenerator {
         // Internal iteration index.
         let index_ptr = Value::Reg(self.next_ptr);
         self.next_ptr += 1;
-        current_function
-            .body
-            .push(Inst::Alloca(index_ptr.clone(), format!("__for_idx_{}", variable)));
+        current_function.body.push(Inst::Alloca(
+            index_ptr.clone(),
+            format!("__for_idx_{}", variable),
+        ));
         current_function
             .body
             .push(Inst::Store(index_ptr.clone(), Value::ImmInt(0)));
@@ -1036,7 +1037,9 @@ impl IrGenerator {
         current_function
             .body
             .push(Inst::Load(elem_val.clone(), elem_ptr));
-        current_function.body.push(Inst::Store(loop_var_ptr, elem_val));
+        current_function
+            .body
+            .push(Inst::Store(loop_var_ptr, elem_val));
 
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
@@ -1050,7 +1053,9 @@ impl IrGenerator {
         current_function
             .body
             .push(Inst::Add(next_index.clone(), index_reg, Value::ImmInt(1)));
-        current_function.body.push(Inst::Store(index_ptr, next_index));
+        current_function
+            .body
+            .push(Inst::Store(index_ptr, next_index));
         current_function.body.push(Inst::Jump(loop_start));
 
         self.loop_label_stack.pop();
@@ -1851,12 +1856,14 @@ mod tests {
             main.iter()
                 .any(|inst| matches!(inst, crate::ir::Inst::Alloca(_, name) if name == "v"))
         );
-        assert!(main
-            .iter()
-            .any(|inst| matches!(inst, crate::ir::Inst::GetElementPtr { .. })));
-        assert!(main.iter().any(
-            |inst| matches!(inst, crate::ir::Inst::ICmp { op, .. } if op == "slt")
-        ));
+        assert!(
+            main.iter()
+                .any(|inst| matches!(inst, crate::ir::Inst::GetElementPtr { .. }))
+        );
+        assert!(
+            main.iter()
+                .any(|inst| matches!(inst, crate::ir::Inst::ICmp { op, .. } if op == "slt"))
+        );
     }
 
     #[test]

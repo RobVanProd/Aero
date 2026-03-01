@@ -919,7 +919,8 @@ impl Parser {
                     }
 
                     let expr_source: String = chars[start..i].iter().collect();
-                    let expr = self.parse_interpolation_expression(&expr_source, location.clone())?;
+                    let expr =
+                        self.parse_interpolation_expression(&expr_source, location.clone())?;
                     format_string.push_str("{}");
                     arguments.push(expr);
                     i += 1; // consume closing `}`
