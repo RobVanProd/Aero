@@ -37,7 +37,17 @@ cargo install --path src/compiler
 
 This installs `aero` into your Cargo bin directory (typically `~/.cargo/bin`).
 
-## “Hello, world” (compile to LLVM IR)
+## CLI command summary (v1.0.0)
+
+- `aero build <input.aero> -o <output.ll>`: compile Aero source to LLVM IR
+- `aero run <input.aero>`: compile and run an Aero program
+- `aero check <input.aero>`: type-check only (no code generation)
+- `aero test`: discover and run `*_test.aero` files
+- `aero fmt <input.aero>`: auto-format source
+- `aero init [path]`: create a project scaffold (`aero.toml` + `src/main.aero`)
+- `aero lsp`: run the Aero language server over stdio
+
+## "Hello, world" (compile to LLVM IR)
 
 ```bash
 # from repo root

@@ -10,7 +10,7 @@ This document outlines the development roadmap for the Aero programming language
 - **Semantic Analysis:** Symbol table, type inference, validation
 - **Type System:** Static typing with int/float distinction and promotion
 - **IR & Code Generation:** SSA-style IR with LLVM backend
-- **CLI Tools:** `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`
+- **CLI Tools:** `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero init`, `aero lsp`
 - **CI/CD:** GitHub Actions with comprehensive test matrix
 
 ### Phase 3: Control Flow & Functions ✅
@@ -48,7 +48,8 @@ This document outlines the development roadmap for the Aero programming language
 ### Phase 7: Tooling & Developer Experience ✅
 
 - **Package Manager:** `aero-pkg` with dependency resolution and workspaces
-- **CLI Expansion:** `aero check` (type-check only), `aero test`, `aero fmt`
+- **CLI Expansion:** `aero check` (type-check only), `aero test`, `aero fmt`, `aero init`
+- **Basic LSP Diagnostics:** `aero lsp` with syntax diagnostics from parser multi-error recovery
 - **Compiler Diagnostics:** Colored errors, source snippets, suggestions
 - **Closures & Lambdas:** `|x, y| { ... }` syntax with capture semantics
 
@@ -59,7 +60,7 @@ This document outlines the development roadmap for the Aero programming language
 ## Future Phases
 
 ### Phase 8: Optimization & Ecosystem (v1.1.0+)
-- Language Server Protocol (LSP) implementation
+- Advanced LSP features (completion, hover, go-to-definition, symbols)
 - Documentation generator (`aero doc`)
 - INT8/FP8 quantization interfaces
 - Kernel fusion & advanced graph compilation

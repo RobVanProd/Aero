@@ -37,28 +37,31 @@ The Aero compiler is named `aero`. You can install it from the source code using
 
 ## Your First Aero Program: "Hello, world!"
 
-Let's write a classic "Hello, world!" program.
+Let's write a classic "Hello, world!" program using the v1.0.0 project scaffold.
 
-1.  **Create a new file:**
-    Create a file named `hello.aero` and open it in your favorite text editor.
+1.  **Initialize a project:**
+    ```bash
+    aero init hello_aero
+    cd hello_aero
+    ```
+    This creates:
+    - `aero.toml`
+    - `src/main.aero`
 
 2.  **Write the code:**
-    Enter the following Aero code into `hello.aero`:
+    Open `src/main.aero` and use:
 
     ```aero
-    // hello.aero - Our first Aero program
-
-    // The `main` function is the entry point of every Aero executable.
+    // src/main.aero - Our first Aero program
     fn main() {
         // `println!` prints a line of text to the console.
-        // It's a built-in macro for formatted output.
         println!("Hello, world!");
     }
     ```
 
 ### Code Explanation:
 
-*   `// hello.aero - Our first Aero program`: This is a single-line comment. Comments are ignored by the compiler but are useful for humans reading the code.
+*   `// src/main.aero - Our first Aero program`: This is a single-line comment. Comments are ignored by the compiler but are useful for humans reading the code.
 *   `fn main() { ... }`: This defines a function named `main`. The `main` function is special: it's always the first code that runs in every executable Aero program.
     *   `fn` is the keyword used to declare a function.
     *   `main` is the name of the function.
@@ -73,53 +76,43 @@ Let's write a classic "Hello, world!" program.
 
 Now that you have your "Hello, world!" program, let's compile and run it.
 
-### 1. Compiling Separately
+### 1. Build to LLVM IR
 
-You can compile your Aero program into an executable file first.
+Use `build` to generate LLVM IR:
 
-1.  **Compile the code:**
-    Open your terminal, navigate to the directory where you saved `hello.aero`, and run:
-    ```bash
-    aero build hello.aero -o hello_aero_executable
-    ```
-    *   `aero build`: This is the command to the Aero compiler to build your code.
-    *   `hello.aero`: This is the source file you want to compile.
-    *   `-o hello_aero_executable`: The `-o` flag specifies the name for the output executable file. If you omit this, the executable might be named `hello` (or `hello.exe` on Windows) by default, based on the input file name.
-
-    If the compilation is successful, you will see a new file named `hello_aero_executable` (or whatever you named it) in your directory.
-
-2.  **Run the executable:**
-    Now, you can run your compiled program:
-    *   On Linux or macOS:
-        ```bash
-        ./hello_aero_executable
-        ```
-    *   On Windows:
-        ```bash
-        .\hello_aero_executable.exe
-        ```
-        (Or just `hello_aero_executable.exe`)
-
-    You should see the output:
-    ```
-    Hello, world!
-    ```
+```bash
+aero build src/main.aero -o main.ll
+```
 
 ### 2. Compile and Run Directly
 
-Aero also provides a convenient `run` command that compiles and immediately runs your program without explicitly creating an executable file in your current directory (it might create one in a temporary location).
+Use `run` to compile and execute in one command:
 
-1.  **Compile and run:**
-    In your terminal, in the directory of `hello.aero`, type:
-    ```bash
-    aero run hello.aero
-    ```
-    This command will compile `hello.aero` and then execute it.
+```bash
+aero run src/main.aero
+```
 
-    You should see the same output:
-    ```
-    Hello, world!
-    ```
+You should see:
+
+```
+Hello, world!
+```
+
+### 3. Type-check only
+
+Use `check` when you only want diagnostics:
+
+```bash
+aero check src/main.aero
+```
+
+### 4. Optional: editor diagnostics with LSP
+
+Start the language server over stdio:
+
+```bash
+aero lsp
+```
 
 ## What's Next?
 

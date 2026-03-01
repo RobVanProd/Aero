@@ -44,8 +44,18 @@ cd Aero
 cargo build --release
 export PATH="$PWD/target/release:$PATH"
 
-aero run examples/hello.aero
-aero check examples/hello.aero   # Type-check only (no codegen)
+# Initialize a new project scaffold
+aero init my_app
+cd my_app
+
+# Compile + run
+aero run src/main.aero
+
+# Type-check only (no codegen)
+aero check src/main.aero
+
+# Language server for editor integration (stdio)
+aero lsp
 ```
 
 Try the flagship example directly in the Interactive Playground:
@@ -71,7 +81,7 @@ fn main() {
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Modules** | `mod`/`use` imports, `pub` visibility, multi-file projects |
 | **Codegen** | LLVM IR backend with optimization passes |
-| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt` |
+| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero init`, `aero lsp` |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
 ## 🗺️ Roadmap (v1.1.0+)
