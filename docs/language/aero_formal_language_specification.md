@@ -140,10 +140,12 @@ Diagnostics should prefer precise source ranges and actionable suggestions.
 
 ## 10. Phase 8 Interface Extensions (v1.0.0)
 
-The following interfaces are part of v1.0.0 tooling surface:
-- Quantization interface annotations for `INT8` and `FP8` modes.
-- Kernel-fusion and advanced graph-compilation annotation pass.
-- `registry.aero` command interface for search/publish/install workflows (dry-run transport in this build).
+The following Phase 8 interfaces are part of the v1.0.0 tooling surface:
 
-These interfaces define stable command and report shapes while backend execution
-strategies evolve in future versions.
+- Quantization interface with calibrated lowering for `INT8`, `FP8-E4M3`, and `FP8-E5M2`, including backend selection (`cpu`, `cuda`, `rocm`).
+- Kernel-fusion and advanced graph-compilation pass with executable fused-kernel backend generation and safety fallbacks.
+- `registry.aero` interface for search/publish/install workflows with offline index mode and live transport mode, including token auth and digest trust policy controls.
+- Formal conformance and mechanized determinism checks exposed through the `aero conformance` command.
+
+These interfaces define stable command and report shapes in v1.0.0 while allowing
+backend execution strategies and proof depth to continue evolving.

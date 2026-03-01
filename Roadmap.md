@@ -53,26 +53,26 @@ This document outlines the development roadmap for the Aero programming language
 - **Compiler Diagnostics:** Colored errors, source snippets, suggestions
 - **Closures & Lambdas:** `|x, y| { ... }` syntax with capture semantics
 
-### Phase 8: Optimization & Ecosystem (v1.0.0 tooling slice) (done)
+### Phase 8: Optimization & Ecosystem (v1.0.0) (done)
 
 - **Documentation Generator:** `aero doc` generates Markdown API references from source declarations
 - **Native Compilation Profiler:** `aero profile` prints per-stage timing and can emit trace JSON for flame graph tooling
-- **INT8/FP8 Quantization Interfaces:** `aero quantize` provides stable quantization mode interfaces and reports
-- **Kernel Fusion & Graph Compilation:** advanced graph pass annotates fused kernel regions in generated LLVM IR
-- **Central Registry Interfaces:** `aero registry search|publish|install` command surface for `registry.aero`
+- **Hardware-Calibrated INT8/FP8 Lowering:** `aero quantize` supports calibrated runtime lowering with `--backend <cpu|cuda|rocm>` and optional calibration profiles
+- **Executable Fused-Kernel Graph Backend:** `aero graph-opt` emits backend-targeted executable fused kernels with fallback safety checks
+- **Central Registry Live Transport/Auth/Trust:** `aero registry search|publish|install` supports offline and live flows with token auth and digest trust policy controls
+- **Formal Conformance + Mechanized Checks:** `aero conformance` runs spec-oriented conformance cases and deterministic lowering checks
 - **Formal Language Specification:** consolidated spec at `docs/language/aero_formal_language_specification.md`
 
-**Current Status:** 189+ tests passing | **Version:** 1.0.0
+**Current Status:** 260+ tests passing | **Version:** 1.0.0
 
 ---
 
 ## Future Phases
 
-### Phase 8 (next depth): Optimization & Ecosystem (v1.1.0+)
-- Hardware-calibrated INT8/FP8 lowering and calibration runtime
-- Executable fused-kernel backend generation (beyond annotation-only fusion planning)
-- Live registry transport, auth, and package trust model for `registry.aero`
-- Formal conformance tests and mechanized semantics checks
+### Phase 9+ (v1.1.0+)
+- GGUF-native model loading and runtime benchmarking on CUDA/ROCm targets
+- Broader kernel library coverage and deeper graph scheduling optimizations
+- Extended mechanized proof coverage beyond deterministic conformance checks
 
 ---
 

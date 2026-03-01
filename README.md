@@ -60,11 +60,17 @@ aero doc src/main.aero -o main.md
 # Profile compilation pipeline and export trace JSON
 aero profile src/main.aero -o trace.json
 
-# Apply graph compilation/fusion annotations to LLVM IR
-aero graph-opt main.ll -o main.opt.ll
+# Apply graph compilation with executable fusion (CPU/CUDA/ROCm)
+aero graph-opt main.ll -o main.opt.ll --backend rocm
 
-# Apply quantization interface annotations
-aero quantize main.opt.ll -o main.int8.ll --mode int8
+# Apply hardware-calibrated quantization lowering (INT8/FP8)
+aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --calibration calib.json
+
+# Registry search (offline index or live transport)
+aero registry search vision --live --registry https://registry.aero/api/v1
+
+# Run formal conformance + mechanized checks
+aero conformance -o conformance_report.json
 
 # Language server for editor integration (stdio)
 aero lsp
@@ -93,20 +99,19 @@ fn main() {
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Modules** | `mod`/`use` imports, `pub` visibility, multi-file projects |
 | **Codegen** | LLVM IR backend with optimization passes |
-| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero init`, `aero lsp` |
+| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
-| **Phase 8 Interfaces** | INT8/FP8 quantization annotations, kernel-fusion graph compilation, `registry.aero` command interface, formal language spec |
+| **Phase 8 Runtime Slice** | Hardware-calibrated INT8/FP8 lowering (CPU/CUDA/ROCm), executable fused-kernel backend generation, live `registry.aero` transport/auth/trust model, formal conformance + mechanized checks |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
 Formal spec: `docs/language/aero_formal_language_specification.md`
 
-## 🗺️ Roadmap (v1.1.0+)
+## Looking Ahead
 
-- Hardware-calibrated INT8/FP8 lowering backend
-- Executable fused kernel backend generation
-- Live registry transport, auth, and publish/install workflows
-- Extended formal spec proofs and compliance suite
+- GGUF-native model loader and runtime benchmarks on CUDA/ROCm
+- Expanded optimizer and fused-kernel library coverage
+- Additional formal semantics proofs beyond deterministic conformance checks
 
 ## License
 MIT © RobVanProd and contributors. See LICENSE for details.

@@ -138,20 +138,20 @@ Use `profile` to print per-stage compilation timing and optionally export a trac
 aero profile src/main.aero -o trace.json
 ```
 
-### 7. Run graph compilation and kernel fusion annotations
+### 7. Run graph compilation and executable kernel fusion
 
-Use `graph-opt` on LLVM IR to annotate fused kernel regions:
+Use `graph-opt` on LLVM IR to generate backend-aware fused kernels:
 
 ```bash
-aero graph-opt main.ll -o main.opt.ll
+aero graph-opt main.ll -o main.opt.ll --backend rocm
 ```
 
-### 8. Apply quantization interfaces (INT8/FP8)
+### 8. Apply calibrated quantization lowering (INT8/FP8)
 
-Use `quantize` to mark quantization candidates in LLVM IR:
+Use `quantize` to lower floating-point ops through calibrated quantization helpers:
 
 ```bash
-aero quantize main.opt.ll -o main.int8.ll --mode int8
+aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --calibration calib.json
 ```
 
 Supported modes:
@@ -159,17 +159,31 @@ Supported modes:
 - `fp8-e4m3`
 - `fp8-e5m2`
 
-### 9. Registry interface commands
+### 9. Registry commands (offline + live)
 
 Use `registry` commands for `registry.aero` workflows:
 
 ```bash
 aero registry search vision --index registry/index.json
+aero registry search vision --live --registry https://registry.aero/api/v1
 aero registry publish . --dry-run
-aero registry install vision-core --version 0.2.0 --dry-run
+aero registry install vision-core --version 0.2.0 --target pkgs --dry-run
 ```
 
-In v1.0.0 these are interface workflows; publish/install run in dry-run mode.
+For live publish/install, provide auth and trust flags:
+
+```bash
+aero registry publish . --registry https://registry.aero/api/v1 --token <token>
+aero registry install vision-core --version 0.2.0 --registry https://registry.aero/api/v1 --token <token> --expected-sha256 <digest>
+```
+
+### 10. Run conformance and mechanized checks
+
+Use `conformance` to validate language behavior against the formal suite:
+
+```bash
+aero conformance -o conformance_report.json
+```
 
 ## What's Next?
 

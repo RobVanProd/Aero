@@ -1,6 +1,8 @@
+mod accelerator;
 mod ast;
 mod code_generator;
 mod compatibility;
+mod conformance;
 mod doc_generator;
 mod errors;
 mod graph_compiler;
@@ -24,6 +26,7 @@ mod types;
 use crate::ir_generator::IrGenerator;
 use crate::performance_optimizations::PerformanceOptimizer;
 use crate::semantic_analyzer::SemanticAnalyzer;
+use accelerator::AcceleratorBackend;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -276,13 +279,72 @@ fn main() {
             }
         }
         "graph-opt" => {
-            if args.len() < 5 || args[3] != "-o" {
-                eprintln!("Usage: {} graph-opt <input.ll> -o <output.ll>", args[0]);
+            if args.len() < 5 {
+                eprintln!(
+                    "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
+                    args[0]
+                );
                 return;
             }
 
             let input_file = &args[2];
-            let output_file = &args[4];
+            let mut output_file: Option<String> = None;
+            let mut backend = AcceleratorBackend::Cpu;
+            let mut executable_fusion = true;
+
+            let mut i = 3usize;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "-o" => {
+                        if i + 1 >= args.len() {
+                            eprintln!(
+                                "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
+                                args[0]
+                            );
+                            return;
+                        }
+                        output_file = Some(args[i + 1].clone());
+                        i += 2;
+                    }
+                    "--backend" => {
+                        if i + 1 >= args.len() {
+                            eprintln!(
+                                "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
+                                args[0]
+                            );
+                            return;
+                        }
+                        let Some(parsed) = AcceleratorBackend::parse(&args[i + 1]) else {
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: unsupported backend `{}`",
+                                args[i + 1]
+                            );
+                            return;
+                        };
+                        backend = parsed;
+                        i += 2;
+                    }
+                    "--annotation-only" => {
+                        executable_fusion = false;
+                        i += 1;
+                    }
+                    _ => {
+                        eprintln!(
+                            "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
+                            args[0]
+                        );
+                        return;
+                    }
+                }
+            }
+            let Some(output_file) = output_file else {
+                eprintln!(
+                    "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
+                    args[0]
+                );
+                return;
+            };
+
             let input = match fs::read_to_string(input_file) {
                 Ok(content) => content,
                 Err(err) => {
@@ -294,13 +356,22 @@ fn main() {
                 }
             };
 
-            let (optimized, report) = graph_compiler::apply_advanced_graph_compilation(&input);
-            match fs::write(output_file, optimized) {
+            let config = graph_compiler::GraphCompilationConfig {
+                backend,
+                executable_fusion,
+            };
+            let (optimized, report) =
+                graph_compiler::apply_advanced_graph_compilation_with_config(&input, &config);
+            match fs::write(&output_file, optimized) {
                 Ok(_) => {
                     println!("Wrote graph-optimized IR to {}", output_file);
                     println!(
-                        "Fused kernels: {} (total fused ops: {})",
-                        report.fused_kernel_count, report.total_fused_ops
+                        "Backend: {} | fused kernels: {} | executable kernels: {} | skipped chains: {} | total fused ops: {}",
+                        report.backend,
+                        report.fused_kernel_count,
+                        report.executable_kernel_count,
+                        report.skipped_chains,
+                        report.total_fused_ops
                     );
                 }
                 Err(err) => eprintln!(
@@ -312,7 +383,7 @@ fn main() {
         "quantize" => {
             if args.len() < 7 {
                 eprintln!(
-                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
                     args[0]
                 );
                 return;
@@ -321,6 +392,10 @@ fn main() {
             let input_file = &args[2];
             let mut output_file: Option<String> = None;
             let mut mode: Option<quantization::QuantizationMode> = None;
+            let mut backend = AcceleratorBackend::Cpu;
+            let mut per_channel = false;
+            let mut runtime_lowering = true;
+            let mut calibration_file: Option<String> = None;
 
             let mut i = 3usize;
             while i < args.len() {
@@ -328,7 +403,7 @@ fn main() {
                     "-o" => {
                         if i + 1 >= args.len() {
                             eprintln!(
-                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
                                 args[0]
                             );
                             return;
@@ -339,7 +414,7 @@ fn main() {
                     "--mode" => {
                         if i + 1 >= args.len() {
                             eprintln!(
-                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
                                 args[0]
                             );
                             return;
@@ -354,9 +429,46 @@ fn main() {
                         }
                         i += 2;
                     }
+                    "--backend" => {
+                        if i + 1 >= args.len() {
+                            eprintln!(
+                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
+                                args[0]
+                            );
+                            return;
+                        }
+                        let Some(parsed) = AcceleratorBackend::parse(&args[i + 1]) else {
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: unsupported backend `{}`",
+                                args[i + 1]
+                            );
+                            return;
+                        };
+                        backend = parsed;
+                        i += 2;
+                    }
+                    "--calibration" => {
+                        if i + 1 >= args.len() {
+                            eprintln!(
+                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
+                                args[0]
+                            );
+                            return;
+                        }
+                        calibration_file = Some(args[i + 1].clone());
+                        i += 2;
+                    }
+                    "--per-channel" => {
+                        per_channel = true;
+                        i += 1;
+                    }
+                    "--annotation-only" | "--no-runtime-lowering" => {
+                        runtime_lowering = false;
+                        i += 1;
+                    }
                     _ => {
                         eprintln!(
-                            "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                            "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
                             args[0]
                         );
                         return;
@@ -366,14 +478,14 @@ fn main() {
 
             let Some(output_file) = output_file else {
                 eprintln!(
-                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
                     args[0]
                 );
                 return;
             };
             let Some(mode) = mode else {
                 eprintln!(
-                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
                     args[0]
                 );
                 return;
@@ -390,16 +502,45 @@ fn main() {
                 }
             };
 
-            let config = quantization::QuantizationConfig::new(mode);
+            let mut config = quantization::QuantizationConfig::new(mode);
+            config.backend = backend;
+            config.per_channel = per_channel;
+            config.enable_runtime_lowering = runtime_lowering;
+
+            if let Some(calibration_file) = &calibration_file {
+                match quantization::load_calibration_profile(
+                    Path::new(calibration_file),
+                    mode,
+                    backend,
+                ) {
+                    Ok(profile) => {
+                        config.calibration_profile = Some(profile);
+                        config.calibration_source = Some(calibration_file.clone());
+                    }
+                    Err(err) => {
+                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                        return;
+                    }
+                }
+            }
+
             let (quantized_ir, report) =
                 quantization::apply_quantization_interface(&input, &config);
             match fs::write(&output_file, quantized_ir) {
                 Ok(_) => {
-                    println!("Wrote quantization-annotated IR to {}", output_file);
+                    println!("Wrote quantization IR to {}", output_file);
                     println!(
-                        "Mode: {} | candidates: {} | annotated: {}",
-                        report.mode, report.candidate_ops, report.annotated_ops
+                        "Mode: {} | backend: {} | candidates: {} | lowered: {} | helpers: {} | calibration samples: {}",
+                        report.mode,
+                        report.backend,
+                        report.candidate_ops,
+                        report.lowered_ops,
+                        report.helper_count,
+                        report.calibration_samples
                     );
+                    for note in report.notes {
+                        println!("  - {}", note);
+                    }
                 }
                 Err(err) => eprintln!(
                     "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
@@ -417,7 +558,7 @@ fn main() {
                 "search" => {
                     if args.len() < 4 {
                         eprintln!(
-                            "Usage: {} registry search <query> [--index <index.json>] [--registry <url>]",
+                            "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                             args[0]
                         );
                         return;
@@ -425,6 +566,9 @@ fn main() {
                     let query = &args[3];
                     let mut index_path = registry::DEFAULT_LOCAL_INDEX_PATH.to_string();
                     let mut registry_url: Option<String> = None;
+                    let mut live = false;
+                    let mut token: Option<String> = None;
+                    let mut token_file: Option<String> = None;
 
                     let mut i = 4usize;
                     while i < args.len() {
@@ -432,7 +576,7 @@ fn main() {
                             "--index" => {
                                 if i + 1 >= args.len() {
                                     eprintln!(
-                                        "Usage: {} registry search <query> [--index <index.json>] [--registry <url>]",
+                                        "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
                                     return;
@@ -443,7 +587,7 @@ fn main() {
                             "--registry" => {
                                 if i + 1 >= args.len() {
                                     eprintln!(
-                                        "Usage: {} registry search <query> [--index <index.json>] [--registry <url>]",
+                                        "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
                                     return;
@@ -451,9 +595,35 @@ fn main() {
                                 registry_url = Some(args[i + 1].clone());
                                 i += 2;
                             }
+                            "--live" => {
+                                live = true;
+                                i += 1;
+                            }
+                            "--token" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                token = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--token-file" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                token_file = Some(args[i + 1].clone());
+                                i += 2;
+                            }
                             _ => {
                                 eprintln!(
-                                    "Usage: {} registry search <query> [--index <index.json>] [--registry <url>]",
+                                    "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                     args[0]
                                 );
                                 return;
@@ -464,7 +634,23 @@ fn main() {
                     let client = registry::RegistryClient::new(registry_url.as_deref());
                     println!("Registry: {}", client.base_url);
 
-                    match registry::search_local_index(Path::new(&index_path), query) {
+                    let auth = match registry::resolve_registry_auth(
+                        token.as_deref(),
+                        token_file.as_deref().map(Path::new),
+                    ) {
+                        Ok(auth) => auth,
+                        Err(err) => {
+                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                            exit(1);
+                        }
+                    };
+
+                    let search_result = if live {
+                        registry::search_live_registry(&client, query, auth.as_ref())
+                    } else {
+                        registry::search_local_index(Path::new(&index_path), query)
+                    };
+                    match search_result {
                         Ok(results) => {
                             println!("Found {} package(s)", results.len());
                             for pkg in results {
@@ -486,13 +672,15 @@ fn main() {
                 "publish" => {
                     if args.len() < 4 {
                         eprintln!(
-                            "Usage: {} registry publish <package-dir> [--registry <url>] [--dry-run]",
+                            "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                             args[0]
                         );
                         return;
                     }
                     let package_dir = &args[3];
                     let mut registry_url: Option<String> = None;
+                    let mut token: Option<String> = None;
+                    let mut token_file: Option<String> = None;
                     let mut dry_run = false;
 
                     let mut i = 4usize;
@@ -501,12 +689,34 @@ fn main() {
                             "--registry" => {
                                 if i + 1 >= args.len() {
                                     eprintln!(
-                                        "Usage: {} registry publish <package-dir> [--registry <url>] [--dry-run]",
+                                        "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                         args[0]
                                     );
                                     return;
                                 }
                                 registry_url = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--token" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                token = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--token-file" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                token_file = Some(args[i + 1].clone());
                                 i += 2;
                             }
                             "--dry-run" => {
@@ -515,7 +725,7 @@ fn main() {
                             }
                             _ => {
                                 eprintln!(
-                                    "Usage: {} registry publish <package-dir> [--registry <url>] [--dry-run]",
+                                    "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                     args[0]
                                 );
                                 return;
@@ -523,35 +733,63 @@ fn main() {
                         }
                     }
 
-                    if !dry_run {
-                        eprintln!(
-                            "\x1b[1;31merror\x1b[0m: live publish transport is not enabled yet; use --dry-run"
-                        );
-                        exit(1);
-                    }
-
                     let client = registry::RegistryClient::new(registry_url.as_deref());
-                    match registry::build_publish_preview(&client, Path::new(package_dir)) {
-                        Ok(preview) => {
-                            println!("Registry publish preview:");
-                            match serde_json::to_string_pretty(&preview) {
-                                Ok(json) => println!("{}", json),
-                                Err(err) => {
-                                    eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                    exit(1);
-                                }
-                            }
-                        }
+                    let auth = match registry::resolve_registry_auth(
+                        token.as_deref(),
+                        token_file.as_deref().map(Path::new),
+                    ) {
+                        Ok(auth) => auth,
                         Err(err) => {
                             eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
                             exit(1);
+                        }
+                    };
+
+                    if dry_run {
+                        match registry::build_publish_preview(&client, Path::new(package_dir)) {
+                            Ok(preview) => {
+                                println!("Registry publish preview:");
+                                match serde_json::to_string_pretty(&preview) {
+                                    Ok(json) => println!("{}", json),
+                                    Err(err) => {
+                                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                        exit(1);
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                exit(1);
+                            }
+                        }
+                    } else {
+                        match registry::publish_live(
+                            &client,
+                            Path::new(package_dir),
+                            auth.as_ref(),
+                            false,
+                        ) {
+                            Ok(result) => {
+                                println!("Registry publish result:");
+                                match serde_json::to_string_pretty(&result) {
+                                    Ok(json) => println!("{}", json),
+                                    Err(err) => {
+                                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                        exit(1);
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                exit(1);
+                            }
                         }
                     }
                 }
                 "install" => {
                     if args.len() < 4 {
                         eprintln!(
-                            "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                            "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                             args[0]
                         );
                         return;
@@ -560,6 +798,10 @@ fn main() {
                     let mut version: Option<String> = None;
                     let mut registry_url: Option<String> = None;
                     let mut target_dir = ".".to_string();
+                    let mut token: Option<String> = None;
+                    let mut token_file: Option<String> = None;
+                    let mut expected_sha256: Option<String> = None;
+                    let mut trust = registry::PackageTrustPolicy::default();
                     let mut dry_run = false;
 
                     let mut i = 4usize;
@@ -568,7 +810,7 @@ fn main() {
                             "--version" => {
                                 if i + 1 >= args.len() {
                                     eprintln!(
-                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
                                     return;
@@ -579,7 +821,7 @@ fn main() {
                             "--registry" => {
                                 if i + 1 >= args.len() {
                                     eprintln!(
-                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
                                     return;
@@ -590,7 +832,7 @@ fn main() {
                             "--target" => {
                                 if i + 1 >= args.len() {
                                     eprintln!(
-                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
                                     return;
@@ -598,13 +840,50 @@ fn main() {
                                 target_dir = args[i + 1].clone();
                                 i += 2;
                             }
+                            "--token" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                token = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--token-file" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                token_file = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--expected-sha256" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                expected_sha256 = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--allow-untrusted" => {
+                                trust.allow_untrusted = true;
+                                i += 1;
+                            }
                             "--dry-run" => {
                                 dry_run = true;
                                 i += 1;
                             }
                             _ => {
                                 eprintln!(
-                                    "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                                    "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                     args[0]
                                 );
                                 return;
@@ -612,31 +891,125 @@ fn main() {
                         }
                     }
 
-                    if !dry_run {
-                        eprintln!(
-                            "\x1b[1;31merror\x1b[0m: live install transport is not enabled yet; use --dry-run"
-                        );
-                        exit(1);
-                    }
-
                     let client = registry::RegistryClient::new(registry_url.as_deref());
-                    let plan = registry::build_install_plan(
-                        &client,
-                        package_name,
-                        version.as_deref(),
-                        Path::new(&target_dir),
-                    );
-                    println!("Registry install plan:");
-                    match serde_json::to_string_pretty(&plan) {
-                        Ok(json) => println!("{}", json),
+                    let auth = match registry::resolve_registry_auth(
+                        token.as_deref(),
+                        token_file.as_deref().map(Path::new),
+                    ) {
+                        Ok(auth) => auth,
                         Err(err) => {
                             eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
                             exit(1);
+                        }
+                    };
+
+                    if dry_run {
+                        let plan = registry::build_install_plan(
+                            &client,
+                            package_name,
+                            version.as_deref(),
+                            Path::new(&target_dir),
+                            trust.clone(),
+                        );
+                        println!("Registry install plan:");
+                        match serde_json::to_string_pretty(&plan) {
+                            Ok(json) => println!("{}", json),
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                exit(1);
+                            }
+                        }
+                    } else {
+                        match registry::install_live(
+                            &client,
+                            package_name,
+                            version.as_deref(),
+                            Path::new(&target_dir),
+                            auth.as_ref(),
+                            &trust,
+                            expected_sha256.as_deref(),
+                            false,
+                        ) {
+                            Ok(receipt) => {
+                                println!("Registry install receipt:");
+                                match serde_json::to_string_pretty(&receipt) {
+                                    Ok(json) => println!("{}", json),
+                                    Err(err) => {
+                                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                        exit(1);
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                exit(1);
+                            }
                         }
                     }
                 }
                 _ => {
                     print_registry_help(&args[0]);
+                }
+            }
+        }
+        "conformance" => {
+            let mut output_json: Option<String> = None;
+            let mut i = 2usize;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "-o" => {
+                        if i + 1 >= args.len() {
+                            eprintln!("Usage: {} conformance [-o <report.json>]", args[0]);
+                            return;
+                        }
+                        output_json = Some(args[i + 1].clone());
+                        i += 2;
+                    }
+                    _ => {
+                        eprintln!("Usage: {} conformance [-o <report.json>]", args[0]);
+                        return;
+                    }
+                }
+            }
+
+            let report = conformance::run_conformance_suite();
+            println!(
+                "Conformance cases: {}/{} passed | Mechanized checks: {}/{} passed",
+                report.passed_cases,
+                report.total_cases,
+                report.passed_mechanized_checks,
+                report.total_mechanized_checks
+            );
+            for case in &report.case_results {
+                println!(
+                    "  [{}] {} - {}",
+                    if case.passed { "ok" } else { "fail" },
+                    case.name,
+                    case.details
+                );
+            }
+            for check in &report.mechanized_checks {
+                println!(
+                    "  [{}] {} - {}",
+                    if check.passed { "ok" } else { "fail" },
+                    check.name,
+                    check.details
+                );
+            }
+
+            if let Some(path) = output_json {
+                match serde_json::to_string_pretty(&report) {
+                    Ok(json) => {
+                        if let Err(err) = fs::write(&path, json) {
+                            eprintln!("\x1b[1;31merror\x1b[0m: could not write {}: {}", path, err);
+                            exit(1);
+                        }
+                        println!("Wrote conformance report to {}", path);
+                    }
+                    Err(err) => {
+                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                        exit(1);
+                    }
                 }
             }
         }
@@ -673,7 +1046,7 @@ fn main() {
         _ => {
             eprintln!("Unknown command: {}", command);
             eprintln!(
-                "Available commands: build, run, check, test, fmt, doc, profile, graph-opt, quantize, registry, init, lsp"
+                "Available commands: build, run, check, test, fmt, doc, profile, graph-opt, quantize, registry, conformance, init, lsp"
             );
         }
     }
@@ -795,13 +1168,27 @@ fn compile_to_llvm_ir(source_code: &str, output_file: &str, input_file: &str) {
 
     let llvm_ir = code_generator::generate_code(ir);
     let graph_compile_start = Instant::now();
-    let (llvm_ir, graph_report) = graph_compiler::apply_advanced_graph_compilation(&llvm_ir);
+    let graph_backend =
+        AcceleratorBackend::from_env("AERO_ACCELERATOR").unwrap_or(AcceleratorBackend::Cpu);
+    let graph_annotation_only = env::var("AERO_GRAPH_ANNOTATION_ONLY")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    let graph_config = graph_compiler::GraphCompilationConfig {
+        backend: graph_backend,
+        executable_fusion: !graph_annotation_only,
+    };
+    let (llvm_ir, graph_report) =
+        graph_compiler::apply_advanced_graph_compilation_with_config(&llvm_ir, &graph_config);
     let graph_compile_time = graph_compile_start.elapsed();
     let codegen_time = codegen_start.elapsed();
     println!("Optimized code generation completed in {:?}", codegen_time);
     println!(
-        "Advanced graph compilation completed in {:?} (fused kernels: {}, total fused ops: {})",
-        graph_compile_time, graph_report.fused_kernel_count, graph_report.total_fused_ops
+        "Advanced graph compilation completed in {:?} (backend: {}, fused kernels: {}, executable: {}, total fused ops: {})",
+        graph_compile_time,
+        graph_report.backend,
+        graph_report.fused_kernel_count,
+        graph_report.executable_kernel_count,
+        graph_report.total_fused_ops
     );
 
     // Cache the compilation result
@@ -936,12 +1323,17 @@ fn print_help(program_name: &str) {
     println!("    doc <input.aero> [-o <output.md>]    Generate Markdown API docs from source");
     println!("    profile <input.aero> [-o <trace.json>] Profile compilation phases");
     println!(
-        "    graph-opt <input.ll> -o <output.ll>  Apply kernel fusion and graph compilation annotations"
+        "    graph-opt <input.ll> -o <output.ll>  Apply graph compilation and executable kernel fusion"
     );
     println!("    quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>");
-    println!("                                         Apply quantization interface annotations");
     println!(
-        "    registry <subcommand>                Interact with registry.aero interfaces (offline-safe)"
+        "                                         Apply calibrated INT8/FP8 lowering interface"
+    );
+    println!(
+        "    registry <subcommand>                Interact with registry.aero (local or live transport)"
+    );
+    println!(
+        "    conformance [-o <report.json>]       Run formal conformance and mechanized checks"
     );
     println!("    init [path]                          Initialize a new Aero project");
     println!("    lsp                                  Run Aero language server (stdio)");
@@ -958,18 +1350,25 @@ fn print_help(program_name: &str) {
     println!("    {} fmt hello.aero", program_name);
     println!("    {} doc hello.aero -o hello.md", program_name);
     println!("    {} profile hello.aero -o trace.json", program_name);
-    println!("    {} graph-opt hello.ll -o hello.opt.ll", program_name);
     println!(
-        "    {} quantize hello.opt.ll -o hello.int8.ll --mode int8",
+        "    {} graph-opt hello.ll -o hello.opt.ll --backend rocm",
         program_name
     );
     println!(
-        "    {} registry search vision --index registry/index.json",
+        "    {} quantize hello.opt.ll -o hello.int8.ll --mode int8 --backend rocm --calibration calib.json",
+        program_name
+    );
+    println!(
+        "    {} registry search vision --live --registry https://registry.aero/api/v1",
         program_name
     );
     println!("    {} registry publish . --dry-run", program_name);
     println!(
-        "    {} registry install vision-core --version 0.2.0 --dry-run",
+        "    {} registry install vision-core --version 0.2.0 --target pkgs --dry-run",
+        program_name
+    );
+    println!(
+        "    {} conformance -o conformance_report.json",
         program_name
     );
     println!("    {} init my_app", program_name);
@@ -990,24 +1389,24 @@ fn default_doc_output_path(input_file: &str) -> String {
 }
 
 fn print_registry_help(program_name: &str) {
-    println!("registry.aero interface commands");
+    println!("registry.aero commands");
     println!();
     println!("USAGE:");
     println!(
-        "    {} registry search <query> [--index <index.json>] [--registry <url>]",
+        "    {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
         program_name
     );
     println!(
-        "    {} registry publish <package-dir> [--registry <url>] [--dry-run]",
+        "    {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
         program_name
     );
     println!(
-        "    {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+        "    {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
         program_name
     );
     println!();
     println!("NOTE:");
-    println!("    publish/install are interface-only in this build and require --dry-run.");
+    println!("    Without --dry-run, publish/install use live HTTP transport and trust checks.");
 }
 
 /// Type-check an Aero program without generating code.

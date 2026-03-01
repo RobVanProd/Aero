@@ -1,5 +1,7 @@
+pub mod accelerator;
 pub mod ast;
 mod code_generator;
+pub mod conformance;
 pub mod errors;
 pub mod graph_compiler;
 mod ir;
