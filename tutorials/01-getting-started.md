@@ -122,6 +122,22 @@ Current `aero lsp` support in v1.0.0 includes:
 - Go-to-definition
 - Document symbols
 
+### 5. Generate Markdown API docs
+
+Use `doc` to generate API documentation from declarations in a source file:
+
+```bash
+aero doc src/main.aero -o main.md
+```
+
+### 6. Profile compilation stages
+
+Use `profile` to print per-stage compilation timing and optionally export a trace file:
+
+```bash
+aero profile src/main.aero -o trace.json
+```
+
 ## What's Next?
 
 Congratulations on running your first Aero program!

@@ -44,6 +44,8 @@ This installs `aero` into your Cargo bin directory (typically `~/.cargo/bin`).
 - `aero check <input.aero>`: type-check only (no code generation)
 - `aero test`: discover and run `*_test.aero` files
 - `aero fmt <input.aero>`: auto-format source
+- `aero doc <input.aero> [-o <output.md>]`: generate Markdown API documentation from declarations
+- `aero profile <input.aero> [-o <trace.json>]`: profile compiler stages and optionally emit Chrome trace JSON
 - `aero init [path]`: create a project scaffold (`aero.toml` + `src/main.aero`)
 - `aero lsp`: run the Aero language server over stdio (diagnostics, completion, hover, go-to-definition, document symbols)
 

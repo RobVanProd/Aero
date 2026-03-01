@@ -54,6 +54,12 @@ aero run src/main.aero
 # Type-check only (no codegen)
 aero check src/main.aero
 
+# Generate Markdown API docs from source
+aero doc src/main.aero -o main.md
+
+# Profile compilation pipeline and export trace JSON
+aero profile src/main.aero -o trace.json
+
 # Language server for editor integration (stdio)
 aero lsp
 ```
@@ -81,15 +87,15 @@ fn main() {
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Modules** | `mod`/`use` imports, `pub` visibility, multi-file projects |
 | **Codegen** | LLVM IR backend with optimization passes |
-| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero init`, `aero lsp` |
+| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
+| **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
 ## 🗺️ Roadmap (v1.1.0+)
 
 - INT8 / FP8 Quantization Interfaces
 - Kernel Fusion & Advanced Graph Compilation
-- Native Profiler & Flame Graphs
 - Central aero-pkg Registry (registry.aero)
 - Formal Language Specification
 

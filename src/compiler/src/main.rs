@@ -1,6 +1,7 @@
 mod ast;
 mod code_generator;
 mod compatibility;
+mod doc_generator;
 mod errors;
 mod ir;
 mod ir_generator;
@@ -10,6 +11,7 @@ mod module_resolver;
 mod optimizations;
 mod parser;
 mod performance_optimizations;
+mod profiler;
 mod project_init;
 mod semantic_analyzer;
 mod types;
@@ -183,6 +185,93 @@ fn main() {
                 ),
             }
         }
+        "doc" => {
+            if args.len() < 3 {
+                eprintln!("Usage: {} doc <input.aero> [-o <output.md>]", args[0]);
+                return;
+            }
+
+            let input_file = &args[2];
+            let output_file = if args.len() == 5 && args[3] == "-o" {
+                args[4].clone()
+            } else if args.len() == 3 {
+                default_doc_output_path(input_file)
+            } else {
+                eprintln!("Usage: {} doc <input.aero> [-o <output.md>]", args[0]);
+                return;
+            };
+
+            let source_code = match fs::read_to_string(input_file) {
+                Ok(content) => content,
+                Err(err) => {
+                    eprintln!(
+                        "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
+                        input_file, err
+                    );
+                    return;
+                }
+            };
+
+            match doc_generator::generate_markdown(input_file, &source_code) {
+                Ok(markdown) => match fs::write(&output_file, markdown) {
+                    Ok(_) => println!("Generated documentation at {}", output_file),
+                    Err(err) => eprintln!(
+                        "\x1b[1;31merror\x1b[0m: could not write docs {}: {}",
+                        output_file, err
+                    ),
+                },
+                Err(err) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                    exit(1);
+                }
+            }
+        }
+        "profile" => {
+            if args.len() < 3 {
+                eprintln!("Usage: {} profile <input.aero> [-o <trace.json>]", args[0]);
+                return;
+            }
+
+            let input_file = &args[2];
+            let trace_output = if args.len() == 5 && args[3] == "-o" {
+                Some(args[4].as_str())
+            } else if args.len() == 3 {
+                None
+            } else {
+                eprintln!("Usage: {} profile <input.aero> [-o <trace.json>]", args[0]);
+                return;
+            };
+
+            let source_code = match fs::read_to_string(input_file) {
+                Ok(content) => content,
+                Err(err) => {
+                    eprintln!(
+                        "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
+                        input_file, err
+                    );
+                    return;
+                }
+            };
+
+            match profiler::profile_compilation(&source_code, input_file) {
+                Ok(profile) => {
+                    profiler::print_profile(&profile);
+                    if let Some(path) = trace_output {
+                        match profiler::write_trace_file(&profile, path) {
+                            Ok(_) => println!("Wrote trace file to {}", path),
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                    exit(1);
+                }
+            }
+        }
         "init" => {
             if args.len() > 3 {
                 eprintln!("Usage: {} init [path]", args[0]);
@@ -215,7 +304,7 @@ fn main() {
         }
         _ => {
             eprintln!("Unknown command: {}", command);
-            eprintln!("Available commands: build, run, check, test, fmt, init, lsp");
+            eprintln!("Available commands: build, run, check, test, fmt, doc, profile, init, lsp");
         }
     }
 }
@@ -467,6 +556,8 @@ fn print_help(program_name: &str) {
     println!("    check <input.aero>                   Type-check only (no codegen)");
     println!("    test                                 Discover and run *_test.aero files");
     println!("    fmt <input.aero>                     Auto-format Aero source");
+    println!("    doc <input.aero> [-o <output.md>]    Generate Markdown API docs from source");
+    println!("    profile <input.aero> [-o <trace.json>] Profile compilation phases");
     println!("    init [path]                          Initialize a new Aero project");
     println!("    lsp                                  Run Aero language server (stdio)");
     println!();
@@ -480,8 +571,23 @@ fn print_help(program_name: &str) {
     println!("    {} check hello.aero", program_name);
     println!("    {} test", program_name);
     println!("    {} fmt hello.aero", program_name);
+    println!("    {} doc hello.aero -o hello.md", program_name);
+    println!("    {} profile hello.aero -o trace.json", program_name);
     println!("    {} init my_app", program_name);
     println!("    {} lsp", program_name);
+}
+
+fn default_doc_output_path(input_file: &str) -> String {
+    let path = Path::new(input_file);
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("aero_doc");
+    let mut output = path.with_file_name(format!("{}.md", stem));
+    if output.extension().is_none() {
+        output.set_extension("md");
+    }
+    output.to_string_lossy().to_string()
 }
 
 /// Type-check an Aero program without generating code.

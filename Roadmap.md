@@ -10,7 +10,7 @@ This document outlines the development roadmap for the Aero programming language
 - **Semantic Analysis:** Symbol table, type inference, validation
 - **Type System:** Static typing with int/float distinction and promotion
 - **IR & Code Generation:** SSA-style IR with LLVM backend
-- **CLI Tools:** `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero init`, `aero lsp`
+- **CLI Tools:** `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero init`, `aero lsp`
 - **CI/CD:** GitHub Actions with comprehensive test matrix
 
 ### Phase 3: Control Flow & Functions ✅
@@ -48,10 +48,15 @@ This document outlines the development roadmap for the Aero programming language
 ### Phase 7: Tooling & Developer Experience ✅
 
 - **Package Manager:** `aero-pkg` with dependency resolution and workspaces
-- **CLI Expansion:** `aero check` (type-check only), `aero test`, `aero fmt`, `aero init`
+- **CLI Expansion:** `aero check` (type-check only), `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero init`
 - **LSP Support:** `aero lsp` provides syntax diagnostics, completion, hover, go-to-definition, and document symbols
 - **Compiler Diagnostics:** Colored errors, source snippets, suggestions
 - **Closures & Lambdas:** `|x, y| { ... }` syntax with capture semantics
+
+### Phase 8: Optimization & Ecosystem (v1.0.0 tooling slice) (done)
+
+- **Documentation Generator:** `aero doc` generates Markdown API references from source declarations
+- **Native Compilation Profiler:** `aero profile` prints per-stage timing and can emit trace JSON for flame graph tooling
 
 **Current Status:** 189+ tests passing | **Version:** 1.0.0
 
@@ -59,11 +64,9 @@ This document outlines the development roadmap for the Aero programming language
 
 ## Future Phases
 
-### Phase 8: Optimization & Ecosystem (v1.1.0+)
-- Documentation generator (`aero doc`)
+### Phase 8 (remaining): Optimization & Ecosystem (v1.1.0+)
 - INT8/FP8 quantization interfaces
 - Kernel fusion & advanced graph compilation
-- Native profiler & flame graphs
 - Central package registry (registry.aero)
 - Formal language specification
 
