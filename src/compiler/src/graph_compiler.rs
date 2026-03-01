@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Clone)]
 pub struct GraphCompilationConfig {
     pub backend: AcceleratorBackend,
+    pub gpu_arch: Option<String>,
     pub executable_fusion: bool,
 }
 
@@ -12,6 +13,7 @@ impl Default for GraphCompilationConfig {
     fn default() -> Self {
         Self {
             backend: AcceleratorBackend::Cpu,
+            gpu_arch: None,
             executable_fusion: true,
         }
     }
@@ -21,6 +23,7 @@ impl Default for GraphCompilationConfig {
 pub struct FusedKernel {
     pub id: usize,
     pub backend: String,
+    pub gpu_arch: Option<String>,
     pub op_count: usize,
     pub start_line: usize,
     pub end_line: usize,
@@ -32,6 +35,7 @@ pub struct FusedKernel {
 #[derive(Debug, Clone, Serialize)]
 pub struct GraphCompilationReport {
     pub backend: String,
+    pub gpu_arch: Option<String>,
     pub fused_kernel_count: usize,
     pub executable_kernel_count: usize,
     pub total_fused_ops: usize,
@@ -63,12 +67,17 @@ pub fn apply_advanced_graph_compilation_with_config(
     llvm_ir: &str,
     config: &GraphCompilationConfig,
 ) -> (String, GraphCompilationReport) {
+    let gpu_arch = resolved_gpu_arch(config);
+
     let mut out = String::new();
     out.push_str("; aero.graph_compilation=enabled\n");
     out.push_str(&format!(
         "; aero.graph_compilation.backend={}\n",
         config.backend.as_str()
     ));
+    if let Some(gpu_arch) = gpu_arch {
+        out.push_str(&format!("; aero.graph_compilation.gpu_arch={}\n", gpu_arch));
+    }
     out.push_str(&format!(
         "; aero.graph_compilation.executable_fusion={}\n",
         config.executable_fusion
@@ -131,6 +140,7 @@ pub fn apply_advanced_graph_compilation_with_config(
         out,
         GraphCompilationReport {
             backend: config.backend.as_str().to_string(),
+            gpu_arch: gpu_arch.map(str::to_string),
             fused_kernel_count: kernels.len(),
             executable_kernel_count,
             total_fused_ops,
@@ -204,6 +214,7 @@ fn flush_chain(
         kernels.push(FusedKernel {
             id,
             backend: config.backend.as_str().to_string(),
+            gpu_arch: resolved_gpu_arch(config).map(str::to_string),
             op_count,
             start_line,
             end_line,
@@ -232,6 +243,7 @@ fn flush_chain(
         kernels.push(FusedKernel {
             id,
             backend: config.backend.as_str().to_string(),
+            gpu_arch: resolved_gpu_arch(config).map(str::to_string),
             op_count,
             start_line,
             end_line,
@@ -261,6 +273,7 @@ fn flush_chain(
     kernels.push(FusedKernel {
         id,
         backend: config.backend.as_str().to_string(),
+        gpu_arch: resolved_gpu_arch(config).map(str::to_string),
         op_count,
         start_line,
         end_line,
@@ -414,6 +427,14 @@ fn looks_like_value_token(token: &str) -> bool {
     token.starts_with('%') || token.starts_with('@')
 }
 
+fn resolved_gpu_arch(config: &GraphCompilationConfig) -> Option<&str> {
+    match config.backend {
+        AcceleratorBackend::Cpu => None,
+        AcceleratorBackend::Rocm => config.gpu_arch.as_deref().or(Some("gfx1101")),
+        AcceleratorBackend::Cuda => config.gpu_arch.as_deref().or(Some("sm_89")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -426,10 +447,12 @@ mod tests {
 
         let (out, report) = apply_advanced_graph_compilation_with_config(input, &config);
         assert!(out.contains("; aero.graph_compilation.backend=rocm"));
+        assert!(out.contains("; aero.graph_compilation.gpu_arch=gfx1101"));
         assert!(out.contains("aero.fused_kernel id=1"));
         assert!(out.contains("executable=true"));
         assert!(out.contains("%1 = call double @aero_fused_rocm_kernel_1"));
         assert!(out.contains("define internal double @aero_fused_rocm_kernel_1"));
+        assert_eq!(report.gpu_arch.as_deref(), Some("gfx1101"));
         assert_eq!(report.fused_kernel_count, 1);
         assert_eq!(report.executable_kernel_count, 1);
         assert_eq!(report.skipped_chains, 0);
@@ -453,6 +476,7 @@ mod tests {
         let input = "define i32 @main() {\nentry:\n  %0 = fadd double %a, %b\n  %1 = fmul double %0, %c\n  ret i32 0\n}\n";
         let config = GraphCompilationConfig {
             backend: AcceleratorBackend::Cpu,
+            gpu_arch: None,
             executable_fusion: false,
         };
         let (out, report) = apply_advanced_graph_compilation_with_config(input, &config);

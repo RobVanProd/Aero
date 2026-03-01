@@ -142,8 +142,8 @@ Diagnostics should prefer precise source ranges and actionable suggestions.
 
 The following Phase 8 interfaces are part of the v1.0.0 tooling surface:
 
-- Quantization interface with calibrated lowering for `INT8`, `FP8-E4M3`, and `FP8-E5M2`, including backend selection (`cpu`, `cuda`, `rocm`).
-- Kernel-fusion and advanced graph-compilation pass with executable fused-kernel backend generation and safety fallbacks.
+- Quantization interface with calibrated lowering for `INT8`, `FP8-E4M3`, and `FP8-E5M2`, including backend selection (`cpu`, `cuda`, `rocm`) and optional GPU architecture targeting (for example `gfx1101`).
+- Kernel-fusion and advanced graph-compilation pass with executable fused-kernel backend generation, backend/GPU metadata, and safety fallbacks.
 - `registry.aero` interface for search/publish/install workflows with offline index mode and live transport mode, including token auth and digest trust policy controls.
 - Formal conformance and mechanized determinism checks exposed through the `aero conformance` command.
 

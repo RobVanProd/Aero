@@ -51,6 +51,9 @@ cd my_app
 # Compile + run
 aero run src/main.aero
 
+# ROCm-targeted compile path (RX 7800 XT / gfx1101)
+aero run --target rocm --gpu gfx1101 src/main.aero
+
 # Type-check only (no codegen)
 aero check src/main.aero
 
@@ -61,10 +64,10 @@ aero doc src/main.aero -o main.md
 aero profile src/main.aero -o trace.json
 
 # Apply graph compilation with executable fusion (CPU/CUDA/ROCm)
-aero graph-opt main.ll -o main.opt.ll --backend rocm
+aero graph-opt main.ll -o main.opt.ll --backend rocm --gpu gfx1101
 
 # Apply hardware-calibrated quantization lowering (INT8/FP8)
-aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --calibration calib.json
+aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --gpu gfx1101 --calibration calib.json
 
 # Registry search (offline index or live transport)
 aero registry search vision --live --registry https://registry.aero/api/v1

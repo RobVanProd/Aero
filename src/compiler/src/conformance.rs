@@ -175,6 +175,7 @@ fn main() {
     let llvm = "define i32 @main() {\nentry:\n  %0 = fadd double %a, %b\n  %1 = fmul double %0, %c\n  ret i32 0\n}\n";
     let graph_config = GraphCompilationConfig {
         backend: AcceleratorBackend::Rocm,
+        gpu_arch: Some("gfx1101".to_string()),
         executable_fusion: true,
     };
     let (graph_a, _) =

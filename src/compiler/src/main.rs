@@ -29,9 +29,168 @@ use crate::semantic_analyzer::SemanticAnalyzer;
 use accelerator::AcceleratorBackend;
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, exit};
 use std::time::Instant;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BuildTarget {
+    Cpu,
+    Rocm,
+    Cuda,
+}
+
+impl BuildTarget {
+    fn parse(input: &str) -> Option<Self> {
+        match input.trim().to_ascii_lowercase().as_str() {
+            "cpu" | "host" => Some(Self::Cpu),
+            "rocm" | "amd" => Some(Self::Rocm),
+            "cuda" | "nvidia" => Some(Self::Cuda),
+            _ => None,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Cpu => "cpu",
+            Self::Rocm => "rocm",
+            Self::Cuda => "cuda",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct BuildConfig {
+    target: BuildTarget,
+    gpu_arch: Option<String>,
+}
+
+impl Default for BuildConfig {
+    fn default() -> Self {
+        Self {
+            target: BuildTarget::Cpu,
+            gpu_arch: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct RunArtifactPaths {
+    directory: PathBuf,
+    ll_file: PathBuf,
+    obj_file: PathBuf,
+    exe_file: PathBuf,
+    gpu_obj_file: PathBuf,
+}
+
+fn default_gpu_arch_for_backend(backend: AcceleratorBackend) -> Option<&'static str> {
+    match backend {
+        AcceleratorBackend::Cpu => None,
+        AcceleratorBackend::Rocm => Some("gfx1101"),
+        AcceleratorBackend::Cuda => Some("sm_89"),
+    }
+}
+
+fn sanitize_artifact_stem(stem: &str) -> String {
+    let mut out = String::new();
+    for ch in stem.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "program".to_string()
+    } else {
+        out
+    }
+}
+
+fn create_run_artifact_paths(
+    input_file: &str,
+    build_config: &BuildConfig,
+) -> Result<RunArtifactPaths, String> {
+    let stem = Path::new(input_file)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("program");
+    let safe_stem = sanitize_artifact_stem(stem);
+
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|err| format!("system clock error while creating run artifacts: {}", err))?
+        .as_nanos();
+
+    let run_dir = env::current_dir()
+        .map_err(|err| format!("failed to get current directory: {}", err))?
+        .join("target")
+        .join("aero-run")
+        .join(format!("{}-{}", safe_stem, nonce));
+    fs::create_dir_all(&run_dir).map_err(|err| {
+        format!(
+            "failed to create run artifact directory {}: {}",
+            run_dir.display(),
+            err
+        )
+    })?;
+
+    let ll_file = run_dir.join(format!("{}.ll", safe_stem));
+    let obj_file = run_dir.join(format!("{}.o", safe_stem));
+    let exe_name = if cfg!(windows) {
+        format!("{}.exe", safe_stem)
+    } else {
+        safe_stem.clone()
+    };
+    let exe_file = run_dir.join(exe_name);
+    let gpu_obj_file = run_dir.join(format!(
+        "{}.{}.o",
+        safe_stem,
+        build_config.gpu_arch_or_default()
+    ));
+
+    Ok(RunArtifactPaths {
+        directory: run_dir,
+        ll_file,
+        obj_file,
+        exe_file,
+        gpu_obj_file,
+    })
+}
+
+impl BuildConfig {
+    fn gpu_arch_or_default(&self) -> &str {
+        if let Some(arch) = self.gpu_arch.as_deref() {
+            return arch;
+        }
+        match self.target {
+            BuildTarget::Cpu => "x86_64",
+            BuildTarget::Rocm => "gfx1101",
+            BuildTarget::Cuda => "sm_89",
+        }
+    }
+
+    fn llvm_target_triple(&self) -> &str {
+        match self.target {
+            BuildTarget::Cpu => "x86_64-pc-linux-gnu",
+            BuildTarget::Rocm => "amdgcn-amd-amdhsa",
+            BuildTarget::Cuda => "nvptx64-nvidia-cuda",
+        }
+    }
+
+    fn llvm_data_layout(&self) -> &str {
+        match self.target {
+            BuildTarget::Cpu => {
+                "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+            }
+            BuildTarget::Rocm => {
+                "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:32-p8:128:128-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64"
+            }
+            BuildTarget::Cuda => "e-i64:64-v16:16-v32:32-n16:32:64",
+        }
+    }
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -53,14 +212,15 @@ fn main() {
             return;
         }
         "build" => {
-            if args.len() < 5 || args[3] != "-o" {
-                eprintln!("Usage: {} build <input.aero> -o <output.ll>", args[0]);
-                return;
-            }
-            let input_file = &args[2];
-            let output_file = &args[4];
+            let (input_file, output_file, build_config) = match parse_build_args(&args) {
+                Ok(parsed) => parsed,
+                Err(usage) => {
+                    eprintln!("{}", usage);
+                    return;
+                }
+            };
 
-            let source_code = match fs::read_to_string(input_file) {
+            let source_code = match fs::read_to_string(&input_file) {
                 Ok(content) => content,
                 Err(err) => {
                     eprintln!("Error reading file {}: {}", input_file, err);
@@ -68,16 +228,18 @@ fn main() {
                 }
             };
 
-            compile_to_llvm_ir(&source_code, output_file, input_file);
+            compile_to_llvm_ir(&source_code, &output_file, &input_file, &build_config);
         }
         "run" => {
-            if args.len() < 3 {
-                eprintln!("Usage: {} run <input.aero>", args[0]);
-                return;
-            }
-            let input_file = &args[2];
+            let (input_file, build_config) = match parse_run_args(&args) {
+                Ok(parsed) => parsed,
+                Err(usage) => {
+                    eprintln!("{}", usage);
+                    return;
+                }
+            };
 
-            let source_code = match fs::read_to_string(input_file) {
+            let source_code = match fs::read_to_string(&input_file) {
                 Ok(content) => content,
                 Err(err) => {
                     eprintln!("Error reading file {}: {}", input_file, err);
@@ -85,7 +247,10 @@ fn main() {
                 }
             };
 
-            run_aero_program(&source_code, input_file);
+            if let Err(err) = run_aero_program(&source_code, &input_file, &build_config) {
+                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                exit(1);
+            }
         }
         "check" => {
             if args.len() < 3 {
@@ -279,17 +444,19 @@ fn main() {
             }
         }
         "graph-opt" => {
+            let graph_usage = format!(
+                "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--gpu <arch>] [--annotation-only]",
+                args[0]
+            );
             if args.len() < 5 {
-                eprintln!(
-                    "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
-                    args[0]
-                );
+                eprintln!("{}", graph_usage);
                 return;
             }
 
             let input_file = &args[2];
             let mut output_file: Option<String> = None;
             let mut backend = AcceleratorBackend::Cpu;
+            let mut gpu_arch: Option<String> = None;
             let mut executable_fusion = true;
 
             let mut i = 3usize;
@@ -297,10 +464,7 @@ fn main() {
                 match args[i].as_str() {
                     "-o" => {
                         if i + 1 >= args.len() {
-                            eprintln!(
-                                "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
-                                args[0]
-                            );
+                            eprintln!("{}", graph_usage);
                             return;
                         }
                         output_file = Some(args[i + 1].clone());
@@ -308,10 +472,7 @@ fn main() {
                     }
                     "--backend" => {
                         if i + 1 >= args.len() {
-                            eprintln!(
-                                "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
-                                args[0]
-                            );
+                            eprintln!("{}", graph_usage);
                             return;
                         }
                         let Some(parsed) = AcceleratorBackend::parse(&args[i + 1]) else {
@@ -324,24 +485,26 @@ fn main() {
                         backend = parsed;
                         i += 2;
                     }
+                    "--gpu" => {
+                        if i + 1 >= args.len() {
+                            eprintln!("{}", graph_usage);
+                            return;
+                        }
+                        gpu_arch = Some(args[i + 1].clone());
+                        i += 2;
+                    }
                     "--annotation-only" => {
                         executable_fusion = false;
                         i += 1;
                     }
                     _ => {
-                        eprintln!(
-                            "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
-                            args[0]
-                        );
+                        eprintln!("{}", graph_usage);
                         return;
                     }
                 }
             }
             let Some(output_file) = output_file else {
-                eprintln!(
-                    "Usage: {} graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]",
-                    args[0]
-                );
+                eprintln!("{}", graph_usage);
                 return;
             };
 
@@ -359,15 +522,18 @@ fn main() {
             let config = graph_compiler::GraphCompilationConfig {
                 backend,
                 executable_fusion,
+                gpu_arch,
             };
             let (optimized, report) =
                 graph_compiler::apply_advanced_graph_compilation_with_config(&input, &config);
             match fs::write(&output_file, optimized) {
                 Ok(_) => {
                     println!("Wrote graph-optimized IR to {}", output_file);
+                    let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
                     println!(
-                        "Backend: {} | fused kernels: {} | executable kernels: {} | skipped chains: {} | total fused ops: {}",
+                        "Backend: {} | gpu: {} | fused kernels: {} | executable kernels: {} | skipped chains: {} | total fused ops: {}",
                         report.backend,
+                        gpu_arch,
                         report.fused_kernel_count,
                         report.executable_kernel_count,
                         report.skipped_chains,
@@ -381,11 +547,12 @@ fn main() {
             }
         }
         "quantize" => {
+            let quant_usage = format!(
+                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--gpu <arch>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
+                args[0]
+            );
             if args.len() < 7 {
-                eprintln!(
-                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
-                    args[0]
-                );
+                eprintln!("{}", quant_usage);
                 return;
             }
 
@@ -393,6 +560,7 @@ fn main() {
             let mut output_file: Option<String> = None;
             let mut mode: Option<quantization::QuantizationMode> = None;
             let mut backend = AcceleratorBackend::Cpu;
+            let mut gpu_arch: Option<String> = None;
             let mut per_channel = false;
             let mut runtime_lowering = true;
             let mut calibration_file: Option<String> = None;
@@ -402,10 +570,7 @@ fn main() {
                 match args[i].as_str() {
                     "-o" => {
                         if i + 1 >= args.len() {
-                            eprintln!(
-                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
-                                args[0]
-                            );
+                            eprintln!("{}", quant_usage);
                             return;
                         }
                         output_file = Some(args[i + 1].clone());
@@ -413,10 +578,7 @@ fn main() {
                     }
                     "--mode" => {
                         if i + 1 >= args.len() {
-                            eprintln!(
-                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
-                                args[0]
-                            );
+                            eprintln!("{}", quant_usage);
                             return;
                         }
                         mode = quantization::QuantizationMode::parse(&args[i + 1]);
@@ -431,10 +593,7 @@ fn main() {
                     }
                     "--backend" => {
                         if i + 1 >= args.len() {
-                            eprintln!(
-                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
-                                args[0]
-                            );
+                            eprintln!("{}", quant_usage);
                             return;
                         }
                         let Some(parsed) = AcceleratorBackend::parse(&args[i + 1]) else {
@@ -447,12 +606,17 @@ fn main() {
                         backend = parsed;
                         i += 2;
                     }
+                    "--gpu" => {
+                        if i + 1 >= args.len() {
+                            eprintln!("{}", quant_usage);
+                            return;
+                        }
+                        gpu_arch = Some(args[i + 1].clone());
+                        i += 2;
+                    }
                     "--calibration" => {
                         if i + 1 >= args.len() {
-                            eprintln!(
-                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
-                                args[0]
-                            );
+                            eprintln!("{}", quant_usage);
                             return;
                         }
                         calibration_file = Some(args[i + 1].clone());
@@ -467,27 +631,18 @@ fn main() {
                         i += 1;
                     }
                     _ => {
-                        eprintln!(
-                            "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
-                            args[0]
-                        );
+                        eprintln!("{}", quant_usage);
                         return;
                     }
                 }
             }
 
             let Some(output_file) = output_file else {
-                eprintln!(
-                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
-                    args[0]
-                );
+                eprintln!("{}", quant_usage);
                 return;
             };
             let Some(mode) = mode else {
-                eprintln!(
-                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <samples.json|samples.txt>] [--per-channel] [--annotation-only]",
-                    args[0]
-                );
+                eprintln!("{}", quant_usage);
                 return;
             };
 
@@ -504,6 +659,7 @@ fn main() {
 
             let mut config = quantization::QuantizationConfig::new(mode);
             config.backend = backend;
+            config.gpu_arch = gpu_arch;
             config.per_channel = per_channel;
             config.enable_runtime_lowering = runtime_lowering;
 
@@ -512,6 +668,7 @@ fn main() {
                     Path::new(calibration_file),
                     mode,
                     backend,
+                    config.gpu_arch.as_deref(),
                 ) {
                     Ok(profile) => {
                         config.calibration_profile = Some(profile);
@@ -529,10 +686,12 @@ fn main() {
             match fs::write(&output_file, quantized_ir) {
                 Ok(_) => {
                     println!("Wrote quantization IR to {}", output_file);
+                    let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
                     println!(
-                        "Mode: {} | backend: {} | candidates: {} | lowered: {} | helpers: {} | calibration samples: {}",
+                        "Mode: {} | backend: {} | gpu: {} | candidates: {} | lowered: {} | helpers: {} | calibration samples: {}",
                         report.mode,
                         report.backend,
+                        gpu_arch,
                         report.candidate_ops,
                         report.lowered_ops,
                         report.helper_count,
@@ -1052,15 +1211,209 @@ fn main() {
     }
 }
 
-fn compile_to_llvm_ir(source_code: &str, output_file: &str, input_file: &str) {
-    println!("Compiling with performance optimizations enabled");
+fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), String> {
+    if args.len() < 3 {
+        return Err(format!(
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+            args[0]
+        ));
+    }
+
+    let input_file = args[2].clone();
+    let mut output_file: Option<String> = None;
+    let mut config = BuildConfig::default();
+    let mut i = 3usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "-o" => {
+                if i + 1 >= args.len() {
+                    return Err(format!(
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        args[0]
+                    ));
+                }
+                output_file = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--target" => {
+                if i + 1 >= args.len() {
+                    return Err(format!(
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        args[0]
+                    ));
+                }
+                let Some(target) = BuildTarget::parse(&args[i + 1]) else {
+                    return Err(format!(
+                        "error: unsupported target `{}` (expected cpu|rocm|cuda)",
+                        args[i + 1]
+                    ));
+                };
+                config.target = target;
+                i += 2;
+            }
+            "--gpu" => {
+                if i + 1 >= args.len() {
+                    return Err(format!(
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        args[0]
+                    ));
+                }
+                config.gpu_arch = Some(args[i + 1].clone());
+                i += 2;
+            }
+            _ => {
+                return Err(format!(
+                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                    args[0]
+                ));
+            }
+        }
+    }
+
+    let Some(output_file) = output_file else {
+        return Err(format!(
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+            args[0]
+        ));
+    };
+
+    Ok((input_file, output_file, config))
+}
+
+fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
+    if args.len() < 3 {
+        return Err(format!(
+            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
+            args[0], args[0]
+        ));
+    }
+
+    let mut input_file: Option<String> = None;
+    let mut config = BuildConfig::default();
+
+    let mut i = 2usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--target" => {
+                if i + 1 >= args.len() {
+                    return Err(format!(
+                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        args[0]
+                    ));
+                }
+                let Some(target) = BuildTarget::parse(&args[i + 1]) else {
+                    return Err(format!(
+                        "error: unsupported target `{}` (expected cpu|rocm|cuda)",
+                        args[i + 1]
+                    ));
+                };
+                config.target = target;
+                i += 2;
+            }
+            "--gpu" => {
+                if i + 1 >= args.len() {
+                    return Err(format!(
+                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        args[0]
+                    ));
+                }
+                config.gpu_arch = Some(args[i + 1].clone());
+                i += 2;
+            }
+            value if value.starts_with('-') => {
+                return Err(format!(
+                    "error: unknown option `{}`\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                    value, args[0]
+                ));
+            }
+            value => {
+                if input_file.is_some() {
+                    let existing = input_file.as_deref().unwrap_or("<unknown>");
+                    return Err(format!(
+                        "error: multiple input files provided (`{}` and `{}`)\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        existing, value, args[0]
+                    ));
+                }
+                input_file = Some(value.to_string());
+                i += 1;
+            }
+        }
+    }
+
+    let Some(input_file) = input_file else {
+        return Err(format!(
+            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
+            args[0], args[0]
+        ));
+    };
+
+    Ok((input_file, config))
+}
+
+fn retarget_llvm_module(llvm_ir: &str, build_config: &BuildConfig) -> String {
+    let mut out = String::new();
+    let mut inserted_target_header = false;
+
+    for line in llvm_ir.lines() {
+        if line.starts_with("target datalayout = ") || line.starts_with("target triple = ") {
+            continue;
+        }
+
+        out.push_str(line);
+        out.push('\n');
+        if line.starts_with("source_filename = ") {
+            out.push_str(&format!(
+                "target datalayout = \"{}\"\n",
+                build_config.llvm_data_layout()
+            ));
+            out.push_str(&format!(
+                "target triple = \"{}\"\n",
+                build_config.llvm_target_triple()
+            ));
+            inserted_target_header = true;
+        }
+    }
+
+    if !inserted_target_header {
+        out.push_str(&format!(
+            "target datalayout = \"{}\"\n",
+            build_config.llvm_data_layout()
+        ));
+        out.push_str(&format!(
+            "target triple = \"{}\"\n",
+            build_config.llvm_target_triple()
+        ));
+    }
+
+    out
+}
+
+fn compile_to_llvm_ir(
+    source_code: &str,
+    output_file: &str,
+    input_file: &str,
+    build_config: &BuildConfig,
+) {
+    println!(
+        "Compiling with performance optimizations enabled (target: {}, gpu: {})",
+        build_config.target.as_str(),
+        build_config.gpu_arch_or_default()
+    );
 
     // Initialize performance optimizer
     let mut perf_optimizer = PerformanceOptimizer::new();
     let compilation_start = Instant::now();
 
     // Generate source hash for caching
-    let source_hash = format!("{:x}", md5::compute(source_code));
+    let source_hash = format!(
+        "{:x}",
+        md5::compute(format!(
+            "{}::target={}::gpu={}",
+            source_code,
+            build_config.target.as_str(),
+            build_config.gpu_arch_or_default()
+        ))
+    );
 
     // Check compilation cache first
     if let Some(cached_llvm) = perf_optimizer
@@ -1169,23 +1522,33 @@ fn compile_to_llvm_ir(source_code: &str, output_file: &str, input_file: &str) {
     let llvm_ir = code_generator::generate_code(ir);
     let graph_compile_start = Instant::now();
     let graph_backend =
-        AcceleratorBackend::from_env("AERO_ACCELERATOR").unwrap_or(AcceleratorBackend::Cpu);
+        AcceleratorBackend::from_env("AERO_ACCELERATOR").unwrap_or(match build_config.target {
+            BuildTarget::Cpu => AcceleratorBackend::Cpu,
+            BuildTarget::Rocm => AcceleratorBackend::Rocm,
+            BuildTarget::Cuda => AcceleratorBackend::Cuda,
+        });
     let graph_annotation_only = env::var("AERO_GRAPH_ANNOTATION_ONLY")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
     let graph_config = graph_compiler::GraphCompilationConfig {
         backend: graph_backend,
         executable_fusion: !graph_annotation_only,
+        gpu_arch: build_config
+            .gpu_arch
+            .clone()
+            .or_else(|| default_gpu_arch_for_backend(graph_backend).map(str::to_string)),
     };
     let (llvm_ir, graph_report) =
         graph_compiler::apply_advanced_graph_compilation_with_config(&llvm_ir, &graph_config);
+    let llvm_ir = retarget_llvm_module(&llvm_ir, build_config);
     let graph_compile_time = graph_compile_start.elapsed();
     let codegen_time = codegen_start.elapsed();
     println!("Optimized code generation completed in {:?}", codegen_time);
     println!(
-        "Advanced graph compilation completed in {:?} (backend: {}, fused kernels: {}, executable: {}, total fused ops: {})",
+        "Advanced graph compilation completed in {:?} (backend: {}, gpu: {}, fused kernels: {}, executable: {}, total fused ops: {})",
         graph_compile_time,
         graph_report.backend,
+        graph_report.gpu_arch.as_deref().unwrap_or("n/a"),
         graph_report.fused_kernel_count,
         graph_report.executable_kernel_count,
         graph_report.total_fused_ops
@@ -1211,101 +1574,139 @@ fn compile_to_llvm_ir(source_code: &str, output_file: &str, input_file: &str) {
     println!("Performance-optimized compilation process completed successfully.");
 }
 
-fn run_aero_program(source_code: &str, input_file: &str) {
-    // Generate temporary file names
-    let base_name = input_file.trim_end_matches(".aero");
-    let ll_file = format!("{}.ll", base_name);
-    let obj_file = format!("{}.o", base_name);
-    let exe_file = if cfg!(windows) {
-        format!("{}.exe", base_name)
-    } else {
-        base_name.to_string()
-    };
+fn run_aero_program(
+    source_code: &str,
+    input_file: &str,
+    build_config: &BuildConfig,
+) -> Result<(), String> {
+    let artifacts = create_run_artifact_paths(input_file, build_config)?;
+    let ll_path = artifacts.ll_file.to_string_lossy().to_string();
+    let obj_path = artifacts.obj_file.to_string_lossy().to_string();
+    let exe_path = artifacts.exe_file.to_string_lossy().to_string();
+    let gpu_obj_path = artifacts.gpu_obj_file.to_string_lossy().to_string();
 
-    // Compile to LLVM IR
-    compile_to_llvm_ir(source_code, &ll_file, input_file);
+    // Compile to LLVM IR first.
+    compile_to_llvm_ir(source_code, &ll_path, input_file, build_config);
+    if !artifacts.ll_file.exists() {
+        return Err(format!(
+            "compile step did not produce LLVM IR at {}",
+            artifacts.ll_file.display()
+        ));
+    }
 
-    // Compile LLVM IR to object file using llc
-    let llc_output = Command::new("llc")
-        .args(&["-filetype=obj", &ll_file, "-o", &obj_file])
-        .output();
+    match build_config.target {
+        BuildTarget::Cpu => {
+            let llc_output = Command::new("llc")
+                .args(["-filetype=obj", &ll_path, "-o", &obj_path])
+                .output()
+                .map_err(|err| {
+                    format!(
+                        "Error executing llc: {}. Make sure LLVM is installed and llc is in your PATH.",
+                        err
+                    )
+                })?;
 
-    match llc_output {
-        Ok(output) => {
-            if !output.status.success() {
-                eprintln!(
+            if !llc_output.status.success() {
+                return Err(format!(
                     "Error running llc: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                return;
+                    String::from_utf8_lossy(&llc_output.stderr)
+                ));
             }
-        }
-        Err(err) => {
-            eprintln!(
-                "Error executing llc: {}. Make sure LLVM is installed and llc is in your PATH.",
-                err
-            );
-            return;
-        }
-    }
 
-    // Link object file to executable using clang
-    let clang_output = Command::new("clang")
-        .args(&[&obj_file, "-o", &exe_file])
-        .output();
+            let clang_output = Command::new("clang")
+                .args([&obj_path, "-o", &exe_path])
+                .output()
+                .map_err(|err| {
+                    format!(
+                        "Error executing clang: {}. Make sure clang is installed and in your PATH.",
+                        err
+                    )
+                })?;
 
-    match clang_output {
-        Ok(output) => {
-            if !output.status.success() {
-                eprintln!(
+            if !clang_output.status.success() {
+                return Err(format!(
                     "Error running clang: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                return;
+                    String::from_utf8_lossy(&clang_output.stderr)
+                ));
             }
-        }
-        Err(err) => {
-            eprintln!(
-                "Error executing clang: {}. Make sure clang is installed and in your PATH.",
-                err
-            );
-            return;
-        }
-    }
 
-    // Execute the compiled program
-    let exe_path = if cfg!(windows) {
-        format!(".\\{}", exe_file)
-    } else {
-        format!("./{}", exe_file)
-    };
-    let run_output = Command::new(&exe_path).output();
+            let run_output = Command::new(&exe_path)
+                .output()
+                .map_err(|err| format!("Error executing compiled program: {}", err))?;
 
-    match run_output {
-        Ok(output) => {
-            let exit_code = output.status.code().unwrap_or(-1);
+            let exit_code = run_output.status.code().unwrap_or(-1);
             println!("Program executed successfully.");
             println!("Exit code: {}", exit_code);
 
-            if !output.stdout.is_empty() {
-                println!("Output: {}", String::from_utf8_lossy(&output.stdout));
+            if !run_output.stdout.is_empty() {
+                println!("Output: {}", String::from_utf8_lossy(&run_output.stdout));
             }
-            if !output.stderr.is_empty() {
-                println!("Error output: {}", String::from_utf8_lossy(&output.stderr));
+            if !run_output.stderr.is_empty() {
+                println!(
+                    "Error output: {}",
+                    String::from_utf8_lossy(&run_output.stderr)
+                );
             }
 
-            // Exit with the same code as the executed program
+            let _ = fs::remove_file(&artifacts.ll_file);
+            let _ = fs::remove_file(&artifacts.obj_file);
+            let _ = fs::remove_file(&artifacts.exe_file);
+            let _ = fs::remove_dir(&artifacts.directory);
+
+            // Mirror executed process exit code.
             exit(exit_code);
         }
-        Err(err) => {
-            eprintln!("Error executing compiled program: {}", err);
+        BuildTarget::Rocm => {
+            let llc_output = Command::new("llc")
+                .args([
+                    "-march=amdgcn",
+                    "-mcpu",
+                    build_config.gpu_arch_or_default(),
+                    "-mattr",
+                    "+wavefrontsize64,+gfx11-insts",
+                    "-filetype=obj",
+                    &ll_path,
+                    "-o",
+                    &gpu_obj_path,
+                ])
+                .output();
+
+            match llc_output {
+                Ok(output) => {
+                    if !output.status.success() {
+                        return Err(format!(
+                            "Error running llc for ROCm target: {}",
+                            String::from_utf8_lossy(&output.stderr)
+                        ));
+                    }
+                    println!(
+                        "ROCm object generated for {} at {}",
+                        build_config.gpu_arch_or_default(),
+                        artifacts.gpu_obj_file.display()
+                    );
+                    println!("IR artifact: {}", artifacts.ll_file.display());
+                    println!(
+                        "Runtime execution for ROCm kernels is staged for HIP launcher integration; use the generated object for now."
+                    );
+                }
+                Err(err) => {
+                    return Err(format!(
+                        "Error executing llc for ROCm target: {}. Make sure LLVM is installed and llc is in your PATH. LLVM IR remains at {}",
+                        err,
+                        artifacts.ll_file.display()
+                    ));
+                }
+            }
+        }
+        BuildTarget::Cuda => {
+            return Err(
+                "CUDA run target is not implemented yet in this build. Use --target cpu or --target rocm."
+                    .to_string(),
+            );
         }
     }
 
-    // Clean up temporary files
-    let _ = fs::remove_file(&ll_file);
-    let _ = fs::remove_file(&obj_file);
-    let _ = fs::remove_file(&exe_file);
+    Ok(())
 }
 
 fn print_help(program_name: &str) {
@@ -1315,19 +1716,23 @@ fn print_help(program_name: &str) {
     println!("    {} <COMMAND> [OPTIONS]", program_name);
     println!();
     println!("COMMANDS:");
-    println!("    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR");
-    println!("    run <input.aero>                     Compile and run Aero source");
+    println!(
+        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda>] [--gpu <arch>]"
+    );
+    println!(
+        "    run <input.aero>                     Compile and run source [--target <cpu|rocm|cuda>] [--gpu <arch>]"
+    );
     println!("    check <input.aero>                   Type-check only (no codegen)");
     println!("    test                                 Discover and run *_test.aero files");
     println!("    fmt <input.aero>                     Auto-format Aero source");
     println!("    doc <input.aero> [-o <output.md>]    Generate Markdown API docs from source");
     println!("    profile <input.aero> [-o <trace.json>] Profile compilation phases");
     println!(
-        "    graph-opt <input.ll> -o <output.ll>  Apply graph compilation and executable kernel fusion"
+        "    graph-opt <input.ll> -o <output.ll>  Apply graph compilation and executable kernel fusion [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
     );
     println!("    quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>");
     println!(
-        "                                         Apply calibrated INT8/FP8 lowering interface"
+        "                                         Apply calibrated INT8/FP8 lowering interface [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
     );
     println!(
         "    registry <subcommand>                Interact with registry.aero (local or live transport)"
@@ -1344,18 +1749,26 @@ fn print_help(program_name: &str) {
     println!();
     println!("EXAMPLES:");
     println!("    {} build hello.aero -o hello.ll", program_name);
+    println!(
+        "    {} build hello.aero -o hello.rocm.ll --target rocm --gpu gfx1101",
+        program_name
+    );
     println!("    {} run hello.aero", program_name);
+    println!(
+        "    {} run --target rocm --gpu gfx1101 examples/gguf_inference.aero",
+        program_name
+    );
     println!("    {} check hello.aero", program_name);
     println!("    {} test", program_name);
     println!("    {} fmt hello.aero", program_name);
     println!("    {} doc hello.aero -o hello.md", program_name);
     println!("    {} profile hello.aero -o trace.json", program_name);
     println!(
-        "    {} graph-opt hello.ll -o hello.opt.ll --backend rocm",
+        "    {} graph-opt hello.ll -o hello.opt.ll --backend rocm --gpu gfx1101",
         program_name
     );
     println!(
-        "    {} quantize hello.opt.ll -o hello.int8.ll --mode int8 --backend rocm --calibration calib.json",
+        "    {} quantize hello.opt.ll -o hello.int8.ll --mode int8 --backend rocm --gpu gfx1101 --calibration calib.json",
         program_name
     );
     println!(
@@ -1476,4 +1889,85 @@ fn extract_error_line(error_msg: &str) -> Option<usize> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn parse_build_args_accepts_rocm_target_and_gpu_arch() {
+        let args = vec![
+            "aero".to_string(),
+            "build".to_string(),
+            "main.aero".to_string(),
+            "-o".to_string(),
+            "main.ll".to_string(),
+            "--target".to_string(),
+            "rocm".to_string(),
+            "--gpu".to_string(),
+            "gfx1101".to_string(),
+        ];
+        let (input, output, config) = parse_build_args(&args).expect("build args should parse");
+        assert_eq!(input, "main.aero");
+        assert_eq!(output, "main.ll");
+        assert_eq!(config.target, BuildTarget::Rocm);
+        assert_eq!(config.gpu_arch.as_deref(), Some("gfx1101"));
+    }
+
+    #[test]
+    fn parse_run_args_supports_option_first_style() {
+        let args = vec![
+            "aero".to_string(),
+            "run".to_string(),
+            "--target".to_string(),
+            "rocm".to_string(),
+            "--gpu".to_string(),
+            "gfx1101".to_string(),
+            "examples/gguf_inference.aero".to_string(),
+        ];
+        let (input, config) = parse_run_args(&args).expect("run args should parse");
+        assert_eq!(input, "examples/gguf_inference.aero");
+        assert_eq!(config.target, BuildTarget::Rocm);
+        assert_eq!(config.gpu_arch.as_deref(), Some("gfx1101"));
+    }
+
+    #[test]
+    fn retarget_llvm_module_switches_triple_for_rocm() {
+        let input = "; ModuleID = \"a\"\nsource_filename = \"a\"\ntarget datalayout = \"old\"\ntarget triple = \"old\"\n\ndefine i32 @main() {\nentry:\n  ret i32 0\n}\n";
+        let config = BuildConfig {
+            target: BuildTarget::Rocm,
+            gpu_arch: Some("gfx1101".to_string()),
+        };
+        let output = retarget_llvm_module(input, &config);
+        assert!(output.contains("target triple = \"amdgcn-amd-amdhsa\""));
+        assert!(!output.contains("target triple = \"old\""));
+    }
+
+    #[test]
+    fn sanitize_artifact_stem_replaces_non_alphanumeric_chars() {
+        assert_eq!(sanitize_artifact_stem("hello-world"), "hello-world");
+        assert_eq!(
+            sanitize_artifact_stem("hello world.aero"),
+            "hello_world_aero"
+        );
+        assert_eq!(sanitize_artifact_stem(""), "program");
+    }
+
+    #[test]
+    fn create_run_artifact_paths_writes_under_target_aero_run() {
+        let config = BuildConfig {
+            target: BuildTarget::Rocm,
+            gpu_arch: Some("gfx1101".to_string()),
+        };
+        let artifacts = create_run_artifact_paths("examples/hello.aero", &config)
+            .expect("paths should be created");
+        let dir = artifacts.directory.to_string_lossy();
+        assert!(dir.contains("target"));
+        assert!(dir.contains("aero-run"));
+        assert!(artifacts.ll_file.to_string_lossy().ends_with(".ll"));
+        assert!(artifacts.gpu_obj_file.to_string_lossy().contains("gfx1101"));
+        let _ = fs::remove_dir_all(artifacts.directory);
+    }
 }

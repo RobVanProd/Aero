@@ -39,15 +39,15 @@ This installs `aero` into your Cargo bin directory (typically `~/.cargo/bin`).
 
 ## CLI command summary (v1.0.0)
 
-- `aero build <input.aero> -o <output.ll>`: compile Aero source to LLVM IR
-- `aero run <input.aero>`: compile and run an Aero program
+- `aero build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]`: compile Aero source to LLVM IR with optional accelerator target metadata
+- `aero run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]`: compile and run an Aero program (artifacts are emitted under `target/aero-run`; ROCm path currently emits target object for HIP integration)
 - `aero check <input.aero>`: type-check only (no code generation)
 - `aero test`: discover and run `*_test.aero` files
 - `aero fmt <input.aero>`: auto-format source
 - `aero doc <input.aero> [-o <output.md>]`: generate Markdown API documentation from declarations
 - `aero profile <input.aero> [-o <trace.json>]`: profile compiler stages and optionally emit Chrome trace JSON
-- `aero graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--annotation-only]`: apply graph compilation with executable fused-kernel lowering
-- `aero quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--calibration <file>] [--per-channel] [--annotation-only]`: apply hardware-calibrated INT8/FP8 lowering interfaces
+- `aero graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--gpu <arch>] [--annotation-only]`: apply graph compilation with executable fused-kernel lowering
+- `aero quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--gpu <arch>] [--calibration <file>] [--per-channel] [--annotation-only]`: apply hardware-calibrated INT8/FP8 lowering interfaces
 - `aero registry <subcommand>`: interact with `registry.aero` in offline mode or live transport mode (`search`, `publish`, `install`) with auth/trust controls
 - `aero conformance [-o <report.json>]`: run formal conformance suite and mechanized semantics checks
 - `aero init [path]`: create a project scaffold (`aero.toml` + `src/main.aero`)

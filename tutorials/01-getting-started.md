@@ -92,6 +92,12 @@ Use `run` to compile and execute in one command:
 aero run src/main.aero
 ```
 
+ROCm-targeted path for RX 7800 XT (`gfx1101`):
+
+```bash
+aero run --target rocm --gpu gfx1101 src/main.aero
+```
+
 You should see:
 
 ```
@@ -143,7 +149,7 @@ aero profile src/main.aero -o trace.json
 Use `graph-opt` on LLVM IR to generate backend-aware fused kernels:
 
 ```bash
-aero graph-opt main.ll -o main.opt.ll --backend rocm
+aero graph-opt main.ll -o main.opt.ll --backend rocm --gpu gfx1101
 ```
 
 ### 8. Apply calibrated quantization lowering (INT8/FP8)
@@ -151,7 +157,7 @@ aero graph-opt main.ll -o main.opt.ll --backend rocm
 Use `quantize` to lower floating-point ops through calibrated quantization helpers:
 
 ```bash
-aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --calibration calib.json
+aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --gpu gfx1101 --calibration calib.json
 ```
 
 Supported modes:

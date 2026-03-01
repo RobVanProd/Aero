@@ -34,6 +34,7 @@ impl QuantizationMode {
 pub struct QuantizationConfig {
     pub mode: QuantizationMode,
     pub backend: AcceleratorBackend,
+    pub gpu_arch: Option<String>,
     pub per_channel: bool,
     pub calibration_profile: Option<CalibrationProfile>,
     pub calibration_source: Option<String>,
@@ -45,6 +46,7 @@ impl QuantizationConfig {
         Self {
             mode,
             backend: AcceleratorBackend::Cpu,
+            gpu_arch: None,
             per_channel: false,
             calibration_profile: None,
             calibration_source: None,
@@ -56,6 +58,8 @@ impl QuantizationConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalibrationProfile {
     pub backend: String,
+    #[serde(default)]
+    pub gpu_arch: Option<String>,
     pub mode: String,
     pub sample_count: usize,
     pub min_value: f64,
@@ -68,6 +72,7 @@ pub struct CalibrationProfile {
 pub struct QuantizationReport {
     pub mode: String,
     pub backend: String,
+    pub gpu_arch: Option<String>,
     pub candidate_ops: usize,
     pub lowered_ops: usize,
     pub helper_count: usize,
@@ -80,6 +85,7 @@ pub fn load_calibration_profile(
     calibration_file: &Path,
     mode: QuantizationMode,
     backend: AcceleratorBackend,
+    gpu_arch: Option<&str>,
 ) -> Result<CalibrationProfile, String> {
     let text = fs::read_to_string(calibration_file).map_err(|err| {
         format!(
@@ -92,13 +98,14 @@ pub fn load_calibration_profile(
     if samples.is_empty() {
         return Err("calibration file contains no samples".to_string());
     }
-    Ok(calibrate_from_samples(&samples, mode, backend))
+    Ok(calibrate_from_samples(&samples, mode, backend, gpu_arch))
 }
 
 pub fn calibrate_from_samples(
     samples: &[f64],
     mode: QuantizationMode,
     backend: AcceleratorBackend,
+    gpu_arch: Option<&str>,
 ) -> CalibrationProfile {
     let min_value = samples.iter().copied().fold(f64::INFINITY, f64::min);
     let max_value = samples.iter().copied().fold(f64::NEG_INFINITY, f64::max);
@@ -121,6 +128,7 @@ pub fn calibrate_from_samples(
 
     CalibrationProfile {
         backend: backend.as_str().to_string(),
+        gpu_arch: resolved_gpu_arch(backend, gpu_arch).map(str::to_string),
         mode: mode.as_str().to_string(),
         sample_count: samples.len(),
         min_value,
@@ -134,6 +142,8 @@ pub fn apply_quantization_interface(
     llvm_ir: &str,
     config: &QuantizationConfig,
 ) -> (String, QuantizationReport) {
+    let gpu_arch = resolved_gpu_arch(config.backend, config.gpu_arch.as_deref());
+
     let mut out = String::new();
     out.push_str(&format!(
         "; aero.quantization.mode={}\n",
@@ -143,6 +153,9 @@ pub fn apply_quantization_interface(
         "; aero.quantization.backend={}\n",
         config.backend.as_str()
     ));
+    if let Some(gpu_arch) = gpu_arch {
+        out.push_str(&format!("; aero.quantization.gpu_arch={}\n", gpu_arch));
+    }
     out.push_str(&format!(
         "; aero.quantization.per_channel={}\n",
         config.per_channel
@@ -153,7 +166,12 @@ pub fn apply_quantization_interface(
     ));
 
     let calibration_profile = config.calibration_profile.clone().unwrap_or_else(|| {
-        calibrate_from_samples(&[0.25, 0.5, 1.0, -1.0], config.mode, config.backend)
+        calibrate_from_samples(
+            &[0.25, 0.5, 1.0, -1.0],
+            config.mode,
+            config.backend,
+            gpu_arch,
+        )
     });
     out.push_str(&format!(
         "; aero.quantization.calibration.scale={:.8}\n",
@@ -225,7 +243,7 @@ pub fn apply_quantization_interface(
     }
 
     let mut notes = Vec::new();
-    notes.push(backend_mode_note(config.backend, config.mode).to_string());
+    notes.push(backend_mode_note(config.backend, config.mode, gpu_arch));
     if config.enable_runtime_lowering {
         notes.push("Executable quantization runtime helper lowering was applied.".to_string());
     } else {
@@ -240,6 +258,7 @@ pub fn apply_quantization_interface(
         QuantizationReport {
             mode: config.mode.as_str().to_string(),
             backend: config.backend.as_str().to_string(),
+            gpu_arch: gpu_arch.map(str::to_string),
             candidate_ops,
             lowered_ops,
             helper_count: helper_names.len(),
@@ -250,20 +269,38 @@ pub fn apply_quantization_interface(
     )
 }
 
-fn backend_mode_note(backend: AcceleratorBackend, mode: QuantizationMode) -> &'static str {
+fn backend_mode_note(
+    backend: AcceleratorBackend,
+    mode: QuantizationMode,
+    gpu_arch: Option<&str>,
+) -> String {
     match (backend, mode) {
         (AcceleratorBackend::Rocm, QuantizationMode::Fp8E4M3)
         | (AcceleratorBackend::Rocm, QuantizationMode::Fp8E5M2) => {
-            "ROCm FP8 path enabled (hardware-assist friendly runtime helpers)."
+            format!(
+                "ROCm FP8 path enabled for {} (hardware-assist friendly runtime helpers).",
+                gpu_arch.unwrap_or("gfx1101")
+            )
         }
         (AcceleratorBackend::Cuda, QuantizationMode::Fp8E4M3)
         | (AcceleratorBackend::Cuda, QuantizationMode::Fp8E5M2) => {
-            "CUDA FP8 path enabled (hardware-assist friendly runtime helpers)."
+            format!(
+                "CUDA FP8 path enabled for {} (hardware-assist friendly runtime helpers).",
+                gpu_arch.unwrap_or("sm_89")
+            )
         }
         (_, QuantizationMode::Int8) => {
-            "INT8 path enabled with calibrated clamp-and-dequantize runtime helpers."
+            "INT8 path enabled with calibrated clamp-and-dequantize runtime helpers.".to_string()
         }
-        _ => "FP8 is emulated for this backend via calibrated runtime helpers.",
+        _ => "FP8 is emulated for this backend via calibrated runtime helpers.".to_string(),
+    }
+}
+
+fn resolved_gpu_arch(backend: AcceleratorBackend, gpu_arch: Option<&str>) -> Option<&str> {
+    match backend {
+        AcceleratorBackend::Cpu => None,
+        AcceleratorBackend::Rocm => gpu_arch.or(Some("gfx1101")),
+        AcceleratorBackend::Cuda => gpu_arch.or(Some("sm_89")),
     }
 }
 
@@ -445,8 +482,10 @@ mod tests {
             &[0.5, -1.0, 2.0],
             QuantizationMode::Int8,
             AcceleratorBackend::Rocm,
+            Some("gfx1101"),
         );
         assert_eq!(profile.backend, "rocm");
+        assert_eq!(profile.gpu_arch.as_deref(), Some("gfx1101"));
         assert_eq!(profile.mode, "int8");
         assert_eq!(profile.sample_count, 3);
         assert!(profile.scale > 0.0);
@@ -456,10 +495,15 @@ mod tests {
     fn calibration_loader_supports_json_arrays() {
         let path = std::env::temp_dir().join("aero_quant_calibration.json");
         fs::write(&path, "[0.25, 0.5, -1.0, 2.0]").expect("should write calibration file");
-        let profile =
-            load_calibration_profile(&path, QuantizationMode::Fp8E4M3, AcceleratorBackend::Cuda)
-                .expect("calibration should load");
+        let profile = load_calibration_profile(
+            &path,
+            QuantizationMode::Fp8E4M3,
+            AcceleratorBackend::Cuda,
+            Some("sm_89"),
+        )
+        .expect("calibration should load");
         assert_eq!(profile.sample_count, 4);
+        assert_eq!(profile.gpu_arch.as_deref(), Some("sm_89"));
         let _ = fs::remove_file(path);
     }
 
@@ -472,12 +516,16 @@ mod tests {
             &[1.0, -1.0, 0.5],
             config.mode,
             config.backend,
+            Some("gfx1101"),
         ));
+        config.gpu_arch = Some("gfx1101".to_string());
         let (out, report) = apply_quantization_interface(llvm, &config);
         assert!(out.contains("; aero.quantization.backend=rocm"));
+        assert!(out.contains("; aero.quantization.gpu_arch=gfx1101"));
         assert!(out.contains("call double @aero_rocm_int8_fadd"));
         assert!(out.contains("call double @aero_rocm_int8_fmul"));
         assert!(out.contains("define internal i32 @aero_quant_clamp_i32"));
+        assert_eq!(report.gpu_arch.as_deref(), Some("gfx1101"));
         assert_eq!(report.candidate_ops, 2);
         assert_eq!(report.lowered_ops, 2);
         assert_eq!(report.helper_count, 2);
