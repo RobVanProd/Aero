@@ -3,6 +3,7 @@ mod code_generator;
 mod compatibility;
 mod doc_generator;
 mod errors;
+mod graph_compiler;
 mod ir;
 mod ir_generator;
 mod lexer;
@@ -13,6 +14,8 @@ mod parser;
 mod performance_optimizations;
 mod profiler;
 mod project_init;
+mod quantization;
+mod registry;
 mod semantic_analyzer;
 mod types;
 
@@ -272,6 +275,371 @@ fn main() {
                 }
             }
         }
+        "graph-opt" => {
+            if args.len() < 5 || args[3] != "-o" {
+                eprintln!("Usage: {} graph-opt <input.ll> -o <output.ll>", args[0]);
+                return;
+            }
+
+            let input_file = &args[2];
+            let output_file = &args[4];
+            let input = match fs::read_to_string(input_file) {
+                Ok(content) => content,
+                Err(err) => {
+                    eprintln!(
+                        "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
+                        input_file, err
+                    );
+                    return;
+                }
+            };
+
+            let (optimized, report) = graph_compiler::apply_advanced_graph_compilation(&input);
+            match fs::write(output_file, optimized) {
+                Ok(_) => {
+                    println!("Wrote graph-optimized IR to {}", output_file);
+                    println!(
+                        "Fused kernels: {} (total fused ops: {})",
+                        report.fused_kernel_count, report.total_fused_ops
+                    );
+                }
+                Err(err) => eprintln!(
+                    "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
+                    output_file, err
+                ),
+            }
+        }
+        "quantize" => {
+            if args.len() < 7 {
+                eprintln!(
+                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                    args[0]
+                );
+                return;
+            }
+
+            let input_file = &args[2];
+            let mut output_file: Option<String> = None;
+            let mut mode: Option<quantization::QuantizationMode> = None;
+
+            let mut i = 3usize;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "-o" => {
+                        if i + 1 >= args.len() {
+                            eprintln!(
+                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                                args[0]
+                            );
+                            return;
+                        }
+                        output_file = Some(args[i + 1].clone());
+                        i += 2;
+                    }
+                    "--mode" => {
+                        if i + 1 >= args.len() {
+                            eprintln!(
+                                "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                                args[0]
+                            );
+                            return;
+                        }
+                        mode = quantization::QuantizationMode::parse(&args[i + 1]);
+                        if mode.is_none() {
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: unsupported quantization mode `{}`",
+                                args[i + 1]
+                            );
+                            return;
+                        }
+                        i += 2;
+                    }
+                    _ => {
+                        eprintln!(
+                            "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                            args[0]
+                        );
+                        return;
+                    }
+                }
+            }
+
+            let Some(output_file) = output_file else {
+                eprintln!(
+                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                    args[0]
+                );
+                return;
+            };
+            let Some(mode) = mode else {
+                eprintln!(
+                    "Usage: {} quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>",
+                    args[0]
+                );
+                return;
+            };
+
+            let input = match fs::read_to_string(input_file) {
+                Ok(content) => content,
+                Err(err) => {
+                    eprintln!(
+                        "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
+                        input_file, err
+                    );
+                    return;
+                }
+            };
+
+            let config = quantization::QuantizationConfig::new(mode);
+            let (quantized_ir, report) =
+                quantization::apply_quantization_interface(&input, &config);
+            match fs::write(&output_file, quantized_ir) {
+                Ok(_) => {
+                    println!("Wrote quantization-annotated IR to {}", output_file);
+                    println!(
+                        "Mode: {} | candidates: {} | annotated: {}",
+                        report.mode, report.candidate_ops, report.annotated_ops
+                    );
+                }
+                Err(err) => eprintln!(
+                    "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
+                    output_file, err
+                ),
+            }
+        }
+        "registry" => {
+            if args.len() < 3 {
+                print_registry_help(&args[0]);
+                return;
+            }
+
+            match args[2].as_str() {
+                "search" => {
+                    if args.len() < 4 {
+                        eprintln!(
+                            "Usage: {} registry search <query> [--index <index.json>] [--registry <url>]",
+                            args[0]
+                        );
+                        return;
+                    }
+                    let query = &args[3];
+                    let mut index_path = registry::DEFAULT_LOCAL_INDEX_PATH.to_string();
+                    let mut registry_url: Option<String> = None;
+
+                    let mut i = 4usize;
+                    while i < args.len() {
+                        match args[i].as_str() {
+                            "--index" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry search <query> [--index <index.json>] [--registry <url>]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                index_path = args[i + 1].clone();
+                                i += 2;
+                            }
+                            "--registry" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry search <query> [--index <index.json>] [--registry <url>]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                registry_url = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            _ => {
+                                eprintln!(
+                                    "Usage: {} registry search <query> [--index <index.json>] [--registry <url>]",
+                                    args[0]
+                                );
+                                return;
+                            }
+                        }
+                    }
+
+                    let client = registry::RegistryClient::new(registry_url.as_deref());
+                    println!("Registry: {}", client.base_url);
+
+                    match registry::search_local_index(Path::new(&index_path), query) {
+                        Ok(results) => {
+                            println!("Found {} package(s)", results.len());
+                            for pkg in results {
+                                let description = pkg
+                                    .description
+                                    .unwrap_or_else(|| "no description".to_string());
+                                println!(
+                                    "  {} {} (downloads: {}) - {}",
+                                    pkg.name, pkg.version, pkg.downloads, description
+                                );
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                            exit(1);
+                        }
+                    }
+                }
+                "publish" => {
+                    if args.len() < 4 {
+                        eprintln!(
+                            "Usage: {} registry publish <package-dir> [--registry <url>] [--dry-run]",
+                            args[0]
+                        );
+                        return;
+                    }
+                    let package_dir = &args[3];
+                    let mut registry_url: Option<String> = None;
+                    let mut dry_run = false;
+
+                    let mut i = 4usize;
+                    while i < args.len() {
+                        match args[i].as_str() {
+                            "--registry" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry publish <package-dir> [--registry <url>] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                registry_url = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--dry-run" => {
+                                dry_run = true;
+                                i += 1;
+                            }
+                            _ => {
+                                eprintln!(
+                                    "Usage: {} registry publish <package-dir> [--registry <url>] [--dry-run]",
+                                    args[0]
+                                );
+                                return;
+                            }
+                        }
+                    }
+
+                    if !dry_run {
+                        eprintln!(
+                            "\x1b[1;31merror\x1b[0m: live publish transport is not enabled yet; use --dry-run"
+                        );
+                        exit(1);
+                    }
+
+                    let client = registry::RegistryClient::new(registry_url.as_deref());
+                    match registry::build_publish_preview(&client, Path::new(package_dir)) {
+                        Ok(preview) => {
+                            println!("Registry publish preview:");
+                            match serde_json::to_string_pretty(&preview) {
+                                Ok(json) => println!("{}", json),
+                                Err(err) => {
+                                    eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                    exit(1);
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                            exit(1);
+                        }
+                    }
+                }
+                "install" => {
+                    if args.len() < 4 {
+                        eprintln!(
+                            "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                            args[0]
+                        );
+                        return;
+                    }
+                    let package_name = &args[3];
+                    let mut version: Option<String> = None;
+                    let mut registry_url: Option<String> = None;
+                    let mut target_dir = ".".to_string();
+                    let mut dry_run = false;
+
+                    let mut i = 4usize;
+                    while i < args.len() {
+                        match args[i].as_str() {
+                            "--version" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                version = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--registry" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                registry_url = Some(args[i + 1].clone());
+                                i += 2;
+                            }
+                            "--target" => {
+                                if i + 1 >= args.len() {
+                                    eprintln!(
+                                        "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                                        args[0]
+                                    );
+                                    return;
+                                }
+                                target_dir = args[i + 1].clone();
+                                i += 2;
+                            }
+                            "--dry-run" => {
+                                dry_run = true;
+                                i += 1;
+                            }
+                            _ => {
+                                eprintln!(
+                                    "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+                                    args[0]
+                                );
+                                return;
+                            }
+                        }
+                    }
+
+                    if !dry_run {
+                        eprintln!(
+                            "\x1b[1;31merror\x1b[0m: live install transport is not enabled yet; use --dry-run"
+                        );
+                        exit(1);
+                    }
+
+                    let client = registry::RegistryClient::new(registry_url.as_deref());
+                    let plan = registry::build_install_plan(
+                        &client,
+                        package_name,
+                        version.as_deref(),
+                        Path::new(&target_dir),
+                    );
+                    println!("Registry install plan:");
+                    match serde_json::to_string_pretty(&plan) {
+                        Ok(json) => println!("{}", json),
+                        Err(err) => {
+                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                            exit(1);
+                        }
+                    }
+                }
+                _ => {
+                    print_registry_help(&args[0]);
+                }
+            }
+        }
         "init" => {
             if args.len() > 3 {
                 eprintln!("Usage: {} init [path]", args[0]);
@@ -304,7 +672,9 @@ fn main() {
         }
         _ => {
             eprintln!("Unknown command: {}", command);
-            eprintln!("Available commands: build, run, check, test, fmt, doc, profile, init, lsp");
+            eprintln!(
+                "Available commands: build, run, check, test, fmt, doc, profile, graph-opt, quantize, registry, init, lsp"
+            );
         }
     }
 }
@@ -424,8 +794,15 @@ fn compile_to_llvm_ir(source_code: &str, output_file: &str, input_file: &str) {
     // Note: In a real implementation, we would optimize control flow generation here
 
     let llvm_ir = code_generator::generate_code(ir);
+    let graph_compile_start = Instant::now();
+    let (llvm_ir, graph_report) = graph_compiler::apply_advanced_graph_compilation(&llvm_ir);
+    let graph_compile_time = graph_compile_start.elapsed();
     let codegen_time = codegen_start.elapsed();
     println!("Optimized code generation completed in {:?}", codegen_time);
+    println!(
+        "Advanced graph compilation completed in {:?} (fused kernels: {}, total fused ops: {})",
+        graph_compile_time, graph_report.fused_kernel_count, graph_report.total_fused_ops
+    );
 
     // Cache the compilation result
     perf_optimizer
@@ -558,6 +935,14 @@ fn print_help(program_name: &str) {
     println!("    fmt <input.aero>                     Auto-format Aero source");
     println!("    doc <input.aero> [-o <output.md>]    Generate Markdown API docs from source");
     println!("    profile <input.aero> [-o <trace.json>] Profile compilation phases");
+    println!(
+        "    graph-opt <input.ll> -o <output.ll>  Apply kernel fusion and graph compilation annotations"
+    );
+    println!("    quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>");
+    println!("                                         Apply quantization interface annotations");
+    println!(
+        "    registry <subcommand>                Interact with registry.aero interfaces (offline-safe)"
+    );
     println!("    init [path]                          Initialize a new Aero project");
     println!("    lsp                                  Run Aero language server (stdio)");
     println!();
@@ -573,6 +958,20 @@ fn print_help(program_name: &str) {
     println!("    {} fmt hello.aero", program_name);
     println!("    {} doc hello.aero -o hello.md", program_name);
     println!("    {} profile hello.aero -o trace.json", program_name);
+    println!("    {} graph-opt hello.ll -o hello.opt.ll", program_name);
+    println!(
+        "    {} quantize hello.opt.ll -o hello.int8.ll --mode int8",
+        program_name
+    );
+    println!(
+        "    {} registry search vision --index registry/index.json",
+        program_name
+    );
+    println!("    {} registry publish . --dry-run", program_name);
+    println!(
+        "    {} registry install vision-core --version 0.2.0 --dry-run",
+        program_name
+    );
     println!("    {} init my_app", program_name);
     println!("    {} lsp", program_name);
 }
@@ -588,6 +987,27 @@ fn default_doc_output_path(input_file: &str) -> String {
         output.set_extension("md");
     }
     output.to_string_lossy().to_string()
+}
+
+fn print_registry_help(program_name: &str) {
+    println!("registry.aero interface commands");
+    println!();
+    println!("USAGE:");
+    println!(
+        "    {} registry search <query> [--index <index.json>] [--registry <url>]",
+        program_name
+    );
+    println!(
+        "    {} registry publish <package-dir> [--registry <url>] [--dry-run]",
+        program_name
+    );
+    println!(
+        "    {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--dry-run]",
+        program_name
+    );
+    println!();
+    println!("NOTE:");
+    println!("    publish/install are interface-only in this build and require --dry-run.");
 }
 
 /// Type-check an Aero program without generating code.

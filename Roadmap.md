@@ -10,7 +10,7 @@ This document outlines the development roadmap for the Aero programming language
 - **Semantic Analysis:** Symbol table, type inference, validation
 - **Type System:** Static typing with int/float distinction and promotion
 - **IR & Code Generation:** SSA-style IR with LLVM backend
-- **CLI Tools:** `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero init`, `aero lsp`
+- **CLI Tools:** `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero init`, `aero lsp`
 - **CI/CD:** GitHub Actions with comprehensive test matrix
 
 ### Phase 3: Control Flow & Functions ✅
@@ -57,6 +57,10 @@ This document outlines the development roadmap for the Aero programming language
 
 - **Documentation Generator:** `aero doc` generates Markdown API references from source declarations
 - **Native Compilation Profiler:** `aero profile` prints per-stage timing and can emit trace JSON for flame graph tooling
+- **INT8/FP8 Quantization Interfaces:** `aero quantize` provides stable quantization mode interfaces and reports
+- **Kernel Fusion & Graph Compilation:** advanced graph pass annotates fused kernel regions in generated LLVM IR
+- **Central Registry Interfaces:** `aero registry search|publish|install` command surface for `registry.aero`
+- **Formal Language Specification:** consolidated spec at `docs/language/aero_formal_language_specification.md`
 
 **Current Status:** 189+ tests passing | **Version:** 1.0.0
 
@@ -64,11 +68,11 @@ This document outlines the development roadmap for the Aero programming language
 
 ## Future Phases
 
-### Phase 8 (remaining): Optimization & Ecosystem (v1.1.0+)
-- INT8/FP8 quantization interfaces
-- Kernel fusion & advanced graph compilation
-- Central package registry (registry.aero)
-- Formal language specification
+### Phase 8 (next depth): Optimization & Ecosystem (v1.1.0+)
+- Hardware-calibrated INT8/FP8 lowering and calibration runtime
+- Executable fused-kernel backend generation (beyond annotation-only fusion planning)
+- Live registry transport, auth, and package trust model for `registry.aero`
+- Formal conformance tests and mechanized semantics checks
 
 ---
 

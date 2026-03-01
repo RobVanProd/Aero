@@ -1,11 +1,14 @@
 pub mod ast;
 mod code_generator;
 pub mod errors;
+pub mod graph_compiler;
 mod ir;
 mod ir_generator;
 pub mod lexer;
 pub mod module_resolver;
 pub mod parser;
+pub mod quantization;
+pub mod registry;
 pub mod semantic_analyzer;
 pub mod stdlib;
 pub mod types;

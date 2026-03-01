@@ -46,8 +46,14 @@ This installs `aero` into your Cargo bin directory (typically `~/.cargo/bin`).
 - `aero fmt <input.aero>`: auto-format source
 - `aero doc <input.aero> [-o <output.md>]`: generate Markdown API documentation from declarations
 - `aero profile <input.aero> [-o <trace.json>]`: profile compiler stages and optionally emit Chrome trace JSON
+- `aero graph-opt <input.ll> -o <output.ll>`: apply kernel-fusion and graph-compilation annotations
+- `aero quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>`: apply INT8/FP8 quantization interface annotations
+- `aero registry <subcommand>`: interact with `registry.aero` interface commands (`search`, `publish`, `install`)
 - `aero init [path]`: create a project scaffold (`aero.toml` + `src/main.aero`)
 - `aero lsp`: run the Aero language server over stdio (diagnostics, completion, hover, go-to-definition, document symbols)
+
+Formal specification:
+- `docs/language/aero_formal_language_specification.md`
 
 ## "Hello, world" (compile to LLVM IR)
 

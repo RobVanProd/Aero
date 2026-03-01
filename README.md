@@ -60,6 +60,12 @@ aero doc src/main.aero -o main.md
 # Profile compilation pipeline and export trace JSON
 aero profile src/main.aero -o trace.json
 
+# Apply graph compilation/fusion annotations to LLVM IR
+aero graph-opt main.ll -o main.opt.ll
+
+# Apply quantization interface annotations
+aero quantize main.opt.ll -o main.int8.ll --mode int8
+
 # Language server for editor integration (stdio)
 aero lsp
 ```
@@ -87,17 +93,20 @@ fn main() {
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Modules** | `mod`/`use` imports, `pub` visibility, multi-file projects |
 | **Codegen** | LLVM IR backend with optimization passes |
-| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero init`, `aero lsp` |
+| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
+| **Phase 8 Interfaces** | INT8/FP8 quantization annotations, kernel-fusion graph compilation, `registry.aero` command interface, formal language spec |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
+
+Formal spec: `docs/language/aero_formal_language_specification.md`
 
 ## 🗺️ Roadmap (v1.1.0+)
 
-- INT8 / FP8 Quantization Interfaces
-- Kernel Fusion & Advanced Graph Compilation
-- Central aero-pkg Registry (registry.aero)
-- Formal Language Specification
+- Hardware-calibrated INT8/FP8 lowering backend
+- Executable fused kernel backend generation
+- Live registry transport, auth, and publish/install workflows
+- Extended formal spec proofs and compliance suite
 
 ## License
 MIT © RobVanProd and contributors. See LICENSE for details.

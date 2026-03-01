@@ -138,6 +138,39 @@ Use `profile` to print per-stage compilation timing and optionally export a trac
 aero profile src/main.aero -o trace.json
 ```
 
+### 7. Run graph compilation and kernel fusion annotations
+
+Use `graph-opt` on LLVM IR to annotate fused kernel regions:
+
+```bash
+aero graph-opt main.ll -o main.opt.ll
+```
+
+### 8. Apply quantization interfaces (INT8/FP8)
+
+Use `quantize` to mark quantization candidates in LLVM IR:
+
+```bash
+aero quantize main.opt.ll -o main.int8.ll --mode int8
+```
+
+Supported modes:
+- `int8`
+- `fp8-e4m3`
+- `fp8-e5m2`
+
+### 9. Registry interface commands
+
+Use `registry` commands for `registry.aero` workflows:
+
+```bash
+aero registry search vision --index registry/index.json
+aero registry publish . --dry-run
+aero registry install vision-core --version 0.2.0 --dry-run
+```
+
+In v1.0.0 these are interface workflows; publish/install run in dry-run mode.
+
 ## What's Next?
 
 Congratulations on running your first Aero program!
