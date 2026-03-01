@@ -331,6 +331,11 @@ pub enum CompilerError {
         message: String,
         location: SourceLocation,
     },
+
+    /// Multiple errors collected during parsing (error recovery)
+    MultiError {
+        errors: Vec<CompilerError>,
+    },
 }
 
 impl fmt::Display for CompilerError {
@@ -556,6 +561,15 @@ impl fmt::Display for CompilerError {
             }
             CompilerError::ScopeError { message, location } => {
                 write!(f, "Error at {}: {}", location, message)
+            }
+            CompilerError::MultiError { errors } => {
+                for (i, err) in errors.iter().enumerate() {
+                    if i > 0 {
+                        writeln!(f)?;
+                    }
+                    write!(f, "{}", err)?;
+                }
+                Ok(())
             }
         }
     }

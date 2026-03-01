@@ -4,6 +4,7 @@ pub mod errors;
 mod ir;
 mod ir_generator;
 pub mod lexer;
+pub mod module_resolver;
 pub mod parser;
 pub mod semantic_analyzer;
 pub mod stdlib;

@@ -34,9 +34,10 @@ impl Parser {
 
         if errors.is_empty() {
             Ok(ast_nodes)
-        } else {
-            // For now, return the first error. Later we can implement multi-error reporting
+        } else if errors.len() == 1 {
             Err(errors.into_iter().next().unwrap())
+        } else {
+            Err(CompilerError::MultiError { errors })
         }
     }
 
@@ -56,6 +57,10 @@ impl Parser {
             Token::Enum => self.parse_enum_def(),
             Token::Impl => self.parse_impl_block(),
             Token::Trait => self.parse_trait_def(),
+            // Phase 7: Module system
+            Token::Mod => self.parse_mod_declaration(),
+            Token::Use => self.parse_use_import(),
+            Token::Pub => self.parse_pub_item(),
             _ => {
                 // Try to parse as expression statement
                 let expr = self.parse_expression()?;
@@ -727,12 +732,79 @@ impl Parser {
             Token::Match => self.parse_match_expression(),
             Token::PrintMacro => self.parse_print_macro(false),
             Token::PrintlnMacro => self.parse_print_macro(true),
+            // Phase 7: Closure expressions |params| body
+            Token::Pipe => self.parse_closure(),
             _ => Err(CompilerError::unexpected_token(
                 "expression",
                 &format!("{:?}", self.peek().token),
                 self.peek().location.clone(),
             )),
         }
+    }
+
+    /// Parse closure expression: `|x: i32, y: i32| x + y` or `|x| { ... }`
+    fn parse_closure(&mut self) -> CompilerResult<Expression> {
+        self.consume(Token::Pipe, "Expected '|' to start closure")?;
+
+        let mut params = Vec::new();
+
+        // Parse parameters (may be empty: || { ... })
+        if !self.check(&Token::Pipe) {
+            loop {
+                let param_name = match &self.peek().token {
+                    Token::Identifier(n) => {
+                        let n = n.clone();
+                        self.advance();
+                        n
+                    }
+                    _ => {
+                        return Err(CompilerError::unexpected_token(
+                            "closure parameter name",
+                            &format!("{:?}", self.peek().token),
+                            self.peek().location.clone(),
+                        ));
+                    }
+                };
+
+                // Optional type annotation: |x: i32|
+                let param_type = if self.match_token(&Token::Colon) {
+                    self.parse_type()?
+                } else {
+                    // Infer type later (default to i32 for now)
+                    Type::Named("i32".to_string())
+                };
+
+                params.push(Parameter {
+                    name: param_name,
+                    param_type,
+                });
+
+                if !self.match_token(&Token::Comma) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(Token::Pipe, "Expected '|' after closure parameters")?;
+
+        // Parse body: either a block { ... } or a single expression
+        let body = if self.check(&Token::LeftBrace) {
+            let block = self.parse_block()?;
+            if let Some(expr) = block.expression {
+                expr
+            } else if let Some(Statement::Expression(expr)) = block.statements.last() {
+                expr.clone()
+            } else {
+                Expression::IntegerLiteral(0) // Unit closure
+            }
+        } else {
+            self.parse_expression()?
+        };
+
+        Ok(Expression::Closure {
+            params,
+            body: Box::new(body),
+        })
     }
 
     fn parse_print_macro(&mut self, is_println: bool) -> CompilerResult<Expression> {
@@ -1606,7 +1678,8 @@ impl Parser {
                 | Token::LogicalNot
                 | Token::Minus
                 | Token::Match
-                | Token::PrintMacro
+                | Token::Pipe // closures
+            | Token::PrintMacro
                 | Token::PrintlnMacro
                 | Token::Ampersand
                 | Token::Multiply
@@ -1632,11 +1705,152 @@ impl Parser {
                 | Token::Struct
                 | Token::Enum
                 | Token::Impl
-                | Token::Trait => return,
+                | Token::Trait
+                | Token::Mod
+                | Token::Use
+                | Token::Pub => return,
                 _ => {}
             }
 
             self.advance();
+        }
+    }
+
+    // --- Phase 7: Module system parsing ---
+
+    /// Parse `mod <name>;`
+    fn parse_mod_declaration(&mut self) -> CompilerResult<Statement> {
+        self.consume(Token::Mod, "Expected 'mod'")?;
+
+        let name = match &self.peek().token {
+            Token::Identifier(n) => {
+                let n = n.clone();
+                self.advance();
+                n
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "module name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        };
+
+        self.consume(Token::Semicolon, "Expected ';' after mod declaration")?;
+
+        Ok(Statement::ModDecl {
+            name,
+            is_public: false,
+        })
+    }
+
+    /// Parse `use <path>::<item>;` or `use <path>::<item> as <alias>;`
+    fn parse_use_import(&mut self) -> CompilerResult<Statement> {
+        self.consume(Token::Use, "Expected 'use'")?;
+
+        let mut path = Vec::new();
+
+        // Parse first segment
+        match &self.peek().token {
+            Token::Identifier(n) => {
+                path.push(n.clone());
+                self.advance();
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "module path",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        }
+
+        // Parse remaining `::segment` parts
+        while self.match_token(&Token::DoubleColon) {
+            match &self.peek().token {
+                Token::Identifier(n) => {
+                    path.push(n.clone());
+                    self.advance();
+                }
+                Token::Multiply => {
+                    // Glob import: use foo::*
+                    path.push("*".to_string());
+                    self.advance();
+                    break;
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "path segment or '*'",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            }
+        }
+
+        // Optional `as <alias>`
+        let alias = if self.match_token(&Token::As) {
+            match &self.peek().token {
+                Token::Identifier(n) => {
+                    let n = n.clone();
+                    self.advance();
+                    Some(n)
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "alias name",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            }
+        } else {
+            None
+        };
+
+        self.consume(Token::Semicolon, "Expected ';' after use statement")?;
+
+        Ok(Statement::UseImport { path, alias })
+    }
+
+    /// Parse `pub fn ...` / `pub struct ...` / `pub enum ...` / `pub mod ...`
+    fn parse_pub_item(&mut self) -> CompilerResult<Statement> {
+        self.consume(Token::Pub, "Expected 'pub'")?;
+
+        match &self.peek().token {
+            Token::Fn => self.parse_function_definition(),
+            Token::Struct => self.parse_struct_def(),
+            Token::Enum => self.parse_enum_def(),
+            Token::Trait => self.parse_trait_def(),
+            Token::Mod => {
+                // pub mod foo;
+                self.consume(Token::Mod, "Expected 'mod'")?;
+                let name = match &self.peek().token {
+                    Token::Identifier(n) => {
+                        let n = n.clone();
+                        self.advance();
+                        n
+                    }
+                    _ => {
+                        return Err(CompilerError::unexpected_token(
+                            "module name",
+                            &format!("{:?}", self.peek().token),
+                            self.peek().location.clone(),
+                        ));
+                    }
+                };
+                self.consume(Token::Semicolon, "Expected ';' after pub mod")?;
+                Ok(Statement::ModDecl {
+                    name,
+                    is_public: true,
+                })
+            }
+            _ => Err(CompilerError::unexpected_token(
+                "fn, struct, enum, trait, or mod after 'pub'",
+                &format!("{:?}", self.peek().token),
+                self.peek().location.clone(),
+            )),
         }
     }
 }

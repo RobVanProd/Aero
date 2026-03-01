@@ -5,6 +5,7 @@ mod errors;
 mod ir;
 mod ir_generator;
 mod lexer;
+mod module_resolver;
 mod optimizations;
 mod parser;
 mod performance_optimizations;
