@@ -86,7 +86,10 @@ fn main() {
             let source_code = match fs::read_to_string(input_file) {
                 Ok(content) => content,
                 Err(err) => {
-                    eprintln!("\x1b[1;31merror\x1b[0m: could not read file {}: {}", input_file, err);
+                    eprintln!(
+                        "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
+                        input_file, err
+                    );
                     return;
                 }
             };
@@ -118,7 +121,10 @@ fn main() {
                                             println!("      \x1b[1;32m✓\x1b[0m {} passed", name);
                                         }
                                         Err(err) => {
-                                            println!("      \x1b[1;31m✗\x1b[0m {} failed: {}", name, err);
+                                            println!(
+                                                "      \x1b[1;31m✗\x1b[0m {} failed: {}",
+                                                name, err
+                                            );
                                         }
                                     }
                                 }
@@ -129,10 +135,16 @@ fn main() {
             }
 
             if test_count == 0 {
-                println!("\x1b[1;33mwarning\x1b[0m: no test files found (*_test.aero, *_tests.aero)");
+                println!(
+                    "\x1b[1;33mwarning\x1b[0m: no test files found (*_test.aero, *_tests.aero)"
+                );
             } else {
-                println!("\n\x1b[1mtest result\x1b[0m: {} passed, {} failed, {} total",
-                    pass_count, test_count - pass_count, test_count);
+                println!(
+                    "\n\x1b[1mtest result\x1b[0m: {} passed, {} failed, {} total",
+                    pass_count,
+                    test_count - pass_count,
+                    test_count
+                );
             }
         }
         "fmt" => {
@@ -145,7 +157,10 @@ fn main() {
             let source_code = match fs::read_to_string(input_file) {
                 Ok(content) => content,
                 Err(err) => {
-                    eprintln!("\x1b[1;31merror\x1b[0m: could not read file {}: {}", input_file, err);
+                    eprintln!(
+                        "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
+                        input_file, err
+                    );
                     return;
                 }
             };
@@ -159,7 +174,10 @@ fn main() {
 
             match fs::write(input_file, &formatted) {
                 Ok(_) => println!("\x1b[1;32m   Formatted\x1b[0m {}", input_file),
-                Err(err) => eprintln!("\x1b[1;31merror\x1b[0m: could not write file {}: {}", input_file, err),
+                Err(err) => eprintln!(
+                    "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
+                    input_file, err
+                ),
             }
         }
         _ => {
@@ -435,13 +453,18 @@ fn check_aero_program(source_code: &str, input_file: &str) {
                     eprintln!("  \x1b[1;34m-->\x1b[0m {}:{}", input_file, line_hint);
                     eprintln!("   \x1b[1;34m|\x1b[0m");
                     eprintln!(" \x1b[1;34m{:3} |\x1b[0m {}", line_hint, line_content);
-                    eprintln!("   \x1b[1;34m|\x1b[0m \x1b[1;31m{}\x1b[0m", "^".repeat(line_content.trim().len().min(40)));
+                    eprintln!(
+                        "   \x1b[1;34m|\x1b[0m \x1b[1;31m{}\x1b[0m",
+                        "^".repeat(line_content.trim().len().min(40))
+                    );
                 }
             }
 
             // Suggest similar identifiers if it's an undefined variable error
             if err.to_string().contains("undefined") || err.to_string().contains("not found") {
-                eprintln!("\x1b[1;36mhelp\x1b[0m: check the spelling or ensure the variable is in scope");
+                eprintln!(
+                    "\x1b[1;36mhelp\x1b[0m: check the spelling or ensure the variable is in scope"
+                );
             }
 
             std::process::exit(1);
@@ -453,7 +476,10 @@ fn check_aero_program(source_code: &str, input_file: &str) {
 fn extract_error_line(error_msg: &str) -> Option<usize> {
     // Look for patterns like "line 5" or "at line 5" or ":5:"
     for word in error_msg.split_whitespace() {
-        if let Ok(n) = word.trim_matches(|c: char| !c.is_ascii_digit()).parse::<usize>() {
+        if let Ok(n) = word
+            .trim_matches(|c: char| !c.is_ascii_digit())
+            .parse::<usize>()
+        {
             if n > 0 && n < 100000 {
                 return Some(n);
             }
@@ -461,4 +487,3 @@ fn extract_error_line(error_msg: &str) -> Option<usize> {
     }
     None
 }
-
