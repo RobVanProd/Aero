@@ -5,7 +5,7 @@ use crate::ast::{
     Type, VariantDecl, VariantDeclKind,
 };
 use crate::errors::{CompilerError, CompilerResult, SourceLocation};
-use crate::lexer::{LocatedToken, Token};
+use crate::lexer::{LocatedToken, Token, tokenize_with_locations};
 
 pub struct Parser {
     tokens: Vec<LocatedToken>,
@@ -637,6 +637,13 @@ impl Parser {
                 self.advance();
                 Ok(Expression::StringLiteral(s))
             }
+            Token::FStringLiteral(s) => {
+                // Outside print!/println!, keep f-strings as raw string literals for now.
+                let s = s.clone();
+                self.advance();
+                Ok(Expression::StringLiteral(s))
+            }
+            Token::VecMacro => self.parse_vec_macro_literal(),
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();
@@ -816,11 +823,21 @@ impl Parser {
 
         self.consume(Token::LeftParen, "Expected '(' after print macro")?;
 
+        let mut arguments = Vec::new();
         let format_string = match &self.peek().token {
             Token::StringLiteral(s) => {
-                let s = format!("\"{}\"", s);
+                let s = s.clone();
                 self.advance();
                 s
+            }
+            Token::FStringLiteral(s) => {
+                let template = s.clone();
+                let location = self.peek().location.clone();
+                self.advance();
+                let (format_string, mut interpolated_args) =
+                    self.parse_interpolated_format_string(&template, location)?;
+                arguments.append(&mut interpolated_args);
+                format_string
             }
             // Backward compat: old-style string-as-identifier
             Token::Identifier(s) if s.starts_with('"') && s.ends_with('"') => {
@@ -837,7 +854,6 @@ impl Parser {
             }
         };
 
-        let mut arguments = Vec::new();
         while self.match_token(&Token::Comma) {
             arguments.push(self.parse_expression()?);
         }
@@ -855,6 +871,104 @@ impl Parser {
                 arguments,
             })
         }
+    }
+
+    fn parse_interpolated_format_string(
+        &self,
+        template: &str,
+        location: SourceLocation,
+    ) -> CompilerResult<(String, Vec<Expression>)> {
+        let chars: Vec<char> = template.chars().collect();
+        let mut i = 0usize;
+        let mut format_string = String::new();
+        let mut arguments = Vec::new();
+
+        while i < chars.len() {
+            match chars[i] {
+                '{' => {
+                    // Escaped opening brace: `{{`
+                    if i + 1 < chars.len() && chars[i + 1] == '{' {
+                        format_string.push('{');
+                        i += 2;
+                        continue;
+                    }
+
+                    let start = i + 1;
+                    let mut depth = 1usize;
+                    i += 1;
+
+                    while i < chars.len() {
+                        match chars[i] {
+                            '{' => depth += 1,
+                            '}' => {
+                                depth -= 1;
+                                if depth == 0 {
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                        i += 1;
+                    }
+
+                    if depth != 0 {
+                        return Err(CompilerError::InvalidSyntax {
+                            message: "Unclosed interpolation in format string".to_string(),
+                            location,
+                        });
+                    }
+
+                    let expr_source: String = chars[start..i].iter().collect();
+                    let expr = self.parse_interpolation_expression(&expr_source, location.clone())?;
+                    format_string.push_str("{}");
+                    arguments.push(expr);
+                    i += 1; // consume closing `}`
+                }
+                '}' => {
+                    // Escaped closing brace: `}}`
+                    if i + 1 < chars.len() && chars[i + 1] == '}' {
+                        format_string.push('}');
+                        i += 2;
+                    } else {
+                        return Err(CompilerError::InvalidSyntax {
+                            message: "Unmatched `}` in format string".to_string(),
+                            location,
+                        });
+                    }
+                }
+                ch => {
+                    format_string.push(ch);
+                    i += 1;
+                }
+            }
+        }
+
+        Ok((format_string, arguments))
+    }
+
+    fn parse_interpolation_expression(
+        &self,
+        expr_source: &str,
+        location: SourceLocation,
+    ) -> CompilerResult<Expression> {
+        let trimmed = expr_source.trim();
+        if trimmed.is_empty() {
+            return Err(CompilerError::InvalidSyntax {
+                message: "Empty interpolation expression".to_string(),
+                location,
+            });
+        }
+
+        let tokens = tokenize_with_locations(trimmed, None);
+        let mut parser = Parser::new(tokens);
+        let expr = parser.parse_expression()?;
+        if !parser.is_at_end() {
+            return Err(CompilerError::InvalidSyntax {
+                message: format!("Invalid interpolation expression: `{}`", trimmed),
+                location,
+            });
+        }
+        Ok(expr)
     }
 
     fn parse_type(&mut self) -> CompilerResult<Type> {
@@ -984,6 +1098,12 @@ impl Parser {
         }
         self.consume(Token::RightBracket, "Expected ']' after array elements")?;
         Ok(Expression::ArrayLiteral(elements))
+    }
+
+    fn parse_vec_macro_literal(&mut self) -> CompilerResult<Expression> {
+        self.consume(Token::VecMacro, "Expected 'vec!'")?;
+        // For now vec! lowers to the same IR/semantics as array literals.
+        self.parse_array_literal()
     }
 
     fn parse_struct_def(&mut self) -> CompilerResult<Statement> {
@@ -1672,6 +1792,7 @@ impl Parser {
             Token::IntegerLiteral(_)
                 | Token::FloatLiteral(_)
                 | Token::StringLiteral(_)
+                | Token::FStringLiteral(_)
                 | Token::Identifier(_)
                 | Token::LeftParen
                 | Token::LeftBracket
@@ -1681,6 +1802,7 @@ impl Parser {
                 | Token::Pipe // closures
             | Token::PrintMacro
                 | Token::PrintlnMacro
+                | Token::VecMacro
                 | Token::Ampersand
                 | Token::Multiply
         )
@@ -1876,4 +1998,61 @@ pub fn parse(tokens: Vec<Token>) -> Vec<AstNode> {
 pub fn parse_with_locations(tokens: Vec<LocatedToken>) -> CompilerResult<Vec<AstNode>> {
     let mut parser = Parser::new(tokens);
     parser.parse()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::{BinaryOp, Statement};
+    use crate::lexer::tokenize_with_locations;
+
+    #[test]
+    fn println_f_string_desugars_to_format_and_arguments() {
+        let source = r#"println!(f"hello {name}, {count + 1}");"#;
+        let tokens = tokenize_with_locations(source, None);
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().expect("parser should succeed");
+
+        assert_eq!(ast.len(), 1);
+        match &ast[0] {
+            AstNode::Statement(Statement::Expression(Expression::Println {
+                format_string,
+                arguments,
+            })) => {
+                assert_eq!(format_string, "hello {}, {}");
+                assert_eq!(arguments.len(), 2);
+                assert!(matches!(arguments[0], Expression::Identifier(ref s) if s == "name"));
+                assert!(matches!(
+                    arguments[1],
+                    Expression::Binary {
+                        op: BinaryOp::Add,
+                        ..
+                    }
+                ));
+            }
+            _ => panic!("expected println expression"),
+        }
+    }
+
+    #[test]
+    fn vec_macro_parses_as_array_literal() {
+        let source = "let xs = vec![1, 2, 3];";
+        let tokens = tokenize_with_locations(source, None);
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().expect("parser should succeed");
+
+        assert_eq!(ast.len(), 1);
+        match &ast[0] {
+            AstNode::Statement(Statement::Let {
+                value: Some(Expression::ArrayLiteral(elements)),
+                ..
+            }) => {
+                assert_eq!(elements.len(), 3);
+                assert!(matches!(elements[0], Expression::IntegerLiteral(1)));
+                assert!(matches!(elements[1], Expression::IntegerLiteral(2)));
+                assert!(matches!(elements[2], Expression::IntegerLiteral(3)));
+            }
+            _ => panic!("expected vec![] to parse as array literal"),
+        }
+    }
 }

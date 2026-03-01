@@ -429,12 +429,16 @@ pub struct SemanticAnalyzer {
 
 impl SemanticAnalyzer {
     pub fn new() -> Self {
+        let mut trait_registry = HashMap::new();
+        // Built-in protocol used by `for x in ...`.
+        trait_registry.insert("IntoIterator".to_string(), vec!["iter".to_string()]);
+
         Self {
             symbol_table: HashMap::new(),
             function_table: FunctionTable::new(),
             scope_manager: ScopeManager::new(),
             type_param_scopes: Vec::new(),
-            trait_registry: HashMap::new(),
+            trait_registry,
             trait_impls: HashMap::new(),
             function_bounds: HashMap::new(),
         }
@@ -445,6 +449,16 @@ impl SemanticAnalyzer {
         self.type_param_scopes
             .iter()
             .any(|scope| scope.iter().any(|p| p == name))
+    }
+
+    fn infer_into_iterator_item_type(&self, iterable_type: &Ty) -> Option<Ty> {
+        match iterable_type {
+            Ty::Array(elem, _) => Some((**elem).clone()),
+            Ty::Vec(elem) => Some((**elem).clone()),
+            // Keep legacy behavior for old range-start lowering.
+            Ty::Int => Some(Ty::Int),
+            _ => None,
+        }
     }
 }
 
@@ -610,6 +624,14 @@ impl SemanticAnalyzer {
                         "is_empty" => Ok(Ty::Bool),
                         "push" | "clear" => Ok(Ty::Void),
                         "pop" | "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
+                        "iter" => Ok(Ty::Vec(elem.clone())),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    Ty::Array(elem, size) => match method.as_str() {
+                        "len" => Ok(Ty::Int),
+                        "is_empty" => Ok(Ty::Bool),
+                        "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
+                        "iter" => Ok(Ty::Array(elem.clone(), *size)),
                         _ => Ok(Ty::Int), // Unknown method
                     },
                     Ty::HashMap(_, val) => match method.as_str() {
@@ -814,6 +836,14 @@ impl SemanticAnalyzer {
                         "is_empty" => Ok(Ty::Bool),
                         "push" | "clear" => Ok(Ty::Void),
                         "pop" | "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
+                        "iter" => Ok(Ty::Vec(elem.clone())),
+                        _ => Ok(Ty::Int), // Unknown method
+                    },
+                    Ty::Array(elem, size) => match method.as_str() {
+                        "len" => Ok(Ty::Int),
+                        "is_empty" => Ok(Ty::Bool),
+                        "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
+                        "iter" => Ok(Ty::Array(elem.clone(), *size)),
                         _ => Ok(Ty::Int), // Unknown method
                     },
                     Ty::HashMap(_, val) => match method.as_str() {
@@ -979,7 +1009,7 @@ impl SemanticAnalyzer {
     }
 
     fn is_printable_type(&self, ty: &Ty) -> bool {
-        matches!(ty, Ty::Int | Ty::Float | Ty::Bool)
+        matches!(ty, Ty::Int | Ty::Float | Ty::Bool | Ty::String)
     }
 
     fn validate_comparison_operands(
@@ -1223,11 +1253,19 @@ impl SemanticAnalyzer {
                 body,
             } => {
                 self.check_expression_initialization(iterable)?;
-                let _iterable_type = self.infer_and_validate_expression_immutable(iterable)?;
+                let iterable_type = self.infer_and_validate_expression_immutable(iterable)?;
+                let loop_var_type = self
+                    .infer_into_iterator_item_type(&iterable_type)
+                    .ok_or_else(|| {
+                        format!(
+                            "Error: For-loop iterable must implement IntoIterator (supported: arrays, Vec, integer range start), found: {}",
+                            iterable_type
+                        )
+                    })?;
 
                 self.scope_manager.enter_loop();
                 self.scope_manager
-                    .define_variable(variable.clone(), Ty::Int, false, true)?;
+                    .define_variable(variable.clone(), loop_var_type, false, true)?;
                 self.analyze_block(body)?;
                 self.scope_manager.exit_loop();
 
@@ -1493,5 +1531,63 @@ impl SemanticAnalyzer {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::{AstNode, Block, Expression, Statement};
+
+    #[test]
+    fn for_loop_over_array_iter_infers_element_type() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "arr".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::ArrayLiteral(vec![
+                    Expression::IntegerLiteral(1),
+                    Expression::IntegerLiteral(2),
+                ])),
+            }),
+            AstNode::Statement(Statement::For {
+                variable: "x".to_string(),
+                iterable: Expression::MethodCall {
+                    object: Box::new(Expression::Identifier("arr".to_string())),
+                    method: "iter".to_string(),
+                    arguments: vec![],
+                },
+                body: Block {
+                    statements: vec![Statement::Expression(Expression::Println {
+                        format_string: "{}".to_string(),
+                        arguments: vec![Expression::Identifier("x".to_string())],
+                    })],
+                    expression: None,
+                },
+            }),
+        ];
+
+        assert!(analyzer.analyze(ast).is_ok());
+    }
+
+    #[test]
+    fn println_accepts_string_arguments() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "name".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::StringLiteral("Aero".to_string())),
+            }),
+            AstNode::Statement(Statement::Expression(Expression::Println {
+                format_string: "Hello, {}".to_string(),
+                arguments: vec![Expression::Identifier("name".to_string())],
+            })),
+        ];
+
+        assert!(analyzer.analyze(ast).is_ok());
     }
 }

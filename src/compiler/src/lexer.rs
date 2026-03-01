@@ -42,10 +42,12 @@ pub enum Token {
 
     // String literal
     StringLiteral(String),
+    FStringLiteral(String), // f"hello {name}"
 
     // I/O Macros
     PrintMacro,   // print!
     PrintlnMacro, // println!
+    VecMacro,     // vec!
 
     // Operators
     Plus,
@@ -529,6 +531,52 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     }
                 }
 
+                // f"..." interpolation literal.
+                // Keep the token as a single literal so parser can desugar placeholders.
+                if ident_str == "f"
+                    && let Some(&'"') = chars.peek()
+                {
+                    let quote = chars.next().unwrap(); // consume opening quote
+                    advance_position(quote, &mut line, &mut column);
+                    let mut string_content = String::new();
+                    while let Some(&c) = chars.peek() {
+                        if c == '"' {
+                            let ch = chars.next().unwrap(); // consume closing quote
+                            advance_position(ch, &mut line, &mut column);
+                            break;
+                        } else if c == '\\' {
+                            // Handle escape sequences
+                            let _ch = chars.next().unwrap(); // consume backslash
+                            advance_position(_ch, &mut line, &mut column);
+                            if let Some(&escaped) = chars.peek() {
+                                let ch = chars.next().unwrap(); // consume escaped char
+                                advance_position(ch, &mut line, &mut column);
+                                match escaped {
+                                    'n' => string_content.push('\n'),
+                                    't' => string_content.push('\t'),
+                                    'r' => string_content.push('\r'),
+                                    '\\' => string_content.push('\\'),
+                                    '"' => string_content.push('"'),
+                                    '0' => string_content.push('\0'),
+                                    _ => {
+                                        string_content.push('\\');
+                                        string_content.push(escaped);
+                                    }
+                                }
+                            }
+                        } else {
+                            let ch = chars.next().unwrap();
+                            advance_position(ch, &mut line, &mut column);
+                            string_content.push(ch);
+                        }
+                    }
+                    tokens.push(LocatedToken::new(
+                        Token::FStringLiteral(string_content),
+                        make_location(token_start_line, token_start_column),
+                    ));
+                    continue;
+                }
+
                 // Check for I/O macros (identifiers followed by !)
                 if let Some(&'!') = chars.peek() {
                     let token = match ident_str.as_str() {
@@ -541,6 +589,11 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                             let ch = chars.next().unwrap(); // consume '!'
                             advance_position(ch, &mut line, &mut column);
                             Token::PrintlnMacro
+                        }
+                        "vec" => {
+                            let ch = chars.next().unwrap(); // consume '!'
+                            advance_position(ch, &mut line, &mut column);
+                            Token::VecMacro
                         }
                         _ => Token::Identifier(ident_str), // Regular identifier, don't consume '!'
                     };
@@ -679,6 +732,22 @@ mod tests {
         assert_eq!(tokens[6], Token::StringLiteral("World".to_string()));
         assert_eq!(tokens[7], Token::RightParen);
         assert_eq!(tokens[8], Token::Eof);
+    }
+
+    #[test]
+    fn test_vec_macro_token() {
+        let source = "let v = vec![1, 2, 3];";
+        let tokens = tokenize(source);
+        assert!(tokens.iter().any(|t| matches!(t, Token::VecMacro)));
+    }
+
+    #[test]
+    fn test_f_string_token() {
+        let source = r#"println!(f"hello {name}")"#;
+        let tokens = tokenize(source);
+        assert!(tokens
+            .iter()
+            .any(|t| matches!(t, Token::FStringLiteral(s) if s == "hello {name}")));
     }
 
     #[test]

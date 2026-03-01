@@ -60,6 +60,10 @@ impl IrGenerator {
         self.functions.clone()
     }
 
+    fn stores_value_directly(ty: &Ty) -> bool {
+        matches!(ty, Ty::String | Ty::Array(_, _) | Ty::Vec(_))
+    }
+
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
         match stmt {
             Statement::Let {
@@ -74,16 +78,22 @@ impl IrGenerator {
                     (Value::ImmInt(0), Ty::Int)
                 };
 
-                // Allocate a stack slot for the variable
-                let ptr_reg = Value::Reg(self.next_ptr);
-                self.next_ptr += 1;
-                current_function
-                    .body
-                    .push(Inst::Alloca(ptr_reg.clone(), name.clone()));
-                self.symbol_table.insert(name, (ptr_reg.clone(), expr_type));
+                if Self::stores_value_directly(&expr_type) {
+                    // Keep string values as immediates for now; pointer-backed string variables
+                    // and aggregate values are not fully modeled in the scalar slot pipeline yet.
+                    self.symbol_table.insert(name, (expr_value, expr_type));
+                } else {
+                    // Allocate a stack slot for the variable
+                    let ptr_reg = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    current_function
+                        .body
+                        .push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                    self.symbol_table.insert(name, (ptr_reg.clone(), expr_type));
 
-                // Store the expression result into the allocated slot
-                current_function.body.push(Inst::Store(ptr_reg, expr_value));
+                    // Store the expression result into the allocated slot
+                    current_function.body.push(Inst::Store(ptr_reg, expr_value));
+                }
             }
             Statement::Return(expr) => {
                 let (return_value, _) = if let Some(val) = expr {
@@ -160,14 +170,17 @@ impl IrGenerator {
             Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
             Expression::FloatLiteral(f) => (Value::ImmFloat(f), Ty::Float),
             Expression::Identifier(name) => {
-                let (ptr_reg, var_type) = self
+                let (storage, var_type) = self
                     .symbol_table
                     .get(&name)
                     .expect("Undeclared variable")
                     .clone();
+                if Self::stores_value_directly(&var_type) {
+                    return (storage, var_type);
+                }
                 let result_reg = Value::Reg(self.next_reg);
                 self.next_reg += 1;
-                function.body.push(Inst::Load(result_reg.clone(), ptr_reg));
+                function.body.push(Inst::Load(result_reg.clone(), storage));
                 (result_reg, var_type)
             }
             Expression::Binary {
@@ -276,13 +289,23 @@ impl IrGenerator {
                 self.generate_logical_ir(op, *left, *right, function)
             }
             Expression::Unary { op, operand } => self.generate_unary_ir(op, *operand, function),
-            Expression::StringLiteral(_) => {
-                // Strings will be handled with pointer type later
-                (Value::ImmInt(0), Ty::String)
-            }
-            Expression::MethodCall { .. } => {
-                // Method calls will be resolved to function calls
-                (Value::ImmInt(0), Ty::Int)
+            Expression::StringLiteral(s) => (Value::ImmString(s), Ty::String),
+            Expression::MethodCall {
+                object,
+                method,
+                arguments,
+            } => {
+                let (object_value, object_ty) = self.generate_expression_ir(*object, function);
+                if method == "iter"
+                    && arguments.is_empty()
+                    && matches!(object_ty, Ty::Array(_, _) | Ty::Vec(_))
+                {
+                    // Minimal iterator protocol lowering: `.iter()` reuses the collection value.
+                    (object_value, object_ty)
+                } else {
+                    // Method calls will be resolved to function calls as method lowering expands.
+                    (Value::ImmInt(0), Ty::Int)
+                }
             }
             Expression::ArrayLiteral(elements) => {
                 let count = elements.len();
@@ -298,8 +321,8 @@ impl IrGenerator {
                         count,
                     });
                     // Store first element
-                    let elem_ptr = Value::Reg(self.next_reg);
-                    self.next_reg += 1;
+                    let elem_ptr = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
                     function.body.push(Inst::GetElementPtr {
                         result: elem_ptr.clone(),
                         base: arr_ptr.clone(),
@@ -310,8 +333,8 @@ impl IrGenerator {
                     // Store remaining elements
                     for (i, elem) in elements.into_iter().skip(1).enumerate() {
                         let (val, _) = self.generate_expression_ir(elem, function);
-                        let ep = Value::Reg(self.next_reg);
-                        self.next_reg += 1;
+                        let ep = Value::Reg(self.next_ptr);
+                        self.next_ptr += 1;
                         function.body.push(Inst::GetElementPtr {
                             result: ep.clone(),
                             base: arr_ptr.clone(),
@@ -341,8 +364,8 @@ impl IrGenerator {
                     count,
                 });
                 for i in 0..count {
-                    let ep = Value::Reg(self.next_reg);
-                    self.next_reg += 1;
+                    let ep = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
                     function.body.push(Inst::GetElementPtr {
                         result: ep.clone(),
                         base: arr_ptr.clone(),
@@ -356,17 +379,17 @@ impl IrGenerator {
             Expression::IndexAccess { object, index } => {
                 let (arr_val, arr_ty) = self.generate_expression_ir(*object, function);
                 let (idx_val, _) = self.generate_expression_ir(*index, function);
-                let elem_ty = match &arr_ty {
-                    Ty::Array(et, _) => *et.clone(),
-                    _ => Ty::Int,
+                let (elem_ty, gep_elem_type) = match &arr_ty {
+                    Ty::Array(et, len) => (*et.clone(), format!("[{} x double]", len)),
+                    _ => (Ty::Int, "double".to_string()),
                 };
-                let elem_ptr = Value::Reg(self.next_reg);
-                self.next_reg += 1;
+                let elem_ptr = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
                 function.body.push(Inst::GetElementPtr {
                     result: elem_ptr.clone(),
                     base: arr_val,
                     index: idx_val,
-                    elem_type: "double".to_string(),
+                    elem_type: gep_elem_type,
                 });
                 let result = Value::Reg(self.next_reg);
                 self.next_reg += 1;
@@ -574,14 +597,18 @@ impl IrGenerator {
                     (Value::ImmInt(0), Ty::Int)
                 };
 
-                // Allocate a stack slot for the variable
-                let ptr_reg = Value::Reg(self.next_ptr);
-                self.next_ptr += 1;
-                function_body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
-                self.symbol_table.insert(name, (ptr_reg.clone(), expr_type));
+                if Self::stores_value_directly(&expr_type) {
+                    self.symbol_table.insert(name, (expr_value, expr_type));
+                } else {
+                    // Allocate a stack slot for the variable
+                    let ptr_reg = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    function_body.push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                    self.symbol_table.insert(name, (ptr_reg.clone(), expr_type));
 
-                // Store the expression result into the allocated slot
-                function_body.push(Inst::Store(ptr_reg, expr_value));
+                    // Store the expression result into the allocated slot
+                    function_body.push(Inst::Store(ptr_reg, expr_value));
+                }
             }
             Statement::Return(expr) => {
                 let (return_value, _) = if let Some(val) = expr {
@@ -611,14 +638,17 @@ impl IrGenerator {
             Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
             Expression::FloatLiteral(f) => (Value::ImmFloat(f), Ty::Float),
             Expression::Identifier(name) => {
-                let (ptr_reg, var_type) = self
+                let (storage, var_type) = self
                     .symbol_table
                     .get(&name)
                     .expect("Undeclared variable")
                     .clone();
+                if Self::stores_value_directly(&var_type) {
+                    return (storage, var_type);
+                }
                 let result_reg = Value::Reg(self.next_reg);
                 self.next_reg += 1;
-                function_body.push(Inst::Load(result_reg.clone(), ptr_reg));
+                function_body.push(Inst::Load(result_reg.clone(), storage));
                 (result_reg, var_type)
             }
             Expression::Binary {
@@ -705,8 +735,23 @@ impl IrGenerator {
                 self.generate_unary_ir_for_function(op, *operand, function_body)
             }
             // Phase 4 stubs for function-level IR
-            Expression::StringLiteral(_) => (Value::ImmInt(0), Ty::String),
-            Expression::MethodCall { .. } => (Value::ImmInt(0), Ty::Int),
+            Expression::StringLiteral(s) => (Value::ImmString(s), Ty::String),
+            Expression::MethodCall {
+                object,
+                method,
+                arguments,
+            } => {
+                let (object_value, object_ty) =
+                    self.generate_expression_ir_for_function(*object, function_body);
+                if method == "iter"
+                    && arguments.is_empty()
+                    && matches!(object_ty, Ty::Array(_, _) | Ty::Vec(_))
+                {
+                    (object_value, object_ty)
+                } else {
+                    (Value::ImmInt(0), Ty::Int)
+                }
+            }
             Expression::ArrayLiteral(_)
             | Expression::ArrayRepeat { .. }
             | Expression::IndexAccess { .. }
@@ -886,10 +931,40 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        // For now, implement a simple for loop assuming iterable is a range
-        // This is a simplified implementation - a full implementation would need range support
+        let (iter_value, iter_type) = self.generate_expression_ir(iterable, current_function);
+        match iter_type {
+            Ty::Array(elem_ty, len) => {
+                self.generate_array_for_loop_ir(
+                    variable,
+                    iter_value,
+                    *elem_ty,
+                    len,
+                    body,
+                    current_function,
+                );
+            }
+            other => {
+                // Preserve the legacy numeric lowering behavior for non-array iterables.
+                self.generate_legacy_for_loop_ir(
+                    variable,
+                    iter_value,
+                    other,
+                    body,
+                    current_function,
+                );
+            }
+        }
+    }
 
-        // Generate unique labels
+    fn generate_array_for_loop_ir(
+        &mut self,
+        variable: String,
+        array_ptr: Value,
+        element_ty: Ty,
+        array_len: usize,
+        body: crate::ast::Block,
+        current_function: &mut Function,
+    ) {
         let loop_start = format!("for_start_{}", self.next_reg);
         self.next_reg += 1;
         let loop_body = format!("for_body_{}", self.next_reg);
@@ -897,12 +972,109 @@ impl IrGenerator {
         let loop_end = format!("for_end_{}", self.next_reg);
         self.next_reg += 1;
 
-        // Push loop labels onto stack for break/continue
         self.loop_label_stack
             .push((loop_start.clone(), loop_end.clone()));
 
-        // Initialize loop variable (simplified - assumes iterable evaluates to start value)
-        let (start_value, var_type) = self.generate_expression_ir(iterable, current_function);
+        // User-visible loop variable slot (updated each iteration with current element).
+        let loop_var_ptr = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        current_function
+            .body
+            .push(Inst::Alloca(loop_var_ptr.clone(), variable.clone()));
+        current_function
+            .body
+            .push(Inst::Store(loop_var_ptr.clone(), Value::ImmInt(0)));
+        self.symbol_table
+            .insert(variable.clone(), (loop_var_ptr.clone(), element_ty));
+
+        // Internal iteration index.
+        let index_ptr = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        current_function
+            .body
+            .push(Inst::Alloca(index_ptr.clone(), format!("__for_idx_{}", variable)));
+        current_function
+            .body
+            .push(Inst::Store(index_ptr.clone(), Value::ImmInt(0)));
+
+        current_function.body.push(Inst::Jump(loop_start.clone()));
+
+        // Header: idx < len
+        current_function.body.push(Inst::Label(loop_start.clone()));
+        let index_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        current_function
+            .body
+            .push(Inst::Load(index_reg.clone(), index_ptr.clone()));
+
+        let cond_reg = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        current_function.body.push(Inst::ICmp {
+            op: "slt".to_string(),
+            result: cond_reg.clone(),
+            left: index_reg.clone(),
+            right: Value::ImmInt(array_len as i64),
+        });
+        current_function.body.push(Inst::Branch {
+            condition: cond_reg,
+            true_label: loop_body.clone(),
+            false_label: loop_end.clone(),
+        });
+
+        // Body: load element at idx, assign loop variable, execute body, idx += 1.
+        current_function.body.push(Inst::Label(loop_body));
+        let elem_ptr = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        current_function.body.push(Inst::GetElementPtr {
+            result: elem_ptr.clone(),
+            base: array_ptr.clone(),
+            index: index_reg.clone(),
+            elem_type: format!("[{} x double]", array_len),
+        });
+        let elem_val = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        current_function
+            .body
+            .push(Inst::Load(elem_val.clone(), elem_ptr));
+        current_function.body.push(Inst::Store(loop_var_ptr, elem_val));
+
+        for stmt in body.statements {
+            self.generate_statement_ir(stmt, current_function);
+        }
+        if let Some(expr) = body.expression {
+            self.generate_expression_ir(expr, current_function);
+        }
+
+        let next_index = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        current_function
+            .body
+            .push(Inst::Add(next_index.clone(), index_reg, Value::ImmInt(1)));
+        current_function.body.push(Inst::Store(index_ptr, next_index));
+        current_function.body.push(Inst::Jump(loop_start));
+
+        self.loop_label_stack.pop();
+        current_function.body.push(Inst::Label(loop_end));
+    }
+
+    fn generate_legacy_for_loop_ir(
+        &mut self,
+        variable: String,
+        start_value: Value,
+        var_type: Ty,
+        body: crate::ast::Block,
+        current_function: &mut Function,
+    ) {
+        let loop_start = format!("for_start_{}", self.next_reg);
+        self.next_reg += 1;
+        let loop_body = format!("for_body_{}", self.next_reg);
+        self.next_reg += 1;
+        let loop_end = format!("for_end_{}", self.next_reg);
+        self.next_reg += 1;
+
+        self.loop_label_stack
+            .push((loop_start.clone(), loop_end.clone()));
+
         let var_ptr = Value::Reg(self.next_ptr);
         self.next_ptr += 1;
         current_function
@@ -914,11 +1086,8 @@ impl IrGenerator {
         self.symbol_table
             .insert(variable.clone(), (var_ptr.clone(), var_type));
 
-        // For simplicity, create a condition that will eventually be false
-        // In a real implementation, this would check against the range end
         current_function.body.push(Inst::Jump(loop_start.clone()));
 
-        // Loop start - check condition
         current_function.body.push(Inst::Label(loop_start.clone()));
         let loop_var_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;
@@ -926,15 +1095,13 @@ impl IrGenerator {
             .body
             .push(Inst::Load(loop_var_reg.clone(), var_ptr.clone()));
 
-        // Generate a comparison: loop_var < limit (default limit 10 until range syntax is fully supported)
-        let limit_value = Value::ImmInt(10);
         let cond_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;
         current_function.body.push(Inst::ICmp {
             op: "slt".to_string(),
             result: cond_reg.clone(),
             left: loop_var_reg.clone(),
-            right: limit_value,
+            right: Value::ImmInt(10),
         });
         current_function.body.push(Inst::Branch {
             condition: cond_reg,
@@ -942,7 +1109,6 @@ impl IrGenerator {
             false_label: loop_end.clone(),
         });
 
-        // Loop body
         current_function.body.push(Inst::Label(loop_body));
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
@@ -951,7 +1117,6 @@ impl IrGenerator {
             self.generate_expression_ir(expr, current_function);
         }
 
-        // Increment loop variable
         let incremented_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;
         current_function.body.push(Inst::Add(
@@ -962,13 +1127,9 @@ impl IrGenerator {
         current_function
             .body
             .push(Inst::Store(var_ptr, incremented_reg));
-
         current_function.body.push(Inst::Jump(loop_start));
 
-        // Pop loop labels
         self.loop_label_stack.pop();
-
-        // Loop end
         current_function.body.push(Inst::Label(loop_end));
     }
 
@@ -1548,7 +1709,7 @@ impl IrGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{AstNode, BinaryOp, Expression, Parameter, Statement, Type};
+    use crate::ast::{AstNode, BinaryOp, Block, Expression, Parameter, Statement, Type};
     use crate::types::Ty;
 
     #[test]
@@ -1657,5 +1818,72 @@ mod tests {
                 .iter()
                 .any(|inst| matches!(inst, crate::ir::Inst::FunctionDef { body, .. } if body.iter().any(|i| matches!(i, crate::ir::Inst::Return(_)))))
         );
+    }
+
+    #[test]
+    fn for_loop_over_array_emits_indexed_iteration() {
+        let mut ir_gen = IrGenerator::new();
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "values".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::ArrayLiteral(vec![
+                    Expression::IntegerLiteral(1),
+                    Expression::IntegerLiteral(2),
+                    Expression::IntegerLiteral(3),
+                ])),
+            }),
+            AstNode::Statement(Statement::For {
+                variable: "v".to_string(),
+                iterable: Expression::Identifier("values".to_string()),
+                body: Block {
+                    statements: vec![],
+                    expression: None,
+                },
+            }),
+        ];
+
+        let ir = ir_gen.generate_ir(ast);
+        let main = &ir["main"].body;
+
+        assert!(
+            main.iter()
+                .any(|inst| matches!(inst, crate::ir::Inst::Alloca(_, name) if name == "v"))
+        );
+        assert!(main
+            .iter()
+            .any(|inst| matches!(inst, crate::ir::Inst::GetElementPtr { .. })));
+        assert!(main.iter().any(
+            |inst| matches!(inst, crate::ir::Inst::ICmp { op, .. } if op == "slt")
+        ));
+    }
+
+    #[test]
+    fn print_argument_keeps_string_immediate() {
+        let mut ir_gen = IrGenerator::new();
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "name".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::StringLiteral("Aero".to_string())),
+            }),
+            AstNode::Statement(Statement::Expression(Expression::Println {
+                format_string: "{}".to_string(),
+                arguments: vec![Expression::Identifier("name".to_string())],
+            })),
+        ];
+
+        let ir = ir_gen.generate_ir(ast);
+        let main = &ir["main"].body;
+
+        assert!(main.iter().any(|inst| {
+            matches!(
+                inst,
+                crate::ir::Inst::Print { arguments, .. }
+                    if arguments.iter().any(|arg| matches!(arg, crate::ir::Value::ImmString(s) if s == "Aero"))
+            )
+        }));
     }
 }

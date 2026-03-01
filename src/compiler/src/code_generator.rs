@@ -48,6 +48,9 @@ impl CodeGenerator {
                 format!("0x{:016X}", f.to_bits())
             }
             Value::Reg(r) => format!("%reg{}", r),
+            Value::ImmString(_) => {
+                panic!("String value cannot be lowered as numeric LLVM `double`")
+            }
         }
     }
 
@@ -56,6 +59,33 @@ impl CodeGenerator {
             Value::ImmInt(n) => format!("{}", n),
             Value::ImmFloat(f) => format!("{}", *f as i64),
             Value::Reg(r) => format!("%reg{}", r),
+            Value::ImmString(_) => panic!("String value cannot be lowered as LLVM integer"),
+        }
+    }
+
+    fn value_to_i32_operand(&mut self, llvm_ir: &mut String, value: &Value) -> String {
+        match value {
+            Value::ImmInt(n) => n.to_string(),
+            Value::ImmFloat(f) => (*f as i64).to_string(),
+            Value::Reg(r) => {
+                let tmp = self.fresh_reg();
+                llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
+                format!("%{}", tmp)
+            }
+            Value::ImmString(_) => panic!("String value cannot be lowered as i32 operand"),
+        }
+    }
+
+    fn value_to_i64_operand(&mut self, llvm_ir: &mut String, value: &Value) -> String {
+        match value {
+            Value::ImmInt(n) => n.to_string(),
+            Value::ImmFloat(f) => (*f as i64).to_string(),
+            Value::Reg(r) => {
+                let tmp = self.fresh_reg();
+                llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
+                format!("%{}", tmp)
+            }
+            Value::ImmString(_) => panic!("String value cannot be lowered as i64 operand"),
         }
     }
 
@@ -367,8 +397,8 @@ impl CodeGenerator {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for icmp result"),
                     };
-                    let left_str = self.value_to_int_string(left);
-                    let right_str = self.value_to_int_string(right);
+                    let left_str = self.value_to_i32_operand(llvm_ir, left);
+                    let right_str = self.value_to_i32_operand(llvm_ir, right);
                     llvm_ir.push_str(&format!(
                         "  %{} = icmp {} i32 {}, {}\n",
                         result_str, op, left_str, right_str
@@ -468,14 +498,14 @@ impl CodeGenerator {
                     elem_type,
                 } => {
                     let result_str = match result {
-                        Value::Reg(r) => format!("reg{}", r),
+                        Value::Reg(r) => format!("ptr{}", r),
                         _ => panic!("Expected register for GEP result"),
                     };
                     let base_str = match base {
                         Value::Reg(r) => format!("ptr{}", r),
                         _ => panic!("Expected register for GEP base"),
                     };
-                    let index_str = self.value_to_int_string(index);
+                    let index_str = self.value_to_i64_operand(llvm_ir, index);
                     llvm_ir.push_str(&format!(
                         "  %{} = getelementptr inbounds {}, {}* %{}, i64 0, i64 {}\n",
                         result_str, elem_type, elem_type, base_str, index_str
@@ -498,7 +528,7 @@ impl CodeGenerator {
                     struct_type,
                 } => {
                     let result_str = match result {
-                        Value::Reg(r) => format!("reg{}", r),
+                        Value::Reg(r) => format!("ptr{}", r),
                         _ => panic!("Expected register for field GEP result"),
                     };
                     let base_str = match base {
@@ -644,6 +674,9 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
                     format!("%{}", tmp)
                 }
+                Value::ImmString(_) => {
+                    panic!("Cannot cast string argument to i32 in function call")
+                }
             },
             "i64" => match value {
                 Value::ImmInt(n) => n.to_string(),
@@ -652,6 +685,9 @@ impl CodeGenerator {
                     let tmp = self.fresh_reg();
                     llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
                     format!("%{}", tmp)
+                }
+                Value::ImmString(_) => {
+                    panic!("Cannot cast string argument to i64 in function call")
                 }
             },
             "i1" => match value {
@@ -677,6 +713,9 @@ impl CodeGenerator {
                     ));
                     format!("%{}", tmp)
                 }
+                Value::ImmString(_) => {
+                    panic!("Cannot cast string argument to i1 in function call")
+                }
             },
             _ => self.value_to_string(value),
         }
@@ -694,6 +733,7 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
                     llvm_ir.push_str(&format!("  ret i64 %{}\n", tmp));
                 }
+                Value::ImmString(_) => panic!("Cannot return string value as i64"),
             },
             "i1" => match value {
                 Value::ImmInt(n) => llvm_ir.push_str(&format!(
@@ -712,6 +752,7 @@ impl CodeGenerator {
                     ));
                     llvm_ir.push_str(&format!("  ret i1 %{}\n", tmp));
                 }
+                Value::ImmString(_) => panic!("Cannot return string value as i1"),
             },
             _ => match value {
                 Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i32 {}\n", n)),
@@ -721,6 +762,7 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
                     llvm_ir.push_str(&format!("  ret i32 %{}\n", tmp));
                 }
+                Value::ImmString(_) => panic!("Cannot return string value as i32"),
             },
         }
     }
@@ -833,8 +875,8 @@ impl CodeGenerator {
         arguments: &[Value],
         is_println: bool,
     ) {
-        // Process format string to convert Rust-style {} to printf-style %g
-        let processed_format = self.process_format_string(format_string, arguments.len());
+        // Convert Rust-style `{}` placeholders to `printf` specifiers from argument kinds.
+        let processed_format = self.process_format_string_with_args(format_string, arguments);
 
         // Add newline for println
         let final_format = if is_println {
@@ -871,8 +913,17 @@ impl CodeGenerator {
         let mut printf_args = format!("i8* %{}", format_ptr);
 
         for arg in arguments {
-            printf_args.push_str(", double ");
-            printf_args.push_str(&self.value_to_string(arg));
+            match arg {
+                Value::ImmString(s) => {
+                    let arg_ptr = self.emit_stack_string_literal(llvm_ir, s);
+                    printf_args.push_str(", i8* ");
+                    printf_args.push_str(&arg_ptr);
+                }
+                _ => {
+                    printf_args.push_str(", double ");
+                    printf_args.push_str(&self.value_to_string(arg));
+                }
+            }
         }
 
         // Call printf
@@ -890,7 +941,13 @@ impl CodeGenerator {
     }
 
     fn process_format_string(&self, format_string: &str, arg_count: usize) -> String {
-        // Convert Rust-style {} placeholders to printf-style %g
+        // Keep legacy tests and helper calls by treating all placeholders as numeric.
+        let numeric_args = vec![Value::ImmInt(0); arg_count];
+        self.process_format_string_with_args(format_string, &numeric_args)
+    }
+
+    fn process_format_string_with_args(&self, format_string: &str, arguments: &[Value]) -> String {
+        // Convert Rust-style {} placeholders to printf-style format specifiers.
         let mut result = String::new();
         let mut chars = format_string.chars().peekable();
         let mut placeholder_count = 0;
@@ -899,8 +956,12 @@ impl CodeGenerator {
             if ch == '{' {
                 if let Some(&'}') = chars.peek() {
                     chars.next(); // consume '}'
-                    if placeholder_count < arg_count {
-                        result.push_str("%g"); // Use %g for general numeric formatting
+                    if placeholder_count < arguments.len() {
+                        let specifier = match arguments.get(placeholder_count) {
+                            Some(Value::ImmString(_)) => "%s",
+                            _ => "%g",
+                        };
+                        result.push_str(specifier);
                         placeholder_count += 1;
                     } else {
                         result.push_str("{}"); // Keep original if no corresponding argument
@@ -945,6 +1006,26 @@ impl CodeGenerator {
         }
 
         result
+    }
+
+    fn emit_stack_string_literal(&mut self, llvm_ir: &mut String, text: &str) -> String {
+        let len = text.len() + 1; // +1 for null terminator
+        let const_reg = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{} = alloca [{}  x i8], align 1\n",
+            const_reg, len
+        ));
+        let escaped = self.escape_for_llvm(text);
+        llvm_ir.push_str(&format!(
+            "  store [{}  x i8] c\"{}\\00\", [{}  x i8]* %{}, align 1\n",
+            len, escaped, len, const_reg
+        ));
+        let ptr_reg = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{} = getelementptr inbounds [{}  x i8], [{}  x i8]* %{}, i64 0, i64 0\n",
+            ptr_reg, len, len, const_reg
+        ));
+        format!("%{}", ptr_reg)
     }
 
     fn generate_printf_declaration(&mut self, llvm_ir: &mut String) {
@@ -1205,6 +1286,30 @@ mod tests {
 
         // Check that argument is passed
         assert!(llvm_ir.contains("double 0x4045000000000000")); // 42.0 in hex
+    }
+
+    #[test]
+    fn test_print_with_string_argument_uses_percent_s() {
+        let mut generator = CodeGenerator::new();
+
+        let function = Function {
+            name: "main".to_string(),
+            body: vec![Inst::Println {
+                format_string: "Hello, {}".to_string(),
+                arguments: vec![Value::ImmString("Aero".to_string())],
+            }],
+            next_reg: 0,
+            next_ptr: 0,
+        };
+
+        let mut functions = HashMap::new();
+        functions.insert("main".to_string(), function);
+
+        let llvm_ir = generator.generate_code(functions);
+
+        assert!(llvm_ir.contains("Hello, %s\\0A"));
+        assert!(llvm_ir.contains("call i32 @printf(i8*"));
+        assert!(llvm_ir.contains(", i8* %"));
     }
 
     #[test]

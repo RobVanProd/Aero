@@ -7,6 +7,7 @@ pub enum Value {
     Reg(u32),
     ImmInt(i64),
     ImmFloat(f64),
+    ImmString(String),
 }
 
 impl fmt::Display for Value {
@@ -15,6 +16,7 @@ impl fmt::Display for Value {
             Value::Reg(r) => write!(f, "{}", r),
             Value::ImmInt(n) => write!(f, "{}", n),
             Value::ImmFloat(fl) => write!(f, "{}", fl),
+            Value::ImmString(s) => write!(f, "\"{}\"", s),
         }
     }
 }
