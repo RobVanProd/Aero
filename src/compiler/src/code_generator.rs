@@ -1,7 +1,7 @@
 use crate::ir::{Function, Inst, Value};
 use std::collections::HashMap;
 
-type FunctionDef = (Vec<(String, String)>, Option<String>);
+type FunctionDef = (Vec<(String, String)>, Option<String>, Vec<Inst>);
 
 pub struct CodeGenerator {
     next_reg: u32,
@@ -89,10 +89,13 @@ impl CodeGenerator {
                     name,
                     parameters,
                     return_type,
-                    body: _,
+                    body,
                 } = inst
                 {
-                    function_defs.insert(name.clone(), (parameters.clone(), return_type.clone()));
+                    function_defs.insert(
+                        name.clone(),
+                        (parameters.clone(), return_type.clone(), body.clone()),
+                    );
                 }
             }
         }
@@ -100,18 +103,28 @@ impl CodeGenerator {
         // Generate function definitions
         for (func_name, func) in ir_functions {
             // Check if this function has a definition with parameters
-            if let Some((parameters, return_type)) = function_defs.get(&func_name) {
+            if let Some((parameters, return_type, body)) = function_defs.get(&func_name) {
                 self.generate_function_definition(
                     &mut llvm_ir,
                     &func_name,
                     parameters,
                     return_type,
-                    &func,
+                    body,
+                    func.next_reg,
+                    &function_defs,
                 );
             } else {
                 // Legacy function without parameters (like main)
                 llvm_ir.push_str(&format!("define i32 @{}() {{\nentry:\n", func_name));
-                self.generate_function_body(&mut llvm_ir, &func);
+                let empty_param_types: HashMap<String, String> = HashMap::new();
+                self.generate_function_body(
+                    &mut llvm_ir,
+                    &func.body,
+                    &empty_param_types,
+                    "i32",
+                    &function_defs,
+                    func.next_reg,
+                );
                 llvm_ir.push_str("}\n\n");
             }
         }
@@ -125,13 +138,15 @@ impl CodeGenerator {
         func_name: &str,
         parameters: &[(String, String)],
         return_type: &Option<String>,
-        func: &Function,
+        body: &[Inst],
+        next_reg_seed: u32,
+        function_defs: &HashMap<String, FunctionDef>,
     ) {
         // Generate function signature
         let return_llvm_type = if let Some(ret_type) = return_type {
-            self.type_to_llvm(ret_type)
+            self.type_to_llvm(ret_type).to_string()
         } else {
-            "void"
+            "void".to_string()
         };
 
         let mut param_str = String::new();
@@ -151,44 +166,87 @@ impl CodeGenerator {
             return_llvm_type, func_name, param_str
         ));
 
-        // Allocate space for parameters
+        let mut param_types = HashMap::new();
         for (param_name, param_type) in parameters {
-            let ptr_reg = self.fresh_ptr();
-            llvm_ir.push_str(&format!(
-                "  %{} = alloca {}, align 8\n",
-                ptr_reg,
-                self.type_to_llvm(param_type)
-            ));
-            llvm_ir.push_str(&format!(
-                "  store {} %{}, {}* %{}, align 8\n",
-                self.type_to_llvm(param_type),
-                param_name,
-                self.type_to_llvm(param_type),
-                ptr_reg
-            ));
+            param_types.insert(param_name.clone(), param_type.clone());
         }
 
-        self.generate_function_body(llvm_ir, func);
+        self.generate_function_body(
+            llvm_ir,
+            body,
+            &param_types,
+            &return_llvm_type,
+            function_defs,
+            next_reg_seed,
+        );
         llvm_ir.push_str("}\n\n");
     }
 
-    fn generate_function_body(&mut self, llvm_ir: &mut String, func: &Function) {
-        let mut var_map = HashMap::new(); // Maps variable names to their alloca'd pointer registers
+    fn generate_function_body(
+        &mut self,
+        llvm_ir: &mut String,
+        instructions: &[Inst],
+        param_types: &HashMap<String, String>,
+        return_llvm_type: &str,
+        function_defs: &HashMap<String, FunctionDef>,
+        next_reg_seed: u32,
+    ) {
+        self.next_reg = next_reg_seed;
 
-        // Initialize register counter to avoid conflicts with IR registers
-        self.next_reg = func.next_reg;
-
-        for inst in &func.body {
+        for inst in instructions {
             match inst {
                 Inst::Alloca(ptr_reg, name) => {
-                    llvm_ir.push_str(&format!(
-                        "  %ptr{} = alloca double, align 8\n",
-                        match ptr_reg {
-                            Value::Reg(r) => *r,
-                            _ => panic!("Expected register for alloca"),
+                    let ptr_id = match ptr_reg {
+                        Value::Reg(r) => *r,
+                        _ => panic!("Expected register for alloca"),
+                    };
+                    llvm_ir.push_str(&format!("  %ptr{} = alloca double, align 8\n", ptr_id));
+
+                    if let Some(param_type) = param_types.get(name) {
+                        match self.type_to_llvm(param_type) {
+                            "double" => llvm_ir.push_str(&format!(
+                                "  store double %{}, double* %ptr{}, align 8\n",
+                                name, ptr_id
+                            )),
+                            "i32" => {
+                                let tmp = self.fresh_reg();
+                                llvm_ir.push_str(&format!(
+                                    "  %{} = sitofp i32 %{} to double\n",
+                                    tmp, name
+                                ));
+                                llvm_ir.push_str(&format!(
+                                    "  store double %{}, double* %ptr{}, align 8\n",
+                                    tmp, ptr_id
+                                ));
+                            }
+                            "i64" => {
+                                let tmp = self.fresh_reg();
+                                llvm_ir.push_str(&format!(
+                                    "  %{} = sitofp i64 %{} to double\n",
+                                    tmp, name
+                                ));
+                                llvm_ir.push_str(&format!(
+                                    "  store double %{}, double* %ptr{}, align 8\n",
+                                    tmp, ptr_id
+                                ));
+                            }
+                            "i1" => {
+                                let tmp = self.fresh_reg();
+                                llvm_ir.push_str(&format!(
+                                    "  %{} = uitofp i1 %{} to double\n",
+                                    tmp, name
+                                ));
+                                llvm_ir.push_str(&format!(
+                                    "  store double %{}, double* %ptr{}, align 8\n",
+                                    tmp, ptr_id
+                                ));
+                            }
+                            _ => llvm_ir.push_str(&format!(
+                                "  store double %{}, double* %ptr{}, align 8\n",
+                                name, ptr_id
+                            )),
                         }
-                    ));
-                    var_map.insert(name.clone(), ptr_reg.clone());
+                    }
                 }
                 Inst::Store(ptr_reg, value) => {
                     let val_str = self.value_to_string(value);
@@ -215,7 +273,7 @@ impl CodeGenerator {
                         result_str, ptr_str
                     ));
                 }
-                Inst::Add(result_reg, lhs, rhs) => {
+                Inst::Add(result_reg, lhs, rhs) | Inst::FAdd(result_reg, lhs, rhs) => {
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for add result"),
@@ -227,19 +285,7 @@ impl CodeGenerator {
                         result_str, lhs_str, rhs_str
                     ));
                 }
-                Inst::FAdd(result_reg, lhs, rhs) => {
-                    let result_str = match result_reg {
-                        Value::Reg(r) => format!("reg{}", r),
-                        _ => panic!("Expected register for fadd result"),
-                    };
-                    let lhs_str = self.value_to_string(lhs);
-                    let rhs_str = self.value_to_string(rhs);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fadd double {}, {}\n",
-                        result_str, lhs_str, rhs_str
-                    ));
-                }
-                Inst::Sub(result_reg, lhs, rhs) => {
+                Inst::Sub(result_reg, lhs, rhs) | Inst::FSub(result_reg, lhs, rhs) => {
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for sub result"),
@@ -251,19 +297,7 @@ impl CodeGenerator {
                         result_str, lhs_str, rhs_str
                     ));
                 }
-                Inst::FSub(result_reg, lhs, rhs) => {
-                    let result_str = match result_reg {
-                        Value::Reg(r) => format!("reg{}", r),
-                        _ => panic!("Expected register for fsub result"),
-                    };
-                    let lhs_str = self.value_to_string(lhs);
-                    let rhs_str = self.value_to_string(rhs);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fsub double {}, {}\n",
-                        result_str, lhs_str, rhs_str
-                    ));
-                }
-                Inst::Mul(result_reg, lhs, rhs) => {
+                Inst::Mul(result_reg, lhs, rhs) | Inst::FMul(result_reg, lhs, rhs) => {
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for mul result"),
@@ -275,34 +309,10 @@ impl CodeGenerator {
                         result_str, lhs_str, rhs_str
                     ));
                 }
-                Inst::FMul(result_reg, lhs, rhs) => {
-                    let result_str = match result_reg {
-                        Value::Reg(r) => format!("reg{}", r),
-                        _ => panic!("Expected register for fmul result"),
-                    };
-                    let lhs_str = self.value_to_string(lhs);
-                    let rhs_str = self.value_to_string(rhs);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fmul double {}, {}\n",
-                        result_str, lhs_str, rhs_str
-                    ));
-                }
-                Inst::Div(result_reg, lhs, rhs) => {
+                Inst::Div(result_reg, lhs, rhs) | Inst::FDiv(result_reg, lhs, rhs) => {
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for div result"),
-                    };
-                    let lhs_str = self.value_to_string(lhs);
-                    let rhs_str = self.value_to_string(rhs);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fdiv double {}, {}\n",
-                        result_str, lhs_str, rhs_str
-                    ));
-                }
-                Inst::FDiv(result_reg, lhs, rhs) => {
-                    let result_str = match result_reg {
-                        Value::Reg(r) => format!("reg{}", r),
-                        _ => panic!("Expected register for fdiv result"),
                     };
                     let lhs_str = self.value_to_string(lhs);
                     let rhs_str = self.value_to_string(rhs);
@@ -322,59 +332,31 @@ impl CodeGenerator {
                         result_str, val_str
                     ));
                 }
-                Inst::Return(value) => {
-                    let val_str = self.value_to_string(value);
-                    // Since we're storing everything as double, always convert to int for return
-                    let convert_reg = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fptosi double {} to i32\n",
-                        convert_reg, val_str
-                    ));
-                    llvm_ir.push_str(&format!("  ret i32 %{}\n", convert_reg));
-                }
+                Inst::Return(value) => self.emit_return(llvm_ir, value, return_llvm_type),
                 Inst::SIToFP(result_reg, value) => {
-                    // Since we're already storing everything as double, this is essentially a no-op
-                    // Just copy the value to the result register
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for sitofp result"),
                     };
                     let val_str = self.value_to_string(value);
-                    // Since both source and target are double, just use fadd with 0.0
                     llvm_ir.push_str(&format!(
                         "  %{} = fadd double {}, 0x0000000000000000\n",
                         result_str, val_str
                     ));
                 }
-                Inst::FunctionDef {
-                    name: _,
-                    parameters: _,
-                    return_type: _,
-                    body: _,
-                } => {
-                    // Function definitions are handled separately in generate_code
-                    // Skip them in the main function body
-                }
+                Inst::FunctionDef { .. } => {}
                 Inst::Call {
                     function,
                     arguments,
                     result,
-                } => {
-                    self.generate_function_call(llvm_ir, function, arguments, result);
-                }
+                } => self.generate_function_call(llvm_ir, function, arguments, result, function_defs),
                 Inst::Branch {
                     condition,
                     true_label,
                     false_label,
-                } => {
-                    self.generate_branch(llvm_ir, condition, true_label, false_label);
-                }
-                Inst::Jump(label) => {
-                    llvm_ir.push_str(&format!("  br label %{}\n", label));
-                }
-                Inst::Label(label) => {
-                    llvm_ir.push_str(&format!("{}:\n", label));
-                }
+                } => self.generate_branch(llvm_ir, condition, true_label, false_label),
+                Inst::Jump(label) => llvm_ir.push_str(&format!("  br label %{}\n", label)),
+                Inst::Label(label) => llvm_ir.push_str(&format!("{}:\n", label)),
                 Inst::ICmp {
                     op,
                     result,
@@ -412,15 +394,11 @@ impl CodeGenerator {
                 Inst::Print {
                     format_string,
                     arguments,
-                } => {
-                    self.generate_print_call(llvm_ir, format_string, arguments, false);
-                }
+                } => self.generate_print_call(llvm_ir, format_string, arguments, false),
                 Inst::Println {
                     format_string,
                     arguments,
-                } => {
-                    self.generate_print_call(llvm_ir, format_string, arguments, true);
-                }
+                } => self.generate_print_call(llvm_ir, format_string, arguments, true),
                 Inst::And {
                     result,
                     left,
@@ -459,10 +437,7 @@ impl CodeGenerator {
                         _ => panic!("Expected register for not result"),
                     };
                     let operand_str = self.value_to_string(operand);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = xor i1 {}, true\n",
-                        result_str, operand_str
-                    ));
+                    llvm_ir.push_str(&format!("  %{} = xor i1 {}, true\n", result_str, operand_str));
                 }
                 Inst::Neg { result, operand } => {
                     let result_str = match result {
@@ -470,13 +445,8 @@ impl CodeGenerator {
                         _ => panic!("Expected register for neg result"),
                     };
                     let operand_str = self.value_to_string(operand);
-                    // Assuming double type for now - this should be type-aware
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fsub double 0.0, {}\n",
-                        result_str, operand_str
-                    ));
+                    llvm_ir.push_str(&format!("  %{} = fsub double 0.0, {}\n", result_str, operand_str));
                 }
-                // Phase 4: Aggregate operations
                 Inst::AllocaArray {
                     result,
                     elem_type,
@@ -519,10 +489,7 @@ impl CodeGenerator {
                         Value::Reg(r) => format!("ptr{}", r),
                         _ => panic!("Expected register for struct alloca"),
                     };
-                    llvm_ir.push_str(&format!(
-                        "  %{} = alloca %{}, align 8\n",
-                        result_str, struct_type
-                    ));
+                    llvm_ir.push_str(&format!("  %{} = alloca %{}, align 8\n", result_str, struct_type));
                 }
                 Inst::GetFieldPtr {
                     result,
@@ -543,13 +510,22 @@ impl CodeGenerator {
                         result_str, struct_type, struct_type, base_str, field_index
                     ));
                 }
-                // Phase 6: stdlib IR variants (Vec, Array, Enum) — LLVM lowering is a future task
                 _ => {}
             }
         }
-        // If no explicit return, return 0
-        if !func.body.is_empty() && !func.body.iter().any(|inst| matches!(inst, Inst::Return(_))) {
-            llvm_ir.push_str("  ret i32 0\n");
+
+        if !instructions.is_empty()
+            && !instructions
+                .iter()
+                .any(|inst| matches!(inst, Inst::Return(_)))
+        {
+            match return_llvm_type {
+                "void" => llvm_ir.push_str("  ret void\n"),
+                "double" => llvm_ir.push_str("  ret double 0x0000000000000000\n"),
+                "i1" => llvm_ir.push_str("  ret i1 false\n"),
+                "i64" => llvm_ir.push_str("  ret i64 0\n"),
+                _ => llvm_ir.push_str("  ret i32 0\n"),
+            }
         }
     }
 
@@ -559,33 +535,195 @@ impl CodeGenerator {
         function: &str,
         arguments: &[Value],
         result: &Option<Value>,
+        function_defs: &HashMap<String, FunctionDef>,
     ) {
-        // Generate function call with proper type handling
-        let mut args_str = String::new();
+        let (param_defs, return_type) = if let Some((params, ret, _body)) = function_defs.get(function)
+        {
+            (params.clone(), ret.clone())
+        } else {
+            (Vec::new(), None)
+        };
+
+        let mut args = Vec::new();
         for (i, arg) in arguments.iter().enumerate() {
-            if i > 0 {
-                args_str.push_str(", ");
-            }
-            // For now, assume all arguments are double - this should be type-aware
-            args_str.push_str("double ");
-            args_str.push_str(&self.value_to_string(arg));
+            let target_type = if let Some((_name, ty)) = param_defs.get(i) {
+                self.type_to_llvm(ty).to_string()
+            } else {
+                "double".to_string()
+            };
+            let arg_val = self.cast_value_for_call_arg(llvm_ir, arg, &target_type);
+            args.push(format!("{} {}", target_type, arg_val));
         }
+        let args_str = args.join(", ");
+
+        let return_llvm_type = if let Some(ret) = return_type {
+            self.type_to_llvm(&ret).to_string()
+        } else if result.is_some() {
+            "double".to_string()
+        } else {
+            "void".to_string()
+        };
 
         if let Some(result_reg) = result {
             let result_str = match result_reg {
                 Value::Reg(r) => format!("reg{}", r),
                 _ => panic!("Expected register for call result"),
             };
-            // For now, assume return type is double - this should be type-aware
-            llvm_ir.push_str(&format!(
-                "  %{} = call double @{}({})\n",
-                result_str, function, args_str
-            ));
+
+            match return_llvm_type.as_str() {
+                "double" => llvm_ir.push_str(&format!(
+                    "  %{} = call double @{}({})\n",
+                    result_str, function, args_str
+                )),
+                "i32" => {
+                    let call_reg = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{} = call i32 @{}({})\n",
+                        call_reg, function, args_str
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{} = sitofp i32 %{} to double\n",
+                        result_str, call_reg
+                    ));
+                }
+                "i64" => {
+                    let call_reg = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{} = call i64 @{}({})\n",
+                        call_reg, function, args_str
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{} = sitofp i64 %{} to double\n",
+                        result_str, call_reg
+                    ));
+                }
+                "i1" => {
+                    let call_reg = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{} = call i1 @{}({})\n",
+                        call_reg, function, args_str
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{} = uitofp i1 %{} to double\n",
+                        result_str, call_reg
+                    ));
+                }
+                "void" => {
+                    llvm_ir.push_str(&format!("  call void @{}({})\n", function, args_str));
+                    llvm_ir.push_str(&format!(
+                        "  %{} = fadd double 0x0000000000000000, 0x0000000000000000\n",
+                        result_str
+                    ));
+                }
+                _ => llvm_ir.push_str(&format!(
+                    "  %{} = call double @{}({})\n",
+                    result_str, function, args_str
+                )),
+            }
         } else {
-            llvm_ir.push_str(&format!("  call void @{}({})\n", function, args_str));
+            llvm_ir.push_str(&format!(
+                "  call {} @{}({})\n",
+                return_llvm_type, function, args_str
+            ));
         }
     }
 
+    fn cast_value_for_call_arg(
+        &mut self,
+        llvm_ir: &mut String,
+        value: &Value,
+        target_type: &str,
+    ) -> String {
+        match target_type {
+            "double" => self.value_to_string(value),
+            "i32" => match value {
+                Value::ImmInt(n) => n.to_string(),
+                Value::ImmFloat(f) => (*f as i64).to_string(),
+                Value::Reg(r) => {
+                    let tmp = self.fresh_reg();
+                    llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
+                    format!("%{}", tmp)
+                }
+            },
+            "i64" => match value {
+                Value::ImmInt(n) => n.to_string(),
+                Value::ImmFloat(f) => (*f as i64).to_string(),
+                Value::Reg(r) => {
+                    let tmp = self.fresh_reg();
+                    llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
+                    format!("%{}", tmp)
+                }
+            },
+            "i1" => match value {
+                Value::ImmInt(n) => {
+                    if *n == 0 {
+                        "false".to_string()
+                    } else {
+                        "true".to_string()
+                    }
+                }
+                Value::ImmFloat(f) => {
+                    if *f == 0.0 {
+                        "false".to_string()
+                    } else {
+                        "true".to_string()
+                    }
+                }
+                Value::Reg(r) => {
+                    let tmp = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
+                        tmp, r
+                    ));
+                    format!("%{}", tmp)
+                }
+            },
+            _ => self.value_to_string(value),
+        }
+    }
+
+    fn emit_return(&mut self, llvm_ir: &mut String, value: &Value, return_llvm_type: &str) {
+        match return_llvm_type {
+            "void" => llvm_ir.push_str("  ret void\n"),
+            "double" => llvm_ir.push_str(&format!("  ret double {}\n", self.value_to_string(value))),
+            "i64" => match value {
+                Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i64 {}\n", n)),
+                Value::ImmFloat(f) => llvm_ir.push_str(&format!("  ret i64 {}\n", *f as i64)),
+                Value::Reg(r) => {
+                    let tmp = self.fresh_reg();
+                    llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
+                    llvm_ir.push_str(&format!("  ret i64 %{}\n", tmp));
+                }
+            },
+            "i1" => match value {
+                Value::ImmInt(n) => llvm_ir.push_str(&format!(
+                    "  ret i1 {}\n",
+                    if *n == 0 { "false" } else { "true" }
+                )),
+                Value::ImmFloat(f) => llvm_ir.push_str(&format!(
+                    "  ret i1 {}\n",
+                    if *f == 0.0 { "false" } else { "true" }
+                )),
+                Value::Reg(r) => {
+                    let tmp = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
+                        tmp, r
+                    ));
+                    llvm_ir.push_str(&format!("  ret i1 %{}\n", tmp));
+                }
+            },
+            _ => match value {
+                Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i32 {}\n", n)),
+                Value::ImmFloat(f) => llvm_ir.push_str(&format!("  ret i32 {}\n", *f as i64)),
+                Value::Reg(r) => {
+                    let tmp = self.fresh_reg();
+                    llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
+                    llvm_ir.push_str(&format!("  ret i32 %{}\n", tmp));
+                }
+            },
+        }
+    }
     fn generate_branch(
         &mut self,
         llvm_ir: &mut String,
@@ -836,23 +974,24 @@ mod tests {
         // Create a simple function: fn add(a: i32, b: i32) -> i32 { return a + b; }
         let function = Function {
             name: "add".to_string(),
-            body: vec![
-                Inst::FunctionDef {
-                    name: "add".to_string(),
-                    parameters: vec![
-                        ("a".to_string(), "i32".to_string()),
-                        ("b".to_string(), "i32".to_string()),
-                    ],
-                    return_type: Some("i32".to_string()),
-                    body: vec![],
-                },
-                Inst::Load(Value::Reg(0), Value::Reg(100)), // Load parameter a
-                Inst::Load(Value::Reg(1), Value::Reg(101)), // Load parameter b
-                Inst::Add(Value::Reg(2), Value::Reg(0), Value::Reg(1)), // Add a + b
-                Inst::Return(Value::Reg(2)),                // Return result
-            ],
-            next_reg: 3,
-            next_ptr: 102,
+            body: vec![Inst::FunctionDef {
+                name: "add".to_string(),
+                parameters: vec![
+                    ("a".to_string(), "i32".to_string()),
+                    ("b".to_string(), "i32".to_string()),
+                ],
+                return_type: Some("i32".to_string()),
+                body: vec![
+                    Inst::Alloca(Value::Reg(0), "a".to_string()),
+                    Inst::Alloca(Value::Reg(1), "b".to_string()),
+                    Inst::Load(Value::Reg(2), Value::Reg(0)),
+                    Inst::Load(Value::Reg(3), Value::Reg(1)),
+                    Inst::Add(Value::Reg(4), Value::Reg(2), Value::Reg(3)),
+                    Inst::Return(Value::Reg(4)),
+                ],
+            }],
+            next_reg: 5,
+            next_ptr: 2,
         };
 
         let mut functions = HashMap::new();
@@ -863,10 +1002,11 @@ mod tests {
         // Check that function signature is correct
         assert!(llvm_ir.contains("define i32 @add(i32 %a, i32 %b)"));
 
-        // Check that parameters are allocated
-        assert!(llvm_ir.contains("alloca i32"));
-        assert!(llvm_ir.contains("store i32 %a"));
-        assert!(llvm_ir.contains("store i32 %b"));
+        // Parameters are lowered to local double slots
+        assert!(llvm_ir.contains("%ptr0 = alloca double"));
+        assert!(llvm_ir.contains("%ptr1 = alloca double"));
+        assert!(llvm_ir.contains("sitofp i32 %a to double"));
+        assert!(llvm_ir.contains("sitofp i32 %b to double"));
 
         // Check that function has entry block
         assert!(llvm_ir.contains("entry:"));
@@ -903,24 +1043,71 @@ mod tests {
     }
 
     #[test]
+    fn test_typed_function_call_uses_signature_and_converts_result() {
+        let mut generator = CodeGenerator::new();
+
+        let closure_like_function = Function {
+            name: "__closure_0".to_string(),
+            body: vec![Inst::FunctionDef {
+                name: "__closure_0".to_string(),
+                parameters: vec![
+                    ("x".to_string(), "i32".to_string()),
+                    ("y".to_string(), "i32".to_string()),
+                ],
+                return_type: Some("i32".to_string()),
+                body: vec![
+                    Inst::Alloca(Value::Reg(0), "x".to_string()),
+                    Inst::Alloca(Value::Reg(1), "y".to_string()),
+                    Inst::Load(Value::Reg(2), Value::Reg(0)),
+                    Inst::Load(Value::Reg(3), Value::Reg(1)),
+                    Inst::Add(Value::Reg(4), Value::Reg(2), Value::Reg(3)),
+                    Inst::Return(Value::Reg(4)),
+                ],
+            }],
+            next_reg: 5,
+            next_ptr: 2,
+        };
+
+        let main = Function {
+            name: "main".to_string(),
+            body: vec![
+                Inst::Call {
+                    function: "__closure_0".to_string(),
+                    arguments: vec![Value::ImmInt(1), Value::ImmInt(2)],
+                    result: Some(Value::Reg(0)),
+                },
+                Inst::Return(Value::Reg(0)),
+            ],
+            next_reg: 1,
+            next_ptr: 0,
+        };
+
+        let mut functions = HashMap::new();
+        functions.insert("__closure_0".to_string(), closure_like_function);
+        functions.insert("main".to_string(), main);
+
+        let llvm_ir = generator.generate_code(functions);
+
+        assert!(llvm_ir.contains("call i32 @__closure_0(i32 1, i32 2)"));
+        assert!(llvm_ir.contains("sitofp i32 %"));
+    }
+
+    #[test]
     fn test_void_function_generation() {
         let mut generator = CodeGenerator::new();
 
         // Create a void function: fn print_hello() { }
         let function = Function {
             name: "print_hello".to_string(),
-            body: vec![
-                Inst::FunctionDef {
-                    name: "print_hello".to_string(),
-                    parameters: vec![],
-                    return_type: None,
-                    body: vec![],
-                },
-                Inst::Print {
+            body: vec![Inst::FunctionDef {
+                name: "print_hello".to_string(),
+                parameters: vec![],
+                return_type: None,
+                body: vec![Inst::Print {
                     format_string: "Hello, World!".to_string(),
                     arguments: vec![],
-                },
-            ],
+                }],
+            }],
             next_reg: 0,
             next_ptr: 0,
         };
@@ -1662,3 +1849,4 @@ fn test_infinite_loop_structure() {
     assert!(llvm_ir.contains("br label %loop_body"));
     assert!(llvm_ir.contains("loop_body:"));
 }
+

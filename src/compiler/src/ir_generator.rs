@@ -246,9 +246,12 @@ impl IrGenerator {
                 let result_reg = Value::Reg(self.next_reg);
                 self.next_reg += 1;
 
+                // Resolve closure variables to their generated function symbol.
+                let function_name = self.resolve_callable_name(&name);
+
                 // Create function call instruction
                 let call_inst = Inst::Call {
-                    function: name,
+                    function: function_name,
                     arguments: arg_values,
                     result: Some(result_reg.clone()),
                 };
@@ -381,77 +384,7 @@ impl IrGenerator {
                 // Stub: these will be implemented as remaining Phase 4/5 tasks progress
                 (Value::ImmInt(0), Ty::Int)
             }
-            Expression::Closure { params, body } => {
-                // Generate closure as a standalone function
-                let closure_name = format!("__closure_{}", self.closure_count);
-                self.closure_count += 1;
-
-                // Build parameter list
-                let ir_params: Vec<(String, String)> = params
-                    .iter()
-                    .map(|p| {
-                        let ty_str = match &p.param_type {
-                            Type::Named(n) => match n.as_str() {
-                                "i32" | "int" => "i32".to_string(),
-                                "f64" | "float" => "double".to_string(),
-                                "bool" => "i1".to_string(),
-                                _ => "i32".to_string(),
-                            },
-                            _ => "i32".to_string(),
-                        };
-                        (p.name.clone(), ty_str)
-                    })
-                    .collect();
-
-                // Generate body in a temporary function context
-                let mut closure_body = Vec::new();
-
-                // Allocate parameters as local variables
-                for (i, p) in params.iter().enumerate() {
-                    let ptr = Value::Reg(self.next_reg);
-                    self.next_reg += 1;
-                    closure_body.push(Inst::Alloca(ptr.clone(), p.name.clone()));
-
-                    // Store parameter value
-                    let param_val = Value::Reg(100 + i as u32); // Convention: params start at reg 100
-                    closure_body.push(Inst::Store(ptr.clone(), param_val));
-
-                    let ty = self.ast_type_to_ty(&p.param_type);
-                    self.symbol_table.insert(p.name.clone(), (ptr, ty));
-                }
-
-                // Generate body expression
-                let (body_val, body_ty) = self.generate_expression_ir(*body, function);
-                closure_body.push(Inst::Return(body_val));
-
-                let return_type = match &body_ty {
-                    Ty::Int => Some("i32".to_string()),
-                    Ty::Float => Some("double".to_string()),
-                    Ty::Bool => Some("i1".to_string()),
-                    _ => Some("i32".to_string()),
-                };
-
-                // Register the closure as a top-level function
-                let closure_fn = Function {
-                    name: closure_name.clone(),
-                    body: vec![Inst::FunctionDef {
-                        name: closure_name.clone(),
-                        parameters: ir_params,
-                        return_type,
-                        body: closure_body,
-                    }],
-                    next_reg: self.next_reg,
-                    next_ptr: self.next_ptr,
-                };
-                self.functions.insert(closure_name.clone(), closure_fn);
-
-                // Return the closure name as a function pointer reference
-                // (When this is stored in a variable, function calls will resolve the name)
-                (
-                    Value::ImmInt(self.closure_count as i64 - 1),
-                    Ty::Fn(closure_name),
-                )
-            }
+            Expression::Closure { params, body } => self.lower_closure_expression(params, *body),
         }
     }
 
@@ -699,9 +632,16 @@ impl IrGenerator {
                 let (rhs_val, rhs_type) =
                     self.generate_expression_ir_for_function(*right, function_body);
 
-                // Get the result type from the AST (set by semantic analysis)
-                let result_type =
-                    ty.expect("Binary expression should have type set by semantic analysis");
+                // Prefer semantic type annotation when present, but don't require it.
+                // Some front-end paths still produce untyped binary nodes.
+                let result_type = ty.unwrap_or_else(|| match (&lhs_type, &rhs_type) {
+                    (Ty::Float, _) | (_, Ty::Float) => Ty::Float,
+                    (Ty::Int, Ty::Int) => Ty::Int,
+                    (l, r) => panic!(
+                        "Cannot infer binary op result type for operand types {:?} and {:?}",
+                        l, r
+                    ),
+                });
 
                 // Handle type promotion if needed
                 let (promoted_lhs, promoted_rhs) = self.handle_type_promotion_for_function(
@@ -778,68 +718,7 @@ impl IrGenerator {
             | Expression::Match { .. }
             | Expression::Borrow { .. }
             | Expression::Deref(_) => (Value::ImmInt(0), Ty::Int),
-            Expression::Closure { params, body } => {
-                // Generate closure as a standalone function (same as top-level)
-                let closure_name = format!("__closure_{}", self.closure_count);
-                self.closure_count += 1;
-
-                let ir_params: Vec<(String, String)> = params
-                    .iter()
-                    .map(|p| {
-                        let ty_str = match &p.param_type {
-                            Type::Named(n) => match n.as_str() {
-                                "i32" | "int" => "i32".to_string(),
-                                "f64" | "float" => "double".to_string(),
-                                "bool" => "i1".to_string(),
-                                _ => "i32".to_string(),
-                            },
-                            _ => "i32".to_string(),
-                        };
-                        (p.name.clone(), ty_str)
-                    })
-                    .collect();
-
-                // Generate closure body as a separate function
-                let mut closure_body = Vec::new();
-                for (i, p) in params.iter().enumerate() {
-                    let ptr = Value::Reg(self.next_reg);
-                    self.next_reg += 1;
-                    closure_body.push(Inst::Alloca(ptr.clone(), p.name.clone()));
-                    let param_val = Value::Reg(100 + i as u32);
-                    closure_body.push(Inst::Store(ptr.clone(), param_val));
-                    let ty = self.ast_type_to_ty(&p.param_type);
-                    self.symbol_table.insert(p.name.clone(), (ptr, ty));
-                }
-
-                let (body_val, body_ty) =
-                    self.generate_expression_ir_for_function(*body, function_body);
-                closure_body.push(Inst::Return(body_val));
-
-                let return_type = match &body_ty {
-                    Ty::Int => Some("i32".to_string()),
-                    Ty::Float => Some("double".to_string()),
-                    Ty::Bool => Some("i1".to_string()),
-                    _ => Some("i32".to_string()),
-                };
-
-                let closure_fn = Function {
-                    name: closure_name.clone(),
-                    body: vec![Inst::FunctionDef {
-                        name: closure_name.clone(),
-                        parameters: ir_params,
-                        return_type,
-                        body: closure_body,
-                    }],
-                    next_reg: self.next_reg,
-                    next_ptr: self.next_ptr,
-                };
-                self.functions.insert(closure_name.clone(), closure_fn);
-
-                (
-                    Value::ImmInt(self.closure_count as i64 - 1),
-                    Ty::Fn(closure_name),
-                )
-            }
+            Expression::Closure { params, body } => self.lower_closure_expression(params, *body),
         }
     }
 
@@ -890,9 +769,12 @@ impl IrGenerator {
         let result_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;
 
+        // Resolve closure variables to their generated function symbol.
+        let function_name = self.resolve_callable_name(&name);
+
         // Create function call instruction
         let call_inst = Inst::Call {
-            function: name,
+            function: function_name,
             arguments: arg_values,
             result: Some(result_reg.clone()),
         };
@@ -1163,6 +1045,87 @@ impl IrGenerator {
             }
             Type::Generic(name, _) => Ty::TypeParam(name.clone()),
         }
+    }
+
+    fn resolve_callable_name(&self, name: &str) -> String {
+        if let Some((_, Ty::Fn(target))) = self.symbol_table.get(name) {
+            return target.clone();
+        }
+        name.to_string()
+    }
+
+    fn lower_closure_expression(
+        &mut self,
+        params: Vec<crate::ast::Parameter>,
+        body: Expression,
+    ) -> (Value, Ty) {
+        let closure_id = self.closure_count as i64;
+        let closure_name = format!("__closure_{}", self.closure_count);
+        self.closure_count += 1;
+
+        let ir_params: Vec<(String, String)> = params
+            .iter()
+            .map(|p| {
+                let ty_str = match &p.param_type {
+                    Type::Named(n) => match n.as_str() {
+                        "i32" | "int" => "i32".to_string(),
+                        "f64" | "float" => "double".to_string(),
+                        "bool" => "i1".to_string(),
+                        _ => "i32".to_string(),
+                    },
+                    _ => "i32".to_string(),
+                };
+                (p.name.clone(), ty_str)
+            })
+            .collect();
+
+        // Closures currently do not capture outer variables; compile them as plain
+        // standalone functions with their own symbol table/register space.
+        let saved_symbol_table = self.symbol_table.clone();
+        let saved_next_reg = self.next_reg;
+        let saved_next_ptr = self.next_ptr;
+
+        self.symbol_table.clear();
+        self.next_reg = 0;
+        self.next_ptr = 0;
+
+        let mut closure_body = Vec::new();
+        for p in &params {
+            let ptr = Value::Reg(self.next_ptr);
+            self.next_ptr += 1;
+            closure_body.push(Inst::Alloca(ptr.clone(), p.name.clone()));
+            let ty = self.ast_type_to_ty(&p.param_type);
+            self.symbol_table.insert(p.name.clone(), (ptr, ty));
+        }
+
+        let (body_val, body_ty) = self.generate_expression_ir_for_function(body, &mut closure_body);
+        closure_body.push(Inst::Return(body_val));
+
+        let return_type = match &body_ty {
+            Ty::Int => Some("i32".to_string()),
+            Ty::Float => Some("double".to_string()),
+            Ty::Bool => Some("i1".to_string()),
+            _ => Some("i32".to_string()),
+        };
+
+        let closure_fn = Function {
+            name: closure_name.clone(),
+            body: vec![Inst::FunctionDef {
+                name: closure_name.clone(),
+                parameters: ir_params,
+                return_type,
+                body: closure_body,
+            }],
+            next_reg: self.next_reg,
+            next_ptr: self.next_ptr,
+        };
+        self.functions.insert(closure_name.clone(), closure_fn);
+
+        self.symbol_table = saved_symbol_table;
+        self.next_reg = saved_next_reg;
+        self.next_ptr = saved_next_ptr;
+
+        (Value::ImmInt(closure_id), Ty::Fn(closure_name))
     }
 
     // I/O and enhanced expression IR generation methods
@@ -1585,7 +1548,7 @@ impl IrGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{AstNode, BinaryOp, Expression, Statement};
+    use crate::ast::{AstNode, BinaryOp, Expression, Parameter, Statement, Type};
     use crate::types::Ty;
 
     #[test]
@@ -1643,5 +1606,56 @@ mod tests {
             val,
             crate::ir::Value::ImmInt(3) | crate::ir::Value::Reg(_)
         ));
+    }
+
+    #[test]
+    fn closure_call_uses_generated_function_symbol() {
+        let mut ir_gen = IrGenerator::new();
+        let ast = vec![
+            AstNode::Statement(Statement::Let {
+                name: "add".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(Expression::Closure {
+                    params: vec![
+                        Parameter {
+                            name: "x".to_string(),
+                            param_type: Type::Named("i32".to_string()),
+                        },
+                        Parameter {
+                            name: "y".to_string(),
+                            param_type: Type::Named("i32".to_string()),
+                        },
+                    ],
+                    body: Box::new(Expression::Binary {
+                        op: BinaryOp::Add,
+                        left: Box::new(Expression::Identifier("x".to_string())),
+                        right: Box::new(Expression::Identifier("y".to_string())),
+                        ty: Some(Ty::Int),
+                    }),
+                }),
+            }),
+            AstNode::Statement(Statement::Expression(Expression::FunctionCall {
+                name: "add".to_string(),
+                arguments: vec![Expression::IntegerLiteral(1), Expression::IntegerLiteral(2)],
+            })),
+        ];
+
+        let ir = ir_gen.generate_ir(ast);
+        let main = &ir["main"].body;
+
+        assert!(
+            main.iter()
+                .any(|inst| matches!(inst, crate::ir::Inst::Call { function, .. } if function == "__closure_0"))
+        );
+        assert!(ir.contains_key("__closure_0"));
+
+        let closure_func = &ir["__closure_0"];
+        assert!(
+            closure_func
+                .body
+                .iter()
+                .any(|inst| matches!(inst, crate::ir::Inst::FunctionDef { body, .. } if body.iter().any(|i| matches!(i, crate::ir::Inst::Return(_)))))
+        );
     }
 }
