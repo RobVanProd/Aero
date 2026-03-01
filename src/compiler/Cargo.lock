@@ -164,6 +164,8 @@ dependencies = [
  "insta",
  "md5",
  "miette",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

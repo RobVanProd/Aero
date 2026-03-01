@@ -5,21 +5,23 @@ mod errors;
 mod ir;
 mod ir_generator;
 mod lexer;
+mod lsp;
 mod module_resolver;
 mod optimizations;
 mod parser;
 mod performance_optimizations;
+mod project_init;
 mod semantic_analyzer;
 mod types;
 
 // (unit tests live in the library crate)
 
 use crate::ir_generator::IrGenerator;
-use crate::optimizations::CompilerOptimizer;
 use crate::performance_optimizations::PerformanceOptimizer;
 use crate::semantic_analyzer::SemanticAnalyzer;
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::process::{Command, exit};
 use std::time::Instant;
 
@@ -181,9 +183,39 @@ fn main() {
                 ),
             }
         }
+        "init" => {
+            if args.len() > 3 {
+                eprintln!("Usage: {} init [path]", args[0]);
+                return;
+            }
+            let target = if args.len() == 3 {
+                args[2].as_str()
+            } else {
+                "."
+            };
+
+            match project_init::init_project(Path::new(target)) {
+                Ok(result) => {
+                    println!("Initialized Aero project at {}", result.root_dir.display());
+                    for file in result.created_files {
+                        println!("  created {}", file.display());
+                    }
+                }
+                Err(err) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                    exit(1);
+                }
+            }
+        }
+        "lsp" => {
+            if let Err(err) = lsp::run_language_server() {
+                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                exit(1);
+            }
+        }
         _ => {
             eprintln!("Unknown command: {}", command);
-            eprintln!("Available commands: build, run, check, test, fmt");
+            eprintln!("Available commands: build, run, check, test, fmt, init, lsp");
         }
     }
 }
@@ -435,6 +467,8 @@ fn print_help(program_name: &str) {
     println!("    check <input.aero>                   Type-check only (no codegen)");
     println!("    test                                 Discover and run *_test.aero files");
     println!("    fmt <input.aero>                     Auto-format Aero source");
+    println!("    init [path]                          Initialize a new Aero project");
+    println!("    lsp                                  Run Aero language server (stdio)");
     println!();
     println!("OPTIONS:");
     println!("    -h, --help       Print this help message");
@@ -446,6 +480,8 @@ fn print_help(program_name: &str) {
     println!("    {} check hello.aero", program_name);
     println!("    {} test", program_name);
     println!("    {} fmt hello.aero", program_name);
+    println!("    {} init my_app", program_name);
+    println!("    {} lsp", program_name);
 }
 
 /// Type-check an Aero program without generating code.
