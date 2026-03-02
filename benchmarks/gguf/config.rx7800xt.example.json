@@ -1,0 +1,82 @@
+{
+  "benchmark_name": "gguf_llama31_8b_q5_rx7800xt",
+  "hardware": "RX 7800 XT Hellhound 16GB (gfx1101)",
+  "model": {
+    "name": "Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+    "path": "models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf"
+  },
+  "prompt": "Explain quantum computing in 3 sentences.",
+  "max_tokens": 256,
+  "runs": 20,
+  "warmup_runs": 3,
+  "timeout_seconds": 900,
+  "strict": false,
+  "output_dir": "benchmarks/results/gguf",
+  "metric": {
+    "key": "tokens_per_second",
+    "unit": "tokens/s",
+    "direction": "higher"
+  },
+  "variables": {
+    "aero_bin": "src/compiler/target/release/aero.exe",
+    "llama_cli": "third_party/llama.cpp/build/bin/llama-cli.exe",
+    "python_bin": "python",
+    "pytorch_runner": "benchmarks/gguf/pytorch_reference_runner.py"
+  },
+  "backends": [
+    {
+      "name": "aero_rocm",
+      "enabled": true,
+      "cwd": ".",
+      "command": "\"{aero_bin}\" run --target rocm --gpu gfx1101 examples/gguf_inference.aero -- --model \"{model_path}\" --prompt \"{prompt}\" --max-tokens {max_tokens}",
+      "metric_regexes": [
+        "tokens/sec\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)?)",
+        "([0-9]+(?:\\.[0-9]+)?)\\s*tokens/s"
+      ],
+      "aux_metrics": {
+        "prompt_eval_ms": [
+          "prompt\\s*eval\\s*time\\s*[:=].*?([0-9]+(?:\\.[0-9]+)?)\\s*ms",
+          "prompt_eval_ms\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ],
+        "peak_vram_gb": [
+          "peak\\s*vram\\s*[:=].*?([0-9]+(?:\\.[0-9]+)?)\\s*gb",
+          "peak_vram_gb\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ]
+      }
+    },
+    {
+      "name": "llama_cpp_rocm",
+      "enabled": true,
+      "cwd": ".",
+      "command": "\"{llama_cli}\" -m \"{model_path}\" -p \"{prompt}\" -n {max_tokens} -ngl 999 --no-warmup",
+      "metric_regexes": [
+        "([0-9]+(?:\\.[0-9]+)?)\\s*tokens per second",
+        "([0-9]+(?:\\.[0-9]+)?)\\s*t/s"
+      ],
+      "aux_metrics": {
+        "prompt_eval_ms": [
+          "prompt\\s*eval\\s*time\\s*=\\s*([0-9]+(?:\\.[0-9]+)?)\\s*ms"
+        ]
+      }
+    },
+    {
+      "name": "pytorch_reference",
+      "enabled": true,
+      "cwd": ".",
+      "command": "\"{python_bin}\" \"{pytorch_runner}\" --model \"{model_path}\" --prompt \"{prompt}\" --max-tokens {max_tokens}",
+      "metric_regexes": [
+        "tokens/sec\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)?)",
+        "([0-9]+(?:\\.[0-9]+)?)\\s*tokens/s"
+      ],
+      "aux_metrics": {
+        "prompt_eval_ms": [
+          "prompt_eval_ms\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ],
+        "peak_vram_gb": [
+          "peak_vram_gb\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ]
+      }
+    }
+  ]
+}
+

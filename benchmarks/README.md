@@ -74,6 +74,17 @@ scripts/run_performance_benchmarks.sh
 python3 benchmarks/performance_benchmark.py
 ```
 
+#### GGUF Cross-Framework Benchmarks (Aero vs llama.cpp vs PyTorch)
+```bash
+# Validate harness logic with synthetic backends
+python3 benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.mock.json
+
+# Real model benchmarking on your configured backends
+python3 benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json
+```
+
+See `benchmarks/gguf/README.md` for config details and report outputs.
+
 #### Rust Criterion Benchmarks
 ```bash
 cd src/compiler

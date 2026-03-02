@@ -1,0 +1,43 @@
+{
+  "benchmark_name": "gguf_llama31_8b_q5_local_llama_cpp_python",
+  "hardware": "RX 7800 XT Hellhound 16GB (gfx1101), llama.cpp n_gpu_layers=999",
+  "model": {
+    "name": "Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+    "path": "models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf"
+  },
+  "prompt": "Explain quantum computing in 3 short sentences.",
+  "max_tokens": 64,
+  "runs": 20,
+  "warmup_runs": 2,
+  "timeout_seconds": 900,
+  "strict": true,
+  "output_dir": "benchmarks/results/gguf",
+  "metric": {
+    "key": "tokens_per_second",
+    "unit": "tokens/s",
+    "direction": "higher"
+  },
+  "variables": {
+    "python_bin": "python",
+    "llama_cpp_runner": "benchmarks/gguf/llama_cpp_runner.py"
+  },
+  "backends": [
+    {
+      "name": "llama_cpp_python_n_gpu_layers_999",
+      "enabled": true,
+      "cwd": ".",
+      "command": "\"{python_bin}\" \"{llama_cpp_runner}\" --model \"{model_path}\" --prompt \"{prompt}\" --max-tokens {max_tokens} --n-ctx 2048 --n-gpu-layers 999",
+      "metric_regexes": [
+        "tokens/sec:\\s*([0-9]+(?:\\.[0-9]+)?)"
+      ],
+      "aux_metrics": {
+        "prompt_eval_ms": [
+          "prompt_eval_ms:\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ],
+        "peak_vram_gb": [
+          "peak_vram_gb:\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ]
+      }
+    }
+  ]
+}

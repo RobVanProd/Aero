@@ -81,3 +81,17 @@ aero build examples/hello.aero -o hello.ll
   ```bat
   test_compiler.bat
   ```
+
+## GGUF comparison benchmarking
+
+Use the cross-framework harness to collect 20-run metrics and chart results:
+
+```bash
+# Synthetic validation (no model required)
+python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.mock.json
+
+# Real benchmark (edit backend commands as needed)
+python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json
+```
+
+Outputs are written under `benchmarks/results/gguf/` as JSON, Markdown, and HTML reports.

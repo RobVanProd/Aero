@@ -1,0 +1,45 @@
+{
+  "benchmark_name": "fib35_claim_validation",
+  "hardware": "local-windows",
+  "model": {
+    "name": "n/a",
+    "path": ""
+  },
+  "prompt": "",
+  "max_tokens": 0,
+  "runs": 20,
+  "warmup_runs": 2,
+  "timeout_seconds": 120,
+  "strict": true,
+  "metric_fallback_to_wall_time": true,
+  "output_dir": "benchmarks/results/gguf",
+  "metric": {
+    "key": "wall_seconds",
+    "unit": "s/run",
+    "direction": "lower"
+  },
+  "variables": {
+    "python_bin": "python"
+  },
+  "backends": [
+    {
+      "name": "aero",
+      "enabled": true,
+      "cwd": ".",
+      "command": ".\\benchmarks\\lang_compare_tmp\\fib35_aero_latest.exe"
+    },
+    {
+      "name": "cpp_printf",
+      "enabled": true,
+      "cwd": ".",
+      "command": ".\\benchmarks\\lang_compare_tmp\\fib35_cpp_printf.exe"
+    },
+    {
+      "name": "python",
+      "enabled": true,
+      "cwd": ".",
+      "command": "\"{python_bin}\" .\\benchmarks\\lang_compare_tmp\\fib35.py"
+    }
+  ]
+}
+

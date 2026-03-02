@@ -71,6 +71,7 @@ This document outlines the development roadmap for the Aero programming language
 
 ### Phase 9+ (v1.1.0+)
 - GGUF-native model loading and runtime benchmarking on CUDA/ROCm targets
+- Cross-framework GGUF benchmark harness is available at `benchmarks/gguf/` for reproducible Aero vs llama.cpp vs PyTorch measurements
 - Broader kernel library coverage and deeper graph scheduling optimizations
 - Extended mechanized proof coverage beyond deterministic conformance checks
 

@@ -1,0 +1,69 @@
+{
+  "benchmark_name": "gguf_mock_validation",
+  "hardware": "local-mock",
+  "model": {
+    "name": "mock.gguf",
+    "path": "models/mock.gguf"
+  },
+  "prompt": "hello",
+  "max_tokens": 128,
+  "runs": 5,
+  "warmup_runs": 1,
+  "timeout_seconds": 15,
+  "strict": true,
+  "output_dir": "benchmarks/results/gguf",
+  "metric": {
+    "key": "tokens_per_second",
+    "unit": "tokens/s",
+    "direction": "higher"
+  },
+  "variables": {
+    "python_bin": "python",
+    "mock_runner": "benchmarks/gguf/mock_backend.py"
+  },
+  "backends": [
+    {
+      "name": "aero_mock",
+      "command": "\"{python_bin}\" \"{mock_runner}\" --backend aero --min-tps 141 --max-tps 147 --prompt-ms 38.0 --vram-gb 7.65",
+      "metric_regexes": [
+        "tokens/sec:\\s*([0-9]+(?:\\.[0-9]+)?)"
+      ],
+      "aux_metrics": {
+        "prompt_eval_ms": [
+          "prompt_eval_ms:\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ],
+        "peak_vram_gb": [
+          "peak_vram_gb:\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ]
+      }
+    },
+    {
+      "name": "llama_cpp_mock",
+      "command": "\"{python_bin}\" \"{mock_runner}\" --backend llama_cpp --min-tps 135 --max-tps 142 --prompt-ms 41.0 --vram-gb 7.72",
+      "metric_regexes": [
+        "tokens/sec:\\s*([0-9]+(?:\\.[0-9]+)?)"
+      ],
+      "aux_metrics": {
+        "prompt_eval_ms": [
+          "prompt_eval_ms:\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ]
+      }
+    },
+    {
+      "name": "pytorch_mock",
+      "command": "\"{python_bin}\" \"{mock_runner}\" --backend pytorch --min-tps 78 --max-tps 86 --prompt-ms 66.0 --vram-gb 9.10",
+      "metric_regexes": [
+        "tokens/sec:\\s*([0-9]+(?:\\.[0-9]+)?)"
+      ],
+      "aux_metrics": {
+        "prompt_eval_ms": [
+          "prompt_eval_ms:\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ],
+        "peak_vram_gb": [
+          "peak_vram_gb:\\s*([0-9]+(?:\\.[0-9]+)?)"
+        ]
+      }
+    }
+  ]
+}
+

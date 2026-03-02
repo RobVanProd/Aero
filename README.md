@@ -69,6 +69,9 @@ aero graph-opt main.ll -o main.opt.ll --backend rocm --gpu gfx1101
 # Apply hardware-calibrated quantization lowering (INT8/FP8)
 aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --gpu gfx1101 --calibration calib.json
 
+# Run cross-framework GGUF benchmark harness (Aero vs llama.cpp vs PyTorch)
+python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json
+
 # Registry search (offline index or live transport)
 aero registry search vision --live --registry https://registry.aero/api/v1
 
