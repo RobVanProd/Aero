@@ -39,8 +39,8 @@ This installs `aero` into your Cargo bin directory (typically `~/.cargo/bin`).
 
 ## CLI command summary (v1.0.0)
 
-- `aero build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]`: compile Aero source to LLVM IR with optional accelerator target metadata
-- `aero run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]`: compile and run an Aero program (artifacts are emitted under `target/aero-run`; ROCm path currently emits target object for HIP integration)
+- `aero build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--backend <cpu|rocm|cuda|gpu>] [--gpu <arch>]`: compile Aero source to LLVM IR with optional accelerator target metadata
+- `aero run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--backend <cpu|rocm|cuda|gpu>] [--gpu <arch>]`: compile and run an Aero program (artifacts are emitted under `target/aero-run`; ROCm path currently emits target object for HIP integration)
 - `aero check <input.aero>`: type-check only (no code generation)
 - `aero test`: discover and run `*_test.aero` files
 - `aero fmt <input.aero>`: auto-format source
@@ -92,6 +92,9 @@ python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.mock.json
 
 # Real benchmark (edit backend commands as needed)
 python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json
+
+# Run only ROCm-named backends from a mixed config
+python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json --backend rocm
 ```
 
 Outputs are written under `benchmarks/results/gguf/` as JSON, Markdown, and HTML reports.

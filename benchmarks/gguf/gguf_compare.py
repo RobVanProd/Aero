@@ -88,6 +88,14 @@ def parse_args() -> argparse.Namespace:
         default=-1,
         help="Override warmup run count from config",
     )
+    parser.add_argument(
+        "--backend",
+        default="",
+        help=(
+            "Run only matching backends (comma-separated). "
+            "Matching supports exact names or substring tokens, e.g. 'rocm' or 'aero_rocm,llama_cpp_rocm'."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -161,6 +169,17 @@ def format_command(template: str, variables: Dict[str, str]) -> str:
         return template.format(**variables)
     except KeyError as exc:
         raise ValueError(f"missing template variable '{exc.args[0]}' in command: {template}") from exc
+
+
+def parse_backend_filters(raw: str) -> List[str]:
+    return [item.strip().lower() for item in raw.split(",") if item.strip()]
+
+
+def backend_is_selected(name: str, filters: Sequence[str]) -> bool:
+    if not filters:
+        return True
+    lower_name = name.lower()
+    return any(token == lower_name or token in lower_name for token in filters)
 
 
 def parse_numeric_metric(text: str, regexes: Iterable[str]) -> Optional[float]:
@@ -462,6 +481,7 @@ def main() -> int:
     if not backends:
         print("Config must include a non-empty 'backends' list.", file=sys.stderr)
         return 1
+    backend_filters = parse_backend_filters(args.backend)
 
     print(f"Benchmark: {config.get('benchmark_name', 'gguf_compare')}")
     print(f"Config: {config_path}")
@@ -475,10 +495,20 @@ def main() -> int:
         name = str(backend.get("name", "")).strip()
         if not name:
             raise ValueError("Each backend must have a non-empty 'name'")
+        if not backend_is_selected(name, backend_filters):
+            continue
         command_tmpl = str(backend.get("command", "")).strip()
         if not command_tmpl:
             raise ValueError(f"Backend '{name}' is missing 'command'")
         backend_commands[name] = format_command(command_tmpl, variables)
+
+    if not backend_commands:
+        requested = args.backend if args.backend else "<none>"
+        print(
+            f"No enabled backends matched --backend filter: {requested}",
+            file=sys.stderr,
+        )
+        return 1
 
     if args.dry_run:
         print("\n[Dry run] Backend commands:")
@@ -493,6 +523,8 @@ def main() -> int:
             continue
 
         name = str(backend["name"])
+        if name not in backend_commands:
+            continue
         command = backend_commands[name]
         cwd_raw = str(backend.get("cwd", "."))
         cwd_path = (REPO_ROOT / cwd_raw) if not Path(cwd_raw).is_absolute() else Path(cwd_raw)
@@ -714,4 +746,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

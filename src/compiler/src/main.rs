@@ -5,6 +5,7 @@ mod compatibility;
 mod conformance;
 mod doc_generator;
 mod errors;
+mod gpu;
 mod graph_compiler;
 mod ir;
 mod ir_generator;
@@ -27,6 +28,7 @@ use crate::ir_generator::IrGenerator;
 use crate::performance_optimizations::PerformanceOptimizer;
 use crate::semantic_analyzer::SemanticAnalyzer;
 use accelerator::AcceleratorBackend;
+use gpu::{DeviceProfile, GpuDevice, default_gpu_arch};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -47,6 +49,14 @@ impl BuildTarget {
             "cpu" | "host" => Some(Self::Cpu),
             "rocm" | "amd" => Some(Self::Rocm),
             "cuda" | "nvidia" => Some(Self::Cuda),
+            "gpu" => {
+                let detected = GpuDevice::auto_detect();
+                Some(match detected.backend() {
+                    AcceleratorBackend::Rocm => Self::Rocm,
+                    AcceleratorBackend::Cuda => Self::Cuda,
+                    AcceleratorBackend::Cpu => Self::Cpu,
+                })
+            }
             _ => None,
         }
     }
@@ -85,10 +95,38 @@ struct RunArtifactPaths {
 }
 
 fn default_gpu_arch_for_backend(backend: AcceleratorBackend) -> Option<&'static str> {
-    match backend {
-        AcceleratorBackend::Cpu => None,
-        AcceleratorBackend::Rocm => Some("gfx1101"),
-        AcceleratorBackend::Cuda => Some("sm_89"),
+    default_gpu_arch(backend)
+}
+
+fn backend_for_target(target: BuildTarget) -> AcceleratorBackend {
+    match target {
+        BuildTarget::Cpu => AcceleratorBackend::Cpu,
+        BuildTarget::Rocm => AcceleratorBackend::Rocm,
+        BuildTarget::Cuda => AcceleratorBackend::Cuda,
+    }
+}
+
+fn apply_target_environment(build_config: &BuildConfig) {
+    let backend = backend_for_target(build_config.target);
+    let backend_name = backend.as_str();
+
+    // SAFETY: this CLI is single-process and updates environment variables before
+    // launching any child compilation commands.
+    unsafe {
+        env::set_var("AERO_ACCELERATOR", backend_name);
+    }
+
+    if backend == AcceleratorBackend::Rocm {
+        let rocm_target = format!("rocm-{}", build_config.gpu_arch_or_default());
+        // SAFETY: same rationale as above; this is process-local CLI configuration.
+        unsafe {
+            env::set_var("AERO_TARGET", rocm_target);
+        }
+    } else {
+        // SAFETY: same rationale as above; this keeps stale ROCm target state from leaking.
+        unsafe {
+            env::remove_var("AERO_TARGET");
+        }
     }
 }
 
@@ -164,27 +202,14 @@ impl BuildConfig {
         if let Some(arch) = self.gpu_arch.as_deref() {
             return arch;
         }
-        match self.target {
-            BuildTarget::Cpu => "x86_64",
-            BuildTarget::Rocm => "gfx1101",
-            BuildTarget::Cuda => "sm_89",
-        }
+        let backend = backend_for_target(self.target);
+        default_gpu_arch_for_backend(backend).unwrap_or("x86_64")
     }
 
     fn llvm_target_triple(&self) -> &str {
-        match self.target {
-            BuildTarget::Cpu => {
-                if cfg!(target_os = "windows") {
-                    "x86_64-pc-windows-msvc"
-                } else if cfg!(target_os = "macos") {
-                    "x86_64-apple-darwin"
-                } else {
-                    "x86_64-pc-linux-gnu"
-                }
-            }
-            BuildTarget::Rocm => "amdgcn-amd-amdhsa",
-            BuildTarget::Cuda => "nvptx64-nvidia-cuda",
-        }
+        let backend = backend_for_target(self.target);
+        let device = GpuDevice::new(backend, 0, self.gpu_arch.clone());
+        device.target_triple()
     }
 
     fn llvm_data_layout(&self) -> &str {
@@ -231,6 +256,7 @@ fn main() {
                     return;
                 }
             };
+            apply_target_environment(&build_config);
 
             let source_code = match fs::read_to_string(&input_file) {
                 Ok(content) => content,
@@ -250,6 +276,7 @@ fn main() {
                     return;
                 }
             };
+            apply_target_environment(&build_config);
 
             let source_code = match fs::read_to_string(&input_file) {
                 Ok(content) => content,
@@ -1226,7 +1253,7 @@ fn main() {
 fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), String> {
     if args.len() < 3 {
         return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
             args[0]
         ));
     }
@@ -1240,23 +1267,23 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "-o" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
                 output_file = Some(args[i + 1].clone());
                 i += 2;
             }
-            "--target" => {
+            "--target" | "--backend" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
                 let Some(target) = BuildTarget::parse(&args[i + 1]) else {
                     return Err(format!(
-                        "error: unsupported target `{}` (expected cpu|rocm|cuda)",
+                        "error: unsupported target `{}` (expected cpu|rocm|cuda|gpu)",
                         args[i + 1]
                     ));
                 };
@@ -1266,7 +1293,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "--gpu" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
@@ -1275,7 +1302,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             }
             _ => {
                 return Err(format!(
-                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
                     args[0]
                 ));
             }
@@ -1284,7 +1311,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
 
     let Some(output_file) = output_file else {
         return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
             args[0]
         ));
     };
@@ -1295,7 +1322,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
 fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
     if args.len() < 3 {
         return Err(format!(
-            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
+            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
             args[0], args[0]
         ));
     }
@@ -1306,16 +1333,16 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
     let mut i = 2usize;
     while i < args.len() {
         match args[i].as_str() {
-            "--target" => {
+            "--target" | "--backend" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
                 let Some(target) = BuildTarget::parse(&args[i + 1]) else {
                     return Err(format!(
-                        "error: unsupported target `{}` (expected cpu|rocm|cuda)",
+                        "error: unsupported target `{}` (expected cpu|rocm|cuda|gpu)",
                         args[i + 1]
                     ));
                 };
@@ -1325,7 +1352,7 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
             "--gpu" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
@@ -1334,7 +1361,7 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
             }
             value if value.starts_with('-') => {
                 return Err(format!(
-                    "error: unknown option `{}`\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                    "error: unknown option `{}`\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
                     value, args[0]
                 ));
             }
@@ -1342,7 +1369,7 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
                 if input_file.is_some() {
                     let existing = input_file.as_deref().unwrap_or("<unknown>");
                     return Err(format!(
-                        "error: multiple input files provided (`{}` and `{}`)\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+                        "error: multiple input files provided (`{}` and `{}`)\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
                         existing, value, args[0]
                     ));
                 }
@@ -1354,7 +1381,7 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
 
     let Some(input_file) = input_file else {
         return Err(format!(
-            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
+            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
             args[0], args[0]
         ));
     };
@@ -1690,19 +1717,24 @@ fn run_aero_program(
                 )
             })?;
 
-            let llc_output = Command::new(&llc_bin)
-                .args([
-                    "-march=amdgcn",
-                    "-mcpu",
-                    build_config.gpu_arch_or_default(),
-                    "-mattr",
-                    "+wavefrontsize64,+gfx11-insts",
-                    "-filetype=obj",
-                    &ll_path,
-                    "-o",
-                    &gpu_obj_path,
-                ])
-                .output();
+            let device = GpuDevice::new(
+                AcceleratorBackend::Rocm,
+                0,
+                Some(build_config.gpu_arch_or_default().to_string()),
+            );
+            let mut llc_args = device.llc_target_flags().unwrap_or_else(|| {
+                vec![
+                    "-march=amdgcn".to_string(),
+                    format!("-mcpu={}", build_config.gpu_arch_or_default()),
+                    "-mattr=+wavefrontsize64,+gfx11-insts".to_string(),
+                ]
+            });
+            llc_args.push("-filetype=obj".to_string());
+            llc_args.push(ll_path.clone());
+            llc_args.push("-o".to_string());
+            llc_args.push(gpu_obj_path.clone());
+
+            let llc_output = Command::new(&llc_bin).args(&llc_args).output();
 
             match llc_output {
                 Ok(output) => {
@@ -1749,9 +1781,26 @@ fn find_llvm_tool(tool: &str) -> Option<String> {
     }
 
     if cfg!(windows) {
-        let candidate = PathBuf::from(r"C:\Program Files\LLVM\bin").join(format!("{}.exe", tool));
-        if candidate.exists() {
-            return Some(candidate.to_string_lossy().into_owned());
+        let exe_name = format!("{}.exe", tool);
+        let mut candidates = vec![PathBuf::from(r"C:\Program Files\LLVM\bin").join(&exe_name)];
+
+        // Local source-built LLVM fallback used by this repository.
+        if let Ok(repo_root) = env::current_dir() {
+            candidates.push(
+                repo_root
+                    .join("third_party")
+                    .join("llvm-project")
+                    .join("build-rocm-tools")
+                    .join("Release")
+                    .join("bin")
+                    .join(&exe_name),
+            );
+        }
+
+        for candidate in candidates {
+            if candidate.exists() {
+                return Some(candidate.to_string_lossy().into_owned());
+            }
         }
     }
 
@@ -1766,10 +1815,10 @@ fn print_help(program_name: &str) {
     println!();
     println!("COMMANDS:");
     println!(
-        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda>] [--gpu <arch>]"
+        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]"
     );
     println!(
-        "    run <input.aero>                     Compile and run source [--target <cpu|rocm|cuda>] [--gpu <arch>]"
+        "    run <input.aero>                     Compile and run source [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]"
     );
     println!("    check <input.aero>                   Type-check only (no codegen)");
     println!("    test                                 Discover and run *_test.aero files");
@@ -1966,6 +2015,22 @@ mod tests {
     }
 
     #[test]
+    fn parse_build_args_accepts_backend_alias() {
+        let args = vec![
+            "aero".to_string(),
+            "build".to_string(),
+            "main.aero".to_string(),
+            "-o".to_string(),
+            "main.ll".to_string(),
+            "--backend".to_string(),
+            "rocm".to_string(),
+        ];
+        let (_input, _output, config) =
+            parse_build_args(&args).expect("build args should parse with --backend");
+        assert_eq!(config.target, BuildTarget::Rocm);
+    }
+
+    #[test]
     fn parse_run_args_supports_option_first_style() {
         let args = vec![
             "aero".to_string(),
@@ -1980,6 +2045,37 @@ mod tests {
         assert_eq!(input, "examples/gguf_inference.aero");
         assert_eq!(config.target, BuildTarget::Rocm);
         assert_eq!(config.gpu_arch.as_deref(), Some("gfx1101"));
+    }
+
+    #[test]
+    fn parse_run_args_supports_backend_alias() {
+        let args = vec![
+            "aero".to_string(),
+            "run".to_string(),
+            "--backend".to_string(),
+            "rocm".to_string(),
+            "examples/gguf_inference.aero".to_string(),
+        ];
+        let (input, config) = parse_run_args(&args).expect("run args should parse with --backend");
+        assert_eq!(input, "examples/gguf_inference.aero");
+        assert_eq!(config.target, BuildTarget::Rocm);
+    }
+
+    #[test]
+    fn parse_run_args_supports_gpu_auto_target() {
+        let args = vec![
+            "aero".to_string(),
+            "run".to_string(),
+            "--target".to_string(),
+            "gpu".to_string(),
+            "examples/gguf_inference.aero".to_string(),
+        ];
+        let (_input, config) =
+            parse_run_args(&args).expect("run args should parse with --target gpu");
+        assert!(matches!(
+            config.target,
+            BuildTarget::Cpu | BuildTarget::Rocm | BuildTarget::Cuda
+        ));
     }
 
     #[test]

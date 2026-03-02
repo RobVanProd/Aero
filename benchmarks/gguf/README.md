@@ -44,6 +44,9 @@ Output artifacts are written to `benchmarks/results/gguf/`:
 
 ```bash
 python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json
+
+# Optional: run only backends whose names match "rocm"
+python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json --backend rocm
 ```
 
 ### 3) Run immediate local baseline with installed `llama-cpp-python`

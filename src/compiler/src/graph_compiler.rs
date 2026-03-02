@@ -1,4 +1,5 @@
 use crate::accelerator::AcceleratorBackend;
+use crate::gpu::default_gpu_arch;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
@@ -430,8 +431,14 @@ fn looks_like_value_token(token: &str) -> bool {
 fn resolved_gpu_arch(config: &GraphCompilationConfig) -> Option<&str> {
     match config.backend {
         AcceleratorBackend::Cpu => None,
-        AcceleratorBackend::Rocm => config.gpu_arch.as_deref().or(Some("gfx1101")),
-        AcceleratorBackend::Cuda => config.gpu_arch.as_deref().or(Some("sm_89")),
+        AcceleratorBackend::Rocm => config
+            .gpu_arch
+            .as_deref()
+            .or(default_gpu_arch(AcceleratorBackend::Rocm)),
+        AcceleratorBackend::Cuda => config
+            .gpu_arch
+            .as_deref()
+            .or(default_gpu_arch(AcceleratorBackend::Cuda)),
     }
 }
 

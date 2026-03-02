@@ -54,6 +54,12 @@ aero run src/main.aero
 # ROCm-targeted compile path (RX 7800 XT / gfx1101)
 aero run --target rocm --gpu gfx1101 src/main.aero
 
+# Backend alias form (equivalent to --target)
+aero run --backend rocm --gpu gfx1101 src/main.aero
+
+# Auto-detect local GPU backend (ROCm/CUDA/CPU fallback)
+aero run --target gpu src/main.aero
+
 # Type-check only (no codegen)
 aero check src/main.aero
 
