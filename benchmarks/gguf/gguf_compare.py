@@ -222,6 +222,7 @@ def run_once(
         shell=True,
         capture_output=True,
         text=True,
+        errors="replace",
         timeout=timeout_s,
     )
     end = time.perf_counter()

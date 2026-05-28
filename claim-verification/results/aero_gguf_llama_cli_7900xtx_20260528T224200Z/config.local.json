@@ -1,0 +1,41 @@
+{
+  "benchmark_name": "gguf_mistral_small_24b_q4_llama_cli_7900xtx",
+  "hardware": "Radeon RX 7900 XTX only, HIP_VISIBLE_DEVICES=0",
+  "model": {
+    "name": "mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf",
+    "path": "/home/rob/models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf"
+  },
+  "prompt": "Explain quantum computing in one short sentence.",
+  "max_tokens": 8,
+  "runs": 1,
+  "warmup_runs": 0,
+  "timeout_seconds": 300,
+  "strict": true,
+  "output_dir": "benchmarks/results/gguf",
+  "metric": {
+    "key": "eval_tokens_per_second",
+    "unit": "tokens/s",
+    "direction": "higher"
+  },
+  "backends": [
+    {
+      "name": "llama_cpp_cli_rocm_7900xtx",
+      "cwd": ".",
+      "command": "env HIP_VISIBLE_DEVICES=0 /home/rob/llama.cpp/build-gpu/bin/llama-cli -m \"{model_path}\" -p \"{prompt}\" -n {max_tokens} -c 512 -ngl 999 --no-display-prompt",
+      "metric_regexes": [
+        "eval time =\\s+[0-9.]+ ms /\\s+[0-9]+ runs\\s+\\(\\s+[0-9.]+ ms per token,\\s+([0-9.]+) tokens per second\\)"
+      ],
+      "aux_metrics": {
+        "prompt_eval_tokens_per_second": [
+          "prompt eval time =\\s+[0-9.]+ ms /\\s+[0-9]+ tokens\\s+\\(\\s+[0-9.]+ ms per token,\\s+([0-9.]+) tokens per second\\)"
+        ],
+        "load_time_ms": [
+          "load time =\\s+([0-9.]+) ms"
+        ],
+        "total_time_ms": [
+          "total time =\\s+([0-9.]+) ms"
+        ]
+      }
+    }
+  ]
+}

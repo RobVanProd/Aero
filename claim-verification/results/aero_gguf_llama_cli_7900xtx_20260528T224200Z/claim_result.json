@@ -1,0 +1,91 @@
+{
+  "benchmark": {
+    "benchmark_name": "gguf_mistral_small_24b_q4_llama_cli_7900xtx",
+    "timestamp_utc": "2026-05-28T22:38:10.816008+00:00",
+    "hardware": "Radeon RX 7900 XTX only, HIP_VISIBLE_DEVICES=0",
+    "model_name": "mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf",
+    "model_path": "/home/rob/models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf",
+    "prompt": "Explain quantum computing in one short sentence.",
+    "max_tokens": 8,
+    "runs": 1,
+    "warmup_runs": 0,
+    "timeout_seconds": 300,
+    "metric": {
+      "key": "eval_tokens_per_second",
+      "unit": "tokens/s",
+      "direction": "higher"
+    },
+    "strict": true
+  },
+  "results": [
+    {
+      "name": "llama_cpp_cli_rocm_7900xtx",
+      "status": "ok",
+      "command": "env HIP_VISIBLE_DEVICES=0 /home/rob/llama.cpp/build-gpu/bin/llama-cli -m \"/home/rob/models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf\" -p \"Explain quantum computing in one short sentence.\" -n 8 -c 512 -ngl 999 --no-display-prompt",
+      "cwd": "/tmp/aero-public-verify-worktree",
+      "runs": [
+        {
+          "run_index": 1,
+          "ok": true,
+          "exit_code": 0,
+          "wall_seconds": 3.1272901899999397,
+          "primary_metric": 44.94,
+          "aux_metrics": {
+            "prompt_eval_tokens_per_second": 186.94,
+            "load_time_ms": 2701.84,
+            "total_time_ms": 229.61
+          },
+          "stdout_tail": "Quantum computing uses quantum bits (qu\n> EOF by user\n\n\n",
+          "stderr_tail": "turn to return control to the AI.\n - To return control without starting a new line, end your input with '/'.\n - If you want to submit another line, end your input with '\\'.\n - Not using system message. To change it, set a different value via -sys PROMPT\n\nllama_perf_sampler_print:    sampling time =       0.35 ms /    19 runs   (    0.02 ms per token, 54441.26 tokens per second)\nllama_perf_context_print:        load time =    2701.84 ms\nllama_perf_context_print: prompt eval time =      58.84 ms /    11 tokens (    5.35 ms per token,   186.94 tokens per second)\nllama_perf_context_print:        eval time =     155.77 ms /     7 runs   (   22.25 ms per token,    44.94 tokens per second)\nllama_perf_context_print:       total time =     229.61 ms /    18 tokens\nllama_perf_context_print:    graphs reused =          7\nllama_memory_breakdown_print: | memory breakdown [MiB]  | total    free     self   model   context   compute    unaccounted |\nllama_memory_breakdown_print: |   - ROCm0 (RX 7900 XTX) | 24560 = 10698 + (13648 = 13302 +      80 +     266) +         213 |\nllama_memory_breakdown_print: |   - Host                |                    371 =   360 +       0 +      11                |\n"
+        }
+      ],
+      "summary": {
+        "primary_metric": {
+          "mean": 44.94,
+          "median": 44.94,
+          "min": 44.94,
+          "max": 44.94,
+          "p95": 44.94,
+          "stdev": 0.0
+        },
+        "wall_seconds": {
+          "mean": 3.1272901899999397,
+          "median": 3.1272901899999397,
+          "min": 3.1272901899999397,
+          "max": 3.1272901899999397,
+          "p95": 3.1272901899999397,
+          "stdev": 0.0
+        },
+        "success_runs": 1,
+        "failed_runs": 0,
+        "aux_metrics": {
+          "prompt_eval_tokens_per_second": {
+            "mean": 186.94,
+            "median": 186.94,
+            "min": 186.94,
+            "max": 186.94,
+            "p95": 186.94,
+            "stdev": 0.0
+          },
+          "load_time_ms": {
+            "mean": 2701.84,
+            "median": 2701.84,
+            "min": 2701.84,
+            "max": 2701.84,
+            "p95": 2701.84,
+            "stdev": 0.0
+          },
+          "total_time_ms": {
+            "mean": 229.61,
+            "median": 229.61,
+            "min": 229.61,
+            "max": 229.61,
+            "p95": 229.61,
+            "stdev": 0.0
+          }
+        },
+        "median_vs_best": 1.0
+      }
+    }
+  ]
+}

@@ -32,11 +32,26 @@
       ]
     },
     {
+      "id": "aero_public_master_gguf_llama_cli_20260528",
+      "status": "verified_reference_only",
+      "claim": "The GGUF harness completed a real local llama.cpp CLI ROCm inference run with HIP_VISIBLE_DEVICES=0 on the Radeon RX 7900 XTX using /home/rob/models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf. One measured run reported 44.94 eval tokens/s, 186.94 prompt eval tokens/s, and 2701.84 ms load time. This is a llama.cpp CLI backend reference only, not an Aero-vs-llama.cpp-vs-PyTorch comparison.",
+      "artifacts": [
+        "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/claim_result.json",
+        "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/gguf_compare.stdout.log",
+        "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/gguf_compare.stderr.log",
+        "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/report.md",
+        "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/config.local.json",
+        "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/command_config.txt",
+        "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/hardware_software_metadata.txt"
+      ]
+    },
+    {
       "id": "aero_public_master_gpu_claims_20260528",
       "status": "blocked",
-      "claim": "GPT-2 training versus PyTorch, GPU 4096x4096 Aero matmul speedup, NCCL/MPI multi-GPU scaling, GGUF inference, and HIP/vector-add claims are omitted because no current public-branch Aero artifact or rerun verified them.",
+      "claim": "GPT-2 training versus PyTorch, GPU 4096x4096 Aero matmul speedup, NCCL/MPI multi-GPU scaling, Aero-vs-llama.cpp-vs-PyTorch GGUF comparison, and HIP/vector-add claims are omitted because no current public-branch Aero artifact or rerun verified them.",
       "artifacts": [
-        "claim-verification/results/aero_public_master_7900xtx_20260528T223000Z/hardware_software_metadata.txt"
+        "claim-verification/results/aero_public_master_7900xtx_20260528T223000Z/hardware_software_metadata.txt",
+        "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/claim_result.json"
       ]
     }
   ]

@@ -1,0 +1,15 @@
+Benchmark: gguf_mistral_small_24b_q4_llama_cli_7900xtx
+Config: /tmp/aero-public-verify-worktree/claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/config.local.json
+Metric: eval_tokens_per_second (tokens/s, higher is better)
+Runs: 1, warmup: 0, timeout: 300s
+
+== Backend: llama_cpp_cli_rocm_7900xtx ==
+Command: env HIP_VISIBLE_DEVICES=0 /home/rob/llama.cpp/build-gpu/bin/llama-cli -m "/home/rob/models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf" -p "Explain quantum computing in one short sentence." -n 8 -c 512 -ngl 999 --no-display-prompt
+CWD: /tmp/aero-public-verify-worktree
+Run 1/1...
+
+Benchmark completed.
+- JSON: /tmp/aero-public-verify-worktree/claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/claim_result.json
+- Markdown: /tmp/aero-public-verify-worktree/claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/report.md
+- HTML: /tmp/aero-public-verify-worktree/claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/report.html
+- Best median eval_tokens_per_second: 44.9400 tokens/s

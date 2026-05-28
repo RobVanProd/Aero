@@ -38,6 +38,12 @@ Verified current results:
 - The same run completed Rust Criterion lexer-only benchmarks. The reported
   median tokenization times ranged from 282.31 ns for `tokenize_simple_io` to
   21.507 us for `tokenize_large_program`.
+- The GGUF harness completed a real local llama.cpp CLI ROCm inference run with
+  `HIP_VISIBLE_DEVICES=0` on the Radeon RX 7900 XTX. The model was
+  `/home/rob/models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf`;
+  one measured run reported 44.94 eval tokens/s, 186.94 prompt eval tokens/s,
+  and 2701.84 ms load time
+  ([result JSON](claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/claim_result.json)).
 
 Blocked or omitted claims:
 
@@ -47,9 +53,8 @@ Blocked or omitted claims:
   Aero matmul artifact or rerun verified it.
 - NCCL/MPI multi-GPU scaling is omitted because no current public-branch
   multi-GPU scaling artifact or rerun verified it.
-- GGUF/inference benchmark claims are omitted because the public branch contains
-  GGUF benchmark scaffolding, but no fresh successful local GGUF inference run
-  was captured in this verification.
+- Aero-vs-llama.cpp-vs-PyTorch GGUF comparison claims are omitted because this
+  verification captured only a single llama.cpp CLI ROCm backend run.
 - HIP/vector-add claims are omitted here because no current Aero artifact or
   rerun in this repo verified them.
 

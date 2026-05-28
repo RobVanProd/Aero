@@ -1,0 +1,4 @@
+command: python3 benchmarks/gguf/gguf_compare.py --config claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/config.local.json --output-json claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/claim_result.json --output-md claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/report.md --output-html claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/report.html
+repo: /tmp/aero-public-verify-worktree
+commit_before_run: baf5d7acc7a157898728d95d1a1c8b91b4294341
+timestamp_utc: 2026-05-28T22:37:25Z
