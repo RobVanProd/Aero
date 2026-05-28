@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Aero v1.0.0</h1>
-  <p><strong>The First Complete AI-Native Systems Language</strong></p>
+  <p><strong>Experimental systems language and compiler repository</strong></p>
   <a href="https://github.com/RobVanProd/Aero/stargazers">
     <img src="https://img.shields.io/github/stars/RobVanProd/Aero?style=social" alt="GitHub stars">
   </a>
@@ -12,29 +12,46 @@
   </a>
 </div>
 
-**Rust-level safety • C-level speed • Python-level ergonomics** for AI and numerical computing.
+Aero contains a compiler, language examples, benchmark harnesses, and
+experimental GPU/runtime interfaces. This README only lists benchmark claims
+that are backed by tracked artifacts under
+[`claim-verification/`](claim-verification/).
 
-Aero solves the two-language problem by providing a single, memory-safe systems language that delivers production-grade deep learning performance without Python or garbage collection overhead.
+## Verified Results
 
-## 🚀 Live Ecosystem
+The latest public-branch verification was run on 2026-05-28 at commit
+`7d6ad2f865560cdcca4e30390430a7878c65fa69` on this local machine:
 
-- **[Interactive WebAssembly Playground](https://github.com/RobVanProd/AeroNum/tree/main/playground)** – Compile and run Aero code directly in your browser  
-- **[Benchmarking Dashboard](https://github.com/RobVanProd/AeroNum/tree/main/benchmarks/dashboard)** – Live performance telemetry  
-- **[Full Documentation](https://github.com/RobVanProd/AeroNum/tree/main/docs)** – "NumPy to AeroNum in 10 minutes" and API reference  
+- CPU: AMD Ryzen 9 9950X 16-Core Processor
+- GPU 0: Radeon RX 7900 XTX (`gfx1100`, PCI device `1002:744c`)
+- GPU 1: AMD Radeon Graphics (`gfx1036`, PCI device `1002:13c0`)
+- PyTorch: `2.5.1+rocm6.2`
+- HIP: `6.2.41133-dd7f95766`
 
-## ⚡ Performance Highlights
+Verified current results:
 
-- **≥1.4× faster** than PyTorch on end-to-end GPT-2 mini-transformer training (1047 vs 748 tokens/sec)  
-- **≥5.3× GPU acceleration** on 4096×4096 matrix multiplication with automatic `.to("cuda")` dispatch  
-- **Near-linear multi-GPU scaling** via native NCCL/MPI distributed training (up to 8 GPUs)  
-- **Zero garbage collection pauses** – full ownership model with compile-time safety  
+- `bash ./scripts/run_performance_benchmarks.sh` completed with exit code 0
+  on the public `master` branch. The Python harness measured 19 compilation
+  benchmark cases with mean times from 0.0401563915 s to 0.6799075492 s. The
+  highest mean was `function_performance.aero`, whose median was 0.0417738980 s
+  and whose max run was 6.4224741870 s.
+- The same run completed Rust Criterion lexer-only benchmarks. The reported
+  median tokenization times ranged from 282.31 ns for `tokenize_simple_io` to
+  21.507 us for `tokenize_large_program`.
 
-## 🧠 Why Aero Wins
+Blocked or omitted claims:
 
-1. **Zero-Cost Abstractions** – Neural networks compile to native code with no runtime overhead  
-2. **Memory Safety by Construction** – Ownership and borrowing eliminate use-after-free and data races  
-3. **Familiar Ergonomics** – `Sequential`, `Dense`, `to("cuda")`, `save()`/`load()` feel like PyTorch  
-4. **Distributed by Default** – Native DataParallel and ModelParallel with zero-copy NCCL communication  
+- GPT-2 training vs PyTorch is omitted because this repo does not contain a
+  fresh Aero GPT-2 training artifact from the current public branch.
+- GPU 4096x4096 Aero matmul speedup is omitted because no current public-branch
+  Aero matmul artifact or rerun verified it.
+- NCCL/MPI multi-GPU scaling is omitted because no current public-branch
+  multi-GPU scaling artifact or rerun verified it.
+- GGUF/inference benchmark claims are omitted because the public branch contains
+  GGUF benchmark scaffolding, but no fresh successful local GGUF inference run
+  was captured in this verification.
+- HIP/vector-add claims are omitted here because no current Aero artifact or
+  rerun in this repo verified them.
 
 ## 📦 Quick Start
 
@@ -51,11 +68,11 @@ cd my_app
 # Compile + run
 aero run src/main.aero
 
-# ROCm-targeted compile path (RX 7800 XT / gfx1101)
-aero run --target rocm --gpu gfx1101 src/main.aero
+# ROCm-targeted compile path
+aero run --target rocm --gpu gfx1100 src/main.aero
 
 # Backend alias form (equivalent to --target)
-aero run --backend rocm --gpu gfx1101 src/main.aero
+aero run --backend rocm --gpu gfx1100 src/main.aero
 
 # Auto-detect local GPU backend (ROCm/CUDA/CPU fallback)
 aero run --target gpu src/main.aero
@@ -70,12 +87,12 @@ aero doc src/main.aero -o main.md
 aero profile src/main.aero -o trace.json
 
 # Apply graph compilation with executable fusion (CPU/CUDA/ROCm)
-aero graph-opt main.ll -o main.opt.ll --backend rocm --gpu gfx1101
+aero graph-opt main.ll -o main.opt.ll --backend rocm --gpu gfx1100
 
 # Apply hardware-calibrated quantization lowering (INT8/FP8)
-aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --gpu gfx1101 --calibration calib.json
+aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --gpu gfx1100 --calibration calib.json
 
-# Run cross-framework GGUF benchmark harness (Aero vs llama.cpp vs PyTorch)
+# Run the GGUF benchmark harness when configured locally
 python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json
 
 # Registry search (offline index or live transport)
@@ -96,8 +113,8 @@ use aeronn::{Transformer, Sequential};
 
 fn main() {
     let mut model = Transformer::new(layers: 6, dim: 384, heads: 6);
-    model.to("distributed", 4);  // Scale across 4 GPUs
-    // Train at native speed...
+    model.to("distributed", 4);
+    // Training behavior depends on the available runtime backend.
 }
 ```
 

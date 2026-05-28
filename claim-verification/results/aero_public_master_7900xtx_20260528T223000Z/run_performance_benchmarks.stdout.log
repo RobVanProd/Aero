@@ -1,0 +1,152 @@
+=== Aero Phase 3 Performance Benchmarks ===
+
+Running performance benchmarks...
+
+=== Aero Phase 3 Performance Benchmarks ===
+
+Running function performance benchmarks...
+  Benchmarking function_performance.aero...
+Running loop performance benchmarks...
+  Benchmarking loop_performance.aero...
+Running I/O performance benchmarks...
+  Benchmarking io_performance.aero...
+Running compilation speed benchmarks...
+  Benchmarking compilation of variables.aero...
+  Benchmarking compilation of hello.aero...
+  Benchmarking compilation of return15.aero...
+  Benchmarking compilation of calculator.aero...
+  Benchmarking compilation of scoping.aero...
+  Benchmarking compilation of float_ops.aero...
+  Benchmarking compilation of loops.aero...
+  Benchmarking compilation of error_examples.aero...
+  Benchmarking compilation of mixed.aero...
+  Benchmarking compilation of fib.aero...
+  Benchmarking compilation of calc.aero...
+  Benchmarking compilation of fibonacci.aero...
+Running performance regression benchmarks...
+  Benchmarking simple_arithmetic.aero...
+  Benchmarking simple_functions.aero...
+  Benchmarking simple_loops.aero...
+  Benchmarking simple_io.aero...
+Results saved to /tmp/aero-public-verify-worktree/benchmarks/results/performance_results_1780007130.json
+
+=== Benchmark Summary ===
+
+Function Performance:
+  function_performance.aero: 0.6799s avg compilation
+
+Loop Performance:
+  loop_performance.aero: 0.0417s avg compilation
+
+Io Performance:
+  io_performance.aero: 0.0408s avg compilation
+
+Compilation Speed:
+  variables.aero: 0.0408s avg compilation
+  hello.aero: 0.0412s avg compilation
+  return15.aero: 0.0416s avg compilation
+  calculator.aero: 0.0413s avg compilation
+  scoping.aero: 0.0402s avg compilation
+  float_ops.aero: 0.0419s avg compilation
+  loops.aero: 0.0431s avg compilation
+  error_examples.aero: 0.0413s avg compilation
+  mixed.aero: 0.0403s avg compilation
+  fib.aero: 0.0417s avg compilation
+  calc.aero: 0.0422s avg compilation
+  fibonacci.aero: 0.0423s avg compilation
+
+Performance Regression:
+  simple_arithmetic.aero: 0.0419s avg compilation
+  simple_functions.aero: 0.0414s avg compilation
+  simple_loops.aero: 0.0428s avg compilation
+  simple_io.aero: 0.0418s avg compilation
+
+Benchmark suite completed!
+Detailed results saved to: /tmp/aero-public-verify-worktree/benchmarks/results/performance_results_1780007130.json
+
+Performance benchmarks completed successfully!
+Results are saved in benchmarks/results/
+
+Attempting to run Rust criterion benchmarks...
+Compiler builds successfully, running Rust benchmarks...
+tokenize_simple_function
+                        time:   [556.66 ns 557.51 ns 558.58 ns]
+
+tokenize_recursive_function
+                        time:   [787.57 ns 789.05 ns 790.51 ns]
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) low mild
+
+tokenize_nested_functions
+                        time:   [1.0505 µs 1.0514 µs 1.0522 µs]
+Found 7 outliers among 100 measurements (7.00%)
+  7 (7.00%) low mild
+
+tokenize_while_loop     time:   [352.01 ns 352.87 ns 353.95 ns]
+Found 8 outliers among 100 measurements (8.00%)
+  1 (1.00%) low mild
+  3 (3.00%) high mild
+  4 (4.00%) high severe
+
+tokenize_for_loop       time:   [337.15 ns 337.85 ns 338.83 ns]
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low mild
+  2 (2.00%) high mild
+  3 (3.00%) high severe
+
+tokenize_nested_loops   time:   [717.50 ns 718.00 ns 718.47 ns]
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) low mild
+
+tokenize_simple_io      time:   [281.73 ns 282.31 ns 282.94 ns]
+Found 10 outliers among 100 measurements (10.00%)
+  3 (3.00%) high mild
+  7 (7.00%) high severe
+
+tokenize_formatted_io   time:   [462.95 ns 463.71 ns 464.69 ns]
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) high mild
+  3 (3.00%) high severe
+
+tokenize_multiple_io    time:   [370.23 ns 371.42 ns 372.86 ns]
+Found 12 outliers among 100 measurements (12.00%)
+  6 (6.00%) low mild
+  5 (5.00%) high mild
+  1 (1.00%) high severe
+
+tokenize_small_program  time:   [549.15 ns 550.06 ns 551.04 ns]
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low mild
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+tokenize_medium_program time:   [1.9405 µs 1.9425 µs 1.9449 µs]
+Found 10 outliers among 100 measurements (10.00%)
+  3 (3.00%) low mild
+  7 (7.00%) high severe
+
+tokenize_large_program  time:   [21.474 µs 21.507 µs 21.550 µs]
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high severe
+
+tokenize_baseline_arithmetic
+                        time:   [418.16 ns 418.78 ns 419.46 ns]
+Found 6 outliers among 100 measurements (6.00%)
+  4 (4.00%) high mild
+  2 (2.00%) high severe
+
+tokenize_baseline_variables
+                        time:   [384.99 ns 385.91 ns 386.84 ns]
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+
+tokenize_phase3_functions
+                        time:   [1.1943 µs 1.1956 µs 1.1973 µs]
+Found 5 outliers among 100 measurements (5.00%)
+  1 (1.00%) high mild
+  4 (4.00%) high severe
+
+Lexer benchmarks completed successfully
+
+All available benchmarks completed!

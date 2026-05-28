@@ -1,0 +1,4 @@
+command: bash ./scripts/run_performance_benchmarks.sh
+repo: /tmp/aero-public-verify-worktree
+commit_before_run: 7d6ad2f865560cdcca4e30390430a7878c65fa69
+timestamp_utc: 2026-05-28T22:25:16Z

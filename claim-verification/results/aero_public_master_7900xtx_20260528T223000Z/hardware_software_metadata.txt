@@ -1,0 +1,79 @@
+timestamp_utc: 2026-05-28T22:27:58Z
+repo_commit: 7d6ad2f865560cdcca4e30390430a7878c65fa69
+
+lspci_vga_3d_display:
+04:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] Navi 31 [Radeon RX 7900 XT/7900 XTX/7900 GRE/7900M] (rev c8)
+7c:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] Granite Ridge [Radeon Graphics] (rev c1)
+
+rocminfo_gpu_agents:
+  Name:                    AMD Ryzen 9 9950X 16-Core Processor
+  Marketing Name:          AMD Ryzen 9 9950X 16-Core Processor
+  Vendor Name:             CPU
+  Device Type:             CPU
+  Chip ID:                 0(0x0)
+  Max Clock Freq. (MHz):   5752
+  Compute Unit:            32
+  Name:                    gfx1100
+  Marketing Name:          Radeon RX 7900 XTX
+  Vendor Name:             AMD
+  Device Type:             GPU
+  Chip ID:                 29772(0x744c)
+  Max Clock Freq. (MHz):   2482
+  Compute Unit:            96
+  Name:                    gfx1036
+  Marketing Name:          AMD Radeon Graphics
+  Vendor Name:             AMD
+  Device Type:             GPU
+  Chip ID:                 5056(0x13c0)
+  Max Clock Freq. (MHz):   2200
+  Compute Unit:            2
+
+rocm_smi:
+
+
+============================ ROCm System Management Interface ============================
+============================== Version of System Component ===============================
+Driver version: 6.8.0-111-generic
+==========================================================================================
+======================================= Unique ID ========================================
+GPU[0]		: Unique ID: 0xcf2fe125aafed7ba
+GPU[1]		: Unique ID: N/A
+==========================================================================================
+====================================== Product Info ======================================
+GPU[0]		: Card Series: 		Navi 31 [Radeon RX 7900 XT/7900 XTX/7900 GRE/7900M]
+GPU[0]		: Card Model: 		0x744c
+GPU[0]		: Card Vendor: 		Advanced Micro Devices, Inc. [AMD/ATI]
+GPU[0]		: Card SKU: 		31XFSHBS1
+GPU[0]		: Subsystem ID: 	RX-79XMERCB9 [SPEEDSTER MERC 310 RX 7900 XTX]
+GPU[0]		: Device Rev: 		0xc8
+GPU[0]		: Node ID: 		1
+GPU[0]		: GUID: 		49057
+GPU[0]		: GFX Version: 		gfx11000
+GPU[1]		: Card Series: 		Granite Ridge [Radeon Graphics]
+GPU[1]		: Card Model: 		0x13c0
+GPU[1]		: Card Vendor: 		Advanced Micro Devices, Inc. [AMD/ATI]
+GPU[1]		: Card SKU: 		RAPHAEL
+GPU[1]		: Subsystem ID: 	0x8877
+GPU[1]		: Device Rev: 		0xc1
+GPU[1]		: Node ID: 		2
+GPU[1]		: GUID: 		18715
+GPU[1]		: GFX Version: 		gfx1036
+==========================================================================================
+================================== End of ROCm SMI Log ===================================
+
+python_torch_rocm:
+python 3.10.12
+torch 2.5.1+rocm6.2
+torch.version.hip 6.2.41133-dd7f95766
+cuda_available True
+device_count 2
+device_0_name Radeon RX 7900 XTX
+device_0_gcnArchName gfx1100
+device_0_total_memory 25753026560
+device_1_name AMD Radeon Graphics
+device_1_gcnArchName gfx1036
+device_1_total_memory 66282786816
+
+rust_cargo:
+rustc 1.93.0 (254b59607 2026-01-19)
+cargo 1.93.0 (083ac5135 2025-12-15)
