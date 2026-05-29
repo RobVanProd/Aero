@@ -1,0 +1,236 @@
+{
+  "timestamp": 1780006102.2809236,
+  "benchmarks": {
+    "function_performance": {
+      "function_performance.aero": {
+        "compilation": {
+          "mean": 0.047360303800002154,
+          "median": 0.040571840500007283,
+          "min": 0.03873716699999363,
+          "max": 0.10801865400000565,
+          "std_dev": 0.021356121127894808,
+          "iterations": 10
+        },
+        "description": "Function call overhead and recursion performance"
+      }
+    },
+    "loop_performance": {
+      "loop_performance.aero": {
+        "compilation": {
+          "mean": 0.03973301110000023,
+          "median": 0.03989592000000641,
+          "min": 0.0378254620000007,
+          "max": 0.04169848899999806,
+          "std_dev": 0.001299584718005675,
+          "iterations": 10
+        },
+        "description": "While, for, and infinite loop performance"
+      }
+    },
+    "io_performance": {
+      "io_performance.aero": {
+        "compilation": {
+          "mean": 0.0389706452999917,
+          "median": 0.03894100449998916,
+          "min": 0.03744824500000732,
+          "max": 0.041053143999988606,
+          "std_dev": 0.0011798812436511392,
+          "iterations": 10
+        },
+        "description": "Print and format string performance"
+      }
+    },
+    "compilation_speed": {
+      "variables.aero": {
+        "compilation": {
+          "mean": 0.038520716100001094,
+          "median": 0.0384426970000078,
+          "min": 0.03631613599998218,
+          "max": 0.040090461999994886,
+          "std_dev": 0.0012905669293900223,
+          "iterations": 10
+        },
+        "file_size_bytes": 157,
+        "description": "Compilation speed for variables.aero"
+      },
+      "hello.aero": {
+        "compilation": {
+          "mean": 0.04033351669999945,
+          "median": 0.03984870100001103,
+          "min": 0.03844045499999993,
+          "max": 0.044227108999990605,
+          "std_dev": 0.0017543357368854364,
+          "iterations": 10
+        },
+        "file_size_bytes": 257,
+        "description": "Compilation speed for hello.aero"
+      },
+      "return15.aero": {
+        "compilation": {
+          "mean": 0.03954291249999642,
+          "median": 0.03916335750000144,
+          "min": 0.03757062599999017,
+          "max": 0.04153291399998693,
+          "std_dev": 0.0013229856323607803,
+          "iterations": 10
+        },
+        "file_size_bytes": 126,
+        "description": "Compilation speed for return15.aero"
+      },
+      "calculator.aero": {
+        "compilation": {
+          "mean": 0.03961185129999478,
+          "median": 0.03956734599999834,
+          "min": 0.038452888999984225,
+          "max": 0.040942227999977376,
+          "std_dev": 0.0008271924107502939,
+          "iterations": 10
+        },
+        "file_size_bytes": 5934,
+        "description": "Compilation speed for calculator.aero"
+      },
+      "scoping.aero": {
+        "compilation": {
+          "mean": 0.039428049899999,
+          "median": 0.03940319400000192,
+          "min": 0.03657615399998804,
+          "max": 0.04138243399998487,
+          "std_dev": 0.0014785211160298424,
+          "iterations": 10
+        },
+        "file_size_bytes": 8055,
+        "description": "Compilation speed for scoping.aero"
+      },
+      "float_ops.aero": {
+        "compilation": {
+          "mean": 0.03944975659999557,
+          "median": 0.03957530600000325,
+          "min": 0.0379378739999936,
+          "max": 0.04103041600001234,
+          "std_dev": 0.0009388913268341141,
+          "iterations": 10
+        },
+        "file_size_bytes": 207,
+        "description": "Compilation speed for float_ops.aero"
+      },
+      "loops.aero": {
+        "compilation": {
+          "mean": 0.039551969600000805,
+          "median": 0.03949234549997982,
+          "min": 0.03883193900000492,
+          "max": 0.04156545700001857,
+          "std_dev": 0.0007991251542982483,
+          "iterations": 10
+        },
+        "file_size_bytes": 4243,
+        "description": "Compilation speed for loops.aero"
+      },
+      "error_examples.aero": {
+        "compilation": {
+          "mean": 0.03968343659999789,
+          "median": 0.040039882500011004,
+          "min": 0.03676244400000428,
+          "max": 0.04119460500001537,
+          "std_dev": 0.0012361558614873436,
+          "iterations": 10
+        },
+        "file_size_bytes": 9011,
+        "description": "Compilation speed for error_examples.aero"
+      },
+      "mixed.aero": {
+        "compilation": {
+          "mean": 0.04055996820000303,
+          "median": 0.04072470950001161,
+          "min": 0.038763321999994105,
+          "max": 0.041836175000014464,
+          "std_dev": 0.0009729420590627157,
+          "iterations": 10
+        },
+        "file_size_bytes": 177,
+        "description": "Compilation speed for mixed.aero"
+      },
+      "fib.aero": {
+        "compilation": {
+          "mean": 0.04064793310000141,
+          "median": 0.040985639999988166,
+          "min": 0.03875546700001564,
+          "max": 0.04232783899999504,
+          "std_dev": 0.001240958823259672,
+          "iterations": 10
+        },
+        "file_size_bytes": 350,
+        "description": "Compilation speed for fib.aero"
+      },
+      "calc.aero": {
+        "compilation": {
+          "mean": 0.04003919660000008,
+          "median": 0.03986962899999469,
+          "min": 0.03773287100000289,
+          "max": 0.04288821900001949,
+          "std_dev": 0.0013925823361405406,
+          "iterations": 10
+        },
+        "file_size_bytes": 275,
+        "description": "Compilation speed for calc.aero"
+      },
+      "fibonacci.aero": {
+        "compilation": {
+          "mean": 0.03980815320000204,
+          "median": 0.0397075710000081,
+          "min": 0.036957608999983904,
+          "max": 0.04197602100001063,
+          "std_dev": 0.0015913393951566316,
+          "iterations": 10
+        },
+        "file_size_bytes": 2098,
+        "description": "Compilation speed for fibonacci.aero"
+      }
+    },
+    "performance_regression": {
+      "simple_arithmetic.aero": {
+        "compilation": {
+          "mean": 0.0402874885000017,
+          "median": 0.03982974499999159,
+          "min": 0.038456678000017064,
+          "max": 0.043401681000005965,
+          "std_dev": 0.0017069120891802312,
+          "iterations": 10
+        },
+        "description": "Regression test for simple_arithmetic.aero"
+      },
+      "simple_functions.aero": {
+        "compilation": {
+          "mean": 0.039759325800002895,
+          "median": 0.03972292950001588,
+          "min": 0.03815970100001209,
+          "max": 0.041933831999983795,
+          "std_dev": 0.0011559791444605255,
+          "iterations": 10
+        },
+        "description": "Regression test for simple_functions.aero"
+      },
+      "simple_loops.aero": {
+        "compilation": {
+          "mean": 0.03942247699999939,
+          "median": 0.039779300500001114,
+          "min": 0.03711537399999543,
+          "max": 0.04166158199998904,
+          "std_dev": 0.0013123411292566842,
+          "iterations": 10
+        },
+        "description": "Regression test for simple_loops.aero"
+      },
+      "simple_io.aero": {
+        "compilation": {
+          "mean": 0.03898687550000659,
+          "median": 0.03906242200001486,
+          "min": 0.03743672600000991,
+          "max": 0.0407158800000218,
+          "std_dev": 0.0011057135323381644,
+          "iterations": 10
+        },
+        "description": "Regression test for simple_io.aero"
+      }
+    }
+  }
+}

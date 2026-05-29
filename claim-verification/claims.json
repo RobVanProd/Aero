@@ -53,6 +53,25 @@
         "claim-verification/results/aero_public_master_7900xtx_20260528T223000Z/hardware_software_metadata.txt",
         "claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/claim_result.json"
       ]
+    },
+    {
+      "id": "aero_post_reboot_compilation_benchmark_20260528",
+      "status": "historical_artifact",
+      "claim": "An earlier local benchmark artifact from commit f263568e06073317467416c2f954c73927c00f3e completed `bash ./scripts/run_performance_benchmarks.sh` on the Radeon RX 7900 XTX system. The Python benchmark harness measured Aero compilation mean times from 0.0385207161 s to 0.0473603038 s across the checked benchmark inputs, and Rust Criterion lexer-only benchmarks measured tokenization cases from 340.38 ns to 22.956 us. This historical artifact is not the latest public-branch verification.",
+      "artifacts": [
+        "benchmarks/results/performance_results_1780006109.json",
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/claim_result.json",
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/run_performance_benchmarks.stdout.log",
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/run_performance_benchmarks.stderr.log",
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/exit_code.txt",
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/generated_files.txt",
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/hardware_software_metadata.txt"
+      ],
+      "metadata": {
+        "repo_commit_at_run": "f263568e06073317467416c2f954c73927c00f3e",
+        "hardware": "Radeon RX 7900 XTX / gfx1100 / PCI device 1002:744c",
+        "software": "Python 3.10.12, rustc 1.93.0, cargo 1.93.0, PyTorch 2.5.1+rocm6.2, HIP 6.2.41133-dd7f95766"
+      }
     }
   ]
 }

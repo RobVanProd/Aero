@@ -44,6 +44,14 @@ Verified current results:
   one measured run reported 44.94 eval tokens/s, 186.94 prompt eval tokens/s,
   and 2701.84 ms load time
   ([result JSON](claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/claim_result.json)).
+- An earlier local benchmark artifact from commit
+  `f263568e06073317467416c2f954c73927c00f3e` is tracked as a historical
+  artifact. It completed `bash ./scripts/run_performance_benchmarks.sh` on
+  the Radeon RX 7900 XTX system and reported Python harness compilation mean
+  times from 0.0385207161 s to 0.0473603038 s plus Criterion lexer
+  tokenization times from 340.38 ns to 22.956 us. This historical artifact is
+  not the latest public-branch verification
+  ([result JSON](claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/claim_result.json)).
 
 Blocked or omitted claims:
 

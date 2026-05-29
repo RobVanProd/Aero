@@ -1,0 +1,46 @@
+{
+  "claim_id": "aero_post_reboot_7900xtx_20260528",
+  "status": "verified_current",
+  "timestamp": "2026-05-28T18:08:20-04:00",
+  "repo_commit": "f263568e06073317467416c2f954c73927c00f3e",
+  "command": "bash ./scripts/run_performance_benchmarks.sh",
+  "exit_code": 0,
+  "hardware_summary": {
+    "cpu": "AMD Ryzen 9 9950X 16-Core Processor",
+    "gpu_0": "Radeon RX 7900 XTX / gfx1100 / PCI device 1002:744c",
+    "gpu_1": "AMD Radeon Graphics / gfx1036 / PCI device 1002:13c0"
+  },
+  "software_summary": {
+    "python": "3.10.12",
+    "rustc": "1.93.0",
+    "cargo": "1.93.0",
+    "pytorch": "2.5.1+rocm6.2",
+    "hip": "6.2.41133-dd7f95766"
+  },
+  "results": {
+    "python_harness_compilation_mean_seconds": {
+      "min": 0.038520716100001094,
+      "max": 0.047360303800002154,
+      "source": "benchmarks/results/performance_results_1780006109.json"
+    },
+    "criterion_lexer_tokenization": {
+      "min": "340.38 ns",
+      "max": "22.956 us",
+      "source": "run_performance_benchmarks.stdout.log"
+    }
+  },
+  "blocked_claims": [
+    "GPT-2 training versus PyTorch",
+    "GPU 4096x4096 matmul speedup",
+    "NCCL/MPI multi-GPU scaling",
+    "GGUF/inference benchmarks",
+    "HIP/vector-add benchmarks"
+  ],
+  "raw_artifacts": [
+    "hardware_software_metadata.txt",
+    "run_performance_benchmarks.stdout.log",
+    "run_performance_benchmarks.stderr.log",
+    "exit_code.txt",
+    "generated_files.txt"
+  ]
+}

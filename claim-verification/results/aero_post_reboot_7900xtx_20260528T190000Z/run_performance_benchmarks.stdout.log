@@ -1,0 +1,182 @@
+=== Aero Phase 3 Performance Benchmarks ===
+
+Running performance benchmarks...
+
+=== Aero Phase 3 Performance Benchmarks ===
+
+Running function performance benchmarks...
+  Benchmarking function_performance.aero...
+Running loop performance benchmarks...
+  Benchmarking loop_performance.aero...
+Running I/O performance benchmarks...
+  Benchmarking io_performance.aero...
+Running compilation speed benchmarks...
+  Benchmarking compilation of variables.aero...
+  Benchmarking compilation of hello.aero...
+  Benchmarking compilation of return15.aero...
+  Benchmarking compilation of calculator.aero...
+  Benchmarking compilation of scoping.aero...
+  Benchmarking compilation of float_ops.aero...
+  Benchmarking compilation of loops.aero...
+  Benchmarking compilation of error_examples.aero...
+  Benchmarking compilation of mixed.aero...
+  Benchmarking compilation of fib.aero...
+  Benchmarking compilation of calc.aero...
+  Benchmarking compilation of fibonacci.aero...
+Running performance regression benchmarks...
+  Benchmarking simple_arithmetic.aero...
+  Benchmarking simple_functions.aero...
+  Benchmarking simple_loops.aero...
+  Benchmarking simple_io.aero...
+Results saved to /home/rob/aeternum/Aero/benchmarks/results/performance_results_1780006109.json
+
+=== Benchmark Summary ===
+
+Function Performance:
+  function_performance.aero: 0.0474s avg compilation
+
+Loop Performance:
+  loop_performance.aero: 0.0397s avg compilation
+
+Io Performance:
+  io_performance.aero: 0.0390s avg compilation
+
+Compilation Speed:
+  variables.aero: 0.0385s avg compilation
+  hello.aero: 0.0403s avg compilation
+  return15.aero: 0.0395s avg compilation
+  calculator.aero: 0.0396s avg compilation
+  scoping.aero: 0.0394s avg compilation
+  float_ops.aero: 0.0394s avg compilation
+  loops.aero: 0.0396s avg compilation
+  error_examples.aero: 0.0397s avg compilation
+  mixed.aero: 0.0406s avg compilation
+  fib.aero: 0.0406s avg compilation
+  calc.aero: 0.0400s avg compilation
+  fibonacci.aero: 0.0398s avg compilation
+
+Performance Regression:
+  simple_arithmetic.aero: 0.0403s avg compilation
+  simple_functions.aero: 0.0398s avg compilation
+  simple_loops.aero: 0.0394s avg compilation
+  simple_io.aero: 0.0390s avg compilation
+
+Benchmark suite completed!
+Detailed results saved to: /home/rob/aeternum/Aero/benchmarks/results/performance_results_1780006109.json
+
+Performance benchmarks completed successfully!
+Results are saved in benchmarks/results/
+
+Attempting to run Rust criterion benchmarks...
+Compiler builds successfully, running Rust benchmarks...
+tokenize_simple_function
+                        time:   [621.24 ns 621.95 ns 622.79 ns]
+                        change: [-0.5587% +0.4561% +1.8542%] (p = 0.54 > 0.05)
+                        No change in performance detected.
+Found 5 outliers among 100 measurements (5.00%)
+  1 (1.00%) high mild
+  4 (4.00%) high severe
+
+tokenize_recursive_function
+                        time:   [858.94 ns 860.25 ns 862.14 ns]
+                        change: [-0.0730% +0.0660% +0.2332%] (p = 0.39 > 0.05)
+                        No change in performance detected.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+tokenize_nested_functions
+                        time:   [1.2203 µs 1.2216 µs 1.2232 µs]
+                        change: [+6.0045% +6.0879% +6.1725%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low mild
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+tokenize_while_loop     time:   [412.69 ns 413.13 ns 413.52 ns]
+                        change: [+6.2718% +6.4128% +6.5532%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+
+tokenize_for_loop       time:   [376.90 ns 377.38 ns 377.95 ns]
+                        change: [+4.0855% +4.2994% +4.5050%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+
+tokenize_nested_loops   time:   [837.45 ns 839.87 ns 842.49 ns]
+                        change: [+2.8520% +3.1250% +3.3818%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+tokenize_simple_io      time:   [340.38 ns 341.04 ns 341.68 ns]
+                        change: [+10.904% +11.272% +11.644%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) low mild
+  1 (1.00%) high severe
+
+tokenize_formatted_io   time:   [521.00 ns 521.83 ns 522.71 ns]
+                        change: [+10.868% +11.047% +11.251%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+
+tokenize_multiple_io    time:   [377.47 ns 378.16 ns 378.92 ns]
+                        change: [-1.0621% -0.7615% -0.4696%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) high mild
+  3 (3.00%) high severe
+
+tokenize_small_program  time:   [587.47 ns 588.19 ns 589.02 ns]
+                        change: [-0.2389% -0.1224% +0.0104%] (p = 0.05 < 0.05)
+                        Change within noise threshold.
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+
+tokenize_medium_program time:   [2.1396 µs 2.1404 µs 2.1413 µs]
+                        change: [+1.2951% +1.3644% +1.4327%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 7 outliers among 100 measurements (7.00%)
+  1 (1.00%) low severe
+  1 (1.00%) low mild
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+tokenize_large_program  time:   [22.923 µs 22.939 µs 22.956 µs]
+                        change: [+1.3770% +1.4572% +1.5343%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 10 outliers among 100 measurements (10.00%)
+  2 (2.00%) low mild
+  5 (5.00%) high mild
+  3 (3.00%) high severe
+
+tokenize_baseline_arithmetic
+                        time:   [446.77 ns 447.62 ns 448.72 ns]
+                        change: [+0.8441% +0.9543% +1.0600%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high severe
+
+tokenize_baseline_variables
+                        time:   [430.29 ns 430.81 ns 431.31 ns]
+                        change: [+0.7165% +1.2626% +2.0231%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 11 outliers among 100 measurements (11.00%)
+  4 (4.00%) high mild
+  7 (7.00%) high severe
+
+tokenize_phase3_functions
+                        time:   [1.2616 µs 1.2635 µs 1.2654 µs]
+                        change: [+1.8638% +2.4095% +2.7936%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+Lexer benchmarks completed successfully
+
+All available benchmarks completed!
