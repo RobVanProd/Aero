@@ -1092,6 +1092,68 @@ impl SemanticAnalyzer {
         Ok(())
     }
 
+    fn preflight_block_syntax(&self, block: &Block) -> Result<(), String> {
+        for statement in &block.statements {
+            self.preflight_statement_syntax(statement)?;
+        }
+        if let Some(expression) = &block.expression {
+            self.preflight_expression(expression)?;
+        }
+        Ok(())
+    }
+
+    fn preflight_statement_syntax(&self, statement: &Statement) -> Result<(), String> {
+        match statement {
+            Statement::Let { value, .. } | Statement::Return(value) => {
+                if let Some(expression) = value {
+                    self.preflight_expression(expression)?;
+                }
+            }
+            Statement::Expression(expression) => self.preflight_expression(expression)?,
+            Statement::Block(block) => self.preflight_block_syntax(block)?,
+            Statement::Function { body, .. } => self.preflight_block_syntax(body)?,
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                self.preflight_expression(condition)?;
+                self.preflight_block_syntax(then_block)?;
+                if let Some(else_statement) = else_block {
+                    self.preflight_statement_syntax(else_statement)?;
+                }
+            }
+            Statement::While { condition, body } => {
+                self.preflight_expression(condition)?;
+                self.preflight_block_syntax(body)?;
+            }
+            Statement::For { iterable, body, .. } => {
+                self.preflight_expression(iterable)?;
+                self.preflight_block_syntax(body)?;
+            }
+            Statement::Loop { body } => self.preflight_block_syntax(body)?,
+            Statement::ImplBlock { methods, .. } => {
+                for method in methods {
+                    self.preflight_statement_syntax(method)?;
+                }
+            }
+            Statement::TraitDef { methods, .. } => {
+                for method in methods {
+                    if let Some(body) = &method.body {
+                        self.preflight_block_syntax(body)?;
+                    }
+                }
+            }
+            Statement::Break
+            | Statement::Continue
+            | Statement::StructDef { .. }
+            | Statement::EnumDef { .. }
+            | Statement::ModDecl { .. }
+            | Statement::UseImport { .. } => {}
+        }
+        Ok(())
+    }
+
     fn infer_and_validate_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
         self.preflight_expression(expr)?;
         self.infer_expression_immutable(expr)
@@ -1797,10 +1859,18 @@ impl SemanticAnalyzer {
                 if !type_params.is_empty() {
                     self.type_param_scopes.push(type_params.clone());
                 }
+                let default_body_result = (|| {
+                    for method in methods {
+                        if let Some(body) = &method.body {
+                            self.preflight_block_syntax(body)?;
+                        }
+                    }
+                    Ok(())
+                })();
                 if !type_params.is_empty() {
                     self.type_param_scopes.pop();
                 }
-                Ok(())
+                default_body_result
             }
             Statement::ImplBlock {
                 type_name,
