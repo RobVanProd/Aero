@@ -228,6 +228,37 @@ fn profile_rejects_malformed_syntax_without_writing_trace() {
 }
 
 #[test]
+fn profile_rejects_malformed_imported_module_without_writing_trace() {
+    let workspace = TestWorkspace::new("fatal_parse_profile_module");
+    let source_path = workspace.path("main.aero");
+    let module_path = workspace.path("broken.aero");
+    let trace_path = workspace.path("module-trace.json");
+    fs::write(&source_path, "mod broken;").expect("write profile root source");
+    fs::write(&module_path, "let = ;").expect("write malformed profile module");
+    assert!(!trace_path.exists(), "trace path must begin fresh");
+
+    let output = run_aero(
+        &workspace,
+        &[
+            Path::new("profile"),
+            &source_path,
+            Path::new("-o"),
+            &trace_path,
+        ],
+    );
+
+    assert!(
+        !output.status.success(),
+        "malformed profile module must fail"
+    );
+    assert_located_parse_error(&output, "broken.aero");
+    assert!(
+        !trace_path.exists(),
+        "malformed profile module must not create a trace"
+    );
+}
+
+#[test]
 fn discovered_test_rejects_malformed_syntax_with_failure_status() {
     let workspace = TestWorkspace::new("fatal_parse_test_command");
     let source_path = workspace.path("malformed_test.aero");
