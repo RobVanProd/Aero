@@ -450,3 +450,93 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Compatibility: this decision changes status and sequencing documentation only. It
   does not freeze new syntax/semantics, broaden a backend, accept a benchmark claim,
   or alter the preregistered `CORE-009` boundary.
+
+## DEC-015 — Checked logical IR precedes physical numeric redesign
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-010` preregistration; implementation pending
+- Decision: Aero will add explicit logical types for admitted scalar results,
+  places, arrays, calls, branches, and returns; a mandatory in-process IR verifier;
+  additive checked IR/codegen APIs; exhaustive codegen errors; and final external
+  LLVM module verification. No trusted compiler path may call the deprecated
+  unchecked helpers once this slice is accepted.
+- Representation: `Int`, `Float`, `Bool`, and `Void` remain distinct in IR;
+  restricted string immediates and fixed numeric arrays have explicit limited
+  roles. Admitted non-capturing scalar closures are compile-time callable aliases
+  with explicit signatures and no runtime value/place/ID; capture and escape remain
+  unsupported. Function ABI remains `int`/`i32` -> `i32`, `float`/`f64` -> `double`, and
+  `bool` -> `i1`. Boolean slots/results use `i1`; results and places cannot share an
+  identifier kind; void has no operand. Unknown source/IR types never map to
+  `double` by default.
+- Compatibility limit: the accepted legacy local numeric `double` representation
+  and numeric-array storage are preserved initially behind logical type metadata.
+  The founding vision favors exact native types, but repository specifications do
+  not settle integer overflow/division and active tests explicitly preserve current
+  scalar lowering. A physical all-`i32` migration would silently choose those
+  semantics, so it requires a later RFC-backed decision rather than this repair.
+- Admission consequence: checked constant folding cannot panic; out-of-range `i32`
+  literals, constant integer division by zero, string comparison, unsupported
+  expression-to-scalar fallback, and type-invalid Boolean storage/calls/returns are
+  structured failures. Dynamic overflow/division, richer arrays, strings, and
+  aggregates remain uncertified. A fold whose in-range operands produce an out-of-
+  range result remains an unfurled logical operation; this slice neither wraps,
+  truncates, materializes, nor rejects the result as a new overflow policy.
+- `check`: `aero check` will perform frontend validation plus typed-IR admission and
+  the in-process verifier, without emitting LLVM or consulting external tools. This
+  is stronger than its current semantic-only implementation but still does not
+  promise final backend representability. Help and capability text must state the
+  migration.
+- API: preserve `compile_program -> Result<String, String>`. Add checked
+  `try_generate_ir`/`try_generate_code` APIs with structured errors, migrate every
+  trusted caller, and deprecate existing unchecked IR helpers until a major break.
+  Checked compatibility never means empty/partial output, embedded error text, or
+  panic catching in production.
+- Checked/legacy boundary: every `try_generate_code` entry re-verifies raw private
+  IR and preserves IR Verification as its own error variant. Deprecated unchecked
+  helpers retain a separate legacy implementation and historical behavior; no
+  trusted caller may use them, and they are removed at a major boundary rather than
+  gaining new adapter fallbacks, error-text output, or newly implicit panics.
+- Diagnostics: preserve existing Lex/Parse/Semantic prefixes and add stable IR
+  Generation, IR Verification, Code Generation, and LLVM Verification phase
+  prefixes. IR-generation/verification/codegen errors precede transformations. On
+  source compiler routes, external LLVM verification follows transformation/
+  retargeting and precedes cache/write, native tools, and trace publication;
+  standalone graph-opt/quantize also verify input before transformation. `check` keeps its current raw
+  semantic text and prefixes only new IR failures; profiler keeps its established
+  semantic wording and uses the new later-phase labels.
+- LLVM policy: the pure-Rust IR verifier is always required. Final post-transform,
+  post-retarget LLVM uses LLVM 22 `opt -passes=verify` with `llvm-as` fallback.
+  Text build may visibly report `InternalOnly` only when no verifier exists; a found
+  verifier failure is fatal. Run/object/evidence/CI paths require the tool. No LLVM
+  Rust dependency is introduced. `clang`/`llc` remain downstream evidence, not
+  substitutes for module verification.
+- LLVM route/mode policy: standalone `graph-opt` and `quantize` require external
+  verification of arbitrary input and final output. Run and object paths are also
+  always `Required`. Text build selects `Required` by
+  `--require-llvm-verifier` or `AERO_REQUIRE_LLVM_VERIFIER=1|true`; CI sets the
+  environment explicitly. Forced command/flag status cannot be downgraded.
+  Explicit `AERO_LLVM_OPT`/`AERO_LLVM_AS` paths are authoritative and fail closed;
+  otherwise discovery uses LLVM-22 versioned tools before version-validated
+  unversioned tools. A rejecting found verifier never triggers a fallback.
+- Cache: final-LLVM string entries lack typed-IR provenance. They are usable only
+  when an available external verifier accepts them. Under `PreferExternal`, missing
+  tools force a fresh checked-IR rebuild; cached text can never be labeled
+  `InternalOnly`. Cache schema/provenance redesign remains outside this slice.
+- Tooling-result policy: profiler uses `PreferExternal` and records
+  `InternalOnly` visibly in profile/trace metadata only on absence. Conformance uses
+  checked internal IR only, records failures in its report, writes a requested full
+  failure report, and exits nonzero when any case or mechanized check fails.
+- Unsupported-form compatibility: current successful custom Enum/`Some`/`Ok`,
+  ordinary MethodCall, and Deref/Borrow lowering is fabricated-zero behavior, not a
+  positive execution contract. `CORE-010` explicitly supersedes those construction
+  controls: syntax/declarations stay positive, runtime forms become checked-IR
+  negatives, and Array/Vec `.iter()` remains admitted. Print-only immutable string
+  aliases remain allowed; broader string operations do not.
+- Alternatives rejected: immediate physical `i32` lowering without overflow/
+  division policy; keeping Boolean/numeric guessing; LLVM-only verification after
+  unsafe IR; making ordinary Cargo builds depend on llvm-sys/Inkwell; treating
+  `llc -verify-machineinstrs` as module verification; making `check` PATH-dependent;
+  or breaking every existing public helper signature before additive migration.
+- Revisit when: integer and array RFCs authorize exact physical lowering; a major
+  API boundary can remove unchecked helpers; or an in-process LLVM construction
+  architecture justifies a native LLVM dependency.

@@ -4,15 +4,18 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 10 — record `AUDIT-016` and freeze the prerequisite representation,
-verification, API, and diagnostic decisions for the bounded `CORE-010` typed-IR
-admission slice before tests or production edits begin.
+Milestone 10 — create the tests-only red checkpoint for preregistered `CORE-010`:
+checked logical scalar IR admission, in-process verification, and final LLVM module
+verification. No production edit begins until the frozen failures and LLVM 22 corpus
+state are reproduced.
 
 ## Active hypothesis
 
-StructLiteral has no active value-preserving route and one complete child-first
-preflight arm. Rejecting after field preflight can close zero/drop artifacts without
-inventing declaration, field, type, layout, ownership, IR, or backend semantics.
+The accepted scalar frontend already carries enough logical Int/Float/Bool/Void
+information to construct and verify a checked IR without selecting unresolved
+physical integer overflow/division semantics. Additive checked APIs plus mandatory
+internal and qualified external verification can turn current unwinds, invalid
+Boolean LLVM, and silent codegen drops into structured no-artifact failures.
 
 ## Founding-framework checkpoint
 
@@ -61,6 +64,17 @@ inventing declaration, field, type, layout, ownership, IR, or backend semantics.
   Public documentation and the complete gate pass at `3410f1f`; coordinated
   project-control corrections and the new exact-candidate gate pass at `daa024d`.
   Two fresh non-owner reviewers approve exact `daa024d` with no P0-P3 findings.
+- `CORE-009` closure is published at exact
+  `555fea27e6cb8e0a07df20b5189dfc2b5aebce46` on draft PR #4. Both compiler-test
+  jobs, Rust stable/nightly, and all CodeQL jobs pass at that public head.
+- `AUDIT-016` is complete. Fresh evidence ranks fallible typed scalar IR admission
+  and verification above pipeline consolidation, MethodCall, custom EnumVariant,
+  and Deref slices. String comparison and constant `1 / 0` unwind; Boolean storage
+  can emit type-invalid LLVM; untyped codegen can silently ignore instructions.
+- `CORE-010` and `DEC-015` preregister the checked additive APIs, logical
+  Int/Float/Bool/Void representation, legacy numeric-storage compatibility limit,
+  stronger tool-independent `check` admission, mandatory pure-Rust IR verification,
+  and LLVM 22 external verification modes. No implementation is accepted yet.
 - Accepted `CORE-008` candidate:
   `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the
@@ -298,12 +312,15 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Record `AUDIT-016` as the ranked post-StructLiteral audit and preregister `CORE-010`
-without implementation. Freeze canonical primitive/slot/result representations,
-the `check` validity contract, verifier mechanism and unavailable-tool policy,
-public IR API compatibility, and stable phase diagnostics before red tests. Keep
-MethodCall, EnumVariant, Deref, aggregate, ownership, dispatch, and backend semantics
-outside that slice.
+Create one isolated tests-only `CORE-010` red checkpoint. First provision pinned
+LLVM 22 module verification in CI and measure the unchanged positive corpus. Add
+no-unwind/source, malformed-IR, Boolean type, artifact/cleanup, checked-API, and
+injected external-verifier outcome tests, including every-block termination,
+post-transform/cache ordering, tool/mode precedence, and graph-opt/quantize input/
+output gates. Prove failures arise from the frozen IR/
+verification gaps rather than parser errors, unrelated semantics, or unavailable
+tools. Keep production files unchanged until the red evidence and any stop condition
+are reviewed.
 
 ## Unauthorized actions
 

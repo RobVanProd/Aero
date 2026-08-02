@@ -1268,3 +1268,253 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   reused as completion evidence.
 - Status: complete; documentation verification passed and founding-framework
   alignment was published to draft PR #4 at exact `fba121f`.
+
+## AUDIT-016 — Rank the post-StructLiteral compiler-integrity boundary
+
+- Objective: re-audit the open semantic/IR/backend false-success families after
+  `CORE-009`, reproduce the highest-severity active failures, rank bounded next
+  slices, and identify every decision required before implementation.
+- Audit base: production exact `3410f1f`; the compiler and tests are byte-identical
+  through published clean head `555fea2`, so the evidence remains current.
+- Ranked candidates: (1) fallible typed scalar IR admission and verification,
+  (2) canonical library/CLI pipeline, (3) MethodCall fail-closed while preserving
+  zero-argument Array/Vec `.iter()`, (4) custom EnumVariant fail-closed while
+  preserving Option/Result policy, and (5) Deref-only fail-closed.
+- Fresh evidence: string comparison and constant integer `1 / 0` unwind in IR
+  generation; a stored comparison result emits `icmp ... i1` followed by an invalid
+  `store double %reg...` and is reported successful; ordinary methods, Deref,
+  custom enums, `Some`, and `Ok` fabricate zero/drop behavior; codegen silently
+  ignores unmatched instructions; no in-process IR or LLVM verifier exists.
+- Pipeline evidence: library, CLI build/run, profiler, and conformance call the
+  infallible IR APIs through duplicated orchestration. A missing direct module fails
+  `check` but build can continue and write an artifact; usage and unknown-command
+  status defects remain separate. These pipeline/status defects are not silently
+  folded into the selected IR contract.
+- Selection: `CORE-010` is the typed scalar admission/verification boundary. It has
+  greater risk and implementation breadth than the other candidates, but removes a
+  class of panics and invalid artifacts while directly advancing founding-roadmap
+  Milestone 1. MethodCall, EnumVariant, Deref, ownership, and aggregate semantics
+  are not implemented by this choice; any currently fabricated form reaching the
+  checked IR boundary must be rejected explicitly.
+- Prerequisite audits: three independent read-only audits traced primitive/storage
+  representation, LLVM verifier policy, and every public/trusted caller. Their
+  decisions are frozen in `CORE-010` and `DEC-015` below before tests or production.
+- Status: complete; read-only audit, probes, ranking, and prerequisite decisions
+  recorded. No compiler file changed.
+
+## CORE-010 — Add checked typed scalar IR admission and verification
+
+- Problem: `Value::Reg` and core instructions carry no type; stack slots are always
+  lowered as `double`; Boolean comparisons produce `i1` values that can be stored as
+  `double`; function types are reconstructed from strings; IR/codegen helpers panic
+  or silently drop unsupported inputs. Trusted library/CLI/profile paths can unwind,
+  emit invalid LLVM, or report success without a valid artifact contract.
+- Priority: P0.
+- Dependencies: accepted `CORE-009`; `AUDIT-016` and three prerequisite audits
+  complete at clean published head `555fea2`.
+- Hypothesis: explicit logical value/place/signature types, mandatory in-process IR
+  verification, checked additive APIs, exhaustive codegen, and final LLVM module
+  verification can stop panics and invalid artifacts without inventing aggregates,
+  ownership, dispatch, or new arithmetic semantics.
+- Logical types: the admitted set is `Int`, `Float`, `Bool`, `Void`, restricted
+  print-only string immediates, existing local fixed numeric arrays, and restricted
+  compile-time callable aliases for non-capturing scalar closures. Results and
+  places use distinct identifiers. Every result, slot/pointee, array element, call
+  parameter/result, branch condition, and return has an explicit logical type.
+  `Void` is never an operand; void calls have no result and void functions return no
+  value. The synthesized process entry remains `i32 @main()` returning zero.
+- Compatibility representation: active `int`/`i32` remains one logical signed
+  integer family with the accepted `i32` function ABI; `float`/`f64` remains `double`;
+  `bool` is `i1`. Existing local numeric `double` lowering and fixed numeric-array
+  storage remain compatibility details in this slice because integer overflow,
+  division, and full array semantics are not specified. Boolean results/slots must
+  use `i1` consistently. Unknown types may never default to `double`. Integer
+  literals outside the admitted `i32` range fail admission rather than truncate.
+- Arithmetic boundary: preserve accepted exact numeric contracts and mixed
+  Int-to-Float promotion. Checked constant folding returns errors rather than
+  panicking; constant integer division by zero is rejected. This does not certify
+  dynamic integer overflow/division or IEEE/runtime behavior and does not authorize
+  a physical all-`i32` local migration. If correct typing requires deciding those
+  semantics, stop and split an RFC-backed arithmetic task. If in-range literal
+  operands would fold outside `i32`, the checked path must leave the existing
+  logical operation unfurled rather than materialize, truncate, wrap, or reject a
+  constant result; its runtime overflow behavior remains explicitly uncertified.
+- Arrays/strings: admit only existing local fixed numeric array/index/`.iter()`
+  controls as opaque legacy storage with explicit logical element metadata. Do not
+  broaden mixed/empty inference, bounds, parameter/return ABI, or Boolean arrays.
+  String literals and immutable bindings that remain compile-time aliases are
+  eligible only for established print/println handling; comparison, memory-slot
+  storage, calls, returns, and other string operations fail with a checked error.
+- Unsupported source forms: the checked path must never convert MethodCall,
+  EnumVariant/Option/Result, Deref/Borrow, tuple/struct/field/Match, or another
+  unadmitted form to a scalar. Existing shared semantic diagnostics keep precedence;
+  exact zero-argument Array/Vec `.iter()` remains the sole admitted MethodCall.
+  This is a generic IR safety boundary, not implementation of those language forms.
+- Closure boundary: preserve only the established non-capturing closures whose
+  parameters and expression result are admitted Int/Float/Bool scalars. A closure
+  binding is a compile-time callable symbol plus explicit scalar signature; it has
+  no runtime operand, place, allocation, store, or fabricated numeric ID. Preserve
+  lexical callable shadowing. Captures, escape, assignment, passing/returning a
+  closure value, composite/string signatures, and closure-object ABI remain
+  unsupported and fail admission.
+- Compatibility reclassification: supersede the `CORE-009` control requirement that
+  custom Enum, `Some`, and `Ok` construction continue compiling through fabricated
+  zero. Their syntax/AST shape and declarations remain positive parser/frontend
+  controls, while every runtime construction becomes an exact checked-IR negative.
+  Reclassify ordinary MethodCall, Deref/Borrow, and any other zero/drop fallback the
+  same way while preserving Array/Vec `.iter()` and existing semantic-preflight
+  diagnostics. This change is authorized because the prior success was never
+  value-preserving execution evidence; no enum/ownership/method semantics are added.
+- Internal verifier: a pure-Rust verifier is mandatory before every checked LLVM
+  lowering. It checks definitions/uses and required dominance, place/pointee and
+  load/store agreement, operator/result types, calls, returns, labels/targets,
+  Boolean branches, exactly one final terminator with no following instruction in
+  every represented block whether reachable or not, supported GEP forms, and
+  rejects every unsupported instruction explicitly. Unreachable-block removal,
+  SSA/phi construction, and general CFG redesign remain outside this slice.
+- LLVM verifier: verify final LLVM text after graph transformation and retargeting,
+  before caching, writing, or native tools. Standalone `graph-opt` and `quantize`
+  accept arbitrary LLVM, so their input and final transformed output both require
+  external verification; they never use `InternalOnly`. This adds verification at
+  their command wrappers without changing either transform. Use LLVM 22
+  `opt -passes=verify
+  -disable-output -` first and `llvm-as -o - -` as the fallback; `clang`, `llc`, and
+  `llc -verify-machineinstrs` are downstream checks, not verifier substitutes.
+  Prefer explicit `AERO_LLVM_OPT`/`AERO_LLVM_AS` paths, then versioned tools, then
+  unversioned tools only when their parsed major is 22. Record path and version.
+- Unavailable-tool policy: in-process verification is never optional. Text-only
+  build may use `PreferExternal`: actual tool absence yields a visible
+  `InternalOnly` warning/status, while any discovered verifier rejection, launch
+  error, timeout, or wrong version fails with no artifact. `Required` applies to
+  CI/evidence gates, `run`, and object/executable paths; absence also fails. The
+  library's existing string-returning `compile_program` promises in-process
+  verification only and does not claim external LLVM verification. No LLVM Rust
+  crate or native link dependency is added.
+- Cache policy: the existing cache stores final LLVM text only and carries no typed-
+  IR/internal-verification provenance. A cache hit may be published only after an
+  available external LLVM verifier accepts it. Under `PreferExternal`, actual tool
+  absence bypasses the cache and rebuilds through checked IR; only that fresh path
+  may return visible `InternalOnly`. A found verifier failure is fatal. Do not add
+  cache provenance or change cache storage in this slice.
+- Mode selection: `run`, object/executable paths, `graph-opt`, and `quantize` force
+  `Required`. Text `build` uses `Required` when either
+  `--require-llvm-verifier` is present or `AERO_REQUIRE_LLVM_VERIFIER=1|true`, and
+  otherwise uses `PreferExternal`; a forced command/flag cannot be downgraded by
+  environment. CI sets the environment variable explicitly. If `AERO_LLVM_OPT` or
+  `AERO_LLVM_AS` is set, that exact override is authoritative: absence, wrong major,
+  launch failure, timeout, or rejection is fatal and does not fall through to PATH.
+  Without overrides, discovery tries versioned `opt-22`, then versioned
+  `llvm-as-22`, then compatible unversioned opt/llvm-as; a found/rejecting opt never
+  falls back, while actual opt absence may proceed to llvm-as.
+- Profiler/conformance policy: profiler uses `PreferExternal`; absence is recorded
+  visibly as `InternalOnly` in the printed profile and trace metadata, while a found
+  verifier failure returns an error before trace publication. Conformance performs
+  checked IR generation/internal verification only and remains external-tool-
+  independent. A checked IR failure becomes a failed conformance result; the CLI
+  still writes the complete report when requested and then exits nonzero whenever a
+  case or mechanized check failed.
+- `check` contract: evolve `aero check` from semantic-only to frontend validity plus
+  typed-IR admission/internal verification, still without LLVM emission, external
+  tools, or artifacts. It does not promise final LLVM/backend representability.
+  CLI help and capability documentation must say this exactly. CLI `test`, missing-
+  module continuation, unknown-command status, and pipeline consolidation remain
+  separately tracked.
+- API compatibility: add structured `IrGenerationError`, `IrVerificationError`,
+  `CodeGenerationError`, and `LlvmVerificationError` types plus checked
+  `IrGenerator::try_generate_ir` and method/free `try_generate_code`. Keep
+  `compile_program(Result<String, String>)` source-compatible and migrate every
+  trusted library, CLI build/run, profiler, and conformance caller to checked APIs.
+  Retain current `generate_ir`/`generate_code` entry points only as documented,
+  deprecated unchecked compatibility shims excluded from trusted-path claims until
+  a major break. Checked APIs may never return empty/partial IR or embed errors as
+  output.
+- Checked API verification: method/free `try_generate_code` accepts the existing raw
+  private IR shape and always invokes the internal verifier before emission, even
+  when `try_generate_ir` already verified its output. A pipeline error enum retains
+  `IrVerificationError` as a distinct variant so callers render the IR Verification
+  phase rather than relabeling it Code Generation. Malformed-IR tests call this
+  checked boundary directly. No public verified-token or private IR exposure is
+  introduced in this slice.
+- Legacy API behavior: deprecated `generate_ir -> HashMap` and method/free
+  `generate_code -> String` retain a separate unchecked legacy implementation and
+  its historical panic/silent behavior for source compatibility; they are not
+  implemented by unwrapping the checked APIs and are excluded from every trusted
+  compiler/correctness claim. They may preserve historical partial/silent output but
+  may not gain new adapter fallbacks, newly implicit panics, or error-text output.
+  Removal, rather than semantic alteration, occurs at a major compatibility boundary.
+- Diagnostic contract: preserve `Lex error:`, `Parse error:`, and
+  `Semantic Analysis Error:`. Add stable `IR Generation Error:`,
+  `IR Verification Error:`, `Code Generation Error:`, and
+  `LLVM Verification Error:` phase prefixes. Build/run retain their outer `error:`
+  rendering. `check` preserves its existing raw semantic diagnostic exactly and
+  uses the new phase prefix only for IR Generation/Verification failures. Profiler
+  preserves `Semantic analysis failed:` and uses the new labels for later phases.
+  No production `catch_unwind` adapter is allowed.
+- Failure/artifact ordering: IR Generation, IR Verification, and Code Generation
+  errors return before graph lowering or retargeting. On source build/run/profile
+  routes, LLVM Verification runs on the final transformed/retargeted text and
+  returns before cache publication, filesystem writes, native tools, or trace
+  output. Standalone graph-opt/quantize additionally verify arbitrary input before
+  transformation and final output before publication.
+  Run cleanup removes its temporary artifact directory. Cache hits are reverified.
+  Tests use fresh paths and prove nonzero status, no panic/unwind text, no requested
+  artifact, and no empty run directory. The sole requested-failure-report exception
+  is conformance: it deliberately writes a complete report containing the failed
+  case/check and then exits nonzero.
+- Red tests: public no-unwind errors for string comparison and constant integer
+  division by zero; the three accepted-but-invalid Boolean slot/return/call shapes;
+  i32 range rejection; malformed typed IR covering duplicate/use-before-definition,
+  bad store/load, non-Bool branch, wrong call/result/return, void operand, labels,
+  reachable and unreachable terminators, GEP, and unsupported instructions; no
+  silent codegen wildcard; in-range operands whose constant result exceeds `i32`
+  remain an unfurled logical operation without panic or fabricated constant;
+  admitted closure bindings produce callable aliases/signatures with no runtime
+  allocation/store/ID, while capture/escape/composite closure forms fail admission.
+- External red matrix: injected verifier accept/reject/missing/launch-error/timeout/
+  wrong-version outcomes; `check` identical with and without LLVM tools; text build
+  exposes `InternalOnly` only for absence; strict/run failure creates no artifact;
+  explicit override and flag/environment/forced-command precedence; versioned and
+  unversioned discovery; absent opt plus accepted llvm-as; rejecting opt with no
+  fallback; verified source-build bytes are post-graph and post-retarget; rejected
+  output is neither cached nor written; cache hits are reverified; graph-opt and
+  quantize reject invalid input/final output without artifacts; cache hit plus
+  missing verifier bypasses and rebuilds checked IR; valid graph-opt and quantize
+  controls prove input verification, final-output verification, then publication;
+  profiler missing verifier succeeds with visible `InternalOnly` in stdout and trace
+  metadata, while found rejection is nonzero with no trace; injected conformance
+  checked-IR failure writes the complete requested failure report then exits nonzero;
+  pinned LLVM 22 CI accepts the positive corpus and rejects a known-invalid fixture,
+  then existing llc/clang/runtime checks remain green.
+- Positive controls: Int/Float/Bool alloc-store-load, comparison and direct/loaded
+  Boolean branches, numeric/void calls and returns, mixed promotion, numeric
+  closures, fixed numeric arrays/index/`.iter()` loops, print-only string bindings,
+  all prior accepted fail-closed diagnostics, reclassified parser/declaration
+  controls for unsupported forms, four CPU examples, formatting, all-targets, and
+  full gate.
+- Files allowed: `src/compiler/src/ir.rs`, one new IR verifier module, one new LLVM
+  verifier adapter, `ir_generator.rs`, `code_generator.rs`, minimal propagation in
+  `lib.rs`, `main.rs`, `profiler.rs`, and `conformance.rs`; focused tests; LLVM CI
+  workflows; verification-only command-wrapper edits for `graph-opt`/`quantize`;
+  targeted reclassification edits in existing unsupported-form control tests;
+  public capability/help and project-control documents.
+- Files frozen: lexer, parser, AST syntax, semantic language rules except required
+  phase routing, ownership, aggregate/enum/method implementations, graph/backend
+  transform algorithms, `Cargo.toml`/`Cargo.lock`, registry, benchmark claims, and
+  releases.
+- Risks: typed metadata can diverge from legacy physical numeric lowering; verifier
+  activation can expose a broad invalid-LLVM corpus; graph transforms/cache can
+  bypass checks; deprecation can preserve an unsafe direct caller; CFG validation
+  can accidentally redesign control flow; tool discovery/version/timeout/temp-file
+  handling can become platform-dependent.
+- Stop conditions: a second trusted untyped path remains; accepted positive controls
+  require integer/array/ownership/aggregate/dispatch semantics not frozen here;
+  preserving admitted closures requires a runtime closure object/capture ABI;
+  LLVM 22 exposes broad redesign rather than bounded repairs; any cache/transform/
+  output route bypasses verification; API status cannot be represented honestly;
+  `check` becomes external-tool-dependent; or the change unexpectedly crosses a
+  compiler phase beyond this preregistered IR/backend/pipeline propagation.
+- Owner: one lead-owned vertical slice with tests-first checkpoints. Independent
+  representation and backend reviewers must approve the exact clean candidate.
+- Status: preregistered; the isolated tests/CI-only red checkpoint is authorized.
+  Production implementation remains unauthorized until that checkpoint proves the
+  frozen failures and LLVM 22 corpus state and receives lead review.

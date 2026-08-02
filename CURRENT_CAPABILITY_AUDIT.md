@@ -219,6 +219,17 @@ correctness gates.
   backend emission, and execution remain absent. The complete documented gate passes
   at exact `3410f1f`; coordinated control corrections, a fresh complete gate, and
   two independent approvals with no P0-P3 findings pass at exact reviewed `daa024d`.
+- `AUDIT-016` re-ranked the open compiler-integrity families after StructLiteral.
+  String comparison and constant integer `1 / 0` can unwind in IR generation;
+  comparison bindings can successfully emit `i1` results into `double` slots;
+  untyped function/signature reconstruction and the codegen wildcard can emit or
+  silently omit invalid instructions. Library, CLI build/run, profiler, and
+  conformance use duplicated infallible IR APIs. `CORE-010` is preregistered to add
+  checked logical scalar admission, internal IR verification, and final LLVM module
+  verification. Its generic boundary rejects unadmitted MethodCall/EnumVariant/
+  Deref fallbacks without implementing their language semantics; those remain later
+  language-specific implementation slices.
+  This audit finding does not itself improve a capability.
 - Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
   coverage is limited to four scalar CPU examples.
 
