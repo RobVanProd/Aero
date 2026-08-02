@@ -176,9 +176,16 @@ correctness gates.
   inference invents `Int`, both IR paths return zero without children, and a
   23-case matrix confirms root, nested, module, and closure false successes. Match
   is selected for fail-closed preregistration; no execution semantics are inferred.
-- Unimplemented methods, aggregates, matches, references, and ADTs are either
-  changed to zero or dropped. Several IR instruction variants have no codegen
-  arm and are silently ignored by the wildcard arm.
+- At `c826294`, trusted active semantic preflight visits the Match scrutinee and arm
+  bodies in the frozen order, then rejects the Match with one stable diagnostic
+  before IR. Match tokens, parser AST, arms, and patterns remain available; pattern
+  binding/typing/exhaustiveness, evaluation, result unification, enum layout,
+  ownership, IR, and backend execution remain outside this candidate. Direct
+  semantic bypass can still reach dormant zero stubs.
+- Unimplemented methods, aggregates, references, and ADTs are either changed to
+  zero or dropped. Match retains dormant inference/IR stubs, but trusted candidate
+  paths reject it first. Several IR instruction variants have no codegen arm and
+  are silently ignored by the wildcard arm.
 - Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
   coverage is limited to four scalar CPU examples.
 

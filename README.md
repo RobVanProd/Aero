@@ -158,6 +158,11 @@ fn main() {
 > `Field access expressions are not supported.` Method calls use a distinct AST
 > form and are not part of this field-access boundary.
 
+> **Pattern matching status:** `match` syntax, arms, and patterns are recognized,
+> but Match value evaluation is not executable yet. Trusted compiler paths inspect
+> the scrutinee and arm bodies for established errors, then reject the Match before
+> IR generation with `Match expressions are not supported.`
+
 Formal spec: `docs/language/aero_formal_language_specification.md`
 
 ## Looking Ahead

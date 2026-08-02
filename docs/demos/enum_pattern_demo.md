@@ -1,5 +1,11 @@
 # LLVM Enum and Pattern Matching Generation Demo - Task 10.2
 
+> **Current capability notice (2026-08-02):** this is a historical design/demo,
+> not evidence for the active source compiler. The current parser preserves Match
+> syntax, but trusted compilation rejects Match values before IR with
+> `Match expressions are not supported.` The helpers and LLVM sketches below are
+> not connected to an executable source Match pipeline.
+
 ## Implementation Overview
 
 Task 10.2 has been implemented with comprehensive LLVM enum and pattern matching generation capabilities:

@@ -4,15 +4,15 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 8 — implement the frozen one-file `CORE-008` Match rejection against the
-preserved tests-only red checkpoint.
+Milestone 8 — run the complete gate and obtain two independent approvals for the
+implemented `CORE-008` fail-closed Match value boundary.
 
 ## Active hypothesis
 
-Adding the exact error return after the existing scrutinee/arm traversal should turn
-the four red aggregations green while leaving all five parser, positive, and
-child-diagnostic controls unchanged. Any wider production diff or altered ordering
-would violate `DEC-012` rather than complete it.
+The exact documented candidate's one-line post-child-traversal rejection should
+close every trusted Match route while preserving established child diagnostics,
+parser/AST/pattern representation, and prior numeric/function/array/iterator and
+fail-closed compiler boundaries.
 
 ## Repository state
 
@@ -21,12 +21,12 @@ would violate `DEC-012` rather than complete it.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current post-`CORE-007` closure commit:
-  `9fc7d0e8f7a955b59924d31df968fcf61bfaaa80`
-- Last verified commit: `9fc7d0e8f7a955b59924d31df968fcf61bfaaa80`
-- Worktree: clean before this audit-documentation update. `CORE-007` remains
-  accepted; an independent `AUDIT-013` auditor reran the complete gate at this
-  docs-only descendant with exit zero.
+- Current `CORE-008` behavior candidate:
+  `c8262944a3462b9956be107bdf8dc71cdd9df067`
+- Last verified commit: `c8262944a3462b9956be107bdf8dc71cdd9df067`
+- Worktree: clean before this public/capability documentation update. The candidate
+  passes 90/90 focused tests, formatting, and `cargo check --all-targets`; complete
+  verification and independent acceptance are pending.
 
 ## Environment and verification
 
@@ -161,6 +161,12 @@ would violate `DEC-012` rather than complete it.
   zero, empty root CFG, dropped calls, suppressed `/0`, current outer diagnostics,
   and artifact creation. No case parses incorrectly or unwinds. Parser 1/1 and prior
   field/modulo/tuple controls 38/38 pass; formatting passes.
+- `CORE-008` production candidate: owner `aed4d0e`, integrated as `c826294`. The
+  production diff is one error return after existing Match child traversal. Owner
+  and lead independently pass 90/90 focused Match/field/tuple/modulo/function/
+  annotation/strict tests, formatting, and `cargo check --all-targets`. Public docs
+  and the matrix now classify Match as parsed but explicitly non-executable; two
+  historical design summaries carry current-capability notices.
 
 ## Current capability classification
 
@@ -206,22 +212,20 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   recursively by active semantic preflight with one stable diagnostic before IR.
   Tuple types/patterns remain parsed; tuple layout and execution remain unimplemented.
 - Constant integer division by zero independently panics during IR constant folding.
-  Float, variable, unary, and mixed zero forms diverge. Unsupported match/method and
+  Float, variable, unary, and mixed zero forms diverge. Unsupported methods and
   other composite forms can still fabricate scalar zero, and some semantically
-  accepted comparisons can panic or generate type-invalid LLVM. Match is selected
-  for preregistration only; MethodCall, string comparison, division, aggregates, and
-  ownership remain separate. Named field values are fail-closed in accepted
-  `CORE-007` at exact reviewed `4e10d479`; direct AST-to-IR bypass remains outside
-  that boundary.
+  accepted comparisons can panic or generate type-invalid LLVM. Trusted Match
+  values fail closed in candidate `c826294`; direct AST-to-IR bypass remains open.
+  MethodCall, string comparison, division, aggregates, and ownership are separate.
+  Named field values remain fail-closed in accepted `CORE-007` at reviewed
+  `4e10d479`.
 
 ## Exact next action
 
-Return the isolated `CORE-008` owner to production mode at tests-only commit
-`17e17c2`. Permit only `src/compiler/src/semantic_analyzer.rs`: append the exact
-Match diagnostic after the existing scrutinee/arm child traversal, leave both
-inference stubs untouched, run the 9-test Match suite expecting 9/9 plus prior
-focused controls and formatting, commit the one-file change, and stop before the
-full gate.
+Run `./tools/test.sh` on the clean documented `CORE-008` candidate. If it passes,
+assign two non-owner reviewers independent structural and black-box public/CLI/
+module attempts to falsify that exact SHA, including nesting, child precedence,
+no-unwind/no-panic/no-artifact checks, parser retention, and positive controls.
 
 ## Unauthorized actions
 

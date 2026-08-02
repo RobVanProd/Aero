@@ -230,9 +230,13 @@ enum Result<T, E> {
 */
 ```
 
-### Using Enums with `match`
+### Using Enums with `match` (Designed; Not Executable)
 
-The `match` keyword (if planned for Aero, similar to Rust) is a powerful control flow construct that works well with enums. It allows you to compare a value against a series of patterns and then execute code based on which pattern matches.
+The intended `match` construct compares a value against patterns and selects an
+arm. The current compiler recognizes Match syntax and preserves its AST, but does
+not implement pattern binding, exhaustiveness, arm selection, or value lowering.
+Trusted compilation rejects every Match value before IR with
+`Match expressions are not supported.` The example below is therefore conceptual.
 
 ```aero
 fn process_message(msg: Message) {
@@ -265,7 +269,8 @@ fn main() {
     process_message(m3);
 }
 ```
-If `match` is not yet available, you might use `if let` or methods on the enum to access data, though `match` is the most idiomatic way to handle enums.
+This example becomes executable only after Match and enum semantics ship as a
+complete typed vertical slice; it is not a current workaround or supported program.
 
 ## Basic Collections (from Standard Library)
 
@@ -438,7 +443,8 @@ This tutorial covered:
 -   **Structs**: Named field, tuple, and unit-like designs; declaration/instantiation
     syntax is experimental, while named field projection is currently rejected and
     methods via `impl` are not certified by this tutorial.
--   **Enums**: Defining variants, variants with associated data, and using `match` (conceptually) for control flow.
+-   **Enums**: Defining variants and associated-data designs; `match` remains
+    conceptual and trusted compilation currently rejects Match values.
 -   **Basic Collections**: A brief look at `Vec<T>` and `HashMap<K, V>` from the standard library.
 -   **Traits**: A conceptual introduction to defining shared behavior with `trait` and `impl`.
 

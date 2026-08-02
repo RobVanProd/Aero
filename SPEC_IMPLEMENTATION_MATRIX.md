@@ -32,7 +32,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Struct declarations/literals | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
 | Named field access | Y | Y | Y | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
 | Enums and construction | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
-| Pattern matching | Y | Y | P | N | N | N | P | P | ? | P | N | N | Y | PARSED_ONLY |
+| Pattern matching | Y | Y | P | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |

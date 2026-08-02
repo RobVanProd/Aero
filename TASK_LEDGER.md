@@ -998,3 +998,15 @@
   artifacts preserve zero/drop evidence. No case fails parsing or unwinds. The
   active Match parser test passes 1/1; prior field/modulo/tuple controls pass 38/38;
   formatting passes. The full gate remains intentionally deferred until production.
+- Candidate result: owner production commit `aed4d0e` is integrated as `c826294`.
+  It adds exactly one error return after the existing Match scrutinee/arm preflight
+  traversal. Both Match inference stubs and all parser/AST/type/IR/backend files are
+  unchanged. The owner and lead independently pass the complete 90/90 focused
+  matrix plus formatting and `cargo check --all-targets`.
+- Public candidate documentation: README and the data-structures tutorial now state
+  that Match is parsed but not executable and give the exact diagnostic; the matrix
+  records negative/diagnostic coverage and no typed-IR/backend/execution support.
+  Two historical enum/Match design summaries retain their content under explicit
+  current-capability notices rather than serving as active implementation evidence.
+- Candidate status: focused implementation and public documentation complete;
+  required full gate and two exact-SHA non-owner approvals remain open.
