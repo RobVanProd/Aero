@@ -23,7 +23,7 @@ open until a regression test and the applicable full gate prove closure.
 | R-014 | Quick Start and flagship examples fail new-user workflows | HIGH | MEDIUM | No root Cargo manifest; flagship uses unsupported syntax/absent packages | Run docs as CI programs or label conceptual; correct manifest paths | OPEN |
 | R-015 | Tracked compilation benchmark reports successful non-compilations | HIGH | HIGH | `AUDIT-018` reran the harness-shaped source-path invocation: it prints `Unknown command` and exits zero; `performance_benchmark.py` times that exact command and the shell harness is simulated | Quarantine affected claims, fix command/status/output correctness gates, rerun under protocol | OPEN — ranked after CORE-012 |
 | R-016 | Stable Rust/LLVM drift breaks reproducibility | MEDIUM | MEDIUM | CI tracks floating stable/nightly and no repository toolchain pin was found | Declare supported toolchains; capture lock/environment and platform gates | OPEN |
-| R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | Public CORE-012 red checkpoint `57c4ec7` captures all direct/CLI/local routes; the local candidate guards every live function and CLI live branch before auth/I/O/transport while keeping local search and dry-run plans credential/network-free; focused/full gates pass | Preserve quarantine; later specify and adversarially test paths, payload, response, auth, overwrite, dependencies, and transport before separate re-enablement | IMPLEMENTATION CANDIDATE — exact review/public CI pending |
+| R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | Accepted CORE-012 at `6780a23` guards every live function and CLI live branch before auth/I/O/transport while keeping local search and dry-run plans credential/network-free; focused/full gates, exact review, and all public CI checks pass | Preserve quarantine; later specify and adversarially test paths, payload, response, auth, overwrite, dependencies, and transport before separate re-enablement | CONTROLLED — live transport fail closed; protocol remains unimplemented |
 
 ## Priority order
 
@@ -41,4 +41,9 @@ R-004 remains critical but stops on unfrozen ownership/provenance semantics span
 more than two compiler phases. R-013/R-015 follow as the next tooling boundary;
 R-011 currently rejects the reproduced mixed-array/index cases before artifact
 publication, although too late in checked IR for the mixed numeric case. `CORE-012`
-is preregistered as quarantine only, not as a registry protocol implementation.
+was preregistered as quarantine only, not as a registry protocol implementation.
+
+Accepted `CORE-012` closes the active live-transport boundary without designing or
+enabling a protocol. The next task is `AUDIT-019`: revalidate R-013/R-015 at public
+head `6780a23`, compare them with the still-stopped ownership risk and other open
+items, and preregister one bounded slice before further production behavior.

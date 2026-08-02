@@ -636,7 +636,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-017 — Quarantine live registry transport before designing its protocol
 
 - Date: 2026-08-02
-- Status: local `CORE-012` implementation candidate; exact review/public CI pending
+- Status: accepted and implemented at `6780a23cd8b63df124477c7db1190d61dd25f3b8`
 - Decision: every HTTP-backed registry entry (`search_live_registry`,
   `publish_live`, and `install_live`) must fail with the exact stable diagnostic
   `live registry transport is disabled pending a reviewed protocol and trust boundary`
@@ -687,3 +687,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   URL, archive, digest/signature, destination, overwrite/symlink, and dependency
   contracts with adversarial transport tests. Re-enablement requires a separate
   reviewed decision and cannot be inferred from `CORE-012`.
+- Implementation evidence: public red checkpoint `57c4ec7` records the exact
+  independently approved failing contract. The accepted implementation makes one
+  shared guard first in every direct live function and checks it in CLI live dispatch
+  before auth; local search and CLI dry-runs use only local credential/network-free
+  paths. Exact implementation diff `05e55496f6664713192b2dbf94eca785abe2931d`
+  and tree `85ed76ab0141409796e167704e4100dd4d15c26f` passed focused/full local gates and
+  three independent reviews with no P0-P3 findings. All eight public checks pass at
+  `6780a23`. No registry protocol or re-enablement was accepted.

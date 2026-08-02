@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 12 — independently review the exact `CORE-012` implementation candidate.
-The preregistration and tests-only red checkpoint are public; focused controls and
-the complete local repository gate are green. Publication remains unauthorized
-until the exact candidate snapshot is approved.
+Milestone 13 — close the accepted `CORE-012` evidence record, then begin `AUDIT-019`
+to re-rank the false-success CLI/benchmark boundary against the remaining open risks.
+No new production behavior is authorized until that audit records a reproducer,
+scope, stop conditions, and focused red controls.
 
 ## Active hypothesis
 
-Confirmed locally for the `CORE-012` candidate: one shared fail-closed guard rejects
+Confirmed and accepted for `CORE-012`: one shared fail-closed guard rejects
 every live registry entry before credentials, filesystem access, process/network
 transport, digest/response handling, or writes. CLI local search and publish/install
 dry-runs bypass auth and remain network-free. Direct publish/install reject under
@@ -51,11 +51,16 @@ quarantine from future protocol design.
   approved the snapshot with no P0-P3 findings. Direct registry evidence was
   7 pass / 5 intentional failures; the CLI matrix was 0 pass / 6 intentional
   failures. The full gate stopped at 134 pass / the same five intended failures.
-- Local `CORE-012` implementation candidate: direct registry tests pass 12/12 in
+- Published accepted `CORE-012` implementation:
+  `6780a23cd8b63df124477c7db1190d61dd25f3b8`; exact reviewed diff
+  `05e55496f6664713192b2dbf94eca785abe2931d`, tree
+  `85ed76ab0141409796e167704e4100dd4d15c26f`. Direct registry tests pass 12/12 in
   both library and binary targets; CLI quarantine/local/dry-run/help tests pass 7/7.
   The complete `./tools/test.sh` gate passes 139 library, 148 binary, every active
   integration suite, formatting, correctness Clippy, and doc tests; 38 pre-existing
-  Phase 5 tests remain explicitly ignored.
+  Phase 5 tests remain explicitly ignored. Three independent reviewers approved the
+  exact snapshot with no P0-P3 findings. Both compiler-test workflows, Rust stable/
+  nightly, all CodeQL language analyses, and aggregate CodeQL pass publicly.
 - Published accepted `CORE-011` head:
   `a711dd5f3802095a4ecbe2dea3d45003675e7459`; exact reviewed implementation
   diff `60fe607413ebc03e9aa5d6296d9067d8cc95d89d`, tree
@@ -155,9 +160,9 @@ quarantine from future protocol design.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
-  `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
-- Worktree: bounded `CORE-012` implementation candidate and coordinated public-truth/
-  project-control updates; exact review and publication are pending.
+  `6780a23cd8b63df124477c7db1190d61dd25f3b8`.
+- Worktree: documentation-only `CORE-012` acceptance closure; production behavior is
+  unchanged from the exact reviewed, full-gate-green, public-CI-green implementation.
 
 ## Environment and verification
 
@@ -391,11 +396,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain independent type/IR/backend approval of the current exact staged `CORE-012`
-diff/tree. Publish only that approved snapshot, then require public CI before
-acceptance closure. Do not re-enable or implement transport, payload, response,
-auth, package-format, path-containment, overwrite, dependency, or general CLI-status
-semantics.
+Independently review and publish this documentation-only acceptance closure, then
+begin read-only `AUDIT-019` at accepted head `6780a23`. Reproduce and rank general
+CLI status and the false compilation benchmark before preregistering one bounded
+slice. Do not infer registry protocol, ownership, backend, benchmark, stability,
+release, or merge authorization from `CORE-012`.
 
 ## Unauthorized actions
 

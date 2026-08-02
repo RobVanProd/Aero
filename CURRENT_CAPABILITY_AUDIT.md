@@ -366,7 +366,7 @@ reclassified rather than deleted.
   closure requires a frozen ownership model plus CFG/provenance work across more
   than the permitted bounded phases; changing one Copy predicate would imply safety
   it does not provide. R-004 remains critical and explicitly stopped, not waived.
-- Selection: `CORE-012` will quarantine every HTTP-backed registry entry with one
+- Selection: `CORE-012` was selected to quarantine every HTTP-backed registry entry with one
   stable fail-closed guard before credential, filesystem, or transport activity.
   Offline index search and non-network publish/install previews remain available.
   This does not design or validate a registry protocol and cannot re-enable live
@@ -376,11 +376,16 @@ reclassified rather than deleted.
   `4058775145e68aa9a5512853c04b0dde04730464` and tree
   `227254ef8177d8e15b69c42bd1e2d94c1442879a`. Direct evidence was 7 pass / 5
   intentional failures; CLI evidence was 0 pass / 6 intentional failures.
-- Local implementation candidate: every live function and CLI live branch now hits
+- Accepted implementation: every live function and CLI live branch now hits
   the frozen guard before credentials or side effects. Local search and CLI dry-runs
   bypass auth and use only local helpers. Direct registry targets pass 12/12 each;
-  the CLI matrix/help pass 7/7; the complete repository gate is green. Exact review,
-  publication, and public CI remain pending, so this is not yet accepted closure.
+  the CLI matrix/help pass 7/7; the complete repository gate is green. Three
+  independent reviewers approved exact diff
+  `05e55496f6664713192b2dbf94eca785abe2931d` and tree
+  `85ed76ab0141409796e167704e4100dd4d15c26f` with no P0-P3 findings. Both compiler-
+  test workflows, Rust stable/nightly, every CodeQL language analysis, and aggregate
+  CodeQL pass at accepted public head
+  `6780a23cd8b63df124477c7db1190d61dd25f3b8`.
 
 ## Testing and fuzzing audit
 

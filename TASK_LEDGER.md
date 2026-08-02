@@ -1816,5 +1816,12 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   suite, formatting, correctness Clippy, and doc tests; 38 Phase 5 tests remain
   intentionally ignored. Public truth now describes quarantine while preserving the
   future design target.
-- Status: implementation candidate; exact independent review, publication, and
-  public CI remain pending.
+- Acceptance: exact implementation diff
+  `05e55496f6664713192b2dbf94eca785abe2931d`, tree
+  `85ed76ab0141409796e167704e4100dd4d15c26f`, was approved by three independent
+  reviewers with no P0-P3 findings and published as
+  `6780a23cd8b63df124477c7db1190d61dd25f3b8`. Both compiler-test workflows,
+  Rust stable/nightly, all CodeQL language analyses, and aggregate CodeQL pass.
+- Status: accepted. Live registry transport remains disabled; package/payload,
+  response, auth, URL, destination, overwrite/symlink, digest/signature, dependency,
+  and re-enablement semantics remain separate and unimplemented.
