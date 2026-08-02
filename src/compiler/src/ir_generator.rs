@@ -147,26 +147,8 @@ impl IrGenerator {
         matches!(inst, Inst::Return(_) | Inst::Jump(_) | Inst::Branch { .. })
     }
 
-    fn restore_callable_bindings(&mut self, before_scope: &HashMap<String, (Value, Ty)>) {
-        let introduced_callables: Vec<String> = self
-            .symbol_table
-            .iter()
-            .filter_map(|(name, (_, ty))| matches!(ty, Ty::Fn(_)).then_some(name.clone()))
-            .collect();
-
-        for name in introduced_callables {
-            if let Some(binding) = before_scope.get(&name) {
-                self.symbol_table.insert(name, binding.clone());
-            } else {
-                self.symbol_table.remove(&name);
-            }
-        }
-
-        for (name, binding) in before_scope {
-            if matches!(binding.1, Ty::Fn(_)) {
-                self.symbol_table.insert(name.clone(), binding.clone());
-            }
-        }
+    fn restore_bindings(&mut self, before_scope: &HashMap<String, (Value, Ty)>) {
+        self.symbol_table.clone_from(before_scope);
     }
 
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
@@ -231,23 +213,23 @@ impl IrGenerator {
                 self.generate_if_statement_ir(condition, then_block, else_block, current_function);
             }
             Statement::While { condition, body } => {
-                let callable_scope = self.symbol_table.clone();
+                let scope_snapshot = self.symbol_table.clone();
                 self.generate_while_loop_ir(condition, body, current_function);
-                self.restore_callable_bindings(&callable_scope);
+                self.restore_bindings(&scope_snapshot);
             }
             Statement::For {
                 variable,
                 iterable,
                 body,
             } => {
-                let callable_scope = self.symbol_table.clone();
+                let scope_snapshot = self.symbol_table.clone();
                 self.generate_for_loop_ir(variable, iterable, body, current_function);
-                self.restore_callable_bindings(&callable_scope);
+                self.restore_bindings(&scope_snapshot);
             }
             Statement::Loop { body } => {
-                let callable_scope = self.symbol_table.clone();
+                let scope_snapshot = self.symbol_table.clone();
                 self.generate_infinite_loop_ir(body, current_function);
-                self.restore_callable_bindings(&callable_scope);
+                self.restore_bindings(&scope_snapshot);
             }
             Statement::Break => {
                 self.generate_break_ir(current_function);
@@ -260,7 +242,7 @@ impl IrGenerator {
                 self.generate_expression_ir(expr, current_function);
             }
             Statement::Block(block) => {
-                let callable_scope = self.symbol_table.clone();
+                let scope_snapshot = self.symbol_table.clone();
                 // Generate IR for block statements
                 for stmt in block.statements {
                     self.generate_statement_ir(stmt, current_function);
@@ -268,7 +250,7 @@ impl IrGenerator {
                 if let Some(expr) = block.expression {
                     self.generate_expression_ir(expr, current_function);
                 }
-                self.restore_callable_bindings(&callable_scope);
+                self.restore_bindings(&scope_snapshot);
             }
             // Phase 4: struct/enum/impl definitions are processed at a higher level;
             // they don't generate body IR in the same way as executable statements.
@@ -964,7 +946,7 @@ impl IrGenerator {
             false_label: else_label.clone(),
         });
 
-        let callable_scope = self.symbol_table.clone();
+        let scope_snapshot = self.symbol_table.clone();
 
         // Generate then block
         current_function.body.push(Inst::Label(then_label));
@@ -981,7 +963,7 @@ impl IrGenerator {
         if !then_terminates {
             current_function.body.push(Inst::Jump(end_label.clone()));
         }
-        self.restore_callable_bindings(&callable_scope);
+        self.restore_bindings(&scope_snapshot);
 
         // Generate else block
         current_function.body.push(Inst::Label(else_label));
@@ -995,7 +977,7 @@ impl IrGenerator {
         if !else_terminates {
             current_function.body.push(Inst::Jump(end_label.clone()));
         }
-        self.restore_callable_bindings(&callable_scope);
+        self.restore_bindings(&scope_snapshot);
 
         // A merge block is only reachable when at least one arm falls through.
         if !then_terminates || !else_terminates {
