@@ -1,11 +1,13 @@
 use crate::ast::{AstNode, Parameter, Statement, TraitMethod, Type, VariantDecl};
 use crate::lexer::try_tokenize_with_locations;
+use crate::module_resolver::ModuleResolver;
 use crate::parser::parse_with_locations;
 
 pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, String> {
     let tokens = try_tokenize_with_locations(source_code, Some(input_file.to_string()))
         .map_err(|err| format!("Lex error: {}", err))?;
     let ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
+    validate_direct_modules(input_file, &ast)?;
 
     let mut modules = Vec::new();
     let mut functions = Vec::new();
@@ -162,6 +164,24 @@ pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, 
     Ok(out)
 }
 
+fn validate_direct_modules(input_file: &str, ast: &[AstNode]) -> Result<(), String> {
+    let mut resolver = ModuleResolver::new(input_file);
+
+    for node in ast {
+        let AstNode::Statement(Statement::ModDecl { name, .. }) = node else {
+            continue;
+        };
+
+        let resolved = resolver.resolve(name)?;
+        let filename = resolved.file_path.to_string_lossy().into_owned();
+        let tokens = try_tokenize_with_locations(&resolved.source, Some(filename))
+            .map_err(|err| format!("Lex error: {}", err))?;
+        parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
+    }
+
+    Ok(())
+}
+
 fn format_function_signature(
     name: &str,
     parameters: &[Parameter],
@@ -262,9 +282,19 @@ fn format_type(ty: &Type) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn generates_markdown_for_core_declarations() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let workspace = std::env::temp_dir().join(format!("aero-doc-generator-{unique}"));
+        fs::create_dir_all(&workspace).expect("create doc workspace");
+        fs::write(workspace.join("math.aero"), "fn square() {}\n").expect("write direct module");
+        let input_file = workspace.join("main.aero");
         let source = r#"
 mod math;
 
@@ -287,7 +317,8 @@ fn add<T>(x: int, y: int) -> int where T: Draw {
 }
 "#;
 
-        let doc = generate_markdown("main.aero", source).expect("doc generation should succeed");
+        let doc = generate_markdown(&input_file.to_string_lossy(), source)
+            .expect("doc generation should succeed");
         assert!(doc.contains("# Aero API Documentation"));
         assert!(doc.contains("## Modules"));
         assert!(doc.contains("`mod math`"));
