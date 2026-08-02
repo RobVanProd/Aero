@@ -28,9 +28,8 @@ impl TestWorkspace {
     }
 
     fn unique_source(&self, source: &str) -> String {
-        // CLI builds consult the compilation cache before semantic analysis. A
-        // per-test source nonce prevents the red checkpoint from seeding a cache
-        // entry that could hide later semantic enforcement.
+        // Keep each fixture distinct so its diagnostics and artifacts are
+        // attributable to one CLI invocation.
         format!(
             "{source}\n// numeric-let-annotation test nonce {}\n",
             self.nonce

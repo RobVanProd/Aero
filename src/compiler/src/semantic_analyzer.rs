@@ -1437,7 +1437,7 @@ impl SemanticAnalyzer {
             Statement::Let {
                 name,
                 mutable,
-                type_annotation: _,
+                type_annotation,
                 value,
             } => {
                 if self.scope_manager.variable_exists_in_current_scope(name) {
@@ -1454,12 +1454,28 @@ impl SemanticAnalyzer {
                     Ty::Int
                 };
 
+                let binding_type = if value.is_some()
+                    && let Some(expected_type) = type_annotation
+                        .as_ref()
+                        .and_then(Self::numeric_contract_type)
+                {
+                    if inferred_type != expected_type {
+                        return Err(format!(
+                            "Error: Variable `{}` type annotation mismatch: expected {}, actual {}.",
+                            name, expected_type, inferred_type
+                        ));
+                    }
+                    expected_type
+                } else {
+                    inferred_type
+                };
+
                 // Phase 5: Track ownership transfers and borrows.
                 if let Some(val_expr) = value {
                     match val_expr {
                         // Move semantics: let x = y (non-Copy type moves)
                         Expression::Identifier(source_name) => {
-                            if !inferred_type.is_copy_type() {
+                            if !binding_type.is_copy_type() {
                                 self.scope_manager.mark_moved(source_name)?;
                             }
                         }
@@ -1482,7 +1498,7 @@ impl SemanticAnalyzer {
 
                 self.scope_manager.define_variable(
                     name.clone(),
-                    inferred_type.clone(),
+                    binding_type.clone(),
                     *mutable,
                     value.is_some(),
                 )?;
@@ -1490,7 +1506,7 @@ impl SemanticAnalyzer {
                 // Also add to old symbol table for backward compatibility
                 let var_info = VariableInfo {
                     name: name.clone(),
-                    ty: inferred_type.clone(),
+                    ty: binding_type.clone(),
                     mutable: *mutable,
                     initialized: value.is_some(),
                 };
