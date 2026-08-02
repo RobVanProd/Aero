@@ -334,21 +334,43 @@ fn main() {
                             if name.ends_with("_test.aero") || name.ends_with("_tests.aero") {
                                 test_count += 1;
                                 println!("\x1b[1;36m     Running\x1b[0m {}", path.display());
-                                if let Ok(src) = fs::read_to_string(&path) {
-                                    let tokens = lexer::tokenize(&src);
-                                    let ast = parser::parse(tokens);
-                                    let mut analyzer = SemanticAnalyzer::new();
-                                    match analyzer.analyze(ast) {
-                                        Ok(_) => {
-                                            pass_count += 1;
-                                            println!("      \x1b[1;32m✓\x1b[0m {} passed", name);
+                                match fs::read_to_string(&path) {
+                                    Ok(src) => {
+                                        let filename = path.to_string_lossy().to_string();
+                                        let tokens =
+                                            lexer::tokenize_with_locations(&src, Some(filename));
+                                        match parser::parse_with_locations(tokens) {
+                                            Ok(ast) => {
+                                                let mut analyzer = SemanticAnalyzer::new();
+                                                match analyzer.analyze(ast) {
+                                                    Ok(_) => {
+                                                        pass_count += 1;
+                                                        println!(
+                                                            "      \x1b[1;32m✓\x1b[0m {} passed",
+                                                            name
+                                                        );
+                                                    }
+                                                    Err(err) => {
+                                                        println!(
+                                                            "      \x1b[1;31m✗\x1b[0m {} failed: {}",
+                                                            name, err
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                            Err(err) => {
+                                                println!(
+                                                    "      \x1b[1;31m✗\x1b[0m {} failed: Parse error: {}",
+                                                    name, err
+                                                );
+                                            }
                                         }
-                                        Err(err) => {
-                                            println!(
-                                                "      \x1b[1;31m✗\x1b[0m {} failed: {}",
-                                                name, err
-                                            );
-                                        }
+                                    }
+                                    Err(err) => {
+                                        println!(
+                                            "      \x1b[1;31m✗\x1b[0m {} failed: could not read test: {}",
+                                            name, err
+                                        );
                                     }
                                 }
                             }
@@ -362,12 +384,14 @@ fn main() {
                     "\x1b[1;33mwarning\x1b[0m: no test files found (*_test.aero, *_tests.aero)"
                 );
             } else {
+                let failure_count = test_count - pass_count;
                 println!(
                     "\n\x1b[1mtest result\x1b[0m: {} passed, {} failed, {} total",
-                    pass_count,
-                    test_count - pass_count,
-                    test_count
+                    pass_count, failure_count, test_count
                 );
+                if failure_count > 0 {
+                    exit(1);
+                }
             }
         }
         "fmt" => {
@@ -1634,7 +1658,17 @@ fn run_aero_program(
     let gpu_obj_path = artifacts.gpu_obj_file.to_string_lossy().to_string();
 
     // Compile to LLVM IR first.
-    compile_to_llvm_ir(source_code, &ll_path, input_file, build_config)?;
+    if let Err(err) = compile_to_llvm_ir(source_code, &ll_path, input_file, build_config) {
+        fs::remove_dir_all(&artifacts.directory).map_err(|cleanup_err| {
+            format!(
+                "{}; failed to remove compile artifact directory {}: {}",
+                err,
+                artifacts.directory.display(),
+                cleanup_err
+            )
+        })?;
+        return Err(err);
+    }
     if !artifacts.ll_file.exists() {
         return Err(format!(
             "compile step did not produce LLVM IR at {}",
