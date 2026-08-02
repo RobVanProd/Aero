@@ -4,14 +4,16 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 7 — run the complete gate and obtain two independent approvals for the
-implemented `CORE-007` fail-closed named-field value boundary.
+Milestone 8 — audit and compare the next unsupported-expression failure boundary
+without selecting semantics or changing production code.
 
 ## Active hypothesis
 
-The exact documented candidate's one-line receiver-first preflight rejection should
-close every trusted field value route while preserving tuple/void precedence,
-methods, arrays, indexing, iteration, and prior accepted compiler boundaries.
+The remaining known families differ materially: string comparisons panic after
+semantics, integer zero division diverges by operand form, and unsupported methods,
+matches, and composites can fabricate zero or drop evaluation. A bounded comparison
+should identify the smallest fail-closed slice whose semantics and recursive
+coverage can be frozen without crossing compiler phases.
 
 ## Repository state
 
@@ -20,11 +22,11 @@ methods, arrays, indexing, iteration, and prior accepted compiler boundaries.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current behavior/public-documentation candidate:
-  `5dcb70b2d29ae6c95a619bdd8e1c8038d8c216f4`
-- Last verified commit: `cbbe049bee7664abb3ca9b8d1faaa865345eb440`
-- Worktree: clean. `CORE-007` passes 81 focused tests; complete verification and
-  independent acceptance are pending.
+- Current reviewed behavior/public-documentation candidate:
+  `4e10d4799b7873741a5eae9c66ac352b1709d75c`
+- Last verified commit: `4e10d4799b7873741a5eae9c66ac352b1709d75c`
+- Worktree: clean before this documentation-only closure. `CORE-007` passes the
+  complete repository gate and has two exact-SHA non-owner approvals.
 
 ## Environment and verification
 
@@ -82,6 +84,14 @@ methods, arrays, indexing, iteration, and prior accepted compiler boundaries.
   phase-five tests remain ignored. Two non-owner reviewers approved exact clean
   `cbbe049` after fresh structural and 18-route black-box public/CLI diagnostic,
   no-unwind, no-panic, no-artifact, nesting, precedence, and positive-control probes.
+- `CORE-007` verification at `4e10d479`: focused field tests 8/8; tuple 16/16;
+  modulo 14/14; function-contract 13/13; annotation 18/18; strict-lex 12/12;
+  complete gate PASS with 112 library, 119 binary, 11 fatal-parse, 59 frontend,
+  13 function-contract, 18 annotation, 12 strict-lex, 14 modulo, 16 tuple, and
+  8 field tests. The 38 pre-existing phase-five tests remain ignored. Two non-owner
+  reviewers approved exact clean `4e10d479` after independent 25-route public and
+  27-route public/CLI/module matrices, plus structural, nesting, precedence,
+  no-unwind, no-panic, no-artifact, parser-distinction, and positive-control probes.
 
 ## Audit agents
 
@@ -126,10 +136,11 @@ methods, arrays, indexing, iteration, and prior accepted compiler boundaries.
   public compilation, CLI, modules, artifacts, nesting, and controls. All ranked
   FieldAccess first as the only one-node silent-miscompile family with no active
   value-preserving path and no required layout/arithmetic policy.
-- `CORE-007` candidate at `5dcb70b`: tests-only red checkpoint `7346edd`; one-line
-  production behavior `75dbfba`; user-facing field status and matrix corrected.
-  The exact clean candidate passes 81/81 focused field/tuple/modulo/function/
-  annotation/strict regressions. Full gate and independent review remain open.
+- `CORE-007` field value boundary: accepted at exact clean `4e10d479`. The
+  tests-only red checkpoint is `7346edd`, the one-line receiver-first production
+  behavior is `75dbfba`, and user-facing field status and the matrix are corrected
+  at `5dcb70b`. Both non-owner reviewers approved after independent structural and
+  black-box attempts to falsify the complete-gate candidate.
 
 ## Current capability classification
 
@@ -177,14 +188,16 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Constant integer division by zero independently panics during IR constant folding.
   Unsupported match/method and other composite forms can still fabricate scalar
   zero, and some semantically accepted comparisons can panic or generate
-  type-invalid LLVM. Named field values are fail-closed in the `CORE-007` candidate.
+  type-invalid LLVM. Named field values are fail-closed in accepted `CORE-007` at
+  exact reviewed `4e10d479`; direct AST-to-IR bypass remains outside that boundary.
 
 ## Exact next action
 
-Run `./tools/test.sh` on the clean candidate-state tip containing `5dcb70b`. If it
-passes, assign two non-owner reviewers independent structural and black-box
-public/CLI attempts to falsify that exact documented tip before accepting or
-correcting it.
+Perform a read-only audit on exact accepted `4e10d479` comparing string comparisons,
+unknown methods, matches, and the already characterized zero-division variants.
+Record public/CLI behavior, semantic and IR reachability, recursion requirements,
+positive controls, and policy dependencies before selecting or preregistering
+`CORE-008`.
 
 ## Unauthorized actions
 

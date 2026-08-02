@@ -800,8 +800,8 @@
   precedence changes; or method/array/index/iterator/numeric/struct-syntax/prior
   focused behavior regresses.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: implementation candidate complete; full-gate and independent acceptance
-  review pending.
+- Status: accepted at exact reviewed candidate
+  `4e10d4799b7873741a5eae9c66ac352b1709d75c`.
 - Acceptance criteria: red evidence is preserved; focused parser, positive,
   negative, recursive, diagnostic-order, no-unwind, direct-module, and CLI
   no-artifact tests pass; prior focused suites and `./tools/test.sh` pass; public
@@ -819,7 +819,24 @@
   It adds one receiver-first error return to the existing field preflight arm; no
   inference stub or parser/AST/type/IR/backend file changes. Public field status and
   the split implementation-matrix row are corrected at `5dcb70b`.
-- Candidate verification: exact clean `5dcb70b` passes 8/8 field tests, 16/16 tuple,
-  14/14 modulo, 13/13 function-contract, 18/18 annotation, and 12/12 strict-lex tests
-  (81 focused tests total). The complete gate and two exact-SHA non-owner approvals
-  remain open.
+- Candidate verification: exact clean `4e10d4799b7873741a5eae9c66ac352b1709d75c`
+  passes 8/8 field tests, 16/16 tuple, 14/14 modulo, 13/13 function-contract,
+  18/18 annotation, and 12/12 strict-lex tests (81 focused tests total), plus
+  `./tools/test.sh` with 112 library, 119 binary, 11 fatal-parse, 59 frontend,
+  13 function-contract, 18 annotation, 12 strict-lex, 14 modulo, 16 tuple, and
+  8 field tests. The 38 pre-existing phase-five tests remain ignored.
+- Independent acceptance: Reviewer A approved after structural inspection and
+  25/25 fresh public-route probes, receiver-diagnostic precedence checks, a
+  constructed AST-root probe, five positive controls, and all 81 focused tests.
+  Reviewer B approved after an independent 27-route public/check/build matrix,
+  direct-module and no-artifact checks, receiver precedence, parser distinctions,
+  and positive LLVM-marker controls. Both changed no repository file and approved
+  exact clean `4e10d4799b7873741a5eae9c66ac352b1709d75c` with no P0-P3 finding.
+- Accepted result: every named field value expression reached through trusted
+  semantic analysis fails before IR with
+  `Field access expressions are not supported.` Receiver-first tuple and void-call
+  diagnostics, method-call syntax, tuple projection syntax, and the tested numeric,
+  struct-syntax, array, index, and iterator controls retain their prior behavior.
+  Direct AST-to-IR bypass, dormant inference stubs, field assignment, struct
+  execution/layout/ownership, unknown methods, and parent composites remain outside
+  the accepted boundary.

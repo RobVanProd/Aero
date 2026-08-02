@@ -265,8 +265,8 @@ callers that bypass semantics and tuple layout/execution remain open by design.
 ## DEC-011 — Named field values fail closed until struct projection is implemented
 
 - Date: 2026-08-02
-- Status: implemented for `CORE-007`; full-gate and independent acceptance review
-  pending
+- Status: accepted for `CORE-007` at exact reviewed candidate
+  `4e10d4799b7873741a5eae9c66ac352b1709d75c`
 - Decision: Aero retains named field-access syntax and its AST node, but active
   semantic preflight recursively rejects every field-access value expression with
   `Field access expressions are not supported.` The receiver is preflighted first
@@ -290,7 +290,12 @@ callers that bypass semantics and tuple layout/execution remain open by design.
   projection, assignment, ownership, evaluation order, ABI, typed IR, backend
   lowering, and end-to-end positive tests can ship as one coherent vertical slice.
 
-Implementation candidate: the tests-only red checkpoint is integrated as `7346edd`
-and the one-line production change as `75dbfba`; public documentation is corrected
-at `5dcb70b`. The exact clean candidate passes all 81 focused tests. The complete
-repository gate and two non-owner reviews remain required before acceptance.
+Implementation closure: the tests-only red checkpoint is integrated as `7346edd`,
+the one-line production change as `75dbfba`, and public documentation as `5dcb70b`.
+Exact clean `4e10d4799b7873741a5eae9c66ac352b1709d75c` passes all 81 focused tests and
+the complete repository gate. Two non-owner reviewers approved that exact SHA with
+no P0-P3 finding after independent structural, public-library, CLI, module,
+nested-expression, diagnostic-ordering, no-unwind, no-panic, no-artifact, parser,
+and positive-control probes. Direct semantic bypass, field assignment, struct
+execution/layout/ownership, unknown methods, and parent composites remain open by
+design.
