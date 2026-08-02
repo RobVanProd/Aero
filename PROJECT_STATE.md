@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 7 — implement the preregistered `CORE-007` fail-closed named-field value
-boundary tests-first, without inventing struct layout or projection semantics.
+Milestone 7 — run the complete gate and obtain two independent approvals for the
+implemented `CORE-007` fail-closed named-field value boundary.
 
 ## Active hypothesis
 
-The existing exhaustive semantic preflight can recurse through a field receiver,
-preserve accepted tuple/void diagnostic ordering, then reject the field node across
-all trusted routes without changing parser/AST/types/IR/backend or method behavior.
+The exact documented candidate's one-line receiver-first preflight rejection should
+close every trusted field value route while preserving tuple/void precedence,
+methods, arrays, indexing, iteration, and prior accepted compiler boundaries.
 
 ## Repository state
 
@@ -20,11 +20,11 @@ all trusted routes without changing parser/AST/types/IR/backend or method behavi
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit before `CORE-007` preregistration:
-  `52d3415f9a6d0463dda9f9c8abfca0e32c6c47f6`
+- Current behavior/public-documentation candidate:
+  `5dcb70b2d29ae6c95a619bdd8e1c8038d8c216f4`
 - Last verified commit: `cbbe049bee7664abb3ca9b8d1faaa865345eb440`
-- Worktree: clean; `52d3415` is the documentation-only `CORE-006` acceptance closure
-  beyond the last behaviorally verified/reviewed candidate.
+- Worktree: clean. `CORE-007` passes 81 focused tests; complete verification and
+  independent acceptance are pending.
 
 ## Environment and verification
 
@@ -126,6 +126,10 @@ all trusted routes without changing parser/AST/types/IR/backend or method behavi
   public compilation, CLI, modules, artifacts, nesting, and controls. All ranked
   FieldAccess first as the only one-node silent-miscompile family with no active
   value-preserving path and no required layout/arithmetic policy.
+- `CORE-007` candidate at `5dcb70b`: tests-only red checkpoint `7346edd`; one-line
+  production behavior `75dbfba`; user-facing field status and matrix corrected.
+  The exact clean candidate passes 81/81 focused field/tuple/modulo/function/
+  annotation/strict regressions. Full gate and independent review remain open.
 
 ## Current capability classification
 
@@ -171,15 +175,16 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   recursively by active semantic preflight with one stable diagnostic before IR.
   Tuple types/patterns remain parsed; tuple layout and execution remain unimplemented.
 - Constant integer division by zero independently panics during IR constant folding.
-  Unsupported match/field/method and other composite forms can still fabricate
-  scalar zero, and some semantically accepted comparisons can panic or generate
-  type-invalid LLVM.
+  Unsupported match/method and other composite forms can still fabricate scalar
+  zero, and some semantically accepted comparisons can panic or generate
+  type-invalid LLVM. Named field values are fail-closed in the `CORE-007` candidate.
 
 ## Exact next action
 
-Commit the `CORE-007` control contract, then have one isolated owner add only the
-focused red integration test file. Preserve the red checkpoint before permitting
-the one-file semantic preflight change.
+Run `./tools/test.sh` on the clean candidate-state tip containing `5dcb70b`. If it
+passes, assign two non-owner reviewers independent structural and black-box
+public/CLI attempts to falsify that exact documented tip before accepting or
+correcting it.
 
 ## Unauthorized actions
 

@@ -265,7 +265,8 @@ callers that bypass semantics and tuple layout/execution remain open by design.
 ## DEC-011 — Named field values fail closed until struct projection is implemented
 
 - Date: 2026-08-02
-- Status: proposed for `CORE-007`; preregistered before tests or production edits
+- Status: implemented for `CORE-007`; full-gate and independent acceptance review
+  pending
 - Decision: Aero retains named field-access syntax and its AST node, but active
   semantic preflight recursively rejects every field-access value expression with
   `Field access expressions are not supported.` The receiver is preflighted first
@@ -288,3 +289,8 @@ callers that bypass semantics and tuple layout/execution remain open by design.
 - Revisit when: struct identity, field definitions/types, layout, construction,
   projection, assignment, ownership, evaluation order, ABI, typed IR, backend
   lowering, and end-to-end positive tests can ship as one coherent vertical slice.
+
+Implementation candidate: the tests-only red checkpoint is integrated as `7346edd`
+and the one-line production change as `75dbfba`; public documentation is corrected
+at `5dcb70b`. The exact clean candidate passes all 81 focused tests. The complete
+repository gate and two non-owner reviews remain required before acceptance.

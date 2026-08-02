@@ -800,7 +800,8 @@
   precedence changes; or method/array/index/iterator/numeric/struct-syntax/prior
   focused behavior regresses.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: preregistered; tests and production code not yet changed.
+- Status: implementation candidate complete; full-gate and independent acceptance
+  review pending.
 - Acceptance criteria: red evidence is preserved; focused parser, positive,
   negative, recursive, diagnostic-order, no-unwind, direct-module, and CLI
   no-artifact tests pass; prior focused suites and `./tools/test.sh` pass; public
@@ -809,3 +810,16 @@
 - Verification commands: focused
   `cargo test --test unsupported_field_access_tests`, prior applicable focused
   suites, `cargo fmt --all -- --check`, and required `./tools/test.sh`.
+- Red checkpoint: owner commit `f363a03`, integrated as `7346edd`, preserves five
+  parser/adjacent/receiver-precedence controls and three expected aggregated failures
+  covering 13 public routes plus root/direct-module CLI check and build. All ordinary
+  fields falsely succeed; builds create requested artifacts and call receivers are
+  dropped. No negative relies on panic.
+- Candidate result: owner production commit `142807f` is integrated as `75dbfba`.
+  It adds one receiver-first error return to the existing field preflight arm; no
+  inference stub or parser/AST/type/IR/backend file changes. Public field status and
+  the split implementation-matrix row are corrected at `5dcb70b`.
+- Candidate verification: exact clean `5dcb70b` passes 8/8 field tests, 16/16 tuple,
+  14/14 modulo, 13/13 function-contract, 18/18 annotation, and 12/12 strict-lex tests
+  (81 focused tests total). The complete gate and two exact-SHA non-owner approvals
+  remain open.
