@@ -91,7 +91,10 @@ Aero supports various operators to perform common operations.
 *   `-` (subtraction)
 *   `*` (multiplication)
 *   `/` (division)
-*   `%` (modulo/remainder)
+
+The `%` token is recognized and parsed with multiplicative precedence, but
+remainder execution semantics are not currently supported. The compiler rejects
+`%` during semantic analysis before IR or artifact generation.
 
 ```aero
 fn main() {
@@ -102,7 +105,6 @@ fn main() {
     println!("{}", a - b); // 7
     println!("{}", a * b); // 30
     println!("{}", a / b); // 3 (integer division truncates)
-    println!("{}", a % b); // 1
 
     let c: f64 = 10.0;
     let d: f64 = 3.0;
@@ -185,12 +187,12 @@ fn main() {
     }
 
     // `if` is an expression, so you can use it in `let` statements:
-    let result = if number % 2 == 0 {
-        "even"
+    let result = if number == 7 {
+        "seven"
     } else {
-        "odd"
+        "another number"
     };
-    println!("{}", result); // Prints "odd"
+    println!("{}", result); // Prints "seven"
 }
 ```
 Note: All branches of an `if`/`else if`/`else` expression (when used to assign a value) must evaluate to the same type.
