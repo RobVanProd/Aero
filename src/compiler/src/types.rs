@@ -169,8 +169,9 @@ impl Ty {
 /// Type inference and promotion rules for binary operations
 pub fn infer_binary_type(op: &str, lhs: &Ty, rhs: &Ty) -> Result<Ty, String> {
     match op {
+        "%" => Err("Binary operator `%` is not supported.".to_string()),
         // Arithmetic operations
-        "+" | "-" | "*" | "/" | "%" => match (lhs, rhs) {
+        "+" | "-" | "*" | "/" => match (lhs, rhs) {
             (Ty::Int, Ty::Int) => Ok(Ty::Int),
             (Ty::Float, Ty::Float) => Ok(Ty::Float),
             (Ty::Int, Ty::Float) | (Ty::Float, Ty::Int) => Ok(Ty::Float), // promote to float
