@@ -1424,10 +1424,12 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `IrGenerator::try_generate_ir` and method/free `try_generate_code`. Keep
   `compile_program(Result<String, String>)` source-compatible and migrate every
   trusted library, CLI build/run, profiler, and conformance caller to checked APIs.
-  Retain current `generate_ir`/`generate_code` entry points only as documented,
-  deprecated unchecked compatibility shims excluded from trusted-path claims until
-  a major break. Checked APIs may never return empty/partial IR or embed errors as
-  output.
+  Retain current `generate_ir`/`generate_code` entry points only as documented
+  unchecked compatibility shims excluded from trusted-path claims until a major
+  break. The method/free `generate_code` shims are marked deprecated; public raw
+  `IrGenerator::generate_ir` is not yet marked deprecated and remains a separately
+  recorded residual API risk. Checked APIs may never return empty/partial IR or
+  embed errors as output.
 - Checked API verification: method/free `try_generate_code` accepts the existing raw
   private IR shape and always invokes the internal verifier before emission, even
   when `try_generate_ir` already verified its output. A pipeline error enum retains
@@ -1435,13 +1437,16 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   phase rather than relabeling it Code Generation. Malformed-IR tests call this
   checked boundary directly. No public verified-token or private IR exposure is
   introduced in this slice.
-- Legacy API behavior: deprecated `generate_ir -> HashMap` and method/free
-  `generate_code -> String` retain a separate unchecked legacy implementation and
-  its historical panic/silent behavior for source compatibility; they are not
-  implemented by unwrapping the checked APIs and are excluded from every trusted
-  compiler/correctness claim. They may preserve historical partial/silent output but
-  may not gain new adapter fallbacks, newly implicit panics, or error-text output.
-  Removal, rather than semantic alteration, occurs at a major compatibility boundary.
+- Legacy API behavior: public unchecked `generate_ir -> HashMap` retains historical
+  panic/silent behavior when selected directly. `try_generate_ir` may reuse its
+  internal engine only after checked preflight/mode activation and must verify the
+  result before returning it. Deprecated method/free `generate_code -> String`
+  retains a separate unchecked legacy implementation. Trusted callers select only
+  the checked boundaries and never consume raw unchecked output. The unchecked APIs
+  may preserve historical partial/silent direct behavior but may not gain adapter
+  fallbacks, newly implicit panics, or error-text output. Deprecating/restricting raw
+  `generate_ir` and removing the unchecked APIs, rather than altering their direct
+  semantics, occurs at a major compatibility boundary.
 - Diagnostic contract: preserve `Lex error:`, `Parse error:`, and
   `Semantic Analysis Error:`. Add stable `IR Generation Error:`,
   `IR Verification Error:`, `Code Generation Error:`, and
@@ -1552,3 +1557,129 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   with no P0-P3 findings. The complete local gate, Rust stable/nightly, both public
   compiler-test workflows, and all CodeQL jobs pass. The PR remains draft; this
   acceptance does not authorize merge, release, or broader capability claims.
+
+## AUDIT-017 — Revalidate the post-CORE-010 module and pipeline boundary
+
+- Objective: re-audit the highest-ranked open pipeline candidate after `CORE-010`,
+  reproduce each trusted module-source route, and select the smallest phase boundary
+  that prevents false success without claiming unimplemented namespace semantics.
+- Audit base: clean published head
+  `34cc0e088f1b579ebecfb4498c55cde2cb23aaad`; accepted compiler behavior remains
+  exact `db349ef81f145ee571c053f73fb03c831cea719a`.
+- Specification evidence: the formal language specification requires `mod x;` to
+  resolve as `x.aero` or `x/mod.aero` and requires circular dependencies to be
+  rejected. The README advertises multi-file projects, `use`, and `pub`, while the
+  implementation only flattens direct module ASTs and does not enforce namespaces,
+  imports, visibility, recursive paths, or a module graph.
+- Fresh black-box evidence: for a valid root containing `mod absent;`, `build`
+  exits zero and writes the requested LLVM artifact after printing a resolver error.
+  `check` and `profile` both exit one and publish no artifact. A nonexistent build
+  input, no arguments, and an unknown command also exit zero, but those status-only
+  defects are separate because they do not cross the module-source boundary or
+  publish compiler output.
+- Cache evidence: `build` consults its final-LLVM cache before lexing, parsing, or
+  module resolution. Its key contains only root source plus target/GPU selection.
+  A cache hit can therefore bypass a missing module, and module source changes do
+  not change cache identity. The cache is process-local today, but the private
+  reusable optimizer path and its tests make this an active correctness contract,
+  not a hypothetical persistent-cache concern.
+- Pipeline evidence: `build`, `check`/`test`, `profile`, and `doc` independently
+  repeat direct-module resolution and module lex/parse logic. The public
+  `compile_program(source, options)` has no entry path and silently analyzes a
+  `ModDecl` without resolving it. The binary and library still compile distinct
+  module trees, and `CompilerOptions` remains ignored; resolving either broader
+  architecture issue would cross the bounded source-collection slice.
+- Selection: `CORE-011` owns canonical fail-closed direct-module source collection,
+  module-aware cache identity, and source-only library rejection. It does not
+  implement namespaces, `use`, `pub`, recursive module paths, cycle-graph semantics,
+  execution by `aero test`, general CLI status cleanup, or full library/CLI pipeline
+  consolidation.
+- Status: complete; current behavior, specification delta, cache hazard, caller
+  inventory, scope, and stop conditions are recorded before tests or production.
+
+## CORE-011 — Make direct-module source collection canonical and fail closed
+
+- Problem: trusted compiler routes disagree when a declared source file is missing;
+  `build` can report success and publish LLVM, cached LLVM can bypass module state,
+  and the source-only library API silently ignores the unresolved declaration.
+- Priority: P0 because a declared dependency can be absent while a trusted build
+  publishes an artifact and reports success.
+- Dependencies: accepted `CORE-010`; complete `AUDIT-017`; `DEC-016` below freezes
+  the bounded compatibility and failure contract.
+- Hypothesis: one shared direct-module collection boundary, invoked before cache or
+  semantic/IR admission, can make existing routes agree without choosing namespace,
+  visibility, recursive layout, or module-ABI semantics.
+- Direct resolution contract: for each root-level `mod x;` in source order, resolve
+  first `<root-dir>/x.aero`, then `<root-dir>/x/mod.aero`; read, strictly lex with
+  the resolved filename, and fatally parse the whole source. Append the accepted
+  direct-module ASTs in declaration/source order exactly as current compatible
+  compilation does. Resolution, read, lex, or parse failure returns before
+  semantics, IR, cache lookup/publication, output writes, native tools, profile
+  trace writes, test pass accounting, or documentation writes.
+- Unsupported graph contract: a direct module containing another `mod` declaration
+  must fail with one stable explicit unsupported diagnostic. This rejects nested
+  and circular declarations rather than silently treating them as resolved, but it
+  does not claim recursive path, namespace, import, visibility, or cycle-analysis
+  implementation. Those semantics need a separate specification-backed slice.
+- Library contract: `compile_program(source, options)` remains source-compatible,
+  but because it has no entry-file context it must reject any `mod` declaration at
+  the shared module boundary. It may not ignore the declaration or guess a working
+  directory. A future file-aware public API requires its own API/options decision.
+- Caller contract: `build` and `run`, `check`, discovered `test`, `profile`, and
+  `doc` use the shared resolver/parser boundary. Documentation remains root-only
+  after validating direct module sources; discovered tests remain semantic-only in
+  this slice. Command-specific outer rendering may remain, but the inner module
+  diagnostic and failure point are shared.
+- Cache contract: root parsing and direct-module collection precede cache lookup.
+  With zero modules, the key remains the MD5 of the exact existing UTF-8 string
+  `<root-source>::target=<target>::gpu=<gpu>`. With modules, use the domain-separated
+  byte stream `AERO_MODULE_CACHE_V1\0`, then `frame("root", root_source)`,
+  `frame("target", target)`, `frame("gpu", gpu)`, the raw unsigned 64-bit big-endian
+  module count, and, for each module in declaration order, `frame("name", name)`,
+  `frame("candidate", candidate)`, and `frame("source", source)`. A field frame is
+  the exact lowercase ASCII label bytes shown above, NUL, unsigned 64-bit big-endian
+  payload byte length, then raw UTF-8 payload bytes. The relative candidate is exactly
+  `<name>.aero` or `<name>/mod.aero` with `/`, never an absolute/canonical host path,
+  so drive letters, working directory, separator, symlink target, and host case
+  normalization cannot enter identity. Hash the completed byte stream with the
+  existing MD5 cache mechanism. Changing exact source bytes, moving between the two
+  candidates, or deleting a module cannot reuse the prior module-bearing entry.
+  Cache hits retain all `CORE-010` re-verification/publication rules; this cache is
+  a correctness accelerator, not a security-integrity primitive.
+- Claim contract: public capability text must classify modules as direct source
+  collection only. `use`, `pub`, namespace isolation, recursive modules, and cycles
+  are not executable multi-file evidence and must not remain implied as implemented.
+- Red tests: missing direct module through public `compile_program`, CLI `build`,
+  `run`, `check`, `profile`, discovered `test`, and `doc`; exact nonzero/no requested
+  artifact contracts; run must stop before native tools and clean its nonce artifact
+  directory; `x.aero` and `x/mod.aero` positive resolution; malformed direct-module
+  diagnostic preservation; nested-module explicit rejection; and reusable-optimizer
+  cache sequences proving a byte-only source mutation misses, a same-byte move from
+  `x.aero` to `x/mod.aero` misses, deletion fails before cache lookup/output, and the
+  legacy no-module identity remains an actual verified hit.
+- Positive controls: module-free public compilation; existing valid direct-module
+  function visibility under compatible flattened AST behavior; existing malformed
+  module lex/parse and semantic failures; external LLVM verification/cache controls;
+  formatting, all-target compilation, and the complete repository gate.
+- Files allowed: `src/compiler/src/module_resolver.rs`; minimal propagation in
+  `lib.rs`, `main.rs`, `profiler.rs`, and `doc_generator.rs`; focused module/cache
+  tests; README/capability/project-control documentation.
+- Files frozen: lexer token rules, parser grammar, AST shapes, semantic name/type
+  rules, IR/codegen/backend/graph/quantization algorithms, `CompilerOptions`
+  semantics, `aero test` execution semantics, general command dispatch/status,
+  registry, benchmarks, Cargo dependencies, releases, and master.
+- Risks: centralizing across the separately compiled binary/library module trees can
+  accidentally change diagnostics; pre-cache parsing reduces cache-hit speed;
+  path-based fingerprints can be nondeterministic; flattening can be mistaken for
+  real module namespaces; and a narrow missing-file return could leave alternate
+  trusted callers divergent.
+- Stop conditions: correct behavior requires deciding nested-module base paths,
+  namespace/visibility/import semantics, graph cycles beyond explicit rejection,
+  manifest/project lookup, `CompilerOptions`, or another compiler phase outside
+  source collection and caller propagation; any caller still resolves/parses direct
+  modules independently; a module-bearing cache hit can precede collection; or the
+  exact versioned framing/candidate representation above cannot be implemented
+  deterministically without host-dependent path normalization.
+- Owner: lead-owned tests-first vertical slice. Independent type/IR/backend reviewers
+  must approve the exact clean candidate before publication.
+- Status: preregistered; no compiler behavior has changed.

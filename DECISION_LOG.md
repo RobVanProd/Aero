@@ -459,8 +459,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Decision: Aero will add explicit logical types for admitted scalar results,
   places, arrays, calls, branches, and returns; a mandatory in-process IR verifier;
   additive checked IR/codegen APIs; exhaustive codegen errors; and final external
-  LLVM module verification. No trusted compiler path may call the deprecated
-  unchecked helpers once this slice is accepted.
+  LLVM module verification. No trusted compiler route may select a public unchecked
+  compatibility helper as its boundary or consume output that has not passed the
+  checked wrapper's preflight and mandatory verification once this slice is accepted.
 - Representation: `Int`, `Float`, `Bool`, and `Void` remain distinct in IR;
   restricted string immediates and fixed numeric arrays have explicit limited
   roles. Admitted non-capturing scalar closures are compile-time callable aliases
@@ -489,13 +490,18 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   migration.
 - API: preserve `compile_program -> Result<String, String>`. Add checked
   `try_generate_ir`/`try_generate_code` APIs with structured errors, migrate every
-  trusted caller, and deprecate existing unchecked IR helpers until a major break.
-  Checked compatibility never means empty/partial output, embedded error text, or
-  panic catching in production.
+  trusted caller, and retain existing unchecked IR helpers only as excluded
+  compatibility surfaces until a major break. Method/free `generate_code` is marked
+  deprecated; public raw `IrGenerator::generate_ir` is not yet deprecated and must
+  be separately deprecated/restricted before removal. Checked compatibility never
+  means empty/partial output, embedded error text, or panic catching in production.
 - Checked/legacy boundary: every `try_generate_code` entry re-verifies raw private
-  IR and preserves IR Verification as its own error variant. Deprecated unchecked
-  helpers retain a separate legacy implementation and historical behavior; no
-  trusted caller may use them, and they are removed at a major boundary rather than
+  IR and preserves IR Verification as its own error variant. `try_generate_ir`
+  internally reuses the raw generator only after checked preflight/mode activation
+  and then mandatorily verifies its result; trusted callers never enter or consume
+  that raw public boundary directly. Deprecated unchecked codegen retains its
+  separate legacy implementation and historical behavior. The public unchecked
+  APIs are deprecated/restricted then removed at a major boundary rather than
   gaining new adapter fallbacks, error-text output, or newly implicit panics.
 - Diagnostics: preserve existing Lex/Parse/Semantic prefixes and add stable IR
   Generation, IR Verification, Code Generation, and LLVM Verification phase
@@ -568,3 +574,52 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Revisit when: integer and array RFCs authorize exact physical lowering; a major
   API boundary can remove unchecked helpers; or an in-process LLVM construction
   architecture justifies a native LLVM dependency.
+
+## DEC-016 — Direct modules fail closed before cache; namespaces remain unfrozen
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-011` preregistration
+- Decision: every trusted path that accepts an entry-file context will use one
+  strict direct-module source collector before semantic analysis, checked IR, cache
+  lookup, or artifact publication. It preserves the current root-relative
+  `x.aero` then `x/mod.aero` search order and source-order AST flattening only as a
+  compatibility boundary, not as evidence of a complete module system.
+- Source-only API: the existing `compile_program(source, options)` cannot resolve a
+  file-backed declaration because it has no entry path. It will reject `mod`
+  explicitly rather than consult the current directory, ignore the declaration, or
+  add an unfrozen public API. Module-free callers remain source-compatible.
+- Nested modules: a module source containing another `mod` declaration will be
+  rejected explicitly. This is fail-closed compliance with the requirement that
+  unresolved/circular declarations not compile, but it is not recursive resolution
+  or cycle-graph evidence. Nested base-directory rules, namespaces, `use`, `pub`,
+  visibility, and duplicate-name semantics remain unfrozen.
+- Cache: module discovery and strict parsing precede cache lookup. The zero-module
+  identity remains MD5 over the exact existing UTF-8
+  `<root-source>::target=<target>::gpu=<gpu>` string. A module-bearing identity is
+  MD5 over `AERO_MODULE_CACHE_V1\0`, then `frame("root", root_source)`,
+  `frame("target", target)`, `frame("gpu", gpu)`, the raw unsigned 64-bit big-endian
+  module count, and ordered `frame("name", name)`,
+  `frame("candidate", candidate)`, `frame("source", source)` triples. Each frame is
+  the exact lowercase ASCII label bytes shown above, NUL, unsigned 64-bit big-endian
+  payload byte length, and raw UTF-8 payload bytes. The candidate is exactly
+  `<name>.aero` or `<name>/mod.aero` using `/`; it is not canonicalized and includes
+  no entry directory, drive, working directory, host separator, symlink target, or
+  host case normalization. Deletion fails before lookup; an exact byte change or
+  move between candidates cannot hit the prior module-bearing entry. Tests must
+  also prove the legacy no-module key remains a real verified hit. Existing MD5 is
+  retained for cache compatibility and is not treated as a security primitive.
+- Caller policy: build/run, check, discovered test, profile, and documentation share
+  the collector. Documentation validates module source but continues to render the
+  root declarations only; `aero test` remains a semantic checker, not an execution
+  runner, until separately redesigned. Command wrappers may add their established
+  outer presentation, but may not change the shared inner phase failure.
+- Claim policy: current public text must describe only direct source collection.
+  Multi-file namespace, import, visibility, recursive graph, and cycle handling are
+  not claimed until positive and negative end-to-end evidence exists.
+- Alternatives rejected: a one-line return only in `build`; treating the emitted
+  artifact as a warning-success result; hashing root source alone; resolving after a
+  cache hit; guessing a path for the library API; or implementing recursive module
+  semantics without a frozen namespace/path decision.
+- Revisit when: a module-system RFC fixes nested path and namespace semantics, a
+  file-aware library API and `CompilerOptions` are designed, or full pipeline
+  consolidation can cross more than the bounded source-collection phase.

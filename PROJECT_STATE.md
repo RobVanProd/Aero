@@ -4,20 +4,18 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 10 — accepted and published `CORE-010`: checked logical scalar IR
-admission, in-process verification, and final LLVM module verification. The
-implementation closes the reviewer-approved red checkpoint without broadening the
-frozen representation, arithmetic, ownership, aggregate, or backend semantics.
-Three exact-diff reviews and all required public CI checks pass at the published
-head.
+Milestone 11 — preregistered `CORE-011`: make direct-module source collection
+canonical and fail closed before cache lookup or artifact publication. Preserve
+only the current direct flattened-AST compatibility behavior; explicitly reject
+missing and nested module inputs without claiming namespaces, imports, visibility,
+recursive resolution, or cycle-graph implementation.
 
 ## Active hypothesis
 
-The accepted scalar frontend already carries enough logical Int/Float/Bool/Void
-information to construct and verify a checked IR without selecting unresolved
-physical integer overflow/division semantics. Additive checked APIs plus mandatory
-internal and qualified external verification can turn current unwinds, invalid
-Boolean LLVM, and silent codegen drops into structured no-artifact failures.
+One shared root/direct-module collection boundary can make build/run, check, test,
+profile, docs, the source-only public API, and final-LLVM cache identity agree on
+the exact source set before later compiler phases, without choosing the unresolved
+module namespace or recursive path model.
 
 ## Founding-framework checkpoint
 
@@ -43,6 +41,8 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Published project-control head:
+  `34cc0e088f1b579ebecfb4498c55cde2cb23aaad`.
 - Published accepted `CORE-010` head:
   `db349ef81f145ee571c053f73fb03c831cea719a`.
 - Checked-IR/LLVM-verifier implementation commit:
@@ -123,8 +123,8 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last full-gate code commit: `db349ef81f145ee571c053f73fb03c831cea719a`.
-- Worktree: documentation-only `CORE-010` acceptance-record update; compiler
-  behavior is unchanged from the accepted public head.
+- Worktree: `AUDIT-017` / `CORE-011` / `DEC-016` preregistration candidate;
+  compiler behavior remains unchanged from accepted `CORE-010`.
 
 ## Environment and verification
 
@@ -339,26 +339,30 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - At `1fa67a2`, tuple literals and tuple projections remain parsed but are rejected
   recursively by active semantic preflight with one stable diagnostic before IR.
   Tuple types/patterns remain parsed; tuple layout and execution remain unimplemented.
-- Constant integer division by zero independently panics during IR constant folding.
-  Float, variable, unary, and mixed zero forms diverge. Unsupported methods and
-  other composite forms can still fabricate scalar zero, and some semantically
-  accepted comparisons can panic or generate type-invalid LLVM. Accepted candidate
-  `b74d91a` routes Match in every parser-retained source body, including default
-  trait methods, through fail-closed preflight; direct AST-to-IR bypass remains open.
-  MethodCall, string comparison, division, aggregates, and ownership are separate.
-  Named field values remain fail-closed in accepted `CORE-007` at reviewed
-  `4e10d479`.
+- `CORE-010` now turns constant integer division by zero, string comparison,
+  ordinary MethodCall, custom enum construction, Deref/Borrow, and other unsupported
+  scalar fallbacks into checked errors on trusted paths; typed Boolean storage/calls/
+  returns and checked IR/codegen verification are controlled at accepted `db349ef`.
+  Dynamic division/overflow, aggregates, ownership, and direct callers of public
+  unchecked compatibility APIs remain uncertified.
 - At candidate `3410f1f`, StructLiteral values remain parser-visible but are
   rejected after source-order field preflight before inference or IR. Struct
   layout, initialization, ownership, ABI, lowering, and execution remain open.
+- At accepted compiler head `db349ef`, a root-level missing direct module fails
+  `check` and `profile` but `build` continues, exits zero, and writes requested LLVM.
+  Build cache lookup also precedes module discovery and keys only the root source,
+  while `compile_program` has no file context and silently ignores `ModDecl`.
+  `CORE-011` is preregistered to close this source-collection boundary; general CLI
+  status handling and full pipeline consolidation remain separate.
 
 ## Exact next action
 
-Publish this documentation-only acceptance record to draft PR #4, then select the
-next bounded Minimal Prototype / correctness-recovery slice from the audited open
-risks. Do not broaden unresolved physical integer, aggregate, ownership,
-accelerator, stability, benchmark, or release claims without their own evidence
-gates.
+Freeze and publish the `AUDIT-017` / `CORE-011` / `DEC-016` preregistration, then
+add the focused failing module/cache contracts before the smallest shared source-
+collection implementation. Require exact independent review, the complete local
+gate, and public CI before acceptance. Do not fold general CLI status, module
+namespace/visibility, recursive resolution, `CompilerOptions`, accelerator,
+benchmark, stability, or release work into this slice.
 
 ## Unauthorized actions
 

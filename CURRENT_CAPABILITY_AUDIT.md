@@ -301,6 +301,26 @@ reclassified rather than deleted.
   containment validation, creating a path-escape risk. Live registry operations
   remain unauthorized during this audit.
 
+### Post-CORE-010 module-boundary recheck (`AUDIT-017`)
+
+- `CORE-010` supersedes the historical statement that `check` omits module
+  resolution: current `check` and `profile` strictly load direct modules. Build
+  still catches a missing-module error, continues compilation, exits zero, and
+  writes the requested LLVM artifact for the same source.
+- Final-LLVM cache lookup currently precedes lexing/parsing/module discovery and
+  uses only root source plus target/GPU configuration. Module changes or deletion
+  therefore do not participate in cache identity, and a verified cache hit can
+  bypass current module state on the reusable optimizer path.
+- Build, check/test, profile, and docs repeat direct module load/strict lex/parse
+  logic. The source-only public library API lacks a file context and silently
+  accepts `ModDecl`. The next bounded correctness slice centralizes this direct
+  source set and fails closed; it does not certify the still-absent namespace,
+  `use`, `pub`, recursive graph, or cycle-analysis implementation.
+- No-argument, unknown-command, and several missing-input paths still return status
+  zero, but they remain a separate command-result task because the selected module
+  boundary is specifically about dependency admission, cache identity, and compiler
+  artifact publication.
+
 ## Testing and fuzzing audit
 
 - The default run executes 106 library, 111 binary, and 59 frontend tests, but 78
