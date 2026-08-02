@@ -1,0 +1,226 @@
+# Aero Current Capability Audit
+
+Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
+
+Audit date: 2026-08-02
+
+Branch: `agent/aero-integration`
+
+## Executive finding
+
+Aero is an experimental compiler repository with a passing Rust regression
+suite and several useful implemented slices, but it is not currently a
+trustworthy 1.0 language implementation. The advertised surface substantially
+exceeds the enforced source semantics and end-to-end execution evidence. Most
+seriously, invalid source can be changed by lexing, function and type contracts
+are ignored, unsupported expressions are assigned convenient scalar types or
+lowered to zero, and the compiler lacks a genuinely typed, fallible IR boundary.
+
+This conclusion does not discard the existing work. It classifies the current
+implementation so that useful components can be completed behind explicit
+correctness gates.
+
+## Baseline and environment
+
+- Upstream `master` was cloned at
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f` and the integration branch was
+  created before changes.
+- Rust was initially absent. After installing stable Rust `1.97.1`, Cargo
+  `1.97.1`, rustfmt, and Clippy, `./tools/test.sh` passed.
+- Executed tests: 106 library tests, 111 binary tests, and 59 active frontend
+  integration tests; 38 `phase5_tests` are ignored. Doc tests also passed.
+- The current conformance command reports three cases and four repeatability
+  checks. It does not prove the formal semantics.
+- The documented root-level `cargo build --release` fails with exit 101 because
+  the repository root has no `Cargo.toml`; the compiler manifest is under
+  `src/compiler/`.
+
+## Specification and public-surface audit
+
+- Versioning is contradictory: the package is `0.3.0`, while README, formal spec,
+  and CLI print `1.0.0`; no language/package version distinction is documented.
+- Formal and split grammar documents disagree about keywords, formatted strings,
+  struct-field delimiters, rebinding, and lifetime maturity.
+- The README flagship snippet uses grouped imports, named arguments, and absent
+  `aeronum`/`aeronn` packages that the active repository cannot compile.
+- Several shipped examples use legacy top-level statements outside the normative
+  module grammar. `examples/scoping.aero` also conflicts with the documented and
+  active same-scope rebinding rule.
+- CLI help describes CPU/ROCm/CUDA `run`, but ROCm stops at object generation and
+  CUDA run is explicitly unimplemented. CLI `test` analyzes test files but does
+  not execute them.
+- Root collection demo/test files and completion documents are not proof of
+  end-to-end collection safety, UTF-8 behavior, or performance.
+
+## Frontend audit
+
+- The lexer cannot return lexical errors. It discards unexpected characters,
+  maps malformed or overflowing numerics to zero, and emits tokens for
+  unterminated strings. Defined lexical diagnostic variants are unused.
+- Tokens carry only a starting line/column and AST nodes carry no source spans.
+  LSP diagnostics synthesize one-character ranges; f-string subparsing loses the
+  original source position.
+- Parsing loses meaningful accepted information: most visibility, several
+  generic bounds/arguments, f-string identity, and closure block statements.
+  Untyped closure parameters are assigned `i32` in the parser.
+- Panic recovery can consume the next valid statement and returns no partial AST.
+  The public parser API can panic if its token vector lacks EOF.
+- The documented grammar and parser differ in both directions. Booleans/chars,
+  many operators, expression control flow, module bodies, richer types and
+  patterns are representative documented-but-unparsed forms.
+- `aero fmt` is line trimming and newline normalization, not syntax-aware
+  formatting, and it overwrites the source directly.
+- Many lexer/parser test source files are dormant and stale; the active suite has
+  no invalid-lexing, recovery-retention, span, grammar-coverage, or formatter
+  preservation coverage.
+
+## Type, ownership, and phase-boundary audit
+
+- Active call inference ignores the callee name, function environment, arity,
+  parameter types, and return type, then returns `Int`.
+- A dormant call validator confirms the mandate's suspected fallbacks: unknown
+  named, array, tuple, reference, and generic parameter types map to `Int`.
+- Let annotations and declared function return types are ignored. Unknown named
+  types are assumed to be structs, and unknown backend type strings lower as
+  LLVM `double`.
+- Field access, tuples, struct/enum construction, matches, closures, and unknown
+  methods can bypass subtree validation and acquire `Int`. IR lowering replaces
+  several of these forms, including borrow/deref, with integer zero.
+- Array inference checks only the first element; index types are not constrained;
+  backend lowering uses `double` array storage and truncates float indices.
+- Move tracking is shallow and skipped in initializers, returns, block tails, and
+  nested calls. Borrow state has no lifetime/provenance analysis or scope-based
+  release, and mutable references are classified `Copy`.
+- Generic calls are not instantiated. Trait checks compare method names rather
+  than signatures and are skipped at many call positions. Dormant generic and
+  pattern modules use additional fallbacks and are not compiled into the active
+  library or binary.
+- Function parameters leak into a compatibility symbol table after their scope
+  exits, so semantic analysis can resolve names that IR generation later cannot.
+- Semantic analysis returns the original AST rather than a typed representation;
+  IR generation is infallible and backend-local code invents missing types. No
+  LLVM verifier is part of the active library compile pipeline.
+
+## IR and code-generation audit
+
+- Legacy `parse()` prints an error and returns an empty AST. Semantics accepts it,
+  IR creates an empty `main`, and codegen can emit an unterminated LLVM function.
+  The `build` command writes this text without verification.
+- IR registers, loads, stores, and calls are not typed. Scalar slots are emitted
+  as `double` while comparisons produce `i1`, so stored/loaded/returned boolean
+  programs can generate type-invalid LLVM.
+- CFG lowering appends branches after terminating returns/breaks/continues and
+  suppresses the default return if any return exists anywhere. Multiple
+  terminators and unterminated reachable blocks can result.
+- The modulo operator is accepted by semantic typing but omitted from IR
+  selection and can panic compilation.
+- Unimplemented methods, aggregates, matches, references, and ADTs are either
+  changed to zero or dropped. Several IR instruction variants have no codegen
+  arm and are silently ignored by the wildcard arm.
+- Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
+  coverage is limited to four scalar CPU examples.
+
+## Runtime and backend audit
+
+- CPU has a real LLVM-to-object-to-link-to-process path when `llc`/`clang` are
+  available. Four small Linux CI programs check exit codes. The current Windows
+  audit host lacks those tools, so local execution is environment-blocked.
+- ROCm retargets LLVM and attempts an AMDGPU object; it has no link or HIP launch
+  path. CUDA run/object/link/launch is absent. GPU auto-detection probes tools or
+  environment rather than a verified usable device and may silently select CPU.
+- Graph "executable kernels" are ordinary internal scalar-double LLVM helpers;
+  backend selection affects names/metadata, not a device ABI, transfers, launch,
+  or synchronization.
+- Quantization likewise emits backend-named scalar-double helpers. FP8 does not
+  perform FP8 representation/rounding, `per_channel` is metadata-only, and INT8
+  multiplication/division scaling is algebraically incorrect. Tests assert text
+  and counters rather than numerical reference equivalence.
+- The tracked llama.cpp ROCm GGUF run is correctly external reference evidence,
+  not Aero device execution.
+
+## Benchmark validity finding
+
+The README's tracked 19-case "compilation" series is invalid as a compilation
+measurement. `benchmarks/performance_benchmark.py` invokes
+`cargo run --release -- <sourcefile>`, but the CLI requires a `build`, `run`, or
+other command. It prints `Unknown command` and exits zero, which the harness
+counts as a successful compilation. A current-session probe reproduced exit zero
+for this path. Those numbers measure Cargo startup/unknown-command handling and
+must not support Aero compilation-speed claims.
+
+All five entries in `claim-verification/claims.json` reference existing files,
+but none meets the full benchmark protocol. The public and historical compilation
+claims share the invalid command. The lexer Criterion run is genuine historical
+microbenchmark evidence, but retained output does not justify calling the center
+estimate a median and lacks raw samples/hashes/correctness checks. The GGUF entry
+is a genuine one-run external llama.cpp observation with zero warmups, truncated
+output, no correctness gate, incomplete hashes, and inconsistent top-level versus
+artifact commit attribution. The blocked/omitted GPU-claim record is accurate.
+
+No current public Aero runtime, device, graph, or quantization performance claim
+passes `BENCHMARK_PROTOCOL.md`. Existing evidence remains preserved and must be
+reclassified rather than deleted.
+
+## Tooling and API audit
+
+- `build`, `check`, `graph-opt`, `test`, unknown commands, missing inputs, failed
+  output writes, and failing conformance paths commonly return process status
+  zero. Automation cannot use the CLI status as a correctness signal.
+- The library and binary compile their own module instances. The library ignores
+  every `CompilerOptions` field; the CLI never calls `compile_program`, and its
+  advertised optimizer objects are often constructed but unused.
+- `check` omits module resolution and uses the legacy parser; `test` only
+  discovers and analyzes source instead of compiling/executing it; `profile`
+  times a divergent subset; LSP diagnostics are syntax-only and symbol features
+  use token heuristics rather than semantic scopes/types/modules.
+- The module resolver loads one level and has no recursive graph/cycle handling.
+  Project initialization creates a manifest that compiler commands do not use.
+- Live registry publish sends path/size/hash metadata without package contents
+  and accepts any successful HTTP status without a response contract. Install
+  joins registry-provided package name/version into the destination without
+  containment validation, creating a path-escape risk. Live registry operations
+  remain unauthorized during this audit.
+
+## Testing and fuzzing audit
+
+- The default run executes 106 library, 111 binary, and 59 frontend tests, but 78
+  names are duplicated by compiling overlapping modules into both library and
+  binary targets. The result has at most 198 distinct active test names, not 276
+  independent behaviors.
+- All 38 `phase5_tests` are ignored. They cover ownership/moves, borrowing,
+  generics, traits, and combined integration—the areas with the strongest public
+  safety/abstraction claims.
+- Another 299 source tests are dormant because their files/modules are not linked
+  into Cargo targets; several reference removed APIs and cannot be treated as a
+  ready-to-enable suite.
+- Eight active snapshots exist, but at least one blesses a binary expression
+  whose semantic output still has `ty: None`.
+- Criterion benches are not correctness gates and some discard compiler errors.
+  CLI `aero test` discovers no repository Aero test programs and succeeds with a
+  warning. `error_examples.aero` is not connected to a compile-fail harness.
+- There is no active arbitrary-input fuzzing, property testing, differential
+  execution, compile-fail artifact check, LLVM verifier suite, Windows CI, or
+  ROCm/CUDA hardware execution job.
+
+## Audit completion
+
+All eight requested read-only areas were completed in bounded waves. The audit
+supports a correctness-first Milestone 0: close phase-boundary false success,
+then function/type contracts and typed IR/CFG invariants, before expanding the
+language or backend surface.
+
+## Initial capability conclusion
+
+- `STABLE`: no audited feature.
+- `END_TO_END`: not yet assigned pending executable and negative evidence review.
+- `PARTIAL`: numeric core, bindings, functions/control flow, strings, arrays,
+  basic CPU LLVM path, diagnostics.
+- `PARSED_ONLY`: function contracts, annotations, generics, traits, pattern
+  matching, modules/visibility, closures, and several structured forms.
+- `EXPERIMENTAL`: accelerator interfaces, graph/quantization transforms,
+  collections, LSP, formatting, documentation/profiling/project/registry tooling,
+  and the conformance command.
+
+See `SPEC_IMPLEMENTATION_MATRIX.md` and `BACKEND_STATUS.md` for stage-level
+classification. These labels describe evidence at the audited commit and do not
+promise future compatibility.
