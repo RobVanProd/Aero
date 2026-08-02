@@ -266,7 +266,12 @@ fn main() {
                 }
             };
 
-            compile_to_llvm_ir(&source_code, &output_file, &input_file, &build_config);
+            if let Err(err) =
+                compile_to_llvm_ir(&source_code, &output_file, &input_file, &build_config)
+            {
+                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                exit(1);
+            }
         }
         "run" => {
             let (input_file, build_config) = match parse_run_args(&args) {
@@ -309,7 +314,10 @@ fn main() {
                 }
             };
 
-            check_aero_program(&source_code, input_file);
+            if let Err(err) = check_aero_program(&source_code, input_file) {
+                report_check_error(&source_code, input_file, &err);
+                exit(1);
+            }
         }
         "test" => {
             // Discover and run *_test.aero files in examples/ and current directory
@@ -1432,7 +1440,7 @@ fn compile_to_llvm_ir(
     output_file: &str,
     input_file: &str,
     build_config: &BuildConfig,
-) {
+) -> Result<(), String> {
     println!(
         "Compiling with performance optimizations enabled (target: {}, gpu: {})",
         build_config.target.as_str(),
@@ -1464,7 +1472,7 @@ fn compile_to_llvm_ir(
             Ok(_) => {
                 println!("Cached LLVM IR written to {}", output_file);
                 println!("{}", perf_optimizer.get_performance_report());
-                return;
+                return Ok(());
             }
             Err(err) => eprintln!("Error writing cached result: {}", err),
         }
@@ -1472,13 +1480,14 @@ fn compile_to_llvm_ir(
 
     // Lexing with performance timing
     let lexing_start = Instant::now();
-    let tokens = lexer::tokenize(source_code);
+    let tokens = lexer::tokenize_with_locations(source_code, Some(input_file.to_string()));
     let lexing_time = lexing_start.elapsed();
     println!("Lexing completed in {:?}", lexing_time);
 
     // Optimized parsing with parser optimizer
     let parsing_start = Instant::now();
-    let mut ast = parser::parse(tokens);
+    let mut ast =
+        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
     // Apply parser optimizations for complex constructs
     let parser_optimizer = perf_optimizer.get_parser_optimizer();
@@ -1503,8 +1512,11 @@ fn compile_to_llvm_ir(
                         name,
                         resolved.file_path.display()
                     );
-                    let mod_tokens = lexer::tokenize(&resolved.source);
-                    let mod_ast = parser::parse(mod_tokens);
+                    let module_filename = resolved.file_path.to_string_lossy().to_string();
+                    let mod_tokens =
+                        lexer::tokenize_with_locations(&resolved.source, Some(module_filename));
+                    let mod_ast = parser::parse_with_locations(mod_tokens)
+                        .map_err(|err| format!("Parse error: {}", err))?;
                     module_asts.extend(mod_ast);
                 }
                 Err(err) => {
@@ -1528,10 +1540,7 @@ fn compile_to_llvm_ir(
             println!("Semantic Analysis Result: {}", msg);
             (msg, typed_ast)
         }
-        Err(err) => {
-            eprintln!("Semantic Analysis Error: {}", err);
-            return;
-        }
+        Err(err) => return Err(format!("Semantic Analysis Error: {}", err)),
     };
     let semantic_time = semantic_start.elapsed();
     println!(
@@ -1599,10 +1608,9 @@ fn compile_to_llvm_ir(
         .cache_llvm(source_hash, llvm_ir.clone());
 
     // Write to output file
-    match fs::write(output_file, &llvm_ir) {
-        Ok(_) => println!("Optimized LLVM IR written to {}", output_file),
-        Err(err) => eprintln!("Error writing to file {}: {}", output_file, err),
-    }
+    fs::write(output_file, &llvm_ir)
+        .map_err(|err| format!("Error writing to file {}: {}", output_file, err))?;
+    println!("Optimized LLVM IR written to {}", output_file);
 
     let total_time = compilation_start.elapsed();
     println!("Total compilation time: {:?}", total_time);
@@ -1611,6 +1619,7 @@ fn compile_to_llvm_ir(
     println!("{}", perf_optimizer.get_performance_report());
 
     println!("Performance-optimized compilation process completed successfully.");
+    Ok(())
 }
 
 fn run_aero_program(
@@ -1625,7 +1634,7 @@ fn run_aero_program(
     let gpu_obj_path = artifacts.gpu_obj_file.to_string_lossy().to_string();
 
     // Compile to LLVM IR first.
-    compile_to_llvm_ir(source_code, &ll_path, input_file, build_config);
+    compile_to_llvm_ir(source_code, &ll_path, input_file, build_config)?;
     if !artifacts.ll_file.exists() {
         return Err(format!(
             "compile step did not produce LLVM IR at {}",
@@ -1922,14 +1931,15 @@ fn print_registry_help(program_name: &str) {
 
 /// Type-check an Aero program without generating code.
 /// Runs lexer → parser → semantic analysis only.
-fn check_aero_program(source_code: &str, input_file: &str) {
+fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String> {
     let check_start = Instant::now();
 
     // Lexing
-    let tokens = lexer::tokenize(source_code);
+    let tokens = lexer::tokenize_with_locations(source_code, Some(input_file.to_string()));
 
     // Parsing
-    let ast = parser::parse(tokens);
+    let ast =
+        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
@@ -1941,35 +1951,34 @@ fn check_aero_program(source_code: &str, input_file: &str) {
                 input_file, elapsed
             );
             println!("  {}", msg);
+            Ok(())
         }
-        Err(err) => {
-            // Enhanced error display with color and source context
-            let lines: Vec<&str> = source_code.lines().collect();
-            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+        Err(err) => Err(err.to_string()),
+    }
+}
 
-            // Try to extract line number from error message
-            if let Some(line_hint) = extract_error_line(&err.to_string()) {
-                if line_hint > 0 && line_hint <= lines.len() {
-                    let line_content = lines[line_hint - 1];
-                    eprintln!("  \x1b[1;34m-->\x1b[0m {}:{}", input_file, line_hint);
-                    eprintln!("   \x1b[1;34m|\x1b[0m");
-                    eprintln!(" \x1b[1;34m{:3} |\x1b[0m {}", line_hint, line_content);
-                    eprintln!(
-                        "   \x1b[1;34m|\x1b[0m \x1b[1;31m{}\x1b[0m",
-                        "^".repeat(line_content.trim().len().min(40))
-                    );
-                }
-            }
+fn report_check_error(source_code: &str, input_file: &str, error: &str) {
+    // Enhanced error display with color and source context
+    let lines: Vec<&str> = source_code.lines().collect();
+    eprintln!("\x1b[1;31merror\x1b[0m: {}", error);
 
-            // Suggest similar identifiers if it's an undefined variable error
-            if err.to_string().contains("undefined") || err.to_string().contains("not found") {
-                eprintln!(
-                    "\x1b[1;36mhelp\x1b[0m: check the spelling or ensure the variable is in scope"
-                );
-            }
-
-            std::process::exit(1);
+    // Try to extract line number from error message
+    if let Some(line_hint) = extract_error_line(error) {
+        if line_hint > 0 && line_hint <= lines.len() {
+            let line_content = lines[line_hint - 1];
+            eprintln!("  \x1b[1;34m-->\x1b[0m {}:{}", input_file, line_hint);
+            eprintln!("   \x1b[1;34m|\x1b[0m");
+            eprintln!(" \x1b[1;34m{:3} |\x1b[0m {}", line_hint, line_content);
+            eprintln!(
+                "   \x1b[1;34m|\x1b[0m \x1b[1;31m{}\x1b[0m",
+                "^".repeat(line_content.trim().len().min(40))
+            );
         }
+    }
+
+    // Suggest similar identifiers if it's an undefined variable error
+    if error.contains("undefined") || error.contains("not found") {
+        eprintln!("\x1b[1;36mhelp\x1b[0m: check the spelling or ensure the variable is in scope");
     }
 }
 

@@ -36,10 +36,10 @@ pub struct CompilerOptions {
 /// Main compilation function for benchmarking
 pub fn compile_program(source: &str, _options: CompilerOptions) -> Result<String, String> {
     // Lexical analysis
-    let tokens = tokenize(source);
+    let tokens = tokenize_with_locations(source, None);
 
     // Parsing
-    let ast = parse(tokens);
+    let ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
     // Semantic analysis
     let mut semantic_analyzer = SemanticAnalyzer::new();
