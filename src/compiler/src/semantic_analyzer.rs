@@ -464,6 +464,7 @@ impl ScopeManager {
 
 pub struct SemanticAnalyzer {
     symbol_table: HashMap<String, VariableInfo>,
+    compatibility_scope_snapshots: Vec<HashMap<String, VariableInfo>>,
     function_table: FunctionTable,
     closure_binding_scopes: Vec<HashSet<String>>,
     return_contract_stack: Vec<Option<NumericFunctionContract>>,
@@ -486,6 +487,7 @@ impl SemanticAnalyzer {
 
         Self {
             symbol_table: HashMap::new(),
+            compatibility_scope_snapshots: Vec::new(),
             function_table: FunctionTable::new(),
             closure_binding_scopes: vec![HashSet::new()],
             return_contract_stack: Vec::new(),
@@ -515,6 +517,8 @@ impl SemanticAnalyzer {
     }
 
     fn enter_scope(&mut self) {
+        self.compatibility_scope_snapshots
+            .push(self.symbol_table.clone());
         self.scope_manager.enter_scope();
         self.closure_binding_scopes.push(HashSet::new());
     }
@@ -524,9 +528,12 @@ impl SemanticAnalyzer {
         if self.closure_binding_scopes.len() > 1 {
             self.closure_binding_scopes.pop();
         }
+        self.restore_compatibility_scope();
     }
 
     fn enter_function_scope(&mut self, name: String) {
+        self.compatibility_scope_snapshots
+            .push(self.symbol_table.clone());
         self.scope_manager.enter_function(name);
         self.closure_binding_scopes.push(HashSet::new());
     }
@@ -536,9 +543,12 @@ impl SemanticAnalyzer {
         if self.closure_binding_scopes.len() > 1 {
             self.closure_binding_scopes.pop();
         }
+        self.restore_compatibility_scope();
     }
 
     fn enter_loop_scope(&mut self) {
+        self.compatibility_scope_snapshots
+            .push(self.symbol_table.clone());
         self.scope_manager.enter_loop();
         self.closure_binding_scopes.push(HashSet::new());
     }
@@ -548,6 +558,15 @@ impl SemanticAnalyzer {
         if self.closure_binding_scopes.len() > 1 {
             self.closure_binding_scopes.pop();
         }
+        self.restore_compatibility_scope();
+    }
+
+    fn restore_compatibility_scope(&mut self) {
+        let bindings = self
+            .compatibility_scope_snapshots
+            .pop()
+            .expect("compatibility scope snapshot must match semantic scope");
+        self.symbol_table = bindings;
     }
 
     fn is_closure_callable(&self, name: &str) -> bool {
@@ -574,6 +593,7 @@ impl Default for SemanticAnalyzer {
 impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
         self.function_table.clear();
+        self.compatibility_scope_snapshots.clear();
         self.closure_binding_scopes.clear();
         self.closure_binding_scopes.push(HashSet::new());
         self.return_contract_stack.clear();
