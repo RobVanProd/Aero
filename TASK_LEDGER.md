@@ -1197,3 +1197,36 @@
 - Verification: focused Struct suite plus modified control suites, all prior focused
   boundaries, formatting/all-target check, required `./tools/test.sh`, then exact-SHA
   structural and black-box reviews.
+
+## AUDIT-015 — Trace founding framework into current engineering control
+
+- Objective: inspect both tracked founding PDFs completely to the extent preserved,
+  distinguish project vision from implementation evidence, and reconcile their
+  roadmap and killer-application direction with the audited repository.
+- Sources: the complete nine-page `__Aero___ A High-Performance, Ergonomic
+  Programming Language.pdf` and the single-page `Aero Programming Language Framework
+  - Claude.pdf`.
+- Artifact limitation: the Claude PDF is a truncated browser print. It visibly ends
+  during memory-safety measurement guidance; extractable off-page text also begins
+  mid-conversation. No missing continuation or final recommendations are inferred.
+- Findings: the primary paper freezes the high-level goals of explicit simplicity,
+  zero-cost native performance, ownership safety, compositional data/traits,
+  concurrency, tooling, open governance, LLVM bootstrap, eventual self-hosting, and
+  Design -> Minimal Prototype -> Self-Host -> Stabilize -> Optimize. The strategy
+  capture selects AI/ML infrastructure as the lead adoption wedge and calls for
+  performance, compiler-quality, safety, resource, and reproducibility measurement.
+- Repository comparison: the current compiler is a Minimal Prototype under
+  correctness recovery. Scalar/frontend slices and CPU LLVM are partial; composite
+  values, ownership, typed IR, concurrency, tooling convergence, and device execution
+  do not meet the founding outcomes. No audited public Aero runtime/device claim
+  currently passes the benchmark protocol.
+- Control result: `FRAMEWORK_ALIGNMENT.md` records the authority hierarchy, gap
+  matrix, quality scorecard, and Aero-native AI/ML flagship progression. The public
+  README links the founding sources and removes the v1.0 heading implication.
+  `Roadmap.md` is replaced with evidence-gated milestones aligned to the founding
+  progression. `LANGUAGE_VISION.md`, `PROJECT_STATE.md`, and `DECISION_LOG.md` carry
+  the traceability decision.
+- Boundary consequence: no code, language semantics, backend status, benchmark
+  claim, or `CORE-009` decision changes. The audit prevents vision prose from being
+  reused as completion evidence.
+- Status: complete; documentation verification and publication pending.

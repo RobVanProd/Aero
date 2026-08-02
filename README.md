@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>Aero v1.0.0</h1>
+  <h1>Aero</h1>
   <p><strong>Experimental systems language and compiler repository</strong></p>
   <a href="https://github.com/RobVanProd/Aero/stargazers">
     <img src="https://img.shields.io/github/stars/RobVanProd/Aero?style=social" alt="GitHub stars">
@@ -16,6 +16,14 @@ Aero contains a compiler, language examples, benchmark harnesses, and
 experimental GPU/runtime interfaces. This README only lists benchmark claims
 that are backed by tracked artifacts under
 [`claim-verification/`](claim-verification/).
+
+The founding direction is preserved in the
+[original language design paper](<__Aero___%20A%20High-Performance,%20Ergonomic%20Programming%20Language.pdf>)
+and the [strategy capture](<Aero%20Programming%20Language%20Framework%20-%20Claude.pdf>).
+[Framework alignment](FRAMEWORK_ALIGNMENT.md) explains how that direction maps
+to current evidence and the active roadmap. Aero is presently an experimental
+minimal prototype under correctness recovery; historical `v1.0.0` labels are not
+evidence of a stable release.
 
 ## Verified Results
 
@@ -131,7 +139,7 @@ fn main() {
 }
 ```
 
-## 🛠️ Compiler Features (v1.0.0)
+## 🛠️ Current Compiler Surface (Experimental)
 
 | Category | Features |
 |----------|----------|

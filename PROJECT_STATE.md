@@ -4,14 +4,31 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 9 — preserve the `CORE-009` StructLiteral false-success boundary in a
-tests-only red checkpoint before changing production.
+Founding-framework alignment is now explicit; resume Milestone 9 by preserving
+the `CORE-009` StructLiteral false-success boundary in a tests-only red checkpoint
+before changing production.
 
 ## Active hypothesis
 
 StructLiteral has no active value-preserving route and one complete child-first
 preflight arm. Rejecting after field preflight can close zero/drop artifacts without
 inventing declaration, field, type, layout, ownership, IR, or backend semantics.
+
+## Founding-framework checkpoint
+
+- The tracked nine-page primary design paper is now treated as Aero's governing
+  vision input, not as current implementation evidence.
+- The tracked Claude strategy PDF is a truncated one-page capture. Its preserved
+  execution-quality guidance and AI/ML-infrastructure recommendation are usable;
+  absent continuation is not inferred.
+- `FRAMEWORK_ALIGNMENT.md` records source authority, current gaps, an execution-
+  quality scorecard, and the Aero-native AI/ML infrastructure flagship direction.
+- `Roadmap.md` now follows the founding Design -> Minimal Prototype -> Self-Host ->
+  Stabilize -> Optimize path through explicit evidence gates. Current position is
+  Minimal Prototype / correctness recovery; historical v1.0/completed-phase labels
+  do not establish stability.
+- This checkpoint does not broaden `CORE-009` or authorize speculative aggregate,
+  ownership, accelerator, or benchmark semantics.
 
 ## Repository state
 
@@ -20,6 +37,9 @@ inventing declaration, field, type, layout, ownership, IR, or backend semantics.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
+- Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Published integration head before this checkpoint:
+  `6a274aee4c14cfbbf7ae21c786e05ef227f108ad`.
 - Accepted `CORE-008` candidate:
   `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the

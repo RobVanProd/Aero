@@ -1,5 +1,15 @@
 # Aero Language Vision
 
+## Founding sources
+
+This vision carries forward the tracked founding design paper
+[`__Aero___ A High-Performance, Ergonomic Programming Language.pdf`](<__Aero___%20A%20High-Performance,%20Ergonomic%20Programming%20Language.pdf>)
+and the preserved strategy fragment
+[`Aero Programming Language Framework - Claude.pdf`](<Aero%20Programming%20Language%20Framework%20-%20Claude.pdf>).
+The source artifacts define direction, not implementation status. Their provenance,
+limitations, current alignment, execution-quality scorecard, and lead AI/ML
+infrastructure application are recorded in `FRAMEWORK_ALIGNMENT.md`.
+
 ## Purpose and intended users
 
 Aero is intended to be a statically typed, ahead-of-time compiled language for
@@ -35,6 +45,11 @@ more productive syntax than low-level C-family toolchains commonly provide.
   code.
 - A small, trustworthy compiler core shared by the CLI, library API, and tooling.
 - Reproducible evidence for behavior and performance claims.
+
+The lead adoption wedge is AI/ML and high-performance data infrastructure, first
+through a small Aero-native CPU reference workload and only later through proven
+accelerator execution. Systems, game/graphics, and embedded applications remain
+part of the broader language direction.
 
 These are design goals, not claims about the current implementation. Current
 support is tracked in `SPEC_IMPLEMENTATION_MATRIX.md` and `BACKEND_STATUS.md`.

@@ -397,3 +397,33 @@ outside this decision.
 - Revisit when: struct name/field validation, aggregate result typing, layout,
   initialization order, ownership/destruction, ABI, typed IR/backend emission, and
   positive end-to-end execution can ship as one coherent vertical slice.
+
+## DEC-014 — Founding framework directs the roadmap but does not certify status
+
+- Date: 2026-08-02
+- Status: accepted
+- Decision: the two tracked founding PDFs are explicit project inputs. The primary
+  nine-page paper defines durable language and implementation direction. The Claude
+  artifact contributes execution-quality and AI/ML-infrastructure strategy only to
+  the extent preserved in its one visible, truncated page. Neither artifact is
+  evidence that a feature, phase, backend, benchmark, or release is complete.
+- Authority: accepted specifications/RFCs define intended semantics; the capability
+  and backend matrices plus executable evidence define current status; control logs
+  define active work; the roadmap sequences future gates. A conflict is resolved by
+  reporting the evidenced implementation honestly while retaining the vision as a
+  goal.
+- Consequences: Aero is classified as Minimal Prototype / correctness recovery, not
+  Stabilize or Optimize. Historical completed-phase and v1.0 labels are not maturity
+  evidence. `Roadmap.md` is replaced with evidence-gated milestones that retain the
+  founding Design -> Minimal Prototype -> Self-Host -> Stabilize -> Optimize path.
+- Killer application: AI/ML infrastructure is the lead adoption wedge. The first
+  qualifying flagship must be Aero-native and correctness-gated on CPU before any
+  accelerator claim. External llama.cpp evidence remains a baseline/reference and
+  does not demonstrate Aero execution.
+- Measurement: execution quality is multi-dimensional across language correctness,
+  compiler/IR integrity, safety, performance/resources, developer experience, and
+  reproducibility. Large benchmark suites are deferred until Aero can compile their
+  required programs correctly.
+- Compatibility: this decision changes status and sequencing documentation only. It
+  does not freeze new syntax/semantics, broaden a backend, accept a benchmark claim,
+  or alter the preregistered `CORE-009` boundary.
