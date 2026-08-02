@@ -4,16 +4,16 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 8 — record `AUDIT-013` and preregister the selected fail-closed Match
-expression boundary before tests or production changes.
+Milestone 8 — preserve the tests-only red checkpoint for preregistered `CORE-008`
+Match rejection before any production change.
 
 ## Active hypothesis
 
-`Expression::Match` is one parser-preserved family with no active value-preserving
-route: trusted preflight already reaches its scrutinee and arms, inference invents
-`Int`, and both IR paths drop the entire subtree for zero. Rejecting after the
-existing child traversal should close it in one production file while preserving
-established nested diagnostics and avoiding pattern/exhaustiveness semantics.
+Tests frozen against `DEC-012` should fail only because ordinary Match currently
+passes semantics and becomes zero or dropped evaluation. Parser, positive, and
+child-diagnostic controls should remain green, proving a one-line rejection after
+the existing recursive Match traversal is sufficient and no pattern semantics are
+needed.
 
 ## Repository state
 
@@ -150,6 +150,11 @@ established nested diagnostics and avoiding pattern/exhaustiveness semantics.
   path, and no required execution semantics. A 23-case Match matrix produced 69
   public/check/build outcomes: 20 false successes and three established child
   diagnostics with retained precedence.
+- `CORE-008` Match value boundary: preregistered at audit closure `648662b` under
+  `DEC-012`. Exact diagnostic is `Match expressions are not supported.` Existing
+  child-first scrutinee/arm traversal and tuple/field/void diagnostic precedence are
+  frozen. Parser/AST/patterns remain; pattern/exhaustiveness/type/layout/ownership/
+  evaluation/IR/backend semantics are explicitly outside the slice.
 
 ## Current capability classification
 
@@ -205,11 +210,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preregister `CORE-008` on the clean audit closure: retain Match syntax/AST/patterns,
-freeze the exact fail-closed diagnostic and child-first ordering, constrain
-production changes to the existing semantic preflight arm, define red/positive/
-CLI/module/no-artifact tests and stop conditions, then commit that contract before
-assigning a tests-only owner.
+Create one isolated `CORE-008` worktree from the clean preregistration tip. Assign a
+tests-only owner to add `unsupported_match_tests.rs`, prove the frozen parser,
+positive, and child-diagnostic controls pass, and preserve ordinary public/CLI/
+module false-success, zero/drop, empty-root, suppressed-division, and artifact red
+evidence. Stop before production changes and integrate only the reviewed red commit.
 
 ## Unauthorized actions
 

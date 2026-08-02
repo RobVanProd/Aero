@@ -299,3 +299,35 @@ nested-expression, diagnostic-ordering, no-unwind, no-panic, no-artifact, parser
 and positive-control probes. Direct semantic bypass, field assignment, struct
 execution/layout/ownership, unknown methods, and parent composites remain open by
 design.
+
+## DEC-012 — Match values fail closed until pattern semantics and lowering exist
+
+- Date: 2026-08-02
+- Status: accepted design for preregistered `CORE-008`; tests-only red checkpoint
+  pending
+- Decision: Aero retains Match syntax, its AST node, arms, and Pattern
+  representation, but trusted active semantic preflight will reject every Match
+  value expression with `Match expressions are not supported.` The existing
+  scrutinee-first, arm-body-in-source-order traversal remains first so accepted
+  child diagnostics retain precedence; the Match error occurs before invented
+  result-type inference.
+- Evidence: `AUDIT-013` found no active value-preserving Match path. Across 23 cases
+  and 69 public/check/build outcomes, 20 ordinary Match forms falsely succeeded with
+  zero or dropped evaluation; field, tuple, and void-valued child controls retained
+  their established diagnostics. Both semantic inference paths return `Int`; both
+  IR paths return zero without visiting Match children. Root Match can emit an empty
+  `main`, and hidden calls or `/0` disappear.
+- Alternatives rejected: implement pattern binding/exhaustiveness and enum lowering
+  without a typed aggregate/CFG contract; continue fabricated-zero behavior; reject
+  all comparisons and regress numeric controls; reject all MethodCall and regress
+  array `.iter()`; patch selected `/0` syntax without arithmetic/runtime/IEEE policy;
+  or bundle struct/enum/borrow/deref families that require layout or ownership rules.
+- Compatibility consequences: source Match programs that falsely reported success
+  will receive one stable early diagnostic. Parsing, AST construction, and future
+  tooling inspection remain available. Existing child diagnostics and established
+  numeric/function/array/index/iterator and prior fail-closed boundaries are
+  preserved. Parent composites are not certified by recursion.
+- Revisit when: pattern binding and typing, exhaustiveness/reachability, scrutinee
+  evaluation, arm selection and result unification, enum/aggregate representation,
+  ownership/destruction, typed CFG/IR, backend lowering, and end-to-end positive and
+  negative tests can ship as one coherent vertical slice.

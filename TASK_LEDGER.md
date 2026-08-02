@@ -894,3 +894,94 @@
 - Status: complete; select Match for `CORE-008` preregistration. String comparison,
   MethodCall capability, division semantics, aggregates, and ownership remain
   separate open tasks.
+
+## CORE-008 — Reject unsupported Match value expressions before IR
+
+- Problem: every active `Expression::Match` is assigned invented `Int` semantics;
+  both IR expression paths replace the entire Match with integer zero without
+  evaluating its scrutinee or any arm. Root Match can produce an empty LLVM `main`,
+  and Match can suppress calls and even compiler-panicking expressions.
+- Evidence: `AUDIT-013` at `9fc7d0e` exercised 23 Match programs across 69 public,
+  CLI-check, and CLI-build outcomes. Twenty ordinary root, binding, return,
+  discarded, nested, array, call, closure, module, string/Option, and hidden-division
+  forms falsely succeeded with zero or dropped evaluation. Three Match forms with
+  field, tuple, or void-valued children retained those established diagnostics.
+- Priority: P0.
+- Dependencies: `CORE-001B` through `CORE-007` accepted; `AUDIT-013` complete at
+  `648662b`.
+- Decision: retain `match` tokens, parser grammar, `Expression::Match`, MatchArm, and
+  Pattern representation, but reject every Match value expression reached through
+  active recursive semantic preflight with exactly
+  `Match expressions are not supported.` No Match is eligible for IR or artifact
+  generation in this slice.
+- Diagnostic ordering: keep the existing Match preflight traversal unchanged:
+  inspect the scrutinee first and then every arm body in source order; return the
+  Match diagnostic only after those children pass. Existing tuple, field, and
+  void-call diagnostics inside the Match therefore retain precedence. Otherwise
+  the Match diagnostic wins before Match inference, including when an identifier,
+  pattern, or name would later require resolution. Nested traversal reports the
+  first unsupported node reached under the existing outer-node rules; tuple nodes
+  still reject before their children. No source span is fabricated.
+- Boundary: rejection is recursive at expression roots, bindings, discarded forms,
+  explicit/tail returns, conditions, iterables, and closure bodies, and beneath
+  arrays/repeats/indexing, calls and method arguments/receivers, struct fields, enum
+  payloads, other Match scrutinees/arms, borrows/dereferences, unary/binary/logical
+  forms, prints, and field receivers. Parent forms are not thereby certified.
+- Syntax retained: the active parser test for `let result = match x { 1 => 10,
+  2 => 20, _ => 0 };` must continue to produce one Match with three arms. Pattern
+  parsing and AST construction remain available for future implementation, but
+  pattern binding, type checking, guards, exhaustiveness, reachability, evaluation
+  order, and result typing are not executable capabilities.
+- Files allowed: `src/compiler/src/semantic_analyzer.rs`, one new focused
+  `src/compiler/tests/unsupported_match_tests.rs`, `README.md`,
+  `tutorials/04-data-structures.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, explicit
+  current-status notices in historical enum/Match task or demo documents, and
+  affected project-control/capability/conformance documents.
+- Files frozen: lexer, grammar, parser, AST, pattern representation, types, enum and
+  struct registries/construction/layout/discriminants/payloads, name binding,
+  exhaustiveness/reachability, match guards, ownership/evaluation/runtime semantics,
+  string comparisons, method calls, division semantics, IR, code generator,
+  optimizer, backends, arrays/indexing/iteration, numeric contracts/annotations,
+  tuple/field/modulo boundaries, dormant mutable inference, direct constructed-AST
+  behavior, and unrelated public stability claims.
+- Positive tests: Match parser shape; ordinary numeric arithmetic and comparison;
+  numeric function calls; if/while behavior; arrays, indexing, and zero-argument
+  array `.iter()` including its existing LLVM markers; struct/enum declaration and
+  construction syntax without Match execution; standalone strings; and all prior
+  tuple/field/modulo/function/annotation/strict suites retain their accepted behavior.
+- Negative tests: minimal literal Match; bound/undeclared/call/string/Option
+  scrutinees; undeclared/call/multiple arm bodies; root, binding, discarded,
+  explicit/tail return, binary, non-first array, call argument, closure body, nested
+  Match, hidden `/0`, direct module, and representative recursive parent positions.
+  Public compilation must return the exact semantic `Err` without unwind. CLI
+  `check`/`build` must exit nonzero without panic or requested artifact.
+- Diagnostic-precedence tests: tuple scrutinee, field arm, and void-valued arm keep
+  their exact accepted diagnostics; tuple containing Match keeps the tuple
+  diagnostic; Match inside a field receiver is reached before the outer field
+  diagnostic. These tests freeze traversal only, not Match evaluation semantics.
+- Red checkpoint: on clean `648662b`, parser/positive/precedence controls must pass.
+  Ordinary Match negatives must preserve false acceptance, fabricated zero, empty
+  root CFG, dropped calls, or suppressed `/0` before production changes. No negative
+  may rely on an unrelated parse error or compiler panic as its expected result.
+- Regression risks: returning before child traversal would change accepted
+  diagnostics; restructuring the arm could accidentally imply pattern semantics;
+  binary/library compiler modules and both IR paths are duplicated; historical enum
+  helpers can be mistaken for active Match lowering; direct callers can bypass
+  semantics and still reach zero-stub IR.
+- Stop conditions: any trusted value-preserving Match route is found; implementation
+  requires another production file or pattern/name/type/exhaustiveness/layout/
+  ownership/evaluation semantics; parser/AST/IR/backend changes are needed; active
+  routes cannot be covered by the shared preflight; child diagnostic precedence
+  changes; or parser, numeric, function, array/index/iterator, struct/enum syntax, or
+  any prior accepted focused boundary regresses.
+- Owner: one isolated tests/implementation owner; lead integrates and owns the
+  diagnostic/compatibility decision.
+- Status: preregistered; tests-only red checkpoint pending.
+- Acceptance criteria: red evidence is preserved; focused parser, recursive,
+  positive, negative, diagnostic-order, no-unwind, direct-module, CLI no-panic and
+  no-artifact tests pass; prior focused suites and `./tools/test.sh` pass; current
+  public Match claims are corrected without deleting historical evidence; and two
+  non-owner reviewers approve the exact clean documented integration SHA.
+- Verification commands: focused `cargo test --test unsupported_match_tests`, prior
+  applicable focused suites, `cargo fmt --all -- --check`, and required
+  `./tools/test.sh`.
