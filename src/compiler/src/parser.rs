@@ -5,7 +5,7 @@ use crate::ast::{
     Type, VariantDecl, VariantDeclKind,
 };
 use crate::errors::{CompilerError, CompilerResult, SourceLocation};
-use crate::lexer::{LocatedToken, Token, tokenize_with_locations};
+use crate::lexer::{LocatedToken, Token, try_tokenize_with_locations};
 
 pub struct Parser {
     tokens: Vec<LocatedToken>,
@@ -960,7 +960,7 @@ impl Parser {
             });
         }
 
-        let tokens = tokenize_with_locations(trimmed, None);
+        let tokens = try_tokenize_with_locations(trimmed, None)?;
         let mut parser = Parser::new(tokens);
         let expr = parser.parse_expression()?;
         if !parser.is_at_end() {

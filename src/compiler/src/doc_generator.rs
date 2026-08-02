@@ -1,9 +1,10 @@
 use crate::ast::{AstNode, Parameter, Statement, TraitMethod, Type, VariantDecl};
-use crate::lexer::tokenize_with_locations;
+use crate::lexer::try_tokenize_with_locations;
 use crate::parser::parse_with_locations;
 
 pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, String> {
-    let tokens = tokenize_with_locations(source_code, Some(input_file.to_string()));
+    let tokens = try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+        .map_err(|err| format!("Lex error: {}", err))?;
     let ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
     let mut modules = Vec::new();

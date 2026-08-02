@@ -30,7 +30,8 @@ pub fn profile_compilation(
     let mut stages = Vec::new();
 
     let lex_start = Instant::now();
-    let tokens = lexer::tokenize_with_locations(source_code, Some(input_file.to_string()));
+    let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+        .map_err(|err| format!("Lex error: {}", err))?;
     push_stage(&mut stages, "lexing", lex_start.elapsed());
 
     let parse_start = Instant::now();
@@ -114,7 +115,8 @@ fn resolve_modules(input_file: &str, ast: &mut Vec<AstNode>) -> Result<(), Strin
                 .map_err(|err| format!("Module resolution failed for `{}`: {}", name, err))?;
             let module_filename = resolved.file_path.to_string_lossy().to_string();
             let mod_tokens =
-                lexer::tokenize_with_locations(&resolved.source, Some(module_filename));
+                lexer::try_tokenize_with_locations(&resolved.source, Some(module_filename))
+                    .map_err(|err| format!("Lex error: {}", err))?;
             let mod_ast = parser::parse_with_locations(mod_tokens)
                 .map_err(|err| format!("Parse error: {}", err))?;
             module_asts.extend(mod_ast);

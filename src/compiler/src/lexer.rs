@@ -1,4 +1,4 @@
-use crate::errors::SourceLocation;
+use crate::errors::{CompilerError, SourceLocation};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
@@ -111,6 +111,30 @@ pub fn tokenize(source: &str) -> Vec<Token> {
 }
 
 pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<LocatedToken> {
+    scan_with_locations(source, filename, LexMode::Recovery)
+        .expect("recovery lexer must always produce a token stream")
+}
+
+#[allow(clippy::result_large_err)]
+pub fn try_tokenize_with_locations(
+    source: &str,
+    filename: Option<String>,
+) -> Result<Vec<LocatedToken>, CompilerError> {
+    scan_with_locations(source, filename, LexMode::Strict)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LexMode {
+    Recovery,
+    Strict,
+}
+
+#[allow(clippy::result_large_err)]
+fn scan_with_locations(
+    source: &str,
+    filename: Option<String>,
+    mode: LexMode,
+) -> Result<Vec<LocatedToken>, CompilerError> {
     let mut tokens = Vec::new();
     let mut chars = source.chars().peekable();
     let mut line = 1;
@@ -464,13 +488,37 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 }
 
                 if has_dot || has_exponent {
-                    let float_val: f64 = num_str.parse().unwrap_or(0.0);
+                    let float_val = match num_str.parse::<f64>() {
+                        Ok(value) if mode == LexMode::Strict && !value.is_finite() => {
+                            return Err(CompilerError::InvalidNumber {
+                                text: num_str,
+                                location: make_location(token_start_line, token_start_column),
+                            });
+                        }
+                        Ok(value) => value,
+                        Err(_) if mode == LexMode::Strict => {
+                            return Err(CompilerError::InvalidNumber {
+                                text: num_str,
+                                location: make_location(token_start_line, token_start_column),
+                            });
+                        }
+                        Err(_) => 0.0,
+                    };
                     tokens.push(LocatedToken::new(
                         Token::FloatLiteral(float_val),
                         make_location(token_start_line, token_start_column),
                     ));
                 } else {
-                    let int_val: i64 = num_str.parse().unwrap_or(0);
+                    let int_val = match num_str.parse::<i64>() {
+                        Ok(value) => value,
+                        Err(_) if mode == LexMode::Strict => {
+                            return Err(CompilerError::InvalidNumber {
+                                text: num_str,
+                                location: make_location(token_start_line, token_start_column),
+                            });
+                        }
+                        Err(_) => 0,
+                    };
                     tokens.push(LocatedToken::new(
                         Token::IntegerLiteral(int_val),
                         make_location(token_start_line, token_start_column),
@@ -482,10 +530,12 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                 let ch = chars.next().unwrap(); // consume opening quote
                 advance_position(ch, &mut line, &mut column);
                 let mut string_content = String::new();
+                let mut terminated = false;
                 while let Some(&c) = chars.peek() {
                     if c == '"' {
                         let ch = chars.next().unwrap(); // consume closing quote
                         advance_position(ch, &mut line, &mut column);
+                        terminated = true;
                         break;
                     } else if c == '\\' {
                         // Handle escape sequences
@@ -513,6 +563,11 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                         string_content.push(ch);
                     }
                 }
+                if mode == LexMode::Strict && !terminated {
+                    return Err(CompilerError::UnterminatedString {
+                        location: make_location(token_start_line, token_start_column),
+                    });
+                }
                 tokens.push(LocatedToken::new(
                     Token::StringLiteral(string_content),
                     make_location(token_start_line, token_start_column),
@@ -539,10 +594,12 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                     let quote = chars.next().unwrap(); // consume opening quote
                     advance_position(quote, &mut line, &mut column);
                     let mut string_content = String::new();
+                    let mut terminated = false;
                     while let Some(&c) = chars.peek() {
                         if c == '"' {
                             let ch = chars.next().unwrap(); // consume closing quote
                             advance_position(ch, &mut line, &mut column);
+                            terminated = true;
                             break;
                         } else if c == '\\' {
                             // Handle escape sequences
@@ -569,6 +626,11 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
                             advance_position(ch, &mut line, &mut column);
                             string_content.push(ch);
                         }
+                    }
+                    if mode == LexMode::Strict && !terminated {
+                        return Err(CompilerError::UnterminatedString {
+                            location: make_location(token_start_line, token_start_column),
+                        });
                     }
                     tokens.push(LocatedToken::new(
                         Token::FStringLiteral(string_content),
@@ -638,6 +700,12 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
             }
             _ => {
                 // Handle unexpected characters or errors
+                if mode == LexMode::Strict {
+                    return Err(CompilerError::UnexpectedCharacter {
+                        character: c,
+                        location: make_location(token_start_line, token_start_column),
+                    });
+                }
                 eprintln!("Unexpected character: {} at {}:{}", c, line, column);
                 let ch = chars.next().unwrap();
                 advance_position(ch, &mut line, &mut column);
@@ -646,7 +714,7 @@ pub fn tokenize_with_locations(source: &str, filename: Option<String>) -> Vec<Lo
     }
 
     tokens.push(LocatedToken::new(Token::Eof, make_location(line, column)));
-    tokens
+    Ok(tokens)
 }
 
 #[cfg(test)]
@@ -669,6 +737,80 @@ mod tests {
         assert_eq!(tokens[5].token, Token::Let); // Second let on line 2
         assert_eq!(tokens[5].location.line, 2);
         assert_eq!(tokens[5].location.column, 1);
+    }
+
+    #[test]
+    fn strict_and_recovery_lexers_agree_on_valid_source() {
+        let source = "let integer = 42; let float = 1.25e+2; let text = \"ok\"; let formatted = f\"{integer}\";";
+        let filename = Some("valid.aero".to_string());
+
+        let strict = try_tokenize_with_locations(source, filename.clone())
+            .expect("valid source must pass strict lexing");
+        let recovery = tokenize_with_locations(source, filename);
+
+        assert_eq!(strict, recovery);
+    }
+
+    #[test]
+    fn strict_lexer_rejects_located_unexpected_character() {
+        let error =
+            try_tokenize_with_locations("let value = 1@;", Some("unexpected.aero".to_string()))
+                .expect_err("unexpected character must fail strict lexing");
+
+        match error {
+            CompilerError::UnexpectedCharacter {
+                character,
+                location,
+            } => {
+                assert_eq!(character, '@');
+                assert_eq!(
+                    location,
+                    SourceLocation::with_filename(1, 14, "unexpected.aero".to_string())
+                );
+            }
+            other => panic!("unexpected strict lexer error: {other}"),
+        }
+    }
+
+    #[test]
+    fn strict_lexer_rejects_invalid_and_non_finite_numbers() {
+        for (source, expected_text) in [
+            ("let value = 9223372036854775808;", "9223372036854775808"),
+            ("let value = 1e+;", "1e+"),
+            ("let value = 1e9999;", "1e9999"),
+        ] {
+            let error = try_tokenize_with_locations(source, Some("number.aero".to_string()))
+                .expect_err("invalid number must fail strict lexing");
+
+            match error {
+                CompilerError::InvalidNumber { text, location } => {
+                    assert_eq!(text, expected_text);
+                    assert_eq!(
+                        location,
+                        SourceLocation::with_filename(1, 13, "number.aero".to_string())
+                    );
+                }
+                other => panic!("unexpected strict lexer error: {other}"),
+            }
+        }
+    }
+
+    #[test]
+    fn strict_lexer_rejects_unterminated_ordinary_and_formatted_strings() {
+        for source in ["let value = \"unterminated", "let value = f\"unterminated"] {
+            let error = try_tokenize_with_locations(source, Some("string.aero".to_string()))
+                .expect_err("unterminated string must fail strict lexing");
+
+            match error {
+                CompilerError::UnterminatedString { location } => {
+                    assert_eq!(
+                        location,
+                        SourceLocation::with_filename(1, 13, "string.aero".to_string())
+                    );
+                }
+                other => panic!("unexpected strict lexer error: {other}"),
+            }
+        }
     }
 
     #[test]

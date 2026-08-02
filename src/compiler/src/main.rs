@@ -1502,7 +1502,8 @@ fn compile_to_llvm_ir(
 
     // Lexing with performance timing
     let lexing_start = Instant::now();
-    let tokens = lexer::tokenize_with_locations(source_code, Some(input_file.to_string()));
+    let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+        .map_err(|err| format!("Lex error: {}", err))?;
     let lexing_time = lexing_start.elapsed();
     println!("Lexing completed in {:?}", lexing_time);
 
@@ -1536,7 +1537,8 @@ fn compile_to_llvm_ir(
                     );
                     let module_filename = resolved.file_path.to_string_lossy().to_string();
                     let mod_tokens =
-                        lexer::tokenize_with_locations(&resolved.source, Some(module_filename));
+                        lexer::try_tokenize_with_locations(&resolved.source, Some(module_filename))
+                            .map_err(|err| format!("Lex error: {}", err))?;
                     let mod_ast = parser::parse_with_locations(mod_tokens)
                         .map_err(|err| format!("Parse error: {}", err))?;
                     module_asts.extend(mod_ast);
@@ -1988,7 +1990,8 @@ fn parse_source_with_direct_modules(
     source_code: &str,
     input_file: &str,
 ) -> Result<Vec<crate::ast::AstNode>, String> {
-    let tokens = lexer::tokenize_with_locations(source_code, Some(input_file.to_string()));
+    let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+        .map_err(|err| format!("Lex error: {}", err))?;
     let mut ast =
         parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
@@ -2005,7 +2008,8 @@ fn parse_source_with_direct_modules(
                 .map_err(|err| format!("Module resolution failed for `{}`: {}", name, err))?;
             let module_filename = resolved.file_path.to_string_lossy().to_string();
             let module_tokens =
-                lexer::tokenize_with_locations(&resolved.source, Some(module_filename));
+                lexer::try_tokenize_with_locations(&resolved.source, Some(module_filename))
+                    .map_err(|err| format!("Lex error: {}", err))?;
             let module_ast = parser::parse_with_locations(module_tokens)
                 .map_err(|err| format!("Parse error: {}", err))?;
             module_asts.extend(module_ast);

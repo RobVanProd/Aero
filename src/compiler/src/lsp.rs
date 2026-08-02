@@ -1,5 +1,5 @@
 use crate::errors::{CompilerError, SourceLocation};
-use crate::lexer::{Token, tokenize_with_locations};
+use crate::lexer::{Token, tokenize_with_locations, try_tokenize_with_locations};
 use crate::parser::parse_with_locations;
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -332,7 +332,10 @@ fn make_symbol(
 }
 
 fn syntax_diagnostics(source: &str, filename: Option<String>) -> Vec<LspDiagnostic> {
-    let tokens = tokenize_with_locations(source, filename);
+    let tokens = match try_tokenize_with_locations(source, filename) {
+        Ok(tokens) => tokens,
+        Err(err) => return diagnostics_from_error(&err),
+    };
     match parse_with_locations(tokens) {
         Ok(_) => Vec::new(),
         Err(err) => diagnostics_from_error(&err),
@@ -827,6 +830,19 @@ mod tests {
     }
 
     #[test]
+    fn syntax_diagnostics_reports_lexical_error() {
+        let diagnostics = syntax_diagnostics(
+            "let value = 1@;",
+            Some("file:///tmp/invalid.aero".to_string()),
+        );
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].range.start.line, 0);
+        assert_eq!(diagnostics[0].range.start.character, 13);
+        assert!(diagnostics[0].message.contains("Unexpected character '@'"));
+    }
+
+    #[test]
     fn symbol_index_collects_common_declarations() {
         let source = "mod math; struct Vec2 { x: i32 } enum Color { Red } trait Draw { fn draw(self: Self); } fn add(x: i32, y: i32) -> i32 { let sum = x + y; return sum; }";
         let symbols = index_symbols(source, Some("file:///tmp/main.aero".to_string()));
@@ -837,6 +853,19 @@ mod tests {
         assert!(names.contains(&"Draw".to_string()));
         assert!(names.contains(&"add".to_string()));
         assert!(names.contains(&"sum".to_string()));
+    }
+
+    #[test]
+    fn symbol_index_retains_legacy_recovery_after_lexical_error() {
+        let source = "fn before() {} @ fn after() {}";
+        let symbols = index_symbols(source, Some("file:///tmp/recovery.aero".to_string()));
+        let names = symbols
+            .into_iter()
+            .map(|symbol| symbol.name)
+            .collect::<Vec<_>>();
+
+        assert!(names.contains(&"before".to_string()));
+        assert!(names.contains(&"after".to_string()));
     }
 
     #[test]

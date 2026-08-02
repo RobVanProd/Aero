@@ -18,7 +18,9 @@ pub mod types;
 
 pub use code_generator::{CodeGenerator, generate_code};
 pub use ir_generator::IrGenerator;
-pub use lexer::{LocatedToken, Token, tokenize, tokenize_with_locations};
+pub use lexer::{
+    LocatedToken, Token, tokenize, tokenize_with_locations, try_tokenize_with_locations,
+};
 pub use parser::{Parser, parse, parse_with_locations};
 pub use semantic_analyzer::SemanticAnalyzer;
 
@@ -36,7 +38,8 @@ pub struct CompilerOptions {
 /// Main compilation function for benchmarking
 pub fn compile_program(source: &str, _options: CompilerOptions) -> Result<String, String> {
     // Lexical analysis
-    let tokens = tokenize_with_locations(source, None);
+    let tokens =
+        try_tokenize_with_locations(source, None).map_err(|err| format!("Lex error: {}", err))?;
 
     // Parsing
     let ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
