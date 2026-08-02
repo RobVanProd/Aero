@@ -1,8 +1,6 @@
-use crate::ast::{
-    AstNode, Block, ComparisonOp, Expression, LogicalOp, Parameter, Statement, UnaryOp,
-};
+use crate::ast::{AstNode, Block, ComparisonOp, Expression, LogicalOp, Statement, UnaryOp};
 use crate::types::{OwnershipState, Ty, infer_binary_type};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub struct VariableInfo {
@@ -15,8 +13,9 @@ pub struct VariableInfo {
 #[derive(Debug, Clone)]
 pub struct FunctionInfo {
     pub name: String,
-    pub parameters: Vec<Parameter>,
+    pub parameters: Vec<(String, Ty)>,
     pub return_type: Ty,
+    pub eligible: bool,
     pub defined_at: Option<String>,
 }
 
@@ -36,6 +35,10 @@ pub struct FunctionTable {
 }
 
 impl FunctionTable {
+    pub fn clear(&mut self) {
+        self.functions.clear();
+    }
+
     pub fn new() -> Self {
         Self {
             functions: HashMap::new(),
@@ -52,10 +55,7 @@ impl Default for FunctionTable {
 impl FunctionTable {
     pub fn define_function(&mut self, info: FunctionInfo) -> Result<(), String> {
         if self.functions.contains_key(&info.name) {
-            return Err(format!(
-                "Error: Function `{}` is already defined.",
-                info.name
-            ));
+            return Err(format!("Error: duplicate function `{}`.", info.name));
         }
         self.functions.insert(info.name.clone(), info);
         Ok(())
@@ -67,35 +67,24 @@ impl FunctionTable {
 
     pub fn validate_call(&self, name: &str, args: &[Ty]) -> Result<Ty, String> {
         if let Some(func) = self.functions.get(name) {
+            if !func.eligible {
+                return Ok(Ty::Int);
+            }
+
             if func.parameters.len() != args.len() {
                 return Err(format!(
-                    "Error: Function `{}` expects {} arguments, but {} were provided.",
+                    "Error: Function `{}` arity mismatch: expected {}, actual {}.",
                     name,
                     func.parameters.len(),
                     args.len()
                 ));
             }
 
-            for (i, (param, arg_type)) in func.parameters.iter().zip(args.iter()).enumerate() {
-                let expected_type = match &param.param_type {
-                    crate::ast::Type::Named(type_name) => match type_name.as_str() {
-                        "i32" | "int" => Ty::Int,
-                        "f64" | "float" => Ty::Float,
-                        "bool" => Ty::Bool,
-                        "String" => Ty::String,
-                        _ => Ty::Int,
-                    },
-                    crate::ast::Type::Array(_, _) | crate::ast::Type::Tuple(_) => Ty::Int,
-                    crate::ast::Type::Reference(_, _) | crate::ast::Type::Generic(_, _) => Ty::Int,
-                };
-
-                if expected_type != *arg_type {
+            for ((param_name, expected_type), arg_type) in func.parameters.iter().zip(args.iter()) {
+                if expected_type != arg_type {
                     return Err(format!(
-                        "Error: Function `{}` expects type `{}` for argument {}, but `{}` was provided.",
-                        name,
-                        expected_type,
-                        i + 1,
-                        arg_type
+                        "Error: Function `{}` parameter `{}` type mismatch: expected {}, actual {}.",
+                        name, param_name, expected_type, arg_type
                     ));
                 }
             }
@@ -414,8 +403,9 @@ impl ScopeManager {
 
 pub struct SemanticAnalyzer {
     symbol_table: HashMap<String, VariableInfo>,
-    #[allow(dead_code)]
     function_table: FunctionTable,
+    closure_bindings: HashSet<String>,
+    return_contract_stack: Vec<Option<FunctionInfo>>,
     scope_manager: ScopeManager,
     /// Stack of active generic type parameter sets (e.g., ["T", "U"] for fn<T, U>)
     type_param_scopes: Vec<Vec<String>>,
@@ -436,6 +426,8 @@ impl SemanticAnalyzer {
         Self {
             symbol_table: HashMap::new(),
             function_table: FunctionTable::new(),
+            closure_bindings: HashSet::new(),
+            return_contract_stack: Vec::new(),
             scope_manager: ScopeManager::new(),
             type_param_scopes: Vec::new(),
             trait_registry,
@@ -470,10 +462,56 @@ impl Default for SemanticAnalyzer {
 
 impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
+        self.function_table.clear();
+        self.closure_bindings.clear();
+        self.return_contract_stack.clear();
+
+        // Predeclare all top-level names so forward calls and direct recursion see
+        // the same program-wide namespace after module linking.
+        for node in &ast {
+            if let AstNode::Statement(Statement::Function {
+                name,
+                parameters,
+                return_type,
+                type_params,
+                ..
+            }) = node
+            {
+                let contract = if type_params.is_empty() {
+                    let parameter_types = parameters
+                        .iter()
+                        .map(|parameter| {
+                            Self::numeric_contract_type(&parameter.param_type)
+                                .map(|ty| (parameter.name.clone(), ty))
+                        })
+                        .collect::<Option<Vec<_>>>();
+                    let contract_return = match return_type {
+                        Some(ty) => Self::numeric_contract_type(ty),
+                        None => Some(Ty::Void),
+                    };
+
+                    match (parameter_types, contract_return) {
+                        (Some(parameters), Some(return_type)) => (parameters, return_type, true),
+                        _ => (Vec::new(), Ty::Int, false),
+                    }
+                } else {
+                    (Vec::new(), Ty::Int, false)
+                };
+
+                self.function_table.define_function(FunctionInfo {
+                    name: name.clone(),
+                    parameters: contract.0,
+                    return_type: contract.1,
+                    eligible: contract.2,
+                    defined_at: None,
+                })?;
+            }
+        }
+
         for node in &ast {
             match node {
                 AstNode::Statement(stmt) => {
-                    self.analyze_statement(stmt)?;
+                    self.analyze_statement_with_context(stmt, true)?;
                 }
                 AstNode::Expression(expr) => {
                     self.check_expression_initialization(expr)?;
@@ -482,6 +520,74 @@ impl SemanticAnalyzer {
             }
         }
         Ok(("Semantic analysis completed successfully".to_string(), ast))
+    }
+
+    fn numeric_contract_type(ty: &crate::ast::Type) -> Option<Ty> {
+        match ty {
+            crate::ast::Type::Named(name) if matches!(name.as_str(), "i32" | "int") => {
+                Some(Ty::Int)
+            }
+            crate::ast::Type::Named(name) if matches!(name.as_str(), "f64" | "float") => {
+                Some(Ty::Float)
+            }
+            _ => None,
+        }
+    }
+
+    fn require_value(&self, expr: &Expression) -> Result<Ty, String> {
+        let ty = self.infer_and_validate_expression_immutable(expr)?;
+        if ty != Ty::Void {
+            return Ok(ty);
+        }
+
+        if let Expression::FunctionCall { name, .. } = expr {
+            Err(format!(
+                "Error: void function `{}` cannot be used as a value.",
+                name
+            ))
+        } else {
+            Err("Error: Void expression cannot be used as a value.".to_string())
+        }
+    }
+
+    fn return_type_mismatch(name: &str, expected: &Ty, actual: &Ty) -> String {
+        format!(
+            "Error: Function `{}` return type mismatch: expected {}, actual {}.",
+            name,
+            Self::contract_type_name(expected),
+            Self::contract_type_name(actual)
+        )
+    }
+
+    fn contract_type_name(ty: &Ty) -> String {
+        match ty {
+            Ty::Void => "void".to_string(),
+            _ => ty.to_string(),
+        }
+    }
+
+    fn statement_definitely_returns(statement: &Statement) -> bool {
+        match statement {
+            Statement::Return(_) => true,
+            Statement::Block(block) => Self::block_definitely_returns(block),
+            Statement::If {
+                then_block,
+                else_block: Some(else_statement),
+                ..
+            } => {
+                Self::block_definitely_returns(then_block)
+                    && Self::statement_definitely_returns(else_statement)
+            }
+            _ => false,
+        }
+    }
+
+    fn block_definitely_returns(block: &Block) -> bool {
+        block.expression.is_some()
+            || block
+                .statements
+                .iter()
+                .any(Self::statement_definitely_returns)
     }
 
     fn check_expression_initialization(&self, expr: &Expression) -> Result<(), String> {
@@ -778,11 +884,19 @@ impl SemanticAnalyzer {
                 let rhs_type = self.infer_and_validate_expression_immutable(right)?;
                 infer_binary_type(op.as_str(), &lhs_type, &rhs_type)
             }
-            Expression::FunctionCall { arguments, .. } => {
+            Expression::FunctionCall { name, arguments } => {
+                let mut argument_types = Vec::with_capacity(arguments.len());
                 for arg in arguments {
-                    self.infer_and_validate_expression_immutable(arg)?;
+                    argument_types.push(self.infer_and_validate_expression_immutable(arg)?);
                 }
-                Ok(Ty::Int)
+
+                if self.function_table.get_function(name).is_some() {
+                    self.function_table.validate_call(name, &argument_types)
+                } else if self.closure_bindings.contains(name) {
+                    Ok(Ty::Int)
+                } else {
+                    Err(format!("Error: Function `{}` is not defined.", name))
+                }
             }
             Expression::Print {
                 format_string,
@@ -1078,6 +1192,14 @@ impl SemanticAnalyzer {
     }
 
     fn analyze_statement(&mut self, stmt: &Statement) -> Result<(), String> {
+        self.analyze_statement_with_context(stmt, false)
+    }
+
+    fn analyze_statement_with_context(
+        &mut self,
+        stmt: &Statement,
+        is_top_level: bool,
+    ) -> Result<(), String> {
         match stmt {
             Statement::Let {
                 name,
@@ -1094,7 +1216,7 @@ impl SemanticAnalyzer {
 
                 let inferred_type = if let Some(val) = value {
                     self.check_expression_initialization(val)?;
-                    self.infer_and_validate_expression_immutable(val)?
+                    self.require_value(val)?
                 } else {
                     Ty::Int
                 };
@@ -1141,10 +1263,33 @@ impl SemanticAnalyzer {
                 };
                 self.symbol_table.insert(name.clone(), var_info);
 
+                if matches!(value, Some(Expression::Closure { .. })) {
+                    self.closure_bindings.insert(name.clone());
+                }
+
                 Ok(())
             }
             Statement::Return(expr) => {
-                if let Some(val) = expr {
+                let contract = self
+                    .return_contract_stack
+                    .last()
+                    .and_then(|entry| entry.as_ref())
+                    .cloned();
+                if let Some(contract) = contract {
+                    let actual = if let Some(val) = expr {
+                        self.check_expression_initialization(val)?;
+                        self.infer_and_validate_expression_immutable(val)?
+                    } else {
+                        Ty::Void
+                    };
+                    if actual != contract.return_type {
+                        return Err(Self::return_type_mismatch(
+                            &contract.name,
+                            &contract.return_type,
+                            &actual,
+                        ));
+                    }
+                } else if let Some(val) = expr {
                     self.check_expression_initialization(val)?;
                     self.infer_and_validate_expression_immutable(val)?;
                 }
@@ -1168,40 +1313,76 @@ impl SemanticAnalyzer {
                         .insert(name.clone(), trait_bounds.clone());
                 }
 
+                let return_contract = if is_top_level {
+                    self.function_table
+                        .get_function(name)
+                        .filter(|function| function.eligible)
+                        .cloned()
+                } else {
+                    None
+                };
+                self.return_contract_stack.push(return_contract.clone());
+
                 // Enter a new scope for the function body
                 self.scope_manager.enter_function(name.clone());
 
-                // Declare parameters as variables in the function scope
-                for param in parameters {
-                    let param_type = self.ast_type_to_ty(&param.param_type);
-                    self.scope_manager.define_variable(
-                        param.name.clone(),
-                        param_type.clone(),
-                        false,
-                        true, // Parameters are always initialized
-                    )?;
-                    // Also add to old symbol table for backward compatibility
-                    let var_info = VariableInfo {
-                        name: param.name.clone(),
-                        ty: param_type,
-                        mutable: false,
-                        initialized: true,
-                    };
-                    self.symbol_table.insert(param.name.clone(), var_info);
-                }
+                let body_result = (|| {
+                    // Declare parameters as variables in the function scope
+                    for param in parameters {
+                        let param_type = self.ast_type_to_ty(&param.param_type);
+                        self.scope_manager.define_variable(
+                            param.name.clone(),
+                            param_type.clone(),
+                            false,
+                            true, // Parameters are always initialized
+                        )?;
+                        // Also add to old symbol table for backward compatibility
+                        let var_info = VariableInfo {
+                            name: param.name.clone(),
+                            ty: param_type,
+                            mutable: false,
+                            initialized: true,
+                        };
+                        self.symbol_table.insert(param.name.clone(), var_info);
+                    }
 
-                // Analyze each statement in the function body
-                self.analyze_block(body)?;
+                    self.analyze_block(body)?;
+
+                    if let Some(contract) = &return_contract {
+                        if let Some(tail) = &body.expression {
+                            let actual = self.infer_and_validate_expression_immutable(tail)?;
+                            if actual != contract.return_type {
+                                return Err(Self::return_type_mismatch(
+                                    &contract.name,
+                                    &contract.return_type,
+                                    &actual,
+                                ));
+                            }
+                        }
+
+                        if contract.return_type != Ty::Void && !Self::block_definitely_returns(body)
+                        {
+                            return Err(format!(
+                                "Error: Function `{}` must return {} on all paths.",
+                                contract.name,
+                                Self::contract_type_name(&contract.return_type)
+                            ));
+                        }
+                    }
+
+                    Ok(())
+                })();
 
                 // Exit the function scope
                 self.scope_manager.exit_function();
+                self.return_contract_stack.pop();
 
                 // Pop generic type parameters
                 if !type_params.is_empty() {
                     self.type_param_scopes.pop();
                 }
 
-                Ok(())
+                body_result
             }
             Statement::If {
                 condition,

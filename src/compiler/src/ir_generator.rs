@@ -10,8 +10,9 @@ pub struct IrGenerator {
     next_reg: u32,
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
-    loop_label_stack: Vec<(String, String)>,    // Stack of (loop_start, loop_end) labels
-    closure_count: u32,                         // Counter for unique closure names
+    function_return_types: HashMap<String, Ty>,
+    loop_label_stack: Vec<(String, String)>, // Stack of (loop_start, loop_end) labels
+    closure_count: u32,                      // Counter for unique closure names
 }
 
 impl IrGenerator {
@@ -22,6 +23,7 @@ impl IrGenerator {
             next_reg: 0,
             next_ptr: 0,
             symbol_table: HashMap::new(),
+            function_return_types: HashMap::new(),
             loop_label_stack: Vec::new(),
             closure_count: 0,
         }
@@ -36,6 +38,30 @@ impl Default for IrGenerator {
 
 impl IrGenerator {
     pub fn generate_ir(&mut self, ast: Vec<AstNode>) -> HashMap<String, Function> {
+        self.function_return_types.clear();
+        for node in &ast {
+            if let AstNode::Statement(Statement::Function {
+                name,
+                parameters,
+                return_type,
+                type_params,
+                ..
+            }) = node
+                && type_params.is_empty()
+                && parameters
+                    .iter()
+                    .all(|parameter| Self::numeric_contract_type(&parameter.param_type).is_some())
+            {
+                let contract_return = match return_type {
+                    Some(ty) => Self::numeric_contract_type(ty),
+                    None => Some(Ty::Void),
+                };
+                if let Some(return_type) = contract_return {
+                    self.function_return_types.insert(name.clone(), return_type);
+                }
+            }
+        }
+
         let mut main_function = Function {
             name: "main".to_string(),
             body: Vec::new(),
@@ -58,6 +84,57 @@ impl IrGenerator {
         main_function.next_ptr = self.next_ptr;
         self.functions.insert("main".to_string(), main_function);
         self.functions.clone()
+    }
+
+    fn numeric_contract_type(ty: &Type) -> Option<Ty> {
+        match ty {
+            Type::Named(name) if matches!(name.as_str(), "i32" | "int") => Some(Ty::Int),
+            Type::Named(name) if matches!(name.as_str(), "f64" | "float") => Some(Ty::Float),
+            _ => None,
+        }
+    }
+
+    fn build_function_call(&mut self, name: String, arguments: Vec<Value>) -> (Inst, Value, Ty) {
+        let return_type = self.function_return_types.get(&name).cloned();
+        let function_name = self.resolve_callable_name(&name);
+
+        match return_type {
+            Some(Ty::Void) => (
+                Inst::Call {
+                    function: function_name,
+                    arguments,
+                    result: None,
+                },
+                Value::ImmInt(0),
+                Ty::Void,
+            ),
+            Some(return_type @ (Ty::Int | Ty::Float)) => {
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                (
+                    Inst::Call {
+                        function: function_name,
+                        arguments,
+                        result: Some(result_reg.clone()),
+                    },
+                    result_reg,
+                    return_type,
+                )
+            }
+            _ => {
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                (
+                    Inst::Call {
+                        function: function_name,
+                        arguments,
+                        result: Some(result_reg.clone()),
+                    },
+                    result_reg,
+                    Ty::Int,
+                )
+            }
+        }
     }
 
     fn stores_value_directly(ty: &Ty) -> bool {
@@ -261,24 +338,9 @@ impl IrGenerator {
                     arg_values.push(arg_value);
                 }
 
-                // Generate result register for function call
-                let result_reg = Value::Reg(self.next_reg);
-                self.next_reg += 1;
-
-                // Resolve closure variables to their generated function symbol.
-                let function_name = self.resolve_callable_name(&name);
-
-                // Create function call instruction
-                let call_inst = Inst::Call {
-                    function: function_name,
-                    arguments: arg_values,
-                    result: Some(result_reg.clone()),
-                };
-
+                let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
                 function.body.push(call_inst);
-
-                // For now, assume function calls return int (this should be looked up from function table in semantic analysis)
-                (result_reg, Ty::Int)
+                (result, return_type)
             }
             Expression::Print {
                 format_string,
@@ -830,24 +892,9 @@ impl IrGenerator {
             arg_values.push(arg_value);
         }
 
-        // Generate result register for function call
-        let result_reg = Value::Reg(self.next_reg);
-        self.next_reg += 1;
-
-        // Resolve closure variables to their generated function symbol.
-        let function_name = self.resolve_callable_name(&name);
-
-        // Create function call instruction
-        let call_inst = Inst::Call {
-            function: function_name,
-            arguments: arg_values,
-            result: Some(result_reg.clone()),
-        };
-
+        let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
         function_body.push(call_inst);
-
-        // For now, assume function calls return int (this should be looked up from function table in semantic analysis)
-        (result_reg, Ty::Int)
+        (result, return_type)
     }
 
     // Control flow IR generation methods
