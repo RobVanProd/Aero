@@ -1585,6 +1585,52 @@ fn compile_to_llvm_ir(
     )
 }
 
+fn push_compilation_cache_frame(bytes: &mut Vec<u8>, label: &str, payload: &[u8]) {
+    bytes.extend_from_slice(label.as_bytes());
+    bytes.push(0);
+    bytes.extend_from_slice(&(payload.len() as u64).to_be_bytes());
+    bytes.extend_from_slice(payload);
+}
+
+fn compilation_cache_key(
+    source_code: &str,
+    build_config: &BuildConfig,
+    modules: &[module_resolver::ParsedDirectModule],
+) -> String {
+    if modules.is_empty() {
+        return format!(
+            "{:x}",
+            md5::compute(format!(
+                "{}::target={}::gpu={}",
+                source_code,
+                build_config.target.as_str(),
+                build_config.gpu_arch_or_default()
+            ))
+        );
+    }
+
+    let mut bytes = b"AERO_MODULE_CACHE_V1\0".to_vec();
+    push_compilation_cache_frame(&mut bytes, "root", source_code.as_bytes());
+    push_compilation_cache_frame(
+        &mut bytes,
+        "target",
+        build_config.target.as_str().as_bytes(),
+    );
+    push_compilation_cache_frame(
+        &mut bytes,
+        "gpu",
+        build_config.gpu_arch_or_default().as_bytes(),
+    );
+    bytes.extend_from_slice(&(modules.len() as u64).to_be_bytes());
+    for module in modules {
+        push_compilation_cache_frame(&mut bytes, "name", module.name.as_bytes());
+        push_compilation_cache_frame(&mut bytes, "candidate", module.candidate.as_bytes());
+        push_compilation_cache_frame(&mut bytes, "source", module.source.as_bytes());
+    }
+
+    format!("{:x}", md5::compute(bytes))
+}
+
 fn compile_to_llvm_ir_with_optimizer(
     source_code: &str,
     output_file: &str,
@@ -1600,36 +1646,6 @@ fn compile_to_llvm_ir_with_optimizer(
 
     let compilation_start = Instant::now();
     let verification_mode = build_config.llvm_verification_mode();
-
-    // Generate source hash for caching
-    let source_hash = format!(
-        "{:x}",
-        md5::compute(format!(
-            "{}::target={}::gpu={}",
-            source_code,
-            build_config.target.as_str(),
-            build_config.gpu_arch_or_default()
-        ))
-    );
-
-    // Check compilation cache first
-    if let Some(cached_llvm) = perf_optimizer
-        .get_compilation_cache()
-        .get_cached_llvm(&source_hash)
-    {
-        let status = llvm_verifier::verify_llvm_module(&cached_llvm, verification_mode)
-            .map_err(|error| error.to_string())?;
-        if status.external_verifier().is_some() {
-            println!("Using cached compilation result");
-            println!("LLVM verification: {status}");
-            fs::write(output_file, cached_llvm)
-                .map_err(|err| format!("Error writing cached result: {err}"))?;
-            println!("Cached LLVM IR written to {}", output_file);
-            println!("{}", perf_optimizer.get_performance_report());
-            return Ok(());
-        }
-        println!("Cached result bypassed because external LLVM verification is unavailable");
-    }
 
     // Lexing with performance timing
     let lexing_start = Instant::now();
@@ -1651,36 +1667,35 @@ fn compile_to_llvm_ir_with_optimizer(
     println!("Optimized parsing completed in {:?}", parsing_time);
 
     // Phase 7: Module resolution — resolve `mod foo;` to files
-    let mut resolver = module_resolver::ModuleResolver::new(input_file);
-    let mut module_asts = Vec::new();
-    for node in &ast {
-        if let crate::ast::AstNode::Statement(crate::ast::Statement::ModDecl {
-            name,
-            is_public: _,
-        }) = node
-        {
-            match resolver.resolve(name) {
-                Ok(resolved) => {
-                    println!(
-                        "  Resolved module `{}` → {}",
-                        name,
-                        resolved.file_path.display()
-                    );
-                    let module_filename = resolved.file_path.to_string_lossy().to_string();
-                    let mod_tokens =
-                        lexer::try_tokenize_with_locations(&resolved.source, Some(module_filename))
-                            .map_err(|err| format!("Lex error: {}", err))?;
-                    let mod_ast = parser::parse_with_locations(mod_tokens)
-                        .map_err(|err| format!("Parse error: {}", err))?;
-                    module_asts.extend(mod_ast);
-                }
-                Err(err) => {
-                    eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                }
-            }
-        }
+    let direct_modules = module_resolver::collect_direct_modules(&ast, Some(input_file))?;
+    for module in &direct_modules {
+        println!(
+            "  Resolved module `{}` → {}",
+            module.name,
+            module.file_path.display()
+        );
+        ast.extend(module.ast.iter().cloned());
     }
-    ast.extend(module_asts);
+
+    // Root parsing and exact direct-module collection are mandatory before lookup.
+    let source_hash = compilation_cache_key(source_code, build_config, &direct_modules);
+    if let Some(cached_llvm) = perf_optimizer
+        .get_compilation_cache()
+        .get_cached_llvm(&source_hash)
+    {
+        let status = llvm_verifier::verify_llvm_module(&cached_llvm, verification_mode)
+            .map_err(|error| error.to_string())?;
+        if status.external_verifier().is_some() {
+            println!("Using cached compilation result");
+            println!("LLVM verification: {status}");
+            fs::write(output_file, cached_llvm)
+                .map_err(|err| format!("Error writing cached result: {err}"))?;
+            println!("Cached LLVM IR written to {}", output_file);
+            println!("{}", perf_optimizer.get_performance_report());
+            return Ok(());
+        }
+        println!("Cached result bypassed because external LLVM verification is unavailable");
+    }
 
     // Optimized semantic analysis
     let semantic_start = Instant::now();
@@ -2146,27 +2161,10 @@ fn parse_source_with_direct_modules(
     let mut ast =
         parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
-    let mut resolver = module_resolver::ModuleResolver::new(input_file);
-    let mut module_asts = Vec::new();
-    for node in &ast {
-        if let crate::ast::AstNode::Statement(crate::ast::Statement::ModDecl {
-            name,
-            is_public: _,
-        }) = node
-        {
-            let resolved = resolver
-                .resolve(name)
-                .map_err(|err| format!("Module resolution failed for `{}`: {}", name, err))?;
-            let module_filename = resolved.file_path.to_string_lossy().to_string();
-            let module_tokens =
-                lexer::try_tokenize_with_locations(&resolved.source, Some(module_filename))
-                    .map_err(|err| format!("Lex error: {}", err))?;
-            let module_ast = parser::parse_with_locations(module_tokens)
-                .map_err(|err| format!("Parse error: {}", err))?;
-            module_asts.extend(module_ast);
-        }
+    let modules = module_resolver::collect_direct_modules(&ast, Some(input_file))?;
+    for module in modules {
+        ast.extend(module.ast);
     }
-    ast.extend(module_asts);
 
     Ok(ast)
 }

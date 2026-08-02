@@ -578,7 +578,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-016 — Direct modules fail closed before cache; namespaces remain unfrozen
 
 - Date: 2026-08-02
-- Status: accepted for `CORE-011` preregistration
+- Status: implemented locally for `CORE-011`; acceptance awaits exact review and public CI
 - Decision: every trusted path that accepts an entry-file context will use one
   strict direct-module source collector before semantic analysis, checked IR, cache
   lookup, or artifact publication. It preserves the current root-relative
@@ -616,6 +616,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Claim policy: current public text must describe only direct source collection.
   Multi-file namespace, import, visibility, recursive graph, and cycle handling are
   not claimed until positive and negative end-to-end evidence exists.
+- Implementation evidence: public red checkpoint `9c31820` records the exact
+  independently approved contract. The local candidate centralizes all inventoried
+  callers on one crate-private collector, preserves the legacy zero-module key,
+  matches the frozen V1 known vector, and makes both focused seven-test suites plus
+  the complete repository gate pass. No namespace, visibility, recursive path,
+  cycle graph, `CompilerOptions`, or general CLI-status behavior was added.
 - Alternatives rejected: a one-line return only in `build`; treating the emitted
   artifact as a warning-success result; hashing root source alone; resolving after a
   cache hit; guessing a path for the library API; or implementing recursive module

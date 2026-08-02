@@ -54,6 +54,9 @@ pub fn compile_program(source: &str, _options: CompilerOptions) -> Result<String
     // Parsing
     let ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
+    // Source-only compilation has no directory from which to resolve `mod` files.
+    module_resolver::collect_direct_modules(&ast, None)?;
+
     // Semantic analysis
     let mut semantic_analyzer = SemanticAnalyzer::new();
     let (_analyzed_result, analyzed_ast) = match semantic_analyzer.analyze(ast.clone()) {

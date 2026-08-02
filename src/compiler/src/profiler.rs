@@ -130,25 +130,10 @@ pub fn print_profile(profile: &CompilationProfile) {
 }
 
 fn resolve_modules(input_file: &str, ast: &mut Vec<AstNode>) -> Result<(), String> {
-    let mut resolver = module_resolver::ModuleResolver::new(input_file);
-    let mut module_asts = Vec::new();
-
-    for node in ast.iter() {
-        if let AstNode::Statement(crate::ast::Statement::ModDecl { name, is_public: _ }) = node {
-            let resolved = resolver
-                .resolve(name)
-                .map_err(|err| format!("Module resolution failed for `{}`: {}", name, err))?;
-            let module_filename = resolved.file_path.to_string_lossy().to_string();
-            let mod_tokens =
-                lexer::try_tokenize_with_locations(&resolved.source, Some(module_filename))
-                    .map_err(|err| format!("Lex error: {}", err))?;
-            let mod_ast = parser::parse_with_locations(mod_tokens)
-                .map_err(|err| format!("Parse error: {}", err))?;
-            module_asts.extend(mod_ast);
-        }
+    let modules = module_resolver::collect_direct_modules(ast, Some(input_file))?;
+    for module in modules {
+        ast.extend(module.ast);
     }
-
-    ast.extend(module_asts);
     Ok(())
 }
 

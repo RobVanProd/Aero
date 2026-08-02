@@ -147,7 +147,7 @@ fn main() {
 | **Memory** | Ownership, move semantics, shared & mutable references, borrow checker |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
-| **Modules** | `mod`/`use` imports, `pub` visibility, multi-file projects |
+| **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |

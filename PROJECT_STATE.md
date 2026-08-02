@@ -4,18 +4,19 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 11 — preregistered `CORE-011`: make direct-module source collection
-canonical and fail closed before cache lookup or artifact publication. Preserve
-only the current direct flattened-AST compatibility behavior; explicitly reject
-missing and nested module inputs without claiming namespaces, imports, visibility,
-recursive resolution, or cycle-graph implementation.
+Milestone 11 — `CORE-011` implementation candidate: independently review and
+publish the shared fail-closed direct-module collector and module-aware cache
+identity, then require public CI before acceptance. The candidate preserves only
+the current flattened direct-source compatibility behavior and does not claim
+namespaces, imports, visibility, recursive resolution, or cycle-graph support.
 
 ## Active hypothesis
 
-One shared root/direct-module collection boundary can make build/run, check, test,
-profile, docs, the source-only public API, and final-LLVM cache identity agree on
-the exact source set before later compiler phases, without choosing the unresolved
-module namespace or recursive path model.
+Confirmed locally: one shared root/direct-module collection boundary makes
+build/run, check, test, profile, docs, the source-only public API, and final-LLVM
+cache identity agree on the exact source set before later compiler phases. Focused
+module/cache contracts and the complete repository gate pass; exact independent
+implementation review and public CI remain required for acceptance.
 
 ## Founding-framework checkpoint
 
@@ -42,7 +43,20 @@ module namespace or recursive path model.
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
 - Published project-control head:
-  `34cc0e088f1b579ebecfb4498c55cde2cb23aaad`.
+  `a961dcedfb8e46f6e5f05882c3b4c63a3c96c7d6`.
+- Published `CORE-011` tests-only red checkpoint:
+  `9c31820fdc5a252e29d5c62c96ff89f5a4a63eb8`; exact staged diff
+  `badb9d0e8d6059927d949994b39f617fe2f404a8`, tree
+  `540a187db87aff5ec0b2964b0c140c6caf9402a4`. Three independent reviewers
+  approved the snapshot with no P0-P3 findings. Local red evidence was 2 pass / 5
+  intentional failures in the module matrix and 3 pass / 4 intentional failures
+  in the cache matrix; the full binary suite had only those four intended failures.
+- Local `CORE-011` implementation candidate: the shared collector is crate-private,
+  every preregistered file-backed caller uses it, source-only `compile_program`
+  rejects `mod`, nested declarations fail explicitly, module collection precedes
+  cache lookup, and the frozen V1 identity excludes host paths. Both focused
+  seven-test suites and the complete `./tools/test.sh` gate pass. Publication and
+  public CI are pending exact implementation review.
 - Published accepted `CORE-010` head:
   `db349ef81f145ee571c053f73fb03c831cea719a`.
 - Checked-IR/LLVM-verifier implementation commit:

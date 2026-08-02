@@ -1682,4 +1682,18 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   deterministically without host-dependent path normalization.
 - Owner: lead-owned tests-first vertical slice. Independent type/IR/backend reviewers
   must approve the exact clean candidate before publication.
-- Status: preregistered; no compiler behavior has changed.
+- Red checkpoint: public commit
+  `9c31820fdc5a252e29d5c62c96ff89f5a4a63eb8` records the independently approved
+  exact test snapshot (`badb9d0e8d6059927d949994b39f617fe2f404a8`, tree
+  `540a187db87aff5ec0b2964b0c140c6caf9402a4`). Before implementation, the module
+  matrix was 2 pass / 5 intentional failures, the cache matrix was 3 pass / 4
+  intentional failures, and the full binary suite had 139 pass / only the same four
+  intentional cache failures.
+- Implementation candidate: one crate-private collector now owns direct resolution,
+  strict lexing, fatal parsing, and nested-module rejection for all preregistered
+  callers. Build/run collect before cache lookup; the versioned framed cache key
+  matches the frozen known vector while preserving the exact no-module legacy key.
+  Source-only `compile_program` rejects module declarations. Both focused seven-test
+  suites and the complete `./tools/test.sh` gate pass.
+- Status: implementation candidate complete locally; exact independent review,
+  publication, and public CI are required before acceptance.

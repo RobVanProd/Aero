@@ -21,6 +21,14 @@ Branch: `agent/aero-integration`
   and applicable direct-module inputs before semantics or output. LSP lexical
   diagnostics use UTF-16 positions; recovery lexing remains compatibility/editor
   infrastructure and is not a stability claim.
+- `CORE-011` tests-only red evidence is public at `9c31820`; three independent
+  reviewers approved exact diff `badb9d0e8d6059927d949994b39f617fe2f404a8`
+  and tree `540a187db87aff5ec0b2964b0c140c6caf9402a4`. The local implementation
+  candidate centralizes all inventoried file-backed routes on one crate-private
+  direct-source collector, rejects source-only and nested declarations, and makes
+  module discovery precede a deterministic module-aware cache key. Both focused
+  seven-test suites and the complete repository gate pass. Exact implementation
+  review and public CI remain required before this progress is accepted.
 
 ## Executive finding
 
@@ -320,6 +328,13 @@ reclassified rather than deleted.
   zero, but they remain a separate command-result task because the selected module
   boundary is specifically about dependency admission, cache identity, and compiler
   artifact publication.
+- Candidate closure: `CORE-011` now routes build/run, check, discovered test,
+  profile, and docs through the shared collector; source-only `compile_program`
+  rejects `mod`. Missing, malformed, and nested module sources stop before later
+  phases or publication. Exact source bytes and stable relative candidates enter
+  the V1 module-bearing cache identity before lookup, while the no-module key is
+  unchanged. This remains direct flattened source collection only; namespaces,
+  `use`, `pub`, recursive graphs, cycles, and general CLI status are still absent.
 
 ## Testing and fuzzing audit
 

@@ -1,6 +1,6 @@
 use crate::ast::{AstNode, Parameter, Statement, TraitMethod, Type, VariantDecl};
 use crate::lexer::try_tokenize_with_locations;
-use crate::module_resolver::ModuleResolver;
+use crate::module_resolver::collect_direct_modules;
 use crate::parser::parse_with_locations;
 
 pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, String> {
@@ -165,20 +165,7 @@ pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, 
 }
 
 fn validate_direct_modules(input_file: &str, ast: &[AstNode]) -> Result<(), String> {
-    let mut resolver = ModuleResolver::new(input_file);
-
-    for node in ast {
-        let AstNode::Statement(Statement::ModDecl { name, .. }) = node else {
-            continue;
-        };
-
-        let resolved = resolver.resolve(name)?;
-        let filename = resolved.file_path.to_string_lossy().into_owned();
-        let tokens = try_tokenize_with_locations(&resolved.source, Some(filename))
-            .map_err(|err| format!("Lex error: {}", err))?;
-        parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
-    }
-
+    collect_direct_modules(ast, Some(input_file))?;
     Ok(())
 }
 
