@@ -318,3 +318,82 @@
   broken-module doc probes exit 1 with located lexical errors and no outputs.
   LSP recovery indexing is the only intentional production recovery consumer;
   strict lexing returns the first error and recursive modules remain separate work.
+
+## CORE-003 — Enforce primitive function contracts before lowering
+
+- Problem: Named calls are inferred as `int`; declared signatures and return types
+  are not registered or checked; missing returns are replaced with zero; invalid
+  programs therefore reach IR and artifact output.
+- Evidence: at `b535de0f`, undefined calls, too few/many arguments, mismatched
+  primitive arguments and returns, missing/bare/value returns, duplicate functions,
+  and using a void call as a value all pass `check`, pass `build`, and produce LLVM.
+- Priority: P0
+- Primary hypothesis: a declaration pass over top-level function names and eligible
+  primitive signatures, followed by checked body/call analysis, can reject invalid
+  contracts before IR while preserving forward references and recursion. A matching
+  preregistered return-type map in IR can remove the second `int` fallback for valid
+  primitive calls without changing the backend instruction model.
+- Dependencies: strict trusted frontend boundary closed by
+  `b535de0f5723e26664d818c076db4e451ff35315`.
+- Eligible contract syntax: monomorphic `int`/`i32`, `float`/`f64`, and `bool`
+  parameter and return types; omitted return type means `void`. Call arguments must
+  match exactly. Numeric promotion remains an operator rule and is not applied at
+  call boundaries.
+- Observed behavior: `SemanticAnalyzer::analyze` is one pass; its function table is
+  unused; calls always return `Ty::Int`; function return annotations are ignored.
+  `IrGenerator` independently assigns `Ty::Int` and a result register to every call
+  and can insert a default scalar-zero return.
+- Expected behavior: all top-level function names are globally visible before body
+  analysis; duplicate and undefined names fail; eligible calls check exact arity and
+  types and infer the declared result; explicit and tail returns match the declared
+  type; void calls are valid only in value-discarding statement position; eligible
+  non-void bodies must conservatively return on all paths or end in a tail value.
+  Valid primitive calls retain their result type through IR, and valid void statement
+  calls lower without a result register.
+- Smallest reproducers: `missing(1);`; `fn f(x: i32) -> i32 { return x; } f();`;
+  `fn f(x: i32) -> i32 { return x; } f(1.0);`;
+  `fn f() -> i32 { return 1.0; }`; `fn f() -> i32 { }`;
+  `fn f() { return 1; }`; duplicate `fn f() {}` declarations; and
+  `fn log() {} let value = log();`.
+- Files allowed: `src/compiler/src/semantic_analyzer.rs`,
+  `src/compiler/src/ir_generator.rs`, one new focused integration test under
+  `src/compiler/tests/`, and affected control documents. Tests may inspect generated
+  LLVM through the public API; production `code_generator.rs` is frozen.
+- Files frozen: lexer, parser, AST, annotations on `let`, implicit conversion rules,
+  generics, traits, composites, strings, methods, closures, ownership behavior,
+  optimizer, IR instruction shape, code-generator production, runtime/backends,
+  modules beyond existing direct-module concatenation, and public claims.
+- Frozen semantics: generic or non-eligible declared calls retain their pre-task
+  behavior and are not counted as contract support. Named calls must resolve to a
+  top-level declaration; if existing supported built-ins or closure calls require a
+  separate callable registry, stop rather than silently exempting unknown names.
+  Semantic diagnostics are not promised source locations because the AST has none.
+- Positive tests: exact primitive calls; call before declaration; direct recursion;
+  explicit and tail returns; void statement call; float-return call participating in
+  float arithmetic; direct-module declaration visibility.
+- Negative tests: undefined and duplicate functions; too few/many arguments; both
+  `i32`/`f64` mismatch directions; explicit/tail return mismatch; missing return;
+  bare return in non-void; value return in void; void call used as a value; direct
+  module mismatch. CLI build failures create no requested artifact.
+- Runtime-output tests: not applicable on this host because LLVM tools are absent;
+  generated LLVM is inspected for typed/void call shape and float opcode selection.
+- Diagnostic expectation: stable semantic category at public boundaries and
+  function name plus expected/actual arity or type. No fabricated span.
+- Regression risks: generic and trait tests currently rely on permissive calls;
+  function scopes use compatibility symbol tables; method names are not globally
+  unique; the binary and library compile separate copies of the analyzer; IR has two
+  call-generation paths; codegen reconstructs signatures independently.
+- Acceptance criteria: preregistered tests fail for the listed false accepts before
+  implementation; focused tests pass; `./tools/test.sh` passes; fresh CLI root and
+  direct-module negative probes exit nonzero with no output; two independent reviews
+  approve the exact integration SHA.
+- Stop conditions: parser/AST or IR instruction changes are required; production
+  code-generator changes are required; valid generic/composite/method/closure or
+  ownership behavior regresses; exact primitive calls cannot be lowered consistently;
+  definite-return checking requires a CFG redesign rather than the conservative
+  `return`/block/if-else structure in this slice.
+- Owner: one isolated implementation agent; lead integrates.
+- Status: preregistered.
+- Verification commands: focused Cargo integration/unit tests, public API LLVM
+  assertions, manual CLI reproducers, and `./tools/test.sh`.
+- Result commit: pending.

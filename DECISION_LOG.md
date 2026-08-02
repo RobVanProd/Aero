@@ -109,3 +109,27 @@ fixtures are hardcoded. Its semantic and IR checks must consume strict located
 tokens and fallible parsing. Documentation validates declared direct modules before
 writing output. LSP lexical diagnostics identify the lexer and use UTF-16 positions;
 editor symbol indexing remains the sole intentional recovery consumer in these paths.
+
+## DEC-007 — Primitive call boundaries require exact types
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-003`
+- Decision: For the first checked function-contract slice, monomorphic primitive
+  call arguments must exactly match declared parameter types after alias
+  canonicalization (`int`/`i32`, `float`/`f64`, `bool`). Omitted return type is
+  `void`. Primitive non-void functions must return a matching value on all
+  conservatively recognized paths or provide a matching body-tail expression.
+- Evidence: the formal language specification says argument arity and types must
+  match and return expressions must unify with the declared return type. It lists
+  implicit `int`-to-`float` promotion under mixed arithmetic, not function calls.
+  The dormant call validator also uses exact equality.
+- Alternatives rejected: infer every call as `int`; silently widen call arguments;
+  accept missing returns and synthesize zero; claim generic/composite support in the
+  same slice; validate semantically while retaining a contradictory IR call type.
+- Compatibility consequences: invalid programs that previously emitted artifacts
+  now fail before lowering. Forward references and recursion become valid through
+  declaration collection. Generic and non-primitive contract behavior remains
+  experimental and is not certified by this decision.
+- Revisit when: a typed conversion/coercion policy is specified, generic
+  instantiation is implemented, or control-flow analysis gains a typed CFG and a
+  divergence/never type.

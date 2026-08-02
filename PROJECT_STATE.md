@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 2 — prepare the smallest two-pass function/type-contract slice after
-closing fatal parser and strict trusted-lexer boundaries.
+Milestone 2 — implement the preregistered primitive function-contract slice
+`CORE-003` after closing fatal parser and strict trusted-lexer boundaries.
 
 ## Active hypothesis
 
-A declaration/signature collection pass followed by checked call and return
-analysis may replace the active `Int` call fallback without redesigning ownership,
-generics, composite types, or IR in the first semantic slice.
+A declaration/signature collection pass followed by checked primitive call and
+return analysis, plus a matching IR return-type registry, can replace both active
+`Int` fallbacks without redesigning ownership, generics, composites, or codegen.
 
 ## Repository state
 
@@ -20,7 +20,7 @@ generics, composite types, or IR in the first semantic slice.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `b9883181414886b6b2775b149599da29faed933e`
+- Current commit: `b535de0f5723e26664d818c076db4e451ff35315`
 - Last verified commit: `b9883181414886b6b2775b149599da29faed933e`
 - Worktree: clean. `CORE-002` is complete after initial implementation, amended
   review closure, dual independent approval, manual probes, and full gate.
@@ -107,8 +107,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preregister the smallest `R-002` function-signature contract slice with exact
-syntax support, call/return negative cases, IR boundary, and stop conditions.
+Commit the `CORE-003` contract, then have one isolated owner add the focused tests
+first and implement only the allowed semantic and IR changes.
 
 ## Unauthorized actions
 
