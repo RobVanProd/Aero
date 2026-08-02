@@ -95,8 +95,10 @@ impl IrGenerator {
     }
 
     fn build_function_call(&mut self, name: String, arguments: Vec<Value>) -> (Inst, Value, Ty) {
-        let return_type = self.function_return_types.get(&name).cloned();
         let function_name = self.resolve_callable_name(&name);
+        let return_type = (function_name == name)
+            .then(|| self.function_return_types.get(&name).cloned())
+            .flatten();
 
         match return_type {
             Some(Ty::Void) => (
@@ -564,23 +566,28 @@ impl IrGenerator {
         self.next_ptr = 0;
 
         // Create parameter names and types for IR
+        let eligible_contract = self.function_return_types.contains_key(&name);
         let param_names: Vec<(String, String)> = parameters
             .iter()
             .map(|p| {
                 (
                     p.name.clone(),
-                    match &p.param_type {
-                        Type::Named(name) => name.clone(),
-                        Type::Array(_, _) => "array".to_string(),
-                        Type::Tuple(_) => "tuple".to_string(),
-                        Type::Reference(_, mutable) => {
-                            if *mutable {
-                                "&mut".to_string()
-                            } else {
-                                "&".to_string()
+                    if eligible_contract {
+                        self.ast_type_to_ir_name(&p.param_type)
+                    } else {
+                        match &p.param_type {
+                            Type::Named(name) => name.clone(),
+                            Type::Array(_, _) => "array".to_string(),
+                            Type::Tuple(_) => "tuple".to_string(),
+                            Type::Reference(_, mutable) => {
+                                if *mutable {
+                                    "&mut".to_string()
+                                } else {
+                                    "&".to_string()
+                                }
                             }
+                            Type::Generic(name, _) => name.clone(),
                         }
-                        Type::Generic(name, _) => name.clone(),
                     },
                 )
             })
@@ -931,17 +938,31 @@ impl IrGenerator {
         if let Some(expr) = then_block.expression {
             self.generate_expression_ir(expr, current_function);
         }
-        current_function.body.push(Inst::Jump(end_label.clone()));
+        let then_terminates = current_function
+            .body
+            .last()
+            .is_some_and(|inst| matches!(inst, Inst::Return(_) | Inst::Jump(_)));
+        if !then_terminates {
+            current_function.body.push(Inst::Jump(end_label.clone()));
+        }
 
         // Generate else block
         current_function.body.push(Inst::Label(else_label));
         if let Some(else_stmt) = else_block {
             self.generate_statement_ir(*else_stmt, current_function);
         }
-        current_function.body.push(Inst::Jump(end_label.clone()));
+        let else_terminates = current_function
+            .body
+            .last()
+            .is_some_and(|inst| matches!(inst, Inst::Return(_) | Inst::Jump(_)));
+        if !else_terminates {
+            current_function.body.push(Inst::Jump(end_label.clone()));
+        }
 
-        // End label
-        current_function.body.push(Inst::Label(end_label));
+        // A merge block is only reachable when at least one arm falls through.
+        if !then_terminates || !else_terminates {
+            current_function.body.push(Inst::Label(end_label));
+        }
     }
 
     fn generate_while_loop_ir(

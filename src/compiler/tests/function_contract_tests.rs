@@ -114,6 +114,11 @@ fn rejects_undefined_duplicate_and_invalid_numeric_calls() {
             &["missing"],
         ),
         (
+            "closure binding does not leak across functions",
+            "fn define_local() { let local = | | 1; local(); } fn use_local() { local(); }",
+            &["local"],
+        ),
+        (
             "duplicate function",
             "fn duplicate() {} fn duplicate() {}",
             &["duplicate"],
@@ -162,6 +167,16 @@ fn rejects_invalid_explicit_tail_missing_and_void_returns() {
             &["missing_return", "return int"],
         ),
         (
+            "nested block tail is not a function return",
+            "fn nested_tail() -> i32 { { 1.0 } }",
+            &["nested_tail", "return int"],
+        ),
+        (
+            "if branch tail is not a function return",
+            "fn branch_tail() -> i32 { if 1 < 2 { return 1; } else { 2 } }",
+            &["branch_tail", "return int"],
+        ),
+        (
             "bare non-void return",
             "fn bare_return() -> i32 { return; }",
             &["bare_return", "expected int", "actual void"],
@@ -184,6 +199,11 @@ fn rejects_invalid_explicit_tail_missing_and_void_returns() {
         (
             "void call used as return value",
             "fn notify() {} fn outer() { return notify(); }",
+            &["notify", "void", "value"],
+        ),
+        (
+            "void call used as closure body value",
+            "fn notify() {} fn main() { let callback = | | notify(); }",
             &["notify", "void", "value"],
         ),
     ];
@@ -218,6 +238,26 @@ fn notify() {
 "#;
 
     analyze_source(source).expect("valid numeric contracts should analyze");
+}
+
+#[test]
+fn local_closure_shadows_a_top_level_function_contract() {
+    let source = r#"
+fn compute(value: i32) -> i32 {
+    return value;
+}
+
+fn main() {
+    let compute = | | 7;
+    let result = compute();
+}
+"#;
+
+    let llvm = compile_program(source, CompilerOptions::default())
+        .expect("in-scope closure should shadow the top-level function");
+    let main = llvm_function(&llvm, "define i32 @main(");
+    assert!(main.contains("call i32 @__closure_"), "{main}");
+    assert!(!main.contains("call i32 @compute()"), "{main}");
 }
 
 #[test]
@@ -259,6 +299,51 @@ fn main() {
             .any(|line| line.contains("= call void @notify()")),
         "void call unexpectedly assigned a result: {main}"
     );
+}
+
+#[test]
+fn llvm_if_else_explicit_returns_do_not_branch_to_a_merge_block() {
+    let source = r#"
+fn choose(value: i32) -> i32 {
+    if value < 1 {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+
+fn main() {
+    let selected = choose(0);
+}
+"#;
+    let llvm = compile_program(source, CompilerOptions::default()).expect("compile valid source");
+    let choose = llvm_function(&llvm, "define i32 @choose(");
+
+    assert_eq!(choose.matches("ret i32").count(), 2, "{choose}");
+    assert!(!choose.contains("if_end_"), "{choose}");
+    assert!(
+        !choose
+            .lines()
+            .any(|line| line.trim_start().starts_with("br label ")),
+        "terminated branches unexpectedly jump to a merge block: {choose}"
+    );
+}
+
+#[test]
+fn llvm_canonicalizes_int_aliases_in_function_parameters() {
+    let source = r#"
+fn identity(value: int) -> int {
+    return value;
+}
+
+fn main() {
+    let result = identity(7);
+}
+"#;
+    let llvm = compile_program(source, CompilerOptions::default()).expect("compile alias source");
+
+    assert!(llvm.contains("define i32 @identity(i32 %value)"), "{llvm}");
+    assert!(llvm.contains("call i32 @identity(i32 7)"), "{llvm}");
 }
 
 #[test]

@@ -465,7 +465,7 @@ impl ScopeManager {
 pub struct SemanticAnalyzer {
     symbol_table: HashMap<String, VariableInfo>,
     function_table: FunctionTable,
-    closure_bindings: HashSet<String>,
+    closure_binding_scopes: Vec<HashSet<String>>,
     return_contract_stack: Vec<Option<NumericFunctionContract>>,
     scope_manager: ScopeManager,
     /// Stack of active generic type parameter sets (e.g., ["T", "U"] for fn<T, U>)
@@ -487,7 +487,7 @@ impl SemanticAnalyzer {
         Self {
             symbol_table: HashMap::new(),
             function_table: FunctionTable::new(),
-            closure_bindings: HashSet::new(),
+            closure_binding_scopes: vec![HashSet::new()],
             return_contract_stack: Vec::new(),
             scope_manager: ScopeManager::new(),
             type_param_scopes: Vec::new(),
@@ -513,6 +513,56 @@ impl SemanticAnalyzer {
             _ => None,
         }
     }
+
+    fn enter_scope(&mut self) {
+        self.scope_manager.enter_scope();
+        self.closure_binding_scopes.push(HashSet::new());
+    }
+
+    fn exit_scope(&mut self) {
+        self.scope_manager.exit_scope();
+        if self.closure_binding_scopes.len() > 1 {
+            self.closure_binding_scopes.pop();
+        }
+    }
+
+    fn enter_function_scope(&mut self, name: String) {
+        self.scope_manager.enter_function(name);
+        self.closure_binding_scopes.push(HashSet::new());
+    }
+
+    fn exit_function_scope(&mut self) {
+        self.scope_manager.exit_function();
+        if self.closure_binding_scopes.len() > 1 {
+            self.closure_binding_scopes.pop();
+        }
+    }
+
+    fn enter_loop_scope(&mut self) {
+        self.scope_manager.enter_loop();
+        self.closure_binding_scopes.push(HashSet::new());
+    }
+
+    fn exit_loop_scope(&mut self) {
+        self.scope_manager.exit_loop();
+        if self.closure_binding_scopes.len() > 1 {
+            self.closure_binding_scopes.pop();
+        }
+    }
+
+    fn is_closure_callable(&self, name: &str) -> bool {
+        self.scope_manager
+            .scopes
+            .iter()
+            .zip(self.closure_binding_scopes.iter())
+            .rev()
+            .find_map(|(variables, closures)| {
+                variables
+                    .contains_key(name)
+                    .then_some(closures.contains(name))
+            })
+            .unwrap_or(false)
+    }
 }
 
 impl Default for SemanticAnalyzer {
@@ -524,7 +574,8 @@ impl Default for SemanticAnalyzer {
 impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
         self.function_table.clear();
-        self.closure_bindings.clear();
+        self.closure_binding_scopes.clear();
+        self.closure_binding_scopes.push(HashSet::new());
         self.return_contract_stack.clear();
 
         // Predeclare all top-level names so forward calls and direct recursion see
@@ -640,25 +691,28 @@ impl SemanticAnalyzer {
     fn statement_definitely_returns(statement: &Statement) -> bool {
         match statement {
             Statement::Return(_) => true,
-            Statement::Block(block) => Self::block_definitely_returns(block),
+            Statement::Block(block) => Self::control_flow_block_definitely_returns(block),
             Statement::If {
                 then_block,
                 else_block: Some(else_statement),
                 ..
             } => {
-                Self::block_definitely_returns(then_block)
+                Self::control_flow_block_definitely_returns(then_block)
                     && Self::statement_definitely_returns(else_statement)
             }
             _ => false,
         }
     }
 
-    fn block_definitely_returns(block: &Block) -> bool {
-        block.expression.is_some()
-            || block
-                .statements
-                .iter()
-                .any(Self::statement_definitely_returns)
+    fn control_flow_block_definitely_returns(block: &Block) -> bool {
+        block
+            .statements
+            .iter()
+            .any(Self::statement_definitely_returns)
+    }
+
+    fn function_body_definitely_returns(block: &Block) -> bool {
+        block.expression.is_some() || Self::control_flow_block_definitely_returns(block)
     }
 
     fn check_expression_initialization(&self, expr: &Expression) -> Result<(), String> {
@@ -930,10 +984,11 @@ impl SemanticAnalyzer {
     fn reject_void_call_in_value_expression(&self, expr: &Expression) -> Result<(), String> {
         match expr {
             Expression::FunctionCall { name, arguments } => {
-                if self
-                    .function_table
-                    .get_numeric_contract(name)
-                    .is_some_and(|contract| contract.return_type == Ty::Void)
+                if !self.is_closure_callable(name)
+                    && self
+                        .function_table
+                        .get_numeric_contract(name)
+                        .is_some_and(|contract| contract.return_type == Ty::Void)
                 {
                     return Err(format!(
                         "Error: void function `{}` cannot be used as a value.",
@@ -1003,8 +1058,10 @@ impl SemanticAnalyzer {
             Expression::IntegerLiteral(_)
             | Expression::FloatLiteral(_)
             | Expression::StringLiteral(_)
-            | Expression::Identifier(_)
-            | Expression::Closure { .. } => {}
+            | Expression::Identifier(_) => {}
+            Expression::Closure { body, .. } => {
+                self.reject_void_call_in_value_expression(body)?;
+            }
         }
 
         Ok(())
@@ -1017,6 +1074,7 @@ impl SemanticAnalyzer {
 
     fn infer_discarded_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
         if let Expression::FunctionCall { name, .. } = expr
+            && !self.is_closure_callable(name)
             && self
                 .function_table
                 .get_numeric_contract(name)
@@ -1062,12 +1120,12 @@ impl SemanticAnalyzer {
                     argument_types.push(self.infer_and_validate_expression_immutable(arg)?);
                 }
 
-                if self.function_table.get_numeric_contract(name).is_some() {
+                if self.is_closure_callable(name) {
+                    Ok(Ty::Int)
+                } else if self.function_table.get_numeric_contract(name).is_some() {
                     self.function_table
                         .validate_numeric_call(name, &argument_types)
                 } else if self.function_table.get_function(name).is_some() {
-                    Ok(Ty::Int)
-                } else if self.closure_bindings.contains(name) {
                     Ok(Ty::Int)
                 } else {
                     Err(format!("Error: Function `{}` is not defined.", name))
@@ -1439,7 +1497,10 @@ impl SemanticAnalyzer {
                 self.symbol_table.insert(name.clone(), var_info);
 
                 if matches!(value, Some(Expression::Closure { .. })) {
-                    self.closure_bindings.insert(name.clone());
+                    self.closure_binding_scopes
+                        .last_mut()
+                        .expect("global closure-binding scope must exist")
+                        .insert(name.clone());
                 }
 
                 Ok(())
@@ -1496,7 +1557,7 @@ impl SemanticAnalyzer {
                 self.return_contract_stack.push(return_contract.clone());
 
                 // Enter a new scope for the function body
-                self.scope_manager.enter_function(name.clone());
+                self.enter_function_scope(name.clone());
 
                 let body_result = (|| {
                     // Declare parameters as variables in the function scope
@@ -1532,7 +1593,8 @@ impl SemanticAnalyzer {
                             }
                         }
 
-                        if contract.return_type != Ty::Void && !Self::block_definitely_returns(body)
+                        if contract.return_type != Ty::Void
+                            && !Self::function_body_definitely_returns(body)
                         {
                             return Err(format!(
                                 "Error: Function `{}` must return {} on all paths.",
@@ -1546,7 +1608,7 @@ impl SemanticAnalyzer {
                 })();
 
                 // Exit the function scope
-                self.scope_manager.exit_function();
+                self.exit_function_scope();
                 self.return_contract_stack.pop();
 
                 // Pop generic type parameters
@@ -1571,14 +1633,16 @@ impl SemanticAnalyzer {
                     ));
                 }
 
-                self.scope_manager.enter_scope();
-                self.analyze_block(then_block)?;
-                self.scope_manager.exit_scope();
+                self.enter_scope();
+                let then_result = self.analyze_block(then_block);
+                self.exit_scope();
+                then_result?;
 
                 if let Some(else_stmt) = else_block {
-                    self.scope_manager.enter_scope();
-                    self.analyze_statement(else_stmt)?;
-                    self.scope_manager.exit_scope();
+                    self.enter_scope();
+                    let else_result = self.analyze_statement(else_stmt);
+                    self.exit_scope();
+                    else_result?;
                 }
 
                 Ok(())
@@ -1594,9 +1658,10 @@ impl SemanticAnalyzer {
                     ));
                 }
 
-                self.scope_manager.enter_loop();
-                self.analyze_block(body)?;
-                self.scope_manager.exit_loop();
+                self.enter_loop_scope();
+                let body_result = self.analyze_block(body);
+                self.exit_loop_scope();
+                body_result?;
 
                 Ok(())
             }
@@ -1616,18 +1681,26 @@ impl SemanticAnalyzer {
                         )
                     })?;
 
-                self.scope_manager.enter_loop();
-                self.scope_manager
-                    .define_variable(variable.clone(), loop_var_type, false, true)?;
-                self.analyze_block(body)?;
-                self.scope_manager.exit_loop();
+                self.enter_loop_scope();
+                let body_result = (|| {
+                    self.scope_manager.define_variable(
+                        variable.clone(),
+                        loop_var_type,
+                        false,
+                        true,
+                    )?;
+                    self.analyze_block(body)
+                })();
+                self.exit_loop_scope();
+                body_result?;
 
                 Ok(())
             }
             Statement::Loop { body } => {
-                self.scope_manager.enter_loop();
-                self.analyze_block(body)?;
-                self.scope_manager.exit_loop();
+                self.enter_loop_scope();
+                let body_result = self.analyze_block(body);
+                self.exit_loop_scope();
+                body_result?;
                 Ok(())
             }
             Statement::Break => {
@@ -1652,9 +1725,10 @@ impl SemanticAnalyzer {
                 Ok(())
             }
             Statement::Block(block) => {
-                self.scope_manager.enter_scope();
-                self.analyze_block(block)?;
-                self.scope_manager.exit_scope();
+                self.enter_scope();
+                let block_result = self.analyze_block(block);
+                self.exit_scope();
+                block_result?;
                 Ok(())
             }
             // Phase 4/5: type definitions
