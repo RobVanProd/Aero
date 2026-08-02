@@ -725,3 +725,87 @@
   array/index/iterator/numeric/function slices retain their prior behavior. Direct
   constructed-AST callers, tuple types/patterns, and all parent composite semantics
   remain outside the accepted boundary.
+
+## CORE-007 — Reject unsupported field-access value expressions before IR
+
+- Problem: every active `Expression::FieldAccess` is assigned an invented scalar
+  `int` type and both IR expression paths replace the entire expression with zero
+  without evaluating its receiver. Valid specified source such as
+  `Point { x: 7 }.x` therefore compiles but does not preserve seven; even
+  `missing.field` is falsely accepted.
+- Evidence: at `52d3415`, literal, bound, function-call, real struct-literal,
+  undeclared, chained, top-level, function, argument, and nested field expressions
+  pass semantics and public/CLI compilation. Artifacts contain a scalar zero, no
+  field GEP, and—where the receiver is a call—no receiver call. A direct child
+  module containing an undeclared receiver also passes `check`/`build` and emits an
+  artifact. Numeric/array/index/iterator controls have distinct real lowering.
+- Priority: P0.
+- Dependencies: `CORE-001B` through `CORE-006` complete; `AUDIT-012` complete.
+- Candidate comparison: string/string comparisons for all six operators pass
+  semantics then panic in both IR paths, but complete recursive detection needs
+  trustworthy operand typing and an equality/order policy. Immediate integer `/ 0`
+  panics in host constant folding, while variable, unary, float, and mixed zero
+  forms behave differently; a coherent fix needs constant-evaluation and arithmetic
+  exception semantics. Field access is one AST family with no value-preserving path
+  and no layout policy required for fail-closed rejection.
+- Decision: retain dot syntax and the `Expression::FieldAccess` AST node, but reject
+  every field-access value expression in active recursive semantic preflight with
+  the exact diagnostic `Field access expressions are not supported.` No named field
+  projection is eligible for IR or artifact generation in this slice.
+- Diagnostic ordering: preflight the receiver first, then return the field-access
+  diagnostic. Existing tuple and void-call diagnostics in the receiver therefore
+  retain precedence. Otherwise the field diagnostic wins before receiver type/name
+  inference, including for a plain undeclared receiver. A chain reports the first
+  inner field node reached. No source span is fabricated.
+- Boundary: rejection is recursive at roots, bindings, explicit/tail returns,
+  discarded expressions, conditions, iterables, and closure bodies, and beneath
+  arrays/repeats/indexing, calls/method arguments, struct fields, enum payloads,
+  matches, borrows/dereferences, unary/binary/logical forms, prints, and other field
+  receivers. Parent forms are not thereby certified.
+- Syntax retained: parser behavior must continue to distinguish `base.field` from
+  `base.method()` and `(1, 2).0`. Struct declarations/literals remain representable;
+  this slice does not certify their storage or execution.
+- Files allowed: `src/compiler/src/semantic_analyzer.rs`, one new focused
+  `src/compiler/tests/unsupported_field_access_tests.rs`, `README.md`,
+  `tutorials/04-data-structures.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and affected
+  project-control/capability/conformance documents.
+- Files frozen: lexer, grammar, parser, AST, types, struct registries/construction/
+  layout/lookup/assignment/ownership/ABI, method calls, tuple projection, string
+  comparisons, division semantics, IR, code generator, optimizer, runtime/backends,
+  arrays/indexing/iteration, numeric promotion/contracts/annotations, dormant mutable
+  inference, direct constructed-AST behavior, and public stability claims unrelated
+  to fields.
+- Positive tests: parser retains FieldAccess and distinguishes MethodCall/TupleIndex;
+  grouped numeric arithmetic/comparison, arrays, indexing, `.iter()`, struct syntax
+  and literals without projection, and prior tuple/modulo/function/annotation/strict
+  slices retain their pre-task behavior and expected LLVM markers.
+- Negative tests: literal, bound, undeclared, function-call, struct-literal, chained,
+  root/binding/discarded/explicit-return/tail, direct-module, non-first array,
+  closure, and representative nested positions. Public compilation must return the
+  exact semantic `Err` without unwind. CLI `check`/`build` must exit nonzero without
+  panic or requested artifact. Tuple and void-call receivers retain their existing
+  diagnostics.
+- Red checkpoint: on `52d3415`, parser/positive/precedence controls must pass;
+  ordinary field negatives must demonstrate false acceptance, fabricated zero, or
+  dropped receiver evaluation before production changes. No negative may rely on an
+  unrelated parse failure.
+- Regression risks: preflight ordering is now observable; parser dot conversion
+  could accidentally affect methods; mutable/immutable inference and binary/library
+  compiler modules are duplicated; field assignment may be a distinct future path;
+  direct callers can bypass semantics and invoke infallible zero-stub IR.
+- Stop conditions: any trusted value-preserving field path is found; implementation
+  requires another production file, field declarations/types/layout/lookup,
+  assignment/evaluation/ownership policy, or parser/AST/IR/backend changes; active
+  routes cannot be covered through the shared preflight; tuple/void diagnostic
+  precedence changes; or method/array/index/iterator/numeric/struct-syntax/prior
+  focused behavior regresses.
+- Owner: one isolated implementation agent; lead integrates.
+- Status: preregistered; tests and production code not yet changed.
+- Acceptance criteria: red evidence is preserved; focused parser, positive,
+  negative, recursive, diagnostic-order, no-unwind, direct-module, and CLI
+  no-artifact tests pass; prior focused suites and `./tools/test.sh` pass; public
+  field claims are corrected; and two non-owner reviewers approve the exact clean
+  documented integration SHA.
+- Verification commands: focused
+  `cargo test --test unsupported_field_access_tests`, prior applicable focused
+  suites, `cargo fmt --all -- --check`, and required `./tools/test.sh`.

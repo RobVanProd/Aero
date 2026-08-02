@@ -4,15 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 7 — audit the next smallest pre-IR failure boundary among constant
-division by zero, string comparisons, and fabricated-zero field expressions before
-selecting or preregistering `CORE-007`.
+Milestone 7 — implement the preregistered `CORE-007` fail-closed named-field value
+boundary tests-first, without inventing struct layout or projection semantics.
 
 ## Active hypothesis
 
-A bounded read-only comparison can identify whether a compile-time panic or silent
-fabricated value can be closed without selecting arithmetic exception semantics,
-struct layout, evaluation order, typed IR, or another expression family's policy.
+The existing exhaustive semantic preflight can recurse through a field receiver,
+preserve accepted tuple/void diagnostic ordering, then reject the field node across
+all trusted routes without changing parser/AST/types/IR/backend or method behavior.
 
 ## Repository state
 
@@ -21,9 +20,11 @@ struct layout, evaluation order, typed IR, or another expression family's policy
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current reviewed candidate: `cbbe049bee7664abb3ca9b8d1faaa865345eb440`
+- Current commit before `CORE-007` preregistration:
+  `52d3415f9a6d0463dda9f9c8abfca0e32c6c47f6`
 - Last verified commit: `cbbe049bee7664abb3ca9b8d1faaa865345eb440`
-- Worktree: clean before this documentation-only `CORE-006` acceptance closure.
+- Worktree: clean; `52d3415` is the documentation-only `CORE-006` acceptance closure
+  beyond the last behaviorally verified/reviewed candidate.
 
 ## Environment and verification
 
@@ -119,6 +120,12 @@ struct layout, evaluation order, typed IR, or another expression family's policy
   non-owner reviewers approved after independent structural and black-box probes;
   trusted public/CLI routes reject tuple literals/projections before IR with one
   exact diagnostic, no unwind/panic, and no requested artifact.
+- `AUDIT-012` adjacent failure boundaries: complete at clean `52d3415`. Three
+  independent audits compared field access, all-six string comparisons, and
+  constant/variable/float/mixed zero division across semantics, both IR paths,
+  public compilation, CLI, modules, artifacts, nesting, and controls. All ranked
+  FieldAccess first as the only one-node silent-miscompile family with no active
+  value-preserving path and no required layout/arithmetic policy.
 
 ## Current capability classification
 
@@ -170,10 +177,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Perform a read-only source and black-box audit of constant literal division by zero,
-string comparison, and field access across semantic, IR, public, and CLI paths.
-Rank them by severity, coherent language boundary, implementation size, and policy
-uncertainty; preregister only the smallest safe `CORE-007` slice before any edit.
+Commit the `CORE-007` control contract, then have one isolated owner add only the
+focused red integration test file. Preserve the red checkpoint before permitting
+the one-file semantic preflight change.
 
 ## Unauthorized actions
 

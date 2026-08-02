@@ -261,3 +261,30 @@ complete repository gate. Two non-owner reviewers approved that exact SHA with n
 P0-P3 finding after independent structural, public-library, CLI, nested-expression,
 diagnostic-ordering, no-unwind, no-panic, and no-artifact probes. Constructed AST
 callers that bypass semantics and tuple layout/execution remain open by design.
+
+## DEC-011 — Named field values fail closed until struct projection is implemented
+
+- Date: 2026-08-02
+- Status: proposed for `CORE-007`; preregistered before tests or production edits
+- Decision: Aero retains named field-access syntax and its AST node, but active
+  semantic preflight recursively rejects every field-access value expression with
+  `Field access expressions are not supported.` The receiver is preflighted first
+  so already accepted tuple and void-call diagnostics retain precedence; otherwise
+  the field diagnostic occurs before receiver inference.
+- Evidence: at `52d3415`, `Point { x: 7 }.x`, bound/literal/call/undeclared/chained
+  receivers, nested forms, and direct modules falsely succeed and emit zero without
+  a field GEP. Receiver calls are dropped. Both semantic inference paths invent
+  `int`; both IR expression paths return integer zero without visiting the receiver.
+- Alternatives rejected: implement struct layout/projection without a typed
+  aggregate contract; continue silent zero lowering; reject methods with dot syntax
+  even though the parser represents MethodCall separately; select string comparison
+  policy across six operators; or patch only immediate integer `/ 0` while computed,
+  variable, float, mixed, and unary-zero semantics remain unresolved.
+- Compatibility consequences: named field value source changes from silent
+  miscompilation/false success to one early diagnostic. Method calls, tuple indexing,
+  struct declaration/literal syntax, arrays/indexing/iteration, and adjacent numeric
+  behavior retain their existing behavior but are not newly certified beyond their
+  established slices.
+- Revisit when: struct identity, field definitions/types, layout, construction,
+  projection, assignment, ownership, evaluation order, ABI, typed IR, backend
+  lowering, and end-to-end positive tests can ship as one coherent vertical slice.

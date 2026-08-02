@@ -30,6 +30,11 @@
   including representative nested, function, root/direct-module, public-library,
   and CLI no-artifact forms. Tuple parsing and grouped scalar controls remain
   positive parser/semantic evidence, not tuple execution evidence.
+- Until complete struct field typing/layout/projection exists, named field-access
+  value expressions are a required recursive compile-fail category. Tests must
+  preserve parser distinction from method calls and tuple indexing, retain prior
+  receiver diagnostics, cover public/direct-module/CLI no-artifact routes, and keep
+  array/index/iterator and tuple-free controls positive.
 - Runtime-output tests with exact stdout, stderr, exit code, and declared sources
   of nondeterminism.
 - Diagnostic snapshots normalized only for unstable machine paths or equivalent

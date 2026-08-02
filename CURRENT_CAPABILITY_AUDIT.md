@@ -155,6 +155,14 @@ correctness gates.
   Exact clean candidate `cbbe049` is accepted after the complete repository gate
   and two independent reviews; constructed AST callers that bypass semantics and
   tuple layout/execution remain explicitly outside this boundary.
+- `AUDIT-012` compared the next three phase failures. Every named FieldAccess form
+  tested—including a valid struct-literal projection and undeclared/call receivers—
+  passes trusted compilation and becomes zero with no field GEP or receiver call.
+  All six string comparison operators pass same-type semantic validation then panic
+  in IR. Immediate/computed integer zero division panics in host constant folding,
+  while variable, unary, float, and mixed zero forms follow different paths. The
+  field family is selected for `CORE-007`; string comparison and division policy
+  remain separate, explicitly open tasks.
 - Unimplemented methods, aggregates, matches, references, and ADTs are either
   changed to zero or dropped. Several IR instruction variants have no codegen
   arm and are silently ignored by the wildcard arm.
