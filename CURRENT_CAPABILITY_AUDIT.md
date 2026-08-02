@@ -99,10 +99,11 @@ correctness gates.
   Noneligible signatures remain permissive and uncertified.
 - A dormant call validator confirms the mandate's suspected fallbacks: unknown
   named, array, tuple, reference, and generic parameter types map to `Int`.
-- Let annotations remain ignored. Numeric/void function return declarations are
-  enforced at `8d5d8e7`; boolean, generic, composite, and other declarations remain
-  outside that slice. Unknown named types are assumed to be structs, and unknown
-  backend type strings lower as LLVM `double`.
+- Initialized exact numeric `let` annotations are enforced at `bc9a148`.
+  Uninitialized and non-numeric annotations remain outside that slice. Numeric/void
+  function return declarations are enforced at `8d5d8e7`; boolean, generic,
+  composite, and other declarations remain open. Unknown named types are assumed
+  to be structs, and unknown backend type strings lower as LLVM `double`.
 - Field access, tuples, struct/enum construction, matches, closures, and unknown
   methods can bypass subtree validation and acquire `Int`. IR lowering replaces
   several of these forms, including borrow/deref, with integer zero.
@@ -115,8 +116,9 @@ correctness gates.
   than signatures and are skipped at many call positions. Dormant generic and
   pattern modules use additional fallbacks and are not compiled into the active
   library or binary.
-- Function parameters leak into a compatibility symbol table after their scope
-  exits, so semantic analysis can resolve names that IR generation later cannot.
+- At `bc9a148`, tested block, branch, loop, and function exits restore both the
+  semantic compatibility table and IR binding map, including scalar and callable
+  shadowing. Broader analyzer persistence and phase-boundary risks remain open.
 - Semantic analysis returns the original AST rather than a typed representation;
   IR generation is infallible and backend-local code invents missing types. No
   LLVM verifier is part of the active library compile pipeline.

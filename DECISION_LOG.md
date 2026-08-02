@@ -188,3 +188,11 @@ table at the analyzer's existing lexical/function/loop scope exits. The structur
 `ScopeManager` remains authoritative. Invalid cross-scope references must stop with
 a semantic error; treating a compiler panic as an acceptable consequence of legacy
 compatibility is rejected.
+
+Implementation closure: exact clean candidate `bc9a148` was accepted after the two
+review-rejected candidates and corrective red checkpoints. It passes 18/18 focused
+annotation/scope tests, 13/13 function-contract tests, the complete repository gate,
+and two independent reviews. The accepted implementation restores private semantic
+compatibility snapshots and complete IR bindings at existing scope exits while
+enforcing exact initialized numeric annotations. It does not certify uninitialized
+or non-numeric annotations, reassignment, typed local storage, or general fallible IR.

@@ -523,11 +523,22 @@
   assignment/merge policy not frozen here. Stop if compatibility-table isolation
   requires removing public APIs, altering `ScopeManager`, or redesigning ownership.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: second candidate rejected in review; semantic-scope red tests preregistered.
+- Status: complete at `bc9a14820af6b3127a8dad5fffd4ccf55d9c9d2f`.
 - Acceptance criteria: red evidence is preserved; focused positive/negative/public
   API and CLI artifact tests pass; `./tools/test.sh` passes; and two independent
   reviewers approve the exact clean integration SHA.
 - Candidate commits: `ccbb144` (red tests) and `5fa5a5e` (semantic implementation;
   rejected for scalar IR scope leakage), `39b5f40` (scope-provenance red tests), and
-  `b6b0eba` (IR restoration; rejected for compatibility-table scope panic). Accepted
-  result commit: pending.
+  `b6b0eba` (IR restoration; rejected for compatibility-table scope panic), and
+  `1ec3c6b` (semantic-scope red tests). Accepted result commit: `bc9a148`.
+- Accepted behavior: initialized exact numeric annotations are enforced before
+  ownership mutation or IR; the compatibility table and complete IR binding map are
+  restored at the existing lexical scope exits; invalid cross-scope references
+  return semantic errors rather than reaching an IR panic. Uninitialized and
+  non-numeric annotations, reassignment, and typed local storage remain uncertified.
+- Verification: exact clean SHA `bc9a148` passes 18/18 focused annotation and scope
+  tests, 13/13 numeric function-contract tests, and `./tools/test.sh` (112 library,
+  119 binary, 11 fatal-parse, 59 frontend, 13 function-contract, 18 annotation,
+  and 12 strict-lex tests; 38 pre-existing phase-five tests remain ignored).
+  Two independent reviewers approved that exact SHA after no-unwind, diagnostic,
+  artifact, binding-provenance, callable-restoration, and analyzer-reuse probes.

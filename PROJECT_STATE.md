@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 3 — correct the semantic compatibility-table scope blocker found during
-the second independent review of `CORE-004`.
+Milestone 4 — audit and preregister the smallest fail-closed boundary for an
+unsupported expression that currently reaches invented IR or a compiler panic.
 
 ## Active hypothesis
 
-Restoring both the IR generator's and semantic analyzer's existing private flat
-symbol-table snapshots at their lexical scope exits can preserve numeric binding
-contracts, reject cross-arm leaks before IR, and avoid a typed IR redesign.
+A bounded source expression can be characterized and either rejected before IR or
+completed vertically without weakening semantics or requiring a general typed-IR
+redesign. Read-only audit must establish the boundary before implementation.
 
 ## Repository state
 
@@ -20,11 +20,11 @@ contracts, reject cross-arm leaks before IR, and avoid a typed IR redesign.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `b6b0eba1d560e2782d052ab503ac46b9c09cbbdb`
-- Last verified commit: `8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a`
-- Worktree: clean before the second `CORE-004` review amendment. The IR correction
-  passes 14 focused tests and the lead's full gate, but both independent reviewers
-  reject it because a then-arm-only compatibility name reaches IR and panics.
+- Current commit: `bc9a14820af6b3127a8dad5fffd4ccf55d9c9d2f`
+- Last verified commit: `bc9a14820af6b3127a8dad5fffd4ccf55d9c9d2f`
+- Worktree: clean before this control-document closure. `CORE-004` is accepted after
+  two rejected candidates and corrective test-first rounds; the exact candidate
+  passes the complete gate and has two independent approvals.
 
 ## Environment and verification
 
@@ -62,6 +62,12 @@ contracts, reject cross-arm leaks before IR, and avoid a typed IR redesign.
   13 function-contract, and 12 strict-lex tests. The 38 pre-existing phase-five
   tests remain ignored. Two independent reviewers approved the exact clean SHA;
   fresh black-box invalid-program probes exited nonzero and wrote no LLVM artifact.
+- `CORE-004` verification at `bc9a148`: focused numeric annotation and lexical-scope
+  tests 18/18; function-contract tests 13/13; full gate PASS with 112 library,
+  119 binary, 11 fatal-parse, 59 frontend, 13 function-contract, 18 annotation,
+  and 12 strict-lex tests. The 38 pre-existing phase-five tests remain ignored.
+  Two independent reviewers approved the exact clean SHA after public no-unwind,
+  scope-provenance, artifact, callable-restoration, and analyzer-reuse probes.
 
 ## Audit agents
 
@@ -80,10 +86,10 @@ contracts, reject cross-arm leaks before IR, and avoid a typed IR redesign.
   absent compile-fail/fuzz/differential/verifier/hardware gates inventoried.
 - `AUDIT-008` benchmarks/claims: complete; compilation series invalid, lexer
   evidence partial, GGUF external/single-run, and protocol gaps classified.
-- `AUDIT-009` numeric binding boundary: amended; parser retention, semantic/IR
-  discard, seven black-box false-accept families, unified-double local storage,
-  and scalar lexical-scope leakage are characterized. Semantic-only enforcement
-  was proven insufficient for valid nested shadowing.
+- `AUDIT-009` numeric binding boundary: complete after two review amendments;
+  parser retention, semantic/IR discard, seven black-box false-accept families,
+  unified-double local storage, IR scalar leakage, and semantic compatibility-table
+  leakage are characterized and the eligible slice is controlled at `bc9a148`.
 
 ## Current capability classification
 
@@ -115,19 +121,19 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Legacy recovery lexing remains public for compatibility and LSP symbol recovery;
   trusted repository paths no longer feed it into semantics, IR, or artifacts.
 - Numeric and void top-level function contracts are controlled at `8d5d8e7`.
-  Boolean/generic/composite signatures and numeric `let` annotations remain open.
+  Initialized exact numeric `let` annotations are controlled at `bc9a148`;
+  uninitialized, non-numeric, boolean/generic/composite contracts remain open.
 - Function-local branch and epilogue termination improved in `CORE-003`, but the
   broader pre-existing unreachable-after-terminator CFG risk remains open.
-- `CORE-004` candidate `5fa5a5e` rejects numeric annotation mismatches but is not
-  accepted: nested scalar shadowing can lower a post-block use to the inner slot.
-- Candidate `b6b0eba` fixes that IR leak but is also not accepted: a semantic
-  cross-arm compatibility leak can cause public compilation to unwind in IR.
+- The tested scalar/callable IR scope exits and semantic compatibility scopes are
+  controlled at `bc9a148`; general AST-to-IR fallibility, unsupported-expression
+  fallbacks, and analyzer/backend invariants remain open.
 
 ## Exact next action
 
-Add the preregistered no-panic/undeclared-variable scope regressions on the isolated
-owner branch, then snapshot/restore the semantic compatibility table only at the
-existing scope helpers and resubmit another exact clean candidate.
+Perform a read-only audit of modulo and adjacent unsupported-expression paths,
+choose the smallest evidence-backed boundary, and preregister `CORE-005` before any
+production or test edit.
 
 ## Unauthorized actions
 

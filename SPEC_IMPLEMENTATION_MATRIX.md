@@ -20,7 +20,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Integers/floats and arithmetic | Y | P | Y | — | P | — | P | P | P | Y | P | P | Y | PARTIAL |
 | Booleans/chars | Y | N | N | — | P | — | N | N | N | N | N | N | Y | DESIGNED |
 | Bindings and mutability | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
-| Type annotations | Y | Y | Y | P | N | N | P | P | P | P | N | N | Y | PARSED_ONLY |
+| Type annotations | Y | Y | Y | P | P | N | P | P | P | Y | P | P | Y | PARTIAL |
 | Comparisons/logical/unary ops | Y | Y | P | — | P | — | P | P | ? | Y | P | P | Y | PARTIAL |
 | Functions and returns | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Function-call signatures | Y | Y | Y | P | P | N | P | P | P | Y | P | P | Y | PARTIAL |
@@ -77,10 +77,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 - The lexer cannot return errors and currently converts some invalid input into
   valid tokens, so otherwise present lexical cells remain partial.
-- Type annotations remain unenforced. At `8d5d8e7`, the active semantic and IR
-  paths enforce monomorphic numeric/void top-level function calls and returns;
-  boolean, generic, composite, method, string, and richer closure contracts remain
-  unenforced or uncertified.
+- At `bc9a148`, initialized `int`/`i32` and `float`/`f64` binding annotations are
+  enforced exactly through active semantics, with positive, negative, diagnostic,
+  artifact, and lexical-scope coverage. Uninitialized and non-numeric annotations
+  remain unenforced or uncertified. At `8d5d8e7`, active semantic and IR paths also
+  enforce monomorphic numeric/void top-level function calls and returns; boolean,
+  generic, composite, method, string, and richer closure contracts remain open.
 - Many declarations lose visibility, bounds, arguments, or source locations in
   the AST; parser presence alone therefore does not imply faithful parsing.
 - The CLI and library declare overlapping compiler modules. Tooling rows cannot
@@ -97,7 +99,11 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 - At `8d5d8e7`, declaration collection, exact numeric arity/type checks, conservative
   numeric return checking, void-value rejection, and matching call result types are
   covered by 13 focused tests plus the full gate and dual independent review. This
-  does not certify annotations, booleans, generics, composites, or all CFG shapes.
+  does not certify booleans, generics, composites, or all CFG shapes.
+- At `bc9a148`, exact initialized numeric annotations and the binding visibility
+  needed to enforce them are covered by 18 focused tests, the full gate, and dual
+  independent review. This does not add typed local slots, conversions,
+  reassignment, definite initialization, or non-numeric annotation support.
 
 This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,
