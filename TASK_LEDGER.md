@@ -452,10 +452,11 @@
 - Smallest reproducers: `let value: int = 1.5;`,
   `let value: float = 1;`, `fn one() -> int { 1 } let value: f64 = one();`,
   and `fn ratio() -> float { 1.5 } let value: i32 = ratio();`.
-- Files allowed: `src/compiler/src/semantic_analyzer.rs`, one new focused
-  integration test under `src/compiler/tests/`, and affected control documents.
-- Files frozen: lexer, parser, AST, type/IR instruction shapes, IR generator,
-  code generator, optimizer, function contracts, implicit conversion rules,
+- Files allowed: `src/compiler/src/semantic_analyzer.rs`,
+  `src/compiler/src/ir_generator.rs`, one new focused integration test under
+  `src/compiler/tests/`, and affected control documents.
+- Files frozen: lexer, parser, AST, type/IR instruction shapes, code generator,
+  optimizer, function contracts, implicit conversion rules,
   booleans, strings, arrays, tuples, references, generics, composites, closures,
   ownership behavior, runtime/backends, and public claims.
 - Frozen semantics: unannotated bindings preserve inference. Non-numeric annotations
@@ -476,18 +477,37 @@
 - Red checkpoint: matching cases pass before implementation; every mismatch test
   must demonstrate the current false accept and artifact behavior before production
   code changes.
+- Review amendment: exact candidate `5fa5a5eba41ce33fcf06767992efa1b810f9ebaa`
+  passed all 12 focused tests but was independently rejected. After an inner
+  cross-family shadow ended, IR still loaded the inner `%ptr1` value rather than the
+  outer `%ptr0` value because scope exit restored only `Ty::Fn` bindings. This is a
+  silent valid-program miscompile and proves that the original compile-success-only
+  shadowing test was insufficient.
+- Corrective contract: every IR lexical scope already represented by an explicit
+  block, `if` arm, `while`, `for`, or `loop` must restore the complete pre-scope
+  symbol-table snapshot, including scalar and callable bindings. Alternate `if` arms
+  start from the same pre-branch snapshot. Storage and instructions produced inside
+  a scope remain in IR, but their source names must not remain resolvable afterward.
+  This generalizes the accepted callable-only restoration without changing IR shape.
+- Corrective red checkpoint: add public LLVM regressions proving that a use after a
+  nested block and after a control-flow arm loads the outer numeric slot, while all
+  accepted `CORE-003` callable-shadowing/restoration tests remain green. The new
+  regressions must fail on `5fa5a5e` before the IR correction.
 - Regression risks: the binary and library compile separate analyzer copies; the
   compatibility symbol table still outlives lexical scopes; non-numeric inference
   contains fallback types; direct callers can construct AST/IR without semantic
   validation; scalar backend storage is not a typed binding representation.
-- Stop conditions: satisfying the contract requires parser/AST, IR generator,
-  IR instruction, code-generator, ownership, or conversion-policy changes; exact
+- Stop conditions: satisfying the amended contract requires parser/AST, IR
+  instruction, code-generator, ownership, or conversion-policy changes; exact
   equality cannot be established from the active initializer inference; a valid
   existing numeric program regresses; or the focused change would make a
-  noneligible annotation appear supported.
+  noneligible annotation appear supported. Stop again if full snapshot restoration
+  changes callable scope behavior, requires a new IR representation, or exposes an
+  assignment/merge policy not frozen here.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: preregistered.
+- Status: implementation rejected in review; corrective red test preregistered.
 - Acceptance criteria: red evidence is preserved; focused positive/negative/public
   API and CLI artifact tests pass; `./tools/test.sh` passes; and two independent
   reviewers approve the exact clean integration SHA.
-- Result commit: pending.
+- Candidate commits: `ccbb144` (red tests) and `5fa5a5e` (semantic implementation;
+  rejected for scalar IR scope leakage). Accepted result commit: pending.

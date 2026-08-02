@@ -171,3 +171,12 @@ general unreachable-after-terminator problem remain explicitly outside DEC-007.
   experimental and uncertified.
 - Revisit when: Aero specifies general assignment conversions, adds reassignment and
   definite-initialization semantics, or introduces a typed local-storage IR.
+
+Review amendment: candidate `5fa5a5e` correctly enforced the semantic annotation
+boundary but was rejected because a nested scalar shadow remained active in IR after
+its lexical block. A post-block call loaded the inner float slot, converted it to
+`i32`, and passed the wrong value. `CORE-004` therefore opens only the existing
+IR-generator symbol-snapshot restoration sites: complete scalar and callable
+bindings must be restored at lexical scope exit. Weakening nested shadowing to fit
+the miscompile is rejected; parser/AST, IR shape, code generation, and assignment
+semantics remain frozen.

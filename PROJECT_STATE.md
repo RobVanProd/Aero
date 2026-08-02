@@ -4,15 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 3 — implement the preregistered initialized numeric binding-annotation
-contract `CORE-004` after closing fatal parsing, strict trusted lexing, and numeric
-function boundaries.
+Milestone 3 — correct the IR lexical-scope blocker found during independent review
+of the initialized numeric binding-annotation contract `CORE-004`.
 
 ## Active hypothesis
 
-The next safe type-boundary slice can make explicit `let` annotations for existing
-numeric scalar values authoritative without claiming coercions, inference for
-richer types, ownership completeness, or a typed IR redesign.
+Exact semantic annotation checks plus complete restoration of the IR generator's
+existing flat symbol-table snapshot at lexical scope exits can preserve numeric
+binding contracts and nested shadowing without a typed IR redesign.
 
 ## Repository state
 
@@ -21,11 +20,11 @@ richer types, ownership completeness, or a typed IR redesign.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `4df60153a7b97657d10f044c6e38656e8e48214d`
+- Current commit: `5fa5a5eba41ce33fcf06767992efa1b810f9ebaa`
 - Last verified commit: `8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a`
-- Worktree: clean before `CORE-004` preregistration. `CORE-003` is closed in
-  `4df6015` after red tests, two corrective review rounds, dual independent approval,
-  manual probes, and the full required gate.
+- Worktree: clean before the `CORE-004` review amendment. The first semantic
+  candidate passes its 12 focused tests and the owner's full gate, but both
+  independent reviewers reject it for a downstream nested-shadow IR miscompile.
 
 ## Environment and verification
 
@@ -81,9 +80,10 @@ richer types, ownership completeness, or a typed IR redesign.
   absent compile-fail/fuzz/differential/verifier/hardware gates inventoried.
 - `AUDIT-008` benchmarks/claims: complete; compilation series invalid, lexer
   evidence partial, GGUF external/single-run, and protocol gaps classified.
-- `AUDIT-009` numeric binding boundary: complete; parser retention, semantic/IR
+- `AUDIT-009` numeric binding boundary: amended; parser retention, semantic/IR
   discard, seven black-box false-accept families, unified-double local storage,
-  and the semantic-only initialized exact-match slice are characterized.
+  and scalar lexical-scope leakage are characterized. Semantic-only enforcement
+  was proven insufficient for valid nested shadowing.
 
 ## Current capability classification
 
@@ -118,11 +118,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   Boolean/generic/composite signatures and numeric `let` annotations remain open.
 - Function-local branch and epilogue termination improved in `CORE-003`, but the
   broader pre-existing unreachable-after-terminator CFG risk remains open.
+- `CORE-004` candidate `5fa5a5e` rejects numeric annotation mismatches but is not
+  accepted: nested scalar shadowing can lower a post-block use to the inner slot.
 
 ## Exact next action
 
-Have one isolated owner add the `CORE-004` focused tests first, preserve the red
-false-accept checkpoint, then implement only the allowed semantic-analyzer change.
+Add the preregistered failing LLVM scope-restoration regressions on the isolated
+owner branch, then minimally generalize IR snapshot restoration from callables to
+all bindings and resubmit an exact clean candidate for two independent reviews.
 
 ## Unauthorized actions
 
