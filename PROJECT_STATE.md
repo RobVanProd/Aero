@@ -4,9 +4,8 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Founding-framework alignment is now explicit; resume Milestone 9 by preserving
-the `CORE-009` StructLiteral false-success boundary in a tests-only red checkpoint
-before changing production.
+Milestone 9 — implement the preregistered one-file `CORE-009` StructLiteral
+semantic rejection after independently accepting the tests-only red checkpoint.
 
 ## Active hypothesis
 
@@ -40,6 +39,17 @@ inventing declaration, field, type, layout, ownership, IR, or backend semantics.
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
 - Published integration head before this checkpoint:
   `6a274aee4c14cfbbf7ae21c786e05ef227f108ad`.
+- Founding-framework alignment is published at
+  `fba121f0213b7f604d4c73032019c872680a3136`.
+- `CORE-009` tests-only red checkpoint:
+  `1e76a0610ef778303548096ef634a5f02b678fe9`. The new nine-test aggregate suite
+  is exactly 3 pass / 6 expected fail on production: parser/positive controls and
+  established child precedence pass, while ordinary, recursive, default/nested,
+  ordering/inference-only, root CLI, and direct-module CLI families expose false
+  success, wrong outer diagnostics, zero/drop lowering, successful status, and
+  requested artifacts. No failure relies on a parse error or unwind. Reclassified
+  controls independently pass 59 frontend, 8 field, and 15 Match tests; formatting
+  and diff checks pass.
 - Accepted `CORE-008` candidate:
   `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the

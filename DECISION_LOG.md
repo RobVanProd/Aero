@@ -398,6 +398,14 @@ outside this decision.
   initialization order, ownership/destruction, ABI, typed IR/backend emission, and
   positive end-to-end execution can ship as one coherent vertical slice.
 
+Tests-first checkpoint: exact integration commit `1e76a06` changes only the four
+authorized test files. Independent lead verification reproduces exactly 3 passing
+and 6 expected-failing aggregate tests. Failures expose accepted StructLiteral
+routes, competing outer diagnostics, fabricated zero/drop LLVM, successful CLI
+status, and root/module artifacts; no source fails parsing or unwinds. The rewritten
+frontend, field, and Match controls pass 59/59, 8/8, and 15/15 respectively. The
+production decision remains unchanged and implementation is pending.
+
 ## DEC-014 — Founding framework directs the roadmap but does not certify status
 
 - Date: 2026-08-02

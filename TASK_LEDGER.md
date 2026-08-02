@@ -1193,10 +1193,23 @@
   any prior accepted focused boundary regresses.
 - Owner: one isolated tests/implementation owner; lead owns compatibility and exact
   diagnostic decisions. Two non-owner reviews are required after the complete gate.
-- Status: preregistered; tests-only red checkpoint pending.
+- Status: tests-only red checkpoint accepted at exact integration commit
+  `1e76a0610ef778303548096ef634a5f02b678fe9`; production pending.
 - Verification: focused Struct suite plus modified control suites, all prior focused
   boundaries, formatting/all-target check, required `./tools/test.sh`, then exact-SHA
   structural and black-box reviews.
+
+Tests-only red evidence: owner commit `042b905` is integrated as `1e76a06` and
+changes only the four authorized test files. The aggregate suite covers more than
+41 parser, public, recursive, default/nested, precedence, and CLI routes across nine
+tests. Independent lead execution is exactly 3 pass / 6 expected fail: ordinary
+StructLiteral forms are accepted and lowered as zero/drop artifacts; recursive and
+container forms either accept or surface the current outer diagnostic; CLI root and
+direct-module check/build exit zero, and both builds create the requested LLVM.
+Parser shape, declaration/Enum/Option/numeric/function/array/index/iterator controls,
+and established tuple/field/Match/void child precedence pass. No negative depends on
+parse failure or unwind. Reclassified controls pass 59 frontend, 8 field, and 15
+Match tests; formatting and `git diff --check` pass.
 
 ## AUDIT-015 — Trace founding framework into current engineering control
 
