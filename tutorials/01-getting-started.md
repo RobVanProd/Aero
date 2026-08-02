@@ -165,23 +165,23 @@ Supported modes:
 - `fp8-e4m3`
 - `fp8-e5m2`
 
-### 9. Registry commands (offline + live)
+### 9. Registry commands (local + dry-run)
 
-Use `registry` commands for `registry.aero` workflows:
+The current registry surface supports local-index search and network-free
+publish/install planning:
 
 ```bash
 aero registry search vision --index registry/index.json
-aero registry search vision --live --registry https://registry.aero/api/v1
 aero registry publish . --dry-run
 aero registry install vision-core --version 0.2.0 --target pkgs --dry-run
 ```
 
-For live publish/install, provide auth and trust flags:
-
-```bash
-aero registry publish . --registry https://registry.aero/api/v1 --token <token>
-aero registry install vision-core --version 0.2.0 --registry https://registry.aero/api/v1 --token <token> --expected-sha256 <digest>
-```
+These routes do not resolve registry credentials and do not contact a network.
+Live search and publish/install without `--dry-run` fail closed with
+`live registry transport is disabled pending a reviewed protocol and trust boundary`.
+Live transport remains a future design target; it will not be enabled until package,
+response, authentication, destination, overwrite, and dependency contracts are
+reviewed and tested adversarially.
 
 ### 10. Run conformance and mechanized checks
 

@@ -992,18 +992,27 @@ fn main() {
                         }
                     }
 
+                    if live && let Err(err) = registry::live_registry_transport_guard() {
+                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                        exit(1);
+                    }
+
                     let client = registry::RegistryClient::new(registry_url.as_deref());
                     println!("Registry: {}", client.base_url);
 
-                    let auth = match registry::resolve_registry_auth(
-                        token.as_deref(),
-                        token_file.as_deref().map(Path::new),
-                    ) {
-                        Ok(auth) => auth,
-                        Err(err) => {
-                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
+                    let auth = if live {
+                        match registry::resolve_registry_auth(
+                            token.as_deref(),
+                            token_file.as_deref().map(Path::new),
+                        ) {
+                            Ok(auth) => auth,
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                exit(1);
+                            }
                         }
+                    } else {
+                        None
                     };
 
                     let search_result = if live {
@@ -1095,16 +1104,6 @@ fn main() {
                     }
 
                     let client = registry::RegistryClient::new(registry_url.as_deref());
-                    let auth = match registry::resolve_registry_auth(
-                        token.as_deref(),
-                        token_file.as_deref().map(Path::new),
-                    ) {
-                        Ok(auth) => auth,
-                        Err(err) => {
-                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
-                        }
-                    };
 
                     if dry_run {
                         match registry::build_publish_preview(&client, Path::new(package_dir)) {
@@ -1124,6 +1123,20 @@ fn main() {
                             }
                         }
                     } else {
+                        if let Err(err) = registry::live_registry_transport_guard() {
+                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                            exit(1);
+                        }
+                        let auth = match registry::resolve_registry_auth(
+                            token.as_deref(),
+                            token_file.as_deref().map(Path::new),
+                        ) {
+                            Ok(auth) => auth,
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                exit(1);
+                            }
+                        };
                         match registry::publish_live(
                             &client,
                             Path::new(package_dir),
@@ -1253,16 +1266,6 @@ fn main() {
                     }
 
                     let client = registry::RegistryClient::new(registry_url.as_deref());
-                    let auth = match registry::resolve_registry_auth(
-                        token.as_deref(),
-                        token_file.as_deref().map(Path::new),
-                    ) {
-                        Ok(auth) => auth,
-                        Err(err) => {
-                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
-                        }
-                    };
 
                     if dry_run {
                         let plan = registry::build_install_plan(
@@ -1281,6 +1284,20 @@ fn main() {
                             }
                         }
                     } else {
+                        if let Err(err) = registry::live_registry_transport_guard() {
+                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                            exit(1);
+                        }
+                        let auth = match registry::resolve_registry_auth(
+                            token.as_deref(),
+                            token_file.as_deref().map(Path::new),
+                        ) {
+                            Ok(auth) => auth,
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                exit(1);
+                            }
+                        };
                         match registry::install_live(
                             &client,
                             package_name,
@@ -2038,7 +2055,7 @@ fn print_help(program_name: &str) {
         "                                         Apply calibrated INT8/FP8 lowering interface [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
     );
     println!(
-        "    registry <subcommand>                Interact with registry.aero (local or live transport)"
+        "    registry <subcommand>                Search a local index or create network-free publish/install previews"
     );
     println!(
         "    conformance [-o <report.json>]       Run formal conformance and mechanized checks"
@@ -2075,7 +2092,7 @@ fn print_help(program_name: &str) {
         program_name
     );
     println!(
-        "    {} registry search vision --live --registry https://registry.aero/api/v1",
+        "    {} registry search vision --index registry/index.json",
         program_name
     );
     println!("    {} registry publish . --dry-run", program_name);
@@ -2122,7 +2139,13 @@ fn print_registry_help(program_name: &str) {
     );
     println!();
     println!("NOTE:");
-    println!("    Without --dry-run, publish/install use live HTTP transport and trust checks.");
+    println!(
+        "    Local index search and publish/install --dry-run are credential-free and network-free."
+    );
+    println!(
+        "    --live and publish/install without --dry-run fail: {}.",
+        registry::LIVE_REGISTRY_DISABLED
+    );
 }
 
 /// Validate an Aero program without emitting LLVM or consulting external tools.

@@ -1800,4 +1800,21 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Owner: lead-owned tests-first vertical slice. Independent type/IR/backend reviewers
   must approve the exact preregistration, red snapshot, and implementation candidate
   before publication.
-- Status: preregistered only; no tests or production behavior implemented.
+- Red checkpoint: public commit
+  `57c4ec70190822cb4552d313e5e7ea0f2dc5cbed` records the independently approved
+  tests-only snapshot (exact diff `4058775145e68aa9a5512853c04b0dde04730464`,
+  tree `227254ef8177d8e15b69c42bd1e2d94c1442879a`). Direct registry evidence was
+  7 pass / 5 intentional failures; CLI evidence was 0 pass / 6 intentional failures.
+  The full gate passed formatting/correctness Clippy and stopped at 134 pass / only
+  the same five intended direct failures before Cargo reached later test targets.
+  Three independent reviewers found no P0-P3 issues.
+- Implementation candidate: one crate-private guard is the first operation in each
+  live function and is checked by CLI live dispatch before auth. Local search and
+  CLI publish/install dry-runs skip auth and use the existing local helpers. Both
+  direct registry targets pass 12/12, the CLI matrix including help truth passes 7/7,
+  and exact `./tools/test.sh` passes 139 library, 148 binary, every active integration
+  suite, formatting, correctness Clippy, and doc tests; 38 Phase 5 tests remain
+  intentionally ignored. Public truth now describes quarantine while preserving the
+  future design target.
+- Status: implementation candidate; exact independent review, publication, and
+  public CI remain pending.

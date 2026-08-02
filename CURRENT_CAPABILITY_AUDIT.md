@@ -371,6 +371,16 @@ reclassified rather than deleted.
   Offline index search and non-network publish/install previews remain available.
   This does not design or validate a registry protocol and cannot re-enable live
   behavior.
+- Public red evidence: `57c4ec7` contains only test-scoped direct controls plus the
+  focused CLI matrix. Three independent reviewers approved exact diff
+  `4058775145e68aa9a5512853c04b0dde04730464` and tree
+  `227254ef8177d8e15b69c42bd1e2d94c1442879a`. Direct evidence was 7 pass / 5
+  intentional failures; CLI evidence was 0 pass / 6 intentional failures.
+- Local implementation candidate: every live function and CLI live branch now hits
+  the frozen guard before credentials or side effects. Local search and CLI dry-runs
+  bypass auth and use only local helpers. Direct registry targets pass 12/12 each;
+  the CLI matrix/help pass 7/7; the complete repository gate is green. Exact review,
+  publication, and public CI remain pending, so this is not yet accepted closure.
 
 ## Testing and fuzzing audit
 

@@ -48,7 +48,7 @@ This installs `aero` into your Cargo bin directory (typically `~/.cargo/bin`).
 - `aero profile <input.aero> [-o <trace.json>]`: profile compiler stages and optionally emit Chrome trace JSON
 - `aero graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--gpu <arch>] [--annotation-only]`: apply graph compilation with executable fused-kernel lowering
 - `aero quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--gpu <arch>] [--calibration <file>] [--per-channel] [--annotation-only]`: apply hardware-calibrated INT8/FP8 lowering interfaces
-- `aero registry <subcommand>`: interact with `registry.aero` in offline mode or live transport mode (`search`, `publish`, `install`) with auth/trust controls
+- `aero registry <subcommand>`: search a local index or create credential-free, network-free publish/install previews with `--dry-run`; live transport is quarantined pending a reviewed protocol and trust boundary
 - `aero conformance [-o <report.json>]`: run formal conformance suite and mechanized semantics checks
 - `aero init [path]`: create a project scaffold (`aero.toml` + `src/main.aero`)
 - `aero lsp`: run the Aero language server over stdio (diagnostics, completion, hover, go-to-definition, document symbols)

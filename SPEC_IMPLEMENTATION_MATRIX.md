@@ -59,7 +59,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Profiler | Y | N | Timing/trace or located parse error | Y | P | Y | EXPERIMENTAL |
 | Project initialization | Y | — | Project files | Y | P | Y | EXPERIMENTAL |
 | Module resolver | Y | P | Resolved source | P | P | Y | EXPERIMENTAL |
-| Registry | Y | — | Local search; incomplete live publish/install | P | N | Y | EXPERIMENTAL |
+| Registry | Y | — | Local search and dry-run plans; live transport quarantined | Y | N | Y | EXPERIMENTAL |
 | Conformance command | Y | P | 3 cases + 4 deterministic checks | P | P | P | EXPERIMENTAL |
 | Package lock/reproducible resolution | P | ? | ? | ? | ? | P | DESIGNED |
 

@@ -636,7 +636,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-017 — Quarantine live registry transport before designing its protocol
 
 - Date: 2026-08-02
-- Status: accepted for `CORE-012` preregistration; not implemented
+- Status: local `CORE-012` implementation candidate; exact review/public CI pending
 - Decision: every HTTP-backed registry entry (`search_live_registry`,
   `publish_live`, and `install_live`) must fail with the exact stable diagnostic
   `live registry transport is disabled pending a reviewed protocol and trust boundary`

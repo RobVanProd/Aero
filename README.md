@@ -116,8 +116,10 @@ aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --gpu gfx11
 # Run the GGUF benchmark harness when configured locally
 python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json
 
-# Registry search (offline index or live transport)
-aero registry search vision --live --registry https://registry.aero/api/v1
+# Registry local search and network-free publish/install previews
+aero registry search vision --index registry/index.json
+aero registry publish . --dry-run
+aero registry install vision-core --version 0.2.0 --target pkgs --dry-run
 
 # Run formal conformance + mechanized checks
 aero conformance -o conformance_report.json
@@ -152,7 +154,7 @@ fn main() {
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
-| **Phase 8 Runtime Slice** | Hardware-calibrated INT8/FP8 lowering (CPU/CUDA/ROCm), executable fused-kernel backend generation, live `registry.aero` transport/auth/trust model, formal conformance + mechanized checks |
+| **Phase 8 Runtime Slice** | Hardware-calibrated INT8/FP8 lowering (CPU/CUDA/ROCm), executable fused-kernel backend generation, local `registry.aero` search and dry-run planning, formal conformance + mechanized checks. Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
 > **Tuple status:** tuple literal, tuple-index, type, and pattern syntax is

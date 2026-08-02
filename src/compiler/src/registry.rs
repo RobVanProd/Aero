@@ -8,6 +8,12 @@ use std::process::Command;
 pub const DEFAULT_REGISTRY_URL: &str = "https://registry.aero/api/v1";
 pub const DEFAULT_LOCAL_INDEX_PATH: &str = "registry/index.json";
 pub const DEFAULT_TOKEN_ENV: &str = "AERO_REGISTRY_TOKEN";
+pub(crate) const LIVE_REGISTRY_DISABLED: &str =
+    "live registry transport is disabled pending a reviewed protocol and trust boundary";
+
+pub(crate) fn live_registry_transport_guard() -> Result<(), String> {
+    Err(LIVE_REGISTRY_DISABLED.to_string())
+}
 
 #[derive(Debug, Clone)]
 pub struct RegistryClient {
@@ -187,6 +193,7 @@ pub fn search_live_registry(
     query: &str,
     auth: Option<&RegistryAuth>,
 ) -> Result<Vec<RegistryPackage>, String> {
+    live_registry_transport_guard()?;
     let endpoint = format!(
         "{}/packages/search?q={}",
         client.base_url,
@@ -245,6 +252,7 @@ pub fn publish_live(
     auth: Option<&RegistryAuth>,
     dry_run: bool,
 ) -> Result<PublishResult, String> {
+    live_registry_transport_guard()?;
     let preview = build_publish_preview(client, package_dir)?;
     let files = collect_package_files(package_dir)?;
 
@@ -321,6 +329,7 @@ pub fn install_live(
     expected_sha256_override: Option<&str>,
     dry_run: bool,
 ) -> Result<InstallReceipt, String> {
+    live_registry_transport_guard()?;
     let resolved = resolve_live_package(client, package_name, version, auth)?;
     let target_file = target_dir.join(format!("{}-{}.aero.pkg", resolved.name, resolved.version));
 

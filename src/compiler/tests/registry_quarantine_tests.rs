@@ -226,3 +226,22 @@ fn cli_install_dry_run_is_credential_free_local_and_write_free() {
     assert!(text.contains("\"dry_run\": true"), "{text}");
     assert!(!target.exists(), "dry-run created install target");
 }
+
+#[test]
+fn cli_registry_help_states_quarantine_and_preserved_local_workflows() {
+    let workspace = TestWorkspace::new("registry-help");
+    let output = run_aero(&workspace, &["registry".to_string(), "help".to_string()]);
+    let text = diagnostics(&output);
+
+    assert!(output.status.success(), "registry help failed: {text}");
+    assert!(
+        text.contains(
+            "Local index search and publish/install --dry-run are credential-free and network-free."
+        ),
+        "registry help omitted preserved local workflows: {text}"
+    );
+    assert!(
+        text.contains(LIVE_REGISTRY_DISABLED),
+        "registry help omitted the live quarantine: {text}"
+    );
+}

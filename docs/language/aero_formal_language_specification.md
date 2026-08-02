@@ -149,3 +149,9 @@ The following Phase 8 interfaces are part of the v1.0.0 tooling surface:
 
 These interfaces define stable command and report shapes in v1.0.0 while allowing
 backend execution strategies and proof depth to continue evolving.
+
+Current implementation status: local-index search and network-free publish/install
+previews are available. Live registry transport is quarantined and fails closed
+pending a separately reviewed package, response, authentication, destination,
+overwrite, and dependency protocol. The live-transport item above is a future design
+target, not evidence of current implementation or stability.

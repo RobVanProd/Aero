@@ -4,20 +4,19 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 12 — `AUDIT-018` is complete at the accepted `CORE-011` head.
-Preregister and isolate the `CORE-012` red checkpoint for a fail-closed live
-registry transport quarantine. No production behavior is authorized until the
-exact tests-only snapshot is independently reviewed and published.
+Milestone 12 — independently review the exact `CORE-012` implementation candidate.
+The preregistration and tests-only red checkpoint are public; focused controls and
+the complete local repository gate are green. Publication remains unauthorized
+until the exact candidate snapshot is approved.
 
 ## Active hypothesis
 
-`AUDIT-018` confirms that the incomplete live registry surface is the next bounded
-critical-impact boundary: it is callable, can read credentials and invoke HTTP,
-publish omits package bytes/response validation, and install derives a write path
-from registry-controlled name/version without containment. `CORE-012` hypothesizes
-that one shared fail-closed guard can quarantine every live registry entry before
-credentials, filesystem mutation, or transport while preserving offline search and
-non-network publish/install previews.
+Confirmed locally for the `CORE-012` candidate: one shared fail-closed guard rejects
+every live registry entry before credentials, filesystem access, process/network
+transport, digest/response handling, or writes. CLI local search and publish/install
+dry-runs bypass auth and remain network-free. Direct publish/install reject under
+both legacy `dry_run` values; public workflow/status text distinguishes current
+quarantine from future protocol design.
 
 ## Founding-framework checkpoint
 
@@ -44,7 +43,19 @@ non-network publish/install previews.
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
 - Published project-control head:
-  `8598a4c343f5592880bde66cbd99e78083d2a236`.
+  `c0c044256a5922605e0dde8446b4c40cb250fd56`.
+- Published `CORE-012` tests-only red checkpoint:
+  `57c4ec70190822cb4552d313e5e7ea0f2dc5cbed`; exact staged diff
+  `4058775145e68aa9a5512853c04b0dde04730464`, tree
+  `227254ef8177d8e15b69c42bd1e2d94c1442879a`. Three independent reviewers
+  approved the snapshot with no P0-P3 findings. Direct registry evidence was
+  7 pass / 5 intentional failures; the CLI matrix was 0 pass / 6 intentional
+  failures. The full gate stopped at 134 pass / the same five intended failures.
+- Local `CORE-012` implementation candidate: direct registry tests pass 12/12 in
+  both library and binary targets; CLI quarantine/local/dry-run/help tests pass 7/7.
+  The complete `./tools/test.sh` gate passes 139 library, 148 binary, every active
+  integration suite, formatting, correctness Clippy, and doc tests; 38 pre-existing
+  Phase 5 tests remain explicitly ignored.
 - Published accepted `CORE-011` head:
   `a711dd5f3802095a4ecbe2dea3d45003675e7459`; exact reviewed implementation
   diff `60fe607413ebc03e9aa5d6296d9067d8cc95d89d`, tree
@@ -143,9 +154,10 @@ non-network publish/install previews.
   12 strict-lexing, 8 field, 15 Match, 14 modulo, 9 StructLiteral, and 16 tuple
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
-- Last full-gate code commit: `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
-- Worktree: `AUDIT-018` / `CORE-012` preregistration only; compiler behavior is
-  unchanged from the exact reviewed and public-CI-green `CORE-011` implementation.
+- Last accepted public full-gate code commit:
+  `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
+- Worktree: bounded `CORE-012` implementation candidate and coordinated public-truth/
+  project-control updates; exact review and publication are pending.
 
 ## Environment and verification
 
@@ -379,14 +391,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Create only the focused `CORE-012` registry-quarantine tests on top of the reviewed
-preregistration checkpoint. Prove that live search/publish/install fail with the
-frozen diagnostic and nonzero CLI status before credential resolution, package or
-target access, `curl`, or writes; prove offline search and publish/install dry-run
-plans remain credential-free and network-free. Publish that red snapshot only after
-exact independent review. Do not implement transport, payload, response, auth,
-package-format, path-containment, dependency, or general CLI-status semantics in
-this slice.
+Obtain independent type/IR/backend approval of the current exact staged `CORE-012`
+diff/tree. Publish only that approved snapshot, then require public CI before
+acceptance closure. Do not re-enable or implement transport, payload, response,
+auth, package-format, path-containment, overwrite, dependency, or general CLI-status
+semantics.
 
 ## Unauthorized actions
 
