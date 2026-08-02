@@ -283,18 +283,52 @@ fn format_type(ty: &Type) -> String {
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TestWorkspace {
+        root: PathBuf,
+    }
+
+    impl TestWorkspace {
+        fn new() -> Self {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock")
+                .as_nanos();
+            let root = std::env::temp_dir().join(format!(
+                "aero-doc-generator-{}-{unique}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&root).expect("create doc workspace");
+            Self { root }
+        }
+
+        fn path(&self, filename: &str) -> PathBuf {
+            self.root.join(filename)
+        }
+    }
+
+    impl Drop for TestWorkspace {
+        fn drop(&mut self) {
+            let temp_dir = std::env::temp_dir();
+            let has_expected_name = self
+                .root
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("aero-doc-generator-"));
+
+            if self.root.starts_with(temp_dir) && has_expected_name {
+                let _ = fs::remove_dir_all(&self.root);
+            }
+        }
+    }
 
     #[test]
     fn generates_markdown_for_core_declarations() {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock")
-            .as_nanos();
-        let workspace = std::env::temp_dir().join(format!("aero-doc-generator-{unique}"));
-        fs::create_dir_all(&workspace).expect("create doc workspace");
-        fs::write(workspace.join("math.aero"), "fn square() {}\n").expect("write direct module");
-        let input_file = workspace.join("main.aero");
+        let workspace = TestWorkspace::new();
+        fs::write(workspace.path("math.aero"), "fn square() {}\n").expect("write direct module");
+        let input_file = workspace.path("main.aero");
         let source = r#"
 mod math;
 
