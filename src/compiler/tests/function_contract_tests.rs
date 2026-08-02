@@ -176,6 +176,16 @@ fn rejects_invalid_explicit_tail_missing_and_void_returns() {
             "fn notify() {} fn main() { let value = notify(); }",
             &["notify", "void", "value"],
         ),
+        (
+            "void call used as format argument",
+            "fn notify() {} fn main() { println!(\"{}\", notify()); }",
+            &["notify", "void", "value"],
+        ),
+        (
+            "void call used as return value",
+            "fn notify() {} fn outer() { return notify(); }",
+            &["notify", "void", "value"],
+        ),
     ];
 
     assert_semantic_rejections(cases);

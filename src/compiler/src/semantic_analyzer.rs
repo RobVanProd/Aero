@@ -1,4 +1,6 @@
-use crate::ast::{AstNode, Block, ComparisonOp, Expression, LogicalOp, Statement, UnaryOp};
+use crate::ast::{
+    AstNode, Block, ComparisonOp, Expression, LogicalOp, Parameter, Statement, UnaryOp,
+};
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::collections::{HashMap, HashSet};
 
@@ -13,10 +15,16 @@ pub struct VariableInfo {
 #[derive(Debug, Clone)]
 pub struct FunctionInfo {
     pub name: String,
-    pub parameters: Vec<(String, Ty)>,
+    pub parameters: Vec<Parameter>,
     pub return_type: Ty,
-    pub eligible: bool,
     pub defined_at: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct NumericFunctionContract {
+    name: String,
+    parameters: Vec<(String, Ty)>,
+    return_type: Ty,
 }
 
 #[derive(Debug, Clone)]
@@ -32,16 +40,19 @@ pub struct VariableInfoNew {
 
 pub struct FunctionTable {
     functions: HashMap<String, FunctionInfo>,
+    numeric_contracts: HashMap<String, NumericFunctionContract>,
 }
 
 impl FunctionTable {
     pub fn clear(&mut self) {
         self.functions.clear();
+        self.numeric_contracts.clear();
     }
 
     pub fn new() -> Self {
         Self {
             functions: HashMap::new(),
+            numeric_contracts: HashMap::new(),
         }
     }
 }
@@ -67,24 +78,35 @@ impl FunctionTable {
 
     pub fn validate_call(&self, name: &str, args: &[Ty]) -> Result<Ty, String> {
         if let Some(func) = self.functions.get(name) {
-            if !func.eligible {
-                return Ok(Ty::Int);
-            }
-
             if func.parameters.len() != args.len() {
                 return Err(format!(
-                    "Error: Function `{}` arity mismatch: expected {}, actual {}.",
+                    "Error: Function `{}` expects {} arguments, but {} were provided.",
                     name,
                     func.parameters.len(),
                     args.len()
                 ));
             }
 
-            for ((param_name, expected_type), arg_type) in func.parameters.iter().zip(args.iter()) {
-                if expected_type != arg_type {
+            for (i, (param, arg_type)) in func.parameters.iter().zip(args.iter()).enumerate() {
+                let expected_type = match &param.param_type {
+                    crate::ast::Type::Named(type_name) => match type_name.as_str() {
+                        "i32" | "int" => Ty::Int,
+                        "f64" | "float" => Ty::Float,
+                        "bool" => Ty::Bool,
+                        "String" => Ty::String,
+                        _ => Ty::Int,
+                    },
+                    crate::ast::Type::Array(_, _) | crate::ast::Type::Tuple(_) => Ty::Int,
+                    crate::ast::Type::Reference(_, _) | crate::ast::Type::Generic(_, _) => Ty::Int,
+                };
+
+                if expected_type != *arg_type {
                     return Err(format!(
-                        "Error: Function `{}` parameter `{}` type mismatch: expected {}, actual {}.",
-                        name, param_name, expected_type, arg_type
+                        "Error: Function `{}` expects type `{}` for argument {}, but `{}` was provided.",
+                        name,
+                        expected_type,
+                        i + 1,
+                        arg_type
                     ));
                 }
             }
@@ -93,6 +115,42 @@ impl FunctionTable {
         } else {
             Err(format!("Error: Function `{}` is not defined.", name))
         }
+    }
+
+    fn define_numeric_contract(&mut self, contract: NumericFunctionContract) {
+        self.numeric_contracts
+            .insert(contract.name.clone(), contract);
+    }
+
+    fn get_numeric_contract(&self, name: &str) -> Option<&NumericFunctionContract> {
+        self.numeric_contracts.get(name)
+    }
+
+    fn validate_numeric_call(&self, name: &str, args: &[Ty]) -> Result<Ty, String> {
+        let contract = self
+            .numeric_contracts
+            .get(name)
+            .expect("numeric function contract must be registered");
+
+        if contract.parameters.len() != args.len() {
+            return Err(format!(
+                "Error: Function `{}` arity mismatch: expected {}, actual {}.",
+                name,
+                contract.parameters.len(),
+                args.len()
+            ));
+        }
+
+        for ((param_name, expected_type), arg_type) in contract.parameters.iter().zip(args.iter()) {
+            if expected_type != arg_type {
+                return Err(format!(
+                    "Error: Function `{}` parameter `{}` type mismatch: expected {}, actual {}.",
+                    name, param_name, expected_type, arg_type
+                ));
+            }
+        }
+
+        Ok(contract.return_type.clone())
     }
 
     pub fn list_functions(&self) -> Vec<&String> {
@@ -405,7 +463,7 @@ pub struct SemanticAnalyzer {
     symbol_table: HashMap<String, VariableInfo>,
     function_table: FunctionTable,
     closure_bindings: HashSet<String>,
-    return_contract_stack: Vec<Option<FunctionInfo>>,
+    return_contract_stack: Vec<Option<NumericFunctionContract>>,
     scope_manager: ScopeManager,
     /// Stack of active generic type parameter sets (e.g., ["T", "U"] for fn<T, U>)
     type_param_scopes: Vec<Vec<String>>,
@@ -477,7 +535,7 @@ impl SemanticAnalyzer {
                 ..
             }) = node
             {
-                let contract = if type_params.is_empty() {
+                let numeric_contract = if type_params.is_empty() {
                     let parameter_types = parameters
                         .iter()
                         .map(|parameter| {
@@ -491,20 +549,30 @@ impl SemanticAnalyzer {
                     };
 
                     match (parameter_types, contract_return) {
-                        (Some(parameters), Some(return_type)) => (parameters, return_type, true),
-                        _ => (Vec::new(), Ty::Int, false),
+                        (Some(parameters), Some(return_type)) => Some(NumericFunctionContract {
+                            name: name.clone(),
+                            parameters,
+                            return_type,
+                        }),
+                        _ => None,
                     }
                 } else {
-                    (Vec::new(), Ty::Int, false)
+                    None
                 };
 
+                let public_return_type = return_type
+                    .as_ref()
+                    .map(|ty| self.ast_type_to_ty(ty))
+                    .unwrap_or(Ty::Void);
                 self.function_table.define_function(FunctionInfo {
                     name: name.clone(),
-                    parameters: contract.0,
-                    return_type: contract.1,
-                    eligible: contract.2,
+                    parameters: parameters.clone(),
+                    return_type: public_return_type,
                     defined_at: None,
                 })?;
+                if let Some(contract) = numeric_contract {
+                    self.function_table.define_numeric_contract(contract);
+                }
             }
         }
 
@@ -856,7 +924,108 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn reject_void_call_in_value_expression(&self, expr: &Expression) -> Result<(), String> {
+        match expr {
+            Expression::FunctionCall { name, arguments } => {
+                if self
+                    .function_table
+                    .get_numeric_contract(name)
+                    .is_some_and(|contract| contract.return_type == Ty::Void)
+                {
+                    return Err(format!(
+                        "Error: void function `{}` cannot be used as a value.",
+                        name
+                    ));
+                }
+                for argument in arguments {
+                    self.reject_void_call_in_value_expression(argument)?;
+                }
+            }
+            Expression::Binary { left, right, .. }
+            | Expression::Comparison { left, right, .. }
+            | Expression::Logical { left, right, .. } => {
+                self.reject_void_call_in_value_expression(left)?;
+                self.reject_void_call_in_value_expression(right)?;
+            }
+            Expression::MethodCall {
+                object, arguments, ..
+            } => {
+                self.reject_void_call_in_value_expression(object)?;
+                for argument in arguments {
+                    self.reject_void_call_in_value_expression(argument)?;
+                }
+            }
+            Expression::Print { arguments, .. } | Expression::Println { arguments, .. } => {
+                for argument in arguments {
+                    self.reject_void_call_in_value_expression(argument)?;
+                }
+            }
+            Expression::Unary { operand, .. } => {
+                self.reject_void_call_in_value_expression(operand)?;
+            }
+            Expression::ArrayLiteral(elements) | Expression::TupleLiteral(elements) => {
+                for element in elements {
+                    self.reject_void_call_in_value_expression(element)?;
+                }
+            }
+            Expression::ArrayRepeat { value, .. } => {
+                self.reject_void_call_in_value_expression(value)?;
+            }
+            Expression::IndexAccess { object, index } => {
+                self.reject_void_call_in_value_expression(object)?;
+                self.reject_void_call_in_value_expression(index)?;
+            }
+            Expression::FieldAccess { object, .. } | Expression::TupleIndex { object, .. } => {
+                self.reject_void_call_in_value_expression(object)?;
+            }
+            Expression::StructLiteral { fields, .. } => {
+                for (_, value) in fields {
+                    self.reject_void_call_in_value_expression(value)?;
+                }
+            }
+            Expression::EnumVariant { data, .. } => {
+                if let Some(value) = data {
+                    self.reject_void_call_in_value_expression(value)?;
+                }
+            }
+            Expression::Match { expr, arms } => {
+                self.reject_void_call_in_value_expression(expr)?;
+                for arm in arms {
+                    self.reject_void_call_in_value_expression(&arm.body)?;
+                }
+            }
+            Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
+                self.reject_void_call_in_value_expression(expr)?;
+            }
+            Expression::IntegerLiteral(_)
+            | Expression::FloatLiteral(_)
+            | Expression::StringLiteral(_)
+            | Expression::Identifier(_)
+            | Expression::Closure { .. } => {}
+        }
+
+        Ok(())
+    }
+
     fn infer_and_validate_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
+        self.reject_void_call_in_value_expression(expr)?;
+        self.infer_expression_immutable(expr)
+    }
+
+    fn infer_discarded_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
+        if let Expression::FunctionCall { name, .. } = expr
+            && self
+                .function_table
+                .get_numeric_contract(name)
+                .is_some_and(|contract| contract.return_type == Ty::Void)
+        {
+            return self.infer_expression_immutable(expr);
+        }
+
+        self.infer_and_validate_expression_immutable(expr)
+    }
+
+    fn infer_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
         match expr {
             Expression::IntegerLiteral(_) => Ok(Ty::Int),
             Expression::FloatLiteral(_) => Ok(Ty::Float),
@@ -890,8 +1059,11 @@ impl SemanticAnalyzer {
                     argument_types.push(self.infer_and_validate_expression_immutable(arg)?);
                 }
 
-                if self.function_table.get_function(name).is_some() {
-                    self.function_table.validate_call(name, &argument_types)
+                if self.function_table.get_numeric_contract(name).is_some() {
+                    self.function_table
+                        .validate_numeric_call(name, &argument_types)
+                } else if self.function_table.get_function(name).is_some() {
+                    Ok(Ty::Int)
                 } else if self.closure_bindings.contains(name) {
                     Ok(Ty::Int)
                 } else {
@@ -1314,10 +1486,7 @@ impl SemanticAnalyzer {
                 }
 
                 let return_contract = if is_top_level {
-                    self.function_table
-                        .get_function(name)
-                        .filter(|function| function.eligible)
-                        .cloned()
+                    self.function_table.get_numeric_contract(name).cloned()
                 } else {
                     None
                 };
@@ -1472,7 +1641,7 @@ impl SemanticAnalyzer {
             }
             Statement::Expression(expr) => {
                 self.check_expression_initialization(expr)?;
-                self.infer_and_validate_expression_immutable(expr)?;
+                self.infer_discarded_expression_immutable(expr)?;
                 // Phase 5: Track moves for non-Copy function call arguments
                 self.track_expression_moves(expr)?;
                 // Phase 5: Check trait bounds at function call sites
@@ -1718,7 +1887,25 @@ impl SemanticAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{AstNode, Block, Expression, Statement};
+    use crate::ast::{AstNode, Block, Expression, Parameter, Statement, Type};
+
+    #[test]
+    fn public_function_info_and_table_api_remain_source_compatible() {
+        let mut table = FunctionTable::new();
+        let info = FunctionInfo {
+            name: "identity".to_string(),
+            parameters: vec![Parameter {
+                name: "value".to_string(),
+                param_type: Type::Named("i32".to_string()),
+            }],
+            return_type: Ty::Int,
+            defined_at: None,
+        };
+
+        table.define_function(info).expect("define function");
+        assert_eq!(table.validate_call("identity", &[Ty::Int]), Ok(Ty::Int));
+        assert!(table.validate_call("identity", &[]).is_err());
+    }
 
     #[test]
     fn for_loop_over_array_iter_infers_element_type() {
