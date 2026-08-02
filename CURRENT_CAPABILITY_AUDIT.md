@@ -23,12 +23,15 @@ Branch: `agent/aero-integration`
   infrastructure and is not a stability claim.
 - `CORE-011` tests-only red evidence is public at `9c31820`; three independent
   reviewers approved exact diff `badb9d0e8d6059927d949994b39f617fe2f404a8`
-  and tree `540a187db87aff5ec0b2964b0c140c6caf9402a4`. The local implementation
-  candidate centralizes all inventoried file-backed routes on one crate-private
+  and tree `540a187db87aff5ec0b2964b0c140c6caf9402a4`. The accepted implementation
+  centralizes all inventoried file-backed routes on one crate-private
   direct-source collector, rejects source-only and nested declarations, and makes
   module discovery precede a deterministic module-aware cache key. Both focused
-  seven-test suites and the complete repository gate pass. Exact implementation
-  review and public CI remain required before this progress is accepted.
+  seven-test suites and the complete repository gate pass. Three independent
+  reviewers approved exact implementation diff
+  `60fe607413ebc03e9aa5d6296d9067d8cc95d89d` and tree
+  `7c57c082e9d5f68afd5c6a4769d9d531a0116642`; every public check passes at
+  accepted head `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
 
 ## Executive finding
 
@@ -311,24 +314,24 @@ reclassified rather than deleted.
 
 ### Post-CORE-010 module-boundary recheck (`AUDIT-017`)
 
-- `CORE-010` supersedes the historical statement that `check` omits module
-  resolution: current `check` and `profile` strictly load direct modules. Build
-  still catches a missing-module error, continues compilation, exits zero, and
-  writes the requested LLVM artifact for the same source.
-- Final-LLVM cache lookup currently precedes lexing/parsing/module discovery and
-  uses only root source plus target/GPU configuration. Module changes or deletion
-  therefore do not participate in cache identity, and a verified cache hit can
+- At the `AUDIT-017` / accepted-`CORE-010` basis, `check` and `profile` strictly
+  loaded direct modules, while build caught a missing-module error, continued
+  compilation, exited zero, and wrote the requested LLVM artifact for the same
+  source.
+- At that basis, final-LLVM cache lookup preceded lexing/parsing/module discovery
+  and used only root source plus target/GPU configuration. Module changes or
+  deletion did not participate in cache identity, so a verified cache hit could
   bypass current module state on the reusable optimizer path.
-- Build, check/test, profile, and docs repeat direct module load/strict lex/parse
-  logic. The source-only public library API lacks a file context and silently
-  accepts `ModDecl`. The next bounded correctness slice centralizes this direct
-  source set and fails closed; it does not certify the still-absent namespace,
-  `use`, `pub`, recursive graph, or cycle-analysis implementation.
+- Before `CORE-011`, build, check/test, profile, and docs repeated direct module
+  load/strict lex/parse logic. The source-only public library API lacked a file
+  context and silently accepted `ModDecl`. The accepted closure below centralizes
+  this direct source set and fails closed; it does not certify the still-absent
+  namespace, `use`, `pub`, recursive graph, or cycle-analysis implementation.
 - No-argument, unknown-command, and several missing-input paths still return status
   zero, but they remain a separate command-result task because the selected module
   boundary is specifically about dependency admission, cache identity, and compiler
   artifact publication.
-- Candidate closure: `CORE-011` now routes build/run, check, discovered test,
+- Accepted closure: `CORE-011` now routes build/run, check, discovered test,
   profile, and docs through the shared collector; source-only `compile_program`
   rejects `mod`. Missing, malformed, and nested module sources stop before later
   phases or publication. Exact source bytes and stable relative candidates enter

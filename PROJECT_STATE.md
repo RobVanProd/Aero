@@ -4,19 +4,17 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 11 — `CORE-011` implementation candidate: independently review and
-publish the shared fail-closed direct-module collector and module-aware cache
-identity, then require public CI before acceptance. The candidate preserves only
-the current flattened direct-source compatibility behavior and does not claim
-namespaces, imports, visibility, recursive resolution, or cycle-graph support.
+Milestone 12 — begin `AUDIT-018` at the accepted `CORE-011` head and select the
+next highest-severity bounded, specification-backed correctness slice. No new
+compiler behavior is authorized until current evidence, scope, stop conditions,
+and focused red controls are preregistered.
 
 ## Active hypothesis
 
-Confirmed locally: one shared root/direct-module collection boundary makes
-build/run, check, test, profile, docs, the source-only public API, and final-LLVM
-cache identity agree on the exact source set before later compiler phases. Focused
-module/cache contracts and the complete repository gate pass; exact independent
-implementation review and public CI remain required for acceptance.
+Confirmed and accepted for `CORE-011`: one shared root/direct-module collection
+boundary makes build/run, check, test, profile, docs, the source-only public API,
+and final-LLVM cache identity agree on the exact source set before later compiler
+phases. The next hypothesis must come from `AUDIT-018`; none is selected yet.
 
 ## Founding-framework checkpoint
 
@@ -43,7 +41,11 @@ implementation review and public CI remain required for acceptance.
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
 - Published project-control head:
-  `a961dcedfb8e46f6e5f05882c3b4c63a3c96c7d6`.
+  `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
+- Published accepted `CORE-011` head:
+  `a711dd5f3802095a4ecbe2dea3d45003675e7459`; exact reviewed implementation
+  diff `60fe607413ebc03e9aa5d6296d9067d8cc95d89d`, tree
+  `7c57c082e9d5f68afd5c6a4769d9d531a0116642`.
 - Published `CORE-011` tests-only red checkpoint:
   `9c31820fdc5a252e29d5c62c96ff89f5a4a63eb8`; exact staged diff
   `badb9d0e8d6059927d949994b39f617fe2f404a8`, tree
@@ -51,12 +53,14 @@ implementation review and public CI remain required for acceptance.
   approved the snapshot with no P0-P3 findings. Local red evidence was 2 pass / 5
   intentional failures in the module matrix and 3 pass / 4 intentional failures
   in the cache matrix; the full binary suite had only those four intended failures.
-- Local `CORE-011` implementation candidate: the shared collector is crate-private,
+- Accepted `CORE-011` implementation: the shared collector is crate-private,
   every preregistered file-backed caller uses it, source-only `compile_program`
   rejects `mod`, nested declarations fail explicitly, module collection precedes
   cache lookup, and the frozen V1 identity excludes host paths. Both focused
-  seven-test suites and the complete `./tools/test.sh` gate pass. Publication and
-  public CI are pending exact implementation review.
+  seven-test suites and the complete `./tools/test.sh` gate pass. Three independent
+  reviewers approved the exact implementation snapshot with no P0-P3 findings.
+  Both compiler-test jobs, Rust stable/nightly, all CodeQL language analyses, and
+  the aggregate CodeQL check pass at the public implementation head.
 - Published accepted `CORE-010` head:
   `db349ef81f145ee571c053f73fb03c831cea719a`.
 - Checked-IR/LLVM-verifier implementation commit:
@@ -136,9 +140,9 @@ implementation review and public CI remain required for acceptance.
   12 strict-lexing, 8 field, 15 Match, 14 modulo, 9 StructLiteral, and 16 tuple
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
-- Last full-gate code commit: `db349ef81f145ee571c053f73fb03c831cea719a`.
-- Worktree: `AUDIT-017` / `CORE-011` / `DEC-016` preregistration candidate;
-  compiler behavior remains unchanged from accepted `CORE-010`.
+- Last full-gate code commit: `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
+- Worktree: `CORE-011` acceptance closure documentation; compiler behavior is
+  unchanged from the exact reviewed and public-CI-green implementation head.
 
 ## Environment and verification
 
@@ -362,21 +366,22 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - At candidate `3410f1f`, StructLiteral values remain parser-visible but are
   rejected after source-order field preflight before inference or IR. Struct
   layout, initialization, ownership, ABI, lowering, and execution remain open.
-- At accepted compiler head `db349ef`, a root-level missing direct module fails
-  `check` and `profile` but `build` continues, exits zero, and writes requested LLVM.
-  Build cache lookup also precedes module discovery and keys only the root source,
-  while `compile_program` has no file context and silently ignores `ModDecl`.
-  `CORE-011` is preregistered to close this source-collection boundary; general CLI
-  status handling and full pipeline consolidation remain separate.
+- At accepted compiler head `a711dd5`, a root-level missing direct module fails
+  every inventoried trusted file-backed route before cache lookup or publication;
+  source-only `compile_program` rejects `ModDecl`, and nested modules fail explicitly.
+  Module-bearing cache identity includes the exact ordered direct-source set while
+  retaining the legacy no-module key. General CLI status handling, namespaces,
+  visibility/import semantics, recursive graphs, and full pipeline consolidation
+  remain separate.
 
 ## Exact next action
 
-Freeze and publish the `AUDIT-017` / `CORE-011` / `DEC-016` preregistration, then
-add the focused failing module/cache contracts before the smallest shared source-
-collection implementation. Require exact independent review, the complete local
-gate, and public CI before acceptance. Do not fold general CLI status, module
-namespace/visibility, recursive resolution, `CompilerOptions`, accelerator,
-benchmark, stability, or release work into this slice.
+Complete this documentation-only acceptance checkpoint, then run `AUDIT-018` on
+public head `a711dd5` to rank the next bounded correctness slice. Preregister its
+specification delta, reproducer, scope, stop conditions, and focused red controls
+before production edits. Do not infer module namespaces/visibility, recursive
+resolution, `CompilerOptions`, accelerator evidence, benchmark claims, stability,
+or release authorization from `CORE-011`.
 
 ## Unauthorized actions
 

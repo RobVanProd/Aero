@@ -1695,5 +1695,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   matches the frozen known vector while preserving the exact no-module legacy key.
   Source-only `compile_program` rejects module declarations. Both focused seven-test
   suites and the complete `./tools/test.sh` gate pass.
-- Status: implementation candidate complete locally; exact independent review,
-  publication, and public CI are required before acceptance.
+- Acceptance: exact implementation diff
+  `60fe607413ebc03e9aa5d6296d9067d8cc95d89d`, tree
+  `7c57c082e9d5f68afd5c6a4769d9d531a0116642`, was approved by three independent
+  reviewers with no P0-P3 findings and published as
+  `a711dd5f3802095a4ecbe2dea3d45003675e7459`. Both compiler-test jobs, Rust
+  stable/nightly, all CodeQL language analyses, and the aggregate CodeQL check pass.
+- Status: accepted. Namespace/import/visibility semantics, recursive module graphs,
+  general CLI status, `CompilerOptions`, and pipeline consolidation remain separate.
