@@ -28,7 +28,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | While/for/loop/break/continue | Y | Y | P | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Fixed arrays | Y | Y | Y | P | P | P | P | P | ? | Y | P | P | Y | PARTIAL |
-| Tuples | Y | Y | Y | P | P | P | ? | ? | ? | Y | P | P | Y | PARTIAL |
+| Tuples | Y | Y | Y | P | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
 | Structs and field access | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
 | Enums and construction | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
 | Pattern matching | Y | Y | P | N | N | N | P | P | ? | P | N | N | Y | PARSED_ONLY |

@@ -148,9 +148,10 @@ correctness gates.
   IR expression paths. The valid specified expression `(7, 9).0` passes trusted
   checking/building but stores zero. Nested tuple nodes can also evade validation
   beneath parent forms whose inference inspects only part or none of the subtree.
-  Tuple syntax/types/patterns will be retained while tuple value expressions fail
-  closed recursively; fields, matches, methods, closures, and other composites
-  remain independent unimplemented boundaries.
+  At `1fa67a2`, tuple syntax/types/patterns are retained while tuple value
+  expressions fail closed recursively with one stable diagnostic; fields, matches,
+  methods, closures, and other composites remain independent unimplemented
+  boundaries.
 - Unimplemented methods, aggregates, matches, references, and ADTs are either
   changed to zero or dropped. Several IR instruction variants have no codegen
   arm and are silently ignored by the wildcard arm.

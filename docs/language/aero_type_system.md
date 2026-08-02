@@ -235,6 +235,12 @@ Trait bounds are the primary mechanism for achieving polymorphism in Aero.
 
 Tuple types are a way to group a fixed number of values of potentially different types into a single compound type.
 
+> **Current compiler status:** tuple type, literal, projection, and pattern syntax
+> is recognized, but tuple value construction and projection are not implemented.
+> The trusted compiler rejects tuple literal and tuple-index value expressions
+> before IR generation with `Tuple expressions are not supported.` The example
+> below describes the intended language design and is not currently executable.
+
 -   **Syntax:** `(T1, T2, ..., Tn)`
 -   **Usage:**
     *   Creating simple, heterogeneous fixed-size collections.

@@ -147,6 +147,11 @@ fn main() {
 | **Phase 8 Runtime Slice** | Hardware-calibrated INT8/FP8 lowering (CPU/CUDA/ROCm), executable fused-kernel backend generation, live `registry.aero` transport/auth/trust model, formal conformance + mechanized checks |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
+> **Tuple status:** tuple literal, tuple-index, type, and pattern syntax is
+> recognized. Tuple value construction and projection are not executable yet;
+> trusted compiler paths reject those expressions before IR generation with
+> `Tuple expressions are not supported.`
+
 Formal spec: `docs/language/aero_formal_language_specification.md`
 
 ## Looking Ahead
