@@ -233,7 +233,7 @@ AST callers that bypass semantics and all remainder execution behavior remain op
 ## DEC-010 — Tuple values fail closed until aggregate semantics are implemented
 
 - Date: 2026-08-02
-- Status: implemented for `CORE-006`; independent acceptance review pending
+- Status: accepted for `CORE-006`
 - Decision: Aero retains tuple value syntax, tuple types, tuple patterns, and tuple
   indexing syntax, but active semantics recursively rejects every tuple literal and
   tuple-index expression with `Tuple expressions are not supported.` Tuple structs
@@ -254,8 +254,10 @@ AST callers that bypass semantics and all remainder execution behavior remain op
   ownership/copy behavior, ABI, typed IR, backend lowering, and end-to-end positive
   tests can be delivered as one coherent vertical slice.
 
-Implementation candidate: the tests-only red commit is integrated as `6a75f93` and
+Implementation closure: the tests-only red commit is integrated as `6a75f93` and
 the one-file production change as `1fa67a2`; public status documentation is corrected
-at `669588d`. The exact clean candidate passes all 73 focused tests and the complete
-repository gate. Two non-owner reviews remain required before this decision is
-accepted.
+at `669588d`. Exact clean candidate `cbbe049` passes all 73 focused tests and the
+complete repository gate. Two non-owner reviewers approved that exact SHA with no
+P0-P3 finding after independent structural, public-library, CLI, nested-expression,
+diagnostic-ordering, no-unwind, no-panic, and no-artifact probes. Constructed AST
+callers that bypass semantics and tuple layout/execution remain open by design.

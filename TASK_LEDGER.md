@@ -688,7 +688,8 @@
   value-preserving tuple execution path is found or if an array/index/iterator,
   grouped scalar, numeric function, or lexical-scope regression appears.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: implementation candidate complete; independent acceptance review pending.
+- Status: complete at reviewed candidate
+  `cbbe049bee7664abb3ca9b8d1faaa865345eb440`.
 - Acceptance criteria: red evidence is preserved; focused parser, positive,
   negative, nested, diagnostic, no-unwind, direct-module, and CLI no-artifact tests
   pass; prior focused suites and `./tools/test.sh` pass; user-facing tuple claims are
@@ -704,9 +705,23 @@
   The single production file renames the existing exhaustive semantic helper to
   `preflight_expression` and immediately rejects both tuple value AST forms before
   inspecting their children. Parser/AST/type/IR/backend files are unchanged.
-- Candidate verification: exact clean SHA `669588d` passes 16/16 tuple tests,
+- Candidate verification: exact clean SHA `cbbe049` passes 16/16 tuple tests,
   14/14 modulo tests, 13/13 function-contract tests, 18/18 annotation tests,
   12/12 strict-lex tests, formatting, and `./tools/test.sh` (112 library,
   119 binary, 11 fatal-parse, 59 frontend, 13 function-contract, 18 annotation,
   12 strict-lex, 14 modulo, and 16 tuple tests; 38 pre-existing phase-five tests
-  remain ignored). Independent review remains the only open acceptance criterion.
+  remain ignored).
+- Independent acceptance: Reviewer A approved the exhaustive-preflight structure
+  after fresh nested public probes, void/diagnostic-precedence checks, constructed
+  AST-root coverage, and 61 focused regressions. Reviewer B approved after an
+  independently authored 18-route public/CLI matrix: 18/18 exact public errors
+  without unwind, 18/18 nonzero CLI checks, 18/18 nonzero builds, no panics, and no
+  requested artifacts, plus seven tuple-free controls. Both reviewers inspected the
+  final documentation-only candidate delta, changed no repository file, and approved
+  exact clean `cbbe049` with no P0-P3 finding.
+- Accepted result: tuple literal and tuple-index syntax remains explicit, but every
+  tuple value node reached by trusted semantic analysis fails before IR with
+  `Tuple expressions are not supported.` Parenthesized grouping and the tested
+  array/index/iterator/numeric/function slices retain their prior behavior. Direct
+  constructed-AST callers, tuple types/patterns, and all parent composite semantics
+  remain outside the accepted boundary.

@@ -4,15 +4,15 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 6 — obtain two independent approvals for the implemented `CORE-006`
-fail-closed tuple-value boundary, then close its control records.
+Milestone 7 — audit the next smallest pre-IR failure boundary among constant
+division by zero, string comparisons, and fabricated-zero field expressions before
+selecting or preregistering `CORE-007`.
 
 ## Active hypothesis
 
-The exact documented candidate rejects both tuple value AST forms recursively
-across ordinary, discarded, closure, module, and nested routes without changing
-parser/AST/types, arrays, IR shape, or backend contracts; independent attempts to
-falsify the boundary should either approve it or produce a corrective checkpoint.
+A bounded read-only comparison can identify whether a compile-time panic or silent
+fabricated value can be closed without selecting arithmetic exception semantics,
+struct layout, evaluation order, typed IR, or another expression family's policy.
 
 ## Repository state
 
@@ -21,10 +21,9 @@ falsify the boundary should either approve it or produce a corrective checkpoint
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `669588d744a8205686cc1170ba9dfda6fde14174`
-- Last verified commit: `669588d744a8205686cc1170ba9dfda6fde14174`
-- Worktree: clean before this `CORE-006` candidate-state update. The exact candidate
-  passes focused and complete verification; independent acceptance review is active.
+- Current reviewed candidate: `cbbe049bee7664abb3ca9b8d1faaa865345eb440`
+- Last verified commit: `cbbe049bee7664abb3ca9b8d1faaa865345eb440`
+- Worktree: clean before this documentation-only `CORE-006` acceptance closure.
 
 ## Environment and verification
 
@@ -75,12 +74,13 @@ falsify the boundary should either approve it or produce a corrective checkpoint
   tests remain ignored. Two non-owner reviewers approved the exact clean SHA after
   fresh shared-helper and public/CLI diagnostic, no-unwind, no-panic, module,
   precedence, nonnumeric, unary, nested, positive-control, and artifact probes.
-- `CORE-006` verification at `669588d`: focused tuple tests 16/16; modulo 14/14;
+- `CORE-006` verification at `cbbe049`: focused tuple tests 16/16; modulo 14/14;
   function-contract 13/13; annotation 18/18; strict-lex 12/12; complete gate PASS
   with 112 library, 119 binary, 11 fatal-parse, 59 frontend, 13 function-contract,
   18 annotation, 12 strict-lex, 14 modulo, and 16 tuple tests. The 38 pre-existing
-  phase-five tests remain ignored. Independent reviewers are running fresh
-  structural and black-box no-unwind/no-artifact probes.
+  phase-five tests remain ignored. Two non-owner reviewers approved exact clean
+  `cbbe049` after fresh structural and 18-route black-box public/CLI diagnostic,
+  no-unwind, no-panic, no-artifact, nesting, precedence, and positive-control probes.
 
 ## Audit agents
 
@@ -115,6 +115,10 @@ falsify the boundary should either approve it or produce a corrective checkpoint
   by AST-form count but confirmed the tuple family's shared zero behavior. The lead
   selected tuples because `(7, 9).0` is a valid specification-backed value expression
   that silently emits zero, while field access intersects broader struct semantics.
+- `CORE-006` tuple value boundary: accepted at exact clean `cbbe049`. Both
+  non-owner reviewers approved after independent structural and black-box probes;
+  trusted public/CLI routes reject tuple literals/projections before IR with one
+  exact diagnostic, no unwind/panic, and no requested artifact.
 
 ## Current capability classification
 
@@ -166,9 +170,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Complete both independent reviews against the exact clean documented candidate.
-If both approve, record the approvals and accepted SHA in the control documents;
-if either rejects, preserve the finding and open a corrective red checkpoint.
+Perform a read-only source and black-box audit of constant literal division by zero,
+string comparison, and field access across semantic, IR, public, and CLI paths.
+Rank them by severity, coherent language boundary, implementation size, and policy
+uncertainty; preregister only the smallest safe `CORE-007` slice before any edit.
 
 ## Unauthorized actions
 

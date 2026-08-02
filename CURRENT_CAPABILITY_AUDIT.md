@@ -152,6 +152,9 @@ correctness gates.
   expressions fail closed recursively with one stable diagnostic; fields, matches,
   methods, closures, and other composites remain independent unimplemented
   boundaries.
+  Exact clean candidate `cbbe049` is accepted after the complete repository gate
+  and two independent reviews; constructed AST callers that bypass semantics and
+  tuple layout/execution remain explicitly outside this boundary.
 - Unimplemented methods, aggregates, matches, references, and ADTs are either
   changed to zero or dropped. Several IR instruction variants have no codegen
   arm and are silently ignored by the wildcard arm.
