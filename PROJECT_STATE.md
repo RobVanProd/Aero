@@ -4,14 +4,15 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 6 — implement the preregistered `CORE-006` fail-closed tuple-value
-boundary tests-first, without inventing aggregate layout or projection semantics.
+Milestone 6 — obtain two independent approvals for the implemented `CORE-006`
+fail-closed tuple-value boundary, then close its control records.
 
 ## Active hypothesis
 
-The analyzer's existing exhaustive expression preflight can reject both tuple
-value AST forms recursively across ordinary, discarded, closure, and nested routes
-without changing parser/AST/types, arrays, IR shape, or backend contracts.
+The exact documented candidate rejects both tuple value AST forms recursively
+across ordinary, discarded, closure, module, and nested routes without changing
+parser/AST/types, arrays, IR shape, or backend contracts; independent attempts to
+falsify the boundary should either approve it or produce a corrective checkpoint.
 
 ## Repository state
 
@@ -20,11 +21,10 @@ without changing parser/AST/types, arrays, IR shape, or backend contracts.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `704b3328b0c22b2fab02258ad81486c62fc3e1be`
-- Last verified commit: `302211e6226c1580a8b4aec66790b37c03888db6`
-- Worktree: clean before this `CORE-006` preregistration. `704b3328` contains only
-  the accepted `CORE-005` control-document closure beyond the last fully verified
-  candidate; no production behavior changed.
+- Current commit: `669588d744a8205686cc1170ba9dfda6fde14174`
+- Last verified commit: `669588d744a8205686cc1170ba9dfda6fde14174`
+- Worktree: clean before this `CORE-006` candidate-state update. The exact candidate
+  passes focused and complete verification; independent acceptance review is active.
 
 ## Environment and verification
 
@@ -75,6 +75,12 @@ without changing parser/AST/types, arrays, IR shape, or backend contracts.
   tests remain ignored. Two non-owner reviewers approved the exact clean SHA after
   fresh shared-helper and public/CLI diagnostic, no-unwind, no-panic, module,
   precedence, nonnumeric, unary, nested, positive-control, and artifact probes.
+- `CORE-006` verification at `669588d`: focused tuple tests 16/16; modulo 14/14;
+  function-contract 13/13; annotation 18/18; strict-lex 12/12; complete gate PASS
+  with 112 library, 119 binary, 11 fatal-parse, 59 frontend, 13 function-contract,
+  18 annotation, 12 strict-lex, 14 modulo, and 16 tuple tests. The 38 pre-existing
+  phase-five tests remain ignored. Independent reviewers are running fresh
+  structural and black-box no-unwind/no-artifact probes.
 
 ## Audit agents
 
@@ -150,15 +156,19 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - At `302211e`, `%` remains parsed but is rejected by shared semantic inference
   before IR with one stable diagnostic across trusted public and CLI paths.
   Negative/float/zero remainder execution semantics remain intentionally undecided.
+- At `1fa67a2`, tuple literals and tuple projections remain parsed but are rejected
+  recursively by active semantic preflight with one stable diagnostic before IR.
+  Tuple types/patterns remain parsed; tuple layout and execution remain unimplemented.
 - Constant integer division by zero independently panics during IR constant folding.
-  Unsupported tuple/match/field/method forms can still fabricate scalar zero, and
-  some semantically accepted comparisons can panic or generate type-invalid LLVM.
+  Unsupported match/field/method and other composite forms can still fabricate
+  scalar zero, and some semantically accepted comparisons can panic or generate
+  type-invalid LLVM.
 
 ## Exact next action
 
-Commit the `CORE-006` control contract, then have one isolated owner add only the
-focused red integration test file. Preserve the red checkpoint before permitting
-the one-file semantic implementation.
+Complete both independent reviews against the exact clean documented candidate.
+If both approve, record the approvals and accepted SHA in the control documents;
+if either rejects, preserve the finding and open a corrective red checkpoint.
 
 ## Unauthorized actions
 

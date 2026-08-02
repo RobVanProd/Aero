@@ -688,7 +688,7 @@
   value-preserving tuple execution path is found or if an array/index/iterator,
   grouped scalar, numeric function, or lexical-scope regression appears.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: preregistered; tests and production code not yet changed.
+- Status: implementation candidate complete; independent acceptance review pending.
 - Acceptance criteria: red evidence is preserved; focused parser, positive,
   negative, nested, diagnostic, no-unwind, direct-module, and CLI no-artifact tests
   pass; prior focused suites and `./tools/test.sh` pass; user-facing tuple claims are
@@ -696,3 +696,17 @@
 - Verification commands: focused `cargo test --test unsupported_tuple_tests`,
   applicable function/annotation/modulo regressions, `cargo fmt --all -- --check`,
   and the required `./tools/test.sh` gate.
+- Red checkpoint: owner commit `89b8b22`, integrated as `6a75f93`, preserves
+  3 passing parser/adjacent controls and 13 expected false-accept or fabricated-zero
+  failures on the preregistration base. No negative route depended on a panic.
+- Candidate result: owner production commit `1a180c7` is integrated as `1fa67a2`;
+  user-facing tuple status and the implementation matrix are corrected at `669588d`.
+  The single production file renames the existing exhaustive semantic helper to
+  `preflight_expression` and immediately rejects both tuple value AST forms before
+  inspecting their children. Parser/AST/type/IR/backend files are unchanged.
+- Candidate verification: exact clean SHA `669588d` passes 16/16 tuple tests,
+  14/14 modulo tests, 13/13 function-contract tests, 18/18 annotation tests,
+  12/12 strict-lex tests, formatting, and `./tools/test.sh` (112 library,
+  119 binary, 11 fatal-parse, 59 frontend, 13 function-contract, 18 annotation,
+  12 strict-lex, 14 modulo, and 16 tuple tests; 38 pre-existing phase-five tests
+  remain ignored). Independent review remains the only open acceptance criterion.
