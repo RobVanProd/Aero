@@ -4,10 +4,11 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 10 — create the tests-only red checkpoint for preregistered `CORE-010`:
-checked logical scalar IR admission, in-process verification, and final LLVM module
-verification. No production edit begins until the frozen failures and LLVM 22 corpus
-state are reproduced.
+Milestone 10 — implement the accepted `CORE-010` red contract: checked logical
+scalar IR admission, in-process verification, and final LLVM module verification.
+The production candidate must make the reviewer-approved red checkpoint green
+without broadening the frozen representation, arithmetic, ownership, aggregate, or
+backend semantics.
 
 ## Active hypothesis
 
@@ -41,8 +42,8 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Published integration head before this checkpoint:
-  `6a274aee4c14cfbbf7ae21c786e05ef227f108ad`.
+- Published integration head / accepted `CORE-010` red checkpoint:
+  `26560a45905015b7891ddebeb749d0097c05cbaa`.
 - Founding-framework alignment is published at
   `fba121f0213b7f604d4c73032019c872680a3136`.
 - `CORE-009` tests-only red checkpoint:
@@ -75,6 +76,20 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   Int/Float/Bool/Void representation, legacy numeric-storage compatibility limit,
   stronger tool-independent `check` admission, mandatory pure-Rust IR verification,
   and LLVM 22 external verification modes. No implementation is accepted yet.
+- The isolated `CORE-010` tests/CI-only red checkpoint is published at exact
+  `26560a45905015b7891ddebeb749d0097c05cbaa`; its exact staged diff hash is
+  `c01fc2365eb5b415c022be997062e4605812b62b`. Three independent reviewers approve
+  that exact diff with no P0-P3 findings. Local evidence records typed admission as
+  1 pass / 7 intentional failures and the external LLVM CLI matrix as 3 pass / 9
+  intentional failures; the remaining checked public/private targets stop only on
+  the preregistered missing API and injected-seam symbols. Parser/declaration
+  controls for reclassified unsupported forms remain green.
+- Public CI confirms the environment/corpus side of the checkpoint. Both compiler
+  workflows install LLVM 22 and prove `opt-22` rejects the known-invalid fixture.
+  Rust stable/nightly install LLVM 22 plus Clang 22 and pass all four CPU example
+  verification/execution steps, with `opt-22` preceding `llc-22`/`clang-22`. Test
+  jobs then fail at the deliberate checked-API contract boundary. This is accepted
+  red evidence, not an accepted production candidate.
 - Accepted `CORE-008` candidate:
   `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the
@@ -87,7 +102,7 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last full-gate commit: `daa024dbf10d1defe06d8ab200c2d21c0a9c1dc6`.
-- Worktree: exact reviewed candidate is clean.
+- Worktree: exact published red checkpoint is clean before this control update.
 
 ## Environment and verification
 
@@ -105,6 +120,11 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   `rustfmt` and `clippy` were installed, then the gate passed.
 - LLVM tools in the Windows environment: `clang`, `llc`, `opt`, and `llvm-as`
   unavailable on discovered paths.
+- `CORE-010` red CI at `26560a4`: pinned LLVM 22 installation and known-invalid
+  rejection pass in both compiler jobs; stable/nightly LLVM verification and native
+  execution of `return15`, `variables`, `mixed`, and `float_ops` pass. The subsequent
+  Cargo test failures are confined to the intentional missing checked APIs and
+  private injected seams recorded by the red checkpoint.
 - Upstream recheck before `CORE-001`: `origin/master` still equals the recorded
   starting commit.
 - Remote CI: CI run `26611985062`, Rust CI run `26611985038`, and latest CodeQL
@@ -312,15 +332,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Create one isolated tests-only `CORE-010` red checkpoint. First provision pinned
-LLVM 22 module verification in CI and measure the unchanged positive corpus. Add
-no-unwind/source, malformed-IR, Boolean type, artifact/cleanup, checked-API, and
-injected external-verifier outcome tests, including every-block termination,
-post-transform/cache ordering, tool/mode precedence, and graph-opt/quantize input/
-output gates. Prove failures arise from the frozen IR/
-verification gaps rather than parser errors, unrelated semantics, or unavailable
-tools. Keep production files unchanged until the red evidence and any stop condition
-are reviewed.
+Implement one lead-owned `CORE-010` production slice against exact red checkpoint
+`26560a4`. Add the frozen logical type metadata, checked IR/codegen APIs, exhaustive
+in-process verifier, LLVM 22 adapter, and trusted-path propagation in the authorized
+files only. Make focused contracts green in bounded layers, preserve the accepted
+legacy compatibility shims separately, and stop if a frozen semantic or architectural
+condition is crossed. Do not present the slice as accepted until the complete gate,
+LLVM corpus, public artifact-ordering checks, documentation, and independent exact-
+candidate reviews pass.
 
 ## Unauthorized actions
 

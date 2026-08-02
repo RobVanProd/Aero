@@ -1515,6 +1515,18 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   compiler phase beyond this preregistered IR/backend/pipeline propagation.
 - Owner: one lead-owned vertical slice with tests-first checkpoints. Independent
   representation and backend reviewers must approve the exact clean candidate.
-- Status: preregistered; the isolated tests/CI-only red checkpoint is authorized.
-  Production implementation remains unauthorized until that checkpoint proves the
-  frozen failures and LLVM 22 corpus state and receives lead review.
+- Red checkpoint: exact public commit
+  `26560a45905015b7891ddebeb749d0097c05cbaa`, exact staged diff hash
+  `c01fc2365eb5b415c022be997062e4605812b62b`. Three independent reviewers approve
+  the exact diff with no P0-P3 findings. Local evidence is 1 pass / 7 intentional
+  failures for typed admission and 3 pass / 9 intentional failures for the external
+  LLVM CLI matrix; checked public/private targets stop only on preregistered missing
+  checked APIs and injected seams. Reclassified parser/declaration controls pass.
+- CI red evidence: both compiler workflows install pinned LLVM 22 and prove the
+  known-invalid fixture is rejected. Rust stable/nightly pass LLVM verification and
+  execution of the four positive CPU examples before Cargo reaches the deliberate
+  checked-API compilation failures. No setup, parser, unrelated semantic, or positive
+  LLVM-corpus failure invalidates the checkpoint.
+- Status: tests/CI-only red checkpoint accepted. Production implementation is now
+  authorized within the frozen files, semantics, ordering, compatibility, and stop
+  conditions above; no production candidate is accepted yet.

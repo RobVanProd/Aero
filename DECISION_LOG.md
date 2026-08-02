@@ -454,7 +454,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-015 — Checked logical IR precedes physical numeric redesign
 
 - Date: 2026-08-02
-- Status: accepted for `CORE-010` preregistration; implementation pending
+- Status: accepted for `CORE-010`; red checkpoint accepted, implementation pending
 - Decision: Aero will add explicit logical types for admitted scalar results,
   places, arrays, calls, branches, and returns; a mandatory in-process IR verifier;
   additive checked IR/codegen APIs; exhaustive codegen errors; and final external
@@ -532,6 +532,15 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   controls: syntax/declarations stay positive, runtime forms become checked-IR
   negatives, and Array/Vec `.iter()` remains admitted. Print-only immutable string
   aliases remain allowed; broader string operations do not.
+- Red-checkpoint acceptance: exact public commit
+  `26560a45905015b7891ddebeb749d0097c05cbaa` carries only focused tests, test-only
+  hooks, reclassified controls, and LLVM 22 CI changes. Its exact staged diff hash is
+  `c01fc2365eb5b415c022be997062e4605812b62b`; three independent reviewers approve it
+  with no P0-P3 findings. Both public compiler workflows install LLVM 22 and reject
+  the known-invalid fixture. Rust stable/nightly verify and execute the four positive
+  CPU examples before reaching the deliberate missing checked-API failures. The red
+  evidence therefore authorizes bounded production implementation under this
+  decision without accepting any production behavior yet.
 - Alternatives rejected: immediate physical `i32` lowering without overflow/
   division policy; keeping Boolean/numeric guessing; LLVM-only verification after
   unsafe IR; making ordinary Cargo builds depend on llvm-sys/Inkwell; treating
