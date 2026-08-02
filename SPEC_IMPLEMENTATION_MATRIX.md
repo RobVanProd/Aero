@@ -104,6 +104,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   needed to enforce them are covered by 18 focused tests, the full gate, and dual
   independent review. This does not add typed local slots, conversions,
   reassignment, definite initialization, or non-numeric annotation support.
+- At `c000d91`, `%` is specified, lexed, parsed, and numerically typed but absent
+  from IR/backend lowering. Integer, float, mixed, and zero-RHS forms pass semantic
+  `check` then panic in IR. `CORE-005` deliberately preregisters a temporary
+  fail-closed semantic diagnostic rather than inventing remainder semantics.
 
 This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,

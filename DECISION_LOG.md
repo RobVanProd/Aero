@@ -196,3 +196,29 @@ and two independent reviews. The accepted implementation restores private semant
 compatibility snapshots and complete IR bindings at existing scope exits while
 enforcing exact initialized numeric annotations. It does not certify uninitialized
 or non-numeric annotations, reassignment, typed local storage, or general fallible IR.
+
+## DEC-009 — Parsed modulo fails closed until remainder semantics are frozen
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-005`
+- Decision: Aero continues to lex and parse `%` with multiplicative precedence,
+  but active shared type inference rejects every modulo expression with
+  ``Binary operator `%` is not supported.`` Such expressions cannot reach IR.
+- Evidence: at `c000d916`, semantics accepts integer, float, mixed, and zero-RHS
+  modulo. Both active IR expression paths omit it and panic; `check` reports false
+  success, `build` exits 101, and public `compile_program` unwinds. The IR has no
+  remainder instruction and integer locals use a unified LLVM `double` storage path.
+- Alternatives rejected: map every modulo to LLVM `frem`; add `Mod`/`FMod` without
+  freezing observable semantics; keep `check` successful while `build` panics; or
+  remove `%` from lexing/parsing and lose explicit source structure. A `frem` patch
+  would decide integer, negative, floating, mixed, zero-divisor, NaN, infinity, and
+  signed-zero behavior without a language contract.
+- Compatibility consequences: syntactically valid `%` programs now receive an
+  earlier stable diagnostic. This is a temporary formal-grammar conformance
+  exception, not a removal of an executable compatibility guarantee: no audited `%`
+  source successfully generated an artifact. Tutorial and capability records must
+  identify the operator as recognized but unsupported.
+- Revisit when: remainder behavior is specified for integer and floating operands,
+  zero and exceptional inputs are defined, integer representation is trustworthy,
+  and one owner can implement semantics, IR, backend, runtime, and conformance tests
+  as a complete vertical slice.

@@ -542,3 +542,67 @@
   and 12 strict-lex tests; 38 pre-existing phase-five tests remain ignored).
   Two independent reviewers approved that exact SHA after no-unwind, diagnostic,
   artifact, binding-provenance, callable-restoration, and analyzer-reuse probes.
+
+## CORE-005 — Reject unsupported modulo before IR
+
+- Problem: `%` is lexed, parsed, and accepted as numeric by active semantics, but
+  neither IR expression path nor the IR/backend instruction set implements
+  remainder. A semantically accepted program therefore reaches an infallible IR
+  panic instead of receiving a language diagnostic.
+- Evidence: at `c000d916`, integer literals, integer variables in a function,
+  floats, mixed numeric operands, and a zero right operand all make CLI `check`
+  exit 0. CLI `build` exits 101 at `ir_generator.rs` with `Unsupported binary
+  operation: % for type Int/Float`, writes no requested artifact, and public
+  `compile_program` unwinds. Multiplication/division controls build successfully.
+- Priority: P0.
+- Dependencies: `CORE-001B` through `CORE-004` complete.
+- Decision: retain `%` in the lexer, grammar, AST, and parser so source structure
+  and precedence remain explicit, but reject it in shared binary type inference
+  with the exact semantic category ``Binary operator `%` is not supported.`` No
+  `%` expression is eligible for IR or artifact generation in this slice.
+- Compatibility consequence: this is a documented temporary grammar/conformance
+  exception. It changes `check` from false success to a diagnostic, but no `%`
+  program has a successful artifact path at the audited commit. The parser form is
+  preserved for a future complete remainder design.
+- Why not lower now: the repository does not freeze negative-operand, floating,
+  mixed, signed-zero, NaN/infinity, or zero-divisor semantics. Integer locals are
+  represented as LLVM `double`, so mapping both source families to `frem` would not
+  establish faithful integer remainder semantics.
+- Smallest reproducer: `fn main() { let left: int = 5; let right: int = 2; let
+  value: int = left % right; }`.
+- Files allowed: `src/compiler/src/types.rs`, one new focused integration test
+  under `src/compiler/tests/`, `tutorials/02-core-features.md`, and affected
+  project-control documents.
+- Files frozen: lexer, grammar, parser, AST, semantic analyzer structure, IR,
+  code generator, optimizer, numeric promotion for `+ - * /`, annotations,
+  function contracts, constant division behavior, all other unsupported
+  expressions, runtime/backends, and public stability claims.
+- Positive tests: parser still produces `BinaryOp::Modulo` at multiplicative
+  precedence; public compilation and CLI `check`/`build` continue to accept
+  representative `+ - * /` programs and preserve their LLVM markers.
+- Negative tests: integer literal, integer identifier/function, float, mixed,
+  zero-RHS, nested comparison, root expression, and direct-module `%` forms.
+  Public compilation is wrapped to prove it returns `Err` without unwinding. CLI
+  `check` and `build` exit nonzero with the stable diagnostic and create no
+  requested artifact.
+- Red checkpoint: on `c000d916`, the parser/adjacent controls pass, all `%` checks
+  falsely succeed, and every `%` public/build compilation unwinds before a result.
+- Regression risks: `infer_binary_type` is shared by both analyzer paths and a
+  public compatibility helper; binary and library pipelines compile separate module
+  copies; docs and examples advertise `%`; direct callers can bypass semantics and
+  invoke the infallible IR generator with a constructed modulo AST.
+- Stop conditions: implementation requires any IR/backend change, selects remainder
+  execution semantics, changes parsing/precedence, changes another arithmetic
+  operator, weakens the diagnostic/no-artifact contract, or reveals an existing
+  successful `%` artifact/runtime path. Stop if the rejection cannot be expressed
+  in shared type inference without semantic-analyzer redesign.
+- Owner: one isolated implementation agent; lead integrates.
+- Status: preregistered; implementation and focused tests pending.
+- Acceptance criteria: red evidence is preserved; focused positive, negative,
+  diagnostic, no-unwind, direct-module, and CLI artifact tests pass;
+  `./tools/test.sh` passes; tutorial/capability records label `%` unsupported; and
+  two independent reviewers approve the exact clean integration SHA.
+- Verification commands: focused `cargo test --test unsupported_modulo_tests`,
+  applicable arithmetic/function regressions, `cargo fmt --all -- --check`, and
+  the required `./tools/test.sh` gate.
+- Result commit: pending.

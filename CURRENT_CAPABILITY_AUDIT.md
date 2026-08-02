@@ -135,8 +135,14 @@ correctness gates.
   terminator-aware. General CFG lowering can still append statements after a
   terminator and other loop/break/continue or unreachable shapes remain
   uncertified; multiple terminators or invalid blocks may still result.
-- The modulo operator is accepted by semantic typing but omitted from IR
-  selection and can panic compilation.
+- At `c000d91`, integer, float, mixed, and zero-RHS modulo are accepted by semantic
+  typing but omitted from both IR expression paths; CLI `check` falsely succeeds,
+  while build and public compilation panic. `CORE-005` preregisters semantic
+  rejection until remainder semantics and an integer representation are frozen.
+- Adjacent read-only probes found separate boundaries: constant integer `/0` panics
+  during IR folding; string comparison passes semantics then panics in IR; tuple,
+  field, match, and unknown-method expressions can skip subtree validation and
+  compile as fabricated scalar zero. They are not bundled into `CORE-005`.
 - Unimplemented methods, aggregates, matches, references, and ADTs are either
   changed to zero or dropped. Several IR instruction variants have no codegen
   arm and are silently ignored by the wildcard arm.

@@ -22,6 +22,9 @@
 - Positive programs that identify the supported feature and expected phase.
 - Compile-fail programs that assert failure phase, category, relevant span,
   essential message, and absence of executable output.
+- Until remainder semantics are frozen, `%` is a required compile-fail corpus
+  category across integer, float, mixed, nested, zero-RHS, and direct-module forms;
+  tests must prove semantic failure, no unwind, and no requested artifact.
 - Runtime-output tests with exact stdout, stderr, exit code, and declared sources
   of nondeterminism.
 - Diagnostic snapshots normalized only for unstable machine paths or equivalent

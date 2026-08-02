@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 4 — audit and preregister the smallest fail-closed boundary for an
-unsupported expression that currently reaches invented IR or a compiler panic.
+Milestone 4 — implement the preregistered fail-closed modulo boundary in
+`CORE-005` without changing lexer, parser, AST, IR, or backend behavior.
 
 ## Active hypothesis
 
-A bounded source expression can be characterized and either rejected before IR or
-completed vertically without weakening semantics or requiring a general typed-IR
-redesign. Read-only audit must establish the boundary before implementation.
+Removing `%` from shared supported binary-type inference can make both trusted
+pipelines return one stable semantic error before IR while preserving parsing and
+all currently executable arithmetic behavior.
 
 ## Repository state
 
@@ -20,11 +20,10 @@ redesign. Read-only audit must establish the boundary before implementation.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `bc9a14820af6b3127a8dad5fffd4ccf55d9c9d2f`
+- Current commit: `c000d916a432c781a24ddd556607c578e2d6c198`
 - Last verified commit: `bc9a14820af6b3127a8dad5fffd4ccf55d9c9d2f`
-- Worktree: clean before this control-document closure. `CORE-004` is accepted after
-  two rejected candidates and corrective test-first rounds; the exact candidate
-  passes the complete gate and has two independent approvals.
+- Worktree: clean before `CORE-005` preregistration. `CORE-004` is accepted and its
+  control-document closure is committed at `c000d91`.
 
 ## Environment and verification
 
@@ -90,6 +89,10 @@ redesign. Read-only audit must establish the boundary before implementation.
   parser retention, semantic/IR discard, seven black-box false-accept families,
   unified-double local storage, IR scalar leakage, and semantic compatibility-table
   leakage are characterized and the eligible slice is controlled at `bc9a148`.
+- `AUDIT-010` unsupported-expression boundary: complete; three independent audits
+  agree that `%` is the smallest bounded fail-open family. Five numeric forms pass
+  semantic `check` then panic in both public/CLI compilation. Constant integer `/0`,
+  unsupported comparisons, and invented-zero aggregates/methods are separate tasks.
 
 ## Current capability classification
 
@@ -128,12 +131,19 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - The tested scalar/callable IR scope exits and semantic compatibility scopes are
   controlled at `bc9a148`; general AST-to-IR fallibility, unsupported-expression
   fallbacks, and analyzer/backend invariants remain open.
+- At `c000d91`, `%` is parsed and typed but not represented in IR; CLI `check`
+  falsely succeeds while build/public compilation panic. Its temporary fail-closed
+  semantic boundary is preregistered as `CORE-005`. Negative/float/zero remainder
+  semantics remain intentionally undecided.
+- Constant integer division by zero independently panics during IR constant folding.
+  Unsupported tuple/match/field/method forms can still fabricate scalar zero, and
+  some semantically accepted comparisons can panic or generate type-invalid LLVM.
 
 ## Exact next action
 
-Perform a read-only audit of modulo and adjacent unsupported-expression paths,
-choose the smallest evidence-backed boundary, and preregister `CORE-005` before any
-production or test edit.
+Assign the isolated `CORE-005` owner to commit the focused red tests first, verify
+their failures on the preregistration SHA, then implement only the shared semantic
+rejection and resubmit an exact clean candidate.
 
 ## Unauthorized actions
 
