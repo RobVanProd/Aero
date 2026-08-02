@@ -4,8 +4,8 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 1 — prepare `CORE-002`, the fallible-lexing boundary for silent source
-corruption, after closing fatal parser propagation across public compiler paths.
+Milestone 1 — `CORE-002`, the fallible-lexing boundary for silent source corruption,
+after closing fatal parser propagation across public compiler paths.
 
 ## Active hypothesis
 
@@ -20,7 +20,7 @@ changing the legacy lexer API or accepted-token semantics in the first slice.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `6ce859220634c40c696397a3df178faea51f1912`
+- Current commit: `b3f0f4466214e80a161754e028fd023a1ab73200`
 - Last verified commit: `6ce859220634c40c696397a3df178faea51f1912`
 - Worktree: clean. `CORE-001` and `CORE-001B` are complete after isolated
   implementation, two review/correction rounds, and final dual approval.
@@ -102,8 +102,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preregister `CORE-002` with exact lexical-error cases, API compatibility boundary,
-allowed files, red tests, and stop conditions before changing the lexer.
+Commit the `CORE-002` contract, create an isolated worktree, assign its single
+implementation owner, and capture the strict-API/CLI red baseline before code.
 
 ## Unauthorized actions
 

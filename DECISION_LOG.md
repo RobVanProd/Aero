@@ -82,3 +82,24 @@
   use the corrected exit contract. Language syntax and semantics do not change.
 - Revisit when: CLI error categories are represented by a shared typed diagnostic
   and exit-status API under the canonical library pipeline.
+
+## DEC-006 — Strict lexing is mandatory for trusted compilation
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-002`
+- Decision: Artifact-producing and validation entry points must use a fallible
+  lexer. An unexpected character, invalid number, or unterminated string produces
+  a located error and no token stream. A legacy recovery lexer may temporarily
+  remain for compatibility, tests, and editor symbol recovery, but its output is
+  not eligible for semantic analysis or artifact generation.
+- Evidence: `@` is currently printed then discarded; overflowing integers become
+  zero; unterminated strings become completed tokens. Two invalid programs compile
+  successfully to observably different LLVM values.
+- Alternatives rejected: add an ignorable error token; rely on the parser to notice
+  changed token streams; remove legacy APIs and rewrite broad parser tests in the
+  same slice; silently clamp or substitute invalid numbers.
+- Compatibility consequences: invalid programs that previously compiled after
+  mutation now fail. Valid tokenization and the legacy public function signatures
+  remain unchanged in this slice.
+- Revisit when: every consumer has migrated to a diagnostic-accumulating lexer and
+  the recovery API can be made explicit or removed with a migration plan.

@@ -237,3 +237,67 @@
   imported-module builds exit 1 with located parser diagnostics and no output.
   Direct-module valid probes for `check` and `test` retain status zero. Recursive
   modules and the pre-existing helper-level process exit are separate tasks.
+
+## CORE-002 — Reject lexically invalid source before parsing
+
+- Problem: The lexer prints and skips unexpected characters, substitutes zero for
+  failed numeric parses, and emits string tokens even when the closing quote is
+  absent. Invalid source can therefore acquire different valid semantics.
+- Evidence: at `6ce85922`, `let value = 1@;` exits 0 and emits a stored `1.0`;
+  `let value = 9223372036854775808;` exits 0 and emits a stored `0.0`. Both write
+  LLVM and report success. An unterminated string is rejected only later as a
+  parser error, after the lexer has fabricated a completed string token.
+- Priority: P0
+- Primary hypothesis: an additive strict located-token API returning the existing
+  `CompilerError` lexer variants can reject lexical corruption while preserving
+  the legacy recovery API for non-codegen callers and existing parser tests.
+- Dependencies: fatal parser milestone closed by `b3f0f4466214e80a161754e028fd023a1ab73200`.
+- Observed behavior: unexpected input is discarded; integer overflow becomes zero;
+  malformed exponents become zero; non-finite floats are accepted; unterminated
+  ordinary and formatted strings become literal tokens.
+- Expected behavior: strict lexing returns the first located lexical error with no
+  token stream. Library/build/check/run/test/profile/doc and LSP diagnostics use
+  strict lexing; build/run emit no artifact and do not reach native tools; profile
+  and doc emit no requested output; applicable direct modules follow the same rule.
+- Smallest reproducers: `let value = 1@;`, integer `9223372036854775808`,
+  `let value = 1e+;`, `let value = 1e9999;`, and `let value = "unterminated`.
+- Files allowed: `src/compiler/src/lexer.rs`, `src/compiler/src/lib.rs`,
+  `src/compiler/src/main.rs`, `src/compiler/src/profiler.rs`,
+  `src/compiler/src/doc_generator.rs`, `src/compiler/src/lsp.rs`,
+  `src/compiler/src/parser.rs` only for interpolation-expression strict lexing, a
+  new focused integration test under `src/compiler/tests/`, and affected control
+  documents.
+- Files frozen: token enum and meanings, accepted lexical forms, parser grammar and
+  recovery, AST, semantic/type/ownership rules, IR/optimization/backend lowering,
+  module recursion, formatter behavior, registry, claims and public language docs.
+- Frozen semantics: every previously valid finite literal/token sequence produces
+  the same tokens. Strict mode never skips or substitutes. Legacy `tokenize` and
+  `tokenize_with_locations` remain source-compatible but are recovery-only and
+  ineligible for artifact-producing paths.
+- Positive tests: strict and legacy APIs agree on representative valid tokens;
+  valid library, module, profiler, doc, LSP and full suites remain passing.
+- Negative tests: located strict-API errors for unexpected character, integer
+  overflow, malformed/non-finite float, unterminated string and f-string; library
+  propagation; CLI root/direct-module rejection and no outputs; LSP diagnostic.
+- Runtime-output tests: malformed `run` invokes no native tool and leaves no nonce
+  directory. Valid native execution is unchanged and unavailable on this host.
+- Diagnostic expectation: stable `Lex error` category plus existing
+  `Unexpected character`, `Invalid number format`, or `Unterminated string literal`
+  text and filename/line/column. Invalid f-string interpolation is rejected during
+  parsing with its underlying lexical error until end-to-end subexpression spans exist.
+- Regression risks: accidentally changing legacy behavior; duplicating the large
+  scanner; accepting infinity as a float; losing filename ownership across callers;
+  LSP symbol recovery must remain available independently of strict diagnostics.
+- Acceptance criteria: tests are red only for the specified corruptions before
+  implementation; focused tests and `./tools/test.sh` pass; manual unexpected-char
+  and overflow builds exit nonzero and create no fresh artifact; two independent
+  reviews approve the exact integration SHA.
+- Stop conditions: a token/AST/grammar change is required; strict scanning cannot
+  be added without duplicating the lexer; location correction requires a new span
+  model; accepted numeric or escape semantics would change; files exceed the list.
+- Owner: one isolated implementation agent; lead integrates.
+- Status: preregistered
+- Verification commands: strict lexer unit tests, focused Cargo integration tests,
+  manual CLI reproducers, LSP diagnostic test, and `./tools/test.sh`.
+- Result commit: pending
+- Final decision: pending independent review.
