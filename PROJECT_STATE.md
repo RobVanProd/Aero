@@ -4,16 +4,16 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 8 — audit and compare the next unsupported-expression failure boundary
-without selecting semantics or changing production code.
+Milestone 8 — record `AUDIT-013` and preregister the selected fail-closed Match
+expression boundary before tests or production changes.
 
 ## Active hypothesis
 
-The remaining known families differ materially: string comparisons panic after
-semantics, integer zero division diverges by operand form, and unsupported methods,
-matches, and composites can fabricate zero or drop evaluation. A bounded comparison
-should identify the smallest fail-closed slice whose semantics and recursive
-coverage can be frozen without crossing compiler phases.
+`Expression::Match` is one parser-preserved family with no active value-preserving
+route: trusted preflight already reaches its scrutinee and arms, inference invents
+`Int`, and both IR paths drop the entire subtree for zero. Rejecting after the
+existing child traversal should close it in one production file while preserving
+established nested diagnostics and avoiding pattern/exhaustiveness semantics.
 
 ## Repository state
 
@@ -22,11 +22,12 @@ coverage can be frozen without crossing compiler phases.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current reviewed behavior/public-documentation candidate:
-  `4e10d4799b7873741a5eae9c66ac352b1709d75c`
-- Last verified commit: `4e10d4799b7873741a5eae9c66ac352b1709d75c`
-- Worktree: clean before this documentation-only closure. `CORE-007` passes the
-  complete repository gate and has two exact-SHA non-owner approvals.
+- Current post-`CORE-007` closure commit:
+  `9fc7d0e8f7a955b59924d31df968fcf61bfaaa80`
+- Last verified commit: `9fc7d0e8f7a955b59924d31df968fcf61bfaaa80`
+- Worktree: clean before this audit-documentation update. `CORE-007` remains
+  accepted; an independent `AUDIT-013` auditor reran the complete gate at this
+  docs-only descendant with exit zero.
 
 ## Environment and verification
 
@@ -141,6 +142,14 @@ coverage can be frozen without crossing compiler phases.
   behavior is `75dbfba`, and user-facing field status and the matrix are corrected
   at `5dcb70b`. Both non-owner reviewers approved after independent structural and
   black-box attempts to falsify the complete-gate candidate.
+- `AUDIT-013` next-boundary comparison: complete at exact clean `9fc7d0e`. String
+  comparison requires trustworthy operand typing and operator policy; MethodCall
+  rejection requires a pre-IR capability predicate that preserves real array
+  `.iter()`; zero division requires integer/runtime/IEEE policy. Match alone has one
+  AST family, complete existing recursive preflight, no active value-preserving
+  path, and no required execution semantics. A 23-case Match matrix produced 69
+  public/check/build outcomes: 20 false successes and three established child
+  diagnostics with retained precedence.
 
 ## Current capability classification
 
@@ -186,18 +195,21 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   recursively by active semantic preflight with one stable diagnostic before IR.
   Tuple types/patterns remain parsed; tuple layout and execution remain unimplemented.
 - Constant integer division by zero independently panics during IR constant folding.
-  Unsupported match/method and other composite forms can still fabricate scalar
-  zero, and some semantically accepted comparisons can panic or generate
-  type-invalid LLVM. Named field values are fail-closed in accepted `CORE-007` at
-  exact reviewed `4e10d479`; direct AST-to-IR bypass remains outside that boundary.
+  Float, variable, unary, and mixed zero forms diverge. Unsupported match/method and
+  other composite forms can still fabricate scalar zero, and some semantically
+  accepted comparisons can panic or generate type-invalid LLVM. Match is selected
+  for preregistration only; MethodCall, string comparison, division, aggregates, and
+  ownership remain separate. Named field values are fail-closed in accepted
+  `CORE-007` at exact reviewed `4e10d479`; direct AST-to-IR bypass remains outside
+  that boundary.
 
 ## Exact next action
 
-Perform a read-only audit on exact accepted `4e10d479` comparing string comparisons,
-unknown methods, matches, and the already characterized zero-division variants.
-Record public/CLI behavior, semantic and IR reachability, recursion requirements,
-positive controls, and policy dependencies before selecting or preregistering
-`CORE-008`.
+Preregister `CORE-008` on the clean audit closure: retain Match syntax/AST/patterns,
+freeze the exact fail-closed diagnostic and child-first ordering, constrain
+production changes to the existing semantic preflight arm, define red/positive/
+CLI/module/no-artifact tests and stop conditions, then commit that contract before
+assigning a tests-only owner.
 
 ## Unauthorized actions
 

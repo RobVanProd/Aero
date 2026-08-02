@@ -168,6 +168,14 @@ correctness gates.
   diagnostic. The complete gate and two independent non-owner reviews pass. Named
   field syntax remains parsed; struct layout, projection execution, assignment,
   method behavior, and direct AST-to-IR callers remain outside this accepted boundary.
+- `AUDIT-013` compared the next open failure mechanisms at exact clean `9fc7d0e`.
+  String comparisons are blocked on trustworthy operand typing and equality/order
+  policy; zero division is blocked on integer/runtime/IEEE policy; MethodCall is
+  blocked on a pre-IR capability discriminator that preserves real array `.iter()`.
+  Match is one parser-preserved AST family with no active value-preserving route:
+  inference invents `Int`, both IR paths return zero without children, and a
+  23-case matrix confirms root, nested, module, and closure false successes. Match
+  is selected for fail-closed preregistration; no execution semantics are inferred.
 - Unimplemented methods, aggregates, matches, references, and ADTs are either
   changed to zero or dropped. Several IR instruction variants have no codegen
   arm and are silently ignored by the wildcard arm.

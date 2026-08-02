@@ -840,3 +840,57 @@
   Direct AST-to-IR bypass, dormant inference stubs, field assignment, struct
   execution/layout/ownership, unknown methods, and parent composites remain outside
   the accepted boundary.
+
+## AUDIT-013 — Compare the next unsupported-expression failure boundaries
+
+- Objective: compare all-six string comparisons, MethodCall fabricated values,
+  Match/composite fabricated values, and integer/float zero division on the exact
+  clean post-`CORE-007` closure without changing repository files or choosing
+  string, method-dispatch, arithmetic, pattern, ownership, or aggregate semantics.
+- Audited commit: `9fc7d0e8f7a955b59924d31df968fcf61bfaaa80`.
+- String comparison: all six `String/String` operators pass semantics and panic in
+  both IR comparison paths. A 46-case public harness and 64 CLI invocations cover
+  literals, bindings, declared-string calls, recursive positions, direct modules,
+  mixed rejection, established diagnostic precedence, and numeric controls. A
+  syntax-only preflight cannot identify bound/call-derived strings; active return
+  typing is not trustworthy for nonnumeric calls; rejecting every Comparison would
+  regress accepted numeric behavior. Equality/order and representation policy remain
+  unresolved, so this family is not eligible for a bounded implementation.
+- Method calls: semantic inference ignores argument arity/types and assigns many
+  named or unknown methods invented types. Both IR paths evaluate the receiver but
+  drop every argument and return zero except for zero-argument `.iter()` whose
+  lowered receiver is Array/Vec. Fresh public/CLI/module/LLVM probes confirm zero,
+  no-op, dropped-call, and legacy numeric-loop behavior. Ordinary array `.iter()`
+  and `.iter().iter()` are value-preserving controls, while semantic receiver type
+  alone does not predict lowering capability. A shared pre-IR capability/provenance
+  contract is required; blanket rejection or a name/type exception is ineligible.
+- Division by zero: immediate/computed integer forms panic in host constant folding;
+  float literals fold to positive infinity; variable, unary, mixed, parameter, and
+  closure forms emit `fdiv`; zero-stub parents can suppress division entirely. A
+  15-case, 45-outcome matrix confirms that one syntax does not denote one current
+  failure mechanism. Integer exception, constant evaluation, runtime, and IEEE
+  policy must be decided separately.
+- Match: the parser preserves one `Expression::Match` family with a scrutinee and
+  every arm. Active preflight already visits the scrutinee and arm bodies; both
+  inference paths invent `Int`; both IR paths replace the whole expression with zero
+  without visiting children. No value-preserving source Match route or active Match
+  lowering was found. Twenty-three cases produced 69 public/check/build outcomes:
+  20 ordinary forms falsely succeeded with zero or dropped evaluation and three
+  established child diagnostics retained precedence. Root Match emitted an empty
+  `main`; direct modules and closure-body lowering were also false successes.
+- Adjacent composites: StructLiteral, EnumVariant, Borrow, and Deref also fabricate
+  zero or drop children, but selecting them intersects aggregate or ownership policy.
+  Closure lowering preserves real body behavior and is not eligible for blanket
+  rejection.
+- Selection: Match is the only compared one-node family with no active
+  value-preserving route, no required type/layout/arithmetic/ownership policy, and a
+  complete existing recursive preflight location. A fail-closed slice can retain
+  parser/AST/pattern representation and reject after child traversal in one
+  production file.
+- Verification: focused active Match parser test passes; numeric comparison,
+  array/index/iterator, and numeric function controls pass. One auditor independently
+  reran `./tools/test.sh` on exact clean `9fc7d0e` with exit zero. All three auditors
+  ended at the exact SHA with clean worktrees and removed external probes.
+- Status: complete; select Match for `CORE-008` preregistration. String comparison,
+  MethodCall capability, division semantics, aggregates, and ownership remain
+  separate open tasks.
