@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 1 — `CORE-002`, the fallible-lexing boundary for silent source corruption,
-after closing fatal parser propagation across public compiler paths.
+Milestone 2 — prepare the smallest two-pass function/type-contract slice after
+closing fatal parser and strict trusted-lexer boundaries.
 
 ## Active hypothesis
 
-An additive fallible lexer API used by trusted compilation entry points can reject
-unexpected characters, invalid numeric literals, and unterminated strings without
-changing the legacy lexer API or accepted-token semantics in the first slice.
+A declaration/signature collection pass followed by checked call and return
+analysis may replace the active `Int` call fallback without redesigning ownership,
+generics, composite types, or IR in the first semantic slice.
 
 ## Repository state
 
@@ -20,10 +20,10 @@ changing the legacy lexer API or accepted-token semantics in the first slice.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `379ec1e61860f16c7e6940ebaa6771c01a2356c2`
-- Last verified commit: `379ec1e61860f16c7e6940ebaa6771c01a2356c2`
-- Worktree: clean. Initial `CORE-002` implementation is integrated and passes the
-  full gate; independent review requested a preregistered closure amendment.
+- Current commit: `b9883181414886b6b2775b149599da29faed933e`
+- Last verified commit: `b9883181414886b6b2775b149599da29faed933e`
+- Worktree: clean. `CORE-002` is complete after initial implementation, amended
+  review closure, dual independent approval, manual probes, and full gate.
 
 ## Environment and verification
 
@@ -51,6 +51,11 @@ changing the legacy lexer API or accepted-token semantics in the first slice.
   pre-existing phase-five tests remain ignored.
 - Fresh manual root and imported-module builds both exited 1, reported the source
   file at `1:5`, and created no requested LLVM artifact.
+- `CORE-002` verification at `b988318`: full gate PASS with 111 library, 118
+  binary, 11 fatal-parse, 12 strict-lexing, and 59 frontend tests; 38 pre-existing
+  phase-five tests remain ignored. Conformance remains 3/3 cases and 4/4 checks.
+- Fresh manual unexpected-character and overflow builds, plus direct-module docs,
+  exited 1 with located lexical errors and created no requested output.
 
 ## Audit agents
 
@@ -97,13 +102,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - `run_aero_program` still calls `exit` internally after a valid CPU process;
   this pre-existing hidden termination violates the desired helper/API boundary
   and remains a separate tooling task.
-- The trusted compiler still uses an infallible lexer that skips or substitutes
-  malformed input; parser closure does not control lexical corruption.
+- Legacy recovery lexing remains public for compatibility and LSP symbol recovery;
+  trusted repository paths no longer feed it into semantics, IR, or artifacts.
 
 ## Exact next action
 
-Commit the `CORE-002` review amendment, create a fresh isolated closure worktree,
-and assign the same sole owner to conformance/doc/LSP corrections and regressions.
+Preregister the smallest `R-002` function-signature contract slice with exact
+syntax support, call/return negative cases, IR boundary, and stop conditions.
 
 ## Unauthorized actions
 

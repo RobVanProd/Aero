@@ -12,9 +12,15 @@ Branch: `agent/aero-integration`
   malformed root and applicable direct-module syntax is fatal in the library and
   build/check/run/test/profile paths. Located negative tests cover status and
   no-artifact behavior, and the full repository gate passes.
-- This closes the audited parser-to-codegen false-success reproducer only. The
-  lexer remains infallible, typing/IR fallbacks remain, and no backend or public
-  performance claim was upgraded.
+- That commit closed the audited parser-to-codegen false-success reproducer only;
+  at that point the trusted lexer was still infallible. Typing/IR fallbacks remain,
+  and no backend or public performance claim was upgraded.
+- At `b9883181414886b6b2775b149599da29faed933e`, trusted repository
+  compilation/validation paths also use strict fallible lexing. Unexpected
+  characters, invalid/non-finite numbers, and unterminated strings now reject root
+  and applicable direct-module inputs before semantics or output. LSP lexical
+  diagnostics use UTF-16 positions; recovery lexing remains compatibility/editor
+  infrastructure and is not a stability claim.
 
 ## Executive finding
 

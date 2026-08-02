@@ -88,6 +88,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
+- At `b988318`, trusted repository source paths use one strict fallible scanner;
+  located lexical failures are covered across library/CLI/modules/docs/profile/LSP,
+  while the source-compatible recovery API remains restricted to editor indexing,
+  tests, benchmarks, and manual compatibility tooling.
 
 This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,

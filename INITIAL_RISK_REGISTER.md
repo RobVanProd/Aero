@@ -7,7 +7,7 @@ open until a regression test and the applicable full gate prove closure.
 
 | ID | Risk | Likelihood | Impact | Evidence | Required control | Status |
 |---|---|---|---|---|---|---|
-| R-001 | Invalid characters/numbers/strings are silently changed into valid tokens | HIGH | CRITICAL | `lexer.rs` discards unexpected input and defaults failed numeric parses to zero | Fallible lexer API, spans, compile-fail/diagnostic tests, no codegen artifact | OPEN |
+| R-001 | Invalid characters/numbers/strings are silently changed into valid tokens | HIGH | CRITICAL | Trusted paths use strict lexing at `b988318`; legacy recovery remains public for compatibility and LSP symbol indexing only | Keep recovery output ineligible for semantics/artifacts; add fuzz/property coverage and eventual diagnostic-accumulating migration | CONTROLLED — trusted paths closed |
 | R-002 | Calls, annotations, and returns violate declared type contracts | HIGH | CRITICAL | Active call inference returns `Int`; annotations and return declarations are ignored | Two-pass signature environment, fallible type resolution, pre-IR negative tests | OPEN |
 | R-003 | Unsupported expressions are accepted with invented integer/zero semantics | HIGH | CRITICAL | Semantic and IR fallback arms for aggregates, fields, matches, closures, methods, borrows | Explicit unsupported errors or complete typed vertical slices; fallible IR | OPEN |
 | R-004 | Ownership claims exceed enforcement and permit dangling/aliased/moved values | HIGH | CRITICAL | Shallow move tracking, no lifetime provenance, mutable references considered `Copy` | Freeze ownership model; CFG/provenance checking; permanent compile-fail suite | OPEN |

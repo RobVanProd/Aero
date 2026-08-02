@@ -300,7 +300,7 @@
   be added without duplicating the lexer; location correction requires a new span
   model; accepted numeric or escape semantics would change; files exceed the list.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: integrated; independent review changes requested
+- Status: complete
 - Review amendment: independent review of initial integration `379ec1e` requested
   changes because public conformance still fed recovery tokens to semantics/IR,
   doc skipped direct-module validation, and LSP labeled lexical errors as parser
@@ -309,5 +309,12 @@
   conformance lexical/parse failures become explicit failed results, never panics.
 - Verification commands: strict lexer unit tests, focused Cargo integration tests,
   manual CLI reproducers, LSP diagnostic test, and `./tools/test.sh`.
-- Result commit: pending
-- Final decision: pending independent review.
+- Result commits: initial integration `379ec1e6`; review closure `fefe59e2` and
+  `b9883181` (isolated owner commits `9f4aa19e`, `b4ddc953`, `e9ad19d3`).
+- Final decision: accepted at
+  `b9883181414886b6b2775b149599da29faed933e` after two independent approvals.
+  Strict integration tests pass 12/12; conformance 3/3; LSP 9/9; doc 2/2;
+  fatal parse 11/11; full gate passes. Fresh unexpected-character, overflow, and
+  broken-module doc probes exit 1 with located lexical errors and no outputs.
+  LSP recovery indexing is the only intentional production recovery consumer;
+  strict lexing returns the first error and recursive modules remain separate work.
