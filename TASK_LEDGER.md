@@ -976,7 +976,7 @@
   any prior accepted focused boundary regresses.
 - Owner: one isolated tests/implementation owner; lead integrates and owns the
   diagnostic/compatibility decision.
-- Status: preregistered; tests-only red checkpoint pending.
+- Status: tests-only red checkpoint preserved; production change pending.
 - Acceptance criteria: red evidence is preserved; focused parser, recursive,
   positive, negative, diagnostic-order, no-unwind, direct-module, CLI no-panic and
   no-artifact tests pass; prior focused suites and `./tools/test.sh` pass; current
@@ -985,3 +985,16 @@
 - Verification commands: focused `cargo test --test unsupported_match_tests`, prior
   applicable focused suites, `cargo fmt --all -- --check`, and required
   `./tools/test.sh`.
+- Red checkpoint: owner commit `17e17c2`, integrated as `851731c`, adds exactly one
+  598-line focused test file. Nine aggregated tests produce the preregistered
+  5-pass/4-fail split: parser, adjacent capability, array-iterator CLI, and four
+  child-precedence controls pass; ordinary public, recursive-parent public, root
+  CLI, and direct-module CLI fail only because Match is not yet rejected.
+- Red evidence: all 21 ordinary public forms falsely compile, including fabricated
+  zero, empty root `main`, dropped scrutinee/arm calls, and two suppressed `/0`
+  forms. Twelve of 15 recursive parents falsely compile with zero/drop behavior;
+  field receiver and if/while conditions return their current outer diagnostics.
+  Root and module CLI check/build exit zero, builds create requested artifacts, and
+  artifacts preserve zero/drop evidence. No case fails parsing or unwinds. The
+  active Match parser test passes 1/1; prior field/modulo/tuple controls pass 38/38;
+  formatting passes. The full gate remains intentionally deferred until production.

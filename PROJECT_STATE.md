@@ -4,16 +4,15 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 8 — preserve the tests-only red checkpoint for preregistered `CORE-008`
-Match rejection before any production change.
+Milestone 8 — implement the frozen one-file `CORE-008` Match rejection against the
+preserved tests-only red checkpoint.
 
 ## Active hypothesis
 
-Tests frozen against `DEC-012` should fail only because ordinary Match currently
-passes semantics and becomes zero or dropped evaluation. Parser, positive, and
-child-diagnostic controls should remain green, proving a one-line rejection after
-the existing recursive Match traversal is sufficient and no pattern semantics are
-needed.
+Adding the exact error return after the existing scrutinee/arm traversal should turn
+the four red aggregations green while leaving all five parser, positive, and
+child-diagnostic controls unchanged. Any wider production diff or altered ordering
+would violate `DEC-012` rather than complete it.
 
 ## Repository state
 
@@ -155,6 +154,13 @@ needed.
   child-first scrutinee/arm traversal and tuple/field/void diagnostic precedence are
   frozen. Parser/AST/patterns remain; pattern/exhaustiveness/type/layout/ownership/
   evaluation/IR/backend semantics are explicitly outside the slice.
+- `CORE-008` tests-only red checkpoint: owner `17e17c2`, integrated as `851731c`.
+  Focused result is exactly 5 pass / 4 expected fail. All 21 ordinary Match forms
+  falsely compile; 12/15 recursive parents falsely compile; root and direct-module
+  check/build exit zero and create artifacts. Failure evidence records fabricated
+  zero, empty root CFG, dropped calls, suppressed `/0`, current outer diagnostics,
+  and artifact creation. No case parses incorrectly or unwinds. Parser 1/1 and prior
+  field/modulo/tuple controls 38/38 pass; formatting passes.
 
 ## Current capability classification
 
@@ -210,11 +216,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Create one isolated `CORE-008` worktree from the clean preregistration tip. Assign a
-tests-only owner to add `unsupported_match_tests.rs`, prove the frozen parser,
-positive, and child-diagnostic controls pass, and preserve ordinary public/CLI/
-module false-success, zero/drop, empty-root, suppressed-division, and artifact red
-evidence. Stop before production changes and integrate only the reviewed red commit.
+Return the isolated `CORE-008` owner to production mode at tests-only commit
+`17e17c2`. Permit only `src/compiler/src/semantic_analyzer.rs`: append the exact
+Match diagnostic after the existing scrutinee/arm child traversal, leave both
+inference stubs untouched, run the 9-test Match suite expecting 9/9 plus prior
+focused controls and formatting, commit the one-file change, and stop before the
+full gate.
 
 ## Unauthorized actions
 

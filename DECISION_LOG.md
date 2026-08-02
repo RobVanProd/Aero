@@ -303,8 +303,8 @@ design.
 ## DEC-012 — Match values fail closed until pattern semantics and lowering exist
 
 - Date: 2026-08-02
-- Status: accepted design for preregistered `CORE-008`; tests-only red checkpoint
-  pending
+- Status: accepted design for `CORE-008`; tests-only red checkpoint integrated as
+  `851731c`; production change pending
 - Decision: Aero retains Match syntax, its AST node, arms, and Pattern
   representation, but trusted active semantic preflight will reject every Match
   value expression with `Match expressions are not supported.` The existing
