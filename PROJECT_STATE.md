@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 0 — `CORE-001`: reject malformed syntax before semantic analysis and
-IR/codegen, with failing status and no output artifact.
+Milestone 0 — `CORE-001B`: finish fatal syntax rejection across public compiler
+commands and make the regression evidence phase-specific.
 
 ## Active hypothesis
 
-Replacing the legacy parser wrapper in canonical library/build/check paths with
-the located fallible parser, then propagating `Result`, will close the confirmed
-false-success path without changing grammar or later-phase semantics.
+Replacing the two remaining compilation-oriented legacy parser calls, tightening
+diagnostic/no-artifact assertions, and cleaning only compile-failed run directories
+will close the accepted invariant without changing grammar or later semantics.
 
 ## Repository state
 
@@ -20,10 +20,10 @@ false-success path without changing grammar or later-phase semantics.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `1d9396067dfac294aebd1e6c29765e503c504040`
-- Last verified commit: `1d9396067dfac294aebd1e6c29765e503c504040`
-- Worktree: `CORE-001` is preregistered; no compiler behavior has changed since
-  the committed audit baseline.
+- Current commit: `30b9b48658b0e1b1638b273341044dc2c8d64646`
+- Last verified commit: `30b9b48658b0e1b1638b273341044dc2c8d64646`
+- Worktree: `CORE-001` is integrated and passes its focused tests and the complete
+  gate; two independent reviews requested bounded `CORE-001B` closure changes.
 
 ## Environment and verification
 
@@ -92,9 +92,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit the `CORE-001` task contract, create its isolated worktree, assign one
-implementation owner, integrate only a committed passing result, then run
-independent frontend/API/CLI review and the complete baseline gate.
+Commit the `CORE-001B` task contract, implement it in an isolated worktree with
+one writer, integrate only its committed passing result, then obtain a second
+independent review and rerun the complete baseline gate.
 
 ## Unauthorized actions
 

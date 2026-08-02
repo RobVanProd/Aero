@@ -172,8 +172,63 @@
   legacy parser API used by broad tests, crosses into type/IR semantics, or grows
   beyond the listed files.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: preregistered
+- Status: integrated; independent review requested closure work
 - Verification commands: focused Cargo integration test; manual CLI reproducer;
+  `./tools/test.sh`.
+- Result commit: `30b9b48658b0e1b1638b273341044dc2c8d64646`
+- Final decision: core library/build/check/run compilation paths are corrected,
+  but acceptance remains open until `CORE-001B` closes public parser fallbacks,
+  strengthens failure evidence, and removes the failed-run directory leak.
+
+## CORE-001B — Close fatal-parse public paths and regression evidence
+
+- Problem: Independent review found that `aero profile` and `aero test` still use
+  the legacy infallible parser; CLI regressions can pass because of later failures;
+  malformed `run` creates and leaks an empty per-invocation directory.
+- Evidence: frontend/API review and negative/regression review of
+  `30b9b48658b0e1b1638b273341044dc2c8d64646` both returned changes requested.
+- Priority: P0
+- Primary hypothesis: using the located fallible parser in the two remaining
+  compilation-oriented public commands, making test-suite failures affect status,
+  cleaning run artifacts on compile failure, and asserting parser-specific output
+  will close the accepted invariant without grammar or later-phase changes.
+- Dependencies: `CORE-001` integrated at
+  `30b9b48658b0e1b1638b273341044dc2c8d64646`.
+- Observed behavior: malformed profile input reaches semantic/IR/codegen; malformed
+  `*_test.aero` can be reported as passing; focused CLI tests only require nonzero;
+  a malformed run leaves `target/aero-run/<nonce>` behind.
+- Expected behavior: build/check/run/profile/test reject malformed input with a
+  located `Parse error`; build/profile emit no requested artifact; run invokes no
+  native tool and leaves no per-run directory; a malformed discovered test makes
+  the test command fail.
+- Smallest reproducers: root `let = ;`; imported module `mod broken;` with
+  `broken.aero` containing `let = ;`; `malformed_test.aero` containing `let = ;`.
+- Files allowed: `src/compiler/src/main.rs`, `src/compiler/src/profiler.rs`,
+  `src/compiler/tests/fatal_parse_tests.rs`, and affected control documents.
+- Files frozen: lexer rules, grammar, AST, semantic/type/ownership rules, IR,
+  optimization and backend lowering, public claims, registry and LSP behavior.
+- Frozen semantics: every parser error is fatal for compilation; valid inputs and
+  all language semantics are unchanged. Nonzero process status for any surfaced
+  compile/test failure is explicitly accepted by `DEC-005`.
+- Positive tests: existing valid library/profile/compiler suites remain passing.
+- Negative tests: parser-specific located diagnostics for build/check/run;
+  malformed imported module; malformed profile with no trace; malformed discovered
+  test with nonzero status; no failed-run directory remains.
+- Runtime-output tests: verify native tool error strings are absent for malformed
+  `run`; valid native execution is unchanged and outside this slice.
+- Diagnostic expectation: `Parse error`, expected/found context, source filename,
+  and line/column are observable before later-phase diagnostics.
+- Regression risks: test discovery scans three directories; platform path display
+  differs; cleanup must not delete intentionally retained ROCm outputs or artifacts
+  from later native-tool failures.
+- Acceptance criteria: focused integration tests pass on Windows; complete
+  `./tools/test.sh` passes; manual root and module reproducers fail without outputs;
+  second independent review returns approved.
+- Stop conditions: grammar/recovery or semantic changes are required; cleanup
+  crosses beyond compile failure; valid profile/test behavior changes beyond status.
+- Owner: one isolated implementation agent; lead integrates.
+- Status: preregistered
+- Verification commands: focused Cargo integration test, manual CLI reproducers,
   `./tools/test.sh`.
 - Result commit: pending
 - Final decision: pending independent review.

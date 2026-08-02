@@ -65,3 +65,20 @@
   formal syntax and compiler invariants and is not a compatibility guarantee.
 - Revisit when: a future IDE-only recovery API is designed. Such an API must keep
   erroneous nodes and diagnostics explicit and must remain ineligible for codegen.
+
+## DEC-005 — Surfaced compiler failures use failing process status
+
+- Date: 2026-08-02
+- Status: accepted for compiler-oriented CLI commands
+- Decision: When `build`, `check`, `run`, `profile`, or the discovered test suite
+  surfaces a parse, semantic, artifact-write, or test failure, the command returns
+  nonzero. A printed error with status zero is not an acceptable compiler result.
+- Evidence: review of `CORE-001` observed that the necessary `Result` propagation
+  also corrected pre-existing zero statuses for semantic and output-write failures;
+  `aero test` likewise printed failed cases but returned success.
+- Alternatives rejected: classify a printed compilation failure as CLI success;
+  weaken parser propagation to preserve accidental zero-status behavior.
+- Compatibility consequences: scripts that relied on erroneous zero statuses must
+  use the corrected exit contract. Language syntax and semantics do not change.
+- Revisit when: CLI error categories are represented by a shared typed diagnostic
+  and exit-status API under the canonical library pipeline.
