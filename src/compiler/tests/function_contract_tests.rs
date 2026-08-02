@@ -261,6 +261,29 @@ fn main() {
 }
 
 #[test]
+fn llvm_restores_top_level_callable_after_nested_closure_scope() {
+    let source = r#"
+fn compute() -> i32 {
+    return 1;
+}
+
+fn main() {
+    {
+        let compute = | | 7;
+        let inner = compute();
+    }
+    let outer = compute();
+}
+"#;
+    let llvm = compile_program(source, CompilerOptions::default()).expect("compile closure scope");
+    let main = llvm_function(&llvm, "define i32 @main(");
+    let closure_call = main.find("call i32 @__closure_").expect("closure call");
+    let top_level_call = main.find("call i32 @compute()").expect("top-level call");
+
+    assert!(closure_call < top_level_call, "{main}");
+}
+
+#[test]
 fn public_llvm_preserves_numeric_call_types_and_discards_void_results() {
     let source = r#"
 fn twice(value: i32) -> i32 {
@@ -327,6 +350,27 @@ fn main() {
             .any(|line| line.trim_start().starts_with("br label ")),
         "terminated branches unexpectedly jump to a merge block: {choose}"
     );
+}
+
+#[test]
+fn llvm_void_function_with_partial_return_terminates_reachable_merge() {
+    let source = r#"
+fn maybe(value: i32) {
+    if value < 0 {
+        return;
+    }
+}
+
+fn main() {
+    maybe(1);
+}
+"#;
+    let llvm = compile_program(source, CompilerOptions::default()).expect("compile valid source");
+    let maybe = llvm_function(&llvm, "define void @maybe(");
+
+    assert!(maybe.contains("if_end_"), "{maybe}");
+    assert!(maybe.trim_end().ends_with("ret void\n}"), "{maybe}");
+    assert!(!maybe.contains("ret void\n  br label "), "{maybe}");
 }
 
 #[test]
