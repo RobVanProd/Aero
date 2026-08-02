@@ -4,17 +4,20 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 12 — begin `AUDIT-018` at the accepted `CORE-011` head and select the
-next highest-severity bounded, specification-backed correctness slice. No new
-compiler behavior is authorized until current evidence, scope, stop conditions,
-and focused red controls are preregistered.
+Milestone 12 — `AUDIT-018` is complete at the accepted `CORE-011` head.
+Preregister and isolate the `CORE-012` red checkpoint for a fail-closed live
+registry transport quarantine. No production behavior is authorized until the
+exact tests-only snapshot is independently reviewed and published.
 
 ## Active hypothesis
 
-Confirmed and accepted for `CORE-011`: one shared root/direct-module collection
-boundary makes build/run, check, test, profile, docs, the source-only public API,
-and final-LLVM cache identity agree on the exact source set before later compiler
-phases. The next hypothesis must come from `AUDIT-018`; none is selected yet.
+`AUDIT-018` confirms that the incomplete live registry surface is the next bounded
+critical-impact boundary: it is callable, can read credentials and invoke HTTP,
+publish omits package bytes/response validation, and install derives a write path
+from registry-controlled name/version without containment. `CORE-012` hypothesizes
+that one shared fail-closed guard can quarantine every live registry entry before
+credentials, filesystem mutation, or transport while preserving offline search and
+non-network publish/install previews.
 
 ## Founding-framework checkpoint
 
@@ -41,7 +44,7 @@ phases. The next hypothesis must come from `AUDIT-018`; none is selected yet.
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
 - Published project-control head:
-  `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
+  `8598a4c343f5592880bde66cbd99e78083d2a236`.
 - Published accepted `CORE-011` head:
   `a711dd5f3802095a4ecbe2dea3d45003675e7459`; exact reviewed implementation
   diff `60fe607413ebc03e9aa5d6296d9067d8cc95d89d`, tree
@@ -141,8 +144,8 @@ phases. The next hypothesis must come from `AUDIT-018`; none is selected yet.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last full-gate code commit: `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
-- Worktree: `CORE-011` acceptance closure documentation; compiler behavior is
-  unchanged from the exact reviewed and public-CI-green implementation head.
+- Worktree: `AUDIT-018` / `CORE-012` preregistration only; compiler behavior is
+  unchanged from the exact reviewed and public-CI-green `CORE-011` implementation.
 
 ## Environment and verification
 
@@ -376,12 +379,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Complete this documentation-only acceptance checkpoint, then run `AUDIT-018` on
-public head `a711dd5` to rank the next bounded correctness slice. Preregister its
-specification delta, reproducer, scope, stop conditions, and focused red controls
-before production edits. Do not infer module namespaces/visibility, recursive
-resolution, `CompilerOptions`, accelerator evidence, benchmark claims, stability,
-or release authorization from `CORE-011`.
+Create only the focused `CORE-012` registry-quarantine tests on top of the reviewed
+preregistration checkpoint. Prove that live search/publish/install fail with the
+frozen diagnostic and nonzero CLI status before credential resolution, package or
+target access, `curl`, or writes; prove offline search and publish/install dry-run
+plans remain credential-free and network-free. Publish that red snapshot only after
+exact independent review. Do not implement transport, payload, response, auth,
+package-format, path-containment, dependency, or general CLI-status semantics in
+this slice.
 
 ## Unauthorized actions
 

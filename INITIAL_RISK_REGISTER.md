@@ -19,11 +19,11 @@ open until a regression test and the applicable full gate prove closure.
 | R-010 | Grammar, tutorials, examples, and implementation define incompatible languages | HIGH | HIGH | Keyword/literal/field/rebinding/lifetime/top-level discrepancies | Freeze authoritative grammar subset; executable documentation examples | OPEN |
 | R-011 | Aggregate and array lowering changes types or crashes | HIGH | HIGH | Only first array element checked; double storage and float-index truncation; composite fallback lowering | Homogeneity/index tests and typed aggregate IR before execution claims | OPEN |
 | R-012 | Dormant, duplicated, or ignored tests create false coverage confidence | HIGH | HIGH | 78 duplicate active names, 38 ignored phase-5 tests, 299 dormant source tests, no key negative/fuzz suites | Classify backlog; restore valid tests deliberately; report distinct coverage and gates | OPEN |
-| R-013 | User-facing commands report success without promised behavior | HIGH | HIGH | Compiler-oriented failures are nonzero at `6ce85922`, but `test` remains analysis-only, some usage/read branches return normally, and `run_aero_program` exits internally | Shared typed status contract and command maturity classification | OPEN — compiler failures partially controlled |
+| R-013 | User-facing commands report success without promised behavior | HIGH | HIGH | Fresh `AUDIT-018` probes at `8598a4c` reproduce status zero for unknown commands, malformed `build`/`check` usage, and missing build/check inputs; `test` remains analysis-only and `run_aero_program` exits internally | Shared typed status contract and command maturity classification | OPEN — compiler failures partially controlled; ranked after CORE-012 |
 | R-014 | Quick Start and flagship examples fail new-user workflows | HIGH | MEDIUM | No root Cargo manifest; flagship uses unsupported syntax/absent packages | Run docs as CI programs or label conceptual; correct manifest paths | OPEN |
-| R-015 | Tracked compilation benchmark reports successful non-compilations | HIGH | HIGH | Harness passes source as CLI command; unknown-command path exits zero and is timed | Quarantine affected claims, fix command/status/output correctness gates, rerun under protocol | OPEN |
+| R-015 | Tracked compilation benchmark reports successful non-compilations | HIGH | HIGH | `AUDIT-018` reran the harness-shaped source-path invocation: it prints `Unknown command` and exits zero; `performance_benchmark.py` times that exact command and the shell harness is simulated | Quarantine affected claims, fix command/status/output correctness gates, rerun under protocol | OPEN — ranked after CORE-012 |
 | R-016 | Stable Rust/LLVM drift breaks reproducibility | MEDIUM | MEDIUM | CI tracks floating stable/nightly and no repository toolchain pin was found | Declare supported toolchains; capture lock/environment and platform gates | OPEN |
-| R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | Untrusted resolved name/version are joined without containment; publish payload contains metadata only | Keep live operations disabled; validate paths/payload/response/auth transport with adversarial tests | OPEN |
+| R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | `AUDIT-018` confirms live search/publish/install are callable; install joins registry-controlled name/version without containment, publish sends metadata without content and treats any successful HTTP response as accepted, and CLI auth resolution precedes dry-run/live separation | Quarantine every live transport entry before credential/filesystem/network activity; later specify and adversarially test paths, payload, response, auth, and transport before re-enablement | OPEN — selected for preregistered CORE-012 |
 
 ## Priority order
 
@@ -35,7 +35,10 @@ open until a regression test and the applicable full gate prove closure.
 5. Reclassify public documentation/backends, then grow conformance and real
    execution evidence.
 
-Accepted `CORE-011` closes the direct-module source-set boundary without choosing
-unresolved namespace, visibility, import, or recursive path semantics. The next
-task is `AUDIT-018`: re-rank the remaining open risks at public head `a711dd5` and
-preregister a bounded correctness slice before further production behavior.
+`AUDIT-018` at clean public head `8598a4c` ranks R-017 first because an active,
+incomplete remote-input boundary can reach credentials, HTTP, and filesystem writes.
+R-004 remains critical but stops on unfrozen ownership/provenance semantics spanning
+more than two compiler phases. R-013/R-015 follow as the next tooling boundary;
+R-011 currently rejects the reproduced mixed-array/index cases before artifact
+publication, although too late in checked IR for the mixed numeric case. `CORE-012`
+is preregistered as quarantine only, not as a registry protocol implementation.

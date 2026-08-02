@@ -1703,3 +1703,101 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   stable/nightly, all CodeQL language analyses, and the aggregate CodeQL check pass.
 - Status: accepted. Namespace/import/visibility semantics, recursive module graphs,
   general CLI status, `CompilerOptions`, and pipeline consolidation remain separate.
+
+## AUDIT-018 — Re-rank open risks after CORE-011
+
+- Objective: reproduce the highest-impact open compiler/tooling/security candidates
+  at the clean accepted head, apply the two-phase and frozen-semantics stop rules,
+  and select exactly one bounded next slice before tests or production changes.
+- Audit base: clean published head
+  `8598a4c343f5592880bde66cbd99e78083d2a236`; accepted compiler behavior remains
+  exact `a711dd5f3802095a4ecbe2dea3d45003675e7459`; upstream `master` remains
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Fresh command evidence: unknown command, malformed `build`/`check` usage, missing
+  build/check source, and a bare benchmark source path all exit zero. The benchmark
+  path prints `Unknown command`; the tracked Python harness times that exact
+  successful non-compilation and the shell harness explicitly simulates work.
+- Fresh aggregate evidence: mixed numeric `[1, 2.5]` passes semantic analysis and
+  checked admission but fails the in-process verifier on an Int/Float store mismatch;
+  a float array index fails checked admission. Both check/build routes are nonzero
+  and produce no requested artifact, so this is still R-011 but not a new publication
+  escape.
+- Registry evidence: the active install path formats server-controlled resolved
+  name/version into a destination join without containment. Publish sends only file
+  metadata, ignores the response body, and reports accepted after transport success.
+  Live search shares the same unaudited credential/curl boundary; CLI credential
+  resolution also precedes local/dry-run separation.
+- Ownership stop: the specification requires move invalidation, exclusive mutable
+  borrow, non-overlapping shared/mutable borrows, and lifetime validity. The analyzer
+  has no lifetime provenance and classifies mutable references as Copy. A one-line
+  predicate change would not establish the advertised safety model; credible closure
+  crosses unfrozen CFG/provenance/type phases and is stopped under repository rules.
+- Ranking: (1) R-017 live registry boundary, critical impact and bounded fail-closed
+  containment; (2) R-004 ownership, critical but stopped on scope/semantics; (3)
+  R-013/R-015 command status and false benchmark, high/high; (4) R-011 arrays,
+  high/high but currently fail closed before output; then backend/claims/span/grammar
+  work under the existing register.
+- Selection: `CORE-012` quarantines all live registry transport before credentials,
+  filesystem activity, or process/network calls. It preserves credential-free local
+  search and non-network dry-run preview/plan behavior. It does not repair or enable
+  a registry protocol.
+- Status: complete; reproductions, ranking, stop rationale, and selected boundary are
+  recorded before focused tests or production changes.
+
+## CORE-012 — Quarantine incomplete live registry transport
+
+- Problem: unaudited live registry functions are active despite incomplete payload,
+  response, authentication, destination, and overwrite contracts. A registry response
+  can influence an uncontained install write path; publish can report acceptance
+  without sending package content.
+- Priority: P0 containment because remote input and credentials can reach process,
+  network, and filesystem mutation through an incomplete critical-impact boundary.
+- Dependencies: accepted `CORE-011`; complete `AUDIT-018`; `DEC-017` freezes the
+  quarantine and preserved local behavior.
+- Hypothesis: one shared registry guard, called by every live function and by CLI
+  dispatch before auth, can make the incomplete surface fail closed without choosing
+  package, path, auth, response, dependency, or general command semantics.
+- Failure contract: exact inner diagnostic is
+  `live registry transport is disabled pending a reviewed protocol and trust boundary`.
+  Live search/publish/install return this error before all credential, filesystem,
+  process, HTTP, digest, response, or write activity. CLI renders it as an error and
+  exits nonzero. `publish_live` and `install_live` reject for both values of their
+  existing `dry_run` boolean. No live route may fall through to `curl` or return
+  preview/success.
+- Preserved contract: offline index search remains functional. Publish `--dry-run`
+  produces the existing local manifest preview; install `--dry-run` produces the
+  existing local plan. These local/dry-run routes neither resolve registry auth nor
+  invoke live functions/transport and do not create an install destination.
+- Red tests: direct live search expects the exact guard; direct publish/install each
+  expect it with `dry_run=false` and `dry_run=true`, before invalid package/target/
+  endpoint inputs can act. CLI live search/publish/install expect the same diagnostic,
+  nonzero status, no target/package output, and precedence over an empty credential
+  or unavailable transport. Local-index search and both CLI dry-run routes use empty
+  credential inputs as positive proofs that auth resolution is skipped; existing
+  registry unit positives remain green.
+- Files allowed: `src/compiler/src/registry.rs`; minimal registry branches/help in
+  `src/compiler/src/main.rs`; focused registry unit/integration tests; `README.md`,
+  `BUILD.md`, `tutorials/01-getting-started.md`,
+  `docs/language/aero_formal_language_specification.md`, capability/matrix, and
+  project-control documentation.
+- Files frozen: compiler frontend/semantics/IR/codegen/backend/module/cache behavior;
+  package/archive/dependency formats; URL, auth, response, path-containment,
+  symlink/overwrite, and signature semantics; general CLI status; benchmarks; Cargo
+  dependencies; releases/external registry state; and `master`.
+- Positive controls: complete existing registry unit suite; offline search ordering;
+  exact publish preview fields/hash; exact install plan/trust fields; CLI help truth;
+  README/BUILD/tutorial/formal-specification-status/matrix live-quarantine and
+  local/dry-run workflow truth while preserving future design wording; formatting,
+  all-target compilation, and complete `./tools/test.sh` gate.
+- Risks: a CLI-only guard could leave direct live calls active; a library-only guard
+  could still read credentials before failure; moving auth resolution could change
+  local behavior; a dry-run could accidentally resolve/download; dormant transport
+  code could be mistaken for support; broad status cleanup could escape the slice.
+- Stop conditions: any need to specify/re-enable network transport, encode package
+  bytes, interpret server responses, migrate credentials, validate/canonicalize remote
+  paths, choose overwrite/symlink behavior, solve dependencies, touch another compiler
+  phase, or contact a real registry. Stop rather than implementing those semantics.
+- Owner: lead-owned tests-first vertical slice. Independent type/IR/backend reviewers
+  must approve the exact preregistration, red snapshot, and implementation candidate
+  before publication.
+- Status: preregistered only; no tests or production behavior implemented.

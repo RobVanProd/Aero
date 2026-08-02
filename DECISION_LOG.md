@@ -632,3 +632,58 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Revisit when: a module-system RFC fixes nested path and namespace semantics, a
   file-aware library API and `CompilerOptions` are designed, or full pipeline
   consolidation can cross more than the bounded source-collection phase.
+
+## DEC-017 — Quarantine live registry transport before designing its protocol
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-012` preregistration; not implemented
+- Decision: every HTTP-backed registry entry (`search_live_registry`,
+  `publish_live`, and `install_live`) must fail with the exact stable diagnostic
+  `live registry transport is disabled pending a reviewed protocol and trust boundary`
+  before credential resolution, package/target filesystem access, process spawn,
+  HTTP, download, digest handling, response acceptance, or writes. The CLI must
+  return nonzero for each live attempt. Direct function callers retain the same guard
+  even if the CLI is bypassed. `publish_live` and `install_live` reject for both
+  values of their existing `dry_run` boolean; CLI previews never route through those
+  live functions.
+- Preserved local surface: local-index search, `build_publish_preview`, and
+  `build_install_plan` remain available. CLI publish/install `--dry-run` use only
+  those local preview/plan paths; local search and dry-runs do not resolve explicit,
+  environment, default-file, or token-file credentials and do not invoke transport.
+- Security basis: resolved package name/version are remote-controlled path material;
+  the current join is not contained. The current publish request omits file content
+  and has no versioned response/acceptance contract. Keeping either mutation active
+  while repairing one symptom would expose the other incomplete trust boundaries.
+  Read-only live search shares the same unaudited auth/HTTP machinery, so the
+  quarantine is transport-wide rather than mutation-only.
+- Evidence required before production: tests-only red controls must cover all three
+  CLI live routes with exact nonzero diagnostics, invalid credentials and unavailable
+  transport so guard ordering is observable, malicious install name/target inputs
+  with no created destination, direct search rejection, both boolean modes of direct
+  publish/install rejection, credential-free local search, credential-free CLI
+  publish/install dry-runs, and existing offline positives.
+- Files allowed: `src/compiler/src/registry.rs`, minimal registry dispatch/help in
+  `src/compiler/src/main.rs`, one focused registry integration test file, existing
+  registry unit tests, `README.md`, `BUILD.md`,
+  `tutorials/01-getting-started.md`,
+  `docs/language/aero_formal_language_specification.md`, and registry/capability/
+  project-control documentation. Public workflow and specification-status text must
+  state that live transport is currently quarantined while retaining the future
+  design direction plus local-search and dry-run examples.
+- Files frozen: lexer/parser/AST/semantics/IR/codegen/backend/cache/module behavior;
+  package archive format, dependency resolution, URL/response/auth protocol,
+  path-sanitization/containment design, general CLI status, benchmark execution,
+  Cargo dependencies, releases, external registries, and `master`.
+- Stop conditions: implementation requires a protocol choice, archive encoding,
+  server response schema, credential migration, path normalization/containment,
+  symlink/overwrite policy, dependency solver, more than the registry dispatch
+  boundary, or any real external registry call. Encountering one of those conditions
+  stops the slice; it does not justify inventing semantics or weakening the guard.
+- Alternatives rejected: validating only `..`; sanitizing remote names into a local
+  filename; trusting a digest to establish path safety; adding file bytes without a
+  package format; accepting any 2xx response; disabling install while leaving publish
+  or authenticated live search active; and fixing general CLI statuses in this slice.
+- Revisit when: a versioned registry/package RFC freezes payload, response, auth,
+  URL, archive, digest/signature, destination, overwrite/symlink, and dependency
+  contracts with adversarial transport tests. Re-enablement requires a separate
+  reviewed decision and cannot be inferred from `CORE-012`.

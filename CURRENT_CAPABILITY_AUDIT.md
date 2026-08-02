@@ -339,6 +339,39 @@ reclassified rather than deleted.
   unchanged. This remains direct flattened source collection only; namespaces,
   `use`, `pub`, recursive graphs, cycles, and general CLI status are still absent.
 
+### Post-CORE-011 risk re-ranking (`AUDIT-018`)
+
+- Audit basis: clean published project-control head
+  `8598a4c343f5592880bde66cbd99e78083d2a236`; accepted compiler behavior remains
+  `a711dd5f3802095a4ecbe2dea3d45003675e7459`. Upstream `master` remains the original
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Registry: live search, publish, and install remain directly callable. Publish
+  inventories only path/length/SHA-256 metadata, sends no package bytes, discards the
+  response body, and labels any successful HTTP result accepted. Install joins
+  registry-controlled resolved name/version into the selected destination and writes
+  it without component validation or containment. CLI auth lookup currently occurs
+  before publish/install dry-run branching and for offline search.
+- Command/benchmark: unknown commands, malformed `build`/`check` usage, missing
+  build/check inputs, and the benchmark's bare source-path invocation all reproduced
+  status zero. The bare source path prints `Unknown command`, proving the tracked
+  compilation timing measures successful non-compilation. This remains R-013/R-015
+  and is ranked immediately after the registry quarantine.
+- Arrays: `[1, 2.5]` passes semantics and checked admission, then is rejected by the
+  mandatory in-process verifier for an Int/Float store mismatch; `[1, 2][1.5]` is
+  rejected by checked admission. Both `check` and `build` return nonzero and publish
+  no requested LLVM artifact. R-011 therefore remains a phase-order/type-contract
+  defect, but no fresh false-success artifact outranks the active registry boundary.
+- Ownership: public safety claims still exceed shallow move tracking, lifetime
+  provenance is absent, and mutable references are classified as Copy. A credible
+  closure requires a frozen ownership model plus CFG/provenance work across more
+  than the permitted bounded phases; changing one Copy predicate would imply safety
+  it does not provide. R-004 remains critical and explicitly stopped, not waived.
+- Selection: `CORE-012` will quarantine every HTTP-backed registry entry with one
+  stable fail-closed guard before credential, filesystem, or transport activity.
+  Offline index search and non-network publish/install previews remain available.
+  This does not design or validate a registry protocol and cannot re-enable live
+  behavior.
+
 ## Testing and fuzzing audit
 
 - The default run executes 106 library, 111 binary, and 59 frontend tests, but 78
