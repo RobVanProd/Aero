@@ -1058,6 +1058,7 @@ impl SemanticAnalyzer {
             }
             Expression::FieldAccess { object, .. } => {
                 self.preflight_expression(object)?;
+                return Err("Field access expressions are not supported.".to_string());
             }
             Expression::StructLiteral { fields, .. } => {
                 for (_, value) in fields {
