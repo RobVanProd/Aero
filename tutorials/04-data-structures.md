@@ -46,9 +46,14 @@ fn main() {
 ```
 The order of fields doesn't have to match the definition when instantiating, but all fields must be specified unless default values are supported (a more advanced feature).
 
-### Accessing and Modifying Struct Fields
+### Accessing and Modifying Struct Fields (Designed; Not Executable)
 
-You can access the fields of a struct instance using dot notation (`.`). If the struct instance is mutable (declared with `let mut`), you can also modify its fields.
+The intended language uses dot notation (`.`) to access fields and permits field
+assignment on mutable values. The current compiler recognizes named field-access
+syntax but does not implement projection or field assignment. Trusted compilation
+rejects a field-access value expression with
+`Field access expressions are not supported.`
+The following example describes the intended design and is not currently executable.
 
 ```aero
 fn main() {
@@ -430,7 +435,9 @@ This was a brief introduction. Traits are a powerful feature used extensively in
 ## Summary
 
 This tutorial covered:
--   **Structs**: Named field, tuple, and unit-like structs; instantiation, field access, and methods via `impl`.
+-   **Structs**: Named field, tuple, and unit-like designs; declaration/instantiation
+    syntax is experimental, while named field projection is currently rejected and
+    methods via `impl` are not certified by this tutorial.
 -   **Enums**: Defining variants, variants with associated data, and using `match` (conceptually) for control flow.
 -   **Basic Collections**: A brief look at `Vec<T>` and `HashMap<K, V>` from the standard library.
 -   **Traits**: A conceptual introduction to defining shared behavior with `trait` and `impl`.

@@ -163,6 +163,10 @@ correctness gates.
   while variable, unary, float, and mixed zero forms follow different paths. The
   field family is selected for `CORE-007`; string comparison and division policy
   remain separate, explicitly open tasks.
+- At `75dbfba`, trusted active semantic preflight recursively rejects named field
+  value expressions after first preserving any established receiver diagnostic.
+  Named field syntax remains parsed; struct layout, projection execution, assignment,
+  method behavior, and direct AST-to-IR callers remain outside this candidate.
 - Unimplemented methods, aggregates, matches, references, and ADTs are either
   changed to zero or dropped. Several IR instruction variants have no codegen
   arm and are silently ignored by the wildcard arm.

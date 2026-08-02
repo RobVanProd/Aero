@@ -152,6 +152,12 @@ fn main() {
 > trusted compiler paths reject those expressions before IR generation with
 > `Tuple expressions are not supported.`
 
+> **Named field status:** `value.field` syntax is recognized, but named field
+> projection is not executable yet. Trusted compiler paths reject field-access
+> value expressions before IR generation with
+> `Field access expressions are not supported.` Method calls use a distinct AST
+> form and are not part of this field-access boundary.
+
 Formal spec: `docs/language/aero_formal_language_specification.md`
 
 ## Looking Ahead
