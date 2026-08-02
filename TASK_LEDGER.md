@@ -986,8 +986,8 @@
   any prior accepted focused boundary regresses.
 - Owner: one isolated tests/implementation owner; lead integrates and owns the
   diagnostic/compatibility decision.
-- Status: corrective tests and implementation integrated; complete gate and two new
-  exact-SHA non-owner approvals pending.
+- Status: accepted at exact clean `b74d91a` after the complete gate and two new
+  non-owner approvals.
 - Acceptance criteria: red evidence is preserved; focused parser, recursive,
   positive, negative, diagnostic-order, no-unwind, direct-module, CLI no-panic and
   no-artifact tests pass; prior focused suites and `./tools/test.sh` pass; current
@@ -1036,7 +1036,7 @@
   bodies, add public/CLI/no-artifact and child-precedence regressions that fail on
   `c826294`, then change only `semantic_analyzer.rs`. Do not call `analyze_block` or
   `analyze_statement` for default bodies. The full gate and two new exact-SHA
-  non-owner approvals are required after correction.
+  non-owner approvals were required after correction and are recorded below.
 - Corrective red result: owner tests commit `58bb732`, integrated as `ad5e24d`, adds
   six aggregated tests without changing the original nine. On rejected production,
   the suite is exactly 11 pass / 4 fail: eight public default-body placements are
@@ -1050,4 +1050,22 @@
   trait bodies. Full semantic block/statement analysis remains inactive, required
   signatures remain untouched, and type-parameter scope cleanup occurs before an
   error returns. Owner and lead independently pass all 96 focused tests; formatting
-  and the owner's all-target check pass. The complete gate remains required.
+  and the owner's all-target check pass. The subsequent complete gate is recorded
+  below.
+- Corrective complete gate: exact clean documented `b74d91a` passes 112 library,
+  119 binary, 11 fatal-parser, 59 frontend, 13 function-contract, 18 annotation,
+  12 strict-lexing, 8 field, 15 Match, 14 modulo, and 16 tuple tests; all 38 Phase 5
+  tests remain intentionally ignored. Formatting, Clippy correctness, and doc tests
+  pass.
+- Corrective reviews: Reviewer A approves after an exhaustive 17-variant structural
+  audit, 96/96 focused tests, 44/44 fresh public negatives, 12/12 traversal/precedence
+  routes, 7/7 syntax-only positives, parser retention, and 10/10 CLI operations.
+  Reviewer B independently approves after 70 fresh Match routes plus five precedence
+  routes succeed across public/check/build for 225/225 rejection outcomes, three
+  syntax-only default-body controls produce positive artifacts, and numeric/function/
+  array/index/iterator controls remain green. Neither review found an unwind, panic,
+  negative artifact, trusted false success, or additional parsed-container escape.
+- Acceptance: exact clean integration SHA
+  `b74d91adeda04688ec37598beebffad458538c39` satisfies `CORE-008`. Direct constructed-
+  AST-to-IR bypass and actual Match/default-trait execution semantics remain open and
+  outside this boundary.

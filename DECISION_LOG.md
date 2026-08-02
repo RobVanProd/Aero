@@ -303,8 +303,7 @@ design.
 ## DEC-012 — Match values fail closed until pattern semantics and lowering exist
 
 - Date: 2026-08-02
-- Status: corrective implementation complete; full-gate and independent acceptance
-  review pending
+- Status: accepted at exact clean `b74d91a`
 - Decision: Aero retains Match syntax, its AST node, arms, and Pattern
   representation, but every Match value expression in a trusted parsed source body
   must reach active semantic preflight and reject with
@@ -360,4 +359,10 @@ without parse failure, unwind, or panic. Production owner `a3f4f29` is integrate
 `a12f38e`; it adds only syntax-level block/statement preflight helpers and the
 default-body hook in `semantic_analyzer.rs`. The original nine and new six Match
 tests plus all prior focused boundaries pass 96/96 independently for owner and lead.
-This is not accepted until the complete gate and two new exact-SHA reviews pass.
+The exact clean documented candidate `b74d91a` subsequently passed the complete
+repository gate and two new non-owner reviews. Reviewer A exhaustively checked all
+17 statement variants and 44 fresh public negatives; Reviewer B checked 75 fresh
+negative/precedence routes across 225 public/check/build outcomes. Both approved with
+no trusted false success, panic, unwind, or negative artifact. `CORE-008` is accepted
+at that SHA; direct constructed-AST bypass and Match/default-trait execution remain
+outside this decision.

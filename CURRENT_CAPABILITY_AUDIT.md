@@ -192,7 +192,11 @@ correctness gates.
   activating name, parameter, return, type, trait, ownership, or pattern analysis.
   The corrective red suite captured public and CLI artifact false successes first;
   all 15 Match tests and 81 prior focused boundary tests now pass independently for
-  owner and lead. Complete-gate and exact-SHA review remain pending.
+  owner and lead. Exact clean documented `b74d91a` passes the complete gate and two
+  fresh non-owner reviews: one exhaustive structural review and 44-route public
+  matrix, plus an independent 75-route/225-outcome public/check/build matrix. No
+  trusted false success, panic, unwind, or negative artifact remains in this accepted
+  boundary.
 - Unimplemented methods, aggregates, references, and ADTs are either changed to
   zero or dropped. Match retains dormant inference/IR stubs, but corrected trusted
   parsed-source paths now reject it first. Several IR instruction variants have no

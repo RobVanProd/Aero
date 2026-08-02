@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 8 corrective acceptance — run the complete gate and obtain two new
-independent approvals for the corrected `CORE-008` Match boundary.
+Milestone 9 — audit the next fabricated-value or compiler-panic boundary on top of
+accepted `CORE-008` without selecting execution semantics by accident.
 
 ## Active hypothesis
 
-The integrated syntax-only default-body traversal closes the sole parsed-container
-escape while preserving child order, unresolved-name and required-signature controls,
-and all prior focused compiler boundaries.
+The next safe slice should be another parser-preserved expression family with no
+active value-preserving route, a stable shared pre-IR rejection point, and no need to
+invent string, arithmetic, aggregate-layout, ownership, or dispatch semantics.
 
 ## Repository state
 
@@ -20,14 +20,13 @@ and all prior focused compiler boundaries.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current corrected `CORE-008` behavior candidate:
-  `a12f38e20f6a201ce3efa2a95e6724838b11dd30`. All trusted parsed source bodies,
+- Accepted `CORE-008` candidate:
+  `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the
-  existing child-first preflight before IR. Documentation update and complete gate
-  are pending on top of this behavior commit; no final acceptance exists yet.
-- Last full-gate commit: rejected candidate
-  `08e7c2c8eccc06cdcdd216b6973a68d24e751e32`.
-- Worktree: corrective capability documentation in progress.
+  existing child-first preflight before IR. The complete gate and two fresh
+  independent reviews pass.
+- Last full-gate commit: `b74d91adeda04688ec37598beebffad458538c39`.
+- Worktree: clean before this acceptance-closure documentation update.
 
 ## Environment and verification
 
@@ -186,6 +185,13 @@ and all prior focused compiler boundaries.
   `semantic_analyzer.rs` changes: exhaustive syntax-only block/statement preflight
   plus a default-body hook with cleanup-safe type-parameter scope handling. Owner
   and lead pass 96/96 focused tests; formatting and all-target compilation pass.
+- `CORE-008` corrective acceptance: exact clean documented `b74d91a` passes the full
+  gate (112 library, 119 binary, 11 fatal-parser, 59 frontend, 13 function, 18
+  annotation, 12 strict, 8 field, 15 Match, 14 modulo, 16 tuple; 38 Phase 5 ignored).
+  Reviewer A approves after the exhaustive structural audit and 44 fresh public
+  negatives; Reviewer B independently approves 225/225 outcomes across 75 negative/
+  precedence routes. Syntax-only positives, parser retention, child order, no-panic/
+  no-unwind/no-artifact behavior, and prior controls all pass.
 
 ## Current capability classification
 
@@ -233,8 +239,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Constant integer division by zero independently panics during IR constant folding.
   Float, variable, unary, and mixed zero forms diverge. Unsupported methods and
   other composite forms can still fabricate scalar zero, and some semantically
-  accepted comparisons can panic or generate type-invalid LLVM. Corrected candidate
-  `a12f38e` routes Match in every parser-retained source body, including default
+  accepted comparisons can panic or generate type-invalid LLVM. Accepted candidate
+  `b74d91a` routes Match in every parser-retained source body, including default
   trait methods, through fail-closed preflight; direct AST-to-IR bypass remains open.
   MethodCall, string comparison, division, aggregates, and ownership are separate.
   Named field values remain fail-closed in accepted `CORE-007` at reviewed
@@ -242,10 +248,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit the corrected capability documentation, run `./tools/test.sh` on the resulting
-exact clean SHA, and, if it passes, assign two non-owner reviewers new structural and
-black-box public/CLI/module attempts that explicitly include default trait bodies,
-syntax-only positives, child precedence, nesting, and no-artifact behavior.
+Run a read-only `AUDIT-014` comparison of the remaining unsupported-expression and
+panic families on exact accepted `CORE-008`: StructLiteral, EnumVariant, Borrow/
+Deref, string comparisons, unsupported MethodCall while preserving array `.iter()`,
+and integer/float zero division. Select no implementation until active
+value-preserving routes, diagnostic order, and required policy are explicit.
 
 ## Unauthorized actions
 
