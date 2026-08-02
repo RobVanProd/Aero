@@ -319,7 +319,7 @@
   LSP recovery indexing is the only intentional production recovery consumer;
   strict lexing returns the first error and recursive modules remain separate work.
 
-## CORE-003 — Enforce primitive function contracts before lowering
+## CORE-003 — Enforce numeric function contracts before lowering
 
 - Problem: Named calls are inferred as `int`; declared signatures and return types
   are not registered or checked; missing returns are replaced with zero; invalid
@@ -335,10 +335,12 @@
   primitive calls without changing the backend instruction model.
 - Dependencies: strict trusted frontend boundary closed by
   `b535de0f5723e26664d818c076db4e451ff35315`.
-- Eligible contract syntax: monomorphic `int`/`i32`, `float`/`f64`, and `bool`
-  parameter and return types; omitted return type means `void`. Call arguments must
-  match exactly. Numeric promotion remains an operator rule and is not applied at
-  call boundaries.
+- Eligible contract syntax: monomorphic `int`/`i32` and `float`/`f64` parameter
+  and return types; omitted return type means `void`. Call arguments must match
+  exactly. Numeric promotion remains an operator rule and is not applied at call
+  boundaries. Boolean signatures are explicitly excluded because the current
+  backend converts call results through `double` while boolean control-flow and
+  returns require `i1`.
 - Observed behavior: `SemanticAnalyzer::analyze` is one pass; its function table is
   unused; calls always return `Ty::Int`; function return annotations are ignored.
   `IrGenerator` independently assigns `Ty::Int` and a result register to every call
@@ -360,7 +362,7 @@
   `src/compiler/tests/`, and affected control documents. Tests may inspect generated
   LLVM through the public API; production `code_generator.rs` is frozen.
 - Files frozen: lexer, parser, AST, annotations on `let`, implicit conversion rules,
-  generics, traits, composites, strings, methods, closures, ownership behavior,
+  booleans, generics, traits, composites, strings, methods, closures, ownership behavior,
   optimizer, IR instruction shape, code-generator production, runtime/backends,
   modules beyond existing direct-module concatenation, and public claims.
 - Frozen semantics: generic or non-eligible declared calls retain their pre-task
@@ -368,7 +370,7 @@
   top-level declaration; if existing supported built-ins or closure calls require a
   separate callable registry, stop rather than silently exempting unknown names.
   Semantic diagnostics are not promised source locations because the AST has none.
-- Positive tests: exact primitive calls; call before declaration; direct recursion;
+- Positive tests: exact numeric calls; call before declaration; direct recursion;
   explicit and tail returns; void statement call; float-return call participating in
   float arithmetic; direct-module declaration visibility.
 - Negative tests: undefined and duplicate functions; too few/many arguments; both
@@ -387,6 +389,10 @@
   implementation; focused tests pass; `./tools/test.sh` passes; fresh CLI root and
   direct-module negative probes exit nonzero with no output; two independent reviews
   approve the exact integration SHA.
+- Scope amendment: pre-implementation IR review excluded boolean signatures. A
+  boolean-returning call is converted from `i1` to the backend's internal `double`
+  register form, while boolean branches/returns may consume that register as `i1`.
+  Certifying booleans would therefore require the frozen code-generator phase.
 - Stop conditions: parser/AST or IR instruction changes are required; production
   code-generator changes are required; valid generic/composite/method/closure or
   ownership behavior regresses; exact primitive calls cannot be lowered consistently;

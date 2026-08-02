@@ -110,13 +110,13 @@ tokens and fallible parsing. Documentation validates declared direct modules bef
 writing output. LSP lexical diagnostics identify the lexer and use UTF-16 positions;
 editor symbol indexing remains the sole intentional recovery consumer in these paths.
 
-## DEC-007 — Primitive call boundaries require exact types
+## DEC-007 — Numeric call boundaries require exact types
 
 - Date: 2026-08-02
 - Status: accepted for `CORE-003`
-- Decision: For the first checked function-contract slice, monomorphic primitive
+- Decision: For the first checked function-contract slice, monomorphic numeric
   call arguments must exactly match declared parameter types after alias
-  canonicalization (`int`/`i32`, `float`/`f64`, `bool`). Omitted return type is
+  canonicalization (`int`/`i32`, `float`/`f64`). Omitted return type is
   `void`. Primitive non-void functions must return a matching value on all
   conservatively recognized paths or provide a matching body-tail expression.
 - Evidence: the formal language specification says argument arity and types must
@@ -125,11 +125,13 @@ editor symbol indexing remains the sole intentional recovery consumer in these p
   The dormant call validator also uses exact equality.
 - Alternatives rejected: infer every call as `int`; silently widen call arguments;
   accept missing returns and synthesize zero; claim generic/composite support in the
-  same slice; validate semantically while retaining a contradictory IR call type.
+  same slice; validate semantically while retaining a contradictory IR call type;
+  include boolean signatures despite their unresolved `i1`/`double` lowering.
 - Compatibility consequences: invalid programs that previously emitted artifacts
   now fail before lowering. Forward references and recursion become valid through
   declaration collection. Generic and non-primitive contract behavior remains
-  experimental and is not certified by this decision.
+  experimental and is not certified by this decision. Boolean function contracts
+  remain open until their backend representation is coherent.
 - Revisit when: a typed conversion/coercion policy is specified, generic
   instantiation is implemented, or control-flow analysis gains a typed CFG and a
   divergence/never type.

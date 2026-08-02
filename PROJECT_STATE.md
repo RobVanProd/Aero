@@ -4,12 +4,12 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 2 — implement the preregistered primitive function-contract slice
+Milestone 2 — implement the preregistered numeric function-contract slice
 `CORE-003` after closing fatal parser and strict trusted-lexer boundaries.
 
 ## Active hypothesis
 
-A declaration/signature collection pass followed by checked primitive call and
+A declaration/signature collection pass followed by checked numeric call and
 return analysis, plus a matching IR return-type registry, can replace both active
 `Int` fallbacks without redesigning ownership, generics, composites, or codegen.
 
