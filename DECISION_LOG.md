@@ -366,3 +366,34 @@ negative/precedence routes across 225 public/check/build outcomes. Both approved
 no trusted false success, panic, unwind, or negative artifact. `CORE-008` is accepted
 at that SHA; direct constructed-AST bypass and Match/default-trait execution remain
 outside this decision.
+
+## DEC-013 — Struct construction fails closed until aggregate semantics exist
+
+- Date: 2026-08-02
+- Status: accepted direction; tests-first implementation pending for `CORE-009`
+- Decision: Aero retains struct declarations and StructLiteral syntax/AST, but every
+  StructLiteral in a trusted parsed source body will visit field expressions in
+  source order and then reject with
+  `Struct construction expressions are not supported.` No declaration lookup, field
+  validation, type inference, layout, ownership, IR, or execution semantics are
+  introduced by this boundary.
+- Evidence: `AUDIT-014` found no value-preserving StructLiteral route. Nineteen of 24
+  public cases falsely succeeded, both IR paths return scalar zero without fields,
+  and root/module builds write artifacts that omit field calls and aggregate text.
+  Unknown structs and missing/extra/duplicate/wrong fields are accepted. Existing
+  source construction positives are therefore false capability claims, not runtime
+  compatibility evidence.
+- Diagnostic consequences: tuple, field, Match, and void-as-value field errors keep
+  precedence through existing preflight. Inference-only modulo/name/type diagnostics
+  are not newly activated and the Struct error wins after preflight. Existing field/
+  Match controls are explicitly reclassified to parser retention and declaration-
+  only compilation; active move/trait controls use struct-typed parameters instead
+  of fabricated runtime values.
+- Alternatives rejected: combine EnumVariant despite Option/Result policy; reject
+  Borrow despite active shallow ownership diagnostics; select Deref while replacing
+  real non-reference errors; reject all MethodCall and regress `.iter()`; reject all
+  comparisons and regress numeric operations; or patch selected zero divisors
+  without arithmetic/runtime/IEEE policy.
+- Revisit when: struct name/field validation, aggregate result typing, layout,
+  initialization order, ownership/destruction, ABI, typed IR/backend emission, and
+  positive end-to-end execution can ship as one coherent vertical slice.

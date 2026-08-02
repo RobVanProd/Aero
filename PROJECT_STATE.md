@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 9 — audit the next fabricated-value or compiler-panic boundary on top of
-accepted `CORE-008` without selecting execution semantics by accident.
+Milestone 9 — preserve the `CORE-009` StructLiteral false-success boundary in a
+tests-only red checkpoint before changing production.
 
 ## Active hypothesis
 
-The next safe slice should be another parser-preserved expression family with no
-active value-preserving route, a stable shared pre-IR rejection point, and no need to
-invent string, arithmetic, aggregate-layout, ownership, or dispatch semantics.
+StructLiteral has no active value-preserving route and one complete child-first
+preflight arm. Rejecting after field preflight can close zero/drop artifacts without
+inventing declaration, field, type, layout, ownership, IR, or backend semantics.
 
 ## Repository state
 
@@ -248,11 +248,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Run a read-only `AUDIT-014` comparison of the remaining unsupported-expression and
-panic families on exact accepted `CORE-008`: StructLiteral, EnumVariant, Borrow/
-Deref, string comparisons, unsupported MethodCall while preserving array `.iter()`,
-and integer/float zero division. Select no implementation until active
-value-preserving routes, diagnostic order, and required policy are explicit.
+Create an isolated tests-only `CORE-009` checkpoint on exact clean `a61172a`: add the
+permanent StructLiteral matrix and reclassify only the preregistered construction-
+positive controls. Prove false acceptance, dropped field calls, fabricated zero, and
+CLI artifact creation without parse failure, unwind, or changes to production.
 
 ## Unauthorized actions
 

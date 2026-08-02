@@ -202,6 +202,15 @@ correctness gates.
   parsed-source paths now reject it first. Several IR instruction variants have no
   codegen arm and
   are silently ignored by the wildcard arm.
+- `AUDIT-014` compared the next open families at exact clean `a61172a`. StructLiteral
+  has no active value-preserving source path, receives an invented named type without
+  declaration/field validation, and becomes scalar zero in both IR paths without
+  children; 19/24 public routes falsely succeeded and root/module builds wrote zero/
+  drop artifacts. EnumVariant is also non-executable but intersects Option/Result
+  sugar and diagnostics. Borrow mutates shallow ownership state, Deref retains
+  reference diagnostics, MethodCall must preserve typed zero-argument Array/Vec
+  `.iter()`, string comparison needs operand/operator policy, and division needs
+  integer/runtime/IEEE policy. StructLiteral alone is selected for `CORE-009`.
 - Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
   coverage is limited to four scalar CPU examples.
 

@@ -1069,3 +1069,131 @@
   `b74d91adeda04688ec37598beebffad458538c39` satisfies `CORE-008`. Direct constructed-
   AST-to-IR bypass and actual Match/default-trait execution semantics remain open and
   outside this boundary.
+
+## AUDIT-014 — Compare the next fabricated-value and panic boundaries
+
+- Objective: compare StructLiteral, EnumVariant, Borrow, Deref, string comparison,
+  MethodCall, and integer/float zero division on exact clean post-`CORE-008` closure
+  without changing repository files or selecting aggregate layout, ownership,
+  dispatch, string, arithmetic, runtime, or IEEE semantics.
+- Audited commit: `a61172aeee3dff7ecc3a3595e4d098377f28991b`.
+- StructLiteral: no active value-preserving source route exists. Both IR paths return
+  scalar zero without visiting fields; names, declarations, field sets/order/
+  duplicates/types, annotations, and children are not validated. A 61-route public
+  aggregate matrix found 19/24 Struct cases falsely accepted; 12 CLI operations all
+  exited zero and six builds wrote zero/drop artifacts. The existing child-first
+  preflight arm is complete across ordinary and default-trait bodies.
+- EnumVariant: equally non-executable, but `Some`/`None`/`Ok`/`Err` parser sugar and
+  Option/Result inference already produce distinct child, payload, name, and modulo
+  diagnostics. Twenty-seven of 36 Enum routes still falsely succeeded, but freezing
+  all-enum versus custom-only policy is a prerequisite; it is not bundled with
+  StructLiteral.
+- Borrow/Deref: both IR paths return zero without visiting operands. Borrow also
+  mutates shallow ownership state for exact direct-let shapes and seven active tests
+  depend on those diagnostics; Deref has real reference/non-reference inference
+  diagnostics but no active semantic acceptance test. A 61-observation matrix ranks
+  Deref-only ahead of Borrow, but both intersect ownership/reference policy and are
+  deferred behind the cleaner Struct boundary.
+- String comparison: all six operators remain accepted by semantics and can unwind
+  in IR; equality/inequality versus ordering and authoritative operand/runtime policy
+  are unresolved. Blanket comparison rejection would regress numeric execution.
+- MethodCall: the sole proven value-preserving route is exactly zero-argument
+  `.iter()` on an inferred Array/Vec receiver. Other known/unknown/wrong-arity forms
+  fabricate zero and drop arguments, but a typed capability discriminator must also
+  cover syntax-only default trait bodies before a trustworthy rejection slice.
+- Division: immediate/computed integer zero can panic while variable, unary, float,
+  mixed, closure, default-body, and dropped-argument forms diverge or emit artifacts.
+  Integer/runtime/overflow/promotion and floating IEEE policy remain prerequisites.
+- Selection: StructLiteral alone is the only compared family with no active value-
+  preserving route, no special built-in exception, no established semantic error to
+  replace after successful child preflight, and one complete existing preflight arm.
+  Active construction-positive controls must be explicitly reclassified as parser-
+  retention plus declaration-only controls rather than silently broken.
+- Status: complete; preregister `CORE-009`. EnumVariant, Borrow/Deref, MethodCall,
+  string comparison, and division remain separate open tasks.
+
+## CORE-009 — Reject unsupported struct construction expressions before IR
+
+- Problem: every `Expression::StructLiteral` is assigned `Ty::Struct(name)` without
+  validating that the struct exists or that fields exist, are unique, complete, in
+  range, or type-correct. Both IR paths replace the entire construction with integer
+  zero without evaluating any field, so calls and invalid expressions disappear and
+  aggregate values become fabricated scalars.
+- Evidence: `AUDIT-014` at `a61172a` found 19/24 StructLiteral routes falsely accepted
+  across root, binding, return, discarded, call, array, closure, default-trait,
+  nested, unknown-name, missing/extra/duplicate/wrong-field, and dropped-child cases.
+  Root/module check and build exit zero and create artifacts containing zero but no
+  field calls, layout, type, or aggregate operations. Direct aggregate arithmetic
+  can fold fabricated zero to one or panic after the invented `Int` type.
+- Priority: P0.
+- Dependencies: `CORE-001B` through accepted `CORE-008`; `AUDIT-014` complete.
+- Decision: retain struct declarations, construction grammar, parser, AST, and field
+  syntax, but reject every StructLiteral reached through trusted parsed-source
+  preflight with exactly `Struct construction expressions are not supported.` No
+  StructLiteral is eligible for inference, IR, or artifact generation in this slice.
+- Diagnostic ordering: visit field values in source order using the existing
+  preflight traversal, then return the Struct diagnostic. Established tuple, field,
+  Match, and void-as-value child diagnostics retain precedence. A nested Struct
+  reports the first inner Struct reached in field order. Modulo, undeclared names,
+  field declaration/name/type validation, and other inference-only errors are not
+  activated under this slice; after syntax preflight they yield the outer Struct
+  diagnostic. No source span is fabricated.
+- Boundary: rejection is recursive from ordinary expression roots, bindings,
+  discarded/explicit/tail returns, conditions, iterables, closures, default trait
+  bodies, nested functions/impls/traits, and every composite currently traversed by
+  shared preflight, including EnumVariant payloads. Parent expressions and structs
+  themselves are not thereby certified.
+- Syntax retained: parsing `Point { x: 7, y: 9 }` must still produce one
+  StructLiteral named `Point` with two ordered fields. Struct declarations and
+  generic construction syntax remain parser-visible; struct layout, initialization,
+  field validation, moves, ABI, IR, backend emission, and execution remain absent.
+- Compatibility decision: supersede the adjacent-construction positives frozen by
+  `CORE-007`/`CORE-008`. Rewrite them to assert StructLiteral parser retention and
+  public declaration-only/numeric/array/string/enum controls. Rewrite active
+  ownership/trait tests to use declared struct-typed parameters rather than runtime
+  construction so they continue testing move and trait rules without claiming
+  aggregate execution.
+- Files allowed: `src/compiler/src/semantic_analyzer.rs`, one new
+  `src/compiler/tests/unsupported_struct_literal_tests.rs`, targeted control-only
+  edits in `src/compiler/tests/unsupported_field_access_tests.rs`,
+  `src/compiler/tests/unsupported_match_tests.rs`, and
+  `src/compiler/tests/frontend_tests.rs`, plus README, data-structures tutorial,
+  specification matrix, historical status notices, and project-control documents.
+- Files frozen: lexer, grammar, parser, AST, struct/enum registries and definitions,
+  field lookup/assignment, generic resolution, ownership semantics, inference,
+  types, IR, code generator, optimizer, backends, EnumVariant/Option/Result,
+  Borrow/Deref, MethodCall, comparison/division, and every prior accepted boundary.
+- Positive tests: StructLiteral parser shape; struct declarations without
+  construction; generic annotation parsing; declared struct-typed parameter move
+  and trait-bound controls; custom Enum and Option/Result construction retain their
+  current separate behavior; numeric/function/control-flow/array/index/iterator/
+  string controls; and every prior focused boundary.
+- Negative tests: known/unknown construction; missing/extra/duplicate/wrong fields;
+  root, binding, discarded, explicit/tail return, condition, call argument, non-first
+  array, closure, nested Struct, EnumVariant payload, default trait and nested
+  declaration containers, dropped field calls, direct module, and representative
+  recursive parents. Public compilation must return the exact semantic error without
+  unwind. CLI check/build must exit nonzero without panic or requested artifact.
+- Diagnostic-precedence tests: tuple, field, Match, and known void-call field values
+  retain their accepted diagnostics; nested Struct uses first-field/source order;
+  modulo and undeclared-field children yield the Struct diagnostic because their
+  inference remains intentionally unreachable.
+- Red checkpoint: on clean `a61172a`, parser/declaration/enum/numeric/array and prior
+  boundary controls must pass. Struct negatives must preserve false acceptance,
+  fabricated zero, empty/drop behavior, omitted calls, and artifact creation before
+  production changes. No negative may rely on parse failure or unwind.
+- Regression risks: returning before fields changes child precedence; invoking field
+  inference invents aggregate semantics; existing public-positive controls and trait
+  tests can fail for the intended compatibility change unless reclassified; dormant
+  struct IR/codegen helpers can be mistaken for active source lowering.
+- Stop conditions: any trusted value-preserving StructLiteral route appears; the
+  change needs another production file or declaration/field/type/layout/ownership/
+  evaluation semantics; parser/AST/IR/backend changes are needed; default bodies or
+  a parsed parent bypass preflight; child ordering changes; EnumVariant behavior or
+  any prior accepted focused boundary regresses.
+- Owner: one isolated tests/implementation owner; lead owns compatibility and exact
+  diagnostic decisions. Two non-owner reviews are required after the complete gate.
+- Status: preregistered; tests-only red checkpoint pending.
+- Verification: focused Struct suite plus modified control suites, all prior focused
+  boundaries, formatting/all-target check, required `./tools/test.sh`, then exact-SHA
+  structural and black-box reviews.
