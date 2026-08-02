@@ -222,3 +222,10 @@ or non-numeric annotations, reassignment, typed local storage, or general fallib
   zero and exceptional inputs are defined, integer representation is trustworthy,
   and one owner can implement semantics, IR, backend, runtime, and conformance tests
   as a complete vertical slice.
+
+Implementation closure: exact clean candidate `302211e` was accepted. The one-file
+production change is `028bb5e`; it adds a dedicated `%` error arm to shared binary
+inference and leaves `+ - * /` unchanged. Fourteen focused tests, the full repository
+gate, corrected tutorial text, and two non-owner reviews prove trusted public/CLI
+paths return the frozen diagnostic without unwind, panic, or artifact. Constructed
+AST callers that bypass semantics and all remainder execution behavior remain open.

@@ -108,6 +108,11 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   from IR/backend lowering. Integer, float, mixed, and zero-RHS forms pass semantic
   `check` then panic in IR. `CORE-005` deliberately preregisters a temporary
   fail-closed semantic diagnostic rather than inventing remainder semantics.
+- At `302211e`, the preregistered `%` boundary is controlled: syntax and precedence
+  are preserved, while shared semantics rejects typed operands before IR across
+  public, CLI, and direct-module paths. Fourteen focused tests, the complete gate,
+  corrected tutorial wording, and two independent reviews support this partial
+  classification; no remainder execution behavior is claimed.
 
 This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,

@@ -135,10 +135,10 @@ correctness gates.
   terminator-aware. General CFG lowering can still append statements after a
   terminator and other loop/break/continue or unreachable shapes remain
   uncertified; multiple terminators or invalid blocks may still result.
-- At `c000d91`, integer, float, mixed, and zero-RHS modulo are accepted by semantic
-  typing but omitted from both IR expression paths; CLI `check` falsely succeeds,
-  while build and public compilation panic. `CORE-005` preregisters semantic
-  rejection until remainder semantics and an integer representation are frozen.
+- At `302211e`, integer, float, mixed, zero-RHS, unary, nested, nonnumeric, root,
+  and direct-module modulo nodes whose operands type successfully are rejected by
+  shared semantics with one stable diagnostic before IR. Parsing and precedence
+  remain explicit; no remainder execution semantics are claimed.
 - Adjacent read-only probes found separate boundaries: constant integer `/0` panics
   during IR folding; string comparison passes semantics then panics in IR; tuple,
   field, match, and unknown-method expressions can skip subtree validation and

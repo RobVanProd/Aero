@@ -597,7 +597,8 @@
   successful `%` artifact/runtime path. Stop if the rejection cannot be expressed
   in shared type inference without semantic-analyzer redesign.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: preregistered; implementation and focused tests pending.
+- Status: complete at reviewed candidate
+  `302211e6226c1580a8b4aec66790b37c03888db6`.
 - Acceptance criteria: red evidence is preserved; focused positive, negative,
   diagnostic, no-unwind, direct-module, and CLI artifact tests pass;
   `./tools/test.sh` passes; tutorial/capability records label `%` unsupported; and
@@ -605,4 +606,20 @@
 - Verification commands: focused `cargo test --test unsupported_modulo_tests`,
   applicable arithmetic/function regressions, `cargo fmt --all -- --check`, and
   the required `./tools/test.sh` gate.
-- Result commit: pending.
+- Red checkpoint: owner commit `3eeeca5`, integrated as `3a6c988`, preserves
+  3 passing parser/adjacent controls and 11 expected failures on the preregistration
+  base. Production owner commit `fc2e23f` is integrated as `028bb5e`; tutorial
+  correction is `302211e`.
+- Accepted result: shared inference returns the frozen diagnostic for every `%`
+  node whose operands can be typed. Ill-formed operand subtrees retain their earlier
+  diagnostic. Lexer/parser/AST/semantic structure/IR/backend/optimizer are unchanged,
+  and `+ - * /` retain their prior typing and LLVM markers.
+- Verification: exact clean SHA `302211e` passes 14/14 focused modulo tests,
+  13/13 function-contract tests, 18/18 annotation tests, formatting, and
+  `./tools/test.sh` (112 library, 119 binary, 11 fatal-parse, 59 frontend,
+  13 function-contract, 18 annotation, 12 strict-lex, and 14 modulo tests;
+  38 pre-existing phase-five tests remain ignored). Two non-owner reviewers approve
+  the exact SHA after fresh shared-helper, nonnumeric, unary/negative, nested,
+  root/direct-module, diagnostic, no-unwind, no-panic, and artifact probes.
+- Result commit: `028bb5e` for production behavior; exact accepted integration
+  candidate including tests and public documentation: `302211e`.

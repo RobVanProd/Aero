@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 4 — implement the preregistered fail-closed modulo boundary in
-`CORE-005` without changing lexer, parser, AST, IR, or backend behavior.
+Milestone 5 — audit the smallest fabricated-zero expression family and preregister
+one fail-closed boundary without bundling unrelated aggregate or method semantics.
 
 ## Active hypothesis
 
-Removing `%` from shared supported binary-type inference can make both trusted
-pipelines return one stable semantic error before IR while preserving parsing and
-all currently executable arithmetic behavior.
+A parsed expression family that currently skips subtree validation and lowers to
+scalar zero can be isolated and rejected in active semantics without changing
+implemented arrays, iterator lowering, ownership, IR shape, or backend contracts.
 
 ## Repository state
 
@@ -20,10 +20,10 @@ all currently executable arithmetic behavior.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `c000d916a432c781a24ddd556607c578e2d6c198`
-- Last verified commit: `bc9a14820af6b3127a8dad5fffd4ccf55d9c9d2f`
-- Worktree: clean before `CORE-005` preregistration. `CORE-004` is accepted and its
-  control-document closure is committed at `c000d91`.
+- Current commit: `302211e6226c1580a8b4aec66790b37c03888db6`
+- Last verified commit: `302211e6226c1580a8b4aec66790b37c03888db6`
+- Worktree: clean before this `CORE-005` control-document closure. The exact
+  candidate passes the complete gate and has two independent approvals.
 
 ## Environment and verification
 
@@ -67,6 +67,13 @@ all currently executable arithmetic behavior.
   and 12 strict-lex tests. The 38 pre-existing phase-five tests remain ignored.
   Two independent reviewers approved the exact clean SHA after public no-unwind,
   scope-provenance, artifact, callable-restoration, and analyzer-reuse probes.
+- `CORE-005` verification at `302211e`: focused modulo tests 14/14;
+  function-contract tests 13/13; annotation tests 18/18; full gate PASS with
+  112 library, 119 binary, 11 fatal-parse, 59 frontend, 13 function-contract,
+  18 annotation, 12 strict-lex, and 14 modulo tests. The 38 pre-existing phase-five
+  tests remain ignored. Two non-owner reviewers approved the exact clean SHA after
+  fresh shared-helper and public/CLI diagnostic, no-unwind, no-panic, module,
+  precedence, nonnumeric, unary, nested, positive-control, and artifact probes.
 
 ## Audit agents
 
@@ -93,6 +100,7 @@ all currently executable arithmetic behavior.
   agree that `%` is the smallest bounded fail-open family. Five numeric forms pass
   semantic `check` then panic in both public/CLI compilation. Constant integer `/0`,
   unsupported comparisons, and invented-zero aggregates/methods are separate tasks.
+  The selected `%` boundary is controlled at `302211e`.
 
 ## Current capability classification
 
@@ -131,19 +139,18 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - The tested scalar/callable IR scope exits and semantic compatibility scopes are
   controlled at `bc9a148`; general AST-to-IR fallibility, unsupported-expression
   fallbacks, and analyzer/backend invariants remain open.
-- At `c000d91`, `%` is parsed and typed but not represented in IR; CLI `check`
-  falsely succeeds while build/public compilation panic. Its temporary fail-closed
-  semantic boundary is preregistered as `CORE-005`. Negative/float/zero remainder
-  semantics remain intentionally undecided.
+- At `302211e`, `%` remains parsed but is rejected by shared semantic inference
+  before IR with one stable diagnostic across trusted public and CLI paths.
+  Negative/float/zero remainder execution semantics remain intentionally undecided.
 - Constant integer division by zero independently panics during IR constant folding.
   Unsupported tuple/match/field/method forms can still fabricate scalar zero, and
   some semantically accepted comparisons can panic or generate type-invalid LLVM.
 
 ## Exact next action
 
-Assign the isolated `CORE-005` owner to commit the focused red tests first, verify
-their failures on the preregistration SHA, then implement only the shared semantic
-rejection and resubmit an exact clean candidate.
+Perform a read-only audit of field, tuple, match, and unknown-method expressions
+that currently bypass subtree validation and lower to scalar zero; select and
+preregister the smallest coherent `CORE-006` boundary before any edit.
 
 ## Unauthorized actions
 
