@@ -106,6 +106,70 @@ fn combined_output(output: &Output) -> String {
     )
 }
 
+fn llvm_function<'a>(llvm: &'a str, signature_prefix: &str) -> &'a str {
+    let start = llvm.find(signature_prefix).expect("function definition");
+    let tail = &llvm[start..];
+    let end = tail.find("\n}\n").expect("function terminator") + 3;
+    &tail[..end]
+}
+
+fn scalar_slots_before_call<'a>(function: &'a str, callee: &str) -> Vec<&'a str> {
+    let call_marker = format!("call i32 @{callee}(");
+    function
+        .lines()
+        .take_while(|line| !line.contains(&call_marker))
+        .filter_map(|line| {
+            line.trim()
+                .split_once(" = alloca double")
+                .map(|(slot, _)| slot)
+        })
+        .collect()
+}
+
+fn pointer_loaded_for_i32_call<'a>(function: &'a str, callee: &str) -> &'a str {
+    let call_marker = format!("call i32 @{callee}(");
+    let call_line = function
+        .lines()
+        .find(|line| line.contains(&call_marker))
+        .unwrap_or_else(|| panic!("missing downstream `{callee}` call in:\n{function}"));
+    let call_tail = call_line.split_once(&call_marker).expect("call marker").1;
+    let call_argument = call_tail
+        .split_once(')')
+        .expect("call argument terminator")
+        .0
+        .strip_prefix("i32 ")
+        .expect("eligible i32 call argument");
+
+    let cast_prefix = format!("{call_argument} = fptosi double ");
+    let cast_line = function
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with(&cast_prefix))
+        .unwrap_or_else(|| {
+            panic!("call argument `{call_argument}` was not produced by fptosi in:\n{function}")
+        });
+    let loaded_value = cast_line
+        .strip_prefix(&cast_prefix)
+        .expect("cast prefix")
+        .strip_suffix(" to i32")
+        .expect("i32 cast suffix");
+
+    let load_prefix = format!("{loaded_value} = load double, double* ");
+    let load_line = function
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with(&load_prefix))
+        .unwrap_or_else(|| {
+            panic!("cast input `{loaded_value}` was not produced by a load in:\n{function}")
+        });
+    load_line
+        .strip_prefix(&load_prefix)
+        .expect("load prefix")
+        .split_once(',')
+        .expect("load alignment suffix")
+        .0
+}
+
 fn assert_cli_rejection(output: &Output, artifact: Option<&Path>, expected: &str, actual: &str) {
     let diagnostics = combined_output(output);
     let mut failures = Vec::new();
@@ -217,6 +281,74 @@ fn main() {
     assert!(
         !llvm.contains("alloca i32"),
         "numeric annotation unexpectedly changed existing scalar slot lowering: {llvm}"
+    );
+}
+
+#[test]
+fn public_llvm_restores_outer_numeric_binding_after_explicit_block_shadow() {
+    let source = r#"
+fn consume(value: i32) -> i32 {
+    return value;
+}
+
+fn main() {
+    let value: int = 1;
+    {
+        let value: float = 2.5;
+    }
+    let observed: i32 = consume(value);
+}
+"#;
+    let llvm = compile(source).expect("valid explicit-block shadow should compile");
+    let main = llvm_function(&llvm, "define i32 @main(");
+    let slots = scalar_slots_before_call(main, "consume");
+    assert!(
+        slots.len() >= 2,
+        "expected distinct outer and inner slots: {main}"
+    );
+
+    let loaded_slot = pointer_loaded_for_i32_call(main, "consume");
+    assert_eq!(
+        loaded_slot,
+        slots[0],
+        "post-block call loaded `{loaded_slot}` instead of outer slot `{}`; inner slots: {:?}\n{main}",
+        slots[0],
+        &slots[1..]
+    );
+}
+
+#[test]
+fn public_llvm_restores_outer_numeric_binding_after_both_if_arms_shadow() {
+    let source = r#"
+fn consume(value: i32) -> i32 {
+    return value;
+}
+
+fn main() {
+    let value: int = 1;
+    if 1 < 2 {
+        let value: float = 2.5;
+    } else {
+        let value: float = 3.5;
+    }
+    let observed: i32 = consume(value);
+}
+"#;
+    let llvm = compile(source).expect("valid if-arm shadows should compile");
+    let main = llvm_function(&llvm, "define i32 @main(");
+    let slots = scalar_slots_before_call(main, "consume");
+    assert!(
+        slots.len() >= 3,
+        "expected outer and both arm-local slots: {main}"
+    );
+
+    let loaded_slot = pointer_loaded_for_i32_call(main, "consume");
+    assert_eq!(
+        loaded_slot,
+        slots[0],
+        "post-if call loaded `{loaded_slot}` instead of outer slot `{}`; arm-local slots: {:?}\n{main}",
+        slots[0],
+        &slots[1..]
     );
 }
 
