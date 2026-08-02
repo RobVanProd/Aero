@@ -66,7 +66,10 @@ impl Default for FunctionTable {
 impl FunctionTable {
     pub fn define_function(&mut self, info: FunctionInfo) -> Result<(), String> {
         if self.functions.contains_key(&info.name) {
-            return Err(format!("Error: duplicate function `{}`.", info.name));
+            return Err(format!(
+                "Error: Function `{}` is already defined.",
+                info.name
+            ));
         }
         self.functions.insert(info.name.clone(), info);
         Ok(())
