@@ -143,6 +143,14 @@ correctness gates.
   during IR folding; string comparison passes semantics then panics in IR; tuple,
   field, match, and unknown-method expressions can skip subtree validation and
   compile as fabricated scalar zero. They are not bundled into `CORE-005`.
+- `AUDIT-011` isolated the tuple family for `CORE-006`: both tuple literals and
+  tuple projections are assigned invented `int` semantics and become zero in both
+  IR expression paths. The valid specified expression `(7, 9).0` passes trusted
+  checking/building but stores zero. Nested tuple nodes can also evade validation
+  beneath parent forms whose inference inspects only part or none of the subtree.
+  Tuple syntax/types/patterns will be retained while tuple value expressions fail
+  closed recursively; fields, matches, methods, closures, and other composites
+  remain independent unimplemented boundaries.
 - Unimplemented methods, aggregates, matches, references, and ADTs are either
   changed to zero or dropped. Several IR instruction variants have no codegen
   arm and are silently ignored by the wildcard arm.

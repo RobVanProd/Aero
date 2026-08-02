@@ -229,3 +229,27 @@ inference and leaves `+ - * /` unchanged. Fourteen focused tests, the full repos
 gate, corrected tutorial text, and two non-owner reviews prove trusted public/CLI
 paths return the frozen diagnostic without unwind, panic, or artifact. Constructed
 AST callers that bypass semantics and all remainder execution behavior remain open.
+
+## DEC-010 — Tuple values fail closed until aggregate semantics are implemented
+
+- Date: 2026-08-02
+- Status: proposed for `CORE-006`; preregistered before tests or production edits
+- Decision: Aero retains tuple value syntax, tuple types, tuple patterns, and tuple
+  indexing syntax, but active semantics recursively rejects every tuple literal and
+  tuple-index expression with `Tuple expressions are not supported.` Tuple structs
+  and tuple-like enum declarations are outside this decision.
+- Evidence: at `704b3328`, the valid specified expression `(7, 9).0` succeeds in
+  both `check` and `build`, yet the generated LLVM stores zero. The analyzer maps
+  both tuple AST forms to `int`; both IR expression paths replace them with an
+  integer-zero constant. Hidden tuple nodes can evade shallow parent inference.
+- Alternatives rejected: implement layout/projection without a typed aggregate IR;
+  reject only tuple indexing while tuple literals still fabricate zero; reject only
+  literals while a constructed projection remains accepted; or patch only the two
+  direct inference arms and leave nested tuples under skipped parents eligible.
+- Compatibility consequences: tuple value source changes from silent miscompilation
+  or false success to a stable early diagnostic. Parenthesized scalar grouping and
+  the established array/index/iterator slice are unchanged. Tuple types and patterns
+  remain parsed but are not certified as executable tuple semantics.
+- Revisit when: tuple element types, layout, construction, projection, bounds,
+  ownership/copy behavior, ABI, typed IR, backend lowering, and end-to-end positive
+  tests can be delivered as one coherent vertical slice.

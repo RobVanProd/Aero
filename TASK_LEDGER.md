@@ -623,3 +623,76 @@
   root/direct-module, diagnostic, no-unwind, no-panic, and artifact probes.
 - Result commit: `028bb5e` for production behavior; exact accepted integration
   candidate including tests and public documentation: `302211e`.
+
+## CORE-006 — Reject unsupported tuple value expressions before IR
+
+- Problem: tuple literals and tuple-index expressions are parsed and assigned an
+  invented scalar `int` type, while both active IR expression paths replace the
+  entire value with integer zero. Valid source such as
+  `fn main() { let value: int = (7, 9).0; }` therefore passes `check` and `build`
+  but stores zero rather than seven.
+- Evidence: at `704b3328`, `(11, 22)` and `(11, 22).1` both emit an artifact whose
+  function body allocates a scalar, stores `double 0`, and contains neither tuple
+  constant. A tuple hidden in another expression can also bypass subtree
+  validation. Arrays, array indexing, and `.iter()` have distinct nonzero lowering
+  and remain positive controls.
+- Priority: P0.
+- Dependencies: `CORE-001B` through `CORE-005` complete; `AUDIT-011` complete.
+- Decision: retain tuple literal, tuple-index, tuple-type, and tuple-pattern syntax,
+  but reject every `Expression::TupleLiteral` and `Expression::TupleIndex` in the
+  active semantic expression preflight with the exact diagnostic
+  `Tuple expressions are not supported.` No tuple value expression is eligible
+  for IR or artifact generation in this slice.
+- Boundary: rejection is recursive, including tuple nodes used as a root, binding
+  initializer, return/tail/discarded expression, condition/iterable, or beneath an
+  array element, call or method argument/object, struct field, enum payload, match
+  scrutinee/arm, borrow/dereference, unary/binary/logical expression, closure body,
+  field object, or index object/index. Parent forms are not thereby certified.
+- Diagnostic ordering: once the preflight reaches an unsupported tuple node, the
+  frozen tuple diagnostic wins over analysis of that tuple's children. Errors in
+  source evaluated before reaching that node retain their existing order. No source
+  span is fabricated.
+- Compatibility consequence: tuple value programs that previously reported false
+  success now fail during semantics. This is a documented temporary conformance
+  exception, not removal of a working execution path: no audited tuple literal or
+  projection preserved its values in an artifact.
+- Syntax retained: tuple types and patterns remain representable; parenthesized
+  scalar grouping such as `(7)` remains valid. Tuple structs and tuple-like enum
+  declarations are separate syntax and behavior and are frozen.
+- Files allowed: `src/compiler/src/semantic_analyzer.rs`, one new focused
+  integration test under `src/compiler/tests/`, and affected language/control
+  documentation.
+- Files frozen: lexer, grammar, parser, AST, type representation, tuple layout and
+  indexing semantics, IR, code generator, optimizer, arrays/indexing/iteration,
+  structs, enums, match behavior, fields, methods, closures, ownership, numeric
+  contracts/conversions, runtime/backends, and public stability claims.
+- Positive tests: parser still distinguishes tuple literal and tuple projection;
+  grouped scalar expressions, numeric arithmetic, arrays, array indexing, and
+  `.iter()` retain their accepted behavior and existing LLVM markers.
+- Negative tests: direct literal/projection, function return/tail, discarded/root,
+  direct-module, and representative nested locations. Public compilation is
+  wrapped to prove it returns `Err` without unwinding; CLI `check` and `build` must
+  exit nonzero with the exact diagnostic and create no requested artifact.
+- Red checkpoint: on `704b3328`, parser and adjacent positive controls must pass;
+  every tuple negative must demonstrate false acceptance, fabricated-zero output,
+  or a later pipeline failure before production code changes.
+- Regression risks: the existing preflight was introduced for nested void calls;
+  mutable and immutable inference functions are duplicated; initialization
+  traversal skips composites; binary and library targets compile analyzer copies;
+  closure and discarded-value routes have special handling; constructed AST callers
+  can bypass semantics and invoke infallible IR directly.
+- Stop conditions: implementation requires tuple layout, projection execution,
+  index bounds, parser/AST/type/IR/backend changes, changes another expression
+  family's semantics, more than one production file, or cannot cover all active
+  semantic routes through one shared recursive preflight. Stop if a currently
+  value-preserving tuple execution path is found or if an array/index/iterator,
+  grouped scalar, numeric function, or lexical-scope regression appears.
+- Owner: one isolated implementation agent; lead integrates.
+- Status: preregistered; tests and production code not yet changed.
+- Acceptance criteria: red evidence is preserved; focused parser, positive,
+  negative, nested, diagnostic, no-unwind, direct-module, and CLI no-artifact tests
+  pass; prior focused suites and `./tools/test.sh` pass; user-facing tuple claims are
+  corrected; and two independent reviewers approve the exact clean integration SHA.
+- Verification commands: focused `cargo test --test unsupported_tuple_tests`,
+  applicable function/annotation/modulo regressions, `cargo fmt --all -- --check`,
+  and the required `./tools/test.sh` gate.

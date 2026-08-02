@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 5 — audit the smallest fabricated-zero expression family and preregister
-one fail-closed boundary without bundling unrelated aggregate or method semantics.
+Milestone 6 — implement the preregistered `CORE-006` fail-closed tuple-value
+boundary tests-first, without inventing aggregate layout or projection semantics.
 
 ## Active hypothesis
 
-A parsed expression family that currently skips subtree validation and lowers to
-scalar zero can be isolated and rejected in active semantics without changing
-implemented arrays, iterator lowering, ownership, IR shape, or backend contracts.
+The analyzer's existing exhaustive expression preflight can reject both tuple
+value AST forms recursively across ordinary, discarded, closure, and nested routes
+without changing parser/AST/types, arrays, IR shape, or backend contracts.
 
 ## Repository state
 
@@ -20,10 +20,11 @@ implemented arrays, iterator lowering, ownership, IR shape, or backend contracts
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `302211e6226c1580a8b4aec66790b37c03888db6`
+- Current commit: `704b3328b0c22b2fab02258ad81486c62fc3e1be`
 - Last verified commit: `302211e6226c1580a8b4aec66790b37c03888db6`
-- Worktree: clean before this `CORE-005` control-document closure. The exact
-  candidate passes the complete gate and has two independent approvals.
+- Worktree: clean before this `CORE-006` preregistration. `704b3328` contains only
+  the accepted `CORE-005` control-document closure beyond the last fully verified
+  candidate; no production behavior changed.
 
 ## Environment and verification
 
@@ -101,6 +102,13 @@ implemented arrays, iterator lowering, ownership, IR shape, or backend contracts
   semantic `check` then panic in both public/CLI compilation. Constant integer `/0`,
   unsupported comparisons, and invented-zero aggregates/methods are separate tasks.
   The selected `%` boundary is controlled at `302211e`.
+- `AUDIT-011` fabricated-zero expression families: complete at `704b3328`. Three
+  independent read-only audits compared fields, tuples, matches, methods, closures,
+  arrays, structs, enums, borrows, and nested forms. Two selected tuple literals and
+  tuple projections as the smallest coherent family; one ranked field access first
+  by AST-form count but confirmed the tuple family's shared zero behavior. The lead
+  selected tuples because `(7, 9).0` is a valid specification-backed value expression
+  that silently emits zero, while field access intersects broader struct semantics.
 
 ## Current capability classification
 
@@ -148,9 +156,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Perform a read-only audit of field, tuple, match, and unknown-method expressions
-that currently bypass subtree validation and lower to scalar zero; select and
-preregister the smallest coherent `CORE-006` boundary before any edit.
+Commit the `CORE-006` control contract, then have one isolated owner add only the
+focused red integration test file. Preserve the red checkpoint before permitting
+the one-file semantic implementation.
 
 ## Unauthorized actions
 

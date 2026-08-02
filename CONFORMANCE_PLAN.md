@@ -25,6 +25,11 @@
 - Until remainder semantics are frozen, `%` is a required compile-fail corpus
   category across integer, float, mixed, nested, zero-RHS, and direct-module forms;
   tests must prove semantic failure, no unwind, and no requested artifact.
+- Until complete tuple layout and projection semantics exist, tuple literal and
+  tuple-index value expressions are a required recursive compile-fail category,
+  including representative nested, function, root/direct-module, public-library,
+  and CLI no-artifact forms. Tuple parsing and grouped scalar controls remain
+  positive parser/semantic evidence, not tuple execution evidence.
 - Runtime-output tests with exact stdout, stderr, exit code, and declared sources
   of nondeterminism.
 - Diagnostic snapshots normalized only for unstable machine paths or equivalent
