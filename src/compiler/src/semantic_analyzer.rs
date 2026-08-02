@@ -1001,8 +1001,11 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn reject_void_call_in_value_expression(&self, expr: &Expression) -> Result<(), String> {
+    fn preflight_expression(&self, expr: &Expression) -> Result<(), String> {
         match expr {
+            Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => {
+                return Err("Tuple expressions are not supported.".to_string());
+            }
             Expression::FunctionCall { name, arguments } => {
                 if !self.is_closure_callable(name)
                     && self
@@ -1016,71 +1019,71 @@ impl SemanticAnalyzer {
                     ));
                 }
                 for argument in arguments {
-                    self.reject_void_call_in_value_expression(argument)?;
+                    self.preflight_expression(argument)?;
                 }
             }
             Expression::Binary { left, right, .. }
             | Expression::Comparison { left, right, .. }
             | Expression::Logical { left, right, .. } => {
-                self.reject_void_call_in_value_expression(left)?;
-                self.reject_void_call_in_value_expression(right)?;
+                self.preflight_expression(left)?;
+                self.preflight_expression(right)?;
             }
             Expression::MethodCall {
                 object, arguments, ..
             } => {
-                self.reject_void_call_in_value_expression(object)?;
+                self.preflight_expression(object)?;
                 for argument in arguments {
-                    self.reject_void_call_in_value_expression(argument)?;
+                    self.preflight_expression(argument)?;
                 }
             }
             Expression::Print { arguments, .. } | Expression::Println { arguments, .. } => {
                 for argument in arguments {
-                    self.reject_void_call_in_value_expression(argument)?;
+                    self.preflight_expression(argument)?;
                 }
             }
             Expression::Unary { operand, .. } => {
-                self.reject_void_call_in_value_expression(operand)?;
+                self.preflight_expression(operand)?;
             }
-            Expression::ArrayLiteral(elements) | Expression::TupleLiteral(elements) => {
+            Expression::ArrayLiteral(elements) => {
                 for element in elements {
-                    self.reject_void_call_in_value_expression(element)?;
+                    self.preflight_expression(element)?;
                 }
             }
             Expression::ArrayRepeat { value, .. } => {
-                self.reject_void_call_in_value_expression(value)?;
+                self.preflight_expression(value)?;
             }
             Expression::IndexAccess { object, index } => {
-                self.reject_void_call_in_value_expression(object)?;
-                self.reject_void_call_in_value_expression(index)?;
+                self.preflight_expression(object)?;
+                self.preflight_expression(index)?;
             }
-            Expression::FieldAccess { object, .. } | Expression::TupleIndex { object, .. } => {
-                self.reject_void_call_in_value_expression(object)?;
+            Expression::FieldAccess { object, .. } => {
+                self.preflight_expression(object)?;
             }
             Expression::StructLiteral { fields, .. } => {
                 for (_, value) in fields {
-                    self.reject_void_call_in_value_expression(value)?;
+                    self.preflight_expression(value)?;
                 }
             }
             Expression::EnumVariant { data, .. } => {
                 if let Some(value) = data {
-                    self.reject_void_call_in_value_expression(value)?;
+                    self.preflight_expression(value)?;
                 }
             }
             Expression::Match { expr, arms } => {
-                self.reject_void_call_in_value_expression(expr)?;
+                self.preflight_expression(expr)?;
                 for arm in arms {
-                    self.reject_void_call_in_value_expression(&arm.body)?;
+                    self.preflight_expression(&arm.body)?;
                 }
             }
             Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
-                self.reject_void_call_in_value_expression(expr)?;
+                self.preflight_expression(expr)?;
             }
             Expression::IntegerLiteral(_)
             | Expression::FloatLiteral(_)
             | Expression::StringLiteral(_)
             | Expression::Identifier(_) => {}
             Expression::Closure { body, .. } => {
-                self.reject_void_call_in_value_expression(body)?;
+                self.preflight_expression(body)?;
             }
         }
 
@@ -1088,7 +1091,7 @@ impl SemanticAnalyzer {
     }
 
     fn infer_and_validate_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
-        self.reject_void_call_in_value_expression(expr)?;
+        self.preflight_expression(expr)?;
         self.infer_expression_immutable(expr)
     }
 
