@@ -256,17 +256,19 @@
   malformed exponents become zero; non-finite floats are accepted; unterminated
   ordinary and formatted strings become literal tokens.
 - Expected behavior: strict lexing returns the first located lexical error with no
-  token stream. Library/build/check/run/test/profile/doc and LSP diagnostics use
-  strict lexing; build/run emit no artifact and do not reach native tools; profile
-  and doc emit no requested output; applicable direct modules follow the same rule.
+  token stream. Library/build/check/run/test/profile/doc/conformance and LSP
+  diagnostics use strict lexing; build/run emit no artifact and do not reach native
+  tools; profile and doc emit no requested output; applicable direct modules follow
+  the same rule.
 - Smallest reproducers: `let value = 1@;`, integer `9223372036854775808`,
   `let value = 1e+;`, `let value = 1e9999;`, and `let value = "unterminated`.
 - Files allowed: `src/compiler/src/lexer.rs`, `src/compiler/src/lib.rs`,
   `src/compiler/src/main.rs`, `src/compiler/src/profiler.rs`,
   `src/compiler/src/doc_generator.rs`, `src/compiler/src/lsp.rs`,
   `src/compiler/src/parser.rs` only for interpolation-expression strict lexing, a
-  new focused integration test under `src/compiler/tests/`, and affected control
-  documents.
+  new focused integration test under `src/compiler/tests/`, affected control
+  documents, and—by preregistered review amendment—
+  `src/compiler/src/conformance.rs` only for strict lex/fallible parse migration.
 - Files frozen: token enum and meanings, accepted lexical forms, parser grammar and
   recovery, AST, semantic/type/ownership rules, IR/optimization/backend lowering,
   module recursion, formatter behavior, registry, claims and public language docs.
@@ -283,8 +285,10 @@
   directory. Valid native execution is unchanged and unavailable on this host.
 - Diagnostic expectation: stable `Lex error` category plus existing
   `Unexpected character`, `Invalid number format`, or `Unterminated string literal`
-  text and filename/line/column. Invalid f-string interpolation is rejected during
-  parsing with its underlying lexical error until end-to-end subexpression spans exist.
+  text and filename/line/column. LSP lexical diagnostics use an `aero-lexer` source,
+  include the category, and convert source columns to default UTF-16 protocol
+  positions. Invalid f-string interpolation is rejected during parsing with its
+  underlying lexical error until end-to-end subexpression spans exist.
 - Regression risks: accidentally changing legacy behavior; duplicating the large
   scanner; accepting infinity as a float; losing filename ownership across callers;
   LSP symbol recovery must remain available independently of strict diagnostics.
@@ -296,7 +300,13 @@
   be added without duplicating the lexer; location correction requires a new span
   model; accepted numeric or escape semantics would change; files exceed the list.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: preregistered
+- Status: integrated; independent review changes requested
+- Review amendment: independent review of initial integration `379ec1e` requested
+  changes because public conformance still fed recovery tokens to semantics/IR,
+  doc skipped direct-module validation, and LSP labeled lexical errors as parser
+  diagnostics with scalar rather than UTF-16 columns. Scope was expanded before
+  corrective code. Direct-module doc validation must not change valid doc content;
+  conformance lexical/parse failures become explicit failed results, never panics.
 - Verification commands: strict lexer unit tests, focused Cargo integration tests,
   manual CLI reproducers, LSP diagnostic test, and `./tools/test.sh`.
 - Result commit: pending

@@ -20,10 +20,10 @@ changing the legacy lexer API or accepted-token semantics in the first slice.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `b3f0f4466214e80a161754e028fd023a1ab73200`
-- Last verified commit: `6ce859220634c40c696397a3df178faea51f1912`
-- Worktree: clean. `CORE-001` and `CORE-001B` are complete after isolated
-  implementation, two review/correction rounds, and final dual approval.
+- Current commit: `379ec1e61860f16c7e6940ebaa6771c01a2356c2`
+- Last verified commit: `379ec1e61860f16c7e6940ebaa6771c01a2356c2`
+- Worktree: clean. Initial `CORE-002` implementation is integrated and passes the
+  full gate; independent review requested a preregistered closure amendment.
 
 ## Environment and verification
 
@@ -102,8 +102,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit the `CORE-002` contract, create an isolated worktree, assign its single
-implementation owner, and capture the strict-API/CLI red baseline before code.
+Commit the `CORE-002` review amendment, create a fresh isolated closure worktree,
+and assign the same sole owner to conformance/doc/LSP corrections and regressions.
 
 ## Unauthorized actions
 

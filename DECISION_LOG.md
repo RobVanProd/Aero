@@ -103,3 +103,9 @@
   remain unchanged in this slice.
 - Revisit when: every consumer has migrated to a diagnostic-accumulating lexer and
   the recovery API can be made explicit or removed with a migration plan.
+
+Review clarification: public conformance is not exempt merely because its current
+fixtures are hardcoded. Its semantic and IR checks must consume strict located
+tokens and fallible parsing. Documentation validates declared direct modules before
+writing output. LSP lexical diagnostics identify the lexer and use UTF-16 positions;
+editor symbol indexing remains the sole intentional recovery consumer in these paths.
