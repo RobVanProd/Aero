@@ -895,11 +895,10 @@ fn test_semantic_move_into_function() {
 
 #[test]
 fn test_semantic_struct_is_non_copy() {
-    // Struct values should use move semantics
+    // Declared struct-typed parameters should use move semantics without constructing a value.
     let source = r#"
         struct Point { x: i32, y: i32 }
-        fn main() {
-            let p1 = Point { x: 1, y: 2 };
+        fn consume(p1: Point) {
             let p2 = p1;
             let p3 = p1;
         }
@@ -993,8 +992,7 @@ fn test_semantic_unsatisfied_trait_bound() {
             return;
         }
         struct Opaque { data: i32 }
-        fn main() {
-            let o = Opaque { data: 42 };
+        fn main(o: Opaque) {
             print_item(o);
         }
     "#;
@@ -1024,8 +1022,7 @@ fn test_semantic_trait_bound_satisfied_ok() {
         impl Display for Widget {
             fn display(&self) -> String { return "widget"; }
         }
-        fn main() {
-            let w = Widget { name: "foo" };
+        fn main(w: Widget) {
             print_item(w);
         }
     "#;

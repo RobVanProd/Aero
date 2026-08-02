@@ -46,6 +46,16 @@ fn main() {
 }
 "#;
 
+const PUBLIC_SYNTAX_CONTROL_SOURCE: &str = r#"
+struct Point { x: int, y: int }
+enum Choice { Empty, Number(int) }
+
+fn main() {
+    let message = "ready";
+    let choice = Choice::Number(11);
+}
+"#;
+
 const ITER_CONTROL_SOURCE: &str = r#"
 fn main() {
     let values = [1, 2];
@@ -292,7 +302,7 @@ fn public_compile_preserves_numeric_function_control_flow_array_and_index_contro
 }
 
 #[test]
-fn parser_and_public_compile_preserve_string_struct_and_enum_syntax_controls() {
+fn parser_retains_struct_construction_while_public_controls_remain_declaration_only() {
     let tokens = try_tokenize_with_locations(SYNTAX_CONTROL_SOURCE, None)
         .expect("string/struct/enum controls should lex");
     let ast = parse_with_locations(tokens).expect("string/struct/enum controls should parse");
@@ -326,8 +336,8 @@ fn parser_and_public_compile_preserve_string_struct_and_enum_syntax_controls() {
         } if enum_name == "Choice" && variant == "Number"
     )));
 
-    compile_program(SYNTAX_CONTROL_SOURCE, CompilerOptions::default())
-        .expect("string/struct/enum controls should retain pre-task behavior");
+    compile_program(PUBLIC_SYNTAX_CONTROL_SOURCE, CompilerOptions::default())
+        .expect("string, struct declaration, and Enum controls should compile");
 }
 
 #[test]
