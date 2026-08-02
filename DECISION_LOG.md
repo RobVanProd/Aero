@@ -303,14 +303,18 @@ design.
 ## DEC-012 — Match values fail closed until pattern semantics and lowering exist
 
 - Date: 2026-08-02
-- Status: implemented for `CORE-008`; full-gate and independent acceptance review
-  pending
+- Status: initial candidate rejected; corrective traversal amendment preregistered
 - Decision: Aero retains Match syntax, its AST node, arms, and Pattern
-  representation, but trusted active semantic preflight will reject every Match
-  value expression with `Match expressions are not supported.` The existing
+  representation, but every Match value expression in a trusted parsed source body
+  must reach active semantic preflight and reject with
+  `Match expressions are not supported.` The existing
   scrutinee-first, arm-body-in-source-order traversal remains first so accepted
   child diagnostics retain precedence; the Match error occurs before invented
-  result-type inference.
+  result-type inference. Default trait method bodies are parser-retained but excluded
+  from full semantic analysis, so a dedicated syntax-only statement/block walk must
+  visit their expression roots in source order and reuse `preflight_expression`.
+  This walk must not resolve names, bind parameters, infer return types, validate
+  traits, or activate ownership, pattern, or execution semantics.
 - Evidence: `AUDIT-013` found no active value-preserving Match path. Across 23 cases
   and 69 public/check/build outcomes, 20 ordinary Match forms falsely succeeded with
   zero or dropped evaluation; field, tuple, and void-valued child controls retained
@@ -332,9 +336,19 @@ design.
   ownership/destruction, typed CFG/IR, backend lowering, and end-to-end positive and
   negative tests can ship as one coherent vertical slice.
 
-Implementation candidate: the tests-only red checkpoint is integrated as `851731c`
-and the one-line production change as `c826294`. The exact focused candidate passes
-all 90 Match/field/tuple/modulo/function/annotation/strict tests, formatting, and
-`cargo check --all-targets`. Public capability documentation is corrected without
-deleting historical design evidence. The complete repository gate and two non-owner
-reviews remain required before acceptance.
+Initial candidate: the tests-only red checkpoint is integrated as `851731c` and the
+one-line production change as `c826294`. Exact clean documented `08e7c2c` passed the
+complete repository gate, all 90 focused tests, formatting, and
+`cargo check --all-targets`, but independent review rejected it. Reviewer A proved
+that a Match in a default trait method body bypasses analysis and succeeds through
+the public API, check, and build, with build writing an artifact. Its structural
+audit found no second parsed expression-bearing container escape. Reviewer B
+approved 41 other routes but did not exercise trait defaults; acceptance therefore
+remains denied.
+
+Corrective amendment: preserve the failed route as a regression before production
+changes. Add a structural block/statement preflight funnel used only for default
+`TraitMethod.body` values, preserve statement and child order, and keep full trait
+method analysis inactive. Calling `analyze_block` or `analyze_statement` for those
+bodies is outside this decision. A new complete gate and two new exact-SHA non-owner
+approvals are mandatory.

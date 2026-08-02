@@ -159,9 +159,11 @@ fn main() {
 > form and are not part of this field-access boundary.
 
 > **Pattern matching status:** `match` syntax, arms, and patterns are recognized,
-> but Match value evaluation is not executable yet. Trusted compiler paths inspect
-> the scrutinee and arm bodies for established errors, then reject the Match before
-> IR generation with `Match expressions are not supported.`
+> but Match value evaluation is not executable yet. Analyzed expression paths inspect
+> the scrutinee and arm bodies for established errors, then reject the Match with
+> `Match expressions are not supported.` A known candidate gap remains for parsed
+> default trait method bodies, which currently bypass that preflight; Match must not
+> be treated as executable or safe there.
 
 Formal spec: `docs/language/aero_formal_language_specification.md`
 

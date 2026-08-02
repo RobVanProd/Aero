@@ -176,15 +176,20 @@ correctness gates.
   inference invents `Int`, both IR paths return zero without children, and a
   23-case matrix confirms root, nested, module, and closure false successes. Match
   is selected for fail-closed preregistration; no execution semantics are inferred.
-- At `c826294`, trusted active semantic preflight visits the Match scrutinee and arm
+- At `c826294`, active semantic preflight visits a reached Match scrutinee and arm
   bodies in the frozen order, then rejects the Match with one stable diagnostic
-  before IR. Match tokens, parser AST, arms, and patterns remain available; pattern
+  before IR. Exact documented `08e7c2c` passed the full gate but was rejected in
+  independent review: parser-retained default trait method bodies are not analyzed,
+  so Match there succeeds through the public API/check/build and build writes an
+  artifact. A structural audit found no second parsed expression-bearing container
+  escape. Match tokens, parser AST, arms, and patterns remain available; pattern
   binding/typing/exhaustiveness, evaluation, result unification, enum layout,
-  ownership, IR, and backend execution remain outside this candidate. Direct
-  semantic bypass can still reach dormant zero stubs.
+  ownership, IR, and backend execution remain outside this rejected candidate.
+  Direct semantic bypass can also still reach dormant zero stubs.
 - Unimplemented methods, aggregates, references, and ADTs are either changed to
-  zero or dropped. Match retains dormant inference/IR stubs, but trusted candidate
-  paths reject it first. Several IR instruction variants have no codegen arm and
+  zero or dropped. Match retains dormant inference/IR stubs; ordinary analyzed
+  paths reject it first, but default trait bodies currently bypass that funnel.
+  Several IR instruction variants have no codegen arm and
   are silently ignored by the wildcard arm.
 - Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
   coverage is limited to four scalar CPU examples.

@@ -235,8 +235,10 @@ enum Result<T, E> {
 The intended `match` construct compares a value against patterns and selects an
 arm. The current compiler recognizes Match syntax and preserves its AST, but does
 not implement pattern binding, exhaustiveness, arm selection, or value lowering.
-Trusted compilation rejects every Match value before IR with
-`Match expressions are not supported.` The example below is therefore conceptual.
+Analyzed expression paths reject Match before IR with
+`Match expressions are not supported.` A known candidate gap remains in parsed
+default trait method bodies, which currently bypass preflight. The example below is
+therefore conceptual, and Match is not executable in any context.
 
 ```aero
 fn process_message(msg: Message) {
@@ -444,7 +446,8 @@ This tutorial covered:
     syntax is experimental, while named field projection is currently rejected and
     methods via `impl` are not certified by this tutorial.
 -   **Enums**: Defining variants and associated-data designs; `match` remains
-    conceptual and trusted compilation currently rejects Match values.
+    conceptual. Analyzed Match values reject, while a default-trait-body preflight
+    gap is under correction.
 -   **Basic Collections**: A brief look at `Vec<T>` and `HashMap<K, V>` from the standard library.
 -   **Traits**: A conceptual introduction to defining shared behavior with `trait` and `impl`.
 

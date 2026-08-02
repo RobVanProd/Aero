@@ -910,10 +910,14 @@
 - Dependencies: `CORE-001B` through `CORE-007` accepted; `AUDIT-013` complete at
   `648662b`.
 - Decision: retain `match` tokens, parser grammar, `Expression::Match`, MatchArm, and
-  Pattern representation, but reject every Match value expression reached through
-  active recursive semantic preflight with exactly
+  Pattern representation, but reject every Match value expression in a trusted
+  parsed source body with exactly
   `Match expressions are not supported.` No Match is eligible for IR or artifact
-  generation in this slice.
+  generation in this slice. Expression roots reached by normal analysis use active
+  recursive semantic preflight. Because default trait method bodies are parsed but
+  not semantically analyzed, they require a syntax-only statement/block traversal
+  that funnels each contained expression root into that same preflight without
+  activating name, parameter, return, trait, type, ownership, or pattern semantics.
 - Diagnostic ordering: keep the existing Match preflight traversal unchanged:
   inspect the scrutinee first and then every arm body in source order; return the
   Match diagnostic only after those children pass. Existing tuple, field, and
@@ -926,7 +930,10 @@
   explicit/tail returns, conditions, iterables, and closure bodies, and beneath
   arrays/repeats/indexing, calls and method arguments/receivers, struct fields, enum
   payloads, other Match scrutinees/arms, borrows/dereferences, unary/binary/logical
-  forms, prints, and field receivers. Parent forms are not thereby certified.
+  forms, prints, and field receivers. Default trait bodies are traversed in source
+  statement order and then through the optional tail expression; nested statement
+  containers preserve their existing condition/iterable-before-body order. Parent
+  forms and default trait methods are not thereby certified as executable.
 - Syntax retained: the active parser test for `let result = match x { 1 => 10,
   2 => 20, _ => 0 };` must continue to produce one Match with three arms. Pattern
   parsing and AST construction remain available for future implementation, but
@@ -952,9 +959,10 @@
 - Negative tests: minimal literal Match; bound/undeclared/call/string/Option
   scrutinees; undeclared/call/multiple arm bodies; root, binding, discarded,
   explicit/tail return, binary, non-first array, call argument, closure body, nested
-  Match, hidden `/0`, direct module, and representative recursive parent positions.
-  Public compilation must return the exact semantic `Err` without unwind. CLI
-  `check`/`build` must exit nonzero without panic or requested artifact.
+  Match, hidden `/0`, direct module, representative recursive parent positions, and
+  direct/tail/nested Match placements in default trait method bodies. Public
+  compilation must return the exact semantic `Err` without unwind. CLI `check`/
+  `build` must exit nonzero without panic or requested artifact.
 - Diagnostic-precedence tests: tuple scrutinee, field arm, and void-valued arm keep
   their exact accepted diagnostics; tuple containing Match keeps the tuple
   diagnostic; Match inside a field receiver is reached before the outer field
@@ -967,7 +975,9 @@
   diagnostics; restructuring the arm could accidentally imply pattern semantics;
   binary/library compiler modules and both IR paths are duplicated; historical enum
   helpers can be mistaken for active Match lowering; direct callers can bypass
-  semantics and still reach zero-stub IR.
+  semantics and still reach zero-stub IR. Calling full block or statement analysis
+  for a default trait body would silently expand this task into unregistered trait,
+  parameter, return, name, ownership, and type semantics.
 - Stop conditions: any trusted value-preserving Match route is found; implementation
   requires another production file or pattern/name/type/exhaustiveness/layout/
   ownership/evaluation semantics; parser/AST/IR/backend changes are needed; active
@@ -976,7 +986,8 @@
   any prior accepted focused boundary regresses.
 - Owner: one isolated tests/implementation owner; lead integrates and owns the
   diagnostic/compatibility decision.
-- Status: tests-only red checkpoint preserved; production change pending.
+- Status: initial candidate rejected in independent review; corrective tests-first
+  implementation pending under the amended default-trait-body boundary.
 - Acceptance criteria: red evidence is preserved; focused parser, recursive,
   positive, negative, diagnostic-order, no-unwind, direct-module, CLI no-panic and
   no-artifact tests pass; prior focused suites and `./tools/test.sh` pass; current
@@ -1008,5 +1019,21 @@
   records negative/diagnostic coverage and no typed-IR/backend/execution support.
   Two historical enum/Match design summaries retain their content under explicit
   current-capability notices rather than serving as active implementation evidence.
-- Candidate status: focused implementation and public documentation complete;
-  required full gate and two exact-SHA non-owner approvals remain open.
+- Initial full gate: exact clean documented candidate `08e7c2c` passed 112 library,
+  119 binary, 11 fatal-parser, 59 frontend, 13 function-contract, 18 annotation,
+  12 strict-lexing, 8 field, 9 Match, 14 modulo, and 16 tuple tests; 38 Phase 5
+  tests remained intentionally ignored. Formatting, documentation, and Clippy gates
+  passed.
+- Initial review result: **REJECT** exact `08e7c2c`. Structural reviewer A found
+  that a Match inside a parsed default `TraitMethod.body` succeeds through
+  `compile_program`, `aero check`, and `aero build`, and build writes LLVM because
+  `Statement::TraitDef` registers names without visiting default bodies. Its 33-route
+  matrix passed 32 routes and found this sole parsed expression-container escape;
+  7/7 precedence probes passed. Reviewer B's independent 41-route matrix approved
+  the routes it exercised but did not cover trait defaults, so that approval cannot
+  overcome the counterexample. No production acceptance exists.
+- Corrective checkpoint: freeze a syntax-only block/statement walk for default trait
+  bodies, add public/CLI/no-artifact and child-precedence regressions that fail on
+  `c826294`, then change only `semantic_analyzer.rs`. Do not call `analyze_block` or
+  `analyze_statement` for default bodies. The full gate and two new exact-SHA
+  non-owner approvals are required after correction.
