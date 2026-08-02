@@ -8,6 +8,9 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  AERO_LLVM_OPT: /usr/bin/opt-22
+  AERO_LLVM_AS: /usr/bin/llvm-as-22
+  AERO_REQUIRE_LLVM_VERIFIER: "true"
 
 jobs:
   build:
@@ -29,20 +32,45 @@ jobs:
       run: cargo build --verbose
       working-directory: src/compiler
 
-    - name: Install LLVM + Clang
+    - name: Install pinned LLVM 22 + Clang 22
       run: |
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+          | sudo gpg --dearmor --yes -o /etc/apt/keyrings/apt.llvm.org.gpg
+        . /etc/os-release
+        echo "deb [signed-by=/etc/apt/keyrings/apt.llvm.org.gpg] http://apt.llvm.org/${VERSION_CODENAME}/ llvm-toolchain-${VERSION_CODENAME}-22 main" \
+          | sudo tee /etc/apt/sources.list.d/llvm-22.list
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends llvm clang
-        llc --version
-        clang --version
+        sudo apt-get install -y --no-install-recommends llvm-22 clang-22
+        opt-22 --version
+        llvm-as-22 --version
+        llc-22 --version
+        clang-22 --version
+
+    - name: Confirm LLVM 22 rejects known-invalid IR
+      if: matrix.rust == 'stable'
+      shell: bash
+      run: |
+        invalid_ir="${RUNNER_TEMP}/aero-known-invalid.ll"
+        printf '%s\n' \
+          'define i32 @known_invalid() {' \
+          'entry:' \
+          '  ret i64 0' \
+          '}' > "${invalid_ir}"
+        if opt-22 -passes=verify -disable-output "${invalid_ir}"; then
+          echo "opt-22 accepted known-invalid LLVM IR"
+          exit 1
+        fi
+        echo "opt-22 rejected the known-invalid LLVM IR fixture as required"
 
     - name: Test return15 example
       run: |
         cd src/compiler
         cargo run -- build ../../examples/return15.aero -o ../../return15.ll
-        llc -verify-machineinstrs ../../return15.ll -o /dev/null
-        llc -filetype=obj ../../return15.ll -o ../../return15.o
-        clang ../../return15.o -o ../../return15
+        opt-22 -passes=verify -disable-output ../../return15.ll
+        llc-22 -verify-machineinstrs ../../return15.ll -o /dev/null
+        llc-22 -filetype=obj ../../return15.ll -o ../../return15.o
+        clang-22 ../../return15.o -o ../../return15
         set +e
         ../../return15
         exit_code=$?
@@ -57,9 +85,10 @@ jobs:
       run: |
         cd src/compiler
         cargo run -- build ../../examples/variables.aero -o ../../variables.ll
-        llc -verify-machineinstrs ../../variables.ll -o /dev/null
-        llc -filetype=obj ../../variables.ll -o ../../variables.o
-        clang ../../variables.o -o ../../variables
+        opt-22 -passes=verify -disable-output ../../variables.ll
+        llc-22 -verify-machineinstrs ../../variables.ll -o /dev/null
+        llc-22 -filetype=obj ../../variables.ll -o ../../variables.o
+        clang-22 ../../variables.o -o ../../variables
         set +e
         ../../variables
         exit_code=$?
@@ -72,9 +101,10 @@ jobs:
       run: |
         cd src/compiler
         cargo run -- build ../../examples/mixed.aero -o ../../mixed.ll
-        llc -verify-machineinstrs ../../mixed.ll -o /dev/null
-        llc -filetype=obj ../../mixed.ll -o ../../mixed.o
-        clang ../../mixed.o -o ../../mixed
+        opt-22 -passes=verify -disable-output ../../mixed.ll
+        llc-22 -verify-machineinstrs ../../mixed.ll -o /dev/null
+        llc-22 -filetype=obj ../../mixed.ll -o ../../mixed.o
+        clang-22 ../../mixed.o -o ../../mixed
         set +e
         ../../mixed
         exit_code=$?
@@ -89,9 +119,10 @@ jobs:
       run: |
         cd src/compiler
         cargo run -- build ../../examples/float_ops.aero -o ../../float_ops.ll
-        llc -verify-machineinstrs ../../float_ops.ll -o /dev/null
-        llc -filetype=obj ../../float_ops.ll -o ../../float_ops.o
-        clang ../../float_ops.o -o ../../float_ops
+        opt-22 -passes=verify -disable-output ../../float_ops.ll
+        llc-22 -verify-machineinstrs ../../float_ops.ll -o /dev/null
+        llc-22 -filetype=obj ../../float_ops.ll -o ../../float_ops.o
+        clang-22 ../../float_ops.o -o ../../float_ops
         set +e
         ../../float_ops
         exit_code=$?

@@ -22,7 +22,10 @@ mod registry;
 mod semantic_analyzer;
 mod types;
 
-// (unit tests live in the library crate)
+#[cfg(test)]
+mod conformance_checked_ir_tests;
+#[cfg(test)]
+mod llvm_verifier_cache_tests;
 
 use crate::ir_generator::IrGenerator;
 use crate::performance_optimizations::PerformanceOptimizer;

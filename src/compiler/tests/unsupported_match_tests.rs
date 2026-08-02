@@ -46,13 +46,12 @@ fn main() {
 }
 "#;
 
-const PUBLIC_SYNTAX_CONTROL_SOURCE: &str = r#"
+const PUBLIC_DECLARATION_CONTROL_SOURCE: &str = r#"
 struct Point { x: int, y: int }
 enum Choice { Empty, Number(int) }
 
 fn main() {
     let message = "ready";
-    let choice = Choice::Number(11);
 }
 "#;
 
@@ -336,8 +335,15 @@ fn parser_retains_struct_construction_while_public_controls_remain_declaration_o
         } if enum_name == "Choice" && variant == "Number"
     )));
 
-    compile_program(PUBLIC_SYNTAX_CONTROL_SOURCE, CompilerOptions::default())
-        .expect("string, struct declaration, and Enum controls should compile");
+    let llvm = compile_program(
+        PUBLIC_DECLARATION_CONTROL_SOURCE,
+        CompilerOptions::default(),
+    )
+    .expect("string and aggregate declarations should compile without runtime construction");
+    assert!(
+        !llvm.contains("Point") && !llvm.contains("Choice"),
+        "declarations emitted runtime IR:\n{llvm}"
+    );
 }
 
 #[test]

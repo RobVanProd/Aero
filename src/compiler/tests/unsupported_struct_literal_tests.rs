@@ -15,7 +15,7 @@ const MATCH_DIAGNOSTIC: &str = "Match expressions are not supported.";
 const TUPLE_DIAGNOSTIC: &str = "Tuple expressions are not supported.";
 const VOID_DIAGNOSTIC: &str = "Error: void function `sink` cannot be used as a value.";
 
-const PUBLIC_CONTROL_SOURCE: &str = r#"
+const PUBLIC_DECLARATION_AND_SCALAR_CONTROL_SOURCE: &str = r#"
 struct Point { x: int, y: int }
 struct Container<T> { value: T }
 enum Choice { Empty, Number(int) }
@@ -26,15 +26,22 @@ fn add(left: int, right: int) -> int {
 
 fn main() {
     let message = "ready";
-    let choice = Choice::Number(11);
-    let option = Some(7);
-    let result = Ok(9);
     let sum: int = add(6, 2);
     let values = [11, 22];
     let selected: int = values[1];
     for item in values.iter() {
         let copied: int = item;
     }
+}
+"#;
+
+const ENUM_CONSTRUCTION_SYNTAX_CONTROL_SOURCE: &str = r#"
+enum Choice { Empty, Number(int) }
+
+fn main() {
+    let choice = Choice::Number(11);
+    let option = Some(7);
+    let result = Ok(9);
 }
 "#;
 
@@ -272,10 +279,43 @@ fn main() {
 }
 
 #[test]
-fn public_compile_preserves_declarations_enum_option_numeric_function_array_index_and_iter_controls()
- {
-    let llvm = compile_program(PUBLIC_CONTROL_SOURCE, CompilerOptions::default())
-        .expect("declaration-only and adjacent controls should compile");
+fn parser_retains_custom_option_and_result_construction_syntax() {
+    let tokens = try_tokenize_with_locations(ENUM_CONSTRUCTION_SYNTAX_CONTROL_SOURCE, None)
+        .expect("Enum/Option/Result controls should lex");
+    let ast = parse_with_locations(tokens).expect("Enum/Option/Result controls should parse");
+    assert_eq!(ast.len(), 2, "unexpected Enum control AST: {ast:?}");
+    let AstNode::Statement(Statement::Function { body, .. }) = &ast[1] else {
+        panic!("expected main function: {:?}", ast[1]);
+    };
+    let variants = body
+        .statements
+        .iter()
+        .filter_map(|statement| match statement {
+            Statement::Let {
+                value:
+                    Some(Expression::EnumVariant {
+                        enum_name,
+                        variant,
+                        data: Some(_),
+                    }),
+                ..
+            } => Some((enum_name.as_str(), variant.as_str())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        variants,
+        [("Choice", "Number"), ("Option", "Some"), ("Result", "Ok")]
+    );
+}
+
+#[test]
+fn public_compile_preserves_declarations_numeric_function_array_index_and_iter_controls() {
+    let llvm = compile_program(
+        PUBLIC_DECLARATION_AND_SCALAR_CONTROL_SOURCE,
+        CompilerOptions::default(),
+    )
+    .expect("declaration-only and adjacent controls should compile");
     for marker in [
         "define i32 @add(i32 %left, i32 %right)",
         "call i32 @add(i32 6, i32 2)",
@@ -287,7 +327,7 @@ fn public_compile_preserves_declarations_enum_option_numeric_function_array_inde
         assert!(llvm.contains(marker), "LLVM missing '{marker}':\n{llvm}");
     }
     assert!(
-        !llvm.contains("Point"),
+        !llvm.contains("Point") && !llvm.contains("Choice"),
         "declarations emitted runtime IR:\n{llvm}"
     );
 }

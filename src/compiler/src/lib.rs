@@ -25,6 +25,9 @@ pub use parser::{Parser, parse, parse_with_locations};
 pub use semantic_analyzer::SemanticAnalyzer;
 
 #[cfg(test)]
+mod checked_ir_contract_test;
+
+#[cfg(test)]
 mod error_test;
 
 /// Compiler options for benchmarking
