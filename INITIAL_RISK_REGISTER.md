@@ -19,9 +19,9 @@ open until a regression test and the applicable full gate prove closure.
 | R-010 | Grammar, tutorials, examples, and implementation define incompatible languages | HIGH | HIGH | Keyword/literal/field/rebinding/lifetime/top-level discrepancies | Freeze authoritative grammar subset; executable documentation examples | OPEN |
 | R-011 | Aggregate and array lowering changes types or crashes | HIGH | HIGH | Only first array element checked; double storage and float-index truncation; composite fallback lowering | Homogeneity/index tests and typed aggregate IR before execution claims | OPEN |
 | R-012 | Dormant, duplicated, or ignored tests create false coverage confidence | HIGH | HIGH | 78 duplicate active names, 38 ignored phase-5 tests, 299 dormant source tests, no key negative/fuzz suites | Classify backlog; restore valid tests deliberately; report distinct coverage and gates | OPEN |
-| R-013 | User-facing commands report success without promised behavior | HIGH | HIGH | Fresh `AUDIT-018` probes at `8598a4c` reproduce status zero for unknown commands, malformed `build`/`check` usage, and missing build/check inputs; `test` remains analysis-only and `run_aero_program` exits internally | Shared typed status contract and command maturity classification | OPEN — compiler failures partially controlled; ranked after CORE-012 |
+| R-013 | User-facing commands report success without promised behavior | HIGH | HIGH | Corrected `AUDIT-019` probes at `b7bb429` reproduce status zero across no/unknown command, malformed usage, missing inputs, registry/conformance errors, and the bare benchmark source path; failed writes and ignored operands share the dispatcher defect; `test` remains analysis-only and `run_aero_program` passes through arbitrary program exits | `CORE-013` typed CLI-owned `0/1/2` status contract; delegated exits, atomic rollback, command maturity, and helper architecture remain separate | OPEN — `CORE-013` preregistered |
 | R-014 | Quick Start and flagship examples fail new-user workflows | HIGH | MEDIUM | No root Cargo manifest; flagship uses unsupported syntax/absent packages | Run docs as CI programs or label conceptual; correct manifest paths | OPEN |
-| R-015 | Tracked compilation benchmark reports successful non-compilations | HIGH | HIGH | `AUDIT-018` reran the harness-shaped source-path invocation: it prints `Unknown command` and exits zero; `performance_benchmark.py` times that exact command and the shell harness is simulated | Quarantine affected claims, fix command/status/output correctness gates, rerun under protocol | OPEN — ranked after CORE-012 |
+| R-015 | Tracked compilation benchmark reports successful non-compilations | HIGH | HIGH | `AUDIT-019` confirms `performance_benchmark.py` times the CLI's bare-source unknown-command route as success and the shell harness is simulated; no benchmark was run | `CORE-013` makes bare source fail and reclassifies affected claims; a separate protocol-complete benchmark repair/rerun remains required | OPEN — containment preregistered; benchmark remains invalid |
 | R-016 | Stable Rust/LLVM drift breaks reproducibility | MEDIUM | MEDIUM | CI tracks floating stable/nightly and no repository toolchain pin was found | Declare supported toolchains; capture lock/environment and platform gates | OPEN |
 | R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | Accepted CORE-012 at `6780a23` guards every live function and CLI live branch before auth/I/O/transport while keeping local search and dry-run plans credential/network-free; focused/full gates, exact review, and all public CI checks pass | Preserve quarantine; later specify and adversarially test paths, payload, response, auth, overwrite, dependencies, and transport before separate re-enablement | CONTROLLED — live transport fail closed; protocol remains unimplemented |
 
@@ -44,6 +44,11 @@ publication, although too late in checked IR for the mixed numeric case. `CORE-0
 was preregistered as quarantine only, not as a registry protocol implementation.
 
 Accepted `CORE-012` closes the active live-transport boundary without designing or
-enabling a protocol. The next task is `AUDIT-019`: revalidate R-013/R-015 at public
-head `6780a23`, compare them with the still-stopped ownership risk and other open
-items, and preregister one bounded slice before further production behavior.
+enabling a protocol. `AUDIT-019` at clean public head `b7bb429` discards one invalid
+argument-dropping probe, then reproduces broad zero-status usage/operational failures
+with corrected explicit arguments. R-004 remains stopped on unfrozen multi-phase
+ownership semantics; reproduced R-011 cases fail closed before output. `CORE-013` is
+therefore preregistered as the next bounded slice: one typed CLI-owned status contract
+and evidence-preserving invalidation of compilation claims that depended on the
+bare-source false success. Delegated program exits and non-atomic write rollback stay
+outside the taxonomy. It does not repair or run a benchmark.

@@ -695,3 +695,58 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   and tree `85ed76ab0141409796e167704e4100dd4d15c26f` passed focused/full local gates and
   three independent reviews with no P0-P3 findings. All eight public checks pass at
   `6780a23`. No registry protocol or re-enablement was accepted.
+
+## DEC-018 — CLI-owned process status is a typed public correctness boundary
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-013`; implementation pending
+- Decision: outcomes owned by the CLI before delegated program execution must use
+  one typed status boundary: `0` for completed work and explicit help/version, `1`
+  for operational or compiler failure, and `2` for invalid invocation. Printing a
+  diagnostic never converts failure into success. No CLI-owned error path may rely
+  on Rust `main` falling through to zero.
+- Invocation class: no command, unknown top-level or registry command, missing or
+  extra operands, bad/incomplete options, and unrecognized target/backend/mode
+  values are status `2`. Top-level help/version must be standalone. `test` and `lsp`
+  accept no operands, `check` and `fmt` exactly one input, and `init` zero or one
+  path. Existing option order and duplicate-option behavior remain frozen rather
+  than redesigned. A recognized but unavailable target fails operationally as it
+  does today; it is not relabeled invalid invocation.
+- Success class: standalone top-level `-h`/`--help` and `-v`/`--version`, plus
+  standalone explicit `registry help|-h|--help`, return `0`. Registry help is made
+  explicit so it no longer shares the unknown-subcommand fallthrough.
+- Operational class: source/input/output/report failures; compiler, verifier,
+  registry, initialization, LSP, and discovered-test failures; and failed
+  conformance return `1`. Existing successful command behavior and diagnostic text
+  remain compatible.
+- Delegated-execution exception: after valid CPU `run` dispatch reaches program
+  execution, `run_aero_program` continues to terminate with the compiled program's
+  arbitrary exit code. It may equal `1`, `2`, or another value, so the numeric codes
+  are not globally unique without command context. This is intentional pass-through,
+  not a CLI-owned classification. Refactoring or remapping that helper is frozen.
+- Benchmark consequence: the tracked Python driver invokes a source path without a
+  command. Under this contract that route returns `2`, so it cannot be counted as a
+  successful compilation. This is fail-closed containment, not benchmark repair.
+  Both tracked Python compilation series are reclassified as invalid measurements;
+  their artifacts remain intact. Benchmark code is not run or changed, and no
+  performance statement is upgraded.
+- Evidence required: a tests-only process matrix spanning every command family must
+  fail on current zero-status branches, assert diagnostic text and stream placement,
+  exercise bounded successful paths for every changed family, preserve an arbitrary
+  delegated-program status, and assert exact `1` for representative parser/compiler,
+  verifier/native-tool, registry-quarantine, discovered-test, conformance/report,
+  init, and output-write failures. Unrecognized backend/target/mode values are exact
+  `2`; recognized-but-unavailable execution and accepted graph/quantize operational
+  failures are exact `1`. Failed direct writes and partial init assert status/no
+  success message; atomic rollback is not promised. Exact review and the complete
+  repository gate are required before publication.
+- Alternatives rejected: treating all failures as `1`; keeping no-argument or
+  unknown commands successful because help text is printed; fixing only the bare
+  benchmark source path; parsing stderr in automation; rewriting the benchmark in
+  the status slice; mapping delegated program results into `0/1/2`; promising
+  transactional rollback; introducing a CLI dependency; or changing command
+  maturity to justify an exit code.
+- Revisit when: a separate CLI architecture task can return statuses instead of
+  terminating within helpers, a command-maturity task implements real test/runtime
+  behavior, or a benchmark task supplies correctness gates and protocol-complete
+  immutable evidence. None is inferred from `CORE-013`.

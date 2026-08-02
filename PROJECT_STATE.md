@@ -4,19 +4,19 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 13 — close the accepted `CORE-012` evidence record, then begin `AUDIT-019`
-to re-rank the false-success CLI/benchmark boundary against the remaining open risks.
-No new production behavior is authorized until that audit records a reproducer,
-scope, stop conditions, and focused red controls.
+Milestone 14 — obtain exact independent approval and publish the `AUDIT-019` /
+`CORE-013` preregistration, then create the focused tests-only red checkpoint for the
+typed CLI status boundary. Benchmark execution remains quarantined.
 
 ## Active hypothesis
 
-Confirmed and accepted for `CORE-012`: one shared fail-closed guard rejects
-every live registry entry before credentials, filesystem access, process/network
-transport, digest/response handling, or writes. CLI local search and publish/install
-dry-runs bypass auth and remain network-free. Direct publish/install reject under
-both legacy `dry_run` values; public workflow/status text distinguishes current
-quarantine from future protocol design.
+`AUDIT-019` confirms that one typed CLI-owned dispatcher boundary can replace broad
+diagnostic-plus-zero fallthrough with success `0`, operational failure `1`, and
+invocation failure `2` without changing command or compiler semantics. Delegated CPU
+program exits remain arbitrary pass-through values and output rollback remains
+non-atomic. The same unknown-command correction makes the legacy Python compilation
+driver fail closed; its numbers still require explicit invalid-measurement
+classification, not reuse.
 
 ## Founding-framework checkpoint
 
@@ -42,6 +42,8 @@ quarantine from future protocol design.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Current clean public head and `CORE-012` acceptance closure:
+  `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`. All eight public checks pass.
 - Published project-control head:
   `c0c044256a5922605e0dde8446b4c40cb250fd56`.
 - Published `CORE-012` tests-only red checkpoint:
@@ -161,8 +163,8 @@ quarantine from future protocol design.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `6780a23cd8b63df124477c7db1190d61dd25f3b8`.
-- Worktree: documentation-only `CORE-012` acceptance closure; production behavior is
-  unchanged from the exact reviewed, full-gate-green, public-CI-green implementation.
+- Worktree: documentation-only `AUDIT-019` / `CORE-013` preregistration under exact
+  review; production behavior remains the accepted `CORE-012` implementation.
 
 ## Environment and verification
 
@@ -396,11 +398,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Independently review and publish this documentation-only acceptance closure, then
-begin read-only `AUDIT-019` at accepted head `6780a23`. Reproduce and rank general
-CLI status and the false compilation benchmark before preregistering one bounded
-slice. Do not infer registry protocol, ownership, backend, benchmark, stability,
-release, or merge authorization from `CORE-012`.
+Independently review the exact documentation-only `AUDIT-019` / `CORE-013`
+preregistration, publish it only after approval, then add the focused process-level
+tests-only red matrix. Do not edit or run benchmark drivers, generate performance
+results, change command maturity, refactor `run_aero_program`, re-enable registry
+transport, or infer language/backend/release/merge authorization.
 
 ## Unauthorized actions
 

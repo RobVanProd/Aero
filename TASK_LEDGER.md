@@ -1825,3 +1825,149 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Status: accepted. Live registry transport remains disabled; package/payload,
   response, auth, URL, destination, overwrite/symlink, digest/signature, dependency,
   and re-enablement semantics remain separate and unimplemented.
+
+## AUDIT-019 — Revalidate the CLI false-success and benchmark boundary
+
+- Objective: at the clean accepted `CORE-012` head, inventory every top-level CLI
+  success/failure boundary, reproduce the tracked benchmark's exact compiler
+  invocation, compare R-013/R-015 with the remaining open risks, and select one
+  bounded tooling slice before adding tests or production behavior.
+- Audit base: clean public documentation head
+  `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`; accepted production behavior is
+  `6780a23cd8b63df124477c7db1190d61dd25f3b8`; upstream `master` remains
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Process correction: an initial PowerShell `ProcessStartInfo` batch accidentally
+  omitted intended arguments and repeatedly exercised the no-argument route. Its
+  results were discarded. The corrected explicit-argument probe below is the only
+  process matrix admitted as evidence.
+- Corrected command evidence: no arguments; an unknown top-level command; malformed
+  `build`, `run`, `check`, `fmt`, `doc`, `profile`, `graph-opt`, and `quantize`;
+  missing input files for each applicable command; registry with no or unknown
+  subcommand; and malformed conformance all print help, usage, or an error but exit
+  zero. Standalone top-level help/version also exit zero. `registry help`,
+  `registry --help`, and every other unknown registry subcommand currently share the
+  same zero-status fallthrough rather than an explicit help contract.
+- Static dispatcher evidence: `main.rs` uses bare `return` after invocation and
+  operational errors across all major branches. Failed formatter/doc/graph/quantize
+  writes only print diagnostics. `check`, `fmt`, and `test` ignore extra operands;
+  `lsp` ignores operands and would start the server; unknown top-level and registry
+  commands fall through naturally. Compiler, registry, verifier, conformance, init,
+  and discovered-test failures that already call `exit(1)` are preserved controls.
+- Benchmark evidence: `performance_benchmark.py::run_compilation_benchmark` invokes
+  `cargo run --release -- <source-file>` without the required `build` command and
+  accepts return code zero as compilation. The bare source path is the corrected
+  unknown-command case above. `benchmarks/harness/run_benchmarks.sh` explicitly
+  sleeps and reports simulated compilation/execution. No benchmark was run and no
+  performance result was generated during this audit.
+- Risk comparison: R-004 remains critical but stopped because credible ownership
+  closure requires unfrozen lifetime/alias/CFG/provenance semantics across more than
+  two compiler phases. R-011 remains high/high but the reproduced array cases fail
+  closed before publication. R-013/R-015 are high/high, externally observable, and
+  share a bounded outer-dispatch cause. Backend/version/grammar/coverage risks do not
+  offer a smaller correctness containment than truthful process status.
+- Selection: `CORE-013` establishes one typed CLI-owned status contract and
+  reclassifies the affected compilation measurements as invalid while preserving
+  all evidence. Making a bare source path a usage failure stops the legacy Python
+  driver from recording successful non-compilation, but does not make that driver a
+  valid benchmark. Benchmark execution remains quarantined.
+- Status: complete; corrected reproduction, full dispatcher inventory, risk ranking,
+  process correction, and the bounded `CORE-013` contract are recorded before tests
+  or production edits.
+
+## CORE-013 — Make CLI statuses truthful and quarantine invalid compilation claims
+
+- Problem: user-visible usage, input, output, and dispatch failures commonly print
+  an error and return status zero. Automation cannot distinguish success, and the
+  tracked Python compilation driver records an unknown command as successful work.
+- Priority: P1 tooling correctness. The boundary is broad within the dispatcher but
+  confined to one outer CLI phase and existing evidence classification.
+- Dependencies: accepted `CORE-012`; complete `AUDIT-019`; `DEC-018` freezes status,
+  arity, claim-preservation, and benchmark-quarantine rules.
+- Status contract: for outcomes owned by CLI dispatch before delegated program
+  execution, introduce one typed status boundary. Completed commands, standalone
+  `-h`/`--help`, standalone `-v`/`--version`, and standalone explicit
+  `registry help|-h|--help` return `0`. Invocation errors return `2`: no command;
+  unknown top-level or registry command; missing, extra, or malformed operands;
+  unrecognized option/target/backend/mode values; and incomplete option values.
+  Operational, compiler, verifier, test, report, filesystem, registry, init, and LSP
+  failures return `1`. Existing diagnostic wording and stdout/stderr placement remain
+  unless a new strict-arity diagnostic or explicit registry-help branch is required.
+- Arity contract: top-level help/version are standalone; `test` and `lsp` accept no
+  operands; `check` and `fmt` accept exactly one input; `init` accepts zero or one
+  path. Existing build/run/doc/profile/graph/quantize/registry/conformance option
+  languages remain otherwise unchanged. Duplicate option policy is frozen at its
+  current behavior and is not redesigned in this slice.
+- Execution exception: after a valid CPU `run` successfully reaches delegated
+  program execution, `run_aero_program` continues to pass through the program's
+  arbitrary exit code, including values equal to `1`, `2`, or outside `0/1/2`. Those
+  delegated statuses are not CLI-owned classifications and the numeric codes are not
+  globally unique without command context. The helper's internal termination remains
+  frozen. `aero test` remains discovery plus strict parse/module/semantic analysis;
+  this slice makes only its invocation and existing failure status truthful and does
+  not claim execution.
+- Output/publication contract: usage, missing-input, compiler, verifier, and other
+  proven pre-publication failures remain nonzero and create no requested new output.
+  A direct output-write or project-initialization failure must return `1` and must
+  not print the corresponding success message, but existing non-atomic write and
+  partial-initialization behavior is frozen and may leave a created, truncated, or
+  partial path. Transactional publication and rollback require a separate task.
+  Successful command behavior and the accepted CORE-010/011/012 phase, cache,
+  module, verifier, and registry guards remain unchanged.
+- Benchmark/claim contract: the Python and simulated shell benchmark drivers are
+  frozen and must not be executed. The bare-source invocation must return `2`, so it
+  cannot enter the Python driver's successful timing set. README, benchmark guide,
+  claim index, audit, matrix, and project controls must label the two tracked Python
+  compilation series invalid measurements rather than current/historical Aero
+  compilation evidence. Raw artifacts remain preserved. Lexer and external
+  llama.cpp records keep their separately audited qualifications; no number is
+  added, upgraded, rerun, or generalized.
+- Red tests: a new process-level CLI matrix must prove exact CLI-owned `0/1/2`
+  classes for help/version, no command, unknown and bare-source commands, every major
+  command's malformed invocation, strict extra-operand cases, missing inputs,
+  registry help/unknown/malformed/local failure, conformance malformed/report
+  failure, init malformed/operational failure, and failed output writes. Every
+  changed error/help branch must assert the established or newly frozen diagnostic
+  text and stdout/stderr channel; output-write/partial-init cases assert status and
+  absence of a success line, not rollback. Pre-publication cases retain exact
+  requested-new-artifact negatives.
+- Backend/error distinctions: unrecognized build/run targets, graph backends, and
+  quantization modes/backends are exact invocation `2`; a recognized but unavailable
+  CUDA run target is exact operational `1`. Accepted graph/quantize configurations
+  that fail LLVM verification, calibration loading, or output writing are exact `1`.
+  Representative parser/compiler, verifier/native-tool, registry-quarantine,
+  discovered-test, conformance/report, init, and write failures also assert exact
+  `1`, not merely nonzero.
+- Positive controls: process-level success/output controls for every altered command
+  family in isolated workspaces, including test discovery, doc/profile outputs,
+  graph/quantize with deterministic verifier controls, init, LSP with controlled
+  stdin EOF, registry, and conformance; a delegated CPU-run exit value outside
+  `0/1/2` remains passed through; complete existing registry/module/checked-IR/LLVM
+  CLI suites; accepted CPU/CUDA/ROCm graph/quantize interfaces retain current
+  behavior without implying device execution; formatting; all-target compilation;
+  exact complete `./tools/test.sh`; and static claim/evidence-preservation checks.
+- Files allowed: `src/compiler/src/main.rs`; one focused
+  `src/compiler/tests/cli_status_contract_tests.rs`; minimal public help/status text
+  in `README.md`, `BUILD.md`, `benchmarks/README.md`, `BENCHMARK_PROTOCOL.md`,
+  `claim-verification/claims.json`, `SPEC_IMPLEMENTATION_MATRIX.md`, and project-
+  control/capability documents.
+- Files frozen: lexer/parser/AST/semantics/IR/codegen/backend/module/cache/registry
+  implementation; compiler API architecture; command feature maturity; test
+  execution semantics; `run_aero_program`; benchmark Python/shell/Rust/GGUF code and
+  result artifacts; Cargo dependencies; versions; releases; external state; and
+  `master`.
+- Risks: a mechanical status edit can misclassify runtime errors as usage, map a
+  delegated program's exit status into a CLI-owned class, change a
+  successful help path, start the LSP during testing, mutate a file while probing,
+  suppress established diagnostics, or imply that fail-closed legacy benchmark
+  behavior is valid measurement. Process tests must isolate writable paths and avoid
+  starting servers or running benchmark drivers.
+- Stop conditions: implementation requires a CLI framework/dependency, command-
+  feature redesign, compiler-pipeline consolidation, `run_aero_program` refactor or
+  exit remapping, transactional output/rollback semantics, test execution semantics,
+  benchmark harness repair/rerun, new performance claims, language/backend semantics,
+  registry re-enablement, or more than the outer dispatcher and evidence
+  classification. Stop rather than broadening the slice.
+- Owner: lead-owned tests-first vertical slice. Independent type/IR/backend reviewers
+  must approve the exact preregistration, tests-only red checkpoint, implementation
+  candidate, and acceptance closure before publication.
+- Status: preregistered; no tests or production behavior are part of this snapshot.

@@ -32,6 +32,11 @@ Branch: `agent/aero-integration`
   `60fe607413ebc03e9aa5d6296d9067d8cc95d89d` and tree
   `7c57c082e9d5f68afd5c6a4769d9d531a0116642`; every public check passes at
   accepted head `a711dd5f3802095a4ecbe2dea3d45003675e7459`.
+- `CORE-012` is accepted at `6780a23cd8b63df124477c7db1190d61dd25f3b8`:
+  every live registry route now fails closed before credentials, I/O, transport, or
+  writes, while local search and network-free dry-run plans remain available. The
+  exact full gate and all public checks pass; the documentation closure is public at
+  `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`.
 
 ## Executive finding
 
@@ -386,6 +391,29 @@ reclassified rather than deleted.
   test workflows, Rust stable/nightly, every CodeQL language analysis, and aggregate
   CodeQL pass at accepted public head
   `6780a23cd8b63df124477c7db1190d61dd25f3b8`.
+
+### Post-CORE-012 CLI and benchmark revalidation (`AUDIT-019`)
+
+- Audit basis: clean public documentation head
+  `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`; production behavior remains the
+  exact accepted `6780a23cd8b63df124477c7db1190d61dd25f3b8` snapshot.
+- An initial argument-dropping process batch was invalid and discarded. A corrected
+  explicit-argument probe shows status zero for no command, unknown command, bare
+  benchmark source path, malformed and missing-input build/run/check/fmt/doc/profile/
+  graph-opt/quantize routes, registry no/unknown subcommand, and malformed
+  conformance. Static inspection finds the same fallthrough for failed output writes
+  and ignored extra operands in check/fmt/test/lsp.
+- `performance_benchmark.py` sends the bare source path and accepts its zero status;
+  the shell harness declares its compile/run work simulated. No benchmark was run.
+  The tracked Python compilation numbers remain invalid measurements and their raw
+  evidence must be preserved but reclassified.
+- R-004 remains stopped on unfrozen multi-phase ownership semantics; reproduced
+  R-011 arrays fail closed before output. The bounded next control is `CORE-013`: a
+  typed CLI-owned `0` success / `1` operational failure / `2` invocation failure
+  contract plus evidence-preserving quarantine of the affected compilation claims.
+  Delegated CPU-program exits remain arbitrary pass-through values; write rollback
+  remains non-atomic and out of scope. Benchmark code, command maturity, and compiler
+  phases remain frozen.
 
 ## Testing and fuzzing audit
 
