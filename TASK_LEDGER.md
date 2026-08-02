@@ -1532,7 +1532,7 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   execution of the four positive CPU examples before Cargo reaches the deliberate
   checked-API compilation failures. No setup, parser, unrelated semantic, or positive
   LLVM-corpus failure invalidates the checkpoint.
-- Production-candidate evidence: the bounded implementation now carries additive
+- Production implementation evidence: the bounded implementation now carries additive
   checked IR/type metadata, fallible admission, mandatory internal verification,
   exhaustive checked code generation, the LLVM 22 verifier adapter, and trusted-
   path propagation through library, CLI, profiler, and conformance callers. The
@@ -1545,7 +1545,10 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   precedes all child execution. An immediate-descendant regression must prove no
   marker survives timeout. The same review requires successful named conformance
   cases to pass checked IR rather than stopping after semantics.
-- Status: tests/CI-only red checkpoint accepted; green production candidate
-  assembled locally. The candidate is not accepted until its exact staged diff has
-  independent representation/backend review and the published draft-PR head passes
-  the required LLVM 22 and repository checks.
+- Status: accepted at public head
+  `db349ef81f145ee571c053f73fb03c831cea719a`. Three independent reviewers approved
+  exact implementation diff `9534765a46b130d215a1d1e869de234163bb0daf`
+  and exact mixed-entry CI repair `d5f0fd3891da5cff75bd5306006e993ca4b4f301`
+  with no P0-P3 findings. The complete local gate, Rust stable/nightly, both public
+  compiler-test workflows, and all CodeQL jobs pass. The PR remains draft; this
+  acceptance does not authorize merge, release, or broader capability claims.

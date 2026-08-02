@@ -4,12 +4,12 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 10 — validate and publish the green `CORE-010` production candidate:
-checked logical scalar IR admission, in-process verification, and final LLVM module
-verification. The implementation makes the reviewer-approved red checkpoint green
-locally without broadening the frozen representation, arithmetic, ownership,
-aggregate, or backend semantics; exact-diff review and public CI remain acceptance
-gates.
+Milestone 10 — accepted and published `CORE-010`: checked logical scalar IR
+admission, in-process verification, and final LLVM module verification. The
+implementation closes the reviewer-approved red checkpoint without broadening the
+frozen representation, arithmetic, ownership, aggregate, or backend semantics.
+Three exact-diff reviews and all required public CI checks pass at the published
+head.
 
 ## Active hypothesis
 
@@ -43,6 +43,16 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Published accepted `CORE-010` head:
+  `db349ef81f145ee571c053f73fb03c831cea719a`.
+- Checked-IR/LLVM-verifier implementation commit:
+  `d08653c646edae33693f91e2b2f446c76f1bd8a6`; exact reviewed staged diff
+  `9534765a46b130d215a1d1e869de234163bb0daf`, tree
+  `e0e720f398b1201b4d798101eea4059fc1de56b2`.
+- Linux mixed-entry CI repair: exact reviewed staged diff
+  `d5f0fd3891da5cff75bd5306006e993ca4b4f301`, tree
+  `782b4d5319d73248bee825683e403b8265eb4fbc`, integrated as
+  `db349ef81f145ee571c053f73fb03c831cea719a`.
 - Published integration head / accepted `CORE-010` red checkpoint:
   `26560a45905015b7891ddebeb749d0097c05cbaa`.
 - Founding-framework alignment is published at
@@ -73,11 +83,11 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   and verification above pipeline consolidation, MethodCall, custom EnumVariant,
   and Deref slices. String comparison and constant `1 / 0` unwind; Boolean storage
   can emit type-invalid LLVM; untyped codegen can silently ignore instructions.
-- `CORE-010` and `DEC-015` preregister the checked additive APIs, logical
+- `CORE-010` and `DEC-015` define the checked additive APIs, logical
   Int/Float/Bool/Void representation, legacy numeric-storage compatibility limit,
   stronger tool-independent `check` admission, mandatory pure-Rust IR verification,
-  and LLVM 22 external verification modes. A green local production candidate now
-  implements that contract; no production implementation is accepted yet.
+  and LLVM 22 external verification modes. The accepted public implementation now
+  enforces that contract on trusted paths.
 - The isolated `CORE-010` tests/CI-only red checkpoint is published at exact
   `26560a45905015b7891ddebeb749d0097c05cbaa`; its exact staged diff hash is
   `c01fc2365eb5b415c022be997062e4605812b62b`. Three independent reviewers approve
@@ -92,14 +102,15 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   verification/execution steps, with `opt-22` preceding `llc-22`/`clang-22`. Test
   jobs then fail at the deliberate checked-API contract boundary. This is accepted
   red evidence, not an accepted production candidate.
-- The local `CORE-010` production candidate makes all focused typed-admission,
+- The accepted `CORE-010` production implementation makes all focused typed-admission,
   checked-IR, LLVM-verifier, cache, conformance, profiler, and compatibility
   controls green. `cargo check --all-targets` and the complete `./tools/test.sh`
   repository gate pass. External verification is enforced after final graph/target
   transformation and before cache/write/native publication; tool-independent
-  `check` and conformance remain internal-verifier paths. Exact-diff review and
-  public draft-PR CI are pending, so this is candidate evidence rather than an
-  accepted capability.
+  `check` and conformance remain internal-verifier paths. Three independent
+  reviewers approved the exact implementation and CI-repair diffs with no P0-P3
+  findings. Rust stable/nightly, both compiler-test workflows, and all CodeQL jobs
+  pass at public head `db349ef`.
 - Accepted `CORE-008` candidate:
   `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the
@@ -111,9 +122,9 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   12 strict-lexing, 8 field, 15 Match, 14 modulo, 9 StructLiteral, and 16 tuple
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
-- Last full-gate commit: `daa024dbf10d1defe06d8ab200c2d21c0a9c1dc6`.
-- Worktree: bounded green `CORE-010` production candidate plus this control update;
-  staging, exact-diff review, commit, and publication are pending.
+- Last full-gate code commit: `db349ef81f145ee571c053f73fb03c831cea719a`.
+- Worktree: documentation-only `CORE-010` acceptance-record update; compiler
+  behavior is unchanged from the accepted public head.
 
 ## Environment and verification
 
@@ -343,11 +354,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze and hash the exact green `CORE-010` staged diff, obtain independent
-representation, codegen/integration, and backend/artifact-ordering reviews, then
-commit and publish it to draft PR #4. Monitor the pinned LLVM 22 and complete
-repository checks at that public head. Do not present the slice as accepted until
-those exact-candidate reviews and public checks pass.
+Publish this documentation-only acceptance record to draft PR #4, then select the
+next bounded Minimal Prototype / correctness-recovery slice from the audited open
+risks. Do not broaden unresolved physical integer, aggregate, ownership,
+accelerator, stability, benchmark, or release claims without their own evidence
+gates.
 
 ## Unauthorized actions
 

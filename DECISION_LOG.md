@@ -454,8 +454,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-015 — Checked logical IR precedes physical numeric redesign
 
 - Date: 2026-08-02
-- Status: accepted for `CORE-010`; red checkpoint accepted, green production
-  candidate assembled locally, exact review/public CI pending
+- Status: accepted for `CORE-010` at public head
+  `db349ef81f145ee571c053f73fb03c831cea719a`
 - Decision: Aero will add explicit logical types for admitted scalar results,
   places, arrays, calls, branches, and returns; a mandatory in-process IR verifier;
   additive checked IR/codegen APIs; exhaustive codegen errors; and final external
@@ -548,15 +548,18 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   CPU examples before reaching the deliberate missing checked-API failures. The red
   evidence therefore authorizes bounded production implementation under this
   decision without accepting any production behavior yet.
-- Production-candidate evidence: the implementation follows the frozen additive
+- Production acceptance: the implementation follows the frozen additive
   API and logical-type boundary, re-verifies checked/private IR at checked codegen,
   rejects unsupported or invalid forms with structured phase errors, and verifies
   final transformed/retargeted LLVM before cache, write, trace, or native-tool
   publication according to the required/preferred policy. Focused contracts and
-  the complete repository gate pass locally. This records candidate conformance to
-  the decision; exact-diff review and public CI are still required for acceptance.
-  Review closure also routes every successful named conformance case through checked
-  IR and proves an immediate verifier descendant cannot escape the bounded timeout.
+  the complete repository gate pass. Three independent reviewers approved exact
+  implementation diff `9534765a46b130d215a1d1e869de234163bb0daf` and exact
+  mixed-entry CI repair `d5f0fd3891da5cff75bd5306006e993ca4b4f301`
+  with no P0-P3 findings. Rust stable/nightly, both compiler-test workflows, and
+  all CodeQL jobs pass at public head `db349ef`. Review closure also routes every
+  successful named conformance case through checked IR and proves an immediate
+  verifier descendant cannot escape the bounded timeout.
 - Alternatives rejected: immediate physical `i32` lowering without overflow/
   division policy; keeping Boolean/numeric guessing; LLVM-only verification after
   unsafe IR; making ordinary Cargo builds depend on llvm-sys/Inkwell; treating
