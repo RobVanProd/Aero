@@ -2,10 +2,10 @@
 
 > **Current capability notice (2026-08-02):** this is a historical design/demo,
 > not evidence for the active source compiler. The current parser preserves Match
-> syntax. Analyzed Match values reject before IR with
-> `Match expressions are not supported.`, while a known default-trait-body preflight
-> gap is under correction. The helpers and LLVM sketches below are not connected to
-> an executable source Match pipeline.
+> syntax, but trusted parsed source bodies reject Match values before IR with
+> `Match expressions are not supported.` Default trait bodies receive syntax-only
+> preflight, not full trait-method validation. The helpers and LLVM sketches below
+> are not connected to an executable source Match pipeline.
 
 ## Implementation Overview
 

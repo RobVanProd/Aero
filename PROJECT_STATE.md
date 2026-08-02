@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 8 corrective cycle — close the default-trait-body escape that caused the
-first `CORE-008` candidate to fail independent acceptance review.
+Milestone 8 corrective acceptance — run the complete gate and obtain two new
+independent approvals for the corrected `CORE-008` Match boundary.
 
 ## Active hypothesis
 
-A syntax-only statement/block traversal limited to default trait method bodies can
-funnel their expression roots into existing child-first preflight without activating
-uncertified trait, name, type, return, ownership, pattern, or execution semantics.
+The integrated syntax-only default-body traversal closes the sole parsed-container
+escape while preserving child order, unresolved-name and required-signature controls,
+and all prior focused compiler boundaries.
 
 ## Repository state
 
@@ -20,13 +20,14 @@ uncertified trait, name, type, return, ownership, pattern, or execution semantic
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Rejected `CORE-008` behavior candidate:
-  `c8262944a3462b9956be107bdf8dc71cdd9df067`; exact documented review SHA
-  `08e7c2c8eccc06cdcdd216b6973a68d24e751e32`. Ordinary analyzed public/CLI routes
-  reject Match before IR, but parsed default trait method bodies bypass preflight
-  and can still reach artifact generation. No production acceptance exists.
-- Last full-gate commit: `08e7c2c8eccc06cdcdd216b6973a68d24e751e32`.
-- Worktree: corrective documentation in progress after exact-SHA review rejection.
+- Current corrected `CORE-008` behavior candidate:
+  `a12f38e20f6a201ce3efa2a95e6724838b11dd30`. All trusted parsed source bodies,
+  including default trait method bodies, route Match expression roots through the
+  existing child-first preflight before IR. Documentation update and complete gate
+  are pending on top of this behavior commit; no final acceptance exists yet.
+- Last full-gate commit: rejected candidate
+  `08e7c2c8eccc06cdcdd216b6973a68d24e751e32`.
+- Worktree: corrective capability documentation in progress.
 
 ## Environment and verification
 
@@ -177,6 +178,14 @@ uncertified trait, name, type, return, ownership, pattern, or execution semantic
   build, and build writes LLVM. Reviewer A passed 32/33 fresh routes and 7/7 frozen
   precedence probes. Reviewer B approved its independent 41-route matrix but did not
   include trait defaults; that approval is superseded by the counterexample.
+- `CORE-008` corrective red: owner `58bb732`, integrated as `ad5e24d`. Six new
+  aggregated tests preserve an exact 11-pass/4-fail red split on rejected production,
+  covering eight default-body placements, tuple/field/void precedence, root/module
+  CLI no-artifact contracts, parser retention, and syntax-only positive controls.
+- `CORE-008` corrective production: owner `a3f4f29`, integrated as `a12f38e`. Only
+  `semantic_analyzer.rs` changes: exhaustive syntax-only block/statement preflight
+  plus a default-body hook with cleanup-safe type-parameter scope handling. Owner
+  and lead pass 96/96 focused tests; formatting and all-target compilation pass.
 
 ## Current capability classification
 
@@ -224,19 +233,19 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Constant integer division by zero independently panics during IR constant folding.
   Float, variable, unary, and mixed zero forms diverge. Unsupported methods and
   other composite forms can still fabricate scalar zero, and some semantically
-  accepted comparisons can panic or generate type-invalid LLVM. Ordinary analyzed
-  Match values fail closed in rejected candidate `c826294`, but default trait method
-  bodies bypass preflight; direct AST-to-IR bypass also remains open.
+  accepted comparisons can panic or generate type-invalid LLVM. Corrected candidate
+  `a12f38e` routes Match in every parser-retained source body, including default
+  trait methods, through fail-closed preflight; direct AST-to-IR bypass remains open.
   MethodCall, string comparison, division, aggregates, and ownership are separate.
   Named field values remain fail-closed in accepted `CORE-007` at reviewed
   `4e10d479`.
 
 ## Exact next action
 
-Commit the corrective boundary amendment, add failing public and CLI regressions for
-Match in default trait method bodies, and prove they fail on `c826294` without parse
-errors or unwinds. Then add only a syntax-only default-body statement/block preflight
-funnel in `semantic_analyzer.rs`; do not invoke full block/statement analysis.
+Commit the corrected capability documentation, run `./tools/test.sh` on the resulting
+exact clean SHA, and, if it passes, assign two non-owner reviewers new structural and
+black-box public/CLI/module attempts that explicitly include default trait bodies,
+syntax-only positives, child precedence, nesting, and no-artifact behavior.
 
 ## Unauthorized actions
 

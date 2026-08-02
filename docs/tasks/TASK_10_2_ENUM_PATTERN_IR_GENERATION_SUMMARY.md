@@ -2,10 +2,10 @@
 
 > **Current capability notice (2026-08-02):** this historical task summary does not
 > describe the active end-to-end compiler. Source Match syntax is retained, but
-> analyzed compilation currently rejects Match values before IR with
-> `Match expressions are not supported.`, while a known default-trait-body preflight
-> gap is under correction. Dormant enum IR helpers and illustrative switch text are
-> not source-pipeline execution evidence.
+> trusted parsed source bodies currently reject Match values before IR with
+> `Match expressions are not supported.` Default trait bodies receive syntax-only
+> preflight, not full trait-method validation. Dormant enum IR helpers and
+> illustrative switch text are not source-pipeline execution evidence.
 
 ## Overview
 This document summarizes the implementation of LLVM enum and pattern matching generation for Task 10.2 of Phase 4 data structures.

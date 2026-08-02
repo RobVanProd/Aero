@@ -986,8 +986,8 @@
   any prior accepted focused boundary regresses.
 - Owner: one isolated tests/implementation owner; lead integrates and owns the
   diagnostic/compatibility decision.
-- Status: initial candidate rejected in independent review; corrective tests-first
-  implementation pending under the amended default-trait-body boundary.
+- Status: corrective tests and implementation integrated; complete gate and two new
+  exact-SHA non-owner approvals pending.
 - Acceptance criteria: red evidence is preserved; focused parser, recursive,
   positive, negative, diagnostic-order, no-unwind, direct-module, CLI no-panic and
   no-artifact tests pass; prior focused suites and `./tools/test.sh` pass; current
@@ -1037,3 +1037,17 @@
   `c826294`, then change only `semantic_analyzer.rs`. Do not call `analyze_block` or
   `analyze_statement` for default bodies. The full gate and two new exact-SHA
   non-owner approvals are required after correction.
+- Corrective red result: owner tests commit `58bb732`, integrated as `ad5e24d`, adds
+  six aggregated tests without changing the original nine. On rejected production,
+  the suite is exactly 11 pass / 4 fail: eight public default-body placements are
+  falsely accepted; tuple/field/void child diagnostics are skipped; root and direct-
+  module check/build exit zero and build requested artifacts. Parser retention, an
+  unresolved-name default-body positive, and a required-signature positive pass; no
+  source fails parsing, unwinds, or panics.
+- Corrective production result: owner `a3f4f29`, integrated as `a12f38e`, changes
+  only `semantic_analyzer.rs`. Dedicated syntax-only block/statement helpers visit
+  expression roots in the frozen order and are called only for `Some(Block)` default
+  trait bodies. Full semantic block/statement analysis remains inactive, required
+  signatures remain untouched, and type-parameter scope cleanup occurs before an
+  error returns. Owner and lead independently pass all 96 focused tests; formatting
+  and the owner's all-target check pass. The complete gate remains required.

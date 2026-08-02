@@ -186,10 +186,17 @@ correctness gates.
   binding/typing/exhaustiveness, evaluation, result unification, enum layout,
   ownership, IR, and backend execution remain outside this rejected candidate.
   Direct semantic bypass can also still reach dormant zero stubs.
+- At `a12f38e`, a dedicated syntax-only block/statement traversal also funnels every
+  expression root in parser-retained default trait method bodies into the existing
+  preflight. It preserves statement/child order and required signatures without
+  activating name, parameter, return, type, trait, ownership, or pattern analysis.
+  The corrective red suite captured public and CLI artifact false successes first;
+  all 15 Match tests and 81 prior focused boundary tests now pass independently for
+  owner and lead. Complete-gate and exact-SHA review remain pending.
 - Unimplemented methods, aggregates, references, and ADTs are either changed to
-  zero or dropped. Match retains dormant inference/IR stubs; ordinary analyzed
-  paths reject it first, but default trait bodies currently bypass that funnel.
-  Several IR instruction variants have no codegen arm and
+  zero or dropped. Match retains dormant inference/IR stubs, but corrected trusted
+  parsed-source paths now reject it first. Several IR instruction variants have no
+  codegen arm and
   are silently ignored by the wildcard arm.
 - Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
   coverage is limited to four scalar CPU examples.
