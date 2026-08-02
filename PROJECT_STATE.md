@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 3 — correct the IR lexical-scope blocker found during independent review
-of the initialized numeric binding-annotation contract `CORE-004`.
+Milestone 3 — correct the semantic compatibility-table scope blocker found during
+the second independent review of `CORE-004`.
 
 ## Active hypothesis
 
-Exact semantic annotation checks plus complete restoration of the IR generator's
-existing flat symbol-table snapshot at lexical scope exits can preserve numeric
-binding contracts and nested shadowing without a typed IR redesign.
+Restoring both the IR generator's and semantic analyzer's existing private flat
+symbol-table snapshots at their lexical scope exits can preserve numeric binding
+contracts, reject cross-arm leaks before IR, and avoid a typed IR redesign.
 
 ## Repository state
 
@@ -20,11 +20,11 @@ binding contracts and nested shadowing without a typed IR redesign.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `5fa5a5eba41ce33fcf06767992efa1b810f9ebaa`
+- Current commit: `b6b0eba1d560e2782d052ab503ac46b9c09cbbdb`
 - Last verified commit: `8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a`
-- Worktree: clean before the `CORE-004` review amendment. The first semantic
-  candidate passes its 12 focused tests and the owner's full gate, but both
-  independent reviewers reject it for a downstream nested-shadow IR miscompile.
+- Worktree: clean before the second `CORE-004` review amendment. The IR correction
+  passes 14 focused tests and the lead's full gate, but both independent reviewers
+  reject it because a then-arm-only compatibility name reaches IR and panics.
 
 ## Environment and verification
 
@@ -120,12 +120,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   broader pre-existing unreachable-after-terminator CFG risk remains open.
 - `CORE-004` candidate `5fa5a5e` rejects numeric annotation mismatches but is not
   accepted: nested scalar shadowing can lower a post-block use to the inner slot.
+- Candidate `b6b0eba` fixes that IR leak but is also not accepted: a semantic
+  cross-arm compatibility leak can cause public compilation to unwind in IR.
 
 ## Exact next action
 
-Add the preregistered failing LLVM scope-restoration regressions on the isolated
-owner branch, then minimally generalize IR snapshot restoration from callables to
-all bindings and resubmit an exact clean candidate for two independent reviews.
+Add the preregistered no-panic/undeclared-variable scope regressions on the isolated
+owner branch, then snapshot/restore the semantic compatibility table only at the
+existing scope helpers and resubmit another exact clean candidate.
 
 ## Unauthorized actions
 

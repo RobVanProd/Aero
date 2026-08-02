@@ -493,6 +493,23 @@
   nested block and after a control-flow arm loads the outer numeric slot, while all
   accepted `CORE-003` callable-shadowing/restoration tests remain green. The new
   regressions must fail on `5fa5a5e` before the IR correction.
+- Second review amendment: exact candidate
+  `b6b0eba1d560e2782d052ab503ac46b9c09cbbdb` fixed scalar/callable IR restoration,
+  passed 14/14 focused tests and the complete gate, but was independently rejected.
+  A name declared only in the `then` arm remains in the semantic analyzer's flat
+  compatibility table, so the `else` arm is falsely accepted; corrected IR scope
+  restoration then removes the name and public compilation panics with
+  `Undeclared variable` instead of returning a semantic error.
+- Semantic scope amendment: snapshot and restore the private compatibility
+  `symbol_table` alongside every existing semantic block, function, and loop scope,
+  and reset the private snapshot stack at each `analyze()` call. `ScopeManager`
+  remains authoritative; compatibility lookup may serve only names visible in the
+  current lexical scope. This must not change public analyzer APIs or ownership state.
+- Second corrective red checkpoint: public compilation of a then-arm-only name used
+  in `else`, a block-only name used after the block, and loop-body-only names used
+  afterward must return an undeclared-variable semantic error without unwinding.
+  Independent same-name declarations in both `if` arms remain valid. These tests
+  must panic or falsely accept on `b6b0eba` before the semantic correction.
 - Regression risks: the binary and library compile separate analyzer copies; the
   compatibility symbol table still outlives lexical scopes; non-numeric inference
   contains fallback types; direct callers can construct AST/IR without semantic
@@ -503,11 +520,14 @@
   existing numeric program regresses; or the focused change would make a
   noneligible annotation appear supported. Stop again if full snapshot restoration
   changes callable scope behavior, requires a new IR representation, or exposes an
-  assignment/merge policy not frozen here.
+  assignment/merge policy not frozen here. Stop if compatibility-table isolation
+  requires removing public APIs, altering `ScopeManager`, or redesigning ownership.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: implementation rejected in review; corrective red test preregistered.
+- Status: second candidate rejected in review; semantic-scope red tests preregistered.
 - Acceptance criteria: red evidence is preserved; focused positive/negative/public
   API and CLI artifact tests pass; `./tools/test.sh` passes; and two independent
   reviewers approve the exact clean integration SHA.
 - Candidate commits: `ccbb144` (red tests) and `5fa5a5e` (semantic implementation;
-  rejected for scalar IR scope leakage). Accepted result commit: pending.
+  rejected for scalar IR scope leakage), `39b5f40` (scope-provenance red tests), and
+  `b6b0eba` (IR restoration; rejected for compatibility-table scope panic). Accepted
+  result commit: pending.

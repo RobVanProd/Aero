@@ -180,3 +180,11 @@ IR-generator symbol-snapshot restoration sites: complete scalar and callable
 bindings must be restored at lexical scope exit. Weakening nested shadowing to fit
 the miscompile is rejected; parser/AST, IR shape, code generation, and assignment
 semantics remain frozen.
+
+Second review amendment: `b6b0eba` restored IR bindings correctly but exposed a
+semantic compatibility-table leak: a then-arm-only scalar was accepted in `else`,
+then panicked during IR lookup. `CORE-004` therefore also restores that private flat
+table at the analyzer's existing lexical/function/loop scope exits. The structured
+`ScopeManager` remains authoritative. Invalid cross-scope references must stop with
+a semantic error; treating a compiler panic as an acceptable consequence of legacy
+compatibility is rejected.
