@@ -1064,6 +1064,7 @@ impl SemanticAnalyzer {
                 for (_, value) in fields {
                     self.preflight_expression(value)?;
                 }
+                return Err("Struct construction expressions are not supported.".to_string());
             }
             Expression::EnumVariant { data, .. } => {
                 if let Some(value) = data {
