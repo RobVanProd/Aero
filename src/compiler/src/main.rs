@@ -337,9 +337,7 @@ fn main() {
                                 match fs::read_to_string(&path) {
                                     Ok(src) => {
                                         let filename = path.to_string_lossy().to_string();
-                                        let tokens =
-                                            lexer::tokenize_with_locations(&src, Some(filename));
-                                        match parser::parse_with_locations(tokens) {
+                                        match parse_source_with_direct_modules(&src, &filename) {
                                             Ok(ast) => {
                                                 let mut analyzer = SemanticAnalyzer::new();
                                                 match analyzer.analyze(ast) {
@@ -360,7 +358,7 @@ fn main() {
                                             }
                                             Err(err) => {
                                                 println!(
-                                                    "      \x1b[1;31m✗\x1b[0m {} failed: Parse error: {}",
+                                                    "      \x1b[1;31m✗\x1b[0m {} failed: {}",
                                                     name, err
                                                 );
                                             }
@@ -1964,16 +1962,11 @@ fn print_registry_help(program_name: &str) {
 }
 
 /// Type-check an Aero program without generating code.
-/// Runs lexer → parser → semantic analysis only.
+/// Runs lexer → parser → direct module resolution → semantic analysis only.
 fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String> {
     let check_start = Instant::now();
 
-    // Lexing
-    let tokens = lexer::tokenize_with_locations(source_code, Some(input_file.to_string()));
-
-    // Parsing
-    let ast =
-        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
+    let ast = parse_source_with_direct_modules(source_code, input_file)?;
 
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
@@ -1989,6 +1982,38 @@ fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String>
         }
         Err(err) => Err(err.to_string()),
     }
+}
+
+fn parse_source_with_direct_modules(
+    source_code: &str,
+    input_file: &str,
+) -> Result<Vec<crate::ast::AstNode>, String> {
+    let tokens = lexer::tokenize_with_locations(source_code, Some(input_file.to_string()));
+    let mut ast =
+        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
+
+    let mut resolver = module_resolver::ModuleResolver::new(input_file);
+    let mut module_asts = Vec::new();
+    for node in &ast {
+        if let crate::ast::AstNode::Statement(crate::ast::Statement::ModDecl {
+            name,
+            is_public: _,
+        }) = node
+        {
+            let resolved = resolver
+                .resolve(name)
+                .map_err(|err| format!("Module resolution failed for `{}`: {}", name, err))?;
+            let module_filename = resolved.file_path.to_string_lossy().to_string();
+            let module_tokens =
+                lexer::tokenize_with_locations(&resolved.source, Some(module_filename));
+            let module_ast = parser::parse_with_locations(module_tokens)
+                .map_err(|err| format!("Parse error: {}", err))?;
+            module_asts.extend(module_ast);
+        }
+    }
+    ast.extend(module_asts);
+
+    Ok(ast)
 }
 
 fn report_check_error(source_code: &str, input_file: &str, error: &str) {

@@ -139,6 +139,23 @@ fn check_rejects_malformed_syntax() {
 }
 
 #[test]
+fn check_rejects_malformed_imported_module() {
+    let workspace = TestWorkspace::new("fatal_parse_check_module");
+    let source_path = workspace.path("main.aero");
+    let module_path = workspace.path("broken.aero");
+    fs::write(&source_path, "mod broken;").expect("write check root source");
+    fs::write(&module_path, "let = ;").expect("write malformed check module");
+
+    let output = run_aero(&workspace, &[Path::new("check"), &source_path]);
+
+    assert!(
+        !output.status.success(),
+        "check with malformed imported module must fail"
+    );
+    assert_located_parse_error(&output, "broken.aero");
+}
+
+#[test]
 fn run_rejects_malformed_syntax_before_native_tooling() {
     let workspace = TestWorkspace::new("fatal_parse_run");
     let source_path = write_malformed_source(&workspace);
@@ -271,4 +288,21 @@ fn discovered_test_rejects_malformed_syntax_with_failure_status() {
         "malformed discovered test must fail the command"
     );
     assert_located_parse_error(&output, "malformed_test.aero");
+}
+
+#[test]
+fn discovered_test_rejects_malformed_imported_module() {
+    let workspace = TestWorkspace::new("fatal_parse_test_module");
+    let source_path = workspace.path("module_test.aero");
+    let module_path = workspace.path("broken.aero");
+    fs::write(&source_path, "mod broken;").expect("write discovered test root source");
+    fs::write(&module_path, "let = ;").expect("write malformed discovered test module");
+
+    let output = run_aero(&workspace, &[Path::new("test")]);
+
+    assert!(
+        !output.status.success(),
+        "discovered test with malformed imported module must fail"
+    );
+    assert_located_parse_error(&output, "broken.aero");
 }
