@@ -1193,10 +1193,13 @@
   any prior accepted focused boundary regresses.
 - Owner: one isolated tests/implementation owner; lead owns compatibility and exact
   diagnostic decisions. Two non-owner reviews are required after the complete gate.
-- Status: tests-only red checkpoint accepted at exact integration commit
-  `1e76a0610ef778303548096ef634a5f02b678fe9`; production candidate integrated at
+- Status: accepted at exact reviewed candidate
+  `daa024dbf10d1defe06d8ab200c2d21c0a9c1dc6`. Tests-only red checkpoint accepted at
+  exact integration commit `1e76a0610ef778303548096ef634a5f02b678fe9`;
+  production candidate integrated at
   `a8879310fe04a28b368437d1932e01972b7e9cee`; public truth and the complete gate
-  pass at exact `3410f1f`; exact-candidate review pending.
+  pass at exact `3410f1f`; coordinated control corrections and a fresh complete
+  gate pass at exact `daa024d`.
 - Verification: focused Struct suite plus modified control suites, all prior focused
   boundaries, formatting/all-target check, required `./tools/test.sh`, then exact-SHA
   structural and black-box reviews.
@@ -1223,6 +1226,14 @@ source order and the established tuple/field/Match/void precedence; inference-on
 modulo/name children reach the outer Struct diagnostic. No parser, AST, inference,
 types, IR, backend, EnumVariant, ownership, method, comparison, division, or prior
 boundary file changed.
+
+Acceptance evidence: the lead reran the complete repository gate on exact clean
+`daa024d`; all suites, formatting, Clippy correctness, all-target compilation, and
+doc tests pass. Reviewer A verified the five-control-document correction delta,
+the complete status/resumption model, production/public-truth immutability,
+formatting, and 9/9 Struct tests. Reviewer B independently verified the same exact
+delta and state model, production/public-truth immutability, and 9/9 Struct tests.
+Both reviewers approve exact `daa024d` with no P0-P3 findings.
 
 ## AUDIT-015 — Trace founding framework into current engineering control
 

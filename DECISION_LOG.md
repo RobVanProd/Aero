@@ -370,7 +370,8 @@ outside this decision.
 ## DEC-013 — Struct construction fails closed until aggregate semantics exist
 
 - Date: 2026-08-02
-- Status: complete documented gate passed; exact-candidate review pending
+- Status: accepted at exact reviewed candidate
+  `daa024dbf10d1defe06d8ab200c2d21c0a9c1dc6`
 - Decision: Aero retains struct declarations and StructLiteral syntax/AST, but every
   StructLiteral in a trusted parsed source body will visit field expressions in
   source order and then reject with
@@ -414,8 +415,11 @@ validation independently passes 164/164 focused Struct/frontend/field/Match/tupl
 modulo/function/annotation/strict tests. No inference, declaration/field validation,
 layout, ownership, IR, or backend behavior changes. Public documentation, a fresh
 documented complete gate at `3410f1f`, and the public capability/historical notices
-are complete. Two non-owner exact-SHA approvals remain mandatory; the first review
-identified stale resumption text in `PROJECT_STATE.md`, so no acceptance exists yet.
+are complete. The lead reran the complete gate on exact clean `daa024d`. Two fresh
+non-owner reviewers then verified that its delta from `3410f1f` is limited to the
+five coordinated control documents, that all stale resumption/status text is
+corrected, and that production and public-truth files are unchanged. Both approve
+exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 
 ## DEC-014 — Founding framework directs the roadmap but does not certify status
 
