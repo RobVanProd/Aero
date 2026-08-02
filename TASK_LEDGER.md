@@ -1195,7 +1195,8 @@
   diagnostic decisions. Two non-owner reviews are required after the complete gate.
 - Status: tests-only red checkpoint accepted at exact integration commit
   `1e76a0610ef778303548096ef634a5f02b678fe9`; production candidate integrated at
-  `a8879310fe04a28b368437d1932e01972b7e9cee`; docs/full gate/review pending.
+  `a8879310fe04a28b368437d1932e01972b7e9cee`; public truth and the complete gate
+  pass at exact `3410f1f`; exact-candidate review pending.
 - Verification: focused Struct suite plus modified control suites, all prior focused
   boundaries, formatting/all-target check, required `./tools/test.sh`, then exact-SHA
   structural and black-box reviews.
@@ -1254,4 +1255,5 @@ boundary file changed.
 - Boundary consequence: no code, language semantics, backend status, benchmark
   claim, or `CORE-009` decision changes. The audit prevents vision prose from being
   reused as completion evidence.
-- Status: complete; documentation verification and publication pending.
+- Status: complete; documentation verification passed and founding-framework
+  alignment was published to draft PR #4 at exact `fba121f`.

@@ -370,7 +370,7 @@ outside this decision.
 ## DEC-013 — Struct construction fails closed until aggregate semantics exist
 
 - Date: 2026-08-02
-- Status: production candidate integrated; complete gate and review pending
+- Status: complete documented gate passed; exact-candidate review pending
 - Decision: Aero retains struct declarations and StructLiteral syntax/AST, but every
   StructLiteral in a trusted parsed source body will visit field expressions in
   source order and then reject with
@@ -413,7 +413,9 @@ focused matrix, formatting, all-target check, and complete repository gate. Lead
 validation independently passes 164/164 focused Struct/frontend/field/Match/tuple/
 modulo/function/annotation/strict tests. No inference, declaration/field validation,
 layout, ownership, IR, or backend behavior changes. Public documentation, a fresh
-documented complete gate, and two non-owner exact-SHA reviews remain mandatory.
+documented complete gate at `3410f1f`, and the public capability/historical notices
+are complete. Two non-owner exact-SHA approvals remain mandatory; the first review
+identified stale resumption text in `PROJECT_STATE.md`, so no acceptance exists yet.
 
 ## DEC-014 — Founding framework directs the roadmap but does not certify status
 

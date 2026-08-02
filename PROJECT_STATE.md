@@ -4,8 +4,8 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 9 — finish public truth documentation and the complete gate for the
-integrated `CORE-009` StructLiteral production candidate before independent review.
+Milestone 9 — correct exact-candidate review findings, then obtain two fresh
+non-owner approvals for the documented `CORE-009` StructLiteral candidate.
 
 ## Active hypothesis
 
@@ -57,14 +57,21 @@ inventing declaration, field, type, layout, ownership, IR, or backend semantics.
   verification passes the complete gate plus the focused matrix. Lead verification
   independently passes 9 Struct, 59 frontend, 8 field, 15 Match, 16 tuple, 14
   modulo, 13 function-contract, 18 numeric-annotation, and 12 strict-lexing tests.
-  Documentation and a fresh complete-gate candidate remain pending.
+  Public documentation and the complete gate pass at `3410f1f`; coordinated
+  project-control corrections from exact-candidate review are in progress.
 - Accepted `CORE-008` candidate:
   `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the
   existing child-first preflight before IR. The complete gate and two fresh
   independent reviews pass.
-- Last full-gate commit: `b74d91adeda04688ec37598beebffad458538c39`.
-- Worktree: clean before this acceptance-closure documentation update.
+- Complete `CORE-009` candidate gate: exact clean
+  `3410f1ff265b21b6d5f67f78b3a8d54276cadb2d` passes 112 library, 119 binary,
+  11 fatal-parser, 59 frontend, 13 function-contract, 18 numeric-annotation,
+  12 strict-lexing, 8 field, 15 Match, 14 modulo, 9 StructLiteral, and 16 tuple
+  tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
+  correctness, all-target compilation, and doc tests pass.
+- Last full-gate commit: `3410f1ff265b21b6d5f67f78b3a8d54276cadb2d`.
+- Worktree: exact candidate was clean before review-finding documentation updates.
 
 ## Environment and verification
 
@@ -283,13 +290,15 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   MethodCall, string comparison, division, aggregates, and ownership are separate.
   Named field values remain fail-closed in accepted `CORE-007` at reviewed
   `4e10d479`.
+- At candidate `3410f1f`, StructLiteral values remain parser-visible but are
+  rejected after source-order field preflight before inference or IR. Struct
+  layout, initialization, ownership, ABI, lowering, and execution remain open.
 
 ## Exact next action
 
-Create an isolated tests-only `CORE-009` checkpoint on exact clean `a61172a`: add the
-permanent StructLiteral matrix and reclassify only the preregistered construction-
-positive controls. Prove false acceptance, dropped field calls, fabricated zero, and
-CLI artifact creation without parse failure, unwind, or changes to production.
+Correct every exact-candidate review finding, rerun the complete gate on the new
+clean SHA, and obtain two fresh non-owner approvals. Then record `CORE-009`
+acceptance, push the integration branch to draft PR #4, and verify public checks.
 
 ## Unauthorized actions
 

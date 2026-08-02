@@ -216,8 +216,8 @@ correctness gates.
   `Struct construction expressions are not supported.` The 164-test focused matrix
   passes independently for owner and lead. Parser/declaration visibility remains;
   struct name/field/type validation, layout, initialization, ownership, ABI, IR,
-  backend emission, and execution remain absent. Full documented gate and reviews
-  are pending.
+  backend emission, and execution remain absent. The complete documented gate passes
+  at exact `3410f1f`; independent exact-candidate review is pending.
 - Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
   coverage is limited to four scalar CPU examples.
 
