@@ -424,3 +424,70 @@
   backend production file changed.
 - Result commits: `2d4f3ca` (red tests), `5e58922`, `bf30d62`, `1ab6a91`,
   `554e39e`, and accepted code candidate `8d5d8e7`.
+
+## CORE-004 — Enforce initialized numeric binding annotations
+
+- Problem: `let` annotations are preserved by the parser but discarded by active
+  semantics and both IR paths. Numeric cross-family mismatches therefore pass
+  validation and artifact generation while later uses inherit the initializer type
+  rather than the declared type.
+- Evidence: at `4df60153`, all four literal mismatches (`int`/`i32 = 1.5` and
+  `float`/`f64 = 1`), both numeric named-call mismatch directions, and a mismatch in
+  a direct module exit zero from both `check` and `build` and emit an LLVM artifact.
+  Matching aliases also compile. Scalar locals lower through the existing unified
+  `double` slot representation regardless of annotation.
+- Priority: P0.
+- Dependencies: `CORE-001B`, `CORE-002`, and `CORE-003` complete.
+- Contract: for an initialized binding whose annotation is exactly `int`, `i32`,
+  `float`, or `f64`, canonicalize aliases to `Ty::Int`/`Ty::Float` and require the
+  initializer's already-inferred type to equal that canonical type. Reject a
+  mismatch before ownership mutation, variable registration, IR, or artifact output.
+  The variable is registered with the canonical declared type.
+- Existing inference: no assignment-site conversion is added. A mixed numeric
+  expression may satisfy a float annotation only when the existing expression rules
+  already infer `Ty::Float`; numeric function results use the accepted `CORE-003`
+  return contract. `let mut` follows the same initialization rule.
+- Eligible positions: root, function body, nested block/control-flow scope, and
+  existing directly resolved modules, all through the active semantic `let` arm.
+- Smallest reproducers: `let value: int = 1.5;`,
+  `let value: float = 1;`, `fn one() -> int { 1 } let value: f64 = one();`,
+  and `fn ratio() -> float { 1.5 } let value: i32 = ratio();`.
+- Files allowed: `src/compiler/src/semantic_analyzer.rs`, one new focused
+  integration test under `src/compiler/tests/`, and affected control documents.
+- Files frozen: lexer, parser, AST, type/IR instruction shapes, IR generator,
+  code generator, optimizer, function contracts, implicit conversion rules,
+  booleans, strings, arrays, tuples, references, generics, composites, closures,
+  ownership behavior, runtime/backends, and public claims.
+- Frozen semantics: unannotated bindings preserve inference. Non-numeric annotations
+  and annotations without an initializer retain pre-task behavior but are not counted
+  as supported annotation contracts. Reassignment has no parser/AST form and is out
+  of scope. Same-scope rebinding remains rejected and nested shadowing remains valid.
+- Positive tests: all four exact alias/literal forms; aliases initialized from
+  identifiers; exact numeric function results; a float mixed-arithmetic result;
+  `let mut`; and nested cross-family shadowing with valid initializers. Public LLVM
+  checks assert existing numeric function ABI/casts, not integer local stack slots.
+- Negative tests: both literal mismatch directions for both aliases; mixed-expression
+  result mismatch; numeric function-result mismatch in both directions; function-local
+  and nested binding mismatches; and a direct-module mismatch. CLI `check`/`build`
+  failures are nonzero and create no requested artifact.
+- Diagnostic expectation: stable semantic category with binding name and canonical
+  expected/actual type, for example ``Variable `value` type annotation mismatch:
+  expected int, actual float``. No fabricated source span.
+- Red checkpoint: matching cases pass before implementation; every mismatch test
+  must demonstrate the current false accept and artifact behavior before production
+  code changes.
+- Regression risks: the binary and library compile separate analyzer copies; the
+  compatibility symbol table still outlives lexical scopes; non-numeric inference
+  contains fallback types; direct callers can construct AST/IR without semantic
+  validation; scalar backend storage is not a typed binding representation.
+- Stop conditions: satisfying the contract requires parser/AST, IR generator,
+  IR instruction, code-generator, ownership, or conversion-policy changes; exact
+  equality cannot be established from the active initializer inference; a valid
+  existing numeric program regresses; or the focused change would make a
+  noneligible annotation appear supported.
+- Owner: one isolated implementation agent; lead integrates.
+- Status: preregistered.
+- Acceptance criteria: red evidence is preserved; focused positive/negative/public
+  API and CLI artifact tests pass; `./tools/test.sh` passes; and two independent
+  reviewers approve the exact clean integration SHA.
+- Result commit: pending.

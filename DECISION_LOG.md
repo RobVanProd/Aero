@@ -144,3 +144,30 @@ preserves public function-table shape, recognizes only outer function body tails
 as implicit returns, restores lexical callable bindings, and emits terminator-safe
 checked `if` arms and reachable void epilogues. Boolean/richer signatures and the
 general unreachable-after-terminator problem remain explicitly outside DEC-007.
+
+## DEC-008 — Numeric binding annotations constrain initialization exactly
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-004`
+- Decision: An initialized binding annotated `int`/`i32` or `float`/`f64` must
+  receive an initializer of the same canonical numeric type. Existing expression
+  inference runs first; no binding-site widening, narrowing, or invented value is
+  permitted.
+- Evidence: the parser preserves the annotation but semantics and IR discard it.
+  At `4df60153`, every numeric cross-family literal and checked-function-result
+  mismatch tested by the boundary audit passes `check`/`build` and emits an artifact.
+  The formal rules give expressions a type and require declared function boundaries
+  to unify; they specify integer-to-float promotion for mixed arithmetic, not for
+  binding assignment. Backend local slots are uniformly `double`, so annotation-site
+  coercion would require a larger typed-IR/backend decision.
+- Alternatives rejected: continue treating the annotation as documentation; silently
+  coerce integer initializers to float; narrow float initializers to integer; alter
+  mixed-arithmetic inference; claim that a `double` stack slot proves source binding
+  type; include non-numeric or uninitialized declarations in the same slice.
+- Compatibility consequences: previously accepted initialized numeric mismatches
+  become semantic errors and cannot emit artifacts. Exact aliases, inferred bindings,
+  existing mixed-arithmetic results, mutable bindings, and nested shadowing retain
+  their behavior. Non-numeric and uninitialized annotation semantics remain
+  experimental and uncertified.
+- Revisit when: Aero specifies general assignment conversions, adds reassignment and
+  definite-initialization semantics, or introduces a typed local-storage IR.

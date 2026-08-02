@@ -4,9 +4,9 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 3 — audit and preregister the smallest numeric binding-annotation
-contract after closing fatal parsing, strict trusted lexing, and numeric function
-boundaries.
+Milestone 3 — implement the preregistered initialized numeric binding-annotation
+contract `CORE-004` after closing fatal parsing, strict trusted lexing, and numeric
+function boundaries.
 
 ## Active hypothesis
 
@@ -21,11 +21,11 @@ richer types, ownership completeness, or a typed IR redesign.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a`
+- Current commit: `4df60153a7b97657d10f044c6e38656e8e48214d`
 - Last verified commit: `8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a`
-- Worktree: clean before this control-document closure. `CORE-003` is complete
-  after red tests, two corrective review rounds, dual independent approval, manual
-  probes, and the full required gate.
+- Worktree: clean before `CORE-004` preregistration. `CORE-003` is closed in
+  `4df6015` after red tests, two corrective review rounds, dual independent approval,
+  manual probes, and the full required gate.
 
 ## Environment and verification
 
@@ -81,6 +81,9 @@ richer types, ownership completeness, or a typed IR redesign.
   absent compile-fail/fuzz/differential/verifier/hardware gates inventoried.
 - `AUDIT-008` benchmarks/claims: complete; compilation series invalid, lexer
   evidence partial, GGUF external/single-run, and protocol gaps classified.
+- `AUDIT-009` numeric binding boundary: complete; parser retention, semantic/IR
+  discard, seven black-box false-accept families, unified-double local storage,
+  and the semantic-only initialized exact-match slice are characterized.
 
 ## Current capability classification
 
@@ -118,9 +121,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Perform a read-only boundary audit for numeric `let` annotations, then preregister
-`CORE-004` with exact accepted/rejected programs, frozen semantics, file ownership,
-red tests, backend evidence, and stop conditions before production changes.
+Have one isolated owner add the `CORE-004` focused tests first, preserve the red
+false-accept checkpoint, then implement only the allowed semantic-analyzer change.
 
 ## Unauthorized actions
 
