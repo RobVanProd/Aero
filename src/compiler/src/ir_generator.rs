@@ -1114,11 +1114,23 @@ impl IrGenerator {
                 }
             }
             Statement::Return(expr) => {
-                let (return_value, _) = if let Some(val) = expr {
+                let (mut return_value, return_type) = if let Some(val) = expr {
                     self.generate_expression_ir(val, current_function)
                 } else {
                     (Value::ImmInt(0), Ty::Int)
                 };
+                if self.checked_mode
+                    && current_function.name == "main"
+                    && !self.function_return_types.contains_key("main")
+                    && matches!(return_type, Ty::Float)
+                {
+                    let converted = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    current_function
+                        .body
+                        .push(Inst::FPToSI(converted.clone(), return_value));
+                    return_value = converted;
+                }
                 current_function.body.push(Inst::Return(return_value));
             }
             Statement::Function {

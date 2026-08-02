@@ -480,6 +480,24 @@ fn main() { overflow_candidate(); }
 }
 
 #[test]
+fn top_level_float_return_is_explicitly_converted_to_an_i32_exit_code() {
+    let source = include_str!("../../../examples/mixed.aero");
+    let mut failures = Vec::new();
+    if let Some(llvm) =
+        compile_without_unwind("mixed arithmetic entry point", source, &mut failures)
+    {
+        for marker in ["define i32 @main()", "fptosi double", "ret i32"] {
+            if !llvm.contains(marker) {
+                failures.push(format!(
+                    "mixed arithmetic entry point missing `{marker}`:\n{llvm}"
+                ));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
 fn signed_minimum_parameter_names_and_nested_parameter_shadowing_remain_admitted() {
     let cases = [
         (
