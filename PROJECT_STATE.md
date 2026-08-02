@@ -4,15 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 0 — Establish Truth. Complete and commit the eight-part capability
-audit and project-control baseline before implementing language features.
+Milestone 0 — `CORE-001`: reject malformed syntax before semantic analysis and
+IR/codegen, with failing status and no output artifact.
 
 ## Active hypothesis
 
-The repository has a passing Rust regression suite but exposes a much broader
-public surface than its current end-to-end evidence supports. The highest-impact
-first implementation task is expected to be a soundness or phase-boundary defect,
-not feature expansion; the audit will select it.
+Replacing the legacy parser wrapper in canonical library/build/check paths with
+the located fallible parser, then propagating `Result`, will close the confirmed
+false-success path without changing grammar or later-phase semantics.
 
 ## Repository state
 
@@ -21,10 +20,10 @@ not feature expansion; the audit will select it.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
-- Last verified commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
-- Worktree: project-control documents are being added; no compiler behavior has
-  been changed.
+- Current commit: `1d9396067dfac294aebd1e6c29765e503c504040`
+- Last verified commit: `1d9396067dfac294aebd1e6c29765e503c504040`
+- Worktree: `CORE-001` is preregistered; no compiler behavior has changed since
+  the committed audit baseline.
 
 ## Environment and verification
 
@@ -42,7 +41,11 @@ not feature expansion; the audit will select it.
   `rustfmt` and `clippy` were installed, then the gate passed.
 - LLVM tools in the Windows environment: `clang`, `llc`, `opt`, and `llvm-as`
   unavailable on discovered paths.
-- Remote CI state: not queried in this audit yet.
+- Upstream recheck before `CORE-001`: `origin/master` still equals the recorded
+  starting commit.
+- Remote CI: CI run `26611985062`, Rust CI run `26611985038`, and latest CodeQL
+  run `30685526232` all completed successfully for upstream commit
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
 ## Audit agents
 
@@ -89,10 +92,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit the audit/control baseline. Then preregister `CORE-001`: malformed syntax
-must fail before semantics/IR, return a failing API/process result, and leave no
-LLVM or executable artifact. The confirmed reproducer `let = ;` currently exits
-zero, writes an unterminated LLVM `main`, and prints a success message.
+Commit the `CORE-001` task contract, create its isolated worktree, assign one
+implementation owner, integrate only a committed passing result, then run
+independent frontend/API/CLI review and the complete baseline gate.
 
 ## Unauthorized actions
 

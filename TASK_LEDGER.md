@@ -130,3 +130,50 @@
 - Result commit: none
 - Decision: quarantine invalid compilation claims; preserve lexer as partial
   historical evidence and GGUF as an external one-run observation.
+
+## CORE-001 — Reject malformed syntax before IR/codegen
+
+- Problem: Syntax errors are printed and converted to an empty AST; compilation
+  then reports success and writes invalid LLVM.
+- Evidence: `let = ;` through CLI `build` exits zero, prints both a parse error and
+  success, and writes an unterminated `define i32 @main()` artifact.
+- Priority: P0
+- Primary hypothesis: switching public build/check/library entry points from the
+  legacy infallible parser wrapper to the located fallible parser, and propagating
+  `Result`, will stop malformed source before semantics without changing valid
+  program behavior.
+- Dependencies: committed audit baseline `1d9396067dfac294aebd1e6c29765e503c504040`
+- Observed behavior: malformed syntax reaches semantic analysis, IR, graph
+  transformation, file output, and a success message.
+- Expected behavior: parser failure is returned as an API error; CLI build/check
+  exit nonzero; build creates no requested LLVM artifact; no later-phase success
+  message is printed.
+- Smallest reproducer: `let = ;`
+- Files allowed: `src/compiler/src/lib.rs`, `src/compiler/src/main.rs`, a new
+  focused integration test under `src/compiler/tests/`, and the control documents
+  affected by verified results.
+- Files frozen: lexer tokenization rules, grammar, AST shape, semantic/type/
+  ownership rules, IR and backend lowering, README/public claims.
+- Frozen semantics: every parser error is fatal for compilation; valid syntax and
+  all later-phase semantics are unchanged.
+- Positive tests: a valid minimal program still compiles through the library.
+- Negative tests: library rejects malformed syntax; CLI build/check return
+  failure; requested build output does not exist.
+- Runtime-output tests: not applicable because malformed input must never reach
+  runtime.
+- Diagnostic expectation: error contains a stable `Parse error` category and the
+  parser's essential expected/found message.
+- Regression risks: changing helper return types can miss a CLI caller; existing
+  tests may rely on the legacy `parse(Vec<Token>) -> Vec<AstNode>` wrapper; stale
+  output paths must not be mistaken for newly generated artifacts.
+- Acceptance criteria: focused tests pass; `./tools/test.sh` passes; the manual
+  reproducer exits nonzero and creates no output; no valid-program test regresses.
+- Stop conditions: implementation requires grammar/recovery changes, changes the
+  legacy parser API used by broad tests, crosses into type/IR semantics, or grows
+  beyond the listed files.
+- Owner: one isolated implementation agent; lead integrates.
+- Status: preregistered
+- Verification commands: focused Cargo integration test; manual CLI reproducer;
+  `./tools/test.sh`.
+- Result commit: pending
+- Final decision: pending independent review.

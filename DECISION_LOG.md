@@ -47,3 +47,21 @@
   behavior must be locked by regression tests before refactoring.
 - Revisit when: audit shows a component cannot safely be shared without a
   deliberate query/API boundary.
+
+## DEC-004 — Parser failure is fatal
+
+- Date: 2026-08-02
+- Status: accepted for `CORE-001`
+- Decision: Any parser diagnostic rejects the compilation before semantic
+  analysis, IR generation, optimization, backend lowering, or artifact output.
+  Library entry points return an error and CLI entry points return nonzero.
+- Evidence: the active legacy wrapper converts parser failure to an empty AST;
+  `let = ;` then exits zero and writes an unterminated LLVM function.
+- Alternatives rejected: preserving partial/empty AST compilation; relying on a
+  later LLVM verifier to reject source syntax errors; changing grammar/recovery
+  behavior in the same slice.
+- Compatibility consequences: callers that treated malformed input as a
+  successful empty program will now receive an error. That behavior violated the
+  formal syntax and compiler invariants and is not a compatibility guarantee.
+- Revisit when: a future IDE-only recovery API is designed. Such an API must keep
+  erroneous nodes and diagnostics explicit and must remain ineligible for codegen.
