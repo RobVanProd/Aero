@@ -1,8 +1,19 @@
 use compiler::{CompilerOptions, compile_program};
 use std::fs;
+use std::panic::catch_unwind;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const ALTERNATE_ARM_SCOPE_LEAK_SOURCE: &str = r#"
+fn main() {
+    if 1 < 2 {
+        let then_only: int = 1;
+    } else {
+        let observed: int = then_only;
+    }
+}
+"#;
 
 struct TestWorkspace {
     root: PathBuf,
@@ -53,6 +64,25 @@ impl Drop for TestWorkspace {
 
 fn compile(source: &str) -> Result<String, String> {
     compile_program(source, CompilerOptions::default())
+}
+
+fn assert_scope_rejections(cases: &[(&str, &str, &str)]) {
+    let mut failures = Vec::new();
+    for (case_name, source, leaked_name) in cases {
+        match catch_unwind(|| compile(source)) {
+            Err(_) => failures.push(format!("{case_name}: compile_program unwound")),
+            Ok(Ok(_)) => failures.push(format!("{case_name}: unexpectedly accepted")),
+            Ok(Err(error)) => {
+                let expected = format!("Use of undeclared variable `{leaked_name}`.");
+                if !error.contains(&expected) {
+                    failures.push(format!(
+                        "{case_name}: diagnostic `{error}` missing `{expected}`"
+                    ));
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 fn assert_binding_rejections(cases: &[(&str, &str, &str, &str)]) {
@@ -192,6 +222,30 @@ fn assert_cli_rejection(output: &Output, artifact: Option<&Path>, expected: &str
         if !diagnostics.contains(fragment) {
             failures.push(format!("diagnostic `{diagnostics}` missing `{fragment}`"));
         }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn assert_cli_scope_rejection(output: &Output, artifact: Option<&Path>, leaked_name: &str) {
+    let diagnostics = combined_output(output);
+    let mut failures = Vec::new();
+    if output.status.success() {
+        failures.push(format!("scope-invalid source exited zero: {diagnostics}"));
+    }
+    if diagnostics.to_ascii_lowercase().contains("panicked") {
+        failures.push(format!("scope-invalid source panicked: {diagnostics}"));
+    }
+    if let Some(artifact) = artifact
+        && artifact.exists()
+    {
+        failures.push(format!(
+            "scope-invalid source created requested artifact {}",
+            artifact.display()
+        ));
+    }
+    let expected = format!("Use of undeclared variable `{leaked_name}`.");
+    if !diagnostics.contains(&expected) {
+        failures.push(format!("diagnostic `{diagnostics}` missing `{expected}`"));
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
@@ -353,6 +407,102 @@ fn main() {
 }
 
 #[test]
+fn accepts_independent_same_name_declarations_in_both_if_arms() {
+    let source = r#"
+fn main() {
+    if 1 < 2 {
+        let arm_local: int = 1;
+        let then_observed: int = arm_local;
+    } else {
+        let arm_local: int = 2;
+        let else_observed: int = arm_local;
+    }
+}
+"#;
+
+    compile(source).expect("independent same-name declarations in if arms should compile");
+}
+
+#[test]
+fn public_compile_rejects_all_cross_scope_uses_without_unwinding() {
+    let cases = [
+        (
+            "then-arm binding used in else arm",
+            ALTERNATE_ARM_SCOPE_LEAK_SOURCE,
+            "then_only",
+        ),
+        (
+            "explicit-block binding used afterward",
+            r#"
+fn main() {
+    {
+        let block_only: int = 1;
+    }
+    let observed: int = block_only;
+}
+"#,
+            "block_only",
+        ),
+        (
+            "while-body binding used afterward",
+            r#"
+fn main() {
+    while 1 < 2 {
+        let while_only: int = 1;
+        break;
+    }
+    let observed: int = while_only;
+}
+"#,
+            "while_only",
+        ),
+        (
+            "for-body binding used afterward",
+            r#"
+fn main() {
+    let values = [1];
+    for item in values {
+        let for_only: int = item;
+    }
+    let observed: int = for_only;
+}
+"#,
+            "for_only",
+        ),
+        (
+            "loop-body binding used afterward",
+            r#"
+fn main() {
+    loop {
+        let loop_only: int = 1;
+        break;
+    }
+    let observed: int = loop_only;
+}
+"#,
+            "loop_only",
+        ),
+        (
+            "parameter used in later top-level function",
+            r#"
+fn first(function_parameter: int) -> int {
+    return function_parameter;
+}
+
+fn second() -> int {
+    return function_parameter;
+}
+
+fn main() {}
+"#,
+            "function_parameter",
+        ),
+    ];
+
+    assert_scope_rejections(&cases);
+}
+
+#[test]
 fn rejects_all_literal_alias_mismatches() {
     let cases = [
         ("int from float", "let value: int = 1.5;", "int", "float"),
@@ -475,6 +625,35 @@ fn cli_build_rejects_root_mismatch_without_artifact() {
 
     let output = run_build(&workspace, &root, &artifact);
     assert_cli_rejection(&output, Some(&artifact), "float", "int");
+}
+
+#[test]
+fn cli_check_rejects_alternate_arm_scope_leak_without_panicking() {
+    let workspace = TestWorkspace::new("alternate-arm-scope-check");
+    let root = workspace.path("main.aero");
+    fs::write(
+        &root,
+        workspace.unique_source(ALTERNATE_ARM_SCOPE_LEAK_SOURCE),
+    )
+    .expect("write alternate-arm scope-invalid source");
+
+    let output = run_check(&workspace, &root);
+    assert_cli_scope_rejection(&output, None, "then_only");
+}
+
+#[test]
+fn cli_build_rejects_alternate_arm_scope_leak_without_panicking_or_artifact() {
+    let workspace = TestWorkspace::new("alternate-arm-scope-build");
+    let root = workspace.path("main.aero");
+    let artifact = workspace.path("program.ll");
+    fs::write(
+        &root,
+        workspace.unique_source(ALTERNATE_ARM_SCOPE_LEAK_SOURCE),
+    )
+    .expect("write alternate-arm scope-invalid source");
+
+    let output = run_build(&workspace, &root, &artifact);
+    assert_cli_scope_rejection(&output, Some(&artifact), "then_only");
 }
 
 #[test]
