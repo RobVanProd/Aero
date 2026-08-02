@@ -399,7 +399,28 @@
   definite-return checking requires a CFG redesign rather than the conservative
   `return`/block/if-else structure in this slice.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: preregistered.
+- Status: complete.
 - Verification commands: focused Cargo integration/unit tests, public API LLVM
   assertions, manual CLI reproducers, and `./tools/test.sh`.
-- Result commit: pending.
+- Review amendments: the first candidate was rejected because nested/branch tail
+  values were treated as function returns even though IR discarded them, completed
+  `if` arms received branches after terminators, void closure bodies fabricated a
+  value, `int` parameters were not canonicalized, and closure bindings leaked across
+  lexical scopes. A second review found reachable partial-return void merges without
+  an epilogue. The accepted implementation restricts implicit return to the outer
+  function tail, restores callable bindings at scope exit, treats local closures as
+  shadowing top-level functions, and emits only terminator-safe branches/epilogues.
+- Verification result: exact clean candidate
+  `8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a` passed 13/13 focused contract tests,
+  112 library tests, 119 binary tests, 11 fatal-parse tests, 59 frontend tests, and
+  12 strict-lex tests under `./tools/test.sh`; all 38 pre-existing phase-five tests
+  remain ignored. Fresh black-box closure-shadowing and invalid nested-tail probes
+  produced the expected calls or nonzero failures with no artifact. Two independent
+  reviewers approved that exact SHA after reproducing the focused suite.
+- Scope closure: monomorphic numeric and void top-level function boundaries are
+  controlled for this slice. Boolean signatures, annotations, generics, composites,
+  methods, string contracts, richer closures, and unreachable statements after a
+  terminator remain uncertified. No parser, AST, IR-instruction, code-generator, or
+  backend production file changed.
+- Result commits: `2d4f3ca` (red tests), `5e58922`, `bf30d62`, `1ab6a91`,
+  `554e39e`, and accepted code candidate `8d5d8e7`.

@@ -92,13 +92,17 @@ correctness gates.
 
 ## Type, ownership, and phase-boundary audit
 
-- Active call inference ignores the callee name, function environment, arity,
-  parameter types, and return type, then returns `Int`.
+- The initial audit found that active call inference ignored the callee name,
+  function environment, arity, parameter types, and return type, then returned
+  `Int`. At `8d5d8e7`, monomorphic numeric/void top-level functions instead use
+  collected declarations, exact call checks, and matching numeric/void IR results.
+  Noneligible signatures remain permissive and uncertified.
 - A dormant call validator confirms the mandate's suspected fallbacks: unknown
   named, array, tuple, reference, and generic parameter types map to `Int`.
-- Let annotations and declared function return types are ignored. Unknown named
-  types are assumed to be structs, and unknown backend type strings lower as
-  LLVM `double`.
+- Let annotations remain ignored. Numeric/void function return declarations are
+  enforced at `8d5d8e7`; boolean, generic, composite, and other declarations remain
+  outside that slice. Unknown named types are assumed to be structs, and unknown
+  backend type strings lower as LLVM `double`.
 - Field access, tuples, struct/enum construction, matches, closures, and unknown
   methods can bypass subtree validation and acquire `Int`. IR lowering replaces
   several of these forms, including borrow/deref, with integer zero.
@@ -125,9 +129,10 @@ correctness gates.
 - IR registers, loads, stores, and calls are not typed. Scalar slots are emitted
   as `double` while comparisons produce `i1`, so stored/loaded/returned boolean
   programs can generate type-invalid LLVM.
-- CFG lowering appends branches after terminating returns/breaks/continues and
-  suppresses the default return if any return exists anywhere. Multiple
-  terminators and unterminated reachable blocks can result.
+- `CORE-003` makes checked function `if` arms and reachable void epilogues
+  terminator-aware. General CFG lowering can still append statements after a
+  terminator and other loop/break/continue or unreachable shapes remain
+  uncertified; multiple terminators or invalid blocks may still result.
 - The modulo operator is accepted by semantic typing but omitted from IR
   selection and can panic compilation.
 - Unimplemented methods, aggregates, matches, references, and ADTs are either

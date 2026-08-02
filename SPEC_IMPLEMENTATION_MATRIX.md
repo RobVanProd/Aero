@@ -23,7 +23,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Type annotations | Y | Y | Y | P | N | N | P | P | P | P | N | N | Y | PARSED_ONLY |
 | Comparisons/logical/unary ops | Y | Y | P | — | P | — | P | P | ? | Y | P | P | Y | PARTIAL |
 | Functions and returns | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
-| Function-call signatures | Y | Y | Y | N | N | N | P | P | P | P | N | N | Y | PARSED_ONLY |
+| Function-call signatures | Y | Y | Y | P | P | N | P | P | P | Y | P | P | Y | PARTIAL |
 | If/else | Y | Y | P | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | While/for/loop/break/continue | Y | Y | P | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
@@ -77,8 +77,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 - The lexer cannot return errors and currently converts some invalid input into
   valid tokens, so otherwise present lexical cells remain partial.
-- Type annotations, function declarations, function-call signatures, and return
-  types are not enforced by the active semantic path.
+- Type annotations remain unenforced. At `8d5d8e7`, the active semantic and IR
+  paths enforce monomorphic numeric/void top-level function calls and returns;
+  boolean, generic, composite, method, string, and richer closure contracts remain
+  unenforced or uncertified.
 - Many declarations lose visibility, bounds, arguments, or source locations in
   the AST; parser presence alone therefore does not imply faithful parsing.
 - The CLI and library declare overlapping compiler modules. Tooling rows cannot
@@ -92,6 +94,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   located lexical failures are covered across library/CLI/modules/docs/profile/LSP,
   while the source-compatible recovery API remains restricted to editor indexing,
   tests, benchmarks, and manual compatibility tooling.
+- At `8d5d8e7`, declaration collection, exact numeric arity/type checks, conservative
+  numeric return checking, void-value rejection, and matching call result types are
+  covered by 13 focused tests plus the full gate and dual independent review. This
+  does not certify annotations, booleans, generics, composites, or all CFG shapes.
 
 This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,

@@ -135,3 +135,12 @@ editor symbol indexing remains the sole intentional recovery consumer in these p
 - Revisit when: a typed conversion/coercion policy is specified, generic
   instantiation is implemented, or control-flow analysis gains a typed CFG and a
   divergence/never type.
+
+Implementation note: exact clean candidate
+`8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a` was accepted after two corrective
+review rounds, 13 focused tests, the complete repository gate, fresh black-box
+artifact checks, and approval by two independent reviewers. The implementation
+preserves public function-table shape, recognizes only outer function body tails
+as implicit returns, restores lexical callable bindings, and emits terminator-safe
+checked `if` arms and reachable void epilogues. Boolean/richer signatures and the
+general unreachable-after-terminator problem remain explicitly outside DEC-007.

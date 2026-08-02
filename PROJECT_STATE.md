@@ -4,14 +4,15 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 2 — implement the preregistered numeric function-contract slice
-`CORE-003` after closing fatal parser and strict trusted-lexer boundaries.
+Milestone 3 — audit and preregister the smallest numeric binding-annotation
+contract after closing fatal parsing, strict trusted lexing, and numeric function
+boundaries.
 
 ## Active hypothesis
 
-A declaration/signature collection pass followed by checked numeric call and
-return analysis, plus a matching IR return-type registry, can replace both active
-`Int` fallbacks without redesigning ownership, generics, composites, or codegen.
+The next safe type-boundary slice can make explicit `let` annotations for existing
+numeric scalar values authoritative without claiming coercions, inference for
+richer types, ownership completeness, or a typed IR redesign.
 
 ## Repository state
 
@@ -20,10 +21,11 @@ return analysis, plus a matching IR return-type registry, can replace both activ
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `b535de0f5723e26664d818c076db4e451ff35315`
-- Last verified commit: `b9883181414886b6b2775b149599da29faed933e`
-- Worktree: clean. `CORE-002` is complete after initial implementation, amended
-  review closure, dual independent approval, manual probes, and full gate.
+- Current commit: `8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a`
+- Last verified commit: `8d5d8e7cc92f712fccc3af65cc4f06a1d7b1dd9a`
+- Worktree: clean before this control-document closure. `CORE-003` is complete
+  after red tests, two corrective review rounds, dual independent approval, manual
+  probes, and the full required gate.
 
 ## Environment and verification
 
@@ -56,6 +58,11 @@ return analysis, plus a matching IR return-type registry, can replace both activ
   phase-five tests remain ignored. Conformance remains 3/3 cases and 4/4 checks.
 - Fresh manual unexpected-character and overflow builds, plus direct-module docs,
   exited 1 with located lexical errors and created no requested output.
+- `CORE-003` verification at `8d5d8e7`: focused function-contract tests 13/13;
+  full gate PASS with 112 library, 119 binary, 11 fatal-parse, 59 frontend,
+  13 function-contract, and 12 strict-lex tests. The 38 pre-existing phase-five
+  tests remain ignored. Two independent reviewers approved the exact clean SHA;
+  fresh black-box invalid-program probes exited nonzero and wrote no LLVM artifact.
 
 ## Audit agents
 
@@ -104,11 +111,16 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   and remains a separate tooling task.
 - Legacy recovery lexing remains public for compatibility and LSP symbol recovery;
   trusted repository paths no longer feed it into semantics, IR, or artifacts.
+- Numeric and void top-level function contracts are controlled at `8d5d8e7`.
+  Boolean/generic/composite signatures and numeric `let` annotations remain open.
+- Function-local branch and epilogue termination improved in `CORE-003`, but the
+  broader pre-existing unreachable-after-terminator CFG risk remains open.
 
 ## Exact next action
 
-Commit the `CORE-003` contract, then have one isolated owner add the focused tests
-first and implement only the allowed semantic and IR changes.
+Perform a read-only boundary audit for numeric `let` annotations, then preregister
+`CORE-004` with exact accepted/rejected programs, frozen semantics, file ownership,
+red tests, backend evidence, and stop conditions before production changes.
 
 ## Unauthorized actions
 
