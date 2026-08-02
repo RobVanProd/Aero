@@ -4,14 +4,14 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 0 — `CORE-001B`: finish fatal syntax rejection across public compiler
-commands and make the regression evidence phase-specific.
+Milestone 1 — prepare `CORE-002`, the fallible-lexing boundary for silent source
+corruption, after closing fatal parser propagation across public compiler paths.
 
 ## Active hypothesis
 
-Replacing the two remaining compilation-oriented legacy parser calls, tightening
-diagnostic/no-artifact assertions, and cleaning only compile-failed run directories
-will close the accepted invariant without changing grammar or later semantics.
+An additive fallible lexer API used by trusted compilation entry points can reject
+unexpected characters, invalid numeric literals, and unterminated strings without
+changing the legacy lexer API or accepted-token semantics in the first slice.
 
 ## Repository state
 
@@ -20,10 +20,10 @@ will close the accepted invariant without changing grammar or later semantics.
 - Starting commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
-- Current commit: `30b9b48658b0e1b1638b273341044dc2c8d64646`
-- Last verified commit: `30b9b48658b0e1b1638b273341044dc2c8d64646`
-- Worktree: `CORE-001` is integrated and passes its focused tests and the complete
-  gate; two independent reviews requested bounded `CORE-001B` closure changes.
+- Current commit: `6ce859220634c40c696397a3df178faea51f1912`
+- Last verified commit: `6ce859220634c40c696397a3df178faea51f1912`
+- Worktree: clean. `CORE-001` and `CORE-001B` are complete after isolated
+  implementation, two review/correction rounds, and final dual approval.
 
 ## Environment and verification
 
@@ -46,6 +46,11 @@ will close the accepted invariant without changing grammar or later semantics.
 - Remote CI: CI run `26611985062`, Rust CI run `26611985038`, and latest CodeQL
   run `30685526232` all completed successfully for upstream commit
   `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- `CORE-001B` verification at `6ce85922`: focused fatal-parse tests 11/11;
+  complete gate PASS with 106 library, 111 binary, and 59 frontend tests; 38
+  pre-existing phase-five tests remain ignored.
+- Fresh manual root and imported-module builds both exited 1, reported the source
+  file at `1:5`, and created no requested LLVM artifact.
 
 ## Audit agents
 
@@ -89,12 +94,16 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - The local shell required Rust installation before tests could run.
 - Real backend verification may be blocked by absent LLVM/GPU toolchains or
   hardware; absence will be recorded rather than simulated.
+- `run_aero_program` still calls `exit` internally after a valid CPU process;
+  this pre-existing hidden termination violates the desired helper/API boundary
+  and remains a separate tooling task.
+- The trusted compiler still uses an infallible lexer that skips or substitutes
+  malformed input; parser closure does not control lexical corruption.
 
 ## Exact next action
 
-Commit the `CORE-001B` task contract, implement it in an isolated worktree with
-one writer, integrate only its committed passing result, then obtain a second
-independent review and rerun the complete baseline gate.
+Preregister `CORE-002` with exact lexical-error cases, API compatibility boundary,
+allowed files, red tests, and stop conditions before changing the lexer.
 
 ## Unauthorized actions
 

@@ -45,16 +45,16 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 
 | Surface | Interface | Shared compiler truth | Artifact/result | Failure tests | Integration evidence | Docs | Class |
 |---|---:|---:|---:|---:|---:|---:|---|
-| Library `compile_program` | Y | P | LLVM text | P | P | P | PARTIAL |
+| Library `compile_program` | Y | P | LLVM text or located parse error | Y | P | P | PARTIAL |
 | Compiler options | Y | N | Ignored | N | N | P | PARSED_ONLY |
-| CLI build/check | Y | N | P; failure status unsound | N | P | Y | PARTIAL |
-| CLI run | Y | N | CPU path; ROCm staged; CUDA absent | P | P | Y | PARTIAL |
-| CLI test | Y | N | Analysis-only result; failures return zero | N | N | Y | PARSED_ONLY |
+| CLI build/check | Y | N | P; surfaced compile failures nonzero | Y | P | Y | PARTIAL |
+| CLI run | Y | N | CPU path; ROCm staged; CUDA absent | Y | P | Y | PARTIAL |
+| CLI test | Y | N | Analysis-only result; failures nonzero | Y | P | Y | PARTIAL |
 | Formatter | Y | N | Text trimming | N | N | P | EXPERIMENTAL |
 | Diagnostics/source spans | Y | P | Point/one-char ranges | P | P | Y | PARTIAL |
 | LSP | Y | N | P | P | P | Y | EXPERIMENTAL |
 | Documentation generator | Y | P | Markdown | P | P | Y | EXPERIMENTAL |
-| Profiler | Y | N | Timing/trace | P | P | Y | EXPERIMENTAL |
+| Profiler | Y | N | Timing/trace or located parse error | Y | P | Y | EXPERIMENTAL |
 | Project initialization | Y | — | Project files | Y | P | Y | EXPERIMENTAL |
 | Module resolver | Y | P | Resolved source | P | P | Y | EXPERIMENTAL |
 | Registry | Y | — | Local search; incomplete live publish/install | P | N | Y | EXPERIMENTAL |
@@ -85,6 +85,9 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   claim shared compiler truth until that duplication is removed.
 - Current conformance determinism checks are useful regression evidence, not
   formal-semantics proof.
+- At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
+  malformed root and applicable direct-module sources with located errors. Lexer
+  failures remain uncontrolled, and shared compiler truth remains partial.
 
 This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,

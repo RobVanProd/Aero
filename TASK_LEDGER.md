@@ -172,13 +172,12 @@
   legacy parser API used by broad tests, crosses into type/IR semantics, or grows
   beyond the listed files.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: integrated; independent review requested closure work
+- Status: complete
 - Verification commands: focused Cargo integration test; manual CLI reproducer;
   `./tools/test.sh`.
 - Result commit: `30b9b48658b0e1b1638b273341044dc2c8d64646`
-- Final decision: core library/build/check/run compilation paths are corrected,
-  but acceptance remains open until `CORE-001B` closes public parser fallbacks,
-  strengthens failure evidence, and removes the failed-run directory leak.
+- Final decision: accepted together with `CORE-001B`; the original false-success
+  path is closed and the remaining public compiler paths are covered below.
 
 ## CORE-001B — Close fatal-parse public paths and regression evidence
 
@@ -227,8 +226,14 @@
 - Stop conditions: grammar/recovery or semantic changes are required; cleanup
   crosses beyond compile failure; valid profile/test behavior changes beyond status.
 - Owner: one isolated implementation agent; lead integrates.
-- Status: preregistered
+- Status: complete
 - Verification commands: focused Cargo integration test, manual CLI reproducers,
   `./tools/test.sh`.
-- Result commit: pending
-- Final decision: pending independent review.
+- Result commits: `56be7fb1`, `45dd11df`, and `6ce85922` on the integration
+  branch (isolated owner commits `4fca5e1d`, `ce474b5a`, and `9691d02b`).
+- Final decision: accepted at
+  `6ce859220634c40c696397a3df178faea51f1912` after two independent approvals.
+  Focused tests pass 11/11; the full repository gate passes; manual root and
+  imported-module builds exit 1 with located parser diagnostics and no output.
+  Direct-module valid probes for `check` and `test` retain status zero. Recursive
+  modules and the pre-existing helper-level process exit are separate tasks.

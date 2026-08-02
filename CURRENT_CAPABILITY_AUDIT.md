@@ -6,6 +6,16 @@ Audit date: 2026-08-02
 
 Branch: `agent/aero-integration`
 
+## Verified progress after the audit commit
+
+- At integration commit `6ce859220634c40c696397a3df178faea51f1912`,
+  malformed root and applicable direct-module syntax is fatal in the library and
+  build/check/run/test/profile paths. Located negative tests cover status and
+  no-artifact behavior, and the full repository gate passes.
+- This closes the audited parser-to-codegen false-success reproducer only. The
+  lexer remains infallible, typing/IR fallbacks remain, and no backend or public
+  performance claim was upgraded.
+
 ## Executive finding
 
 Aero is an experimental compiler repository with a passing Rust regression
