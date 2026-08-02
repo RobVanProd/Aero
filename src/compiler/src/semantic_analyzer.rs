@@ -1075,6 +1075,7 @@ impl SemanticAnalyzer {
                 for arm in arms {
                     self.preflight_expression(&arm.body)?;
                 }
+                return Err("Match expressions are not supported.".to_string());
             }
             Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
                 self.preflight_expression(expr)?;
