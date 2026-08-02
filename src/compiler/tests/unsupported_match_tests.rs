@@ -596,3 +596,229 @@ fn cli_check_and_build_reject_direct_module_match_without_panic_or_artifact() {
     ));
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+fn trait_default_error_failure(label: &str, source: &str, expected: &str) -> Option<String> {
+    match catch_unwind(|| compile_program(source, CompilerOptions::default())) {
+        Err(_) => Some(format!(
+            "{label}: compile_program unwound instead of returning `{expected}`"
+        )),
+        Ok(Ok(llvm)) => Some(format!(
+            "{label}: unexpectedly accepted parser-retained trait default body; body traversal was skipped (dropped_mark_call={}, llvm_bytes={})",
+            source.contains("fn mark(") && !llvm.contains("call i32 @mark("),
+            llvm.len()
+        )),
+        Ok(Err(error)) => {
+            let Some(inner) = error.strip_prefix("Semantic Analysis Error: ") else {
+                return Some(format!(
+                    "{label}: unexpected public error category: {error}"
+                ));
+            };
+            (inner != expected)
+                .then(|| format!("{label}: expected `{expected}`, received `{inner}`"))
+        }
+    }
+}
+
+#[test]
+fn parser_retains_match_in_default_trait_body_and_required_signature() {
+    let source = r#"
+trait Selectable {
+    fn select(&self) -> int {
+        return match 2 { 1 => 11, 2 => 22, _ => 33 };
+    }
+    fn required(&self) -> int;
+}
+"#;
+    let tokens = try_tokenize_with_locations(source, None).expect("trait default should lex");
+    let ast = parse_with_locations(tokens).expect("trait default should parse");
+    let [AstNode::Statement(Statement::TraitDef { name, methods, .. })] = ast.as_slice() else {
+        panic!("expected one trait definition: {ast:?}");
+    };
+    assert_eq!(name, "Selectable");
+    assert_eq!(methods.len(), 2);
+    assert_eq!(methods[0].name, "select");
+    let body = methods[0]
+        .body
+        .as_ref()
+        .expect("default method body should be retained");
+    let [Statement::Return(Some(Expression::Match { expr, arms }))] = body.statements.as_slice()
+    else {
+        panic!("expected returned Match in default body: {body:?}");
+    };
+    assert!(matches!(expr.as_ref(), Expression::IntegerLiteral(2)));
+    assert_eq!(arms.len(), 3);
+    assert!(body.expression.is_none());
+    assert_eq!(methods[1].name, "required");
+    assert!(methods[1].body.is_none());
+}
+
+#[test]
+fn public_compile_preserves_trait_default_and_required_signature_controls_without_match() {
+    let syntax_only_default = r#"
+trait SyntaxOnlyDefault {
+    fn project(&self) -> int {
+        let value: int = unresolved_default_name;
+        return value;
+    }
+}
+fn main() {}
+"#;
+    compile_program(syntax_only_default, CompilerOptions::default()).expect(
+        "default body without Match should retain syntax-only behavior, not activate name binding",
+    );
+
+    let required_signature = r#"
+trait RequiredOnly {
+    fn project(&self) -> int;
+}
+fn main() {}
+"#;
+    compile_program(required_signature, CompilerOptions::default())
+        .expect("required trait signature without a body should remain accepted");
+}
+
+#[test]
+fn public_compile_rejects_match_across_default_trait_body_traversal_without_unwinding() {
+    let cases = [
+        (
+            "direct-return",
+            "trait DirectReturn { fn choose(&self) -> int { return match 1 { 1 => 11, _ => 22 }; } } fn main() {}",
+        ),
+        (
+            "tail-expression",
+            "trait TailExpression { fn choose(&self) -> int { match 1 { 1 => 11, _ => 22 } } } fn main() {}",
+        ),
+        (
+            "let-binding",
+            "trait LetBinding { fn choose(&self) -> int { let selected: int = match 1 { 1 => 11, _ => 22 }; return selected; } } fn main() {}",
+        ),
+        (
+            "discarded-expression",
+            "trait Discarded { fn choose(&self) -> int { match 1 { 1 => 11, _ => 22 }; return 0; } } fn main() {}",
+        ),
+        (
+            "if-condition",
+            "trait IfCondition { fn choose(&self) -> int { if match 1 { 1 => 1 < 2, _ => 2 < 1 } { return 11; } return 22; } } fn main() {}",
+        ),
+        (
+            "while-body",
+            "trait WhileBody { fn choose(&self) -> int { while 1 < 2 { let selected: int = match 1 { 1 => 11, _ => 22 }; break; } return 0; } } fn main() {}",
+        ),
+        (
+            "for-body",
+            "trait ForBody { fn choose(&self) -> int { for item in [1, 2] { match item { 1 => 11, _ => 22 }; } return 0; } } fn main() {}",
+        ),
+        (
+            "array-container",
+            "trait ArrayContainer { fn choose(&self) -> int { let values = [7, match 1 { 1 => 11, _ => 22 }]; return 0; } } fn main() {}",
+        ),
+    ];
+
+    let failures = cases
+        .iter()
+        .filter_map(|(label, source)| {
+            trait_default_error_failure(label, source, EXPECTED_INNER_DIAGNOSTIC)
+        })
+        .collect::<Vec<_>>();
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn default_trait_body_child_diagnostics_retain_precedence() {
+    let cases = [
+        (
+            "tuple-scrutinee",
+            "trait TupleChild { fn choose(&self) -> int { return match (1, 2) { _ => 0 }; } } fn main() {}",
+            TUPLE_DIAGNOSTIC,
+        ),
+        (
+            "field-arm",
+            "trait FieldChild { fn choose(&self) -> int { return match 1 { 1 => 7.field, _ => 0 }; } } fn main() {}",
+            FIELD_DIAGNOSTIC,
+        ),
+        (
+            "void-arm",
+            "fn sink() {} trait VoidChild { fn choose(&self) -> int { return match 1 { 1 => sink(), _ => 0 }; } } fn main() {}",
+            VOID_DIAGNOSTIC,
+        ),
+    ];
+
+    let failures = cases
+        .iter()
+        .filter_map(|(label, source, expected)| {
+            trait_default_error_failure(label, source, expected)
+        })
+        .collect::<Vec<_>>();
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn cli_check_and_build_reject_match_in_root_trait_default_without_panic_or_artifact() {
+    let workspace = TestWorkspace::new("trait-default-root");
+    let source_path = workspace.path("main.aero");
+    let artifact = workspace.path("program.ll");
+    let source = r#"
+fn mark() -> int { 1 }
+trait RootDefault {
+    fn choose(&self) -> int {
+        return match mark() { 1 => 11, _ => 22 };
+    }
+}
+fn main() {}
+"#;
+    fs::write(&source_path, source).expect("write root trait-default Match source");
+
+    let check = run_check(&workspace, &source_path);
+    let build = run_build(&workspace, &source_path, &artifact);
+    let mut failures = cli_match_rejection_failures(
+        "trait-default root check",
+        &check,
+        "error: Match expressions are not supported.",
+        None,
+        source,
+    );
+    failures.extend(cli_match_rejection_failures(
+        "trait-default root build",
+        &build,
+        "error: Semantic Analysis Error: Match expressions are not supported.",
+        Some(&artifact),
+        source,
+    ));
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn cli_check_and_build_reject_match_in_module_trait_default_without_panic_or_artifact() {
+    let workspace = TestWorkspace::new("trait-default-module");
+    let root = workspace.path("main.aero");
+    let module = workspace.path("defaults.aero");
+    let artifact = workspace.path("program.ll");
+    let module_source = r#"
+fn mark() -> int { 1 }
+trait ModuleDefault {
+    fn choose(&self) -> int {
+        return match mark() { 1 => 11, _ => 22 };
+    }
+}
+"#;
+    fs::write(&root, "mod defaults; fn main() {}").expect("write trait-default module root");
+    fs::write(&module, module_source).expect("write module trait-default Match source");
+
+    let check = run_check(&workspace, &root);
+    let build = run_build(&workspace, &root, &artifact);
+    let mut failures = cli_match_rejection_failures(
+        "trait-default module check",
+        &check,
+        "error: Match expressions are not supported.",
+        None,
+        module_source,
+    );
+    failures.extend(cli_match_rejection_failures(
+        "trait-default module build",
+        &build,
+        "error: Semantic Analysis Error: Match expressions are not supported.",
+        Some(&artifact),
+        module_source,
+    ));
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
