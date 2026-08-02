@@ -29,7 +29,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Fixed arrays | Y | Y | Y | P | P | P | P | P | ? | Y | P | P | Y | PARTIAL |
 | Tuples | Y | Y | Y | P | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
-| Struct declarations/literals | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
+| Struct declarations | Y | Y | P | N | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
+| Struct construction | Y | Y | Y | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
 | Named field access | Y | Y | Y | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
 | Enums and construction | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
 | Pattern matching | Y | Y | P | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
@@ -114,6 +115,13 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   public, CLI, and direct-module paths. Fourteen focused tests, the complete gate,
   corrected tutorial wording, and two independent reviews support this partial
   classification; no remainder execution behavior is claimed.
+- At exact integrated `CORE-009` production candidate `a887931`, named/generic struct declarations and
+  StructLiteral parser shape remain visible, but trusted parsed source bodies visit
+  field values in source order and reject construction before inference/IR with
+  `Struct construction expressions are not supported.` Construction name/field/type
+  validation, layout, initialization, ownership, ABI, lowering, and execution remain
+  absent. Historical struct code-generator helpers do not make this source path
+  executable.
 
 This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,

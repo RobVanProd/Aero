@@ -1,5 +1,14 @@
 # Task 10.1: LLVM Struct Generation - Implementation Summary
 
+> **Historical task record — not active capability evidence.** The helpers described
+> here are not wired into a trustworthy source-to-IR struct path. Active
+> StructLiteral source previously became scalar zero without field evaluation;
+> trusted parsed source bodies now reject construction before IR with
+> `Struct construction expressions are not supported.` Named field projection is
+> also explicitly unsupported. The implementation claims below describe the task's
+> intended/helper scope and do not certify current declaration validation, field
+> checking, layout, initialization, ownership, ABI, LLVM output, or execution.
+
 ## Overview
 This document summarizes the implementation of LLVM struct generation for Task 10.1 of Phase 4 data structures.
 

@@ -4,8 +4,8 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 9 — implement the preregistered one-file `CORE-009` StructLiteral
-semantic rejection after independently accepting the tests-only red checkpoint.
+Milestone 9 — finish public truth documentation and the complete gate for the
+integrated `CORE-009` StructLiteral production candidate before independent review.
 
 ## Active hypothesis
 
@@ -50,6 +50,14 @@ inventing declaration, field, type, layout, ownership, IR, or backend semantics.
   requested artifacts. No failure relies on a parse error or unwind. Reclassified
   controls independently pass 59 frontend, 8 field, and 15 Match tests; formatting
   and diff checks pass.
+- `CORE-009` production candidate: owner `bf6a7ef`, integrated as exact
+  `a8879310fe04a28b368437d1932e01972b7e9cee`. The only production change is one
+  return after existing source-order recursive StructLiteral field preflight. The
+  exact diagnostic is `Struct construction expressions are not supported.` Owner
+  verification passes the complete gate plus the focused matrix. Lead verification
+  independently passes 9 Struct, 59 frontend, 8 field, 15 Match, 16 tuple, 14
+  modulo, 13 function-contract, 18 numeric-annotation, and 12 strict-lexing tests.
+  Documentation and a fresh complete-gate candidate remain pending.
 - Accepted `CORE-008` candidate:
   `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the

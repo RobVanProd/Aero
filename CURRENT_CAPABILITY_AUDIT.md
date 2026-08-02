@@ -211,6 +211,13 @@ correctness gates.
   reference diagnostics, MethodCall must preserve typed zero-argument Array/Vec
   `.iter()`, string comparison needs operand/operator policy, and division needs
   integer/runtime/IEEE policy. StructLiteral alone is selected for `CORE-009`.
+- At exact integrated candidate `a887931`, trusted parsed-source preflight visits
+  StructLiteral field values in source order and then rejects construction with
+  `Struct construction expressions are not supported.` The 164-test focused matrix
+  passes independently for owner and lead. Parser/declaration visibility remains;
+  struct name/field/type validation, layout, initialization, ownership, ABI, IR,
+  backend emission, and execution remain absent. Full documented gate and reviews
+  are pending.
 - Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
   coverage is limited to four scalar CPU examples.
 

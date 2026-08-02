@@ -145,7 +145,7 @@ fn main() {
 |----------|----------|
 | **Type System** | Static typing, generics, trait bounds, where clauses |
 | **Memory** | Ownership, move semantics, shared & mutable references, borrow checker |
-| **Data Types** | Structs, enums, arrays, tuples, strings, pattern matching |
+| **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Modules** | `mod`/`use` imports, `pub` visibility, multi-file projects |
 | **Codegen** | LLVM IR backend with optimization passes |
@@ -159,6 +159,14 @@ fn main() {
 > recognized. Tuple value construction and projection are not executable yet;
 > trusted compiler paths reject those expressions before IR generation with
 > `Tuple expressions are not supported.`
+
+> **Struct construction status:** named and generic struct declarations and
+> StructLiteral syntax are recognized, but struct value construction is not
+> executable yet. Trusted parsed source bodies inspect field expressions for
+> established child errors, then reject construction before IR with
+> `Struct construction expressions are not supported.` This does not implement
+> struct-name or field validation, layout, initialization, ownership, ABI, or
+> backend lowering.
 
 > **Named field status:** `value.field` syntax is recognized, but named field
 > projection is not executable yet. Trusted compiler paths reject field-access

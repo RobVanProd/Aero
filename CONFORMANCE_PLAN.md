@@ -35,6 +35,12 @@
   preserve parser distinction from method calls and tuple indexing, retain prior
   receiver diagnostics, cover public/direct-module/CLI no-artifact routes, and keep
   array/index/iterator and tuple-free controls positive.
+- Until complete struct name/field typing, layout, initialization, ownership, ABI,
+  and lowering exist, StructLiteral values are a required recursive compile-fail
+  category. Tests must retain declaration and parser-shape controls, visit field
+  children in source order, preserve established child diagnostics, cover ordinary
+  and default/nested source containers, and prove public/direct-module/CLI rejection
+  without unwind, panic, or requested artifact.
 - Runtime-output tests with exact stdout, stderr, exit code, and declared sources
   of nondeterminism.
 - Diagnostic snapshots normalized only for unstable machine paths or equivalent

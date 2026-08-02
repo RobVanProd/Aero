@@ -370,7 +370,7 @@ outside this decision.
 ## DEC-013 — Struct construction fails closed until aggregate semantics exist
 
 - Date: 2026-08-02
-- Status: accepted direction; tests-first implementation pending for `CORE-009`
+- Status: production candidate integrated; complete gate and review pending
 - Decision: Aero retains struct declarations and StructLiteral syntax/AST, but every
   StructLiteral in a trusted parsed source body will visit field expressions in
   source order and then reject with
@@ -404,7 +404,16 @@ and 6 expected-failing aggregate tests. Failures expose accepted StructLiteral
 routes, competing outer diagnostics, fabricated zero/drop LLVM, successful CLI
 status, and root/module artifacts; no source fails parsing or unwinds. The rewritten
 frontend, field, and Match controls pass 59/59, 8/8, and 15/15 respectively. The
-production decision remains unchanged and implementation is pending.
+production decision remains unchanged.
+
+Production candidate: owner `bf6a7ef` is integrated as exact `a887931`. It changes
+only `semantic_analyzer.rs` by returning the frozen diagnostic after the existing
+source-order recursive field traversal. Owner validation passes the Struct/prior
+focused matrix, formatting, all-target check, and complete repository gate. Lead
+validation independently passes 164/164 focused Struct/frontend/field/Match/tuple/
+modulo/function/annotation/strict tests. No inference, declaration/field validation,
+layout, ownership, IR, or backend behavior changes. Public documentation, a fresh
+documented complete gate, and two non-owner exact-SHA reviews remain mandatory.
 
 ## DEC-014 — Founding framework directs the roadmap but does not certify status
 

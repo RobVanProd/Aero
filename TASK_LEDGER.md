@@ -1194,7 +1194,8 @@
 - Owner: one isolated tests/implementation owner; lead owns compatibility and exact
   diagnostic decisions. Two non-owner reviews are required after the complete gate.
 - Status: tests-only red checkpoint accepted at exact integration commit
-  `1e76a0610ef778303548096ef634a5f02b678fe9`; production pending.
+  `1e76a0610ef778303548096ef634a5f02b678fe9`; production candidate integrated at
+  `a8879310fe04a28b368437d1932e01972b7e9cee`; docs/full gate/review pending.
 - Verification: focused Struct suite plus modified control suites, all prior focused
   boundaries, formatting/all-target check, required `./tools/test.sh`, then exact-SHA
   structural and black-box reviews.
@@ -1210,6 +1211,17 @@ Parser shape, declaration/Enum/Option/numeric/function/array/index/iterator cont
 and established tuple/field/Match/void child precedence pass. No negative depends on
 parse failure or unwind. Reclassified controls pass 59 frontend, 8 field, and 15
 Match tests; formatting and `git diff --check` pass.
+
+Production evidence: owner commit `bf6a7ef` is integrated as `a887931` and adds
+exactly one return to `semantic_analyzer.rs` after existing StructLiteral field
+preflight. The owner passes 9 Struct, 59 frontend, 8 field, 15 Match, 16 tuple, 14
+modulo, 13 function-contract, 18 numeric-annotation, and 12 strict-lexing tests,
+formatting, all-target check, and `./tools/test.sh`. The lead independently passes
+the same 164 focused tests on the integration candidate. Struct children retain
+source order and the established tuple/field/Match/void precedence; inference-only
+modulo/name children reach the outer Struct diagnostic. No parser, AST, inference,
+types, IR, backend, EnumVariant, ownership, method, comparison, division, or prior
+boundary file changed.
 
 ## AUDIT-015 — Trace founding framework into current engineering control
 
