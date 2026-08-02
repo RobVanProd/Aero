@@ -386,7 +386,10 @@ fn main() {
 "#;
     let llvm = compile_program(source, CompilerOptions::default()).expect("compile alias source");
 
-    assert!(llvm.contains("define i32 @identity(i32 %value)"), "{llvm}");
+    assert!(
+        llvm.contains("define i32 @identity(i32 %aero.arg.value)"),
+        "{llvm}"
+    );
     assert!(llvm.contains("call i32 @identity(i32 7)"), "{llvm}");
 }
 

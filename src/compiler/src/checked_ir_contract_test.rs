@@ -96,6 +96,178 @@ struct InvalidIrCase {
 fn invalid_ir_cases() -> Vec<InvalidIrCase> {
     vec![
         InvalidIrCase {
+            name: "empty module has no process entry",
+            expected_fragments: &["process", "entry", "main", "missing"],
+            ir: HashMap::new(),
+        },
+        InvalidIrCase {
+            name: "helper-only module has no process entry",
+            expected_fragments: &["process", "entry", "main", "missing"],
+            ir: single_function("helper", vec![Inst::Return(Value::ImmInt(0))]),
+        },
+        InvalidIrCase {
+            name: "printf is reserved by the runtime ABI",
+            expected_fragments: &["printf", "reserved", "runtime", "abi"],
+            ir: HashMap::from([
+                (
+                    "main".to_string(),
+                    function("main", vec![Inst::Return(Value::ImmInt(0))]),
+                ),
+                (
+                    "printf".to_string(),
+                    function("printf", vec![Inst::Return(Value::ImmInt(0))]),
+                ),
+            ]),
+        },
+        InvalidIrCase {
+            name: "function name is not an LLVM-safe admitted symbol",
+            expected_fragments: &["function", "symbol", "bad name", "not", "admitted"],
+            ir: HashMap::from([
+                (
+                    "main".to_string(),
+                    function("main", vec![Inst::Return(Value::ImmInt(0))]),
+                ),
+                (
+                    "bad name".to_string(),
+                    function("bad name", vec![Inst::Return(Value::ImmInt(0))]),
+                ),
+            ]),
+        },
+        InvalidIrCase {
+            name: "parameter name is not an LLVM-safe admitted symbol",
+            expected_fragments: &["parameter", "symbol", "bad name", "not", "admitted"],
+            ir: program_with_definition(
+                "bad_parameter",
+                vec![("bad name".to_string(), "i32".to_string())],
+                Some("i32"),
+                vec![Inst::Return(Value::ImmInt(0))],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
+        },
+        InvalidIrCase {
+            name: "block label collides with generated result namespace",
+            expected_fragments: &["block", "label", "symbol", "reg0", "not", "admitted"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::Jump("reg0".to_string()),
+                    Inst::Label("reg0".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "raw constant integer division by zero",
+            expected_fragments: &["constant", "integer", "division", "zero", "not", "admitted"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::Div(Value::Reg(0), Value::ImmInt(1), Value::ImmInt(0)),
+                    Inst::Return(Value::Reg(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "function map key disagrees with body name",
+            expected_fragments: &["map", "key", "disagrees", "body", "name"],
+            ir: HashMap::from([(
+                "alias".to_string(),
+                function("main", vec![Inst::Return(Value::ImmInt(0))]),
+            )]),
+        },
+        InvalidIrCase {
+            name: "empty emitted function body",
+            expected_fragments: &["reachable", "terminator", "missing"],
+            ir: single_function("main", Vec::new()),
+        },
+        InvalidIrCase {
+            name: "function definition has no module entry",
+            expected_fragments: &["definition", "no", "matching", "module", "entry"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::FunctionDef {
+                        name: "orphan".to_string(),
+                        parameters: Vec::new(),
+                        return_type: Some("i32".to_string()),
+                        body: vec![Inst::Return(Value::ImmInt(0))],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "emitted definition entry mixes ignored runtime instructions",
+            expected_fragments: &["module", "entry", "mixes", "runtime", "instructions"],
+            ir: HashMap::from([
+                (
+                    "main".to_string(),
+                    function(
+                        "main",
+                        vec![
+                            Inst::FunctionDef {
+                                name: "helper".to_string(),
+                                parameters: Vec::new(),
+                                return_type: Some("i32".to_string()),
+                                body: vec![Inst::Return(Value::ImmInt(0))],
+                            },
+                            Inst::Return(Value::ImmInt(0)),
+                        ],
+                    ),
+                ),
+                (
+                    "helper".to_string(),
+                    function("helper", vec![Inst::Return(Value::ImmInt(0))]),
+                ),
+            ]),
+        },
+        InvalidIrCase {
+            name: "string parameter signature",
+            expected_fragments: &["unsupported", "string", "parameter"],
+            ir: program_with_definition(
+                "takes_string",
+                vec![("value".to_string(), "string".to_string())],
+                Some("i32"),
+                vec![Inst::Return(Value::ImmInt(0))],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
+        },
+        InvalidIrCase {
+            name: "duplicate parameter names",
+            expected_fragments: &["duplicate", "parameter", "value"],
+            ir: program_with_definition(
+                "duplicates",
+                vec![
+                    ("value".to_string(), "i32".to_string()),
+                    ("value".to_string(), "i32".to_string()),
+                ],
+                Some("i32"),
+                vec![Inst::Return(Value::ImmInt(0))],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
+        },
+        InvalidIrCase {
+            name: "invalid process entry signature",
+            expected_fragments: &["process", "entry", "exact", "i32", "main"],
+            ir: HashMap::from([(
+                "main".to_string(),
+                function(
+                    "main",
+                    vec![Inst::FunctionDef {
+                        name: "main".to_string(),
+                        parameters: vec![("argument".to_string(), "i32".to_string())],
+                        return_type: Some("i32".to_string()),
+                        body: vec![Inst::Return(Value::ImmInt(0))],
+                    }],
+                ),
+            )]),
+        },
+        InvalidIrCase {
+            name: "integer immediate outside i32",
+            expected_fragments: &["integer", "outside", "i32", "range"],
+            ir: single_function("main", vec![Inst::Return(Value::ImmInt(i64::MAX))]),
+        },
+        InvalidIrCase {
             name: "duplicate result definition",
             expected_fragments: &["duplicate", "result", "definition"],
             ir: single_function(
@@ -164,6 +336,17 @@ fn invalid_ir_cases() -> Vec<InvalidIrCase> {
             ),
         },
         InvalidIrCase {
+            name: "unused scalar place has no inferred pointee",
+            expected_fragments: &["place", "logical", "pointee"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "unused".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
             name: "load from non-place",
             expected_fragments: &["load", "place"],
             ir: single_function(
@@ -171,6 +354,47 @@ fn invalid_ir_cases() -> Vec<InvalidIrCase> {
                 vec![
                     Inst::Load(Value::Reg(0), Value::ImmInt(7)),
                     Inst::Return(Value::Reg(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "place use before later definition",
+            expected_fragments: &["place", "use", "before", "definition"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::Store(Value::Reg(0), Value::ImmInt(7)),
+                    Inst::Alloca(Value::Reg(0), "late".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "cross-block place does not dominate merge use",
+            expected_fragments: &["place", "definition", "dominat", "use"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::ICmp {
+                        op: "eq".to_string(),
+                        result: Value::Reg(0),
+                        left: Value::ImmInt(1),
+                        right: Value::ImmInt(1),
+                    },
+                    Inst::Branch {
+                        condition: Value::Reg(0),
+                        true_label: "defines".to_string(),
+                        false_label: "skips".to_string(),
+                    },
+                    Inst::Label("defines".to_string()),
+                    Inst::Alloca(Value::Reg(1), "branch_local".to_string()),
+                    Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+                    Inst::Jump("merge".to_string()),
+                    Inst::Label("skips".to_string()),
+                    Inst::Jump("merge".to_string()),
+                    Inst::Label("merge".to_string()),
+                    Inst::Load(Value::Reg(2), Value::Reg(1)),
+                    Inst::Return(Value::Reg(2)),
                 ],
             ),
         },
@@ -274,6 +498,38 @@ fn invalid_ir_cases() -> Vec<InvalidIrCase> {
             ),
         },
         InvalidIrCase {
+            name: "invalid integer comparison predicate",
+            expected_fragments: &["icmp", "predicate", "unordered", "not", "admitted"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::ICmp {
+                        op: "unordered".to_string(),
+                        result: Value::Reg(0),
+                        left: Value::ImmInt(1),
+                        right: Value::ImmInt(1),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "invalid floating comparison predicate",
+            expected_fragments: &["fcmp", "predicate", "eq", "not", "admitted"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::FCmp {
+                        op: "eq".to_string(),
+                        result: Value::Reg(0),
+                        left: Value::ImmFloat(1.0),
+                        right: Value::ImmFloat(1.0),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
             name: "undefined jump target",
             expected_fragments: &["jump", "target", "missing"],
             ir: single_function("main", vec![Inst::Jump("missing".to_string())]),
@@ -345,6 +601,70 @@ fn invalid_ir_cases() -> Vec<InvalidIrCase> {
                         result: Value::Reg(1),
                         base: Value::Reg(0),
                         index: Value::ImmString("bad-index".to_string()),
+                        elem_type: "[1 x double]".to_string(),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "array allocation uses backend-incompatible physical element",
+            expected_fragments: &["physical", "array", "element", "i32", "double"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::AllocaArray {
+                        result: Value::Reg(0),
+                        elem_type: "i32".to_string(),
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "boolean value cannot refine a physical double array element",
+            expected_fragments: &["store", "Bool", "numeric", "place"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::AllocaArray {
+                        result: Value::Reg(0),
+                        elem_type: "double".to_string(),
+                        count: 1,
+                    },
+                    Inst::GetElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        elem_type: "[1 x double]".to_string(),
+                    },
+                    Inst::ICmp {
+                        op: "eq".to_string(),
+                        result: Value::Reg(2),
+                        left: Value::ImmInt(1),
+                        right: Value::ImmInt(1),
+                    },
+                    Inst::Store(Value::Reg(1), Value::Reg(2)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "getelementptr uses scalar rather than aggregate descriptor",
+            expected_fragments: &["getelementptr", "element", "type", "double"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::AllocaArray {
+                        result: Value::Reg(0),
+                        elem_type: "double".to_string(),
+                        count: 1,
+                    },
+                    Inst::GetElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
                         elem_type: "double".to_string(),
                     },
                     Inst::Return(Value::ImmInt(0)),
@@ -613,4 +933,115 @@ fn checked_codegen_rejects_every_unadmitted_instruction_variant_explicitly() {
     for case in unsupported_instruction_cases() {
         assert_both_checked_codegen_entrypoints_reject(case);
     }
+}
+
+#[test]
+fn checked_codegen_emits_admitted_bool_comparison_and_i32_float_conversion_forms() {
+    let boolean_ir = single_function(
+        "main",
+        vec![
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(0),
+                left: Value::ImmInt(1),
+                right: Value::ImmInt(1),
+            },
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(1),
+                left: Value::Reg(0),
+                right: Value::Reg(0),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ],
+    );
+    let boolean_llvm = try_generate_code(boolean_ir).expect("Bool equality must be admitted");
+    assert!(
+        boolean_llvm.contains("icmp eq i1"),
+        "Bool equality was not emitted with i1 operands:\n{boolean_llvm}"
+    );
+
+    let conversion_ir = single_function(
+        "main",
+        vec![
+            Inst::FPToSI(Value::Reg(0), Value::ImmFloat(3.5)),
+            Inst::Return(Value::Reg(0)),
+        ],
+    );
+    let conversion_llvm =
+        try_generate_code(conversion_ir).expect("Float-to-Int conversion must be admitted");
+    for marker in ["fptosi double", "to i32", "sitofp i32"] {
+        assert!(
+            conversion_llvm.contains(marker),
+            "checked Float-to-Int conversion missed `{marker}`:\n{conversion_llvm}"
+        );
+    }
+    assert!(
+        !conversion_llvm.contains("to i64"),
+        "checked Float-to-Int conversion leaked the legacy i64 form:\n{conversion_llvm}"
+    );
+}
+
+#[test]
+fn checked_codegen_does_not_append_a_return_after_an_infinite_loop_terminator() {
+    let ir = single_function(
+        "main",
+        vec![
+            Inst::Jump("loop".to_string()),
+            Inst::Label("loop".to_string()),
+            Inst::Jump("loop".to_string()),
+        ],
+    );
+    let llvm = try_generate_code(ir).expect("well-formed infinite loop must be admitted");
+    assert!(
+        !llvm.contains("ret i32"),
+        "checked codegen appended a second terminator after an infinite loop:\n{llvm}"
+    );
+}
+
+#[test]
+fn checked_codegen_uses_verified_raw_function_abi_for_calls() {
+    let ir = HashMap::from([
+        (
+            "main".to_string(),
+            function(
+                "main",
+                vec![
+                    Inst::Call {
+                        function: "helper".to_string(),
+                        arguments: Vec::new(),
+                        result: Some(Value::Reg(0)),
+                    },
+                    Inst::Return(Value::Reg(0)),
+                ],
+            ),
+        ),
+        (
+            "helper".to_string(),
+            function("helper", vec![Inst::Return(Value::ImmInt(7))]),
+        ),
+    ]);
+    let llvm = try_generate_code(ir).expect("verified raw helper call must emit");
+    assert!(llvm.contains("define i32 @helper()"), "{llvm}");
+    assert!(llvm.contains("call i32 @helper()"), "{llvm}");
+    assert!(!llvm.contains("call double @helper()"), "{llvm}");
+}
+
+#[test]
+fn checked_codegen_widens_temporary_names_beyond_extreme_raw_ids() {
+    let mut main = function(
+        "main",
+        vec![
+            Inst::FPToSI(Value::Reg(u32::MAX), Value::ImmFloat(3.5)),
+            Inst::Return(Value::Reg(u32::MAX)),
+        ],
+    );
+    main.next_reg = u32::MAX;
+    let llvm = try_generate_code(HashMap::from([("main".to_string(), main)]))
+        .expect("extreme admitted raw result ID must not unwind or collide");
+    assert!(
+        llvm.contains("%reg4294967296 = fptosi double"),
+        "fresh temporary did not widen beyond u32 raw IDs:\n{llvm}"
+    );
+    assert!(llvm.contains("%reg4294967295 = sitofp i32"), "{llvm}");
 }

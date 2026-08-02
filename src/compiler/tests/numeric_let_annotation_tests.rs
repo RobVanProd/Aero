@@ -318,11 +318,11 @@ fn main() {
     let llvm = compile(source).expect("valid annotated program should produce public LLVM");
 
     assert!(
-        llvm.contains("define i32 @identity_int(i32 %value)"),
+        llvm.contains("define i32 @identity_int(i32 %aero.arg.value)"),
         "{llvm}"
     );
     assert!(
-        llvm.contains("define double @identity_float(double %value)"),
+        llvm.contains("define double @identity_float(double %aero.arg.value)"),
         "{llvm}"
     );
     assert!(llvm.contains("call i32 @identity_int(i32 7)"), "{llvm}");

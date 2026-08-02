@@ -122,6 +122,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   validation, layout, initialization, ownership, ABI, lowering, and execution remain
   absent. Historical struct code-generator helpers do not make this source path
   executable.
+- The local `CORE-010` production candidate adds checked logical scalar IR,
+  internal invariant verification, exhaustive checked codegen, and qualified LLVM
+  22 verification on trusted publication paths. Focused contracts and the complete
+  repository gate pass locally. The table remains conservatively classified until
+  independent exact-diff review and public CI accept the candidate; this does not
+  certify unresolved physical integer, aggregate, ownership, or backend semantics.
 
 This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,

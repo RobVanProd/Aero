@@ -1041,6 +1041,39 @@ fn run_rejects_before_native_tool_discovery_or_object_publication() {
         "native tool discovery ran after missing required verifier: {text}"
     );
     assert_run_artifacts_clean(&workspace);
+
+    let accepting_verifier = write_fake_tool(
+        &workspace,
+        "accepting-opt",
+        "run-accept",
+        FakeTool::Opt,
+        FakeBehavior::Accept,
+    );
+    let mut command = base_command(&workspace);
+    add_args(
+        &mut command,
+        [
+            OsStr::new("run"),
+            source.as_os_str(),
+            OsStr::new("--target"),
+            OsStr::new("cpu"),
+        ],
+    );
+    configure_fake(
+        &mut command,
+        &workspace,
+        "AERO_LLVM_OPT",
+        &accepting_verifier,
+        None,
+    );
+    command.env("PATH", empty_path(&workspace));
+    let output = run(command);
+    let text = diagnostics(&output);
+    assert!(
+        !output.status.success() && text.contains("clang"),
+        "accepted LLVM did not reach the expected missing-native-tool failure: {text}"
+    );
+    assert_run_artifacts_clean(&workspace);
 }
 
 fn run_transform(

@@ -84,3 +84,9 @@ after their runtime contracts exist.
 
 The current `conformance` command's deterministic checks are useful regression
 tests. They are not, by repetition alone, a mechanized proof of formal semantics.
+
+The local `CORE-010` production candidate routes conformance cases through checked
+IR and mandatory internal verification without depending on an external LLVM tool.
+A checked-IR failure is recorded in the complete requested report and produces a
+nonzero result. Focused tests and the complete repository gate pass locally; this
+candidate evidence remains pending exact-diff review and public CI.

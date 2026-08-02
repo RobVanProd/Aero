@@ -1496,16 +1496,21 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `lib.rs`, `main.rs`, `profiler.rs`, and `conformance.rs`; focused tests; LLVM CI
   workflows; verification-only command-wrapper edits for `graph-opt`/`quantize`;
   targeted reclassification edits in existing unsupported-form control tests;
-  public capability/help and project-control documents.
+  public capability/help and project-control documents. Backend review amendment:
+  `src/compiler/Cargo.toml` and `Cargo.lock` may add only target-specific `libc` and
+  `windows-sys` process-containment support required to enforce the frozen verifier
+  process-tree deadline; this does not authorize an LLVM binding or other dependency.
 - Files frozen: lexer, parser, AST syntax, semantic language rules except required
   phase routing, ownership, aggregate/enum/method implementations, graph/backend
-  transform algorithms, `Cargo.toml`/`Cargo.lock`, registry, benchmark claims, and
-  releases.
+  transform algorithms, all Cargo dependency changes other than the bounded
+  process-containment amendment above, registry, benchmark claims, and releases.
 - Risks: typed metadata can diverge from legacy physical numeric lowering; verifier
   activation can expose a broad invalid-LLVM corpus; graph transforms/cache can
   bypass checks; deprecation can preserve an unsafe direct caller; CFG validation
   can accidentally redesign control flow; tool discovery/version/timeout/temp-file
-  handling can become platform-dependent.
+  handling can become platform-dependent. Windows containment must create the child
+  suspended, attach its job before its first instruction, and resume only after
+  assignment; Unix containment must create and terminate a dedicated process group.
 - Stop conditions: a second trusted untyped path remains; accepted positive controls
   require integer/array/ownership/aggregate/dispatch semantics not frozen here;
   preserving admitted closures requires a runtime closure object/capture ABI;
@@ -1527,6 +1532,20 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   execution of the four positive CPU examples before Cargo reaches the deliberate
   checked-API compilation failures. No setup, parser, unrelated semantic, or positive
   LLVM-corpus failure invalidates the checkpoint.
-- Status: tests/CI-only red checkpoint accepted. Production implementation is now
-  authorized within the frozen files, semantics, ordering, compatibility, and stop
-  conditions above; no production candidate is accepted yet.
+- Production-candidate evidence: the bounded implementation now carries additive
+  checked IR/type metadata, fallible admission, mandatory internal verification,
+  exhaustive checked code generation, the LLVM 22 verifier adapter, and trusted-
+  path propagation through library, CLI, profiler, and conformance callers. The
+  focused checked-IR and LLVM-verifier contracts pass, as do the existing
+  compatibility controls and the complete `./tools/test.sh` repository gate.
+- Review amendments: independent exact review rejected a direct-child-only timeout
+  because descendants retained inherited handles beyond the deadline. The bounded
+  correction authorizes the two target-specific process APIs above, contains Unix
+  process groups, and creates Windows verifier wrappers suspended so job assignment
+  precedes all child execution. An immediate-descendant regression must prove no
+  marker survives timeout. The same review requires successful named conformance
+  cases to pass checked IR rather than stopping after semantics.
+- Status: tests/CI-only red checkpoint accepted; green production candidate
+  assembled locally. The candidate is not accepted until its exact staged diff has
+  independent representation/backend review and the published draft-PR head passes
+  the required LLVM 22 and repository checks.

@@ -2,6 +2,7 @@ use crate::ast::AstNode;
 use crate::code_generator;
 use crate::ir_generator::IrGenerator;
 use crate::lexer;
+use crate::llvm_verifier::{LlvmVerificationMode, verify_llvm_module};
 use crate::module_resolver;
 use crate::parser;
 use crate::semantic_analyzer::SemanticAnalyzer;
@@ -20,6 +21,7 @@ pub struct StageProfile {
 pub struct CompilationProfile {
     pub stages: Vec<StageProfile>,
     pub total_ms: f64,
+    pub llvm_verification: String,
 }
 
 pub fn profile_compilation(
@@ -52,16 +54,37 @@ pub fn profile_compilation(
 
     let ir_start = Instant::now();
     let mut ir_gen = IrGenerator::new();
-    let ir = ir_gen.generate_ir(analyzed_ast);
+    let ir = ir_gen
+        .try_generate_ir(analyzed_ast)
+        .map_err(|error| match error {
+            crate::ir_generator::IrGenerationError::Admission(message) => {
+                format!("IR Generation Error: {message}")
+            }
+            crate::ir_generator::IrGenerationError::Verification(error) => error.to_string(),
+        })?;
     push_stage(&mut stages, "ir_generation", ir_start.elapsed());
 
     let codegen_start = Instant::now();
-    let _llvm_ir = code_generator::generate_code(ir);
+    let llvm_ir = code_generator::try_generate_code(ir).map_err(|error| match error {
+        code_generator::CodeGenerationError::IrVerification(error) => error.to_string(),
+        other => format!("Code Generation Error: {other}"),
+    })?;
     push_stage(&mut stages, "code_generation", codegen_start.elapsed());
+
+    let verification_start = Instant::now();
+    let llvm_verification = verify_llvm_module(&llvm_ir, LlvmVerificationMode::PreferExternal)
+        .map_err(|error| error.to_string())?
+        .to_string();
+    push_stage(
+        &mut stages,
+        "llvm_verification",
+        verification_start.elapsed(),
+    );
 
     Ok(CompilationProfile {
         stages,
         total_ms: total_start.elapsed().as_secs_f64() * 1000.0,
+        llvm_verification,
     })
 }
 
@@ -85,6 +108,7 @@ pub fn write_trace_file(profile: &CompilationProfile, output_path: &str) -> Resu
 
     let payload = json!({
         "displayTimeUnit": "ms",
+        "llvmVerification": profile.llvm_verification,
         "traceEvents": trace_events
     });
 
@@ -98,6 +122,7 @@ pub fn write_trace_file(profile: &CompilationProfile, output_path: &str) -> Resu
 
 pub fn print_profile(profile: &CompilationProfile) {
     println!("Compilation profile:");
+    println!("LLVM verification: {}", profile.llvm_verification);
     for stage in &profile.stages {
         println!("  {:<20} {:>8.3} ms", stage.name, stage.duration_ms);
     }
@@ -140,6 +165,9 @@ mod tests {
 
     #[test]
     fn profile_collects_expected_stages() {
+        let _environment = crate::LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK
+            .lock()
+            .expect("lock verifier test environment");
         let source = "fn main() { let x = 1; println!(\"{}\", x); }";
         let profile = profile_compilation(source, "main.aero").expect("profile should succeed");
 

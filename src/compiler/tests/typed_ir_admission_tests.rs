@@ -362,8 +362,32 @@ fn checked_admission_reports_panicking_scalar_sources_without_unwind() {
             check_cli: true,
         },
         RejectionCase {
+            name: "array comparison",
+            source: "fn main() { let equal = [1] == [1]; }",
+            expected_prefix: "IR Generation Error:",
+            check_cli: true,
+        },
+        RejectionCase {
+            name: "Void print returned as scalar",
+            source: "fn value() -> int { return println!(\"x\"); } fn main() { value(); }",
+            expected_prefix: "IR Generation Error:",
+            check_cli: true,
+        },
+        RejectionCase {
+            name: "Void print passed as argument",
+            source: "fn id(value: int) -> int { return value; } fn main() { id(println!(\"x\")); }",
+            expected_prefix: "IR Generation Error:",
+            check_cli: true,
+        },
+        RejectionCase {
             name: "constant integer division by zero",
             source: "fn main() { let quotient: int = 1 / 0; }",
+            expected_prefix: "IR Generation Error:",
+            check_cli: true,
+        },
+        RejectionCase {
+            name: "folded constant integer division by zero",
+            source: "fn main() { let quotient: int = 1 / (1 - 1); }",
             expected_prefix: "IR Generation Error:",
             check_cli: true,
         },
@@ -424,6 +448,18 @@ fn checked_admission_rejects_fabricated_scalar_fallbacks() {
             expected_prefix: "IR Generation Error:",
             check_cli: true,
         },
+        RejectionCase {
+            name: "empty array without an element type",
+            source: "fn main() { let values = []; }",
+            expected_prefix: "IR Generation Error:",
+            check_cli: true,
+        },
+        RejectionCase {
+            name: "mutable compile-time string alias",
+            source: "fn main() { let mut message = \"x\"; println!(\"{}\", message); }",
+            expected_prefix: "IR Generation Error:",
+            check_cli: true,
+        },
     ];
 
     let failures = rejection_failures("fallback-errors", &cases);
@@ -439,6 +475,49 @@ fn main() { overflow_candidate(); }
     let mut failures = Vec::new();
     if let Some(llvm) = compile_without_unwind("overflowing fold", source, &mut failures) {
         failures.extend(overflowing_fold_failures(&llvm));
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn signed_minimum_parameter_names_and_nested_parameter_shadowing_remain_admitted() {
+    let cases = [
+        (
+            "signed i32 minimum",
+            "fn minimum() -> int { return -2147483648; } fn main() { let value = minimum(); }",
+            &["define i32 @minimum()", "ret i32 -2147483648"][..],
+        ),
+        (
+            "collision-prone parameter names",
+            "fn collide(reg0: int, ptr0: int) -> int { return reg0 + ptr0; } fn main() { let value = collide(1, 2); }",
+            &[
+                "define i32 @collide(i32 %aero.arg.reg0, i32 %aero.arg.ptr0)",
+                "%aero.arg.reg0",
+                "%aero.arg.ptr0",
+            ][..],
+        ),
+        (
+            "nested parameter shadowing",
+            "fn shadow(value: int) -> float { { let value: float = 1.5; } return 2.5; } fn main() { let value = shadow(1); }",
+            &["define double @shadow(i32 %aero.arg.value)", "store double"][..],
+        ),
+    ];
+    let mut failures = Vec::new();
+    for (name, source, markers) in cases {
+        if let Some(llvm) = compile_without_unwind(name, source, &mut failures) {
+            for marker in markers {
+                if !llvm.contains(marker) {
+                    failures.push(format!("{name} missing `{marker}`:\n{llvm}"));
+                }
+            }
+            if name == "collision-prone parameter names"
+                && (llvm.contains("i32 %reg0") || llvm.contains("i32 %ptr0"))
+            {
+                failures.push(format!(
+                    "collision-prone parameter retained a generated local name:\n{llvm}"
+                ));
+            }
+        }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }
@@ -469,7 +548,7 @@ fn main() {
 
 #[test]
 fn boolean_returns_and_calls_use_i1_consistently() {
-    let cases: [(&str, &str, &[&str]); 2] = [
+    let cases: [(&str, &str, &[&str]); 3] = [
         (
             "Boolean return",
             r#"
@@ -485,9 +564,20 @@ fn identity_bool(flag: bool) -> bool { return flag; }
 fn main() { let selected = identity_bool(1 < 2); }
 "#,
             &[
-                "define i1 @identity_bool(i1 %flag)",
+                "define i1 @identity_bool(i1 %aero.arg.flag)",
                 "call i1 @identity_bool(i1",
                 "store i1",
+            ],
+        ),
+        (
+            "Boolean equality",
+            r#"
+fn same(left: bool, right: bool) -> bool { return left == right; }
+fn main() { let selected = same(1 < 2, 2 < 3); }
+"#,
+            &[
+                "define i1 @same(i1 %aero.arg.left, i1 %aero.arg.right)",
+                "icmp eq i1",
             ],
         ),
     ];
@@ -509,7 +599,7 @@ fn main() { let selected = identity_bool(1 < 2); }
 
 #[test]
 fn exact_zero_argument_array_iter_remains_admitted() {
-    let source = r#"
+    let integer_source = r#"
 fn main() {
     let values = [11, 22];
     for item in values.iter() {
@@ -518,7 +608,8 @@ fn main() {
 }
 "#;
     let mut failures = Vec::new();
-    if let Some(llvm) = compile_without_unwind("array iter", source, &mut failures) {
+    if let Some(llvm) = compile_without_unwind("integer array iter", integer_source, &mut failures)
+    {
         for marker in [
             "alloca [2 x double]",
             "getelementptr inbounds [2 x double]",
@@ -527,6 +618,74 @@ fn main() {
             if !llvm.contains(marker) {
                 failures.push(format!("array iter missing `{marker}`:\n{llvm}"));
             }
+        }
+    }
+    let float_source = r#"
+fn main() {
+    let values = [1.5, 2.5];
+    for item in values.iter() {
+        let copied: float = item;
+    }
+}
+"#;
+    if let Some(llvm) = compile_without_unwind("float array iter", float_source, &mut failures) {
+        for marker in [
+            "alloca [2 x double]",
+            "getelementptr inbounds [2 x double]",
+            "fptosi double",
+            "icmp slt i32",
+            "fadd double",
+        ] {
+            if !llvm.contains(marker) {
+                failures.push(format!("float array iter missing `{marker}`:\n{llvm}"));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn zero_length_numeric_repeats_preserve_explicit_element_types() {
+    let cases = [
+        ("zero Int repeat", "fn main() { let values = [1; 0]; }"),
+        ("zero Float repeat", "fn main() { let values = [1.5; 0]; }"),
+    ];
+    let mut failures = Vec::new();
+    for (name, source) in cases {
+        if let Some(llvm) = compile_without_unwind(name, source, &mut failures) {
+            if !llvm.contains("alloca [0 x double]") {
+                failures.push(format!("{name} missed zero-length allocation:\n{llvm}"));
+            }
+            if llvm.contains("getelementptr inbounds [0 x double]") {
+                failures.push(format!(
+                    "{name} emitted an out-of-bounds initializer:\n{llvm}"
+                ));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn generated_closure_symbols_skip_user_function_names() {
+    let source = r#"
+fn main() { let callback = | | 1; let value = callback(); }
+fn __closure_0() -> int { return 99; }
+"#;
+    let mut failures = Vec::new();
+    if let Some(llvm) = compile_without_unwind("closure symbol collision", source, &mut failures) {
+        for marker in ["define i32 @__closure_0()", "define i32 @__closure_1()"] {
+            if !llvm.contains(marker) {
+                failures.push(format!(
+                    "closure symbol collision missed `{marker}`:\n{llvm}"
+                ));
+            }
+        }
+        let main = llvm_function_body(&llvm, "define i32 @main(").unwrap_or_default();
+        if !main.contains("call i32 @__closure_1()") || main.contains("call i32 @__closure_0()") {
+            failures.push(format!(
+                "closure alias did not target the collision-free generated symbol:\n{main}"
+            ));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
@@ -708,6 +867,12 @@ fn checked_admission_rejects_closure_capture_escape_and_rich_signatures() {
             source: "struct Point { x: int } fn main() { let callback = |value: Point| 1; }",
             expected_prefix: "IR Generation Error:",
             check_cli: false,
+        },
+        RejectionCase {
+            name: "closure array index fallback",
+            source: "fn main() { let callback = | | [7][0]; let value = callback(); }",
+            expected_prefix: "IR Generation Error:",
+            check_cli: true,
         },
         RejectionCase {
             name: "closure assignment",

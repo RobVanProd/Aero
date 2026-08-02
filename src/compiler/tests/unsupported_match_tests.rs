@@ -282,7 +282,7 @@ fn public_compile_preserves_numeric_function_control_flow_array_and_index_contro
     let llvm = compile_program(NUMERIC_CONTROL_SOURCE, CompilerOptions::default())
         .expect("numeric, function, if/while, array, and index controls should compile");
     for marker in [
-        "define i32 @add(i32 %left, i32 %right)",
+        "define i32 @add(i32 %aero.arg.left, i32 %aero.arg.right)",
         "call i32 @add(i32 6, i32 2)",
         "fadd double",
         "fsub double",

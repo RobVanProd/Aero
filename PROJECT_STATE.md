@@ -4,11 +4,12 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 10 — implement the accepted `CORE-010` red contract: checked logical
-scalar IR admission, in-process verification, and final LLVM module verification.
-The production candidate must make the reviewer-approved red checkpoint green
-without broadening the frozen representation, arithmetic, ownership, aggregate, or
-backend semantics.
+Milestone 10 — validate and publish the green `CORE-010` production candidate:
+checked logical scalar IR admission, in-process verification, and final LLVM module
+verification. The implementation makes the reviewer-approved red checkpoint green
+locally without broadening the frozen representation, arithmetic, ownership,
+aggregate, or backend semantics; exact-diff review and public CI remain acceptance
+gates.
 
 ## Active hypothesis
 
@@ -75,7 +76,8 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
 - `CORE-010` and `DEC-015` preregister the checked additive APIs, logical
   Int/Float/Bool/Void representation, legacy numeric-storage compatibility limit,
   stronger tool-independent `check` admission, mandatory pure-Rust IR verification,
-  and LLVM 22 external verification modes. No implementation is accepted yet.
+  and LLVM 22 external verification modes. A green local production candidate now
+  implements that contract; no production implementation is accepted yet.
 - The isolated `CORE-010` tests/CI-only red checkpoint is published at exact
   `26560a45905015b7891ddebeb749d0097c05cbaa`; its exact staged diff hash is
   `c01fc2365eb5b415c022be997062e4605812b62b`. Three independent reviewers approve
@@ -90,6 +92,14 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   verification/execution steps, with `opt-22` preceding `llc-22`/`clang-22`. Test
   jobs then fail at the deliberate checked-API contract boundary. This is accepted
   red evidence, not an accepted production candidate.
+- The local `CORE-010` production candidate makes all focused typed-admission,
+  checked-IR, LLVM-verifier, cache, conformance, profiler, and compatibility
+  controls green. `cargo check --all-targets` and the complete `./tools/test.sh`
+  repository gate pass. External verification is enforced after final graph/target
+  transformation and before cache/write/native publication; tool-independent
+  `check` and conformance remain internal-verifier paths. Exact-diff review and
+  public draft-PR CI are pending, so this is candidate evidence rather than an
+  accepted capability.
 - Accepted `CORE-008` candidate:
   `b74d91adeda04688ec37598beebffad458538c39`. All trusted parsed source bodies,
   including default trait method bodies, route Match expression roots through the
@@ -102,7 +112,8 @@ Boolean LLVM, and silent codegen drops into structured no-artifact failures.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last full-gate commit: `daa024dbf10d1defe06d8ab200c2d21c0a9c1dc6`.
-- Worktree: exact published red checkpoint is clean before this control update.
+- Worktree: bounded green `CORE-010` production candidate plus this control update;
+  staging, exact-diff review, commit, and publication are pending.
 
 ## Environment and verification
 
@@ -332,14 +343,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Implement one lead-owned `CORE-010` production slice against exact red checkpoint
-`26560a4`. Add the frozen logical type metadata, checked IR/codegen APIs, exhaustive
-in-process verifier, LLVM 22 adapter, and trusted-path propagation in the authorized
-files only. Make focused contracts green in bounded layers, preserve the accepted
-legacy compatibility shims separately, and stop if a frozen semantic or architectural
-condition is crossed. Do not present the slice as accepted until the complete gate,
-LLVM corpus, public artifact-ordering checks, documentation, and independent exact-
-candidate reviews pass.
+Freeze and hash the exact green `CORE-010` staged diff, obtain independent
+representation, codegen/integration, and backend/artifact-ordering reviews, then
+commit and publish it to draft PR #4. Monitor the pinned LLVM 22 and complete
+repository checks at that public head. Do not present the slice as accepted until
+those exact-candidate reviews and public checks pass.
 
 ## Unauthorized actions
 

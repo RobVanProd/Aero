@@ -99,11 +99,56 @@ fn checked_apis_are_additive_and_keep_structured_error_types() {
 }
 
 #[test]
+fn checked_ir_generator_reuse_starts_from_a_clean_module_state() {
+    let first = analyzed_ast(
+        "fn helper(value: int) -> int { return value; } fn main() { let callback = |value: int| value + 1; callback(helper(1)); }",
+    );
+    let second = analyzed_ast("fn main() { let value: int = 7; }");
+    let mut generator = IrGenerator::new();
+
+    let first = generator
+        .try_generate_ir(first)
+        .expect("first checked module must compile");
+    assert!(
+        first.metadata().functions.len() > 1,
+        "first module must exercise non-main generator state"
+    );
+
+    let second = generator
+        .try_generate_ir(second)
+        .expect("reused generator must compile a fresh module");
+    let names = second
+        .metadata()
+        .functions
+        .keys()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names,
+        vec!["main"],
+        "reused checked generator leaked functions from the prior module"
+    );
+    let llvm = try_generate_code(second).expect("fresh second module must pass checked codegen");
+    assert!(
+        !llvm.contains("@helper"),
+        "stale helper leaked into LLVM:\n{llvm}"
+    );
+    assert!(
+        !llvm.contains("@closure_"),
+        "stale closure leaked into LLVM:\n{llvm}"
+    );
+}
+
+#[test]
 fn checked_ir_generation_returns_errors_instead_of_unwinding_or_partial_ir() {
     let cases = [
         (
             "string comparison",
             "fn main() { let compared = \"left\" == \"right\"; }",
+        ),
+        (
+            "array comparison",
+            "fn main() { let compared = [1] == [1]; }",
         ),
         (
             "constant integer division by zero",

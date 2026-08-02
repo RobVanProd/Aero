@@ -9,7 +9,9 @@ mod gpu;
 mod graph_compiler;
 mod ir;
 mod ir_generator;
+mod ir_verifier;
 mod lexer;
+mod llvm_verifier;
 mod lsp;
 mod module_resolver;
 mod optimizations;
@@ -27,6 +29,9 @@ mod conformance_checked_ir_tests;
 #[cfg(test)]
 mod llvm_verifier_cache_tests;
 
+#[cfg(test)]
+static LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 use crate::ir_generator::IrGenerator;
 use crate::performance_optimizations::PerformanceOptimizer;
 use crate::semantic_analyzer::SemanticAnalyzer;
@@ -38,6 +43,22 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, exit};
 use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+fn render_ir_generation_error(error: ir_generator::IrGenerationError) -> String {
+    match error {
+        ir_generator::IrGenerationError::Admission(message) => {
+            format!("IR Generation Error: {message}")
+        }
+        ir_generator::IrGenerationError::Verification(error) => error.to_string(),
+    }
+}
+
+fn render_code_generation_error(error: code_generator::CodeGenerationError) -> String {
+    match error {
+        code_generator::CodeGenerationError::IrVerification(error) => error.to_string(),
+        other => format!("Code Generation Error: {other}"),
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BuildTarget {
@@ -77,6 +98,7 @@ impl BuildTarget {
 struct BuildConfig {
     target: BuildTarget,
     gpu_arch: Option<String>,
+    require_llvm_verifier: bool,
 }
 
 impl Default for BuildConfig {
@@ -84,6 +106,7 @@ impl Default for BuildConfig {
         Self {
             target: BuildTarget::Cpu,
             gpu_arch: None,
+            require_llvm_verifier: false,
         }
     }
 }
@@ -201,6 +224,14 @@ fn create_run_artifact_paths(
 }
 
 impl BuildConfig {
+    fn llvm_verification_mode(&self) -> llvm_verifier::LlvmVerificationMode {
+        if self.require_llvm_verifier || environment_requires_llvm_verifier() {
+            llvm_verifier::LlvmVerificationMode::Required
+        } else {
+            llvm_verifier::LlvmVerificationMode::PreferExternal
+        }
+    }
+
     fn gpu_arch_or_default(&self) -> &str {
         if let Some(arch) = self.gpu_arch.as_deref() {
             return arch;
@@ -230,6 +261,65 @@ impl BuildConfig {
             BuildTarget::Cuda => "e-i64:64-v16:16-v32:32-n16:32:64",
         }
     }
+}
+
+#[derive(Debug)]
+struct ConformanceCommandResult {
+    exit_code: i32,
+    stdout: String,
+}
+
+fn run_conformance_command_with_report(
+    report: conformance::ConformanceReport,
+    output_json: Option<&Path>,
+) -> Result<ConformanceCommandResult, String> {
+    let mut lines = vec![format!(
+        "Conformance cases: {}/{} passed | Mechanized checks: {}/{} passed",
+        report.passed_cases,
+        report.total_cases,
+        report.passed_mechanized_checks,
+        report.total_mechanized_checks
+    )];
+    for case in &report.case_results {
+        lines.push(format!(
+            "  [{}] {} - {}",
+            if case.passed { "ok" } else { "fail" },
+            case.name,
+            case.details
+        ));
+    }
+    for check in &report.mechanized_checks {
+        lines.push(format!(
+            "  [{}] {} - {}",
+            if check.passed { "ok" } else { "fail" },
+            check.name,
+            check.details
+        ));
+    }
+
+    if let Some(path) = output_json {
+        let json = serde_json::to_string_pretty(&report)
+            .map_err(|error| format!("failed to serialize conformance report: {error}"))?;
+        fs::write(path, json)
+            .map_err(|error| format!("could not write {}: {error}", path.display()))?;
+        lines.push(format!("Wrote conformance report to {}", path.display()));
+    }
+
+    Ok(ConformanceCommandResult {
+        exit_code: i32::from(report.failed_cases > 0 || report.failed_mechanized_checks > 0),
+        stdout: lines.join("\n"),
+    })
+}
+
+fn environment_requires_llvm_verifier() -> bool {
+    env::var("AERO_REQUIRE_LLVM_VERIFIER")
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
 }
 
 fn main() {
@@ -590,6 +680,16 @@ fn main() {
                     return;
                 }
             };
+            match llvm_verifier::verify_llvm_module(
+                &input,
+                llvm_verifier::LlvmVerificationMode::Required,
+            ) {
+                Ok(status) => println!("LLVM input verification: {status}"),
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    exit(1);
+                }
+            }
 
             let config = graph_compiler::GraphCompilationConfig {
                 backend,
@@ -598,6 +698,16 @@ fn main() {
             };
             let (optimized, report) =
                 graph_compiler::apply_advanced_graph_compilation_with_config(&input, &config);
+            match llvm_verifier::verify_llvm_module(
+                &optimized,
+                llvm_verifier::LlvmVerificationMode::Required,
+            ) {
+                Ok(status) => println!("LLVM output verification: {status}"),
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    exit(1);
+                }
+            }
             match fs::write(&output_file, optimized) {
                 Ok(_) => {
                     println!("Wrote graph-optimized IR to {}", output_file);
@@ -728,6 +838,16 @@ fn main() {
                     return;
                 }
             };
+            match llvm_verifier::verify_llvm_module(
+                &input,
+                llvm_verifier::LlvmVerificationMode::Required,
+            ) {
+                Ok(status) => println!("LLVM input verification: {status}"),
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    exit(1);
+                }
+            }
 
             let mut config = quantization::QuantizationConfig::new(mode);
             config.backend = backend;
@@ -755,6 +875,16 @@ fn main() {
 
             let (quantized_ir, report) =
                 quantization::apply_quantization_interface(&input, &config);
+            match llvm_verifier::verify_llvm_module(
+                &quantized_ir,
+                llvm_verifier::LlvmVerificationMode::Required,
+            ) {
+                Ok(status) => println!("LLVM output verification: {status}"),
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    exit(1);
+                }
+            }
             match fs::write(&output_file, quantized_ir) {
                 Ok(_) => {
                     println!("Wrote quantization IR to {}", output_file);
@@ -1204,44 +1334,19 @@ fn main() {
             }
 
             let report = conformance::run_conformance_suite();
-            println!(
-                "Conformance cases: {}/{} passed | Mechanized checks: {}/{} passed",
-                report.passed_cases,
-                report.total_cases,
-                report.passed_mechanized_checks,
-                report.total_mechanized_checks
-            );
-            for case in &report.case_results {
-                println!(
-                    "  [{}] {} - {}",
-                    if case.passed { "ok" } else { "fail" },
-                    case.name,
-                    case.details
-                );
-            }
-            for check in &report.mechanized_checks {
-                println!(
-                    "  [{}] {} - {}",
-                    if check.passed { "ok" } else { "fail" },
-                    check.name,
-                    check.details
-                );
-            }
-
-            if let Some(path) = output_json {
-                match serde_json::to_string_pretty(&report) {
-                    Ok(json) => {
-                        if let Err(err) = fs::write(&path, json) {
-                            eprintln!("\x1b[1;31merror\x1b[0m: could not write {}: {}", path, err);
-                            exit(1);
-                        }
-                        println!("Wrote conformance report to {}", path);
-                    }
-                    Err(err) => {
-                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                        exit(1);
-                    }
+            let command = match run_conformance_command_with_report(
+                report,
+                output_json.as_deref().map(Path::new),
+            ) {
+                Ok(command) => command,
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    exit(1);
                 }
+            };
+            println!("{}", command.stdout);
+            if command.exit_code != 0 {
+                exit(command.exit_code);
             }
         }
         "init" => {
@@ -1286,7 +1391,7 @@ fn main() {
 fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), String> {
     if args.len() < 3 {
         return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
             args[0]
         ));
     }
@@ -1300,7 +1405,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "-o" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
@@ -1310,7 +1415,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "--target" | "--backend" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
@@ -1326,16 +1431,20 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "--gpu" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
                 config.gpu_arch = Some(args[i + 1].clone());
                 i += 2;
             }
+            "--require-llvm-verifier" => {
+                config.require_llvm_verifier = true;
+                i += 1;
+            }
             _ => {
                 return Err(format!(
-                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
                     args[0]
                 ));
             }
@@ -1344,7 +1453,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
 
     let Some(output_file) = output_file else {
         return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
             args[0]
         ));
     };
@@ -1466,15 +1575,31 @@ fn compile_to_llvm_ir(
     input_file: &str,
     build_config: &BuildConfig,
 ) -> Result<(), String> {
+    let mut perf_optimizer = PerformanceOptimizer::new();
+    compile_to_llvm_ir_with_optimizer(
+        source_code,
+        output_file,
+        input_file,
+        build_config,
+        &mut perf_optimizer,
+    )
+}
+
+fn compile_to_llvm_ir_with_optimizer(
+    source_code: &str,
+    output_file: &str,
+    input_file: &str,
+    build_config: &BuildConfig,
+    perf_optimizer: &mut PerformanceOptimizer,
+) -> Result<(), String> {
     println!(
         "Compiling with performance optimizations enabled (target: {}, gpu: {})",
         build_config.target.as_str(),
         build_config.gpu_arch_or_default()
     );
 
-    // Initialize performance optimizer
-    let mut perf_optimizer = PerformanceOptimizer::new();
     let compilation_start = Instant::now();
+    let verification_mode = build_config.llvm_verification_mode();
 
     // Generate source hash for caching
     let source_hash = format!(
@@ -1492,15 +1617,18 @@ fn compile_to_llvm_ir(
         .get_compilation_cache()
         .get_cached_llvm(&source_hash)
     {
-        println!("Using cached compilation result");
-        match fs::write(output_file, cached_llvm) {
-            Ok(_) => {
-                println!("Cached LLVM IR written to {}", output_file);
-                println!("{}", perf_optimizer.get_performance_report());
-                return Ok(());
-            }
-            Err(err) => eprintln!("Error writing cached result: {}", err),
+        let status = llvm_verifier::verify_llvm_module(&cached_llvm, verification_mode)
+            .map_err(|error| error.to_string())?;
+        if status.external_verifier().is_some() {
+            println!("Using cached compilation result");
+            println!("LLVM verification: {status}");
+            fs::write(output_file, cached_llvm)
+                .map_err(|err| format!("Error writing cached result: {err}"))?;
+            println!("Cached LLVM IR written to {}", output_file);
+            println!("{}", perf_optimizer.get_performance_report());
+            return Ok(());
         }
+        println!("Cached result bypassed because external LLVM verification is unavailable");
     }
 
     // Lexing with performance timing
@@ -1578,7 +1706,9 @@ fn compile_to_llvm_ir(
     // IR Generation with function call optimizations
     let ir_start = Instant::now();
     let mut ir_gen = IrGenerator::new();
-    let mut ir = ir_gen.generate_ir(analyzed_ast);
+    let ir = ir_gen
+        .try_generate_ir(analyzed_ast)
+        .map_err(render_ir_generation_error)?;
 
     // Apply function call optimizations
     let function_optimizer = perf_optimizer.get_function_optimizer();
@@ -1594,7 +1724,7 @@ fn compile_to_llvm_ir(
     let control_flow_optimizer = perf_optimizer.get_control_flow_optimizer();
     // Note: In a real implementation, we would optimize control flow generation here
 
-    let llvm_ir = code_generator::generate_code(ir);
+    let llvm_ir = code_generator::try_generate_code(ir).map_err(render_code_generation_error)?;
     let graph_compile_start = Instant::now();
     let graph_backend =
         AcceleratorBackend::from_env("AERO_ACCELERATOR").unwrap_or(match build_config.target {
@@ -1629,7 +1759,11 @@ fn compile_to_llvm_ir(
         graph_report.total_fused_ops
     );
 
-    // Cache the compilation result
+    let verification_status = llvm_verifier::verify_llvm_module(&llvm_ir, verification_mode)
+        .map_err(|error| error.to_string())?;
+    println!("LLVM verification: {verification_status}");
+
+    // Cache only the exact final bytes that passed the selected verification policy.
     perf_optimizer
         .get_compilation_cache()
         .cache_llvm(source_hash, llvm_ir.clone());
@@ -1655,23 +1789,39 @@ fn run_aero_program(
     build_config: &BuildConfig,
 ) -> Result<(), String> {
     let artifacts = create_run_artifact_paths(input_file, build_config)?;
+    let result = run_aero_program_with_artifacts(source_code, input_file, build_config, &artifacts);
+    let cleanup = fs::remove_dir_all(&artifacts.directory).map_err(|error| {
+        format!(
+            "failed to remove compile artifact directory {}: {}",
+            artifacts.directory.display(),
+            error
+        )
+    });
+
+    match (result, cleanup) {
+        (Ok(Some(exit_code)), Ok(())) => exit(exit_code),
+        (Ok(None), Ok(())) => Ok(()),
+        (Ok(_), Err(cleanup_error)) => Err(cleanup_error),
+        (Err(error), Ok(())) => Err(error),
+        (Err(error), Err(cleanup_error)) => Err(format!("{error}; {cleanup_error}")),
+    }
+}
+
+fn run_aero_program_with_artifacts(
+    source_code: &str,
+    input_file: &str,
+    build_config: &BuildConfig,
+    artifacts: &RunArtifactPaths,
+) -> Result<Option<i32>, String> {
     let ll_path = artifacts.ll_file.to_string_lossy().to_string();
     let obj_path = artifacts.obj_file.to_string_lossy().to_string();
     let exe_path = artifacts.exe_file.to_string_lossy().to_string();
     let gpu_obj_path = artifacts.gpu_obj_file.to_string_lossy().to_string();
 
-    // Compile to LLVM IR first.
-    if let Err(err) = compile_to_llvm_ir(source_code, &ll_path, input_file, build_config) {
-        fs::remove_dir_all(&artifacts.directory).map_err(|cleanup_err| {
-            format!(
-                "{}; failed to remove compile artifact directory {}: {}",
-                err,
-                artifacts.directory.display(),
-                cleanup_err
-            )
-        })?;
-        return Err(err);
-    }
+    // Executing or producing native objects always requires an external LLVM 22 verifier.
+    let mut verified_build_config = build_config.clone();
+    verified_build_config.require_llvm_verifier = true;
+    compile_to_llvm_ir(source_code, &ll_path, input_file, &verified_build_config)?;
     if !artifacts.ll_file.exists() {
         return Err(format!(
             "compile step did not produce LLVM IR at {}",
@@ -1747,19 +1897,14 @@ fn run_aero_program(
                 );
             }
 
-            let _ = fs::remove_file(&artifacts.ll_file);
-            let _ = fs::remove_file(&artifacts.obj_file);
-            let _ = fs::remove_file(&artifacts.exe_file);
-            let _ = fs::remove_dir(&artifacts.directory);
-
-            // Mirror executed process exit code.
-            exit(exit_code);
+            // The wrapper removes every temporary artifact before mirroring the
+            // executed program's exit code.
+            return Ok(Some(exit_code));
         }
         BuildTarget::Rocm => {
             let llc_bin = find_llvm_tool("llc").ok_or_else(|| {
                 format!(
-                    "Error executing llc for ROCm target: program not found. Make sure LLVM is installed and llc is in your PATH. LLVM IR remains at {}",
-                    artifacts.ll_file.display()
+                    "Error executing llc for ROCm target: program not found. Make sure LLVM is installed and llc is in your PATH. Temporary run artifacts will be removed."
                 )
             })?;
 
@@ -1791,21 +1936,18 @@ fn run_aero_program(
                         ));
                     }
                     println!(
-                        "ROCm object generated for {} at {}",
+                        "ROCm object generation validated for {} using temporary artifact {}",
                         build_config.gpu_arch_or_default(),
                         artifacts.gpu_obj_file.display()
                     );
-                    println!("IR artifact: {}", artifacts.ll_file.display());
                     println!(
-                        "Runtime execution for ROCm kernels is staged for HIP launcher integration; use the generated object for now."
+                        "Runtime execution for ROCm kernels is staged for HIP launcher integration; run publishes no persistent ROCm artifact."
                     );
                 }
                 Err(err) => {
                     return Err(format!(
-                        "Error executing llc for ROCm target ({}): {}. LLVM IR remains at {}",
-                        llc_bin,
-                        err,
-                        artifacts.ll_file.display()
+                        "Error executing llc for ROCm target ({}): {}. Temporary run artifacts will be removed.",
+                        llc_bin, err
                     ));
                 }
             }
@@ -1818,7 +1960,7 @@ fn run_aero_program(
         }
     }
 
-    Ok(())
+    Ok(None)
 }
 
 fn find_llvm_tool(tool: &str) -> Option<String> {
@@ -1866,7 +2008,9 @@ fn print_help(program_name: &str) {
     println!(
         "    run <input.aero>                     Compile and run source [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]"
     );
-    println!("    check <input.aero>                   Type-check only (no codegen)");
+    println!(
+        "    check <input.aero>                   Validate frontend and checked IR (no LLVM emission)"
+    );
     println!("    test                                 Discover and run *_test.aero files");
     println!("    fmt <input.aero>                     Auto-format Aero source");
     println!("    doc <input.aero> [-o <output.md>]    Generate Markdown API docs from source");
@@ -1966,8 +2110,8 @@ fn print_registry_help(program_name: &str) {
     println!("    Without --dry-run, publish/install use live HTTP transport and trust checks.");
 }
 
-/// Type-check an Aero program without generating code.
-/// Runs lexer → parser → direct module resolution → semantic analysis only.
+/// Validate an Aero program without emitting LLVM or consulting external tools.
+/// Runs lexer → parser → direct modules → semantics → checked IR/internal verification.
 fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String> {
     let check_start = Instant::now();
 
@@ -1976,7 +2120,11 @@ fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String>
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
     match analyzer.analyze(ast) {
-        Ok((msg, _typed_ast)) => {
+        Ok((msg, typed_ast)) => {
+            let mut ir_generator = IrGenerator::new();
+            ir_generator
+                .try_generate_ir(typed_ast)
+                .map_err(render_ir_generation_error)?;
             let elapsed = check_start.elapsed();
             println!(
                 "\x1b[1;32m    Checking\x1b[0m {} ... \x1b[1;32mok\x1b[0m ({:?})",
@@ -2159,6 +2307,7 @@ mod tests {
         let config = BuildConfig {
             target: BuildTarget::Rocm,
             gpu_arch: Some("gfx1101".to_string()),
+            require_llvm_verifier: false,
         };
         let output = retarget_llvm_module(input, &config);
         assert!(output.contains("target triple = \"amdgcn-amd-amdhsa\""));
@@ -2180,6 +2329,7 @@ mod tests {
         let config = BuildConfig {
             target: BuildTarget::Rocm,
             gpu_arch: Some("gfx1101".to_string()),
+            require_llvm_verifier: false,
         };
         let artifacts = create_run_artifact_paths("examples/hello.aero", &config)
             .expect("paths should be created");

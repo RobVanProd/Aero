@@ -162,11 +162,13 @@ dependencies = [
  "compiler",
  "criterion",
  "insta",
+ "libc",
  "md5",
  "miette",
  "serde",
  "serde_json",
  "thiserror",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

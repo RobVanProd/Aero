@@ -1,5 +1,6 @@
 // src/compiler/src/ir.rs
 
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -197,4 +198,126 @@ pub struct Function {
     pub body: Vec<Inst>,
     pub next_reg: u32,
     pub next_ptr: u32, // New field for unique pointer IDs
+}
+
+/// The source-level meaning carried by a value or storage location in checked IR.
+///
+/// Numeric locals deliberately retain their historical physical LLVM representation;
+/// this type describes their logical contract and must not be used to infer a new
+/// overflow, division, or aggregate policy.
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub enum LogicalType {
+    Int,
+    Float,
+    Bool,
+    Void,
+    String,
+    Array {
+        element: Box<LogicalType>,
+        count: usize,
+    },
+}
+
+impl LogicalType {
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, Self::Int | Self::Float)
+    }
+}
+
+impl fmt::Display for LogicalType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Int => write!(f, "Int"),
+            Self::Float => write!(f, "Float"),
+            Self::Bool => write!(f, "Bool"),
+            Self::Void => write!(f, "Void"),
+            Self::String => write!(f, "String"),
+            Self::Array { element, count } => write!(f, "Array<{element}; {count}>"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+pub struct ResultId(pub u32);
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+pub struct PlaceId(pub u32);
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FunctionSignature {
+    pub parameters: Vec<(String, LogicalType)>,
+    pub result: LogicalType,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct PlaceMetadata {
+    pub id: PlaceId,
+    pub name: Option<String>,
+    pub pointee: LogicalType,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct BlockMetadata {
+    pub label: String,
+    pub reachable: bool,
+    pub successors: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FunctionMetadata {
+    pub signature: FunctionSignature,
+    pub results: BTreeMap<ResultId, LogicalType>,
+    pub places: BTreeMap<PlaceId, PlaceMetadata>,
+    pub blocks: Vec<BlockMetadata>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+pub struct IrMetadata {
+    pub functions: BTreeMap<String, FunctionMetadata>,
+}
+
+pub(crate) type RawIr = HashMap<String, Function>;
+
+/// Checked IR keeps the legacy raw instruction map intact while attaching the
+/// verifier-derived logical contract. This avoids changing the shape or behavior of
+/// the deprecated unchecked APIs.
+#[derive(Debug, PartialEq, Clone)]
+pub struct CheckedIr {
+    raw: RawIr,
+    metadata: IrMetadata,
+}
+
+impl CheckedIr {
+    pub(crate) fn new(raw: RawIr, metadata: IrMetadata) -> Self {
+        Self { raw, metadata }
+    }
+
+    pub(crate) fn raw(&self) -> &RawIr {
+        &self.raw
+    }
+
+    pub(crate) fn into_raw(self) -> RawIr {
+        self.raw
+    }
+
+    pub fn metadata(&self) -> &IrMetadata {
+        &self.metadata
+    }
+}
+
+impl From<CheckedIr> for RawIr {
+    fn from(checked: CheckedIr) -> Self {
+        checked.into_raw()
+    }
+}
+
+/// Raw private IR is accepted at the checked codegen boundary, but it carries no
+/// trusted metadata. The mandatory verifier derives that metadata before emission.
+impl From<RawIr> for CheckedIr {
+    fn from(raw: RawIr) -> Self {
+        Self {
+            raw,
+            metadata: IrMetadata::default(),
+        }
+    }
 }

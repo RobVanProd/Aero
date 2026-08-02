@@ -1,13 +1,15 @@
-use super::{BuildConfig, compile_to_llvm_ir_with_optimizer};
+use super::{
+    BuildConfig, LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK as ENVIRONMENT_LOCK,
+    compile_to_llvm_ir_with_optimizer,
+};
 use crate::performance_optimizations::PerformanceOptimizer;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::MutexGuard;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-static ENVIRONMENT_LOCK: Mutex<()> = Mutex::new(());
 static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 struct TestWorkspace {

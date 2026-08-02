@@ -1,18 +1,80 @@
-use crate::ir::{Function, Inst, Value};
-use std::collections::HashMap;
+use crate::ir::{
+    CheckedIr, Function, FunctionMetadata, Inst, IrMetadata, LogicalType, PlaceId, ResultId, Value,
+};
+use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
 
 type FunctionDef = (Vec<(String, String)>, Option<String>, Vec<Inst>);
 
+/// A failure at the checked LLVM-emission boundary.
+#[derive(Debug)]
+pub enum CodeGenerationError {
+    /// The private raw IR failed mandatory verification before emission began.
+    IrVerification(IrVerificationError),
+    /// A verified program contained an instruction that this emitter does not admit.
+    UnsupportedInstruction { instruction: &'static str },
+}
+
+impl fmt::Display for CodeGenerationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IrVerification(error) => error.fmt(formatter),
+            Self::UnsupportedInstruction { instruction } => {
+                write!(
+                    formatter,
+                    "unsupported instruction `{instruction}` in checked code generation"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for CodeGenerationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::IrVerification(error) => Some(error),
+            Self::UnsupportedInstruction { .. } => None,
+        }
+    }
+}
+
+impl From<IrVerificationError> for CodeGenerationError {
+    fn from(error: IrVerificationError) -> Self {
+        Self::IrVerification(error)
+    }
+}
+
 pub struct CodeGenerator {
-    next_reg: u32,
-    next_ptr: u32,
+    next_reg: u64,
+    next_ptr: u64,
+    checked_metadata: Option<IrMetadata>,
+    current_function: Option<String>,
 }
 
 impl CodeGenerator {
+    fn llvm_parameter_name(name: &str) -> String {
+        format!("aero.arg.{name}")
+    }
+
+    fn logical_type_to_llvm(logical_type: &LogicalType) -> &'static str {
+        match logical_type {
+            LogicalType::Int => "i32",
+            LogicalType::Float => "double",
+            LogicalType::Bool => "i1",
+            LogicalType::Void => "void",
+            LogicalType::String | LogicalType::Array { .. } => {
+                unreachable!("checked scalar call signatures exclude rich logical types")
+            }
+        }
+    }
+
     pub fn new() -> Self {
         CodeGenerator {
             next_reg: 0,
             next_ptr: 0,
+            checked_metadata: None,
+            current_function: None,
         }
     }
 }
@@ -24,14 +86,14 @@ impl Default for CodeGenerator {
 }
 
 impl CodeGenerator {
-    fn bump_seed_from_value(max_seed: &mut u32, value: &Value) {
+    fn bump_seed_from_value(max_seed: &mut u64, value: &Value) {
         if let Value::Reg(r) = value {
-            *max_seed = (*max_seed).max(r.saturating_add(1));
+            *max_seed = (*max_seed).max(u64::from(*r) + 1);
         }
     }
 
-    fn infer_next_reg_seed(instructions: &[Inst]) -> u32 {
-        let mut seed = 0u32;
+    fn infer_next_reg_seed(instructions: &[Inst]) -> u64 {
+        let mut seed = 0u64;
 
         for inst in instructions {
             match inst {
@@ -262,8 +324,21 @@ impl CodeGenerator {
             Value::ImmInt(n) => ((*n as f64).to_bits() as i64).to_string(),
             Value::ImmFloat(f) => (f.to_bits() as i64).to_string(),
             Value::Reg(r) => {
+                let floating_register = if self.is_checked_bool_result(value) {
+                    let converted = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{} = uitofp i1 %reg{} to double\n",
+                        converted, r
+                    ));
+                    converted
+                } else {
+                    format!("reg{}", r)
+                };
                 let tmp = self.fresh_reg();
-                llvm_ir.push_str(&format!("  %{} = bitcast double %reg{} to i64\n", tmp, r));
+                llvm_ir.push_str(&format!(
+                    "  %{} = bitcast double %{} to i64\n",
+                    tmp, floating_register
+                ));
                 format!("%{}", tmp)
             }
             Value::ImmString(_) => {
@@ -274,15 +349,261 @@ impl CodeGenerator {
 
     fn type_to_llvm(&self, type_name: &str) -> &str {
         match type_name {
-            "i32" => "i32",
+            "int" | "i32" => "i32",
             "i64" => "i64",
             "f32" => "float",
-            "f64" => "double",
-            "bool" => "i1",
+            "float" | "f64" | "double" => "double",
+            "bool" | "i1" => "i1",
+            "void" => "void",
             _ => "double", // Default fallback
         }
     }
 
+    fn current_function_metadata(&self) -> Option<&FunctionMetadata> {
+        let function_name = self.current_function.as_ref()?;
+        self.checked_metadata.as_ref()?.functions.get(function_name)
+    }
+
+    fn checked_result_type(&self, value: &Value) -> Option<&LogicalType> {
+        let Value::Reg(register) = value else {
+            return None;
+        };
+        self.current_function_metadata()?
+            .results
+            .get(&ResultId(*register))
+    }
+
+    fn checked_place_type(&self, value: &Value) -> Option<&LogicalType> {
+        let Value::Reg(register) = value else {
+            return None;
+        };
+        self.current_function_metadata()?
+            .places
+            .get(&PlaceId(*register))
+            .map(|place| &place.pointee)
+    }
+
+    fn is_checked_bool_result(&self, value: &Value) -> bool {
+        matches!(self.checked_result_type(value), Some(LogicalType::Bool))
+    }
+
+    fn is_checked_bool_place(&self, value: &Value) -> bool {
+        matches!(self.checked_place_type(value), Some(LogicalType::Bool))
+    }
+
+    fn bool_value_to_string(&self, value: &Value) -> String {
+        match value {
+            Value::ImmInt(value) => {
+                if *value == 0 {
+                    "false".to_string()
+                } else {
+                    "true".to_string()
+                }
+            }
+            Value::ImmFloat(value) => {
+                if *value == 0.0 {
+                    "false".to_string()
+                } else {
+                    "true".to_string()
+                }
+            }
+            Value::Reg(register) => format!("%reg{register}"),
+            Value::ImmString(_) => {
+                panic!("String value cannot be lowered as LLVM boolean")
+            }
+        }
+    }
+
+    fn ensure_checked_codegen_support(
+        ir_functions: &HashMap<String, Function>,
+    ) -> Result<(), CodeGenerationError> {
+        for function in ir_functions.values() {
+            Self::ensure_instruction_support(&function.body)?;
+        }
+        Ok(())
+    }
+
+    fn ensure_instruction_support(instructions: &[Inst]) -> Result<(), CodeGenerationError> {
+        for instruction in instructions {
+            match instruction {
+                Inst::Add(..)
+                | Inst::FAdd(..)
+                | Inst::Sub(..)
+                | Inst::FSub(..)
+                | Inst::Mul(..)
+                | Inst::FMul(..)
+                | Inst::Div(..)
+                | Inst::FDiv(..)
+                | Inst::Alloca(..)
+                | Inst::Store(..)
+                | Inst::Load(..)
+                | Inst::Return(..)
+                | Inst::SIToFP(..)
+                | Inst::FPToSI(..)
+                | Inst::Call { .. }
+                | Inst::Branch { .. }
+                | Inst::Jump(..)
+                | Inst::Label(..)
+                | Inst::ICmp { .. }
+                | Inst::FCmp { .. }
+                | Inst::Print { .. }
+                | Inst::Println { .. }
+                | Inst::And { .. }
+                | Inst::Or { .. }
+                | Inst::Not { .. }
+                | Inst::Neg { .. }
+                | Inst::AllocaArray { .. }
+                | Inst::GetElementPtr { .. } => {}
+                Inst::FunctionDef { body, .. } => Self::ensure_instruction_support(body)?,
+                Inst::AllocaStruct { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "alloca struct",
+                    });
+                }
+                Inst::GetFieldPtr { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "field pointer",
+                    });
+                }
+                Inst::VecAlloca { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec alloca",
+                    });
+                }
+                Inst::VecPush { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec push",
+                    });
+                }
+                Inst::VecPop { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec pop",
+                    });
+                }
+                Inst::VecLength { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec length",
+                    });
+                }
+                Inst::VecCapacity { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec capacity",
+                    });
+                }
+                Inst::VecAccess { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec access",
+                    });
+                }
+                Inst::VecInit { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec init",
+                    });
+                }
+                Inst::ArrayLength { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "array length",
+                    });
+                }
+                Inst::ArrayAccess { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "array access",
+                    });
+                }
+                Inst::EnumDiscriminant { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "enum discriminant",
+                    });
+                }
+                Inst::EnumVariantData { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "enum variant data",
+                    });
+                }
+                Inst::EnumConstruct { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "enum construct",
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Verifies private IR and emits LLVM only after the complete program is admitted.
+    pub fn try_generate_code<I>(&mut self, ir: I) -> Result<String, CodeGenerationError>
+    where
+        I: Into<CheckedIr>,
+    {
+        let checked_ir = ir.into();
+        let metadata =
+            verify_checked_ir(&checked_ir).map_err(CodeGenerationError::IrVerification)?;
+        Self::ensure_checked_codegen_support(checked_ir.raw())?;
+
+        self.checked_metadata = Some(metadata);
+        let llvm_ir = self.generate_checked_code(checked_ir.into_raw());
+        self.checked_metadata = None;
+        self.current_function = None;
+        Ok(llvm_ir)
+    }
+
+    fn generate_checked_code(&mut self, ir_functions: HashMap<String, Function>) -> String {
+        let mut llvm_ir = String::new();
+        llvm_ir.push_str("; ModuleID = \"aero_compiler\"\n");
+        llvm_ir.push_str("source_filename = \"aero_compiler\"\n");
+        llvm_ir.push_str("target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n");
+        llvm_ir.push_str("target triple = \"x86_64-pc-linux-gnu\"\n\n");
+        self.generate_printf_declaration(&mut llvm_ir);
+
+        let mut function_defs: HashMap<String, FunctionDef> = HashMap::new();
+        for function in ir_functions.values() {
+            for instruction in &function.body {
+                if let Inst::FunctionDef {
+                    name,
+                    parameters,
+                    return_type,
+                    body,
+                } = instruction
+                {
+                    function_defs.insert(
+                        name.clone(),
+                        (parameters.clone(), return_type.clone(), body.clone()),
+                    );
+                }
+            }
+        }
+
+        for (function_name, function) in ir_functions {
+            self.current_function = Some(function_name.clone());
+            if let Some((parameters, return_type, body)) = function_defs.get(&function_name) {
+                self.generate_function_definition(
+                    &mut llvm_ir,
+                    &function_name,
+                    parameters,
+                    return_type,
+                    body,
+                    function.next_reg,
+                    &function_defs,
+                );
+            } else {
+                llvm_ir.push_str(&format!("define i32 @{function_name}() {{\nentry:\n"));
+                let empty_param_types: HashMap<String, String> = HashMap::new();
+                self.generate_function_body(
+                    &mut llvm_ir,
+                    &function.body,
+                    &empty_param_types,
+                    "i32",
+                    &function_defs,
+                    function.next_reg,
+                );
+                llvm_ir.push_str("}\n\n");
+            }
+        }
+
+        llvm_ir
+    }
+
+    #[deprecated(note = "unchecked compatibility API; use CodeGenerator::try_generate_code")]
     pub fn generate_code(&mut self, ir_functions: HashMap<String, Function>) -> String {
         let mut llvm_ir = String::new();
         llvm_ir.push_str("; ModuleID = \"aero_compiler\"\n");
@@ -374,7 +695,7 @@ impl CodeGenerator {
             param_str.push_str(&format!(
                 "{} %{}",
                 self.type_to_llvm(param_type),
-                param_name
+                Self::llvm_parameter_name(param_name)
             ));
         }
 
@@ -408,7 +729,8 @@ impl CodeGenerator {
         function_defs: &HashMap<String, FunctionDef>,
         next_reg_seed: u32,
     ) {
-        self.next_reg = next_reg_seed.max(Self::infer_next_reg_seed(instructions));
+        self.next_reg = u64::from(next_reg_seed).max(Self::infer_next_reg_seed(instructions));
+        let mut initialized_parameters = HashSet::new();
 
         for inst in instructions {
             match inst {
@@ -417,19 +739,35 @@ impl CodeGenerator {
                         Value::Reg(r) => *r,
                         _ => panic!("Expected register for alloca"),
                     };
-                    llvm_ir.push_str(&format!("  %ptr{} = alloca double, align 8\n", ptr_id));
+                    let bool_place = self.is_checked_bool_place(ptr_reg);
+                    if bool_place {
+                        llvm_ir.push_str(&format!("  %ptr{} = alloca i1, align 1\n", ptr_id));
+                    } else {
+                        llvm_ir.push_str(&format!("  %ptr{} = alloca double, align 8\n", ptr_id));
+                    }
 
-                    if let Some(param_type) = param_types.get(name) {
+                    if let Some(param_type) = param_types
+                        .get(name)
+                        .filter(|_| initialized_parameters.insert(name.clone()))
+                    {
+                        let parameter = Self::llvm_parameter_name(name);
+                        if bool_place {
+                            llvm_ir.push_str(&format!(
+                                "  store i1 %{}, i1* %ptr{}, align 1\n",
+                                parameter, ptr_id
+                            ));
+                            continue;
+                        }
                         match self.type_to_llvm(param_type) {
                             "double" => llvm_ir.push_str(&format!(
                                 "  store double %{}, double* %ptr{}, align 8\n",
-                                name, ptr_id
+                                parameter, ptr_id
                             )),
                             "i32" => {
                                 let tmp = self.fresh_reg();
                                 llvm_ir.push_str(&format!(
                                     "  %{} = sitofp i32 %{} to double\n",
-                                    tmp, name
+                                    tmp, parameter
                                 ));
                                 llvm_ir.push_str(&format!(
                                     "  store double %{}, double* %ptr{}, align 8\n",
@@ -440,7 +778,7 @@ impl CodeGenerator {
                                 let tmp = self.fresh_reg();
                                 llvm_ir.push_str(&format!(
                                     "  %{} = sitofp i64 %{} to double\n",
-                                    tmp, name
+                                    tmp, parameter
                                 ));
                                 llvm_ir.push_str(&format!(
                                     "  store double %{}, double* %ptr{}, align 8\n",
@@ -451,7 +789,7 @@ impl CodeGenerator {
                                 let tmp = self.fresh_reg();
                                 llvm_ir.push_str(&format!(
                                     "  %{} = uitofp i1 %{} to double\n",
-                                    tmp, name
+                                    tmp, parameter
                                 ));
                                 llvm_ir.push_str(&format!(
                                     "  store double %{}, double* %ptr{}, align 8\n",
@@ -460,12 +798,24 @@ impl CodeGenerator {
                             }
                             _ => llvm_ir.push_str(&format!(
                                 "  store double %{}, double* %ptr{}, align 8\n",
-                                name, ptr_id
+                                parameter, ptr_id
                             )),
                         }
                     }
                 }
                 Inst::Store(ptr_reg, value) => {
+                    if self.is_checked_bool_place(ptr_reg) {
+                        let ptr_id = match ptr_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for store pointer"),
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  store i1 {}, i1* %ptr{}, align 1\n",
+                            self.bool_value_to_string(value),
+                            ptr_id
+                        ));
+                        continue;
+                    }
                     let val_str = self.value_to_string(value);
                     let ptr_str = match ptr_reg {
                         Value::Reg(r) => format!("ptr{}", r),
@@ -477,6 +827,21 @@ impl CodeGenerator {
                     ));
                 }
                 Inst::Load(result_reg, ptr_reg) => {
+                    if self.is_checked_bool_place(ptr_reg) {
+                        let result_id = match result_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for load result"),
+                        };
+                        let ptr_id = match ptr_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for load pointer"),
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %reg{} = load i1, i1* %ptr{}, align 1\n",
+                            result_id, ptr_id
+                        ));
+                        continue;
+                    }
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for load result"),
@@ -544,10 +909,20 @@ impl CodeGenerator {
                         _ => panic!("Expected register for fptosi result"),
                     };
                     let val_str = self.value_to_string(value);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fptosi double {} to i64\n",
-                        result_str, val_str
-                    ));
+                    if self.checked_metadata.is_some() {
+                        let integer_result = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{integer_result} = fptosi double {val_str} to i32\n"
+                        ));
+                        llvm_ir.push_str(&format!(
+                            "  %{result_str} = sitofp i32 %{integer_result} to double\n"
+                        ));
+                    } else {
+                        llvm_ir.push_str(&format!(
+                            "  %{} = fptosi double {} to i64\n",
+                            result_str, val_str
+                        ));
+                    }
                 }
                 Inst::Return(value) => self.emit_return(llvm_ir, value, return_llvm_type),
                 Inst::SIToFP(result_reg, value) => {
@@ -586,12 +961,21 @@ impl CodeGenerator {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for icmp result"),
                     };
-                    let left_str = self.value_to_i32_operand(llvm_ir, left);
-                    let right_str = self.value_to_i32_operand(llvm_ir, right);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = icmp {} i32 {}, {}\n",
-                        result_str, op, left_str, right_str
-                    ));
+                    if self.is_checked_bool_result(left) {
+                        let left_str = self.bool_value_to_string(left);
+                        let right_str = self.bool_value_to_string(right);
+                        llvm_ir.push_str(&format!(
+                            "  %{} = icmp {} i1 {}, {}\n",
+                            result_str, op, left_str, right_str
+                        ));
+                    } else {
+                        let left_str = self.value_to_i32_operand(llvm_ir, left);
+                        let right_str = self.value_to_i32_operand(llvm_ir, right);
+                        llvm_ir.push_str(&format!(
+                            "  %{} = icmp {} i32 {}, {}\n",
+                            result_str, op, left_str, right_str
+                        ));
+                    }
                 }
                 Inst::FCmp {
                     op,
@@ -738,14 +1122,28 @@ impl CodeGenerator {
                         result_str, struct_type, struct_type, base_str, field_index
                     ));
                 }
-                _ => {}
+                Inst::VecAlloca { .. }
+                | Inst::VecPush { .. }
+                | Inst::VecPop { .. }
+                | Inst::VecLength { .. }
+                | Inst::VecCapacity { .. }
+                | Inst::VecAccess { .. }
+                | Inst::VecInit { .. }
+                | Inst::ArrayLength { .. }
+                | Inst::ArrayAccess { .. }
+                | Inst::EnumDiscriminant { .. }
+                | Inst::EnumVariantData { .. }
+                | Inst::EnumConstruct { .. } => {}
             }
         }
 
         if !instructions.is_empty()
-            && !instructions
-                .iter()
-                .any(|inst| matches!(inst, Inst::Return(_)))
+            && !instructions.last().is_some_and(|instruction| {
+                matches!(
+                    instruction,
+                    Inst::Return(_) | Inst::Jump(_) | Inst::Branch { .. }
+                )
+            })
         {
             match return_llvm_type {
                 "void" => llvm_ir.push_str("  ret void\n"),
@@ -765,6 +1163,11 @@ impl CodeGenerator {
         result: &Option<Value>,
         function_defs: &HashMap<String, FunctionDef>,
     ) {
+        let checked_signature = self
+            .checked_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.functions.get(function))
+            .map(|metadata| metadata.signature.clone());
         let (param_defs, return_type) =
             if let Some((params, ret, _body)) = function_defs.get(function) {
                 (params.clone(), ret.clone())
@@ -774,23 +1177,33 @@ impl CodeGenerator {
 
         let mut args = Vec::new();
         for (i, arg) in arguments.iter().enumerate() {
-            let target_type = if let Some((_name, ty)) = param_defs.get(i) {
-                self.type_to_llvm(ty).to_string()
-            } else {
-                "double".to_string()
-            };
+            let target_type = checked_signature
+                .as_ref()
+                .and_then(|signature| signature.parameters.get(i))
+                .map(|(_, ty)| Self::logical_type_to_llvm(ty).to_string())
+                .or_else(|| {
+                    param_defs
+                        .get(i)
+                        .map(|(_name, ty)| self.type_to_llvm(ty).to_string())
+                })
+                .unwrap_or_else(|| "double".to_string());
             let arg_val = self.cast_value_for_call_arg(llvm_ir, arg, &target_type);
             args.push(format!("{} {}", target_type, arg_val));
         }
         let args_str = args.join(", ");
 
-        let return_llvm_type = if let Some(ret) = return_type {
-            self.type_to_llvm(&ret).to_string()
-        } else if result.is_some() {
-            "double".to_string()
-        } else {
-            "void".to_string()
-        };
+        let return_llvm_type = checked_signature
+            .as_ref()
+            .map(|signature| Self::logical_type_to_llvm(&signature.result).to_string())
+            .unwrap_or_else(|| {
+                if let Some(ret) = return_type {
+                    self.type_to_llvm(&ret).to_string()
+                } else if result.is_some() {
+                    "double".to_string()
+                } else {
+                    "void".to_string()
+                }
+            });
 
         if let Some(result_reg) = result {
             let result_str = match result_reg {
@@ -826,15 +1239,22 @@ impl CodeGenerator {
                     ));
                 }
                 "i1" => {
-                    let call_reg = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = call i1 @{}({})\n",
-                        call_reg, function, args_str
-                    ));
-                    llvm_ir.push_str(&format!(
-                        "  %{} = uitofp i1 %{} to double\n",
-                        result_str, call_reg
-                    ));
+                    if self.is_checked_bool_result(result_reg) {
+                        llvm_ir.push_str(&format!(
+                            "  %{} = call i1 @{}({})\n",
+                            result_str, function, args_str
+                        ));
+                    } else {
+                        let call_reg = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = call i1 @{}({})\n",
+                            call_reg, function, args_str
+                        ));
+                        llvm_ir.push_str(&format!(
+                            "  %{} = uitofp i1 %{} to double\n",
+                            result_str, call_reg
+                        ));
+                    }
                 }
                 "void" => {
                     llvm_ir.push_str(&format!("  call void @{}({})\n", function, args_str));
@@ -904,12 +1324,16 @@ impl CodeGenerator {
                     }
                 }
                 Value::Reg(r) => {
-                    let tmp = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
-                        tmp, r
-                    ));
-                    format!("%{}", tmp)
+                    if self.is_checked_bool_result(value) {
+                        format!("%reg{}", r)
+                    } else {
+                        let tmp = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
+                            tmp, r
+                        ));
+                        format!("%{}", tmp)
+                    }
                 }
                 Value::ImmString(_) => {
                     panic!("Cannot cast string argument to i1 in function call")
@@ -945,12 +1369,16 @@ impl CodeGenerator {
                     if *f == 0.0 { "false" } else { "true" }
                 )),
                 Value::Reg(r) => {
-                    let tmp = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
-                        tmp, r
-                    ));
-                    llvm_ir.push_str(&format!("  ret i1 %{}\n", tmp));
+                    if self.is_checked_bool_result(value) {
+                        llvm_ir.push_str(&format!("  ret i1 %reg{}\n", r));
+                    } else {
+                        let tmp = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
+                            tmp, r
+                        ));
+                        llvm_ir.push_str(&format!("  ret i1 %{}\n", tmp));
+                    }
                 }
                 Value::ImmString(_) => panic!("Cannot return string value as i1"),
             },
@@ -1128,7 +1556,17 @@ impl CodeGenerator {
                             .push_str(&self.value_to_win_printf_f64_bits_operand(llvm_ir, arg));
                     } else {
                         printf_args.push_str(", double ");
-                        printf_args.push_str(&self.value_to_string(arg));
+                        if self.is_checked_bool_result(arg) {
+                            let converted = self.fresh_reg();
+                            llvm_ir.push_str(&format!(
+                                "  %{} = uitofp i1 {} to double\n",
+                                converted,
+                                self.bool_value_to_string(arg)
+                            ));
+                            printf_args.push_str(&format!("%{}", converted));
+                        } else {
+                            printf_args.push_str(&self.value_to_string(arg));
+                        }
                     }
                 }
             }
@@ -1242,7 +1680,17 @@ impl CodeGenerator {
     }
 }
 
-// Legacy function for backward compatibility
+/// Verifies private IR and emits LLVM through the checked code-generation boundary.
+pub fn try_generate_code<I>(ir: I) -> Result<String, CodeGenerationError>
+where
+    I: Into<CheckedIr>,
+{
+    CodeGenerator::new().try_generate_code(ir)
+}
+
+/// Legacy unchecked function retained for backward compatibility.
+#[deprecated(note = "unchecked compatibility API; use try_generate_code")]
+#[allow(deprecated)]
 pub fn generate_code(ir_functions: HashMap<String, Function>) -> String {
     let mut generator = CodeGenerator::new();
     generator.generate_code(ir_functions)
@@ -1289,13 +1737,13 @@ mod tests {
         let llvm_ir = generator.generate_code(functions);
 
         // Check that function signature is correct
-        assert!(llvm_ir.contains("define i32 @add(i32 %a, i32 %b)"));
+        assert!(llvm_ir.contains("define i32 @add(i32 %aero.arg.a, i32 %aero.arg.b)"));
 
         // Parameters are lowered to local double slots
         assert!(llvm_ir.contains("%ptr0 = alloca double"));
         assert!(llvm_ir.contains("%ptr1 = alloca double"));
-        assert!(llvm_ir.contains("sitofp i32 %a to double"));
-        assert!(llvm_ir.contains("sitofp i32 %b to double"));
+        assert!(llvm_ir.contains("sitofp i32 %aero.arg.a to double"));
+        assert!(llvm_ir.contains("sitofp i32 %aero.arg.b to double"));
 
         // Check that function has entry block
         assert!(llvm_ir.contains("entry:"));

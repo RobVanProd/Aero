@@ -51,6 +51,17 @@ fn checked_ir_failure_keeps_a_complete_report_and_returns_a_nonzero_command_resu
             "checked-IR failure removed conformance case `{name}`"
         );
     }
+    for name in ["basic_arithmetic_well_typed", "function_call_well_typed"] {
+        let case = report
+            .case_results
+            .iter()
+            .find(|case| case.name == name)
+            .expect("named positive conformance case");
+        assert!(
+            !case.passed && case.details.contains("IR Verification Error:"),
+            "named positive case `{name}` bypassed injected checked-IR failure: {case:?}"
+        );
+    }
     for name in [
         "lexer_determinism",
         "parser_determinism",

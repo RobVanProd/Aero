@@ -454,7 +454,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-015 — Checked logical IR precedes physical numeric redesign
 
 - Date: 2026-08-02
-- Status: accepted for `CORE-010`; red checkpoint accepted, implementation pending
+- Status: accepted for `CORE-010`; red checkpoint accepted, green production
+  candidate assembled locally, exact review/public CI pending
 - Decision: Aero will add explicit logical types for admitted scalar results,
   places, arrays, calls, branches, and returns; a mandatory in-process IR verifier;
   additive checked IR/codegen APIs; exhaustive codegen errors; and final external
@@ -518,6 +519,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   Explicit `AERO_LLVM_OPT`/`AERO_LLVM_AS` paths are authoritative and fail closed;
   otherwise discovery uses LLVM-22 versioned tools before version-validated
   unversioned tools. A rejecting found verifier never triggers a fallback.
+- Verifier process containment: the timeout is an end-to-end process-tree deadline,
+  not only a wait on the direct wrapper. Unix verification runs in a dedicated
+  process group. Windows creates the verifier suspended, assigns it to a kill-on-
+  close job before its first instruction, then resumes it. Target-specific `libc`
+  and `windows-sys` dependencies are authorized only for this containment boundary;
+  no LLVM Rust binding or broader dependency expansion is introduced.
 - Cache: final-LLVM string entries lack typed-IR provenance. They are usable only
   when an available external verifier accepts them. Under `PreferExternal`, missing
   tools force a fresh checked-IR rebuild; cached text can never be labeled
@@ -541,6 +548,15 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   CPU examples before reaching the deliberate missing checked-API failures. The red
   evidence therefore authorizes bounded production implementation under this
   decision without accepting any production behavior yet.
+- Production-candidate evidence: the implementation follows the frozen additive
+  API and logical-type boundary, re-verifies checked/private IR at checked codegen,
+  rejects unsupported or invalid forms with structured phase errors, and verifies
+  final transformed/retargeted LLVM before cache, write, trace, or native-tool
+  publication according to the required/preferred policy. Focused contracts and
+  the complete repository gate pass locally. This records candidate conformance to
+  the decision; exact-diff review and public CI are still required for acceptance.
+  Review closure also routes every successful named conformance case through checked
+  IR and proves an immediate verifier descendant cannot escape the bounded timeout.
 - Alternatives rejected: immediate physical `i32` lowering without overflow/
   division policy; keeping Boolean/numeric guessing; LLVM-only verification after
   unsafe IR; making ordinary Cargo builds depend on llvm-sys/Inkwell; treating

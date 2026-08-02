@@ -317,7 +317,7 @@ fn public_compile_preserves_declarations_numeric_function_array_index_and_iter_c
     )
     .expect("declaration-only and adjacent controls should compile");
     for marker in [
-        "define i32 @add(i32 %left, i32 %right)",
+        "define i32 @add(i32 %aero.arg.left, i32 %aero.arg.right)",
         "call i32 @add(i32 6, i32 2)",
         "fadd double",
         "alloca [2 x double]",

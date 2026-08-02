@@ -7,7 +7,9 @@ pub mod gpu;
 pub mod graph_compiler;
 mod ir;
 mod ir_generator;
+mod ir_verifier;
 pub mod lexer;
+mod llvm_verifier;
 pub mod module_resolver;
 pub mod parser;
 pub mod quantization;
@@ -16,10 +18,15 @@ pub mod semantic_analyzer;
 pub mod stdlib;
 pub mod types;
 
-pub use code_generator::{CodeGenerator, generate_code};
-pub use ir_generator::IrGenerator;
+pub use code_generator::{CodeGenerationError, CodeGenerator, generate_code, try_generate_code};
+pub use ir::{CheckedIr, IrMetadata, LogicalType};
+pub use ir_generator::{IrGenerationError, IrGenerator};
+pub use ir_verifier::IrVerificationError;
 pub use lexer::{
     LocatedToken, Token, tokenize, tokenize_with_locations, try_tokenize_with_locations,
+};
+pub use llvm_verifier::{
+    LlvmVerificationError, LlvmVerificationMode, LlvmVerificationStatus, verify_llvm_module,
 };
 pub use parser::{Parser, parse, parse_with_locations};
 pub use semantic_analyzer::SemanticAnalyzer;
@@ -54,12 +61,22 @@ pub fn compile_program(source: &str, _options: CompilerOptions) -> Result<String
         Err(err) => return Err(format!("Semantic Analysis Error: {}", err)),
     };
 
-    // IR generation
+    // Checked IR admission and mandatory in-process verification.
     let mut ir_generator = IrGenerator::new();
-    let ir = ir_generator.generate_ir(analyzed_ast);
+    let ir = ir_generator
+        .try_generate_ir(analyzed_ast)
+        .map_err(|error| match error {
+            IrGenerationError::Admission(message) => {
+                format!("IR Generation Error: {message}")
+            }
+            IrGenerationError::Verification(error) => error.to_string(),
+        })?;
 
-    // Code generation
-    let llvm_code = generate_code(ir);
+    // Checked code generation re-verifies the private IR before LLVM emission.
+    let llvm_code = try_generate_code(ir).map_err(|error| match error {
+        CodeGenerationError::IrVerification(error) => error.to_string(),
+        other => format!("Code Generation Error: {other}"),
+    })?;
 
     Ok(llvm_code)
 }

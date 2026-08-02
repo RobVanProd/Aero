@@ -230,8 +230,14 @@ correctness gates.
   Deref fallbacks without implementing their language semantics; those remain later
   language-specific implementation slices.
   This audit finding does not itself improve a capability.
-- Library/build paths do not invoke an LLVM verifier. CI object/link/runtime
-  coverage is limited to four scalar CPU examples.
+- The subsequent local `CORE-010` production candidate adds logical scalar/place/
+  function metadata, mandatory internal IR verification, fallible checked IR and
+  codegen APIs, and LLVM 22 verification of final transformed/retargeted modules
+  before trusted artifact publication. It makes the focused red contracts and the
+  complete repository gate green. Exact-diff review and public CI are still pending,
+  so the audited classifications below are not promoted by this candidate record.
+- At the original audit basis, library/build paths did not invoke an LLVM verifier.
+  CI object/link/runtime coverage remains limited to four scalar CPU examples.
 
 ## Runtime and backend audit
 

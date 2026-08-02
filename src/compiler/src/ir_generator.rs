@@ -1,7 +1,46 @@
 use crate::ast::{AstNode, Expression, Statement, Type};
-use crate::ir::{Function, Inst, Value};
+use crate::ir::{Function, Inst, LogicalType, PlaceId, Value};
+use crate::ir_verifier::PlaceTypeHints;
 use crate::types::{Ty, needs_promotion};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
+
+#[derive(Debug)]
+pub enum IrGenerationError {
+    Admission(String),
+    Verification(crate::ir_verifier::IrVerificationError),
+}
+
+impl fmt::Display for IrGenerationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Admission(message) => formatter.write_str(message),
+            Self::Verification(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for IrGenerationError {}
+
+impl From<crate::ir_verifier::IrVerificationError> for IrGenerationError {
+    fn from(error: crate::ir_verifier::IrVerificationError) -> Self {
+        Self::Verification(error)
+    }
+}
+
+#[derive(Clone)]
+struct AdmissionBinding {
+    ty: Ty,
+    callable: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ExpressionUse {
+    Value,
+    Binding,
+    PrintArgument,
+    Discarded,
+}
 
 pub struct IrGenerator {
     functions: HashMap<String, Function>,
@@ -13,6 +52,8 @@ pub struct IrGenerator {
     function_return_types: HashMap<String, Ty>,
     loop_label_stack: Vec<(String, String)>, // Stack of (loop_start, loop_end) labels
     closure_count: u32,                      // Counter for unique closure names
+    checked_mode: bool,
+    checked_place_hints: PlaceTypeHints,
 }
 
 impl IrGenerator {
@@ -26,6 +67,8 @@ impl IrGenerator {
             function_return_types: HashMap::new(),
             loop_label_stack: Vec::new(),
             closure_count: 0,
+            checked_mode: false,
+            checked_place_hints: BTreeMap::new(),
         }
     }
 }
@@ -37,6 +80,29 @@ impl Default for IrGenerator {
 }
 
 impl IrGenerator {
+    pub fn try_generate_ir(
+        &mut self,
+        ast: Vec<AstNode>,
+    ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
+        Self::validate_checked_ast(&ast)?;
+        self.functions.clear();
+        self.current_function_name.clear();
+        self.next_reg = 0;
+        self.next_ptr = 0;
+        self.symbol_table.clear();
+        self.function_return_types.clear();
+        self.loop_label_stack.clear();
+        self.closure_count = 0;
+        self.checked_place_hints.clear();
+        self.checked_mode = true;
+        let mut functions = self.generate_ir(ast);
+        self.checked_mode = false;
+        Self::ensure_checked_main_terminator(&mut functions);
+        Self::normalize_checked_place_ids(&mut functions, &mut self.checked_place_hints);
+        crate::ir_verifier::verify_ir_with_place_hints(functions, &self.checked_place_hints)
+            .map_err(Into::into)
+    }
+
     pub fn generate_ir(&mut self, ast: Vec<AstNode>) -> HashMap<String, Function> {
         self.function_return_types.clear();
         for node in &ast {
@@ -90,15 +156,14 @@ impl IrGenerator {
         match ty {
             Type::Named(name) if matches!(name.as_str(), "i32" | "int") => Some(Ty::Int),
             Type::Named(name) if matches!(name.as_str(), "f64" | "float") => Some(Ty::Float),
+            Type::Named(name) if name == "bool" => Some(Ty::Bool),
             _ => None,
         }
     }
 
     fn build_function_call(&mut self, name: String, arguments: Vec<Value>) -> (Inst, Value, Ty) {
         let function_name = self.resolve_callable_name(&name);
-        let return_type = (function_name == name)
-            .then(|| self.function_return_types.get(&name).cloned())
-            .flatten();
+        let return_type = self.function_return_types.get(&function_name).cloned();
 
         match return_type {
             Some(Ty::Void) => (
@@ -110,7 +175,7 @@ impl IrGenerator {
                 Value::ImmInt(0),
                 Ty::Void,
             ),
-            Some(return_type @ (Ty::Int | Ty::Float)) => {
+            Some(return_type @ (Ty::Int | Ty::Float | Ty::Bool)) => {
                 let result_reg = Value::Reg(self.next_reg);
                 self.next_reg += 1;
                 (
@@ -140,7 +205,873 @@ impl IrGenerator {
     }
 
     fn stores_value_directly(ty: &Ty) -> bool {
-        matches!(ty, Ty::String | Ty::Array(_, _) | Ty::Vec(_))
+        matches!(ty, Ty::String | Ty::Array(_, _) | Ty::Vec(_) | Ty::Fn(_))
+    }
+
+    fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
+        let mut top_level_functions = HashMap::new();
+        for node in ast {
+            if let AstNode::Statement(Statement::Function {
+                name, return_type, ..
+            }) = node
+            {
+                let result = return_type
+                    .as_ref()
+                    .map(Self::admission_type)
+                    .unwrap_or(Ty::Void);
+                top_level_functions.insert(name.clone(), result);
+            }
+        }
+
+        let mut bindings = HashMap::new();
+        for node in ast {
+            match node {
+                AstNode::Statement(statement) => {
+                    Self::validate_statement(statement, &mut bindings, &top_level_functions, false)?
+                }
+                AstNode::Expression(_) => {
+                    return Err(IrGenerationError::Admission(
+                        "top-level expressions are not admitted in checked IR".to_string(),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_block(
+        block: &crate::ast::Block,
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        top_level_functions: &HashMap<String, Ty>,
+        inside_loop: bool,
+    ) -> Result<(), IrGenerationError> {
+        for statement in &block.statements {
+            Self::validate_statement(statement, bindings, top_level_functions, inside_loop)?;
+        }
+        if let Some(expression) = &block.expression {
+            Self::validate_expression(
+                expression,
+                bindings,
+                top_level_functions,
+                ExpressionUse::Value,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_statement(
+        statement: &Statement,
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        top_level_functions: &HashMap<String, Ty>,
+        inside_loop: bool,
+    ) -> Result<(), IrGenerationError> {
+        match statement {
+            Statement::Let {
+                name,
+                mutable,
+                value,
+                ..
+            } => {
+                if let Some(value) = value {
+                    let ty = Self::validate_expression(
+                        value,
+                        bindings,
+                        top_level_functions,
+                        ExpressionUse::Binding,
+                    )?;
+                    if matches!(ty, Ty::Void) {
+                        return Err(IrGenerationError::Admission(
+                            "Void expressions cannot be stored in a binding".to_string(),
+                        ));
+                    }
+                    if *mutable && matches!(ty, Ty::String) {
+                        return Err(IrGenerationError::Admission(
+                            "mutable string bindings are not admitted; checked strings are immutable compile-time aliases"
+                                .to_string(),
+                        ));
+                    }
+                    bindings.insert(
+                        name.clone(),
+                        AdmissionBinding {
+                            callable: matches!(ty, Ty::Fn(_)),
+                            ty,
+                        },
+                    );
+                }
+            }
+            Statement::Return(expression) => {
+                if let Some(expression) = expression {
+                    Self::validate_expression(
+                        expression,
+                        bindings,
+                        top_level_functions,
+                        ExpressionUse::Value,
+                    )?;
+                }
+            }
+            Statement::Expression(expression) => {
+                Self::validate_expression(
+                    expression,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Discarded,
+                )?;
+            }
+            Statement::Block(block) => {
+                let mut nested = bindings.clone();
+                Self::validate_block(block, &mut nested, top_level_functions, inside_loop)?;
+            }
+            Statement::Loop { body } => {
+                let mut nested = bindings.clone();
+                Self::validate_block(body, &mut nested, top_level_functions, true)?;
+            }
+            Statement::Function {
+                parameters,
+                return_type,
+                type_params,
+                body,
+                ..
+            } => {
+                if !type_params.is_empty() {
+                    return Err(IrGenerationError::Admission(
+                        "generic function IR is not admitted in CORE-010".to_string(),
+                    ));
+                }
+                let mut function_bindings = HashMap::new();
+                for parameter in parameters {
+                    let parameter_ty = Self::admission_type(&parameter.param_type);
+                    if !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool) {
+                        return Err(IrGenerationError::Admission(format!(
+                            "function parameter `{}` is not an admitted scalar type",
+                            parameter.name
+                        )));
+                    }
+                    function_bindings.insert(
+                        parameter.name.clone(),
+                        AdmissionBinding {
+                            ty: parameter_ty,
+                            callable: false,
+                        },
+                    );
+                }
+                if return_type.as_ref().is_some_and(|return_type| {
+                    !matches!(
+                        Self::admission_type(return_type),
+                        Ty::Int | Ty::Float | Ty::Bool
+                    )
+                }) {
+                    return Err(IrGenerationError::Admission(
+                        "function return type is not an admitted scalar or Void type".to_string(),
+                    ));
+                }
+                Self::validate_block(body, &mut function_bindings, top_level_functions, false)?;
+            }
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                Self::validate_expression(
+                    condition,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                let mut then_bindings = bindings.clone();
+                Self::validate_block(
+                    then_block,
+                    &mut then_bindings,
+                    top_level_functions,
+                    inside_loop,
+                )?;
+                if let Some(else_statement) = else_block {
+                    let mut else_bindings = bindings.clone();
+                    Self::validate_statement(
+                        else_statement,
+                        &mut else_bindings,
+                        top_level_functions,
+                        inside_loop,
+                    )?;
+                }
+            }
+            Statement::While { condition, body } => {
+                Self::validate_expression(
+                    condition,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                let mut nested = bindings.clone();
+                Self::validate_block(body, &mut nested, top_level_functions, true)?;
+            }
+            Statement::For {
+                variable,
+                iterable,
+                body,
+            } => {
+                let iterable_ty = Self::validate_expression(
+                    iterable,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                let mut nested = bindings.clone();
+                let element_ty = match iterable_ty {
+                    Ty::Array(element, _) | Ty::Vec(element) => *element,
+                    _ => {
+                        return Err(IrGenerationError::Admission(
+                            "for-loop iteration requires an admitted array/Vec".to_string(),
+                        ));
+                    }
+                };
+                nested.insert(
+                    variable.clone(),
+                    AdmissionBinding {
+                        ty: element_ty,
+                        callable: false,
+                    },
+                );
+                Self::validate_block(body, &mut nested, top_level_functions, true)?;
+            }
+            Statement::ImplBlock { methods, .. } => {
+                for method in methods {
+                    Self::validate_statement(method, bindings, top_level_functions, false)?;
+                }
+            }
+            // Trait declarations remain syntax-only in this prototype. The semantic
+            // pass recursively diagnoses unsupported expressions in default bodies;
+            // checked lowering must not activate runtime name binding for them.
+            Statement::TraitDef { .. } => {}
+            Statement::Break | Statement::Continue => {
+                if !inside_loop {
+                    return Err(IrGenerationError::Admission(
+                        "break and continue are only admitted inside loops".to_string(),
+                    ));
+                }
+            }
+            Statement::StructDef { .. }
+            | Statement::EnumDef { .. }
+            | Statement::ModDecl { .. }
+            | Statement::UseImport { .. } => {}
+        }
+        Ok(())
+    }
+
+    fn validate_expression(
+        expression: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+        top_level_functions: &HashMap<String, Ty>,
+        expression_use: ExpressionUse,
+    ) -> Result<Ty, IrGenerationError> {
+        let admission_error = |message: &str| IrGenerationError::Admission(message.to_string());
+        match expression {
+            Expression::IntegerLiteral(value) => {
+                i32::try_from(*value).map_err(|_| {
+                    admission_error("integer literal is outside the admitted i32 range")
+                })?;
+                Ok(Ty::Int)
+            }
+            Expression::FloatLiteral(_) => Ok(Ty::Float),
+            Expression::StringLiteral(_) => Ok(Ty::String),
+            Expression::Identifier(name) => {
+                let binding = bindings.get(name).ok_or_else(|| {
+                    admission_error(&format!("checked IR has no binding for `{name}`"))
+                })?;
+                if binding.callable {
+                    return Err(admission_error(
+                        "closure aliases may only be used as direct callees",
+                    ));
+                }
+                Ok(binding.ty.clone())
+            }
+            Expression::Binary {
+                op,
+                left,
+                right,
+                ty,
+            } => {
+                if matches!(op, crate::ast::BinaryOp::Modulo) {
+                    return Err(admission_error("modulo is not admitted in checked IR"));
+                }
+                let left_ty = Self::validate_expression(
+                    left,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                let right_ty = Self::validate_expression(
+                    right,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                if matches!(op, crate::ast::BinaryOp::Divide)
+                    && (matches!(ty, Some(Ty::Int))
+                        || (matches!(left_ty, Ty::Int) && matches!(right_ty, Ty::Int)))
+                    && Self::constant_integer_value(right) == Some(0)
+                {
+                    return Err(admission_error("constant integer division by zero"));
+                }
+                match ty.clone().or_else(|| {
+                    if matches!(left_ty, Ty::Float) || matches!(right_ty, Ty::Float) {
+                        Some(Ty::Float)
+                    } else if matches!(left_ty, Ty::Int) && matches!(right_ty, Ty::Int) {
+                        Some(Ty::Int)
+                    } else {
+                        None
+                    }
+                }) {
+                    Some(Ty::Int) => Ok(Ty::Int),
+                    Some(Ty::Float) => Ok(Ty::Float),
+                    _ => Err(admission_error(
+                        "binary expression is not an admitted scalar",
+                    )),
+                }
+            }
+            Expression::FunctionCall { name, arguments } => {
+                for argument in arguments {
+                    Self::validate_expression(
+                        argument,
+                        bindings,
+                        top_level_functions,
+                        ExpressionUse::Value,
+                    )?;
+                }
+                if let Some(binding) = bindings.get(name) {
+                    if binding.callable {
+                        return match &binding.ty {
+                            Ty::Fn(signature) => Self::callable_result_type(signature),
+                            _ => Err(admission_error("callable binding lost its signature")),
+                        };
+                    }
+                }
+                if let Some(result) = top_level_functions.get(name) {
+                    if *result == Ty::Void && expression_use != ExpressionUse::Discarded {
+                        return Err(admission_error(
+                            "Void function calls cannot be used as values",
+                        ));
+                    }
+                    return Ok(result.clone());
+                }
+                if !top_level_functions.contains_key(name) && matches!(name.as_str(), "Some" | "Ok")
+                {
+                    return Err(admission_error(
+                        "enum and Option/Result construction is not admitted in checked IR",
+                    ));
+                }
+                Ok(Ty::Int)
+            }
+            Expression::MethodCall {
+                object,
+                method,
+                arguments,
+            } => {
+                let object_ty = Self::validate_expression(
+                    object,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                for argument in arguments {
+                    Self::validate_expression(
+                        argument,
+                        bindings,
+                        top_level_functions,
+                        ExpressionUse::Value,
+                    )?;
+                }
+                if method == "iter"
+                    && arguments.is_empty()
+                    && matches!(object_ty, Ty::Array(_, _) | Ty::Vec(_))
+                {
+                    Ok(object_ty)
+                } else {
+                    Err(admission_error(
+                        "method calls other than exact zero-argument array/Vec .iter() are not admitted",
+                    ))
+                }
+            }
+            Expression::Print { arguments, .. } | Expression::Println { arguments, .. } => {
+                for argument in arguments {
+                    let argument_ty = Self::validate_expression(
+                        argument,
+                        bindings,
+                        top_level_functions,
+                        ExpressionUse::PrintArgument,
+                    )?;
+                    if !matches!(argument_ty, Ty::Int | Ty::Float | Ty::Bool | Ty::String) {
+                        return Err(admission_error("print argument type is not admitted"));
+                    }
+                }
+                if expression_use != ExpressionUse::Discarded {
+                    return Err(admission_error("Void expressions cannot be used as values"));
+                }
+                Ok(Ty::Void)
+            }
+            Expression::Comparison { left, right, .. } => {
+                let left_ty = Self::validate_expression(
+                    left,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                let right_ty = Self::validate_expression(
+                    right,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                if !matches!(
+                    (&left_ty, &right_ty),
+                    (&Ty::Int, &Ty::Int)
+                        | (&Ty::Float, &Ty::Float)
+                        | (&Ty::Int, &Ty::Float)
+                        | (&Ty::Float, &Ty::Int)
+                        | (&Ty::Bool, &Ty::Bool)
+                ) {
+                    return Err(admission_error(
+                        "comparison operand types are not admitted; expected numeric operands or Bool with Bool",
+                    ));
+                }
+                Ok(Ty::Bool)
+            }
+            Expression::Logical { left, right, .. } => {
+                Self::validate_expression(
+                    left,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                Self::validate_expression(
+                    right,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                Ok(Ty::Bool)
+            }
+            Expression::Unary { op, operand } => {
+                if matches!(op, crate::ast::UnaryOp::Negate)
+                    && let Expression::IntegerLiteral(value) = operand.as_ref()
+                {
+                    let negated = value.checked_neg().ok_or_else(|| {
+                        admission_error("integer literal is outside the admitted i32 range")
+                    })?;
+                    i32::try_from(negated).map_err(|_| {
+                        admission_error("integer literal is outside the admitted i32 range")
+                    })?;
+                    return Ok(Ty::Int);
+                }
+                let operand_ty = Self::validate_expression(
+                    operand,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                match op {
+                    crate::ast::UnaryOp::Not => Ok(Ty::Bool),
+                    crate::ast::UnaryOp::Negate => {
+                        if let Some(value) = Self::constant_integer_value(expression) {
+                            i32::try_from(value).map_err(|_| {
+                                admission_error("integer literal is outside the admitted i32 range")
+                            })?;
+                        }
+                        Ok(operand_ty)
+                    }
+                }
+            }
+            Expression::ArrayLiteral(elements) => {
+                if elements.is_empty() {
+                    return Err(admission_error(
+                        "empty array literals have no admitted logical element type",
+                    ));
+                }
+                let mut element_ty = Ty::Int;
+                for (index, element) in elements.iter().enumerate() {
+                    let current = Self::validate_expression(
+                        element,
+                        bindings,
+                        top_level_functions,
+                        ExpressionUse::Value,
+                    )?;
+                    if !matches!(current, Ty::Int | Ty::Float) {
+                        return Err(admission_error("only fixed numeric arrays are admitted"));
+                    }
+                    if index == 0 {
+                        element_ty = current;
+                    }
+                }
+                Ok(Ty::Array(Box::new(element_ty), elements.len()))
+            }
+            Expression::ArrayRepeat { value, count } => {
+                let element_ty = Self::validate_expression(
+                    value,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                if !matches!(element_ty, Ty::Int | Ty::Float) {
+                    return Err(admission_error("only fixed numeric arrays are admitted"));
+                }
+                Ok(Ty::Array(Box::new(element_ty), *count))
+            }
+            Expression::IndexAccess { object, index } => {
+                let object_ty = Self::validate_expression(
+                    object,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                let index_ty = Self::validate_expression(
+                    index,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                if !matches!(index_ty, Ty::Int) {
+                    return Err(admission_error("array index must be Int"));
+                }
+                match object_ty {
+                    Ty::Array(element, _) => Ok(*element),
+                    _ => Err(admission_error("indexing requires an admitted fixed array")),
+                }
+            }
+            Expression::Closure { params, body } => {
+                if expression_use != ExpressionUse::Binding {
+                    return Err(admission_error(
+                        "closures are admitted only as compile-time callable bindings",
+                    ));
+                }
+                if Self::closure_body_needs_aggregate_lowering(body) {
+                    return Err(admission_error(
+                        "array construction, iteration, and indexing are not admitted in closure bodies",
+                    ));
+                }
+                let mut closure_bindings = HashMap::new();
+                let mut parameter_types = Vec::new();
+                for parameter in params {
+                    let parameter_ty = Self::admission_type(&parameter.param_type);
+                    if !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool) {
+                        return Err(admission_error(
+                            "closure parameters must be admitted scalar types",
+                        ));
+                    }
+                    parameter_types.push(parameter_ty.clone());
+                    closure_bindings.insert(
+                        parameter.name.clone(),
+                        AdmissionBinding {
+                            ty: parameter_ty,
+                            callable: false,
+                        },
+                    );
+                }
+                let result_ty = Self::validate_expression(
+                    body,
+                    &closure_bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                if !matches!(result_ty, Ty::Int | Ty::Float | Ty::Bool) {
+                    return Err(admission_error(
+                        "closure results must be admitted scalar types",
+                    ));
+                }
+                Ok(Ty::Fn(Self::encode_callable_signature(
+                    &parameter_types,
+                    &result_ty,
+                )))
+            }
+            Expression::EnumVariant { data, .. } => {
+                if let Some(data) = data {
+                    let _ = Self::validate_expression(
+                        data,
+                        bindings,
+                        top_level_functions,
+                        ExpressionUse::Value,
+                    )?;
+                }
+                Err(admission_error(
+                    "enum construction is not admitted in checked IR",
+                ))
+            }
+            Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
+                let _ = Self::validate_expression(
+                    expr,
+                    bindings,
+                    top_level_functions,
+                    ExpressionUse::Value,
+                )?;
+                Err(admission_error(
+                    "borrow and dereference are not admitted in checked IR",
+                ))
+            }
+            Expression::FieldAccess { .. }
+            | Expression::TupleLiteral(_)
+            | Expression::TupleIndex { .. }
+            | Expression::StructLiteral { .. }
+            | Expression::Match { .. } => Err(admission_error(
+                "aggregate expression is not admitted in checked IR",
+            )),
+        }
+    }
+
+    fn closure_body_needs_aggregate_lowering(expression: &Expression) -> bool {
+        match expression {
+            Expression::ArrayLiteral(_)
+            | Expression::ArrayRepeat { .. }
+            | Expression::IndexAccess { .. }
+            | Expression::MethodCall { .. } => true,
+            Expression::Binary { left, right, .. }
+            | Expression::Comparison { left, right, .. }
+            | Expression::Logical { left, right, .. } => {
+                Self::closure_body_needs_aggregate_lowering(left)
+                    || Self::closure_body_needs_aggregate_lowering(right)
+            }
+            Expression::FunctionCall { arguments, .. }
+            | Expression::Print { arguments, .. }
+            | Expression::Println { arguments, .. }
+            | Expression::TupleLiteral(arguments) => arguments
+                .iter()
+                .any(Self::closure_body_needs_aggregate_lowering),
+            Expression::Unary { operand, .. }
+            | Expression::FieldAccess {
+                object: operand, ..
+            }
+            | Expression::TupleIndex {
+                object: operand, ..
+            }
+            | Expression::Borrow { expr: operand, .. }
+            | Expression::Deref(operand)
+            | Expression::Closure { body: operand, .. } => {
+                Self::closure_body_needs_aggregate_lowering(operand)
+            }
+            Expression::StructLiteral { fields, .. } => fields
+                .iter()
+                .any(|(_, value)| Self::closure_body_needs_aggregate_lowering(value)),
+            Expression::EnumVariant { data, .. } => data
+                .as_deref()
+                .is_some_and(Self::closure_body_needs_aggregate_lowering),
+            Expression::Match { expr, arms } => {
+                Self::closure_body_needs_aggregate_lowering(expr)
+                    || arms
+                        .iter()
+                        .any(|arm| Self::closure_body_needs_aggregate_lowering(&arm.body))
+            }
+            Expression::IntegerLiteral(_)
+            | Expression::FloatLiteral(_)
+            | Expression::StringLiteral(_)
+            | Expression::Identifier(_) => false,
+        }
+    }
+
+    fn admission_type(ty: &Type) -> Ty {
+        match ty {
+            Type::Named(name) if matches!(name.as_str(), "i32" | "int") => Ty::Int,
+            Type::Named(name) if matches!(name.as_str(), "f64" | "float") => Ty::Float,
+            Type::Named(name) if name == "bool" => Ty::Bool,
+            Type::Named(name) if matches!(name.as_str(), "string" | "String") => Ty::String,
+            Type::Named(name) => Ty::Struct(name.clone()),
+            Type::Array(element, count) => {
+                Ty::Array(Box::new(Self::admission_type(element)), *count)
+            }
+            Type::Tuple(elements) => Ty::Tuple(elements.iter().map(Self::admission_type).collect()),
+            Type::Reference(inner, mutable) => {
+                Ty::Reference(Box::new(Self::admission_type(inner)), *mutable)
+            }
+            Type::Generic(name, arguments) if name == "Vec" && arguments.len() == 1 => {
+                Ty::Vec(Box::new(Self::admission_type(&arguments[0])))
+            }
+            Type::Generic(name, _) => Ty::TypeParam(name.clone()),
+        }
+    }
+
+    fn constant_integer_value(expression: &Expression) -> Option<i64> {
+        match expression {
+            Expression::IntegerLiteral(value) => Some(*value),
+            Expression::Unary {
+                op: crate::ast::UnaryOp::Negate,
+                operand,
+            } => Self::constant_integer_value(operand)?.checked_neg(),
+            Expression::Binary {
+                op, left, right, ..
+            } => {
+                let left = Self::constant_integer_value(left)?;
+                let right = Self::constant_integer_value(right)?;
+                match op {
+                    crate::ast::BinaryOp::Add => left.checked_add(right),
+                    crate::ast::BinaryOp::Subtract => left.checked_sub(right),
+                    crate::ast::BinaryOp::Multiply => left.checked_mul(right),
+                    crate::ast::BinaryOp::Divide => left.checked_div(right),
+                    crate::ast::BinaryOp::Modulo => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn encode_callable_signature(parameters: &[Ty], result: &Ty) -> String {
+        let type_name = |ty: &Ty| match ty {
+            Ty::Int => "int",
+            Ty::Float => "float",
+            Ty::Bool => "bool",
+            _ => "unsupported",
+        };
+        format!(
+            "({})->{}",
+            parameters
+                .iter()
+                .map(type_name)
+                .collect::<Vec<_>>()
+                .join(","),
+            type_name(result)
+        )
+    }
+
+    fn callable_result_type(signature: &str) -> Result<Ty, IrGenerationError> {
+        match signature.rsplit_once("->").map(|(_, result)| result) {
+            Some("int") => Ok(Ty::Int),
+            Some("float") => Ok(Ty::Float),
+            Some("bool") => Ok(Ty::Bool),
+            _ => Err(IrGenerationError::Admission(
+                "callable signature is not an admitted scalar signature".to_string(),
+            )),
+        }
+    }
+
+    fn normalize_checked_place_ids(
+        functions: &mut HashMap<String, Function>,
+        place_hints: &mut PlaceTypeHints,
+    ) {
+        for function in functions.values_mut() {
+            Self::normalize_instruction_places(&mut function.body, &function.name, place_hints);
+        }
+    }
+
+    fn ensure_checked_main_terminator(functions: &mut HashMap<String, Function>) {
+        let main_has_emitted_definition = functions.values().any(|function| {
+            function.body.iter().any(
+                |instruction| matches!(instruction, Inst::FunctionDef { name, .. } if name == "main"),
+            )
+        });
+        if main_has_emitted_definition {
+            return;
+        }
+        if let Some(main) = functions.get_mut("main")
+            && !main
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+        {
+            main.body.push(Inst::Return(Value::ImmInt(0)));
+        }
+    }
+
+    fn normalize_instruction_places(
+        instructions: &mut [Inst],
+        function_name: &str,
+        place_hints: &mut PlaceTypeHints,
+    ) {
+        let mut maximum_result = None::<u32>;
+        for instruction in instructions.iter() {
+            Self::visit_result_definitions(instruction, &mut |register| {
+                maximum_result =
+                    Some(maximum_result.map_or(register, |maximum| maximum.max(register)));
+            });
+        }
+        let mut next_place = maximum_result.map_or(0, |maximum| maximum.saturating_add(1));
+        let mut places = HashMap::<u32, u32>::new();
+        for instruction in instructions.iter() {
+            match instruction {
+                Inst::Alloca(Value::Reg(register), _)
+                | Inst::AllocaArray {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::GetElementPtr {
+                    result: Value::Reg(register),
+                    ..
+                } => {
+                    places.entry(*register).or_insert_with(|| {
+                        let place = next_place;
+                        next_place = next_place.saturating_add(1);
+                        place
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(hints) = place_hints.get_mut(function_name) {
+            let remapped = std::mem::take(hints)
+                .into_iter()
+                .map(|(id, ty)| {
+                    let normalized = places.get(&id.0).copied().unwrap_or(id.0);
+                    (PlaceId(normalized), ty)
+                })
+                .collect();
+            *hints = remapped;
+        }
+
+        for instruction in instructions {
+            match instruction {
+                Inst::Alloca(place, _) => Self::rewrite_place(place, &places),
+                Inst::AllocaArray { result, .. } => Self::rewrite_place(result, &places),
+                Inst::GetElementPtr { result, base, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(base, &places);
+                }
+                Inst::Store(place, _) => Self::rewrite_place(place, &places),
+                Inst::Load(_, place) => Self::rewrite_place(place, &places),
+                Inst::FunctionDef { name, body, .. } => {
+                    Self::normalize_instruction_places(body, name, place_hints)
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn rewrite_place(value: &mut Value, places: &HashMap<u32, u32>) {
+        if let Value::Reg(register) = value
+            && let Some(replacement) = places.get(register)
+        {
+            *register = *replacement;
+        }
+    }
+
+    fn visit_result_definitions(instruction: &Inst, visitor: &mut impl FnMut(u32)) {
+        let result = match instruction {
+            Inst::Add(result, ..)
+            | Inst::FAdd(result, ..)
+            | Inst::Sub(result, ..)
+            | Inst::FSub(result, ..)
+            | Inst::Mul(result, ..)
+            | Inst::FMul(result, ..)
+            | Inst::Div(result, ..)
+            | Inst::FDiv(result, ..)
+            | Inst::Load(result, ..)
+            | Inst::SIToFP(result, ..)
+            | Inst::FPToSI(result, ..)
+            | Inst::ICmp { result, .. }
+            | Inst::FCmp { result, .. }
+            | Inst::And { result, .. }
+            | Inst::Or { result, .. }
+            | Inst::Not { result, .. }
+            | Inst::Neg { result, .. } => Some(result),
+            Inst::Call {
+                result: Some(result),
+                ..
+            } => Some(result),
+            Inst::FunctionDef { body, .. } => {
+                for nested in body {
+                    Self::visit_result_definitions(nested, visitor);
+                }
+                None
+            }
+            _ => None,
+        };
+        if let Some(Value::Reg(register)) = result {
+            visitor(*register);
+        }
     }
 
     fn instruction_terminates_block(inst: &Inst) -> bool {
@@ -442,13 +1373,25 @@ impl IrGenerator {
             }
             Expression::ArrayRepeat { value, count } => {
                 let (val, elem_ty) = self.generate_expression_ir(*value, function);
-                let arr_ptr = Value::Reg(self.next_ptr);
+                let arr_id = self.next_ptr;
+                let arr_ptr = Value::Reg(arr_id);
                 self.next_ptr += 1;
                 function.body.push(Inst::AllocaArray {
                     result: arr_ptr.clone(),
                     elem_type: "double".to_string(),
                     count,
                 });
+                if self.checked_mode && count == 0 {
+                    let logical_element = match &elem_ty {
+                        Ty::Int => LogicalType::Int,
+                        Ty::Float => LogicalType::Float,
+                        _ => unreachable!("checked admission permits only fixed numeric arrays"),
+                    };
+                    self.checked_place_hints
+                        .entry(function.name.clone())
+                        .or_default()
+                        .insert(PlaceId(arr_id), logical_element);
+                }
                 for i in 0..count {
                     let ep = Value::Reg(self.next_ptr);
                     self.next_ptr += 1;
@@ -540,14 +1483,27 @@ impl IrGenerator {
     ) -> (Option<Value>, Option<Ty>) {
         match (lhs, rhs, result_type) {
             (Value::ImmInt(l), Value::ImmInt(r), Ty::Int) => {
+                if !self.checked_mode {
+                    let result = match op {
+                        "+" => l + r,
+                        "-" => l - r,
+                        "*" => l * r,
+                        "/" => l / r,
+                        _ => return (None, None),
+                    };
+                    return (Some(Value::ImmInt(result)), Some(Ty::Int));
+                }
                 let result = match op {
-                    "+" => l + r,
-                    "-" => l - r,
-                    "*" => l * r,
-                    "/" => l / r,
+                    "+" => l.checked_add(*r),
+                    "-" => l.checked_sub(*r),
+                    "*" => l.checked_mul(*r),
+                    "/" => l.checked_div(*r),
                     _ => return (None, None),
                 };
-                (Some(Value::ImmInt(result)), Some(Ty::Int))
+                match result.filter(|value| i32::try_from(*value).is_ok()) {
+                    Some(result) => (Some(Value::ImmInt(result)), Some(Ty::Int)),
+                    None => (None, None),
+                }
             }
             (Value::ImmFloat(l), Value::ImmFloat(r), Ty::Float) => {
                 let result = match op {
@@ -1019,11 +1975,24 @@ impl IrGenerator {
         current_function.body.push(Inst::Label(loop_body));
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
+            if current_function
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+            {
+                break;
+            }
         }
         if let Some(expr) = body.expression {
             self.generate_expression_ir(expr, current_function);
         }
-        current_function.body.push(Inst::Jump(loop_start));
+        if !current_function
+            .body
+            .last()
+            .is_some_and(Self::instruction_terminates_block)
+        {
+            current_function.body.push(Inst::Jump(loop_start));
+        }
 
         // Pop loop labels
         self.loop_label_stack.pop();
@@ -1089,9 +2058,13 @@ impl IrGenerator {
         current_function
             .body
             .push(Inst::Alloca(loop_var_ptr.clone(), variable.clone()));
+        let initial_element = match &element_ty {
+            Ty::Float => Value::ImmFloat(0.0),
+            _ => Value::ImmInt(0),
+        };
         current_function
             .body
-            .push(Inst::Store(loop_var_ptr.clone(), Value::ImmInt(0)));
+            .push(Inst::Store(loop_var_ptr.clone(), initial_element));
         self.symbol_table
             .insert(variable.clone(), (loop_var_ptr.clone(), element_ty));
 
@@ -1151,20 +2124,33 @@ impl IrGenerator {
 
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
+            if current_function
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+            {
+                break;
+            }
         }
         if let Some(expr) = body.expression {
             self.generate_expression_ir(expr, current_function);
         }
 
-        let next_index = Value::Reg(self.next_reg);
-        self.next_reg += 1;
-        current_function
+        if !current_function
             .body
-            .push(Inst::Add(next_index.clone(), index_reg, Value::ImmInt(1)));
-        current_function
-            .body
-            .push(Inst::Store(index_ptr, next_index));
-        current_function.body.push(Inst::Jump(loop_start));
+            .last()
+            .is_some_and(Self::instruction_terminates_block)
+        {
+            let next_index = Value::Reg(self.next_reg);
+            self.next_reg += 1;
+            current_function
+                .body
+                .push(Inst::Add(next_index.clone(), index_reg, Value::ImmInt(1)));
+            current_function
+                .body
+                .push(Inst::Store(index_ptr, next_index));
+            current_function.body.push(Inst::Jump(loop_start));
+        }
 
         self.loop_label_stack.pop();
         current_function.body.push(Inst::Label(loop_end));
@@ -1225,22 +2211,35 @@ impl IrGenerator {
         current_function.body.push(Inst::Label(loop_body));
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
+            if current_function
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+            {
+                break;
+            }
         }
         if let Some(expr) = body.expression {
             self.generate_expression_ir(expr, current_function);
         }
 
-        let incremented_reg = Value::Reg(self.next_reg);
-        self.next_reg += 1;
-        current_function.body.push(Inst::Add(
-            incremented_reg.clone(),
-            loop_var_reg,
-            Value::ImmInt(1),
-        ));
-        current_function
+        if !current_function
             .body
-            .push(Inst::Store(var_ptr, incremented_reg));
-        current_function.body.push(Inst::Jump(loop_start));
+            .last()
+            .is_some_and(Self::instruction_terminates_block)
+        {
+            let incremented_reg = Value::Reg(self.next_reg);
+            self.next_reg += 1;
+            current_function.body.push(Inst::Add(
+                incremented_reg.clone(),
+                loop_var_reg,
+                Value::ImmInt(1),
+            ));
+            current_function
+                .body
+                .push(Inst::Store(var_ptr, incremented_reg));
+            current_function.body.push(Inst::Jump(loop_start));
+        }
 
         self.loop_label_stack.pop();
         current_function.body.push(Inst::Label(loop_end));
@@ -1270,13 +2269,26 @@ impl IrGenerator {
         // Loop body
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
+            if current_function
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+            {
+                break;
+            }
         }
         if let Some(expr) = body.expression {
             self.generate_expression_ir(expr, current_function);
         }
 
         // Jump back to start (infinite loop)
-        current_function.body.push(Inst::Jump(loop_start));
+        if !current_function
+            .body
+            .last()
+            .is_some_and(Self::instruction_terminates_block)
+        {
+            current_function.body.push(Inst::Jump(loop_start));
+        }
 
         // Pop loop labels
         self.loop_label_stack.pop();
@@ -1360,9 +2372,16 @@ impl IrGenerator {
         params: Vec<crate::ast::Parameter>,
         body: Expression,
     ) -> (Value, Ty) {
-        let closure_id = self.closure_count as i64;
-        let closure_name = format!("__closure_{}", self.closure_count);
-        self.closure_count += 1;
+        let (closure_id, closure_name) = loop {
+            let closure_id = self.closure_count;
+            let candidate = format!("__closure_{closure_id}");
+            self.closure_count += 1;
+            if !self.function_return_types.contains_key(&candidate)
+                && !self.functions.contains_key(&candidate)
+            {
+                break (i64::from(closure_id), candidate);
+            }
+        };
 
         let ir_params: Vec<(String, String)> = params
             .iter()
@@ -1408,6 +2427,8 @@ impl IrGenerator {
             Ty::Bool => Some("i1".to_string()),
             _ => Some("i32".to_string()),
         };
+        self.function_return_types
+            .insert(closure_name.clone(), body_ty.clone());
 
         let closure_fn = Function {
             name: closure_name.clone(),
@@ -1612,6 +2633,19 @@ impl IrGenerator {
         operand: Expression,
         function: &mut Function,
     ) -> (Value, Ty) {
+        if self.checked_mode
+            && matches!(op, crate::ast::UnaryOp::Negate)
+            && let Expression::IntegerLiteral(value) = &operand
+        {
+            return (
+                Value::ImmInt(
+                    value
+                        .checked_neg()
+                        .expect("checked admission validated the negated integer literal"),
+                ),
+                Ty::Int,
+            );
+        }
         let (operand_val, operand_type) = self.generate_expression_ir(operand, function);
 
         let result_reg = Value::Reg(self.next_reg);
@@ -1818,6 +2852,19 @@ impl IrGenerator {
         operand: Expression,
         function_body: &mut Vec<Inst>,
     ) -> (Value, Ty) {
+        if self.checked_mode
+            && matches!(op, crate::ast::UnaryOp::Negate)
+            && let Expression::IntegerLiteral(value) = &operand
+        {
+            return (
+                Value::ImmInt(
+                    value
+                        .checked_neg()
+                        .expect("checked admission validated the negated integer literal"),
+                ),
+                Ty::Int,
+            );
+        }
         let (operand_val, operand_type) =
             self.generate_expression_ir_for_function(operand, function_body);
 
@@ -1851,12 +2898,52 @@ mod tests {
     use super::*;
     use crate::ast::{AstNode, BinaryOp, Block, Expression, Parameter, Statement, Type};
     use crate::types::Ty;
+    use std::panic::{AssertUnwindSafe, catch_unwind};
 
     #[test]
     fn generates_main_function() {
         let mut ir_gen = IrGenerator::new();
         let ir = ir_gen.generate_ir(vec![]);
         assert!(ir.contains_key("main"));
+    }
+
+    #[test]
+    fn checked_direct_ast_rejects_unlowerable_nodes_without_unwinding() {
+        let cases = vec![
+            (
+                "typed modulo",
+                vec![AstNode::Statement(Statement::Let {
+                    name: "remainder".to_string(),
+                    mutable: false,
+                    type_annotation: None,
+                    value: Some(Expression::Binary {
+                        op: BinaryOp::Modulo,
+                        left: Box::new(Expression::IntegerLiteral(5)),
+                        right: Box::new(Expression::IntegerLiteral(2)),
+                        ty: Some(Ty::Int),
+                    }),
+                })],
+            ),
+            (
+                "top-level expression",
+                vec![AstNode::Expression(Expression::IntegerLiteral(1))],
+            ),
+            (
+                "break outside loop",
+                vec![AstNode::Statement(Statement::Break)],
+            ),
+            (
+                "continue outside loop",
+                vec![AstNode::Statement(Statement::Continue)],
+            ),
+        ];
+
+        for (name, ast) in cases {
+            let outcome =
+                catch_unwind(AssertUnwindSafe(|| IrGenerator::new().try_generate_ir(ast)));
+            let result = outcome.unwrap_or_else(|_| panic!("{name}: checked API unwound"));
+            assert!(result.is_err(), "{name}: checked API published partial IR");
+        }
     }
 
     #[test]

@@ -27,9 +27,20 @@ The CPU path can fall back to direct Clang compilation if `llc` is missing. It
 also prints a success message before interpreting a nonzero program exit status,
 so status reporting needs an explicit contract test.
 
-The active compiler pipeline still has semantic and typed-IR invariant failures.
-Successful execution of a few programs therefore does not make the CPU language
-surface stable.
+At the audit basis, the active compiler pipeline still had semantic and typed-IR
+invariant failures. Successful execution of a few programs therefore does not make
+the CPU language surface stable.
+
+The local `CORE-010` production candidate closes the selected scalar IR-publication
+boundary: checked source lowering is internally verified, final graph-transformed
+and retargeted LLVM is externally verified with a qualified LLVM 22 tool before
+cache/write/native publication, and invalid input/output produces no artifact.
+Verifier subprocesses are contained as Unix process groups or Windows kill-on-close
+jobs; Windows children are created suspended and assigned before their first
+instruction so descendants cannot escape the deadline.
+Focused contracts and the complete repository gate pass locally. This is pending
+exact-diff review and public CI and does not expand the CPU feature or execution
+classification.
 
 ## ROCm path
 
@@ -64,6 +75,10 @@ intrinsics, memory transfers, launches, synchronization, or backend object/link
 steps. Existing tests prove deterministic transformation and helper emission,
 not CPU/GPU execution equivalence.
 
+In the local `CORE-010` candidate, standalone graph optimization verifies both its
+arbitrary LLVM input and final transformed output before publication. Verification
+does not establish semantic equivalence of the textual transformation.
+
 ## Quantization
 
 Quantization rewrites operations to scalar `double` helper calls. CPU, ROCm, and
@@ -74,6 +89,10 @@ The audit also identified incorrect algebra in INT8 multiplication/division
 dequantization, and conversion occurs before later clamps can protect exceptional
 or out-of-range inputs. Current tests cover transformation shape and determinism,
 not a trusted reference comparison across modes/backends.
+
+In the local `CORE-010` candidate, standalone quantization verifies both arbitrary
+LLVM input and final transformed output before publication. This guards LLVM module
+validity only; it does not resolve the numerical-correctness findings above.
 
 ## Required gates for a backend claim
 
