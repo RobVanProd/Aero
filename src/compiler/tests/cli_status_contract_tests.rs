@@ -379,6 +379,99 @@ printf '%s\n' '#!/bin/sh' 'exit {child_exit}' > "$out"
     bin
 }
 
+fn write_no_run_native_tools(workspace: &TestWorkspace) -> PathBuf {
+    let bin = workspace.path("no-run-native-tools");
+    fs::create_dir_all(&bin).expect("create no-run native tool directory");
+
+    #[cfg(windows)]
+    {
+        let source = workspace.write(
+            "no-run-native.rs",
+            r#"use std::env;
+use std::fs;
+use std::path::PathBuf;
+
+fn output_arg() -> PathBuf {
+    let args: Vec<_> = env::args_os().collect();
+    let index = args.iter().position(|arg| arg == "-o").expect("missing -o");
+    PathBuf::from(&args[index + 1])
+}
+
+fn mark_forbidden_invocation(kind: &str) {
+    let sentinel = env::var_os("AERO_TEST_EXECUTION_SENTINEL").expect("sentinel path");
+    fs::write(sentinel, kind.as_bytes()).expect("write forbidden invocation sentinel");
+}
+
+fn main() {
+    let executable = env::current_exe().expect("current exe");
+    let name = executable.file_stem().unwrap().to_string_lossy().to_ascii_lowercase();
+    if env::args_os().any(|arg| arg == "--version") {
+        println!("LLVM version 22.1.0");
+        return;
+    }
+    if name == "llc" {
+        fs::copy(&executable, output_arg()).expect("copy executable object sentinel");
+        return;
+    }
+    if name == "clang" {
+        mark_forbidden_invocation("link invoked");
+        std::process::exit(98);
+    }
+    mark_forbidden_invocation("emitted object executed");
+    std::process::exit(97);
+}
+"#,
+        );
+        let llc = bin.join("llc.exe");
+        let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        let output = Command::new(rustc)
+            .arg(&source)
+            .arg("-o")
+            .arg(&llc)
+            .output()
+            .expect("compile no-run native tool");
+        assert!(
+            output.status.success(),
+            "no-run native tool compilation failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        fs::copy(&llc, bin.join("clang.exe")).expect("copy no-run fake clang");
+    }
+
+    #[cfg(not(windows))]
+    {
+        let llc = bin.join("llc");
+        fs::write(
+            &llc,
+            r#"#!/bin/sh
+if [ "${1:-}" = "--version" ]; then echo "LLVM version 22.1.0"; exit 0; fi
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
+done
+printf '%s\n' '#!/bin/sh' 'printf "%s\n" "emitted object executed" > "$AERO_TEST_EXECUTION_SENTINEL"' 'exit 97' > "$out"
+/bin/chmod +x "$out"
+"#,
+        )
+        .expect("write no-run fake llc");
+        make_executable(&llc);
+
+        let clang = bin.join("clang");
+        fs::write(
+            &clang,
+            r#"#!/bin/sh
+if [ "${1:-}" = "--version" ]; then echo "LLVM version 22.1.0"; exit 0; fi
+printf '%s\n' 'link invoked' > "$AERO_TEST_EXECUTION_SENTINEL"
+exit 98
+"#,
+        )
+        .expect("write no-run fake clang");
+        make_executable(&clang);
+    }
+
+    bin
+}
+
 fn write_failing_native_tools(workspace: &TestWorkspace) -> PathBuf {
     let bin = workspace.path("failing-native-tools");
     fs::create_dir_all(&bin).expect("create failing native tool directory");
@@ -462,6 +555,63 @@ exit 42
     bin
 }
 
+fn write_non_regular_output_native_tools(workspace: &TestWorkspace) -> PathBuf {
+    let bin = workspace.path("non-regular-output-native-tools");
+    fs::create_dir_all(&bin).expect("create non-regular-output native tool directory");
+
+    #[cfg(windows)]
+    {
+        let source = workspace.write(
+            "non-regular-output-llc.rs",
+            r#"use std::path::PathBuf;
+
+fn main() {
+    if std::env::args_os().any(|arg| arg == "--version") {
+        println!("LLVM version 22.1.0");
+        return;
+    }
+    let args: Vec<_> = std::env::args_os().collect();
+    let index = args.iter().position(|arg| arg == "-o").expect("missing -o");
+    std::fs::create_dir(PathBuf::from(&args[index + 1])).expect("create directory at output path");
+}
+"#,
+        );
+        let llc = bin.join("llc.exe");
+        let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        let output = Command::new(rustc)
+            .arg(&source)
+            .arg("-o")
+            .arg(&llc)
+            .output()
+            .expect("compile non-regular-output llc");
+        assert!(
+            output.status.success(),
+            "non-regular-output llc compilation failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[cfg(not(windows))]
+    {
+        let llc = bin.join("llc");
+        fs::write(
+            &llc,
+            r#"#!/bin/sh
+if [ "${1:-}" = "--version" ]; then echo "LLVM version 22.1.0"; exit 0; fi
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
+done
+/bin/mkdir "$out"
+"#,
+        )
+        .expect("write non-regular-output llc");
+        make_executable(&llc);
+    }
+
+    bin
+}
+
 fn configure_native_run(command: &mut Command, verifier: &Path, native_tools: &Path) {
     command
         .env("AERO_LLVM_OPT", verifier)
@@ -517,6 +667,44 @@ fn explicit_help_and_version_are_successful() {
             true,
             &[],
         );
+    }
+    assert_no_failures(failures);
+}
+
+#[test]
+fn ambiguous_gpu_aliases_fail_invocation_before_source_access() {
+    const DIAGNOSTIC: &str = "target `gpu` is ambiguous and does not prove a usable device; choose cpu, rocm, or cuda explicitly";
+
+    let workspace = TestWorkspace::new("ambiguous-gpu");
+    let source = workspace.path("must-not-be-read.aero");
+    let mut failures = Vec::new();
+    for (label, command, option) in [
+        ("build-target-gpu", "build", "--target"),
+        ("build-backend-gpu", "build", "--backend"),
+        ("run-target-gpu", "run", "--target"),
+        ("run-backend-gpu", "run", "--backend"),
+    ] {
+        let output_path = workspace.path(&format!("{label}.ll"));
+        let mut command_args = vec![OsString::from(command), path_arg(&source)];
+        if command == "build" {
+            command_args.extend([OsString::from("-o"), path_arg(&output_path)]);
+        }
+        command_args.extend([OsString::from(option), OsString::from("gpu")]);
+        let output = run_aero(&workspace, &command_args);
+        record_case(
+            &mut failures,
+            label,
+            &output,
+            INVOCATION_FAILURE,
+            &[],
+            &[DIAGNOSTIC],
+            true,
+            false,
+            &["completed successfully", "Program executed successfully"],
+        );
+        if output_path.exists() {
+            failures.push(format!("{label}: ambiguous target published output"));
+        }
     }
     assert_no_failures(failures);
 }
@@ -1415,7 +1603,7 @@ fn write_backend_and_recognized_unavailable_failures_return_one_without_false_su
         &output,
         OPERATIONAL_FAILURE,
         &[],
-        &["CUDA run target is not implemented"],
+        &["CUDA run", "not implemented", "--target cpu"],
         false,
         false,
         &["Program executed successfully"],
@@ -1439,6 +1627,136 @@ fn write_backend_and_recognized_unavailable_failures_return_one_without_false_su
     );
 
     assert_no_failures(failures);
+}
+
+fn assert_run_workspace_is_clean(workspace: &TestWorkspace) {
+    let run_root = workspace.path("target/aero-run");
+    if run_root.exists() {
+        let entries = fs::read_dir(&run_root)
+            .expect("read run artifact root")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect run artifact entries");
+        assert!(
+            entries.is_empty(),
+            "temporary run artifacts remain: {entries:?}"
+        );
+    }
+}
+
+#[test]
+fn rocm_run_with_regular_object_fails_closed_without_execution() {
+    let workspace = TestWorkspace::new("rocm-object-only");
+    let source = workspace.write("valid.aero", "fn main() { let value: int = 1; }\n");
+    let verifier = write_fake_verifier(&workspace, "rocm-object", true);
+    let native_tools = write_no_run_native_tools(&workspace);
+    let execution_sentinel = workspace.path("forbidden-link-or-execution.txt");
+    let output = run_aero_configured(
+        &workspace,
+        &[
+            OsString::from("run"),
+            path_arg(&source),
+            OsString::from("--target"),
+            OsString::from("rocm"),
+        ],
+        |command| {
+            configure_native_run(command, &verifier, &native_tools);
+            command.env("AERO_TEST_EXECUTION_SENTINEL", &execution_sentinel);
+        },
+    );
+    let mut failures = Vec::new();
+    record_case(
+        &mut failures,
+        "rocm-object-only",
+        &output,
+        OPERATIONAL_FAILURE,
+        &[
+            "ROCm object stage complete: llc produced a temporary file; no link or execution occurred.",
+        ],
+        &[
+            "ROCm run is unavailable: HIP link and device launch are not implemented; no program was executed.",
+        ],
+        false,
+        false,
+        &[
+            "Program executed successfully",
+            "object generation validated",
+            "staged for HIP launcher integration",
+        ],
+    );
+    if execution_sentinel.exists() {
+        failures.push(format!(
+            "rocm-object-only: forbidden native stage ran: {}",
+            fs::read_to_string(&execution_sentinel)
+                .unwrap_or_else(|error| format!("unreadable sentinel: {error}"))
+        ));
+    }
+
+    let cuda_output = run_aero_configured(
+        &workspace,
+        &[
+            OsString::from("run"),
+            path_arg(&source),
+            OsString::from("--backend"),
+            OsString::from("cuda"),
+        ],
+        |command| configure_verifier(command, &workspace, &verifier),
+    );
+    record_case(
+        &mut failures,
+        "cuda-unavailable-no-execution",
+        &cuda_output,
+        OPERATIONAL_FAILURE,
+        &[],
+        &[
+            "CUDA run is unavailable: object generation, link, and device launch are not implemented; no program was executed. Use --target cpu for execution.",
+        ],
+        false,
+        false,
+        &[
+            "Program executed successfully",
+            "CUDA run target is not implemented",
+        ],
+    );
+    assert_no_failures(failures);
+    assert_run_workspace_is_clean(&workspace);
+}
+
+#[test]
+fn rocm_run_requires_a_regular_object_emission_postcondition() {
+    let workspace = TestWorkspace::new("rocm-non-regular-object");
+    let source = workspace.write("valid.aero", "fn main() { let value: int = 1; }\n");
+    let verifier = write_fake_verifier(&workspace, "rocm-non-regular", true);
+    let native_tools = write_non_regular_output_native_tools(&workspace);
+    let output = run_aero_configured(
+        &workspace,
+        &[
+            OsString::from("run"),
+            path_arg(&source),
+            OsString::from("--backend"),
+            OsString::from("rocm"),
+        ],
+        |command| configure_native_run(command, &verifier, &native_tools),
+    );
+    let mut failures = Vec::new();
+    record_case(
+        &mut failures,
+        "rocm-non-regular-object",
+        &output,
+        OPERATIONAL_FAILURE,
+        &[],
+        &[
+            "ROCm object generation failed: llc reported success but did not create the requested regular object file.",
+        ],
+        false,
+        false,
+        &[
+            "ROCm object stage complete",
+            "Program executed successfully",
+            "object generation validated",
+        ],
+    );
+    assert_no_failures(failures);
+    assert_run_workspace_is_clean(&workspace);
 }
 
 #[test]
