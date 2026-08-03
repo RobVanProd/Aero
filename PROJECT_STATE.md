@@ -4,11 +4,13 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 18 implementation review — public-green preregistration `2c61535` freezes
-the conservative 22/16 boundary. The local `CORE-017` candidate now passes exactly 22
-strict lexer/parser-retention tests, lists exactly 38 total, and retains exactly 16
-explicit quarantines. Exact full gate passes. No production file or capability class
-changed; exact three-review approval remains before publication.
+Milestone 18 acceptance closure — exact three-review-approved `CORE-017`
+implementation `8be8c21` is public and all eight checks pass. The Phase 5 target now
+passes exactly 22 strict lexer/parser-retention tests, lists exactly 38 total, and
+retains exactly 16 explicit quarantines; the exact full gate passes. Only a
+record-only exact-reviewed/public-green closure remains before R-012 can move from
+candidate-partially-controlled to partially controlled. No production file or
+capability class changed.
 
 ## Active hypothesis
 
@@ -78,6 +80,13 @@ not inferred.
   `2c61535092f22f2f513aac0fcee9d34d9c621212`. Three independent reviewers approved
   exact diff `ebe348e00721596f768b900547b9d19b56e44df4` and tree
   `1d890b93351e54fb6903aa952957494a517d40a9` with no P0-P3 findings. Both
+  compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  CodeQL pass; draft PR #4 is open and mergeable.
+- Public `CORE-017` implementation head:
+  `8be8c21696cf98602c82e1e5e4fdfc6bf10e9777`. After the first snapshot was rejected
+  for an underasserted method body, all three independent reviewers approved corrected
+  exact diff `a417c7e3c076e7ff6951ce9c181ea99d6bdfa3b6` and tree
+  `83bf4f0ba8f973e7ec39167e53114cf5714fd03b` with no P0-P3 findings. Both
   compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
   CodeQL pass; draft PR #4 is open and mergeable.
 - Accepted public `CORE-015` final-state sync head:
@@ -260,7 +269,7 @@ not inferred.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
-  `cc984d0afe4c63f3c322f8da7c34fc666f8ec072`.
+  `8be8c21696cf98602c82e1e5e4fdfc6bf10e9777`.
 - Previous public implementation record: `CORE-015` changed only the two
   preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
@@ -550,12 +559,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Verify only the one test file, three current evidence documents, and six records
-changed, then freeze the full-green candidate's canonical diff/tree for three
-independent reviews. Publish only after all approve and require all eight public
-checks green before record-only closure. Do not change production, semantics,
-generic-impl AST retention, backends, package/release state, benchmarks, registry, or
-`master`.
+Prepare only the minimal six-record `CORE-017` acceptance closure, run the exact full
+gate, freeze its canonical diff/tree, and obtain three independent reviews. Publish
+only after all approve, then require both compiler-test jobs, stable/nightly Rust, all
+three CodeQL analyses, and aggregate CodeQL to pass. Do not change production or test
+files, semantic or generic-impl AST behavior, backends, package/release state,
+benchmarks, registry, or `master`.
 
 ## Unauthorized actions
 

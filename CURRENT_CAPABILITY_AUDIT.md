@@ -597,12 +597,13 @@ upgrading any artifact.
   to partially controlled under `CORE-017`. No syntax test can elevate a capability
   class or establish ownership, borrow checking, generic/trait enforcement, or
   execution.
-- Public-green preregistration `2c61535` binds the conservative 22/16 split. The local
-  test/evidence candidate now passes exactly 22 strict syntax-retention tests with 16
-  explicit quarantines and 38 total listed entries. Current CLAUDE/framework/roadmap
-  lines classify this as parsed-only evidence. Exact full gate passes. These remain
-  candidate results pending exact review and public green; no capability class
-  changes.
+- Public-green preregistration `2c61535` binds the conservative 22/16 split. Exact
+  three-review-approved implementation `8be8c21` passes exactly 22 strict syntax-
+  retention tests with 16 explicit quarantines and 38 total listed entries. Current
+  CLAUDE/framework/roadmap lines classify this as parsed-only evidence, the exact full
+  gate passes, and all eight public checks are green. R-012 remains candidate-
+  partially-controlled until the record-only acceptance closure is exactly reviewed
+  and publicly green; no capability class changes.
 
 ## Audit completion
 

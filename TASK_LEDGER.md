@@ -2761,6 +2761,17 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Full-gate evidence: exact `./tools/test.sh` exits zero after formatting,
   correctness Clippy, 139 library tests, 148 binary tests, every integration target
   including Phase 5's 22 passed / 16 ignored result, and doc tests.
-- Status: local implementation candidate is fully green and awaits exact three-review
-  approval. Publication and closure remain blocked; R-012 is not yet partially
-  controlled.
+- Implementation review/publication: the first exact snapshot was rejected by the
+  IR/parser reviewer because the non-generic impl test accepted any nonempty method
+  body. The assertion was tightened to exactly one `return "point";` statement and no
+  tail expression, all evidence gates were rerun, and no prior approval was reused.
+  The type/safety, IR/parser, and backend/claim reviewers then independently approved
+  corrected exact diff `a417c7e3c076e7ff6951ce9c181ea99d6bdfa3b6` and tree
+  `83bf4f0ba8f973e7ec39167e53114cf5714fd03b` with no P0-P3 findings. Public commit
+  `8be8c21696cf98602c82e1e5e4fdfc6bf10e9777` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. CI runs are
+  `30796167886`, `30796170222`, Rust `30796170162`, and CodeQL `30796168359`.
+- Status: implementation checkpoint public and green; record-only acceptance closure
+  is the sole remaining `CORE-017` action. R-012 stays candidate-partially-controlled
+  until that exact closure is reviewed, published, and publicly green. Cargo overlap,
+  299 dormant tests, and every semantic capability claim remain outside this slice.
