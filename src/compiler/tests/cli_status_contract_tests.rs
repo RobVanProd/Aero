@@ -1395,11 +1395,10 @@ fn pre_publication_and_established_operational_failures_return_one() {
         let path_blocker = partial_project.join("path-blocker");
         fs::write(&path_blocker, "regular file blocks child traversal")
             .expect("write partial-init path blocker");
-        symlink(
-            path_blocker.join("impossible-child"),
-            partial_src.join("main.aero"),
-        )
-        .expect("create deterministic dangling source symlink");
+        let symlink_target = path_blocker.join("impossible-child");
+        let source_entry = partial_src.join("main.aero");
+        symlink(&symlink_target, &source_entry)
+            .expect("create deterministic dangling source symlink");
 
         let output = run_aero(
             &workspace,
@@ -1411,16 +1410,42 @@ fn pre_publication_and_established_operational_failures_return_one() {
             &output,
             OPERATIONAL_FAILURE,
             &[],
-            &["failed to write source"],
+            &["refusing to overwrite existing source file"],
             true,
             false,
             &["Initialized Aero project"],
         );
-        if !partial_project.join("aero.toml").exists() {
+        if partial_project.join("aero.toml").exists() {
             failures.push(
-                "init-partial-write-failure: expected the allowed partial manifest evidence"
-                    .to_string(),
+                "init-partial-write-failure: unexpectedly created a partial manifest".to_string(),
             );
+        }
+        match fs::symlink_metadata(&source_entry) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {}
+            Ok(_) => failures.push(
+                "init-partial-write-failure: dangling source symlink was replaced".to_string(),
+            ),
+            Err(error) => failures.push(format!(
+                "init-partial-write-failure: dangling source symlink was not preserved: {error}"
+            )),
+        }
+        match fs::read_link(&source_entry) {
+            Ok(target) if target == symlink_target => {}
+            Ok(target) => failures.push(format!(
+                "init-partial-write-failure: dangling source symlink target changed to {}",
+                target.display()
+            )),
+            Err(error) => failures.push(format!(
+                "init-partial-write-failure: could not read preserved source symlink: {error}"
+            )),
+        }
+        match fs::read_to_string(&path_blocker) {
+            Ok(contents) if contents == "regular file blocks child traversal" => {}
+            Ok(_) => failures
+                .push("init-partial-write-failure: path blocker contents changed".to_string()),
+            Err(error) => failures.push(format!(
+                "init-partial-write-failure: path blocker was not preserved: {error}"
+            )),
         }
     }
 
