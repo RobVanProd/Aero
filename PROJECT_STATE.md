@@ -4,13 +4,12 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 17 implementation review — `CORE-016` preregistration is public and green
-at `1575914`; reviewed public red `4b94dbd` reproduces exactly two preservation
-passes and five claim failures. The local implementation candidate now passes the
-focused 7/7 claim target, full 7/7 CLI status target, and exact repository gate.
-Publication remains blocked until all three reviewers approve its exact staged diff/
-tree. Language semantics, package version, report schema, backends, releases, and
-benchmarks remain frozen.
+Milestone 17 acceptance closure — exact three-review-approved `CORE-016`
+implementation `cc984d0` is public and all eight checks pass. The focused 7/7 claim
+target, full 7/7 CLI status target, and exact repository gate are green. Only a
+record-only exact-reviewed/public-green closure remains before R-008 can move from
+candidate-controlled to controlled. Language semantics, package version, report
+schema, backends, releases, and benchmarks remain frozen.
 
 ## Active hypothesis
 
@@ -59,6 +58,12 @@ but visibly design-only or historical. No semantic or release decision is inferr
   compiler-test jobs and nightly Rust reproduce the intended 2-pass/5-fail target;
   stable reached its test step before matrix fail-fast cancellation. All three
   CodeQL analyses and aggregate CodeQL pass; draft PR #4 remains mergeable.
+- Public `CORE-016` implementation head:
+  `cc984d0afe4c63f3c322f8da7c34fc666f8ec072`. Three independent reviewers approved
+  exact canonical staged diff `e0c2bbb61f33ea53e1c07d472a21a631170c22e7`
+  and tree `8d5ba37b0a58c715cf72721ade23471c5fa4fa7c` with no P0-P3 findings. Both
+  compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  CodeQL pass; draft PR #4 is open, mergeable, and remains intentionally draft.
 - Accepted public `CORE-015` final-state sync head:
   `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`. Three independent reviewers approved
   exact staged diff `674b1831accef7b714ba21799249f346cc5a7491` and tree
@@ -528,13 +533,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze and stage only the allowed `CORE-016` implementation candidate and evidence
-records, compute its exact canonical diff/tree, and obtain three independent reviews.
-Publish only after all three approve, then require both compiler-test jobs, stable/
-nightly Rust, all three CodeQL analyses, and aggregate CodeQL to pass before preparing
-a record-only acceptance closure. Do not change parser/type/ownership semantics,
-package version, conformance algorithms or JSON schema, backend behavior, benchmarks,
-registry, release state, or `master`.
+Prepare only the minimal `CORE-016` acceptance records, run the exact full gate,
+freeze their canonical diff/tree, and obtain three independent reviews. Publish only
+after all three approve, then require both compiler-test jobs, stable/nightly Rust,
+all three CodeQL analyses, and aggregate CodeQL to pass. Do not change production or
+test files, parser/type/ownership semantics, package version, conformance algorithms
+or JSON schema, backend behavior, benchmarks, registry, release state, or `master`.
 
 ## Unauthorized actions
 

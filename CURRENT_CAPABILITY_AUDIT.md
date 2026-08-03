@@ -571,6 +571,11 @@ upgrading any artifact.
   claims. Focused claim and CLI targets each pass 7/7 and exact `./tools/test.sh`
   passes including doc tests. These are candidate results pending exact review and
   public green CI; they do not yet close R-008 or elevate any capability class.
+- Exact three-review-approved implementation `cc984d0` is now public and passes both
+  compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  CodeQL. The preceding candidate results are therefore implementation evidence, but
+  R-008 remains candidate-controlled until the record-only acceptance closure is
+  exactly reviewed and publicly green. No capability class is elevated.
 
 ## Audit completion
 

@@ -98,7 +98,8 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   implementation candidate derives CLI presentation from package metadata and
   classifies those checks and design/history documents without changing capability
   behavior; its focused claim and CLI targets pass 7/7 and exact full gate passes.
-  Exact review/public green evidence is still required. Language semantics, package
+  Exact three-review-approved implementation `cc984d0` passes all eight public
+  checks; only record-only acceptance closure remains. Language semantics, package
   version, report schema, conformance algorithms, and release state remain frozen.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer

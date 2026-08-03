@@ -943,9 +943,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-021 — Separate compiler package version from the v1 language design target
 
 - Date: 2026-08-03
-- Status: implementation candidate; preregistration is public and green at
-  `1575914`, and reviewed public red commit `4b94dbd` reproduces the frozen failure
-  matrix. Local implementation evidence is green but awaits exact review/publication.
+- Status: implementation accepted at public-green checkpoint `cc984d0`; record-only
+  `CORE-016` acceptance closure remains pending exact review/publication.
 - Decision: `src/compiler/Cargo.toml` remains the single source for the compiler
   package/implementation version. The CLI obtains that value at compile time with
   `env!("CARGO_PKG_VERSION")`. Standalone `-v` and `--version` print exactly
@@ -996,6 +995,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `CARGO_PKG_VERSION`, reclassifies current/design/history prose without changing
   semantics or report compatibility, passes its focused 7/7 claim target and 7/7 CLI
   status target, and passes exact `./tools/test.sh` including doc tests.
+- Implementation acceptance evidence: three reviewers approved exact diff
+  `e0c2bbb61f33ea53e1c07d472a21a631170c22e7` and tree
+  `8d5ba37b0a58c715cf72721ade23471c5fa4fa7c` with no P0-P3 findings. Public
+  `cc984d0` passes both compiler-test jobs, stable/nightly Rust, all three CodeQL
+  analyses, and aggregate CodeQL without changing Cargo metadata, language semantics,
+  conformance compatibility, backend, benchmark, registry, or release state.
 - Alternatives rejected: changing Cargo to `1.0.0`; choosing a new language version;
   adding a `version` subcommand; renaming JSON fields; calling deterministic reruns
   mechanized semantics; deleting design documents; presenting parsed or dormant

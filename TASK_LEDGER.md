@@ -2618,6 +2618,13 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   after formatting/correctness Clippy, 139 library tests, 148 binary tests, every
   integration target including the new 7/7 target, and doc tests. The established 38
   Phase 5 ignored tests remain unchanged.
-- Status: implementation candidate locally green and awaiting exact three-review
-  approval. Publication and acceptance closure remain prohibited until all three
-  reviewers approve this exact staged diff/tree and public CI is fully green.
+- Implementation review/publication: the type/safety, IR/codegen, and backend/claim
+  reviewers independently approved exact canonical staged diff
+  `e0c2bbb61f33ea53e1c07d472a21a631170c22e7` and tree
+  `8d5ba37b0a58c715cf72721ade23471c5fa4fa7c` with no P0-P3 findings. Public commit
+  `cc984d0afe4c63f3c322f8da7c34fc666f8ec072` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. CI runs are
+  `30792532836`, `30792536017`, Rust `30792536010`, and CodeQL `30792533602`.
+- Status: implementation checkpoint public and green; record-only acceptance closure
+  is the sole remaining `CORE-016` action. R-008 stays candidate-controlled until
+  that exact closure is reviewed, published, and publicly green.
