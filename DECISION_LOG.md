@@ -813,7 +813,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-020 — Selected initialized binding annotations are exact pre-IR contracts
 
 - Date: 2026-08-02
-- Status: preregistered for `CORE-015`; no test or production change exists
+- Status: preregistration approved and public at `4f31f0c`; tests-only red snapshot
+  created locally for exact review; no production change exists
 - Decision: existing exact scalar annotation behavior for `int`/`i32`/`float`/`f64`
   remains unchanged wherever semantics fully analyzes binding statements; syntax-
   preflighted trait default bodies remain outside that enforcement. `CORE-015` adds
@@ -895,6 +896,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   numeric mismatch, then prove a non-generic selected mismatch still rejects after
   scope cleanup. These are quarantine controls, not support. Focused and complete
   gates plus three exact reviews are mandatory before each publication stage.
+- Tests-only red evidence: the 16-test target is exactly 8 preservation passes and
+  8 intended contract failures. The exact repository gate passes formatting and
+  correctness Clippy before stopping on that target; an all-target no-fail-fast run
+  identifies it as the only failing target. Root and direct-module invalid bindings
+  both return success from check/build and publish requested LLVM artifacts. This is
+  failure evidence only and establishes no production behavior.
 - Alternatives rejected: checking annotations only in CLI; keeping nonnumeric
   annotations documentary; relying on LLVM verification; checking only the first
   array element; promoting mixed array values to float; dropping array length from

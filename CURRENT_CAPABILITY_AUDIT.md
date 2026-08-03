@@ -494,6 +494,11 @@ upgrading any artifact.
   arrays, and all new generic-scope annotation/array behavior must retain pre-task
   outcomes under required green controls. No global recursive mapping, conversion, new type,
   assignment, ownership, aggregate lowering, or backend claim is selected.
+- The local tests-only red target now proves that frozen boundary with 8 passing
+  preservation groups and exactly 8 intended failing contract groups. An all-target
+  no-fail-fast run leaves every prior active suite green and identifies only the new
+  target as failing. Root and direct-module check/build still report success, and
+  both builds publish requested LLVM artifacts. Production remains unchanged.
 
 ## Audit completion
 

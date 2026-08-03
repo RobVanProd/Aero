@@ -2357,4 +2357,14 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Owner: lead-owned two-phase vertical slice. Independent type, IR/codegen, and
   backend/claim reviewers must approve the exact preregistration, tests-only red
   checkpoint, implementation candidate, and acceptance closure before publication.
-- Status: preregistered only; no test or production change exists.
+- Tests-only red evidence: the new 16-test target is exactly 8 passing preservation
+  groups and 8 intended failing contract groups on public preregistration head
+  `4f31f0c`. The failures cover the selected semantic and direct checked-IR binding
+  matrix, numeric-array semantic ordering, universal binary metadata, non-generic
+  impls, analyzer reuse after a generic error, library no-unwind behavior, and both
+  root/direct-module CLI layouts. Both invalid CLI builds publish the requested LLVM
+  artifact. The exact `./tools/test.sh` passes formatting and correctness Clippy and
+  stops on only the intended new target; `cargo test --no-fail-fast` proves all prior
+  active targets pass, with 38 pre-existing Phase 5 tests still ignored.
+- Status: tests-only red snapshot created locally; production unchanged. Exact diff
+  and tree require three independent approvals before commit/publication.

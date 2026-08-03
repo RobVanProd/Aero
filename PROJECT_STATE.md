@@ -4,10 +4,10 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 16 preregistration — freeze the two-phase `CORE-015` binding-type
-contract selected by clean-head `AUDIT-021`, then publish no tests or production
-change until the exact contract receives independent approval. Accepted `CORE-014`
-remains closed at public head `1535ce2`; benchmark execution remains quarantined.
+Milestone 16 tests-only red review — independently verify the exact `CORE-015`
+binding-type contract before publishing its failing tests. The preregistration is
+public and green at `4f31f0c`; no production source has changed. Accepted `CORE-014`
+remains closed at `1535ce2`; benchmark execution remains quarantined.
 
 ## Active hypothesis
 
@@ -45,6 +45,11 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Current public preregistration head:
+  `4f31f0ca3941389f2cc730136c2540301ee5bfe0`. Three independent reviewers approved
+  its exact staged diff `9316f77aed456729624c2d86afaf7110487af84b` and tree
+  `bd782da2b5881c1eb50a614400d73b1bb924b033` with no P0-P3 findings. All eight
+  public checks pass and the draft PR is cleanly mergeable.
 - Current public acceptance-closure head:
   `1535ce2a214f512c140535e7c42799af1f920d5c`. Its exact reviewed staged diff is
   `6e05c26763ed3a1c6e4ec359361867f76e9d4c4c` and tree is
@@ -195,17 +200,20 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `a78dd004aa37c39212711027b777698118d9dc02`.
-- Worktree: `AUDIT-021` and `CORE-015` preregistration records only. Clean-head
-  probes reproduced five initialized annotation mismatches that pass `check`, exit
-  zero from `build`, and publish requested LLVM artifacts. Mixed-element arrays and
-  float indexes fail without artifacts, but only after semantic success in checked
-  IR/verifier phases. Checked admission also trusts optional binary type metadata
-  and disagrees with semantics about lowercase `string`; the frozen contract rejects
-  spoofed metadata but leaves the lowercase mapping divergence quarantined. The slice
-  selects four false successes outside generic scopes; custom/contextual, structural,
-  nonnumeric-array, and generic-scope gaps remain open under preservation controls.
-  No test or production file has changed. Production compiler behavior remains
-  accepted public implementation `a78dd00` because `CORE-014` changed no compiler code.
+- Worktree: the new tests-only `CORE-015` target plus minimal evidence updates; no
+  production source has changed. Its focused result is exactly 8 passing preservation
+  groups and 8 intended failing contract groups. Failures expose all four selected
+  binding false successes, semantic numeric-array element/index/child ordering,
+  checked-IR numeric and selected binding parity, universal binary metadata,
+  non-generic impl behavior, generic-scope cleanup after error, public library
+  no-unwind rejection, and root/direct-module CLI status/diagnostic/artifact behavior.
+  Both CLI layouts exit zero from `check` and `build`; each build publishes its
+  requested LLVM artifact. The exact `./tools/test.sh` gate passes formatting and
+  correctness Clippy, then stops only at this intended red target. A separate
+  `cargo test --no-fail-fast` proves every prior active target passes and reports
+  this target as the sole failure (8 pass / 8 fail); 38 pre-existing Phase 5 tests
+  remain ignored. Production compiler behavior remains the accepted public
+  implementation `a78dd00` because `CORE-014` changed no compiler code.
   One earlier full-gate attempt stopped in the unchanged
   `cli_status_contract_tests`; that target immediately passed 7/7 in isolation and
   the unchanged complete gate passed on rerun. The interruption is not reproduced
@@ -457,12 +465,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze and independently review the exact `AUDIT-021` / `CORE-015`
-preregistration. Only after all three reviews approve may a tests-only red snapshot
-be created for the selected initialized-binding and numeric-array phase contract. Do
-not change lexer/parser syntax, type representation, conversions, assignment, ownership,
-aggregate layout/codegen, backend behavior, version policy, benchmarks, registry,
-release state, or `master`.
+Stage and independently review the exact `CORE-015` tests-only red snapshot. Only
+after all three reviewers approve that exact diff and tree may it be committed and
+published; production implementation begins only after the public red checkpoint is
+recorded. Do not change lexer/parser syntax, type representation, conversions,
+assignment, ownership, aggregate layout/codegen, backend behavior, version policy,
+benchmarks, registry, release state, or `master`.
 
 ## Unauthorized actions
 
