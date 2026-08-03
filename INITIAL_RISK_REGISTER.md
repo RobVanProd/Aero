@@ -281,3 +281,11 @@ Exact triple-reviewed one-file implementation `a3d110e`, tree `79ccfca1`, diff
 aggregate `91821038577`. The selected parser-start UTF-16 adapter is controlled,
 but R-009 remains HIGH/HIGH and OPEN for token/AST end spans, recovery retention,
 and trustworthy end-to-end ranges.
+
+Corrected exact `CORE-024` closure `226b7fb`, tree `1337945c`, diff `861b5ec3`,
+passes compiler `30854853182` / `30854856449`, Rust `30854856190`, CodeQL
+`30854853829`, and aggregate `91823492290` after three fresh approvals. R-009
+remains HIGH/HIGH and OPEN. `AUDIT-031` is preregistered to rank the complete
+remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
+from this clean head, excluding every accepted sub-slice and carrying no
+implementation authority.

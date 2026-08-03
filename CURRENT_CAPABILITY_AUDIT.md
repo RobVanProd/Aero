@@ -915,6 +915,14 @@ upgrading any artifact.
   the synthetic one-unit end, scalar internal locations, lexical path, and every
   compiler/backend stage are unchanged. LSP remains EXPERIMENTAL, diagnostics remain
   PARTIAL, and R-009 remains OPEN for real spans and recovery retention.
+- Corrected exact `CORE-024` record closure `226b7fb`, tree `1337945c`, diff
+  `861b5ec3`, received three fresh approvals with no P0-P3 findings after rejection
+  of a stale-chronology snapshot. Compiler `30854853182` / `30854856449`, Rust
+  `30854856190`, CodeQL `30854853829`, and aggregate `91823492290` all pass. This
+  completes only the selected parser-start adapter; no capability row is promoted.
+  `AUDIT-031` is preregistered to re-rank all eleven remaining OPEN or PARTIALLY
+  CONTROLLED risks from a clean public head without inherited ordering, repeated
+  slices, implementation authority, or unsupported language/backend claims.
 
 ## Audit completion
 

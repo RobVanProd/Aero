@@ -4,19 +4,19 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 29 `CORE-024` closure - the parser-diagnostic UTF-16 adapter is accepted at
-public-green implementation `a3d110e`. The six-record closure snapshot passes its
-exact full local gate and now requires three exact reviews, unchanged publication,
-and all eight public checks. No broader R-009 span/recovery work or next
-implementation is authorized.
+Milestone 30 `AUDIT-031` preregistration - `CORE-024` is complete at public-green
+record closure `226b7fb`. The next action is a strictly read-only, clean-head ranking
+of all eleven remaining OPEN or PARTIALLY CONTROLLED risks, but audit work is not
+authorized until this full-local-gate-green six-record contract passes its review
+and public gates. No next implementation is authorized.
 
 ## Active hypothesis
 
-Accepted evidence confirms that threading source through the private parser adapter
-corrects astral-prefix parser coordinates without changing internal scalar locations,
-parsing, language semantics, or any compiler/backend phase. The existing synthetic
-one-unit end range and all ASCII/lexical behavior remain fixed; closing the records
-must not promote LSP, diagnostics, or broader R-009 capability.
+After excluding every accepted sub-slice, a delta-aware comparison of current
+reproducibility, severity, reach, semantic readiness, phase count, compatibility
+ambiguity, and tests-first feasibility can identify one bounded next correction or
+an explicit stop without inventing semantics. R-009 remains open beyond the accepted
+parser-start adapter; R-010 is only a prior runner-up, not an inherited selection.
 
 ## Founding-framework checkpoint
 
@@ -42,6 +42,12 @@ must not promote LSP, diagnostics, or broader R-009 capability.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-024` record closure
+  `226b7fbb89cfe9854b54d776ff5416bed516a670`, tree `1337945c`, diff `861b5ec3`,
+  passes compiler `30854853182` / `30854856449`, stable/nightly Rust `30854856190`,
+  all three analyses in CodeQL `30854853829`, and aggregate `91823492290`. Three
+  fresh reviewers approved after rejecting a prior stale-chronology snapshot. PR #4
+  remains open, draft, and mergeable; upstream `master` remains `8f8c733`.
 - Public `CORE-024` preregistration `b8fb1d2`, tree `1af5d40e`, diff `2f359899`,
   passes compiler `30853169966` / `30853174632`, Rust `30853174801`, CodeQL
   `30853170646`, and aggregate `91818026672`.
@@ -630,11 +636,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for this full-local-gate-green six-record `CORE-024`
-closure, publish it unchanged, and require all eight public checks. Do not add
-another implementation; broaden the slice into parser/span/recovery work; alter
-workflows/dependencies; publish benchmarks/packages/releases; modify immutable
-claim evidence; or touch `master`.
+Obtain three exact approvals for this full-local-gate-green six-record `AUDIT-031`
+preregistration, publish it unchanged, and require all eight public checks before
+any audit work. Do not edit tests/source; run probes/benchmarks; assume R-010 is
+selected; broaden R-009 into span/recovery work; alter workflows/dependencies;
+publish packages/releases; modify immutable claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

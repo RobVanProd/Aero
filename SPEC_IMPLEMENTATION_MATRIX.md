@@ -243,6 +243,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   every parse/semantic/IR/backend stage remain unchanged. Diagnostics/source spans
   stays PARTIAL and LSP stays EXPERIMENTAL; this is not token/AST span, recovery, or
   end-to-end range evidence.
+- Corrected exact record closure `226b7fb`, tree `1337945c`, diff `861b5ec3`, is
+  triple-reviewed and all-eight public green in compiler `30854853182` /
+  `30854856449`, Rust `30854856190`, CodeQL `30854853829`, and aggregate
+  `91823492290`. Diagnostics/source spans remain PARTIAL and LSP remains
+  EXPERIMENTAL. Preregistered read-only `AUDIT-031` may re-rank residual risks but
+  cannot change a matrix cell, capability class, or implementation.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

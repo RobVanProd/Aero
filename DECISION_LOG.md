@@ -1363,13 +1363,13 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-029 - LSP parser diagnostics use UTF-16 character coordinates
 
 - Date: 2026-08-03
-- Status: implemented and public-green at `a3d110e`; exact six-record closure
-  pending review and public verification. Preregistration `b8fb1d2` is all-eight
-  green; tests-only `ab8508e` reproduces the intended scalar/UTF-16 mismatch; exact
-  triple-reviewed implementation tree `79ccfca1` and diff `74bfbcea` pass focused,
-  LSP, full-local, and all-eight public gates in compiler runs `30854094706` /
-  `30854099595`, Rust `30854099899`, CodeQL `30854094981`, and aggregate
-  `91821038577`.
+- Status: accepted at public record closure `226b7fb`. Preregistration `b8fb1d2` is
+  all-eight green; tests-only `ab8508e` reproduces the intended scalar/UTF-16
+  mismatch; exact triple-reviewed implementation tree `79ccfca1` and diff
+  `74bfbcea` pass focused, LSP, full-local, and all-eight public gates. Corrected
+  exact closure tree `1337945c`, diff `861b5ec3`, passes compiler `30854853182` /
+  `30854856449`, Rust `30854856190`, CodeQL `30854853829`, and aggregate
+  `91823492290` after three fresh approvals with no P0-P3 findings.
 - Decision: retain internal parser `SourceLocation` as one-based line and Unicode-
   scalar column data, but project parser diagnostic start columns to zero-based
   UTF-16 character offsets at the LSP boundary using the complete source line.

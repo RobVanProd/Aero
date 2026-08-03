@@ -3925,3 +3925,73 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   active integration and doc test. It is pending exact review and public all-eight
   verification. R-009 remains OPEN for token/AST end spans, recovery retention, and
   trustworthy end-to-end ranges.
+
+- Final closure: corrected exact six-record tree
+  `1337945c51ecb8ffb9cb3aa1be33f4d3bd28dad4` and diff
+  `861b5ec3f78fd39ae1fb2d297c10df6002584b71` received three fresh approvals with
+  no P0-P3 findings after a prior snapshot was rejected for stale gate chronology.
+  It was published unchanged as `226b7fbb89cfe9854b54d776ff5416bed516a670`.
+  Compiler runs `30854853182` / `30854856449`, stable/nightly Rust `30854856190`,
+  CodeQL `30854853829`, and aggregate `91823492290` all pass.
+- Status: complete at public record closure `226b7fb`. Only parser-diagnostic start
+  projection at the LSP boundary is accepted. R-009 remains HIGH/HIGH and OPEN;
+  diagnostics/source spans remain PARTIAL and LSP remains EXPERIMENTAL.
+
+## AUDIT-031 - Clean-head residual-risk re-ranking after CORE-024
+
+- Task ID/date/owner: `AUDIT-031`, 2026-08-03, lead-owned read-only reconciliation
+  with independent type/safety, IR/codegen, and backend/claim auditors.
+- Observed behavior: `CORE-024` is complete at public closure `226b7fb`. Its selected
+  parser-start UTF-16 adapter is controlled, but R-009 remains OPEN for token/AST
+  end spans, recovery retention, and trustworthy end-to-end ranges. The complete
+  remaining OPEN or PARTIALLY CONTROLLED set is R-002, R-004, R-005, R-006, R-007,
+  R-009, R-010, R-011, R-012, R-013, and R-016. No next implementation is
+  authorized.
+- Hypothesis: a clean-head, delta-aware full-set ranking can identify the highest-
+  severity bounded residual with frozen semantics, deterministic tests-first
+  evidence, and at most two compiler phases, without repeating an accepted slice,
+  inheriting a prior ordering, or treating records, annotations, flags, simulation,
+  object emission, or editor coordinate projection as broader capability.
+- Frozen audit semantics: the basis is the exact commit publishing this contract,
+  only after its full local gate, three exact approvals, unchanged publication, and
+  all eight public checks pass. Each auditor independently ranks all eleven
+  residuals by current reproducibility, severity, reach, semantic readiness, phase
+  count, compatibility ambiguity, and tests-first feasibility. Accepted sub-slices
+  remain excluded from candidate scope. Any next task requires complete evidence,
+  explicit exclusions, one frozen contract, and a separate reviewed authorization.
+- Candidate boundaries and stops: R-002 excludes accepted numeric, selected binding/
+  array, and non-entry Boolean helper contracts; unresolved entry/ABI and excluded
+  types/shapes remain. R-004 needs ownership/provenance semantics. R-005 needs an
+  unchecked-API compatibility policy or a distinct bounded trusted-path defect.
+  R-006 excludes accepted direct modules/options controls but retains duplicated
+  orchestration. R-007 requires real hardware execution/correctness evidence. R-009
+  excludes the accepted parser-start adapter but retains spans/recovery. R-010 needs
+  an authority/compatibility boundary. R-011 needs aggregate bounds/layout/execution
+  semantics. R-012 needs an exact dormant-inventory slice. R-013 excludes accepted
+  status/wording/init controls but retains rollback, helper, maturity, and execution
+  boundaries. R-016 needs a supported-toolchain policy.
+- Allowed files/actions: during the audit, root and auditors are strictly read-only.
+  After all findings are reconciled, only `TASK_LEDGER.md`, `DECISION_LOG.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  and `INITIAL_RISK_REGISTER.md` may record the result and separately frozen next
+  contract. No test, probe, benchmark, artifact, source, workflow, dependency,
+  package/release/registry, immutable claim-evidence, backend, or `master` change.
+- Acceptance: this preregistration passes exact `./tools/test.sh`, three exact-
+  snapshot reviews, unchanged publication, and all eight public checks before audit
+  work begins. Then three complete independent reports rank every residual and state
+  findings, evidence, commands, uncertainty, regression risks, and recommended next
+  action. The lead reconciles one bounded selection or an explicit stop. Any test or
+  implementation edit requires a later reviewed task contract.
+- Risks: stale residual accounting; ranking titles instead of active behavior;
+  reselecting an accepted slice; inventing language, ownership, aggregate, entry,
+  grammar, toolchain, or backend semantics; mistaking test or editor evidence for
+  capability; or allowing an invalid program to IR/backend.
+- Stop conditions: omitted residual; edit/test/probe/artifact/external query during
+  the audit; implementation before reconciliation and a separate task contract;
+  unsupported source-type fallback; more than two compiler phases; unresolved
+  semantic choice; workflow/dependency, benchmark, package/release/registry,
+  immutable evidence, history rewrite, destructive-system, or `master` action.
+- Status: preregistered and full-local-gate green with 139/139 library and 149/149
+  binary tests plus every active integration and doc test. Audit work is prohibited
+  until this exact six-record contract passes three exact reviews, unchanged
+  publication, and all eight public checks.
