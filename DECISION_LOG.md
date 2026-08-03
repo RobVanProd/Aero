@@ -1432,7 +1432,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-031 - Known scalar top-level arity fails at checked admission before IR
 
 - Date: 2026-08-03
-- Status: implementation accepted at public `8c2b2ec`; record closure pending.
+- Status: accepted and record-closed at public `0a940ea`.
 - Decision: checked direct-AST admission must reject an exact-arity mismatch for a
   known eligible top-level helper before raw IR generation. Eligibility requires
   exactly one top-level declaration for the name; a verifier-valid function symbol
@@ -1472,3 +1472,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   HIGH/CRITICAL and PARTIALLY CONTROLLED; unchecked APIs, argument typing, other
   signatures/callables, IR/verifier/codegen/backend behavior, and every capability
   claim remain open or unchanged.
+- Closure evidence: corrected six-record closure `0a940ea`, tree `6ec4c609`, diff
+  `4e1db178`, received three approvals and passes compiler `30862783787` /
+  `30862786131`, stable/nightly Rust `30862786150`, CodeQL `30862784231`, and
+  aggregate `91848258218`. Superseded snapshot `615c00b9` was rejected before
+  publication for stale gate chronology.
+- Audit handoff: `AUDIT-033` may independently re-rank all eleven remaining OPEN or
+  PARTIALLY CONTROLLED risks from this clean public head only after its separate exact
+  six-record authorization is reviewed, published unchanged, and all-eight green. It
+  carries no implementation or capability-promotion authority.

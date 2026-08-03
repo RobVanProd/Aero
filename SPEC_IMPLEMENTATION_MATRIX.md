@@ -296,6 +296,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   malformed or duplicate signature behavior, source semantics, verifier defense,
   codegen, ABI, and backends remain unchanged. No matrix cell or capability class is
   promoted, and broader R-005 remains PARTIALLY CONTROLLED.
+- Corrected exact `CORE-026` record closure `0a940ea`, tree `6ec4c609`, diff
+  `4e1db178`, is triple-approved and all-eight public green in compiler
+  `30862783787` / `30862786131`, Rust `30862786150`, CodeQL `30862784231`, and
+  aggregate `91848258218`. No matrix cell changes. Preregistered read-only
+  `AUDIT-033` may re-rank all eleven residual risks only after its own exact gates;
+  it cannot change a matrix cell, capability class, or implementation.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

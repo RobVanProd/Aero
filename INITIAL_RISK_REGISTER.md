@@ -357,3 +357,12 @@ failures, valid programs, verifier defense, source semantics, codegen, ABI, and
 backends remain unchanged. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED;
 unchecked APIs, broader callable/type contracts, and every public capability claim
 remain open or unchanged.
+
+Corrected exact `CORE-026` record closure `0a940ea`, tree `6ec4c609`, diff
+`4e1db178`, passes compiler `30862783787` / `30862786131`, stable/nightly Rust
+`30862786150`, CodeQL `30862784231`, and aggregate `91848258218` after three exact
+approvals. Superseded closure snapshot `615c00b9` was rejected before publication for
+stale gate chronology. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+`AUDIT-033` is preregistered to rank the complete remaining R-002/R-004/R-005/R-006/
+R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the clean public closure,
+excluding every accepted sub-slice and carrying no implementation authority.

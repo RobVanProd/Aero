@@ -989,6 +989,15 @@ upgrading any artifact.
   before raw IR after all frozen precedence checks. Malformed/duplicate signatures,
   accepted programs, verifier defense, source semantics, codegen, ABI, and backends
   remain unchanged. R-005 stays PARTIALLY CONTROLLED and no capability is promoted.
+- Corrected exact `CORE-026` record closure `0a940ea`, tree `6ec4c609`, diff
+  `4e1db178`, received three approvals and passes compiler `30862783787` /
+  `30862786131`, stable/nightly Rust `30862786150`, CodeQL `30862784231`, and
+  aggregate `91848258218`. This closes only the selected checked-admission phase-
+  order guard; no capability class or matrix row is promoted.
+- `AUDIT-033` is preregistered to re-rank the complete remaining R-002/R-004/R-005/
+  R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the clean public closure.
+  It excludes every accepted sub-slice, must begin read-only only after its own exact
+  review/public gates, and carries no implementation or capability authority.
 
 ## Audit completion
 

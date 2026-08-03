@@ -4360,3 +4360,83 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   state requires three exact reviews, unchanged publication, and public all-eight
   verification. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no capability
   class or matrix cell is promoted.
+
+- Final closure: superseded exact six-record snapshot `615c00b9`, tree `63c0b8ab`,
+  diff `6ca586e6`, was rejected before publication because it still required a
+  confirming gate after that gate had completed. Corrected snapshot
+  `2ddf7bc969ff5bff795bb7a46ce91ac062070c45`, tree
+  `6ec4c60975f6283ad88f553305b54e0c1ce49c0f`, and diff
+  `4e1db1785f252d7e8ee26e745df9d5a96886a391` passed a third exact full gate and
+  received three approvals with no P0-P3 findings. It was published unchanged as
+  `0a940eadae5974abb11154c0e484f4178bfed144`. Compiler runs `30862783787` /
+  `30862786131`, stable/nightly Rust `30862786150`, all three analyses in CodeQL
+  `30862784231`, and aggregate `91848258218` all pass.
+- Status: complete at public record closure `0a940ea`. Only the exact eligible known
+  scalar/Void checked-admission arity phase-order guard is accepted. R-005 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; no broader callable/type contract, matrix
+  cell, or capability class is accepted.
+
+## AUDIT-033 - Clean-head residual-risk re-ranking after CORE-026
+
+- Task ID/date/owner: `AUDIT-033`, 2026-08-03, lead-owned read-only reconciliation
+  with independent type/safety, IR/codegen, and backend/claim auditors.
+- Observed behavior: `CORE-026` is complete at public closure `0a940ea`. Its selected
+  eligible direct checked-AST arity mismatch now stops at Admission before raw IR,
+  but R-005 remains PARTIALLY CONTROLLED for unchecked compatibility APIs, argument
+  typing, other signatures/callables, and non-externally-verified publication paths.
+  The complete remaining OPEN or PARTIALLY CONTROLLED set is R-002, R-004, R-005,
+  R-006, R-007, R-009, R-010, R-011, R-012, R-013, and R-016. No next implementation
+  is authorized.
+- Hypothesis: a clean-head, delta-aware full-set ranking can identify the highest-
+  severity bounded residual with frozen semantics, deterministic tests-first evidence,
+  and at most two compiler phases, or stop explicitly, without repeating an accepted
+  slice, inheriting a prior ordering, or treating rejection, records, annotations,
+  flags, simulation, object emission, or editor projection as broader capability.
+- Frozen audit semantics: the basis is the exact commit publishing this contract,
+  only after its full local gate, three exact approvals, unchanged publication, and
+  all eight public checks pass. Each auditor independently ranks all eleven residuals
+  by current reproducibility, severity, reach, semantic readiness, phase count,
+  compatibility ambiguity, and tests-first feasibility. Accepted sub-slices remain
+  excluded. Any next task requires complete evidence, explicit exclusions, one
+  separately reviewed frozen contract, and failing regression evidence first.
+- Candidate boundaries and stops: R-002 excludes accepted numeric, selected binding/
+  array, non-entry Boolean helper, and initialized exact outer tuple-rejection
+  contracts; unresolved entry/ABI, excluded types/shapes, tuple support, and generic
+  behavior remain. R-004 needs ownership/provenance semantics. R-005 excludes the
+  accepted checked arity slice but retains unchecked-API policy and other bounded
+  trusted-path defects. R-006 excludes direct modules/options controls but retains
+  duplicated orchestration. R-007 requires real hardware execution/correctness
+  evidence. R-009 excludes the parser-start adapter but retains spans/recovery.
+  R-010 needs an authority/compatibility boundary. R-011 needs aggregate bounds/
+  layout/execution semantics. R-012 needs an exact dormant-inventory population.
+  R-013 excludes accepted status/wording/init controls but retains rollback, helper,
+  maturity, and execution boundaries. R-016 needs a supported-toolchain policy.
+- Allowed files/actions: during the audit, root and auditors are strictly read-only.
+  After all findings are reconciled, only `TASK_LEDGER.md`, `DECISION_LOG.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  and `INITIAL_RISK_REGISTER.md` may record the result and separately freeze a next
+  task. No test, probe, benchmark, artifact, source, workflow, dependency, package/
+  release/registry, immutable claim-evidence, backend, external-query, or `master`
+  action is authorized.
+- Acceptance: this authorization passes exact `./tools/test.sh`, three exact-snapshot
+  reviews, unchanged publication, and all eight public checks before audit work begins.
+  Then three complete independent reports rank every residual and state findings,
+  evidence, files changed, commands, test results, uncertainty, regression risks,
+  commit SHA, and recommended next action. The lead reconciles one bounded selection
+  or an explicit stop. Any test or implementation edit requires a later reviewed task
+  contract and tests-first publication.
+- Risks: stale residual accounting; ranking labels instead of active behavior;
+  reselecting an accepted slice; inventing language, ownership, aggregate, entry,
+  grammar, toolchain, or backend semantics; mistaking rejection, test, annotation,
+  editor, object-emission, or simulation evidence for capability; or allowing an
+  invalid program to IR/backend.
+- Stop conditions: omitted residual; edit/test/probe/artifact/external query during
+  the audit; implementation before reconciliation and a separate reviewed task
+  contract; unsupported source-type fallback; more than two compiler phases;
+  unresolved semantic or compatibility choice; workflow/dependency, benchmark,
+  package/release/registry, immutable evidence, history rewrite, destructive-system,
+  or `master` action.
+- Status: preregistered and both initial and chronology-confirming full-local-gate
+  green with 139/139 library and 149/149 binary tests plus every active integration
+  and doc test. Audit work is prohibited until this exact six-record contract passes
+  three exact reviews, unchanged publication, and all eight public checks.

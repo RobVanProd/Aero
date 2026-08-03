@@ -4,25 +4,24 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 32 `CORE-026` record closure - triple-reviewed public implementation
-`8c2b2ec` now rejects exact-arity mismatches for eligible known scalar top-level
-helpers during checked admission, after all frozen precedence checks and before raw
-IR generation. Both compiler jobs, stable/nightly Rust, all three CodeQL analyses,
-and the aggregate check are green. Both the initial and chronology-confirming exact
-closure gates are green with 139/139 library and 149/149 binary tests plus every
-active integration and doc test. The bounded six-record state now requires exact
-review. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED, and no capability is
-promoted.
+Milestone 33 `AUDIT-033` authorization - `CORE-026` is complete at triple-reviewed,
+all-eight-green public record closure `0a940ea`. Its exact checked-admission arity
+guard is accepted, while R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+Immediate work is to gate a separate clean-head, read-only re-ranking of the complete
+remaining risk set. No test, production, workflow, dependency, backend, benchmark,
+artifact, capability, release, or `master` change is authorized by this audit.
+Both the initial and chronology-confirming exact authorization gates are green with
+139/139 library and 149/149 binary tests plus every active integration and doc test;
+the final six-record state requires exact review before publication.
 
 ## Active hypothesis
 
-For exactly one verifier-valid, unique, non-reserved, nongeneric, non-entry top-level
-scalar/Void signature, checked admission now retains optional arity independently
-from the existing result contract and checks it after all argument children, local-
-callable precedence, and Void-as-value validation. The accepted evidence shows only
-direct-AST wrong-arity failures move from post-generation Verification to exact pre-
-generation Admission; malformed or duplicate signatures, accepted programs, valid
-IR, verifier defense, and every backend remain unchanged.
+From the clean public CORE-026 closure, three independent delta-aware rankings of all
+remaining OPEN or PARTIALLY CONTROLLED risks can select one highest-severity bounded
+residual with frozen semantics and at most two compiler phases, or stop explicitly.
+Accepted sub-slices remain excluded; semantic ambiguity, compatibility policy,
+hardware requirements, unsupported capability inference, or unavailable deterministic
+tests-first evidence are stop conditions rather than implementation authority.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -56,6 +55,13 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-026` record closure
+  `0a940eadae5974abb11154c0e484f4178bfed144`, tree `6ec4c609`, diff `4e1db178`,
+  passes compiler `30862783787` / `30862786131`, stable/nightly Rust `30862786150`,
+  all three analyses in CodeQL `30862784231`, and aggregate `91848258218`. Three
+  exact reviewers approved the corrected closure after rejecting superseded snapshot
+  `615c00b9` for stale gate chronology. PR #4 remains open and draft; upstream
+  `master` remains `8f8c733`.
 - Accepted public `CORE-026` implementation
   `8c2b2ecd88fcbecd2423254376cc00f0c3f0fcc3`, tree `eabd8939`, diff `c4623bc1`,
   passes focused 1/1, checked-IR 7/7, exact `./tools/test.sh` at 139/139 library and
@@ -709,12 +715,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three fresh exact approvals for the full-local-gate-green six-record
-`CORE-026` closure, publish it unchanged, and require all eight public checks. Only
-then may a separately reviewed read-only residual-risk audit be authorized. Do not
-broaden callable or type
-semantics, change source/IR/verifier/codegen/backend behavior, promote capability,
-alter workflows/dependencies, publish external artifacts, modify immutable claim
-evidence, or touch `master`.
+`AUDIT-033` authorization, publish it unchanged, and require all eight public checks.
+Only then may the three auditors begin static repository inspection. Do not edit
+production/tests, run probes or benchmarks,
+create artifacts, make external queries during the audit, promote capability, alter
+workflows/dependencies, modify immutable claim evidence, or touch `master`.
 
 ## Unauthorized actions
 
