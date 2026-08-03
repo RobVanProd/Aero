@@ -341,3 +341,19 @@ existing verifier diagnostics. The corrected contract requires one declaration a
 verifier-valid, unique, non-reserved signature symbols, with green preservation
 controls. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no risk status or
 capability changes from authorization text alone.
+
+Corrected `CORE-026` authorization `7dc3eac` is triple-approved and all-eight public
+green. A first tests-first snapshot was rejected before publication for caller order
+and missing composite/reference result controls. Corrected triple-reviewed tests-only
+`1538a3e`, tree `8f3cd8fb`, publicly reproduces exactly 6 passed/1 failed with only
+the selected phase-order target red; CodeQL and aggregate remain green.
+
+Triple-reviewed implementation `8c2b2ec`, tree `eabd8939`, passes focused 1/1,
+checked-IR 7/7, the exact full local gate, compiler `30862232159` / `30862233829`,
+stable/nightly Rust `30862233777`, CodeQL `30862232615`, and aggregate `91846586968`.
+Known eligible scalar/Void direct checked-AST wrong-arity calls now stop at Admission
+before raw IR, while child/local/Void precedence, malformed or duplicate signature
+failures, valid programs, verifier defense, source semantics, codegen, ABI, and
+backends remain unchanged. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED;
+unchecked APIs, broader callable/type contracts, and every public capability claim
+remain open or unchanged.

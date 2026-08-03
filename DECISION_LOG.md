@@ -1432,7 +1432,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-031 - Known scalar top-level arity fails at checked admission before IR
 
 - Date: 2026-08-03
-- Status: frozen for tests-first evidence; not yet implemented or accepted.
+- Status: implementation accepted at public `8c2b2ec`; record closure pending.
 - Decision: checked direct-AST admission must reject an exact-arity mismatch for a
   known eligible top-level helper before raw IR generation. Eligibility requires
   exactly one top-level declaration for the name; a verifier-valid function symbol
@@ -1460,3 +1460,15 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   new arity guard.
 - Revisit argument type admission or broader callable contracts only through a
   separately frozen semantic and compatibility decision with tests-first evidence.
+- Evidence: corrected triple-reviewed authorization `7dc3eac` is all-eight public
+  green. Corrected triple-reviewed tests-only `1538a3e`, tree `8f3cd8fb`, reproduces
+  exactly 6 passed/1 failed in compiler runs `30861809364` / `30861811517` and the
+  nightly job in Rust `30861811567`, with stable fail-fast cancelled and CodeQL/
+  aggregate green. Triple-reviewed implementation `8c2b2ec`, tree `eabd8939`, passes
+  focused 1/1, checked-IR 7/7, the exact full local gate, compiler `30862232159` /
+  `30862233829`, stable/nightly Rust `30862233777`, CodeQL `30862232615`, and
+  aggregate `91846586968`.
+- Residual: this accepts only the checked-admission phase-order guard. R-005 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; unchecked APIs, argument typing, other
+  signatures/callables, IR/verifier/codegen/backend behavior, and every capability
+  claim remain open or unchanged.

@@ -4,24 +4,25 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 32 `CORE-026` authorization - public-green read-only `AUDIT-032` is
-complete at `b6b1c63`. Its three independent full rankings and unanimous targeted
-reconciliation select a distinct R-005 phase-order defect: direct checked-AST wrong-
-arity calls to known admitted scalar top-level helpers reach raw IR before verifier
-rejection. Immediate work is to gate the separate tests-first authorization; no test
-or production edit is yet authorized. The first review snapshot was rejected at P2
-for ambiguous malformed/duplicate signature eligibility and stale gate chronology;
-the corrected six-record contract is full-local-gate green with 139/139 library and
-149/149 binary tests plus every active integration and doc test.
+Milestone 32 `CORE-026` record closure - triple-reviewed public implementation
+`8c2b2ec` now rejects exact-arity mismatches for eligible known scalar top-level
+helpers during checked admission, after all frozen precedence checks and before raw
+IR generation. Both compiler jobs, stable/nightly Rust, all three CodeQL analyses,
+and the aggregate check are green. Both the initial and chronology-confirming exact
+closure gates are green with 139/139 library and 149/149 binary tests plus every
+active integration and doc test. The bounded six-record state now requires exact
+review. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED, and no capability is
+promoted.
 
 ## Active hypothesis
 
 For exactly one verifier-valid, unique, non-reserved, nongeneric, non-entry top-level
-scalar/Void signature, collecting arity with the existing checked-admission result
-contract and checking it after all argument children, local-callable precedence, and
-Void-as-value validation will move only direct-AST wrong-arity failures from post-
-generation Verification to exact pre-generation Admission. Malformed or duplicate
-signatures, accepted source programs, and valid IR remain unchanged.
+scalar/Void signature, checked admission now retains optional arity independently
+from the existing result contract and checks it after all argument children, local-
+callable precedence, and Void-as-value validation. The accepted evidence shows only
+direct-AST wrong-arity failures move from post-generation Verification to exact pre-
+generation Admission; malformed or duplicate signatures, accepted programs, valid
+IR, verifier defense, and every backend remain unchanged.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -55,6 +56,32 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-026` implementation
+  `8c2b2ecd88fcbecd2423254376cc00f0c3f0fcc3`, tree `eabd8939`, diff `c4623bc1`,
+  passes focused 1/1, checked-IR 7/7, exact `./tools/test.sh` at 139/139 library and
+  149/149 binary tests plus every active integration and doc test, compiler
+  `30862232159` / `30862233829`, stable/nightly Rust `30862233777`, all three
+  analyses in CodeQL `30862232615`, and aggregate `91846586968`. Three exact
+  reviewers found no P0-P3 issue. Only checked admission changed; verifier, generated
+  IR for valid programs, source semantics, codegen, ABI, and backends are unchanged.
+- Triple-reviewed tests-only `1538a3e384e0ccee8f55c335295687c2d5c5e07a`, tree
+  `8f3cd8fb`, diff `5b3b2519`, publicly reproduces exactly 6 passed/1 failed in
+  compiler `30861809364` / `30861811517` and nightly Rust in run `30861811567`:
+  only `known_scalar_top_level_call_arity_fails_at_checked_admission` fails, with
+  too-few and too-many results still at Verification rather than Admission. Stable
+  is fail-fast cancelled. CodeQL `30861809624` and aggregate `91845291318` pass.
+- Public `CORE-026` authorization `7dc3eac9f8bf0729a8bcc91481c8a36d2f0a8bd1`,
+  tree `5f06ef4f`, diff `8bd00ae0`, passes compiler `30861160746` / `30861162982`,
+  stable/nightly Rust `30861162836`, CodeQL `30861160881`, and aggregate
+  `91843332635` after three exact approvals. Earlier authorization and tests-first
+  snapshots were rejected before publication until signature eligibility, gate
+  chronology, caller-first ordering, and composite/reference result controls were
+  explicit.
+- Public-green read-only `AUDIT-032` authorization
+  `b6b1c639de35904521679f995db3418112d78f6a`, tree `c8803965`, diff `891bb8a4`,
+  passes compiler `30858876643` / `30858879497`, stable/nightly Rust `30858879480`,
+  CodeQL `30858875767`, and aggregate `91836318450`. Its three complete rankings
+  and targeted reconciliation selected the exact one-phase CORE-026 boundary.
 - Accepted public `CORE-025` record closure
   `b0fe242c0bfaf4aaf3030f36ec333de700dd18a3`, tree `2a5d233f`, diff `98916b4d`,
   passes compiler `30858384541` / `30858387195`, stable/nightly Rust `30858387193`,
@@ -681,13 +708,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three fresh exact approvals for the corrected full-local-gate-green six-record
-`CORE-026` authorization, publish it unchanged, and require all eight public checks.
-Only then add the single
-tests-first checked-IR regression target. Do not edit production/tests before those
-gates, broaden callable or type semantics, change source/IR/verifier/codegen/backend
-behavior, promote capability, alter workflows/dependencies, publish external
-artifacts, modify immutable claim evidence, or touch `master`.
+Obtain three fresh exact approvals for the full-local-gate-green six-record
+`CORE-026` closure, publish it unchanged, and require all eight public checks. Only
+then may a separately reviewed read-only residual-risk audit be authorized. Do not
+broaden callable or type
+semantics, change source/IR/verifier/codegen/backend behavior, promote capability,
+alter workflows/dependencies, publish external artifacts, modify immutable claim
+evidence, or touch `master`.
 
 ## Unauthorized actions
 

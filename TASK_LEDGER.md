@@ -4312,3 +4312,51 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   149/149 binary tests plus every active integration and doc test. Test and production
   edits remain prohibited pending three fresh exact approvals, unchanged publication,
   and all eight public checks.
+
+- Authorization acceptance: corrected exact six-record stash snapshot
+  `44376fbf7bd7536bb54e40d667441dc4054b2779`, tree
+  `5f06ef4f7377bf366a33906d4e4fbe5a6c9be62f`, and diff
+  `8bd00ae0b3e4e6c3e5df11d9f7c6f60375f13f25` received three approvals with no
+  P0-P3 findings and were published unchanged as
+  `7dc3eac9f8bf0729a8bcc91481c8a36d2f0a8bd1`. Compiler runs `30861160746` /
+  `30861162982`, stable/nightly Rust `30861162836`, all three analyses in CodeQL
+  `30861160881`, and aggregate `91843332635` all pass.
+- Tests-first checkpoint: the first snapshot was rejected before publication because
+  generic/composite/reference ineligible declarations preceded the caller under test
+  and composite/reference result controls were absent. Corrected exact one-file stash
+  snapshot `e4aa822e4342c6e0ac5125c05a45aeeaea33dc57`, tree
+  `8f3cd8fb6a6528a2cf3229fddbe888526003608d`, and diff
+  `5b3b2519c10ed0d9224018eb7ecbed4f2cbd9ab6` received three approvals and was
+  published unchanged as `1538a3e384e0ccee8f55c335295687c2d5c5e07a`.
+  Compiler runs `30861809364` / `30861811517` reproduce exactly 6 passed/1 failed:
+  only `known_scalar_top_level_call_arity_fails_at_checked_admission` fails, with
+  too-few and too-many observations at Verification rather than Admission. Nightly
+  in Rust run `30861811567` reaches the same exact 6/1 failure; stable is fail-fast
+  cancelled before the target. All three analyses in CodeQL `30861809624` and
+  aggregate `91845291318` pass. This is intentional red evidence, not accepted
+  implementation behavior.
+- Implementation acceptance: exact one-file stash snapshot
+  `2c1baa6f252677c24328acab510375f5a26f130b`, tree
+  `eabd8939d7e14bc5923d4f22d3d2199336778662`, and diff
+  `c4623bc1ab9004a3bc56c41b1a01bf5206e05b8d` received three approvals with no
+  P0-P3 findings and was published unchanged as
+  `8c2b2ecd88fcbecd2423254376cc00f0c3f0fcc3`. The focused regression passes 1/1,
+  the checked-IR contract file passes 7/7, and exact `./tools/test.sh` passes locally
+  with 139/139 library and 149/149 binary tests plus every active integration and doc
+  test. Public compiler runs `30862232159` / `30862233829`, stable/nightly Rust
+  `30862233777`, all three analyses in CodeQL `30862232615`, and aggregate
+  `91846586968` all pass.
+- Result: checked admission precollects the legacy result contract independently from
+  optional exact arity. Only one verifier-valid, unique, non-reserved, nongeneric,
+  non-entry scalar/Void signature is eligible. Calls still validate every supplied
+  argument left-to-right, then local callable binding, then Void-as-value, before
+  exact arity. Too-few and too-many eligible direct-AST calls now return the frozen
+  Admission diagnostic before raw IR. Duplicate or malformed signatures retain their
+  previous verifier failures, and valid IR, source semantics, verifier defense,
+  codegen, ABI, and backends are unchanged.
+- Status: implementation accepted at public `8c2b2ec`; both the initial and
+  chronology-confirming exact full local closure gates pass with 139/139 library and
+  149/149 binary tests plus every active integration and doc test. This six-record
+  state requires three exact reviews, unchanged publication, and public all-eight
+  verification. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no capability
+  class or matrix cell is promoted.

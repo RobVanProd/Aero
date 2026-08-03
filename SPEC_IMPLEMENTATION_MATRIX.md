@@ -286,6 +286,16 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   arity guard only for one verifier-valid, unique, non-reserved top-level declaration
   and requires controls preserving current verifier failures for every excluded
   signature. This correction changes no matrix cell or implementation.
+- Accepted `CORE-026` implementation `8c2b2ec`, tree `eabd8939`, supplies only that
+  bounded fail-before-IR evidence. Corrected tests-only `1538a3e` publicly reproduces
+  exactly 6 passed/1 failed with only the selected phase-order target red; the one-
+  file implementation passes focused 1/1, checked-IR 7/7, the exact full gate, both
+  compiler jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate.
+  Eligible known scalar/Void direct checked-AST arity mismatches now reject during
+  Admission after child/local/Void precedence and before raw IR. Valid lowering,
+  malformed or duplicate signature behavior, source semantics, verifier defense,
+  codegen, ABI, and backends remain unchanged. No matrix cell or capability class is
+  promoted, and broader R-005 remains PARTIALLY CONTROLLED.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

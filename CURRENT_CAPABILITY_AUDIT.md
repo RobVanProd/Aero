@@ -976,6 +976,19 @@ upgrading any artifact.
   boundary additionally requires one declaration, verifier-valid unique symbols,
   and a non-reserved function identity; dedicated controls must preserve every
   excluded verifier failure. No implementation or capability change occurred.
+- Corrected `CORE-026` authorization `7dc3eac` is triple-approved and all-eight
+  public green. After a separate review rejected caller-after-callee ordering and
+  missing composite/reference result controls, corrected triple-reviewed tests-only
+  `1538a3e`, tree `8f3cd8fb`, publicly reproduces exactly 6 passed/1 failed: only the
+  selected phase-order target remains at Verification instead of Admission. Stable
+  is fail-fast cancelled; CodeQL and aggregate pass.
+- Triple-reviewed one-phase implementation `8c2b2ec`, tree `eabd8939`, passes focused
+  1/1, checked-IR 7/7, the exact full gate, compiler `30862232159` / `30862233829`,
+  stable/nightly Rust `30862233777`, CodeQL `30862232615`, and aggregate
+  `91846586968`. Eligible direct checked-AST wrong-arity calls now fail at Admission
+  before raw IR after all frozen precedence checks. Malformed/duplicate signatures,
+  accepted programs, verifier defense, source semantics, codegen, ABI, and backends
+  remain unchanged. R-005 stays PARTIALLY CONTROLLED and no capability is promoted.
 
 ## Audit completion
 
