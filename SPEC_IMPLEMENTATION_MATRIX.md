@@ -233,6 +233,16 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   UTF-16-unit end range. It changes no grammar, parser, AST, recovery, semantic, IR,
   codegen, ABI, execution, or backend stage, and adds no matrix promotion before
   tests-first and accepted public evidence.
+- Triple-reviewed tests-only `ab8508e` reproduces the selected parser-coordinate
+  defect as the sole 148/149 failure across both compiler jobs and stable/nightly
+  Rust. Exact triple-reviewed one-file implementation `a3d110e`, tree `79ccfca1`,
+  diff `74bfbcea`, passes the focused regression, all LSP tests, the full local gate,
+  and all eight public checks. Parser diagnostic start coordinates after non-BMP
+  prefixes now project from scalar source columns to UTF-16 at the LSP boundary;
+  internal locations, lexical diagnostics, the synthetic one-unit end range, and
+  every parse/semantic/IR/backend stage remain unchanged. Diagnostics/source spans
+  stays PARTIAL and LSP stays EXPERIMENTAL; this is not token/AST span, recovery, or
+  end-to-end range evidence.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

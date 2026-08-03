@@ -3887,3 +3887,41 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Status: preregistered and full-local-gate green. No test or production edit is
   authorized until this exact six-record snapshot passes three exact reviews,
   unchanged publication, and all eight public checks.
+
+- Preregistration acceptance: exact six-record tree
+  `1af5d40e65e450f87bc279d33c429945f399d6a6` and diff
+  `2f359899150495d7b1316a004aba2438066bede2` received three approvals with no
+  P0-P3 findings and were published unchanged as
+  `b8fb1d2713b083bd56a9a716bc18af4623d876b9`. Compiler runs `30853169966` /
+  `30853174632`, stable/nightly Rust `30853174801`, CodeQL `30853170646`, and
+  aggregate `91818026672` all pass.
+- Tests-first checkpoint: exact one-file tree
+  `477c0ebff6a66842a7957d816c9592506a222ca1` and diff
+  `af30f207b1849781b7c5993b6a5b6205efff762c` received three approvals and were
+  published unchanged as `ab8508ef1d2ff0c318f26e96b9e6efb22ee6ef8c`. Compiler
+  runs `30853599874` / `30853602996` and both stable/nightly jobs in Rust run
+  `30853603035` reproduce exactly 148/149: only
+  `parser_diagnostic_columns_use_utf16_coordinates` fails, reporting scalar
+  start `20` instead of expected UTF-16 start `21`. CodeQL `30853601414` passes
+  all three analyses and aggregate `91819440238` passes. This is intentional red
+  evidence, not accepted implementation behavior.
+- Implementation acceptance: exact one-file tree
+  `79ccfca1e32fac3dc28b1d3511372518b0e94d8e` and diff
+  `74bfbceab0d8ed125bfed9f1f99b01ba4b37a78e` received three approvals with no
+  P0-P3 findings and were published unchanged as
+  `a3d110ecb963b30665f4996bfada4f453a8d1557`. The focused regression passes 1/1,
+  all LSP unit tests pass 10/10, and exact `./tools/test.sh` passes locally with
+  139/139 library and 149/149 binary tests plus every active integration and doc
+  test. Public compiler runs `30854094706` / `30854099595`, stable/nightly Rust
+  `30854099899`, CodeQL `30854094981`, and aggregate `91821038577` all pass.
+- Result: the private parser-diagnostic adapter now carries the unchanged source
+  string through recursive single/multi-error conversion and sums `char::len_utf16`
+  over the source-line scalar prefix. The astral-prefix parser range is `21/22`;
+  ASCII positions, lexical projection, internal locations, synthetic end width,
+  message/source/severity, and error order remain unchanged. No compiler phase,
+  parser, language, IR, ABI, execution, or backend behavior changed.
+- Status: implementation accepted at public `a3d110e`; this six-record closure is
+  full-local-gate green with 139/139 library and 149/149 binary tests plus every
+  active integration and doc test. It is pending exact review and public all-eight
+  verification. R-009 remains OPEN for token/AST end spans, recovery retention, and
+  trustworthy end-to-end ranges.

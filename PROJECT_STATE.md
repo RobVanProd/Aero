@@ -4,18 +4,19 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 29 `CORE-024` preregistration - `AUDIT-030` is complete from public-green
-basis `d4e3c75`. The lead selects parser-diagnostic UTF-16 projection as a one-file,
-zero-compiler-phase R-009 slice. No test or implementation is authorized until the
-exact six-record task contract passes its local, review, and public gates.
+Milestone 29 `CORE-024` closure - the parser-diagnostic UTF-16 adapter is accepted at
+public-green implementation `a3d110e`. The six-record closure snapshot passes its
+exact full local gate and now requires three exact reviews, unchanged publication,
+and all eight public checks. No broader R-009 span/recovery work or next
+implementation is authorized.
 
 ## Active hypothesis
 
-The LSP module already has source-aware UTF-16 projection for lexical diagnostics,
-so threading source through the private parser adapter can correct astral-prefix
-parser coordinates without changing internal scalar locations, parsing, language
-semantics, or any compiler/backend phase. The existing synthetic one-unit end range
-and all ASCII/lexical behavior remain fixed.
+Accepted evidence confirms that threading source through the private parser adapter
+corrects astral-prefix parser coordinates without changing internal scalar locations,
+parsing, language semantics, or any compiler/backend phase. The existing synthetic
+one-unit end range and all ASCII/lexical behavior remain fixed; closing the records
+must not promote LSP, diagnostics, or broader R-009 capability.
 
 ## Founding-framework checkpoint
 
@@ -41,6 +42,19 @@ and all ASCII/lexical behavior remain fixed.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Public `CORE-024` preregistration `b8fb1d2`, tree `1af5d40e`, diff `2f359899`,
+  passes compiler `30853169966` / `30853174632`, Rust `30853174801`, CodeQL
+  `30853170646`, and aggregate `91818026672`.
+- Triple-reviewed tests-only `ab8508e`, tree `477c0ebf`, diff `af30f207`, produces
+  exact 148/149 in compiler `30853599874` / `30853602996` and stable/nightly Rust
+  `30853603035`; only the parser UTF-16 regression fails at scalar `20` versus
+  expected `21`. CodeQL `30853601414` and aggregate `91819440238` pass.
+- Accepted public `CORE-024` implementation
+  `a3d110ecb963b30665f4996bfada4f453a8d1557`, tree `79ccfca1`, diff `74bfbcea`,
+  passes focused 1/1, LSP 10/10, the exact full local gate, compiler
+  `30854094706` / `30854099595`, stable/nightly Rust `30854099899`, all three
+  analyses in CodeQL `30854094981`, and aggregate `91821038577`. Three exact
+  reviewers found no P0-P3 issue. The draft PR remains open; `master` is untouched.
 - `CORE-020` record-only closure `5a8cd06`, tree `df4a04a`, passes compiler runs
   `30835593703`/`30835597576`, stable/nightly Rust run `30835597620`, all three
   analyses in CodeQL run `30835594365`, and aggregate `91759990615`. The selected
@@ -617,10 +631,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three exact approvals for this full-local-gate-green six-record `CORE-024`
-preregistration, publish it unchanged, and require all eight public checks. Do not
-add the failing test or implementation beforehand; broaden the slice into parser/
-span/recovery work; alter workflows/dependencies; publish benchmarks/packages/
-releases; modify immutable claim evidence; or touch `master`.
+closure, publish it unchanged, and require all eight public checks. Do not add
+another implementation; broaden the slice into parser/span/recovery work; alter
+workflows/dependencies; publish benchmarks/packages/releases; modify immutable
+claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

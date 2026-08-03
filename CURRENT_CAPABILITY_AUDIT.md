@@ -902,6 +902,19 @@ upgrading any artifact.
   `CORE-024`; no current capability is promoted before tests-first and public proof.
   R-010 grammar containment is the runner-up. Entry contracts, dormant inventory,
   and every other residual retain their recorded stops.
+- `CORE-024` now supplies the selected adapter evidence. Triple-reviewed
+  preregistration `b8fb1d2` is all-eight public green. Triple-reviewed tests-only
+  `ab8508e` produces exact 148/149 compiler and stable/nightly results in
+  `30853599874` / `30853602996` / `30853603035`: only the astral-prefix parser
+  coordinate target fails at scalar `20` versus required UTF-16 `21`; CodeQL and
+  aggregate remain green. Exact triple-reviewed one-file implementation `a3d110e`,
+  tree `79ccfca1`, diff `74bfbcea`, passes the focused regression 1/1, all LSP tests
+  10/10, the exact full local gate, compiler `30854094706` / `30854099595`, Rust
+  `30854099899`, CodeQL `30854094981`, and aggregate `91821038577`. Parser
+  diagnostic starts after non-BMP prefixes are now protocol-correct UTF-16 offsets;
+  the synthetic one-unit end, scalar internal locations, lexical path, and every
+  compiler/backend stage are unchanged. LSP remains EXPERIMENTAL, diagnostics remain
+  PARTIAL, and R-009 remains OPEN for real spans and recovery retention.
 
 ## Audit completion
 
