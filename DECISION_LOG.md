@@ -1105,8 +1105,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-024 — `aero test` reports source analysis, not test execution
 
 - Date: 2026-08-03
-- Status: accepted at exact three-review-approved public-green implementation
-  `2fe580d`; record-only closure/final sync remain.
+- Status: accepted and closed for `CORE-019` at exact three-review-approved
+  public-green record-only closure `63b6629`; this final sync changes records only.
 - Decision: retain the `test` command name and its exact direct, nonrecursive scan of
   `examples`, `tests`, and `.` for names ending `_test.aero` or `_tests.aero`. For
   each discovered source, retain read, strict parse, direct-module collection, and
@@ -1132,6 +1132,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   11/11, exact `./tools/test.sh`, and all eight public checks in compiler runs
   `30829084150`/`30829086467`, Rust `30829088650`, CodeQL `30829082758`, and
   aggregate `91738325685`.
+- Closure evidence: corrected record-only closure `63b6629`, tree `2e886850`, passes
+  exact `./tools/test.sh` and all eight public checks in compiler runs
+  `30829963152`/`30829970545`, Rust `30829968789`, CodeQL `30829962982`, and
+  aggregate `91741344282`.
 - Compatibility boundary: preserve command spelling, argument arity, scan directories
   and order, filename suffixes, nonrecursive traversal, direct-module behavior,
   semantic diagnostics, discovered/completed/failure counts, status `0` for no files

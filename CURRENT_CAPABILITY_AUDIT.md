@@ -693,6 +693,11 @@ upgrading any artifact.
   `30829082758`, and aggregate `91738325685`. The selected claim boundary is
   accepted. No checked IR, codegen, process execution, discovery, diagnostic, count,
   status, language-semantic, or backend capability is added or promoted.
+- Exact three-review-approved corrected record-only closure `63b6629`, tree
+  `2e886850`, passes exact `./tools/test.sh` and all eight public checks in compiler
+  runs `30829963152`/`30829970545`, Rust `30829968789`, CodeQL `30829962982`, and
+  aggregate `91741344282`. `CORE-019` is complete at that selected boundary; broader
+  R-013 command behavior and executable-test design remain open.
 
 ## Audit completion
 

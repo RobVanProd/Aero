@@ -3052,7 +3052,9 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   aggregate/backend/optimizer/`CompilerOptions` behavior; dependency/workflow,
   benchmark, immutable evidence, external artifact, package/release/registry, or
   `master` change.
-- Status: implementation accepted; record-only closure/final sync pending.
+- Status: complete and accepted at public closure `63b6629`; the selected semantic-
+  only `aero test` presentation boundary is controlled. Broader R-013 command behavior
+  and executable-test design remain open. This final-state sync changes records only.
   Triple-reviewed preregistration `e6f332f`
   passed all eight checks (compiler `30826689358`/`30826692656`, Rust `30826691808`,
   CodeQL `30826689156`, aggregate `91730202225`). Triple-reviewed tests-only commit
@@ -3064,4 +3066,9 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `2fe580d`, tree `1e530e65`, diff `8c119a32`, passes focused CLI 11/11, exact
   `./tools/test.sh`, and all eight public checks (compiler `30829084150`/`30829086467`,
   Rust `30829088650`, CodeQL `30829082758`, aggregate `91738325685`). No capability
-  is promoted. Exact review/public checks for this closure and final sync remain.
+  is promoted.
+- Closure acceptance: corrected exact record-only diff `b4fd6bc195f70712fbcd0f022d5dcbbcad7128c9`,
+  tree `2e88685021de6a7948e6b5ffb69250676764f7f5`, received three independent approvals
+  with no P0-P3 findings and was published as `63b66295544d41634f790face005d0fcfc64b41a`.
+  Compiler runs `30829963152`/`30829970545`, Rust `30829968789`, CodeQL `30829962982`,
+  and aggregate `91741344282` all pass.

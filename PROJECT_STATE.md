@@ -4,12 +4,11 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 20 record-only closure — exact three-review-approved implementation
-`2fe580d`, tree `1e530e65`, makes semantic-only `aero test` presentation truthful,
-passes focused CLI 11/11 and exact `./tools/test.sh`, and passes all eight public
-checks (compiler `30829084150`/`30829086467`, Rust `30829088650`, CodeQL
-`30829082758`, aggregate `91738325685`). The selected implementation boundary is
-accepted; reviewed closure and final-state sync remain.
+Milestone 20 final-state sync — exact three-review-approved record-only closure
+`63b6629`, tree `2e886850`, passes exact `./tools/test.sh` and all eight public checks
+(compiler `30829963152`/`30829970545`, Rust `30829968789`, CodeQL `30829962982`,
+aggregate `91741344282`). `CORE-019` is complete and accepted at that closure; this
+sync records its clean final state before a new read-only risk audit.
 
 ## Active hypothesis
 
@@ -43,6 +42,14 @@ behavior is introduced.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-019` closure head:
+  `63b66295544d41634f790face005d0fcfc64b41a`. Three independent reviewers approved
+  corrected record-only diff `b4fd6bc195f70712fbcd0f022d5dcbbcad7128c9` and tree
+  `2e88685021de6a7948e6b5ffb69250676764f7f5` with no P0-P3 findings. Both compiler-
+  test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL pass
+  in runs `30829963152`, `30829970545`, `30829968789`, and `30829962982`, with
+  aggregate check `91741344282`; draft PR #4 remains open and mergeable and upstream
+  `master` remains `8f8c733`.
 - Accepted public `CORE-018` final-state sync head:
   `d0bd54e93ff9fda9e769dd29abcec02a1f550e9a`. Three independent reviewers approved
   corrected exact diff `a4034521b5976f4c737871d5be7e93d2a1f34bfb` and tree
@@ -587,9 +594,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze, exactly review, and publish the six-record `CORE-019` closure, require all
-eight public checks green, and then perform the final-state sync. After clean-head
-audit, evaluate fail-closed nondefault `CompilerOptions` as the bounded runner-up.
+Freeze, exactly review, and publish this six-record final-state sync and require all
+eight public checks green. Then perform a new clean-head read-only risk audit before
+selecting fail-closed nondefault `CompilerOptions` or any other implementation slice.
 Do not execute Aero tests, add checked IR/codegen/runtime behavior, change discovery/
 count/status semantics, implement `CompilerOptions`, publish benchmarks or packages,
 or modify `master`.
