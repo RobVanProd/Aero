@@ -613,15 +613,20 @@ impl SemanticAnalyzer {
             }) = node
             {
                 let numeric_contract = if type_params.is_empty() {
+                    let contract_type: fn(&crate::ast::Type) -> Option<Ty> = if name == "main" {
+                        Self::numeric_contract_type
+                    } else {
+                        Self::helper_contract_type
+                    };
                     let parameter_types = parameters
                         .iter()
                         .map(|parameter| {
-                            Self::numeric_contract_type(&parameter.param_type)
+                            contract_type(&parameter.param_type)
                                 .map(|ty| (parameter.name.clone(), ty))
                         })
                         .collect::<Option<Vec<_>>>();
                     let contract_return = match return_type {
-                        Some(ty) => Self::numeric_contract_type(ty),
+                        Some(ty) => contract_type(ty),
                         None => Some(Ty::Void),
                     };
 
@@ -677,6 +682,13 @@ impl SemanticAnalyzer {
             }
             _ => None,
         }
+    }
+
+    fn helper_contract_type(ty: &crate::ast::Type) -> Option<Ty> {
+        Self::numeric_contract_type(ty).or_else(|| match ty {
+            crate::ast::Type::Named(name) if name == "bool" => Some(Ty::Bool),
+            _ => None,
+        })
     }
 
     fn binding_contract_type(&self, ty: &crate::ast::Type) -> Option<Ty> {
