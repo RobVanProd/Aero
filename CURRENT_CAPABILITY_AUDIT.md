@@ -818,6 +818,16 @@ upgrading any artifact.
 - DEC-026 and `CORE-021` freeze one output condition only. This is claim containment,
   not language, execution, backend, safety, or stability capability; no matrix row or
   capability class is promoted.
+- The exact three-review-approved tests-only checkpoint `0873f65`, tree `51ec7d0a`,
+  diff `f75a6360`, now binds delegated exits `0/1/2/7`, exact status, the complete
+  normalized CLI-owned presentation suffix, child output markers, and cleanup after
+  all four cases execute. Local and public evidence is exact 10/1 on the false
+  nonzero success line: compiler `30839264536` / `30839272375` and nightly in Rust
+  `30839272429`; stable is cancelled during its test step by fail-fast. CodeQL
+  `30839264268` and aggregate `91772180985` pass. The one-condition production
+  candidate passes focused CLI 11/11, backend-claim 7/7, and the exact full local
+  gate; exact review and public acceptance remain pending, so no capability is yet
+  accepted or promoted.
 
 ## Audit completion
 

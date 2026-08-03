@@ -1964,7 +1964,9 @@ fn run_aero_program_with_artifacts(
                 .map_err(|err| format!("Error executing compiled program: {}", err))?;
 
             let exit_code = run_output.status.code().unwrap_or(-1);
-            println!("Program executed successfully.");
+            if exit_code == 0 {
+                println!("Program executed successfully.");
+            }
             println!("Exit code: {}", exit_code);
 
             if !run_output.stdout.is_empty() {

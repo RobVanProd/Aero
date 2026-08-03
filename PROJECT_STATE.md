@@ -4,17 +4,17 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 23 audit closure and `CORE-021` preregistration — public audit basis
-`aa3e7a8`, tree `4caa5c33`, passes all eight checks. All three independent auditors
-rank R-013 first. After explicit comparison of its three bounded slices, the lead
-selects truthful delegated CPU-exit presentation: preserve exact child behavior but
-print `Program executed successfully.` only for exit zero.
+Milestone 24 `CORE-021` implementation review — preregistration `a61ea24` is
+public green and exact three-review-approved tests-only `0873f65` is public red only
+on the frozen false-success contract. The production candidate changes one condition:
+preserve exact delegated CPU behavior but print `Program executed successfully.` only
+for exit zero. Focused CLI 11/11, backend-claim 7/7, and the exact full local gate pass.
 
 ## Active hypothesis
 
-The CPU `run` path currently prints `Program executed successfully.` before reporting
-every delegated child status, including nonzero values. Conditioning only that line
-on exit zero removes a user-facing false-success claim while preserving the exact
+The accepted public red checkpoint proves the CPU `run` path prints `Program executed
+successfully.` before reporting nonzero delegated child statuses. Conditioning only
+that line on exit zero makes the focused contract 11/11 while preserving exact
 child status, output forwarding, artifact cleanup, CLI-owned status boundary, and all
 compiler/backend behavior.
 
@@ -551,8 +551,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - The local shell required Rust installation before tests could run.
 - Real backend verification may be blocked by absent LLVM/GPU toolchains or
   hardware; absence will be recorded rather than simulated.
-- CPU `run` unconditionally prints `Program executed successfully.` even for a
-  delegated nonzero child status; `CORE-021` selects only that presentation defect.
+- Public tests-only `0873f65` proves CPU `run` falsely prints `Program executed
+  successfully.` for delegated nonzero statuses. The one-condition `CORE-021`
+  production candidate is not accepted until its local/public gates and reviews pass.
   `run_aero_program` still calls `exit` internally after cleanup, and that separate
   helper/API architecture boundary remains open.
 - Legacy recovery lexing remains public for compatibility and LSP symbol recovery;
@@ -613,12 +614,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Exactly review and publish this six-record `AUDIT-027` closure, DEC-026, and
-`CORE-021` preregistration, then require all eight public checks green. Only then
-publish the frozen tests-only red checkpoint. Do not refactor helper termination,
-remap delegated statuses, add replacement wording, change child output/cleanup,
-touch init rollback, or alter compiler/backend behavior, workflows/dependencies,
-benchmarks/packages, immutable claim evidence, or `master`.
+Obtain three exact-snapshot approvals for the local-green one-condition `CORE-021`
+production candidate; then publish and require all eight public checks green before
+record-only closure. Do
+not refactor helper termination, remap delegated statuses, add replacement wording,
+change child output/cleanup, touch init rollback, or alter compiler/backend behavior,
+workflows/dependencies, benchmarks/packages, immutable claim evidence, or `master`.
 
 ## Unauthorized actions
 

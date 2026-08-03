@@ -1220,8 +1220,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-026 — Delegated CPU success wording requires exit zero
 
 - Date: 2026-08-03
-- Status: selected by completed `AUDIT-027`; implementation pending tests-first and
-  exact public acceptance under `CORE-021`.
+- Status: selected by completed `AUDIT-027`; tests-first public red accepted and the
+  exact one-condition implementation is under local validation in `CORE-021`.
 - Decision: after a CPU child executes, print the exact existing `Program executed
   successfully.` line only when `status.code().unwrap_or(-1) == 0`. Every exit still
   prints exact `Exit code: N`. Nonzero exits receive no replacement success/failure
@@ -1244,3 +1244,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `30836248101`, and aggregate `91762198170`. All three auditors rank R-013 first;
   after A/B/C reconciliation, two rank this presentation slice first and one ranks it
   second behind entry-aware `init` preflight. The lead selects this exact boundary.
+- Tests-first evidence: preregistration `a61ea24` is all-eight public green. Exact
+  three-review-approved tests-only `0873f65`, tree `51ec7d0a`, diff `f75a6360`,
+  reproduces focused 10/1 locally and in compiler runs `30839264536` /
+  `30839272375`; nightly in Rust run `30839272429` fails identically while stable is
+  cancelled during tests by fail-fast. CodeQL `30839264268` and aggregate
+  `91772180985` pass. The production candidate changes only the frozen success-line
+  condition and passes focused CLI 11/11, backend-claim 7/7, and the exact full local
+  gate; exact review and public acceptance remain pending.

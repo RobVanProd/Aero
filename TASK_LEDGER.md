@@ -3365,6 +3365,21 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   probe outside the existing isolated process fixture; workflow/dependency, benchmark,
   package/release/registry, immutable-evidence, destructive-system, history rewrite,
   or `master` change. Stop on any second production phase or semantic decision.
-- Status: preregistered locally; tests or production changes are prohibited until
-  this exact six-record audit closure/decision/task contract passes the full local
-  gate, three independent reviews, and all eight public checks.
+- Status: implementation candidate under validation. The exact six-record
+  preregistration was accepted at `a61ea24` after the full local gate, three
+  independent approvals, and all eight public checks (compiler `30837838305` /
+  `30837843933`, Rust `30837844778`, CodeQL `30837838554`, aggregate
+  `91767404453`). The corrected tests-only checkpoint `0873f65`, tree
+  `51ec7d0ac705c42d2d08eb5e94ce4f2c3892d617`, diff
+  `f75a636090b5ff148779fba10b94ab0394e3e79f`, received three exact approvals
+  after reviewers rejected two weaker candidates. Locally it formats cleanly,
+  produces exact focused 10/1, makes the required gate fail only on that target,
+  and makes the no-fail-fast all-target run report exactly one failed target.
+  Public compiler runs `30839264536` / `30839272375` reproduce 10/1; nightly in
+  Rust run `30839272429` reproduces it and stable is cancelled during its test step
+  by matrix fail-fast. CodeQL run `30839264268` passes actions/Python/Rust analyses
+  and aggregate `91772180985` passes. Production now has only the frozen
+  `exit_code == 0` guard in `src/compiler/src/main.rs`. Formatting, focused CLI
+  11/11, backend-claim 7/7, and exact `./tools/test.sh` are green; exact
+  implementation reviews, public-green acceptance, and record-only closure remain
+  pending.
