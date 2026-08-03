@@ -1,4 +1,7 @@
-use compiler::{CompilerOptions, compile_program};
+use compiler::{
+    CompilerOptions, SemanticAnalyzer, compile_program, parse_with_locations,
+    try_tokenize_with_locations,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -43,6 +46,39 @@ impl Drop for TestWorkspace {
 
 fn analyze_source(source: &str) -> Result<(), String> {
     compile_program(source, CompilerOptions::default()).map(|_| ())
+}
+
+fn analyze_semantics(source: &str) -> Result<(), String> {
+    let tokens = try_tokenize_with_locations(source, None).expect("fixture must lex");
+    let ast = parse_with_locations(tokens).expect("fixture must parse");
+    let mut analyzer = SemanticAnalyzer::new();
+    analyzer.analyze(ast).map(|_| ())
+}
+
+fn expect_semantic_rejection(
+    failures: &mut Vec<String>,
+    label: &str,
+    source: &str,
+    expected_fragments: &[&str],
+) {
+    match analyze_semantics(source) {
+        Ok(()) => failures.push(format!("{label}: unexpectedly accepted")),
+        Err(error) => {
+            for fragment in expected_fragments {
+                if !error.contains(fragment) {
+                    failures.push(format!(
+                        "{label}: diagnostic `{error}` missing `{fragment}`"
+                    ));
+                }
+            }
+        }
+    }
+}
+
+fn expect_semantic_acceptance(failures: &mut Vec<String>, label: &str, source: &str) {
+    if let Err(error) = analyze_semantics(source) {
+        failures.push(format!("{label}: unexpectedly rejected: {error}"));
+    }
 }
 
 fn assert_semantic_rejections(cases: &[(&str, &str, &[&str])]) {
@@ -146,6 +182,45 @@ fn rejects_undefined_duplicate_and_invalid_numeric_calls() {
     ];
 
     assert_semantic_rejections(cases);
+}
+
+#[test]
+fn boolean_helper_contracts_stop_in_semantics_without_changing_main() {
+    let mut failures = Vec::new();
+
+    expect_semantic_rejection(
+        &mut failures,
+        "Boolean parameter mismatch",
+        "fn identity_bool(flag: bool) -> bool { return flag; } fn main() { identity_bool(1); }",
+        &["identity_bool", "flag", "expected bool", "actual int"],
+    );
+    expect_semantic_rejection(
+        &mut failures,
+        "Boolean return mismatch",
+        "fn broken() -> bool { return 1; } fn main() {}",
+        &["broken", "expected bool", "actual int"],
+    );
+    expect_semantic_acceptance(
+        &mut failures,
+        "Boolean helper result",
+        "fn truth() -> bool { return 1 < 2; } fn main() { let selected: bool = truth(); }",
+    );
+
+    // Entry behavior is deliberately outside this slice. These controls prevent
+    // helper registration from leaking into `main` or disabling numeric `main`.
+    expect_semantic_acceptance(
+        &mut failures,
+        "Quarantined Boolean main",
+        "fn main() -> bool { return 1; }",
+    );
+    expect_semantic_rejection(
+        &mut failures,
+        "Numeric main preservation",
+        "fn main() -> i32 { return 1.0; }",
+        &["main", "expected int", "actual float"],
+    );
+
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]
