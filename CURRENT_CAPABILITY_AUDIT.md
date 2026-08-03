@@ -281,12 +281,12 @@ measurement. `benchmarks/performance_benchmark.py` invokes
 `cargo run --release -- <sourcefile>`, but the CLI requires a `build`, `run`, or
 other command. At the `AUDIT-019` reproduction basis it printed `Unknown command`
 and exited zero, which the harness counted as a successful compilation. The
-`CORE-013` candidate now makes that bare-source invocation fail closed with status
+Accepted public `CORE-013` at `a78dd00` makes that bare-source invocation fail closed with status
 `2`; it does not retroactively validate or repair the timings. Those numbers measure
 Cargo startup/unknown-command handling and must not support Aero compilation-speed
 claims.
 
-All six candidate entries in `claim-verification/claims.json` reference existing
+All six public entries in `claim-verification/claims.json` reference existing
 files, but none meets the full benchmark protocol. The two compilation claims share
 the invalid command and are classified `invalid_measurement`. The current and split
 historical lexer Criterion records retain their separate qualifications; retained
@@ -300,16 +300,16 @@ The split historical lexer Criterion run is genuine historical microbenchmark
 evidence; that preservation does not rehabilitate either Python compilation series.
 
 No current public Aero runtime, device, graph, or quantization performance claim
-passes `BENCHMARK_PROTOCOL.md`. Existing evidence remains preserved; the `CORE-013`
-candidate classifies the two invalid Python compilation series without deleting or
+passes `BENCHMARK_PROTOCOL.md`. Existing evidence remains preserved; accepted
+`CORE-013` classifies the two invalid Python compilation series without deleting or
 upgrading any artifact.
 
 ## Tooling and API audit
 
 - Before `CORE-013`, `build`, `check`, `graph-opt`, `test`, unknown commands, missing
   inputs, failed output writes, and failing conformance paths commonly returned
-  process status zero. The candidate now gives automation a typed `0/1/2` correctness
-  signal for CLI-owned outcomes; delegated CPU program statuses remain contextual
+  process status zero. Accepted `CORE-013` now gives automation a typed `0/1/2`
+  correctness signal for CLI-owned outcomes; delegated CPU program statuses remain contextual
   arbitrary pass-through values.
 - The library and binary compile their own module instances. The library ignores
   every `CompilerOptions` field; the CLI never calls `compile_program`, and its
@@ -405,9 +405,9 @@ upgrading any artifact.
 
 - Historical audit basis: clean public documentation head
   `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`; accepted production behavior at that
-  point was exact `6780a23cd8b63df124477c7db1190d61dd25f3b8`. The current staged
-  `CORE-013` candidate supersedes the status/claim findings below, pending exact
-  review and public CI.
+  point was exact `6780a23cd8b63df124477c7db1190d61dd25f3b8`. Accepted public
+  `CORE-013` at `a78dd004aa37c39212711027b777698118d9dc02` supersedes the
+  status/claim findings below.
 - An initial argument-dropping process batch was invalid and discarded. The corrected
   pre-implementation explicit-argument probe showed status zero for no command,
   unknown command, bare
@@ -416,12 +416,12 @@ upgrading any artifact.
   conformance. Static inspection found the same fallthrough for failed output writes
   and ignored extra operands in check/fmt/test/lsp.
 - `performance_benchmark.py` sends the bare source path and would have accepted the
-  former zero status; the `CORE-013` candidate now returns `2`. The shell harness
+  former zero status; accepted `CORE-013` now returns `2`. The shell harness
   declares its compile/run work simulated. No benchmark was run. The tracked Python
   compilation numbers remain invalid measurements and their raw evidence is
   preserved under that classification.
 - R-004 remains stopped on unfrozen multi-phase ownership semantics; reproduced
-  R-011 arrays fail closed before output. The bounded `CORE-013` candidate now
+  R-011 arrays fail closed before output. Accepted `CORE-013` now
   provides a typed CLI-owned `0` success / `1` operational failure / `2` invocation
   failure contract plus evidence-preserving quarantine of the affected compilation
   claims.

@@ -4,16 +4,16 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 14 — obtain exact independent approval and publish the completed
-`CORE-013` implementation candidate, then require the full public CI matrix before
-acceptance closure. The reviewed tests-only red checkpoint is already public at
-`d405fc9`; benchmark execution remains quarantined.
+Milestone 14 acceptance closure — independently review and publish the documentation
+record for accepted public `CORE-013` implementation `a78dd00`. Its local focused and
+full gates, three exact implementation reviews, and all eight public checks pass.
+Benchmark execution remains quarantined.
 
 ## Active hypothesis
 
-The `CORE-013` candidate demonstrates that one typed CLI-owned dispatcher boundary
-replaces broad diagnostic-plus-zero fallthrough with success `0`, operational failure
-`1`, and invocation failure `2` without changing command or compiler semantics.
+Accepted `CORE-013` demonstrates that one typed CLI-owned dispatcher boundary replaces
+broad diagnostic-plus-zero fallthrough with success `0`, operational failure `1`,
+and invocation failure `2` without changing command or compiler semantics.
 Delegated CPU program exits remain arbitrary pass-through values and output rollback
 remains non-atomic. The same unknown-command correction makes the legacy Python
 compilation driver fail closed; its numbers still require explicit
@@ -43,9 +43,11 @@ invalid-measurement classification, not reuse.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current clean public head and `CORE-012` acceptance closure:
-  `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`. All eight public checks pass.
-- Published project-control head:
+- Current public head and accepted `CORE-013` implementation:
+  `a78dd004aa37c39212711027b777698118d9dc02`. All eight public checks pass.
+- Prior `CORE-012` acceptance-documentation head:
+  `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`.
+- Earlier published project-control checkpoint:
   `c0c044256a5922605e0dde8446b4c40cb250fd56`.
 - Published `CORE-012` tests-only red checkpoint:
   `57c4ec70190822cb4552d313e5e7ea0f2dc5cbed`; exact staged diff
@@ -163,11 +165,9 @@ invalid-measurement classification, not reuse.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
-  `6780a23cd8b63df124477c7db1190d61dd25f3b8`.
-- Worktree: staged `CORE-013` implementation/evidence candidate under exact review;
-  public production behavior remains the accepted `CORE-012` implementation plus
-  the intentionally red `CORE-013` tests-only checkpoint at `d405fc9` until this
-  candidate is independently accepted and pushed.
+  `a78dd004aa37c39212711027b777698118d9dc02`.
+- Worktree: documentation-only `CORE-013` acceptance closure under exact review;
+  production behavior is accepted public implementation `a78dd00`.
 
 ## Environment and verification
 
@@ -398,16 +398,17 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   retaining the legacy no-module key. General CLI status handling, namespaces,
   visibility/import semantics, recursive graphs, and full pipeline consolidation
   remain separate.
-- `CORE-013` contains the false-success CLI boundary. The tracked
+- Accepted public `CORE-013` at `a78dd00` contains the false-success CLI boundary.
+  The tracked
   `performance_benchmark.py` compilation timings are an invalid measurement of a
   bare-source usage path; public and historical lexer evidence remain separately
   qualified, and the external GGUF record remains reference-only.
 
 ## Exact next action
 
-Independently review the exact `CORE-013` implementation candidate, publish it only
-after all required reviewers approve the same snapshot, then require the complete
-public CI matrix before acceptance closure. Do not edit or run benchmark drivers,
+Independently review and publish the exact documentation-only `CORE-013` acceptance
+closure. After closure, re-rank the remaining open risks with a read-only audit before
+preregistering any next production slice. Do not edit or run benchmark drivers,
 generate performance results, change command maturity, refactor `run_aero_program`,
 re-enable registry transport, or infer language/backend/release/merge authorization.
 

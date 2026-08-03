@@ -1982,5 +1982,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   The two `performance_benchmark.py` compilation series are invalid measurements;
   raw artifacts, current/historical Lexer evidence, and the external llama.cpp
   reference remain preserved and separately qualified. No benchmark was executed.
-- Status: implementation candidate complete; exact independent review and public CI
-  acceptance remain pending.
+- Acceptance evidence: exact implementation diff
+  `ea0c37c0a0af4f51867a5e6b0d0be2aa010f2d7c` and tree
+  `b62a1fa5b1d5443b0197917dbd52f2c16239c0f5` received three independent approvals
+  with no P0-P3 findings. Public implementation commit
+  `a78dd004aa37c39212711027b777698118d9dc02` passes both compiler-test workflows,
+  Rust stable/nightly, all three CodeQL language analyses, and aggregate CodeQL.
+- Status: complete at accepted public head `a78dd00`; this documentation-only closure
+  record remains subject to its separately required exact review before publication.

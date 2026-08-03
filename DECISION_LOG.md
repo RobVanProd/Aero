@@ -699,8 +699,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-018 — CLI-owned process status is a typed public correctness boundary
 
 - Date: 2026-08-02
-- Status: accepted for `CORE-013`; implementation candidate complete, independent
-  acceptance review pending
+- Status: implemented and accepted at public `CORE-013` head
+  `a78dd004aa37c39212711027b777698118d9dc02`; focused/full local gates, three exact
+  implementation reviews, and all eight public checks pass
 - Decision: outcomes owned by the CLI before delegated program execution must use
   one typed status boundary: `0` for completed work and explicit help/version, `1`
   for operational or compiler failure, and `2` for invalid invocation. Printing a

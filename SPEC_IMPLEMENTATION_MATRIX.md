@@ -128,7 +128,8 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   repository gate, three exact-diff reviews, and all required public CI checks pass
   at head `db349ef`. This does not certify unresolved physical integer, aggregate,
   ownership, or backend semantics.
-- `CORE-013` classifies the two `performance_benchmark.py` compilation series as
+- Accepted public `CORE-013` at `a78dd00` classifies the two
+  `performance_benchmark.py` compilation series as
   invalid measurement evidence because they invoked a bare source path, while the
   public and historical Criterion lexer records retain their separate qualifications
   and the one-run external llama.cpp observation remains reference-only.
