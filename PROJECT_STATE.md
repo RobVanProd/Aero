@@ -4,11 +4,11 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 16 closure review — independently verify the exact `CORE-015` acceptance
-record after its approved public red checkpoint and approved public green
-implementation. All local and public implementation gates are green at `3f0578d`;
-capability closure waits on three exact-snapshot record reviews. Accepted `CORE-014`
-remains closed at `1535ce2`; benchmark execution remains quarantined.
+Milestone 16 closure publication — `CORE-015` is accepted at public closure head
+`5d7aae0` after approved preregistration, red, implementation, and closure snapshots
+plus green local and public gates. The current four-record final-state sync awaits
+exact review/publication before the next bounded risk audit begins. Accepted
+`CORE-014` remains closed at `1535ce2`; benchmark execution remains quarantined.
 
 ## Active hypothesis
 
@@ -46,14 +46,19 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current public green implementation head:
+- Accepted public closure head:
+  `5d7aae0f5626813249b6de983a229dbbb1e4fef8`. Three independent reviewers approved
+  exact closure-record diff `a8e4059e71991c9d7a274234f91dd225bea61c01` and tree
+  `19fea4153397958656b57adac6b70556d4a997c9` with no P0-P3 findings. Both public
+  compiler-test jobs, stable and nightly Rust, all three CodeQL analyses, and
+  aggregate CodeQL pass.
+- Accepted public `CORE-015` implementation head:
   `3f0578d69926e15a81c4d8fa6105c99c982cbe02`. Three independent reviewers approved
   exact staged diff `3a909f5813def06d4f7cfb27f8650908410ac724` and tree
   `3effac84a84d56f43abcf99c65161c3da7753d6e` with no P0-P3 findings. Both public
   compiler-test jobs, stable and nightly Rust, all three CodeQL analyses, and
-  aggregate CodeQL pass. This is green implementation evidence pending the separate
-  exact closure review.
-- Current public tests-only red head:
+  aggregate CodeQL pass. The accepted closure record above completes this evidence.
+- Public `CORE-015` tests-only red checkpoint:
   `b203ea429b5a039705be5a5b11998e6dc59f5a24`. Three independent reviewers approved
   its exact staged diff `e158ad61282617a63dade4976a7c23fe53aa0af8` and tree
   `db2ac2959f9815fab5d4b649e563b59c83459dfe` with no P0-P3 findings. Both public
@@ -61,12 +66,12 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
   8 intended failing split; Rust stable is matrix-cancelled after nightly failure.
   All three CodeQL analyses and aggregate CodeQL pass. This is red evidence, not an
   accepted implementation.
-- Public preregistration head:
+- Public `CORE-015` preregistration checkpoint:
   `4f31f0ca3941389f2cc730136c2540301ee5bfe0`. Three independent reviewers approved
   its exact staged diff `9316f77aed456729624c2d86afaf7110487af84b` and tree
   `bd782da2b5881c1eb50a614400d73b1bb924b033` with no P0-P3 findings. All eight
   public checks pass and the draft PR is cleanly mergeable.
-- Current public acceptance-closure head:
+- Prior accepted `CORE-014` closure head:
   `1535ce2a214f512c140535e7c42799af1f920d5c`. Its exact reviewed staged diff is
   `6e05c26763ed3a1c6e4ec359361867f76e9d4c4c` and tree is
   `b3a6bf38769579dbfc0fa0da5c4881620f7129c3`. Three independent reviewers
@@ -215,7 +220,7 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
-  `a78dd004aa37c39212711027b777698118d9dc02`.
+  `3f0578d69926e15a81c4d8fa6105c99c982cbe02`.
 - Public implementation: `CORE-015` changes only the two
   preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
@@ -237,9 +242,11 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
   Phase 5 tests remain ignored. Three exact implementation reviews approved diff
   `3a909f5813def06d4f7cfb27f8650908410ac724` / tree
   `3effac84a84d56f43abcf99c65161c3da7753d6e`; public commit `3f0578d` passes the
-  complete CI matrix. The current worktree changes only the four acceptance records
-  for separate exact closure review; `CORE-015` is not closed until that review and
-  public record complete.
+  complete CI matrix. Three fresh closure reviewers approved exact record diff
+  `a8e4059e71991c9d7a274234f91dd225bea61c01` / tree
+  `19fea4153397958656b57adac6b70556d4a997c9`; public closure commit `5d7aae0` also
+  passes all eight checks. `CORE-015` is accepted at that closure head. The current
+  worktree changes only the four final-state records for exact review/publication.
   One earlier full-gate attempt stopped in the unchanged
   `cli_status_contract_tests`; that target immediately passed 7/7 in isolation and
   the unchanged complete gate passed on rerun. The interruption is not reproduced
@@ -491,12 +498,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Stage and independently review the exact four-record `CORE-015` acceptance closure.
+Stage and independently review the exact four-record `CORE-015` final-state sync.
 Only after all three reviewers approve the same diff and tree may it be committed and
-published. Then verify the public record-only CI matrix before marking `CORE-015`
-accepted. Do not change compiler code/tests, lexer/parser syntax, type representation,
-conversions, assignment, ownership, aggregate layout/codegen, backend behavior,
-version policy, benchmarks, registry, release state, or `master`.
+published. Then verify its public record-only CI matrix before beginning the next
+read-only risk audit. Do not change compiler code/tests, lexer/parser syntax, type
+representation, conversions, assignment, ownership, aggregate layout/codegen,
+backend behavior, version policy, benchmarks, registry, release state, or `master`.
 
 ## Unauthorized actions
 

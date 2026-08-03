@@ -2390,6 +2390,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `3effac84a84d56f43abcf99c65161c3da7753d6e` with no P0-P3 findings. Public commit
   `3f0578d69926e15a81c4d8fa6105c99c982cbe02` passes both compiler-test jobs,
   stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL.
-- Status: public implementation candidate green; four-record acceptance closure
-  awaiting three independent exact diff/tree reviews before publication and final
-  acceptance.
+- Acceptance closure: three fresh independent reviewers approved exact record diff
+  `a8e4059e71991c9d7a274234f91dd225bea61c01` and tree
+  `19fea4153397958656b57adac6b70556d4a997c9` with no P0-P3 findings. Public closure
+  commit `5d7aae0f5626813249b6de983a229dbbb1e4fef8` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL.
+- Status: complete; accepted at public closure head `5d7aae0`. The four-record
+  final-state sync is awaiting exact review/publication before the next bounded risk
+  audit.

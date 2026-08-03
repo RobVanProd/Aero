@@ -813,9 +813,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-020 — Selected initialized binding annotations are exact pre-IR contracts
 
 - Date: 2026-08-02
-- Status: preregistration approved at public `4f31f0c`; tests-only red checkpoint
-  independently approved and public at `b203ea4`; independently approved production
-  candidate public and green at `3f0578d`; awaiting exact closure review
+- Status: accepted at public closure head `5d7aae0`; preregistration approved at
+  `4f31f0c`, tests-only red checkpoint independently approved and public at `b203ea4`,
+  and independently approved production candidate public and green at `3f0578d`
 - Decision: existing exact scalar annotation behavior for `int`/`i32`/`float`/`f64`
   remains unchanged wherever semantics fully analyzes binding statements; syntax-
   preflighted trait default bodies remain outside that enforcement. `CORE-015` adds
@@ -922,8 +922,13 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `3a909f5813def06d4f7cfb27f8650908410ac724` and tree
   `3effac84a84d56f43abcf99c65161c3da7753d6e` with no P0-P3 findings. Public commit
   `3f0578d69926e15a81c4d8fa6105c99c982cbe02` passes both compiler-test jobs,
-  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. Acceptance
-  now requires only the separate exact closure review and its public record.
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. Three fresh
+  reviewers approved exact closure-record diff
+  `a8e4059e71991c9d7a274234f91dd225bea61c01` and tree
+  `19fea4153397958656b57adac6b70556d4a997c9` with no P0-P3 findings. Public closure
+  commit `5d7aae0f5626813249b6de983a229dbbb1e4fef8` also passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. `CORE-015` is
+  accepted at that closure head.
 - Alternatives rejected: checking annotations only in CLI; keeping nonnumeric
   annotations documentary; relying on LLVM verification; checking only the first
   array element; promoting mixed array values to float; dropping array length from

@@ -515,9 +515,13 @@ upgrading any artifact.
   `3a909f5813def06d4f7cfb27f8650908410ac724` and tree
   `3effac84a84d56f43abcf99c65161c3da7753d6e` with no P0-P3 findings. Public commit
   `3f0578d69926e15a81c4d8fa6105c99c982cbe02` passes both compiler-test jobs,
-  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. This is
-  public green implementation evidence pending exact closure review, not yet
-  accepted capability closure.
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. Three fresh
+  reviewers then approved exact closure-record diff
+  `a8e4059e71991c9d7a274234f91dd225bea61c01` and tree
+  `19fea4153397958656b57adac6b70556d4a997c9`; public closure commit
+  `5d7aae0f5626813249b6de983a229dbbb1e4fef8` also passes all eight checks.
+  `CORE-015` is accepted at that public closure head without expanding the explicit
+  exclusions or any backend capability claim.
 
 ## Audit completion
 
