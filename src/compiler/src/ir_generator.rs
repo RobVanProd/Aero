@@ -296,6 +296,12 @@ impl IrGenerator {
                             "Void expressions cannot be stored in a binding".to_string(),
                         ));
                     }
+                    if matches!(type_annotation.as_ref(), Some(Type::Tuple(_))) {
+                        return Err(IrGenerationError::Admission(format!(
+                            "checked IR binding `{}` uses an unsupported tuple type annotation for an initialized binding",
+                            name
+                        )));
+                    }
                     if !inside_generic_impl
                         && let Some(expected) = type_annotation
                             .as_ref()
