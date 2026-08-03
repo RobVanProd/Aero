@@ -1359,3 +1359,24 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   Boolean `main`, other entry/ABI validation, String/custom/contextual/structural/
   generic/composite/reference/closure/method contracts, coercion/defaulting, and
   broader R-002 closure remain undecided or quarantined.
+
+## DEC-029 - LSP parser diagnostics use UTF-16 character coordinates
+
+- Date: 2026-08-03
+- Status: proposed under `CORE-024`; tests and implementation pending.
+- Decision: retain internal parser `SourceLocation` as one-based line and Unicode-
+  scalar column data, but project parser diagnostic start columns to zero-based
+  UTF-16 character offsets at the LSP boundary using the complete source line.
+- Basis: exact `AUDIT-030` authorization `d4e3c75`, tree `9a07c10c`, passes compiler
+  `30851275589` / `30851278460`, stable/nightly Rust `30851278586`, CodeQL
+  `30851276053`, and aggregate `91811764009`. All three independent rankings place
+  R-009 in their top three; two rank it first, and all find its semantics frozen.
+- Compatibility decision: non-BMP-prefix parser ranges intentionally change from
+  scalar offsets to protocol-correct UTF-16 offsets. Preserve ASCII coordinates,
+  the existing synthetic one-unit end range, severity, source label, message,
+  multi-error order, and every non-LSP diagnostic.
+- Excluded: lexer/parser/AST/recovery/source-location changes, token or AST spans,
+  semantic/IR/verifier/codegen/ABI/backend behavior, symbol/completion positions,
+  grammar authority, and any claim that broader R-009 is controlled.
+- Revisit full ranges only through a separately frozen end-to-end span and recovery
+  model with positive, negative, retention, and protocol evidence.

@@ -227,6 +227,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   `CORE-023` accepts only its non-entry monomorphic Boolean semantic sub-slice.
   `AUDIT-030` is a preregistered read-only ranking of all eleven residuals and cannot
   change implementation or capability classification.
+- `AUDIT-030` is complete at public-green authorization `d4e3c75`. All three
+  rankings place R-009 parser UTF-16 projection in their top three; two rank it
+  first. `CORE-024` preregisters only an LSP coordinate adapter with one synthetic
+  UTF-16-unit end range. It changes no grammar, parser, AST, recovery, semantic, IR,
+  codegen, ABI, execution, or backend stage, and adds no matrix promotion before
+  tests-first and accepted public evidence.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

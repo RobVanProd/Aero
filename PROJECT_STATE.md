@@ -4,20 +4,18 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 28 `AUDIT-030` authorization - `CORE-023` is complete at triple-reviewed,
-all-eight public-green record closure `0b88530`. Exact Boolean contracts for
-monomorphic non-entry helpers are accepted, while R-002 remains partially
-controlled. The next work is a clean-head read-only ranking; no new implementation
-is authorized.
+Milestone 29 `CORE-024` preregistration - `AUDIT-030` is complete from public-green
+basis `d4e3c75`. The lead selects parser-diagnostic UTF-16 projection as a one-file,
+zero-compiler-phase R-009 slice. No test or implementation is authorized until the
+exact six-record task contract passes its local, review, and public gates.
 
 ## Active hypothesis
 
-A clean-head, delta-aware ranking of every remaining OPEN or PARTIALLY CONTROLLED
-risk can identify one distinct bounded candidate with frozen semantics,
-deterministic tests-first evidence, and at most two compiler phases—or stop
-explicitly. Accepted slices, inherited ordering, unsupported type defaults, and
-flags, simulation, or object emission presented as language or hardware capability
-are excluded.
+The LSP module already has source-aware UTF-16 projection for lexical diagnostics,
+so threading source through the private parser adapter can correct astral-prefix
+parser coordinates without changing internal scalar locations, parsing, language
+semantics, or any compiler/backend phase. The existing synthetic one-unit end range
+and all ASCII/lexical behavior remain fixed.
 
 ## Founding-framework checkpoint
 
@@ -618,11 +616,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for this full-local-gate-green six-record `AUDIT-030`
-preregistration, publish it unchanged, and require all eight public checks. Only then
-may the three auditors rank all eleven residuals read-only. Do not start a new
-implementation; repeat an accepted slice; alter workflows/dependencies; publish
-benchmarks/packages/releases; modify immutable claim evidence; or touch `master`.
+Obtain three exact approvals for this full-local-gate-green six-record `CORE-024`
+preregistration, publish it unchanged, and require all eight public checks. Do not
+add the failing test or implementation beforehand; broaden the slice into parser/
+span/recovery work; alter workflows/dependencies; publish benchmarks/packages/
+releases; modify immutable claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

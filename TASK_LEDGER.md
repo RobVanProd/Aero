@@ -3801,3 +3801,89 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Status: preregistered and full-local-gate green. Audit work is prohibited until
   this exact contract passes three exact reviews, unchanged publication, and all
   eight public checks.
+
+- Authorization evidence: exact triple-approved commit
+  `d4e3c75b043bad75b714113af8d98aafd8c79b75`, tree
+  `9a07c10ccab196ace4b90ba372751f3913301284`, and diff
+  `18e3a2e98984b0de85e19e1b8d8486704c36b77c` pass compiler runs
+  `30851275589` / `30851278460`, stable/nightly Rust `30851278586`, CodeQL
+  `30851276053`, and aggregate `91811764009`.
+- Findings: all three auditors completed the required read-only nine-field reports
+  and independently ranked all eleven residuals. Type/safety ranks R-009/R-010/
+  R-012/R-002/R-004/R-005/R-011/R-013/R-006/R-016/R-007. IR/codegen ranks
+  R-009/R-010/R-012/R-011/R-002/R-005/R-004/R-013/R-006/R-016/R-007.
+  Backend/claim ranks R-002/R-010/R-009/R-012/R-005/R-004/R-006/R-013/R-011/
+  R-016/R-007. R-010 is the universal second-place containment slice, and R-009 is
+  the only candidate in every top three that all auditors find fully frozen.
+- Reconciliation: the lead selects R-009's parser-diagnostic UTF-16 projection.
+  Parser errors currently expose Unicode-scalar columns directly as LSP character
+  offsets, while the same LSP module already converts lexical scalar columns to
+  UTF-16. The correction is one tooling file, zero compiler phases, deterministic,
+  and changes no parser or language semantics. R-002 entry validation is not
+  selected because valid entry forms and the quarantined direct-analyzer
+  compatibility change are not unanimously frozen. R-010 grammar-authority
+  containment remains the bounded runner-up. R-012 remains conditional on an exact
+  dormant-inventory definition. Every other risk retains its semantic,
+  architectural, policy, evidence, or hardware stop.
+- Status: complete, strictly read-only, result commit none. Only the separately
+  frozen `CORE-024` contract below may proceed; this audit authorized no test or
+  implementation edit.
+
+## CORE-024 - Project parser diagnostic columns to LSP UTF-16
+
+- Task ID/date/owner: `CORE-024`, 2026-08-03, lead-owned zero-compiler-phase R-009
+  LSP presentation slice under DEC-029, with independent type/safety, IR/codegen,
+  and backend/claim review at every publication boundary.
+- Observed behavior: `syntax_diagnostics` retains the complete source string but
+  passes parser failures to `diagnostics_from_error` without it. The parser adapter
+  subtracts one from `SourceLocation.column` and writes that Unicode-scalar offset
+  directly into `LspPosition.character`. In the same file, lexical diagnostics
+  already project scalar columns by summing `char::len_utf16`. Because the lexer
+  advances source columns once per Rust `char`, a parser error after a non-BMP
+  character is one UTF-16 code unit too early.
+- Hypothesis: pass the source string through parser single/multi-error diagnostic
+  conversion and project the zero-based scalar start column to UTF-16 exactly at the
+  LSP boundary. Parser, AST, internal `SourceLocation`, recovery, semantics, IR,
+  verifier, codegen, CLI, and backend behavior remain unchanged.
+- Frozen behavior: internal parser locations remain one-based line and Unicode-
+  scalar columns. LSP parser-diagnostic lines remain zero-based. Start character is
+  the sum of UTF-16 widths of source-line characters before the scalar column.
+  Preserve the current synthetic one-UTF-16-unit parser end range, severity `1`,
+  source label `aero-parser`, exact message rendering, recursive multi-error order,
+  ASCII positions, and empty-valid-program behavior. This is coordinate projection,
+  not a token/AST span model or recovery claim.
+- Tests first: change only the unit-test module in `src/compiler/src/lsp.rs`. Add one
+  target `parser_diagnostic_columns_use_utf16_coordinates` using strict
+  `syntax_diagnostics` on `let text = "😀"; let ;`. Require one parser diagnostic at
+  line `0`, UTF-16 start/end `21/22`, unchanged source label/severity, and a parser
+  message rather than a lexical wrapper. The unchanged basis must fail exactly that
+  target with scalar `20/21`; existing ASCII, multi-error, valid-program, and lexical
+  UTF-16 tests must pass. Review and publish this tests-only tree before production.
+- Implementation files: only `src/compiler/src/lsp.rs`, the tests-first content in
+  that file, and these six control records. Thread `source` through the private
+  parser diagnostic adapter and calculate the start column from the selected source
+  line. Do not change lexer projection, parser/lexer APIs outside this private LSP
+  adapter, source locations, diagnostic messages, or any compiler phase.
+- Acceptance: tests-only public evidence reproduces exactly one failing LSP unit
+  target in each compiler job and every stable/nightly Rust job that reaches it,
+  with fail-fast cancellation recorded exactly and all CodeQL analyses green.
+  Implementation passes the focused new target, all existing LSP tests, exact
+  `./tools/test.sh`, three exact-snapshot reviews, unchanged publication, and all
+  eight public checks. The astral-prefix parser diagnostic must be `21/22`; ASCII and
+  lexical controls must remain byte-for-byte equivalent at their asserted boundary.
+- Compatibility decision: LSP consumers of parser diagnostics after non-BMP source
+  characters intentionally receive protocol-correct UTF-16 coordinates instead of
+  scalar offsets. ASCII results and all internal/compiler diagnostics are unchanged.
+  This accepts no new program and changes no language or ABI behavior.
+- Risks: off-by-one conversion; converting lines twice; using UTF-8 bytes instead of
+  UTF-16 code units; changing end-width/span semantics; reordering multi-errors;
+  changing lexical diagnostics; or misrepresenting this adapter as full trustworthy
+  source ranges.
+- Stop conditions: any lexer, parser, AST, recovery, `SourceLocation`, semantic, IR,
+  verifier, codegen, ABI, CLI, symbol/completion-position, backend, or grammar change;
+  any token-width/AST-span redesign; more than this LSP presentation layer; new
+  dependency/workflow, benchmark, package/release/registry, immutable claim evidence,
+  history rewrite, destructive-system, or `master` action.
+- Status: preregistered and full-local-gate green. No test or production edit is
+  authorized until this exact six-record snapshot passes three exact reviews,
+  unchanged publication, and all eight public checks.

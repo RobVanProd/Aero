@@ -893,6 +893,15 @@ upgrading any artifact.
   `AUDIT-030` is preregistered to rank all eleven remaining OPEN or PARTIALLY
   CONTROLLED risks from that clean head without inherited ordering, repeated slices,
   implementation authority, or unsupported language/backend claims.
+- `AUDIT-030` is complete from exact public-green authorization `d4e3c75`, tree
+  `9a07c10c`, with compiler `30851275589` / `30851278460`, Rust `30851278586`,
+  CodeQL `30851276053`, and aggregate `91811764009`. The three independent rankings
+  place R-009 in every top three and two rank it first. Parser diagnostics currently
+  expose scalar columns directly to LSP while lexical diagnostics already project
+  UTF-16. The lead selects that distinct one-file presentation correction under
+  `CORE-024`; no current capability is promoted before tests-first and public proof.
+  R-010 grammar containment is the runner-up. Entry contracts, dormant inventory,
+  and every other residual retain their recorded stops.
 
 ## Audit completion
 

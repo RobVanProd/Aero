@@ -262,3 +262,12 @@ HIGH/CRITICAL and PARTIALLY CONTROLLED. `AUDIT-030` is preregistered to rank the
 complete remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
 R-016 set from this clean head, excluding every accepted sub-slice and carrying no
 implementation authority.
+
+`AUDIT-030` is complete from exact public-green authorization `d4e3c75`, tree
+`9a07c10c`, with compiler `30851275589` / `30851278460`, Rust `30851278586`,
+CodeQL `30851276053`, and aggregate `91811764009`. All three independent rankings
+place R-009 in their top three and two rank it first. `CORE-024` therefore selects
+only parser-diagnostic UTF-16 start-column projection in the LSP layer. R-009 remains
+OPEN: token/AST end spans, recovery retention, and trustworthy end-to-end ranges are
+excluded. R-010 is the bounded runner-up; every other residual retains its recorded
+semantic, architectural, policy, evidence, or hardware stop.
