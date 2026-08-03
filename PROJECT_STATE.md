@@ -4,11 +4,11 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 16 implementation review — independently verify the exact `CORE-015`
-binding-type production candidate after its approved public red checkpoint. The
-focused 16-test target and complete repository gate are green locally; publication
-waits on three exact-snapshot reviews. Accepted `CORE-014` remains closed at
-`1535ce2`; benchmark execution remains quarantined.
+Milestone 16 closure review — independently verify the exact `CORE-015` acceptance
+record after its approved public red checkpoint and approved public green
+implementation. All local and public implementation gates are green at `3f0578d`;
+capability closure waits on three exact-snapshot record reviews. Accepted `CORE-014`
+remains closed at `1535ce2`; benchmark execution remains quarantined.
 
 ## Active hypothesis
 
@@ -46,6 +46,13 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Current public green implementation head:
+  `3f0578d69926e15a81c4d8fa6105c99c982cbe02`. Three independent reviewers approved
+  exact staged diff `3a909f5813def06d4f7cfb27f8650908410ac724` and tree
+  `3effac84a84d56f43abcf99c65161c3da7753d6e` with no P0-P3 findings. Both public
+  compiler-test jobs, stable and nightly Rust, all three CodeQL analyses, and
+  aggregate CodeQL pass. This is green implementation evidence pending the separate
+  exact closure review.
 - Current public tests-only red head:
   `b203ea429b5a039705be5a5b11998e6dc59f5a24`. Three independent reviewers approved
   its exact staged diff `e158ad61282617a63dade4976a7c23fe53aa0af8` and tree
@@ -209,7 +216,7 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `a78dd004aa37c39212711027b777698118d9dc02`.
-- Worktree: the local `CORE-015` production candidate changes only the two
+- Public implementation: `CORE-015` changes only the two
   preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
   records. The focused test adds implementation-review regression controls for
@@ -227,8 +234,12 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
   annotation quarantine. The focused target passes 16/16. The exact
   `./tools/test.sh` gate passes formatting, correctness Clippy, 139 library tests,
   148 binary tests, every active integration target, and doc tests; 38 pre-existing
-  Phase 5 tests remain ignored. The candidate is not accepted or public until three
-  exact implementation reviews approve it.
+  Phase 5 tests remain ignored. Three exact implementation reviews approved diff
+  `3a909f5813def06d4f7cfb27f8650908410ac724` / tree
+  `3effac84a84d56f43abcf99c65161c3da7753d6e`; public commit `3f0578d` passes the
+  complete CI matrix. The current worktree changes only the four acceptance records
+  for separate exact closure review; `CORE-015` is not closed until that review and
+  public record complete.
   One earlier full-gate attempt stopped in the unchanged
   `cli_status_contract_tests`; that target immediately passed 7/7 in isolation and
   the unchanged complete gate passed on rerun. The interruption is not reproduced
@@ -480,10 +491,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Stage and independently review the exact local `CORE-015` implementation candidate.
+Stage and independently review the exact four-record `CORE-015` acceptance closure.
 Only after all three reviewers approve the same diff and tree may it be committed and
-published as a green candidate. Then verify the complete public CI matrix before a
-separate exact closure review. Do not change lexer/parser syntax, type representation,
+published. Then verify the public record-only CI matrix before marking `CORE-015`
+accepted. Do not change compiler code/tests, lexer/parser syntax, type representation,
 conversions, assignment, ownership, aggregate layout/codegen, backend behavior,
 version policy, benchmarks, registry, release state, or `master`.
 

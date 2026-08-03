@@ -501,7 +501,7 @@ upgrading any artifact.
   `db2ac2959f9815fab5d4b649e563b59c83459dfe`; it is public at `b203ea4`. Both
   compiler-test jobs and Rust nightly reproduce the same intended target failure,
   stable is matrix-cancelled, and all CodeQL checks pass.
-- The local two-file production candidate now makes the focused matrix pass 16/16.
+- The public two-file production candidate now makes the focused matrix pass 16/16.
   Its test delta also adds implementation-review regression controls for numeric-array
   child ordering, single-pass deep nesting, nested index traversal, stub-only
   method/closure/format/custom-enum boundaries, and unsupported-child precedence. Several controls would reject the
@@ -510,9 +510,14 @@ upgrading any artifact.
   public-library assertion was also corrected to the established
   `Semantic Analysis Error:` prefix. The exact repository gate passes formatting,
   correctness Clippy, 139 library tests, 148 binary tests, all active integration
-  targets, and doc tests; the 38 established Phase 5 ignores remain unchanged. This
-  is implementation-candidate evidence pending exact reviews and public green CI,
-  not accepted capability closure.
+  targets, and doc tests; the 38 established Phase 5 ignores remain unchanged. Three
+  independent reviewers approved exact implementation diff
+  `3a909f5813def06d4f7cfb27f8650908410ac724` and tree
+  `3effac84a84d56f43abcf99c65161c3da7753d6e` with no P0-P3 findings. Public commit
+  `3f0578d69926e15a81c4d8fa6105c99c982cbe02` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. This is
+  public green implementation evidence pending exact closure review, not yet
+  accepted capability closure.
 
 ## Audit completion
 

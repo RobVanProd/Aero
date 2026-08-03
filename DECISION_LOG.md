@@ -814,8 +814,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 
 - Date: 2026-08-02
 - Status: preregistration approved at public `4f31f0c`; tests-only red checkpoint
-  independently approved and public at `b203ea4`; local production candidate green
-  and awaiting exact implementation review
+  independently approved and public at `b203ea4`; independently approved production
+  candidate public and green at `3f0578d`; awaiting exact closure review
 - Decision: existing exact scalar annotation behavior for `int`/`i32`/`float`/`f64`
   remains unchanged wherever semantics fully analyzes binding statements; syntax-
   preflighted trait default bodies remain outside that enforcement. `CORE-015` adds
@@ -918,8 +918,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   was unreachable in the red false-accept state. The exact complete gate passes 139
   library tests, 148 binary tests, every active integration target, formatting,
   correctness Clippy, and doc tests with the existing 38 Phase 5 ignores unchanged.
-  Acceptance still requires three exact implementation reviews, public green CI, and
-  exact closure review.
+  Three independent reviewers approved exact implementation diff
+  `3a909f5813def06d4f7cfb27f8650908410ac724` and tree
+  `3effac84a84d56f43abcf99c65161c3da7753d6e` with no P0-P3 findings. Public commit
+  `3f0578d69926e15a81c4d8fa6105c99c982cbe02` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. Acceptance
+  now requires only the separate exact closure review and its public record.
 - Alternatives rejected: checking annotations only in CLI; keeping nonnumeric
   annotations documentary; relying on LLVM verification; checking only the first
   array element; promoting mixed array values to float; dropping array length from

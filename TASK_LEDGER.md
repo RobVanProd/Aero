@@ -2385,5 +2385,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   controls. The exact `./tools/test.sh` passes formatting, correctness Clippy, 139
   library tests, 148 binary tests, every integration target, and doc tests; only the
   established 38 Phase 5 tests remain ignored.
-- Status: local implementation candidate green and awaiting three independent exact
-  diff/tree reviews before commit or publication.
+- Implementation review/publication: three independent reviewers approved exact diff
+  `3a909f5813def06d4f7cfb27f8650908410ac724` and tree
+  `3effac84a84d56f43abcf99c65161c3da7753d6e` with no P0-P3 findings. Public commit
+  `3f0578d69926e15a81c4d8fa6105c99c982cbe02` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL.
+- Status: public implementation candidate green; four-record acceptance closure
+  awaiting three independent exact diff/tree reviews before publication and final
+  acceptance.
