@@ -3389,3 +3389,56 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `CORE-021` therefore accepts only the frozen delegated-exit presentation boundary.
   This exact six-record final-state sync passes the full local gate; exact review and
   public closure remain pending.
+
+- Final closure acceptance: corrected exact record-only tree
+  `8a4c2d7733d9073ee375dbebbcc3e2221a807df2` and diff
+  `5abbf3a7cc2eaf718d5e76183114339254cb2898` received three independent approvals
+  with no P0-P3 findings after two reviewers rejected stale local-gate wording. It was
+  published unchanged as `b99e445`. Compiler runs `30840427466` / `30840426655`,
+  stable/nightly Rust run `30840428215`, CodeQL run `30840415565`, and aggregate
+  `91775938704` all pass. `CORE-021` is complete; R-013 remains partially controlled
+  because init containment/rollback, executable-test design, command maturity, and
+  helper architecture remain open.
+
+## AUDIT-028 — Re-rank remaining risks after CORE-021
+
+- Task ID/date/owner: `AUDIT-028`, 2026-08-03, lead-owned read-only audit with three
+  independent type/safety, IR/codegen, and backend/claim auditors.
+- Observed behavior: `CORE-021` is accepted and no next implementation is authorized.
+  The remaining OPEN or PARTIALLY CONTROLLED set is R-002, R-004, R-005, R-006,
+  R-007, R-009, R-010, R-011, R-012, R-013, and R-016. Their residuals range from
+  unresolved language semantics and compiler architecture to evidence debt, command
+  containment, absent hardware proof, and reproducibility policy.
+- Hypothesis: an independent clean-head comparison of severity, reach, current
+  fail-open behavior, semantic readiness, phase count, compatibility ambiguity, and
+  deterministic tests-first feasibility can identify one bounded next correction
+  without silently choosing semantics or confusing evidence with capability.
+- Frozen audit semantics: the audit basis is the exact commit publishing this
+  contract, but only after its exact full local gate, three approvals, and all eight
+  public checks pass. Each auditor must inspect every listed residual, rank the full
+  set, identify the strongest currently observable evidence for the leaders, state
+  stop reasons for semantically or architecturally unready work, and propose at most
+  three bounded candidate slices with explicit failing-test paths and phase counts.
+  Omission of any listed risk invalidates the audit. No ranking by title/severity
+  alone and no inherited AUDIT-027 ordering.
+- Allowed files: this preregistration may change only `TASK_LEDGER.md`,
+  `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`. The audit itself
+  is read-only and changes no file, index, worktree, branch, issue, PR, workflow,
+  dependency, artifact, claim evidence, or external state.
+- Acceptance: this exact six-record preregistration passes `./tools/test.sh`, three
+  exact-snapshot reviews with no P0-P3, and all eight public checks. Then all three
+  auditors report the required nine fields, the lead reconciles disagreements and
+  records one selection or explicit stop, and a separate frozen task contract must
+  pass before any test or implementation change.
+- Risks: stale records can omit a newly controlled residual; reviewers may conflate
+  hardware flags with execution, ignored tests with capability, untrusted public APIs
+  with trusted compiler paths, or bounded containment with full semantic closure.
+- Stop conditions: any edit/test/probe/artifact during the audit; implementation or
+  semantic decision before reconciliation; missing risk; selection spanning more
+  than two compiler phases; unsupported source-type default; invalid-program path to
+  IR/backend; hardware/performance/stability claim without immutable evidence;
+  workflow/dependency, benchmark, package/release/registry, history rewrite,
+  destructive-system, or `master` action.
+- Status: preregistered and full-local-gate green; audit work is prohibited until
+  this exact contract is triple-approved, published, and all-eight public green.

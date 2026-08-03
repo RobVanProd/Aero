@@ -1254,3 +1254,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   gate. Exact tree `0ad98c82`, diff `2dbbc395`, received three approvals and was
   published as `a4327be`; compiler `30839860335` / `30839862442`, Rust
   `30839862423`, CodeQL `30839859840`, and aggregate `91774125621` all pass.
+- Final closure: corrected record-only tree `8a4c2d77`, diff `5abbf3a7`, received
+  three approvals and was published as `b99e445`. Compiler `30840427466` /
+  `30840426655`, Rust `30840428215`, CodeQL `30840415565`, and aggregate
+  `91775938704` all pass. DEC-026 is closed only for its selected presentation
+  boundary; residual R-013 command semantics remain open.
+- Next-decision boundary: `AUDIT-028` is read-only full-risk re-ranking. It cannot
+  inherit AUDIT-027 ordering, make a semantic choice, or authorize implementation.
+  Lead reconciliation and a separately frozen task contract are required afterward.

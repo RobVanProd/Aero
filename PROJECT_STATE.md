@@ -4,17 +4,17 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 24 `CORE-021` record-only closure — exact three-review-approved
-implementation `a4327be` is all-eight public green. It preserves exact delegated CPU
-behavior but prints `Program executed successfully.` only for exit zero. This
-final-state sync changes the six control records only.
+Milestone 25 `AUDIT-028` preregistration — corrected `CORE-021` closure `b99e445` is
+triple-reviewed and all-eight public green. No next implementation is authorized;
+the next work is a clean-head read-only comparison of every remaining OPEN or
+PARTIALLY CONTROLLED risk.
 
 ## Active hypothesis
 
-Accepted `a4327be` conditions only the CPU delegated-success line on exit zero and
-makes the focused contract 11/11 while preserving exact child status, output
-forwarding, artifact cleanup, CLI-owned status boundary, and all
-compiler/backend behavior.
+Independent full-set ranking by severity, reach, current fail-open behavior, semantic
+readiness, phase count, compatibility ambiguity, and deterministic tests-first
+feasibility should identify one bounded next slice without inventing semantics or
+mistaking evidence, flags, or annotations for compiler/hardware capability.
 
 ## Founding-framework checkpoint
 
@@ -612,8 +612,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three exact-snapshot approvals for this full-local-gate-green six-record
-`CORE-021` closure; then publish it and require all eight public checks green before
-the next read-only risk ranking. Do
+`AUDIT-028` preregistration; then publish and require all eight public checks green.
+Only afterward may the three auditors perform the frozen read-only ranking. Do
 not refactor helper termination, remap delegated statuses, add replacement wording,
 change child output/cleanup, touch init rollback, or alter compiler/backend behavior,
 workflows/dependencies, benchmarks/packages, immutable claim evidence, or `master`.

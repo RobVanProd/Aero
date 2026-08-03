@@ -831,6 +831,12 @@ upgrading any artifact.
   `30839859840`, and aggregate `91774125621` all pass. The selected truthful
   presentation boundary is accepted without promoting any language, execution,
   backend, safety, or stability capability.
+- Corrected exact record-only closure `b99e445`, tree `8a4c2d77`, diff `5abbf3a7`,
+  is triple-approved and all-eight public green in compiler `30840427466` /
+  `30840426655`, Rust `30840428215`, CodeQL `30840415565`, and aggregate
+  `91775938704`. `AUDIT-028` is preregistered to compare every remaining OPEN or
+  PARTIALLY CONTROLLED risk from a clean public head; it is read-only and cannot add
+  or promote a capability.
 
 ## Audit completion
 

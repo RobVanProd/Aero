@@ -179,6 +179,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   `30839860335` / `30839862442`, Rust `30839862423`, CodeQL `30839859840`, and
   aggregate `91774125621` all pass. The selected presentation boundary is accepted
   without changing or promoting any compiler/backend row.
+- Corrected record-only closure `b99e445`, tree `8a4c2d77`, diff `5abbf3a7`, passes
+  compiler `30840427466` / `30840426655`, stable/nightly Rust `30840428215`, CodeQL
+  `30840415565`, and aggregate `91775938704`. `AUDIT-028` is a preregistered
+  read-only full-risk ranking and cannot change or promote any matrix row.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

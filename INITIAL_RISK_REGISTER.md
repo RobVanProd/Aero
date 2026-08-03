@@ -200,3 +200,9 @@ implementation `a4327be` passes compiler `30839860335` / `30839862442`, Rust
 `30839862423`, CodeQL `30839859840`, and aggregate `91774125621`; the selected
 presentation boundary is accepted. R-013 remains partially controlled because the
 unselected command boundaries and all other risks remain open.
+
+Corrected exact record-only closure `b99e445`, tree `8a4c2d77`, diff `5abbf3a7`,
+passes compiler `30840427466` / `30840426655`, stable/nightly Rust `30840428215`,
+CodeQL `30840415565`, and aggregate `91775938704`. `AUDIT-028` is preregistered to
+compare the complete remaining set R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/
+R-012/R-013/R-016 without inherited ordering or implementation authority.
