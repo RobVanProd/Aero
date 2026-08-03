@@ -55,6 +55,21 @@ fn expect_rejection(
     }
 }
 
+fn expect_exact_rejection(
+    failures: &mut Vec<String>,
+    label: &str,
+    result: Result<(), String>,
+    expected: &str,
+) {
+    match result {
+        Ok(()) => failures.push(format!("{label}: unexpectedly accepted")),
+        Err(error) if error != expected => failures.push(format!(
+            "{label}: diagnostic {error:?} did not equal {expected:?}"
+        )),
+        Err(_) => {}
+    }
+}
+
 fn expect_acceptance(failures: &mut Vec<String>, label: &str, result: Result<(), String>) {
     if let Err(error) = result {
         failures.push(format!("{label}: unexpectedly rejected: {error}"));
@@ -619,13 +634,98 @@ fn exact_selected_and_unannotated_controls_pass_semantics_and_checked_ir() {
 }
 
 #[test]
+fn initialized_tuple_annotations_fail_closed_before_generation() {
+    const SOURCE: &str = "fn main() { let value: (int, float) = 1; }";
+    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.";
+    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation for an initialized binding";
+    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.";
+
+    let mut failures = Vec::new();
+    expect_exact_rejection(
+        &mut failures,
+        "ordinary direct semantics",
+        semantic_result(SOURCE),
+        SEMANTIC_ERROR,
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "ordinary checked admission",
+        checked_source(SOURCE),
+        CHECKED_ERROR,
+    );
+
+    let public_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(SOURCE, CompilerOptions::default())
+    })) {
+        Err(_) => Err("compile_program unwound".to_string()),
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "public compile_program",
+        public_result,
+        PUBLIC_ERROR,
+    );
+
+    let generic_impl = generic_impl_with(binding(
+        "value",
+        Some(Type::Tuple(vec![
+            Type::Named("int".to_string()),
+            Type::Named("float".to_string()),
+        ])),
+        Expression::IntegerLiteral(1),
+    ));
+    let generic_semantics = {
+        let mut analyzer = SemanticAnalyzer::new();
+        analyzer.analyze(generic_impl.clone()).map(|_| ())
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "generic impl direct semantics",
+        generic_semantics,
+        SEMANTIC_ERROR,
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "generic impl checked admission",
+        checked_ast(generic_impl),
+        CHECKED_ERROR,
+    );
+
+    expect_exact_rejection(
+        &mut failures,
+        "tuple RHS semantic child precedence",
+        semantic_result("fn main() { let value: (int, float) = (1, 2); }"),
+        "Tuple expressions are not supported.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "tuple RHS checked child precedence",
+        checked_source("fn main() { let value: (int, float) = (1, 2); }"),
+        "aggregate expression is not admitted in checked IR",
+    );
+    expect_acceptance(
+        &mut failures,
+        "uninitialized tuple annotation semantics",
+        semantic_result("fn main() { let value: (int, float); }"),
+    );
+    expect_acceptance(
+        &mut failures,
+        "uninitialized tuple annotation checked admission",
+        checked_source("fn main() { let value: (int, float); }"),
+    );
+
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
 fn excluded_annotations_remain_ignored_at_direct_frontend_boundaries() {
     let cases = [
         ("lowercase string", "fn main() { let value: string = 1; }"),
         ("custom named", "fn main() { let value: Widget = 1; }"),
         ("generic", "fn main() { let value: Vec<int> = 1; }"),
         ("reference", "fn main() { let value: &int = 1; }"),
-        ("tuple", "fn main() { let value: (int, float) = 1; }"),
         ("bool array", "fn main() { let value: [bool; 1] = [1]; }"),
         (
             "String array",
