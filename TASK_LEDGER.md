@@ -2922,7 +2922,13 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   with no P0-P3 findings and was published as `8bde0ff0189d1636a86757bf20ee3814ec3f932a`.
   Compiler runs `30822531693` and `30822533924`, stable/nightly run `30822533179`,
   CodeQL run `30822528126`, and aggregate `91715952709` all pass.
-- Status: accepted implementation; the selected object-only false success and current
-  claim surface are controlled. Record-only closure and final-state sync remain.
-  R-007 remains open because no Aero accelerator execution or correctness evidence
-  was produced.
+- Closure acceptance: exact record-only diff
+  `3d0a17f75e74446d5db0a132084fb3ca7973c6ed`, tree
+  `83c9676f905dde55d5da52ed3961607c2aec9d55`, received three independent approvals
+  with no P0-P3 findings and was published as `2e0e17fde6d9b11c2f5705c45b23468e0b04cbf0`.
+  Compiler runs `30823259890` and `30823261072`, stable/nightly run `30823260717`,
+  CodeQL run `30823257183`, and aggregate `91718428033` all pass.
+- Status: complete and accepted at public closure `2e0e17f`; the selected object-only
+  false success and current claim surface are controlled. R-007 remains open because
+  no Aero accelerator execution or correctness evidence was produced. This final-
+  state sync changes records only.

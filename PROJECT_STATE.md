@@ -4,13 +4,15 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 19 record closure — triple-approved `CORE-018` implementation `8bde0ff`
-is public and all eight checks pass. `run` success is reserved for CPU process
-execution; ROCm/CUDA object-only routes fail closed; ambiguous `gpu` is rejected;
+Milestone 19 final-state sync — `CORE-018` is accepted at exact three-review-approved
+public closure `2e0e17f`, with all eight checks green. `run` success is reserved for
+CPU process execution; the ROCm temporary-object route and CUDA unavailable route
+fail closed; ambiguous `gpu` is rejected;
 graph/quant stages disclose non-device scalar helpers; and the nonexistent Aero GGUF
 route is disabled. This selected false-success/claim boundary is controlled. It does
 not implement an accelerator backend or close R-007, which still requires independent
-hardware execution and correctness evidence.
+hardware execution and correctness evidence. This sync is record-only before the next
+clean-head risk re-ranking.
 
 ## Active hypothesis
 
@@ -46,6 +48,14 @@ behavior, numerical proof, and Aero GGUF performance evidence.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-018` closure head:
+  `2e0e17fde6d9b11c2f5705c45b23468e0b04cbf0`. Three independent reviewers approved
+  exact record-only diff `3d0a17f75e74446d5db0a132084fb3ca7973c6ed` and tree
+  `83c9676f905dde55d5da52ed3961607c2aec9d55` with no P0-P3 findings. Both compiler-
+  test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL pass
+  in runs `30823259890`, `30823261072`, `30823260717`, and `30823257183`, with
+  aggregate check `91718428033`; draft PR #4 remains open and mergeable and upstream
+  `master` remains `8f8c733`.
 - Public `CORE-016` preregistration head:
   `1575914e7ab1f3c70793c77a1d82b7b3a78bb441`. Three independent reviewers approved
   exact staged diff `321fb61c3932cd0663bc5bcbc0aecb02361ab010` and tree
@@ -573,11 +583,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze and review this six-record closure, publish only the exact approved tree, and
-require all eight public checks green. Then perform the final-state record sync with
-the same exact review/public-green discipline. Do not implement HIP/CUDA execution,
-quantization mathematics, a benchmark, a schema rename, language semantics,
-package/release state, or any change to `master`.
+Freeze, exactly review, and publish this six-record final-state sync; require all
+eight public checks green. Then begin the next clean-head read-only audit and re-rank
+the remaining risks before preregistering another bounded slice. Do not implement
+HIP/CUDA execution, quantization mathematics, a benchmark, a schema rename, language
+semantics, package/release state, or any change to `master`.
 
 ## Unauthorized actions
 

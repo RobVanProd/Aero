@@ -645,9 +645,12 @@ upgrading any artifact.
   scope; and the nonexistent Aero GGUF route is disabled while external references
   remain exact. Exact implementation tree `d10567be` received three independent
   approvals and was published as `8bde0ff`; the complete local gate and all eight
-  public checks pass. The selected false-success/current-claim boundary is controlled,
-  but R-007 remains open because no accelerator execution or correctness evidence was
-  produced.
+  public checks pass. Exact record-only diff `3d0a17f7` and tree `83c9676f` then
+  received three independent approvals with no P0-P3 findings and were published as
+  closure `2e0e17f`. Its two compiler jobs, stable/nightly Rust, all three CodeQL
+  analyses, and aggregate CodeQL pass. The selected false-success/current-claim
+  boundary is accepted, but R-007 remains open because no accelerator execution or
+  correctness evidence was produced.
 
 ## Audit completion
 

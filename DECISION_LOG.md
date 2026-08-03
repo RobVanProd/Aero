@@ -1061,10 +1061,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-023 — `run` success requires execution; backend labels require stage evidence
 
 - Date: 2026-08-03
-- Status: accepted in exact three-review-approved implementation `8bde0ff` after the
-  public tests-only red checkpoint `427fb4c`; focused CLI 10/10, claims 7/7, the
-  complete repository gate, and all eight public checks pass. Record-only closure and
-  final-state sync remain; R-007 hardware execution evidence remains open.
+- Status: accepted at public closure `2e0e17f` after public tests-only red checkpoint
+  `427fb4c` and exact three-review-approved implementation `8bde0ff`. Focused CLI
+  10/10, claims 7/7, the complete repository gate, and all eight implementation and
+  closure checks pass. Exact closure diff `3d0a17f7` and tree `83c9676f` received
+  three independent approvals with no P0-P3 findings. This final-state sync changes
+  records only; R-007 hardware execution evidence remains open.
 - Decision: a successful `aero run` means a program process actually executed. CPU
   keeps its existing object/link/process path and delegated exit status. ROCm may
   retain required LLVM verification and temporary AMDGPU object probing, but even a

@@ -124,7 +124,9 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   approved implementation `8bde0ff` passes CLI 10/10, claims 7/7, the complete gate,
   and all eight public checks with fail-closed ROCm/CUDA, explicit targets, exact
   non-device scalar-helper telemetry, and the Aero GGUF route disabled. The selected
-  boundary is accepted; no backend row is promoted and R-007 remains open.
+  boundary is accepted at exact three-review-approved public record-only closure
+  `2e0e17f`, which also passes all eight checks. No backend row is promoted and R-007
+  remains open.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
