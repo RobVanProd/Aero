@@ -183,6 +183,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   compiler `30840427466` / `30840426655`, stable/nightly Rust `30840428215`, CodeQL
   `30840415565`, and aggregate `91775938704`. `AUDIT-028` is a preregistered
   read-only full-risk ranking and cannot change or promote any matrix row.
+- Public-green `AUDIT-028` basis `399e04f` completes the full-risk ranking. R-013 is
+  the only universal top-two residual; DEC-027 and preregistered `CORE-022` select
+  only fail-closed `aero init` destination-entry preflight before writes. This
+  project-tooling boundary does not change or promote a compiler/backend matrix row.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

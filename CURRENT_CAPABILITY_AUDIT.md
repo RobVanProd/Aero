@@ -837,6 +837,13 @@ upgrading any artifact.
   `91775938704`. `AUDIT-028` is preregistered to compare every remaining OPEN or
   PARTIALLY CONTROLLED risk from a clean public head; it is read-only and cannot add
   or promote a capability.
+- Public-green `AUDIT-028` basis `399e04f` completes that full-set comparison. The
+  independent top threes are R-011/R-013/R-002, R-013/R-012/R-002, and
+  R-002/R-013/R-010. R-013 is the only universal top-two residual. DEC-027 and
+  preregistered `CORE-022` select only non-following, fail-closed destination-entry
+  preflight before `aero init` writes. R-011 bounds behavior remains unfrozen; R-002
+  remains a wider runner-up. This is project-tooling containment and adds no language,
+  compiler, backend, filesystem-atomicity, safety, or stability capability.
 
 ## Audit completion
 

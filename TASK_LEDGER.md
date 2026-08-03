@@ -3442,3 +3442,79 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   destructive-system, or `master` action.
 - Status: preregistered and full-local-gate green; audit work is prohibited until
   this exact contract is triple-approved, published, and all-eight public green.
+
+- Preregistration acceptance: exact staged tree
+  `e61762fdea546581175d75232e136591b45c83a1` and diff
+  `82880ead62a023a6f329dea163aa5573c9461db4` received three independent approvals
+  with no P0-P3 findings and were published unchanged as `399e04f`. Compiler runs
+  `30841015776` / `30841022060`, stable/nightly Rust run `30841023011`, CodeQL run
+  `30841017756`, and aggregate `91777920315` all pass.
+- Findings: all three auditors inspected and ranked all eleven residuals without
+  edits, tests, probes, artifacts, or external queries. Type/safety ranks R-011,
+  R-013, R-002 first; IR/codegen ranks R-013, R-012, R-002; backend/claim ranks
+  R-002, R-013, R-010. R-013 is the only risk ranked in every top two.
+- Reconciliation: the lead selects only R-013's entry-aware `aero init` preflight.
+  It is directly observable, deterministic in the existing Unix fixture, changes
+  zero compiler phases, and follows the established no-overwrite policy. R-011 is
+  stopped because compile-error versus trap/unchecked bounds semantics are not
+  frozen; R-002 remains a runner-up but auditors disagree on one-versus-two-phase
+  enforcement and broader contract interactions. R-004/R-005/R-006/R-007/R-009/
+  R-010/R-011/R-016 retain their explicit semantic, architectural, hardware, or
+  policy stops; R-012 remains evidence debt.
+- Status: complete, read-only, result commit none. The selection authorizes only the
+  separately frozen `CORE-022` contract below, not tests or implementation yet.
+
+## CORE-022 — Refuse occupied init destinations before writes
+
+- Task ID/date/owner: `CORE-022`, 2026-08-03, lead-owned R-013 project-tooling slice
+  under DEC-027, with independent type/safety, IR/codegen, and backend/claim review
+  at every publication boundary.
+- Observed behavior: `init_project` checks `Path::exists()` for `aero.toml` and
+  `src/main.aero`, creates `src`, writes the manifest, then writes the source. A
+  dangling `src/main.aero` symlink returns false from `exists()`, so the manifest is
+  published before the source write fails. The established Unix CLI fixture requires
+  that partial manifest as current evidence.
+- Hypothesis: inspect destination directory entries without following symlinks before
+  directory creation or file writes. Treat only `NotFound` as available; refuse every
+  existing entry with the existing manifest/source refusal wording, and fail closed
+  on any other inspection error. This prevents the reproduced partial write without
+  deleting/following user entries or promising general rollback.
+- Frozen semantics: `aero.toml` and `src/main.aero` are occupied by any existing
+  filesystem entry, including a dangling symlink. Manifest is checked first, then
+  source, preserving current diagnostic precedence. Occupancy returns exact existing
+  `refusing to overwrite existing manifest: PATH` or `refusing to overwrite existing
+  source file: PATH`; an inspection failure returns exact
+  `failed to inspect project destination PATH: ERROR` before any create/write.
+  Preserve the target root, blocker, symlink, and every preexisting entry byte-for-
+  byte. On refusal create no new directory or file. Preserve successful init content/
+  result, package-name inference, CLI status `1`, error stream, and all unrelated
+  command/compiler/backend behavior. This is preflight containment, not transactional
+  rollback, atomicity, TOCTOU elimination, or a general filesystem policy.
+- Tests first: change only `src/compiler/tests/cli_status_contract_tests.rs`. In the
+  established `#[cfg(unix)]` dangling-source fixture, require exact operational
+  status `1`, the existing source-refusal diagnostic, no success text, no created
+  manifest, and preservation of the dangling entry and blocker. All assertions join
+  the existing aggregate failure list. Unchanged Linux production must make exactly
+  that established test fail; Windows cannot create/exercise this Unix fixture and
+  must be reported as a platform limitation, not as red evidence. Exact three-review
+  approval precedes public tests-only publication.
+- Implementation files: only `src/compiler/src/project_init.rs`, the unchanged
+  tests-first file, and the six current control records. Use `symlink_metadata` (or an
+  equivalently non-following standard-library inspection) in one preflight helper;
+  only `io::ErrorKind::NotFound` means available. No dependency or refactor.
+- Acceptance: tests-only Linux public compiler checks and every Rust job reaching the
+  fixture reproduce one focused target failure while CodeQL stays green; permitted
+  fail-fast cancellation is recorded. Implementation makes focused CLI 11/11 on
+  Linux, preserves the Windows 11/11 target with the Unix case compiled out, passes
+  exact `./tools/test.sh`, three exact-snapshot reviews, and all eight public checks.
+- Risks: following/removing the symlink, deleting the blocker, changing manifest-
+  first precedence, treating permission/I/O errors as absence, claiming rollback,
+  platform-specific diagnostic paths, or broadening into general filesystem races.
+- Stop conditions: cleanup/rollback after writes; temp-file/rename transaction;
+  symlink resolution/removal; permission/ownership policy beyond fail-closed
+  inspection; CLI status/helper-exit change; parser/semantics/IR/codegen/backend
+  behavior; new dependency/workflow, benchmark, package/release/registry, immutable
+  evidence, history rewrite, destructive-system, or `master` action.
+- Status: preregistered and full-local-gate green. Tests and production changes remain
+  prohibited until this exact six-record audit closure/decision/task contract passes
+  three exact reviews, is published unchanged, and passes all eight public checks.

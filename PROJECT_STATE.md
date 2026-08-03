@@ -4,17 +4,17 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 25 `AUDIT-028` preregistration — corrected `CORE-021` closure `b99e445` is
-triple-reviewed and all-eight public green. No next implementation is authorized;
-the next work is a clean-head read-only comparison of every remaining OPEN or
-PARTIALLY CONTROLLED risk.
+Milestone 25 `AUDIT-028` closure and `CORE-022` preregistration — public audit basis
+`399e04f` is all-eight green. All three auditors rank R-013 in their top two; the lead
+selects only entry-aware, pre-write `aero init` containment for a dangling destination
+entry.
 
 ## Active hypothesis
 
-Independent full-set ranking by severity, reach, current fail-open behavior, semantic
-readiness, phase count, compatibility ambiguity, and deterministic tests-first
-feasibility should identify one bounded next slice without inventing semantics or
-mistaking evidence, flags, or annotations for compiler/hardware capability.
+Non-following destination inspection can treat every preexisting manifest/source
+directory entry as occupied before any create/write, closing the reproduced partial
+manifest without deleting user entries or promising rollback, atomicity, or race
+freedom.
 
 ## Founding-framework checkpoint
 
@@ -553,6 +553,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   preserving exact child status/output/cleanup. `run_aero_program` still calls `exit`
   internally after cleanup, and that separate helper/API architecture boundary
   remains open.
+- `aero init` still follows `Path::exists()` preflight with manifest-first writes; a
+  dangling `src/main.aero` entry can therefore leave a partial manifest. `CORE-022`
+  selects only entry-aware refusal before the first write, not general rollback.
 - Legacy recovery lexing remains public for compatibility and LSP symbol recovery;
   trusted repository paths no longer feed it into semantics, IR, or artifacts.
 - Numeric and void top-level function contracts are controlled at `8d5d8e7`.
@@ -611,9 +614,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact-snapshot approvals for this full-local-gate-green six-record
-`AUDIT-028` preregistration; then publish and require all eight public checks green.
-Only afterward may the three auditors perform the frozen read-only ranking. Do
+Review and publish this six-record `AUDIT-028` closure, DEC-027, and `CORE-022`
+preregistration, then require all eight public checks green before the tests-only
+checkpoint. Do
 not refactor helper termination, remap delegated statuses, add replacement wording,
 change child output/cleanup, touch init rollback, or alter compiler/backend behavior,
 workflows/dependencies, benchmarks/packages, immutable claim evidence, or `master`.
