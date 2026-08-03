@@ -564,18 +564,19 @@ upgrading any artifact.
   documentation classification. No package version, report schema, semantics,
   backend, benchmark, registry, release, or master behavior is selected.
 - Reviewed public red commit `4b94dbd` binds this boundary with exactly two
-  preservation passes and five intended failures. The local implementation candidate
-  now reports compiler package `0.3.0` through both version flags and the no-command
+  preservation passes and five intended failures. The subsequent implementation
+  reports compiler package `0.3.0` through both version flags and the no-command
   banner, labels the unchanged three cases/four repetitions as deterministic
   regression evidence, and visibly classifies unsupported current/design/historical
   claims. Focused claim and CLI targets each pass 7/7 and exact `./tools/test.sh`
-  passes including doc tests. These are candidate results pending exact review and
-  public green CI; they do not yet close R-008 or elevate any capability class.
+  passes including doc tests. These results became accepted implementation evidence
+  at `cc984d0`; by themselves they do not elevate any capability class.
 - Exact three-review-approved implementation `cc984d0` is now public and passes both
   compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
   CodeQL. The preceding candidate results are therefore implementation evidence, but
-  R-008 remains candidate-controlled until the record-only acceptance closure is
-  exactly reviewed and publicly green. No capability class is elevated.
+  exact three-review-approved record-only closure `ea036f2` is also public with all
+  eight checks green. R-008 is controlled for this selected claim boundary. No
+  capability class is elevated, and actual ownership/type/backend gaps remain open.
 
 ## Audit completion
 

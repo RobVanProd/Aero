@@ -2625,6 +2625,13 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `cc984d0afe4c63f3c322f8da7c34fc666f8ec072` passes both compiler-test jobs,
   stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. CI runs are
   `30792532836`, `30792536017`, Rust `30792536010`, and CodeQL `30792533602`.
-- Status: implementation checkpoint public and green; record-only acceptance closure
-  is the sole remaining `CORE-016` action. R-008 stays candidate-controlled until
-  that exact closure is reviewed, published, and publicly green.
+- Closure review/publication: all three independent reviewers approved exact
+  record-only diff `7b24a58e7475700423dc66da368a22b97f9c31e8` and tree
+  `4c7f526617ecb8e3a0c28622f8eca44dac627981` with no P0-P3 findings. Public closure
+  `ea036f2e71a4f67b1f8c6f711488f02f65fc4ad5` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. CI runs are
+  `30793042965`, `30793045668`, Rust `30793045614`, and CodeQL `30793042681`.
+- Status: complete and accepted at public closure `ea036f2`. R-008 is controlled for
+  the selected version/conformance/current-design-history public-claim boundary;
+  actual ownership/type/backend capability gaps remain separately open under their
+  existing risks. This final-state sync changes records only.

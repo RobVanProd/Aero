@@ -4,16 +4,16 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 17 acceptance closure — exact three-review-approved `CORE-016`
-implementation `cc984d0` is public and all eight checks pass. The focused 7/7 claim
-target, full 7/7 CLI status target, and exact repository gate are green. Only a
-record-only exact-reviewed/public-green closure remains before R-008 can move from
-candidate-controlled to controlled. Language semantics, package version, report
-schema, backends, releases, and benchmarks remain frozen.
+Milestone 17 final-state sync — `CORE-016` is accepted at exact three-review-approved
+public closure `ea036f2`, with all eight checks green. The focused 7/7 claim target,
+full 7/7 CLI status target, and exact repository gate pass. R-008 is controlled for
+the selected public-claim boundary; no underlying ownership/type/backend capability
+or stability/release claim is inferred. This sync is record-only before the next
+clean-head risk re-ranking.
 
 ## Active hypothesis
 
-`CORE-016` can close R-008's active public false-claim boundary in one CLI
+`CORE-016` closes R-008's selected active public false-claim boundary in one CLI
 presentation surface plus documentation. Cargo's existing `0.3.0` package value is
 the compiler implementation-version source; `v1.0.0` is explicitly a language design
 target, not current conformance or stability. The existing three conformance cases
@@ -64,6 +64,12 @@ but visibly design-only or historical. No semantic or release decision is inferr
   and tree `8d5ba37b0a58c715cf72721ade23471c5fa4fa7c` with no P0-P3 findings. Both
   compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
   CodeQL pass; draft PR #4 is open, mergeable, and remains intentionally draft.
+- Accepted public `CORE-016` closure head:
+  `ea036f2e71a4f67b1f8c6f711488f02f65fc4ad5`. Three independent reviewers approved
+  exact record-only diff `7b24a58e7475700423dc66da368a22b97f9c31e8` and tree
+  `4c7f526617ecb8e3a0c28622f8eca44dac627981` with no P0-P3 findings. Both
+  compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  CodeQL pass; draft PR #4 remains open and mergeable.
 - Accepted public `CORE-015` final-state sync head:
   `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`. Three independent reviewers approved
   exact staged diff `674b1831accef7b714ba21799249f346cc5a7491` and tree
@@ -244,8 +250,8 @@ but visibly design-only or historical. No semantic or release decision is inferr
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
-  `3f0578d69926e15a81c4d8fa6105c99c982cbe02`.
-- Public implementation: `CORE-015` changes only the two
+  `cc984d0afe4c63f3c322f8da7c34fc666f8ec072`.
+- Previous public implementation record: `CORE-015` changed only the two
   preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
   records. The focused test adds implementation-review regression controls for
@@ -269,8 +275,8 @@ but visibly design-only or historical. No semantic or release decision is inferr
   complete CI matrix. Three fresh closure reviewers approved exact record diff
   `a8e4059e71991c9d7a274234f91dd225bea61c01` / tree
   `19fea4153397958656b57adac6b70556d4a997c9`; public closure commit `5d7aae0` also
-  passes all eight checks. `CORE-015` is accepted at that closure head. The current
-  worktree changes only the four final-state records for exact review/publication.
+  passes all eight checks. `CORE-015` is accepted at that closure head; its four-record
+  final-state sync is public and green at `c612f3b`.
   One earlier full-gate attempt stopped in the unchanged
   `cli_status_contract_tests`; that target immediately passed 7/7 in isolation and
   the unchanged complete gate passed on rerun. The interruption is not reproduced
@@ -461,8 +467,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - ROCm: interface/retarget/object-generation plumbing; no link/launch path or
   current-session hardware execution evidence.
 - CUDA: selectable interface; CLI source states run support is not implemented.
-- Public version: inconsistent (`0.3.0` package versus `1.0.0` CLI/banner), selected
-  for evidence-based correction in preregistered `CORE-016`.
+- Public version: compiler CLI/banner presentation is manifest-derived package
+  `0.3.0`; language `v1.0.0` material is a design target, not current conformance,
+  stability, compatibility, or release evidence (`CORE-016`, `ea036f2`).
 - Library compiler options: accepted but ignored by `compile_program`.
 - Compiler architecture: binary and library declare overlapping modules.
 
@@ -533,12 +540,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Prepare only the minimal `CORE-016` acceptance records, run the exact full gate,
-freeze their canonical diff/tree, and obtain three independent reviews. Publish only
-after all three approve, then require both compiler-test jobs, stable/nightly Rust,
-all three CodeQL analyses, and aggregate CodeQL to pass. Do not change production or
-test files, parser/type/ownership semantics, package version, conformance algorithms
-or JSON schema, backend behavior, benchmarks, registry, release state, or `master`.
+Freeze, exactly review, and publish this record-only final-state sync; require all
+eight public checks green. Then begin the next clean-head read-only audit and re-rank
+the remaining risks before preregistering another bounded slice. Do not infer
+ownership/type/backend semantics, change package version or conformance schema,
+publish benchmarks/releases/registry artifacts, or modify `master`.
 
 ## Unauthorized actions
 
