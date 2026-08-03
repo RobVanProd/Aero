@@ -193,6 +193,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   eight public checks in compiler `30843592298` / `30843592784`, Rust `30843595560`,
   CodeQL `30843589175`, and aggregate `91786468184`. This project-tooling containment
   promotes no language, IR, codegen, CPU, ROCm, or CUDA matrix row.
+- Exact record closure `aa29a00`, tree `e740df48`, diff `3eb8264b`, is triple-reviewed
+  and passes compiler `30844324249` / `30844328660`, Rust `30844328850`, CodeQL
+  `30844325051`, and aggregate `91788926688`. `CORE-022` is closed without changing
+  any compiler/backend matrix classification.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

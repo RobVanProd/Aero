@@ -3544,5 +3544,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   partial manifest plus exact symlink-target and blocker-byte preservation. No
   rollback, atomicity, TOCTOU, ancestor-symlink, language, compiler, backend, safety,
   stability, package, release, benchmark, or hardware capability is claimed.
-- Status: implementation accepted at `2a42324`; exact record-only closure remains
-  pending three reviews, unchanged publication, and all-eight public green.
+- Final closure: exact six-record tree `e740df4883a87d8a764b143d0edb7cdaf5ada30c`
+  and diff `3eb8264b7f89be8090db0995d415125125020675` received three approvals with no
+  P0-P3 findings and were published unchanged as `aa29a00`. Compiler
+  `30844324249` / `30844328660`, stable/nightly Rust `30844328850`, CodeQL
+  `30844325051`, and aggregate `91788926688` all pass.
+- Status: complete at record closure `aa29a00`. Only the selected final-entry init
+  preflight is accepted; R-013 remains partially controlled and every excluded
+  boundary remains open.

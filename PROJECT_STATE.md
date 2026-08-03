@@ -4,9 +4,9 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 25 `CORE-022` record-only closure — triple-reviewed implementation
-`2a42324` is all-eight public green and controls the selected dangling-entry
-`aero init` preflight. No next implementation is authorized by this closure.
+Milestone 25 `CORE-022` complete — exact record closure `aa29a00` is triple-reviewed
+and all-eight public green. It controls only the selected dangling-entry `aero init`
+preflight. No next implementation is authorized.
 
 ## Active hypothesis
 
@@ -614,10 +614,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Review and publish this exact six-record `CORE-022` closure, then require all eight
-public checks green before any next audit or implementation selection. Do not expand
-init preflight into rollback, atomicity, ancestor-symlink, or race-freedom claims;
-refactor helper termination; remap statuses; alter compiler/backend behavior;
+From clean public closure `aa29a00`, separately preregister a read-only audit of the
+remaining OPEN or PARTIALLY CONTROLLED risks before selecting any next slice. Do not
+expand init preflight into rollback, atomicity, ancestor-symlink, or race-freedom
+claims; refactor helper termination; remap statuses; alter compiler/backend behavior;
 change workflows/dependencies; publish benchmarks/packages/releases; modify immutable
 claim evidence; or touch `master`.
 

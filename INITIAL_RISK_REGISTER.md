@@ -218,5 +218,7 @@ compiler 10/1 in `30843119793` / `30843125522` and nightly Rust `30843124314` wh
 CodeQL remains green. Triple-reviewed implementation `2a42324` passes focused/local
 gates and all eight public checks in compiler `30843592298` / `30843592784`, Rust
 `30843595560`, CodeQL `30843589175`, and aggregate `91786468184`. The selected
-final-entry preflight is accepted; record closure remains pending, other R-013
-boundaries remain open, and all unselected residuals retain their prior status.
+final-entry preflight is accepted. Exact triple-reviewed record closure `aa29a00`
+passes compiler `30844324249` / `30844328660`, Rust `30844328850`, CodeQL
+`30844325051`, and aggregate `91788926688`. Other R-013 boundaries remain open, and
+all unselected residuals retain their prior status.

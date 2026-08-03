@@ -852,6 +852,11 @@ upgrading any artifact.
   `30843595560`, CodeQL `30843589175`, and aggregate `91786468184`. This controls only
   final-entry init preflight; rollback, atomicity, race freedom, ancestor symlinks,
   and every compiler/backend capability remain outside the result.
+- Exact triple-reviewed record closure `aa29a00`, tree `e740df48`, diff `3eb8264b`,
+  passes compiler `30844324249` / `30844328660`, Rust `30844328850`, CodeQL
+  `30844325051`, and aggregate `91788926688`. `CORE-022` is complete only for the
+  selected final-entry preflight; R-013 and all broader capability boundaries retain
+  their recorded residual status.
 
 ## Audit completion
 
