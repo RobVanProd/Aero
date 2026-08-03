@@ -4,17 +4,20 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 27 `CORE-023` record closure - exact Boolean contracts for monomorphic
-non-entry helper functions are implemented at triple-reviewed, all-eight public-green
-`67ccdf2`. R-002 remains partially controlled. The next work is exact six-record
-evidence closure; no new implementation is authorized.
+Milestone 28 `AUDIT-030` authorization - `CORE-023` is complete at triple-reviewed,
+all-eight public-green record closure `0b88530`. Exact Boolean contracts for
+monomorphic non-entry helpers are accepted, while R-002 remains partially
+controlled. The next work is a clean-head read-only ranking; no new implementation
+is authorized.
 
 ## Active hypothesis
 
-The helper-specific mapper now makes invalid in-scope Boolean arguments and returns
-stop in semantics and valid calls infer `Ty::Bool`, while exact `main`, shared
-binding/array mapping, parser, IR, codegen, ABI, generics, composites, and coercion
-retain their prior boundaries. The evidence records must close only that result.
+A clean-head, delta-aware ranking of every remaining OPEN or PARTIALLY CONTROLLED
+risk can identify one distinct bounded candidate with frozen semantics,
+deterministic tests-first evidence, and at most two compiler phases—or stop
+explicitly. Accepted slices, inherited ordering, unsupported type defaults, and
+flags, simulation, or object emission presented as language or hardware capability
+are excluded.
 
 ## Founding-framework checkpoint
 
@@ -615,11 +618,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for this full-local-gate-green six-record CORE-023
-closure, publish it unchanged, and require all eight public checks. Do not start a
-new implementation; broaden CORE-023 beyond Boolean non-entry helpers; alter
-workflows/dependencies; publish benchmarks/packages/releases; modify immutable claim
-evidence; or touch `master`.
+Obtain three exact approvals for this full-local-gate-green six-record `AUDIT-030`
+preregistration, publish it unchanged, and require all eight public checks. Only then
+may the three auditors rank all eleven residuals read-only. Do not start a new
+implementation; repeat an accepted slice; alter workflows/dependencies; publish
+benchmarks/packages/releases; modify immutable claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

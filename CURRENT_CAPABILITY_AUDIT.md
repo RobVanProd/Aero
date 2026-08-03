@@ -886,6 +886,13 @@ upgrading any artifact.
   contracts are now controlled in semantics. R-002 remains PARTIALLY CONTROLLED;
   entry/ABI and every excluded type/shape remain open or quarantined, and no general
   type-safety, execution, stability, or backend capability is inferred.
+- Exact triple-reviewed `CORE-023` record closure `0b88530`, tree `71ac4da7`, diff
+  `adba01a1`, passes compiler `30850519757` / `30850524194`, stable/nightly Rust
+  `30850524148`, CodeQL `30850520457`, and aggregate `91809289681`. This closes only
+  the selected semantic contract boundary and promotes no broader capability.
+  `AUDIT-030` is preregistered to rank all eleven remaining OPEN or PARTIALLY
+  CONTROLLED risks from that clean head without inherited ordering, repeated slices,
+  implementation authority, or unsupported language/backend claims.
 
 ## Audit completion
 

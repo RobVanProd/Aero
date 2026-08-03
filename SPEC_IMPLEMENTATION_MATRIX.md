@@ -221,6 +221,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   and valid calls infer `Ty::Bool`; checked IR/codegen remain unchanged and retain
   existing LLVM `i1` evidence. This is a PARTIAL function/type-contract improvement,
   not entry/ABI, generic/composite, execution, backend, or stability closure.
+- Exact triple-reviewed record closure `0b88530`, tree `71ac4da7`, diff `adba01a1`,
+  passes compiler `30850519757` / `30850524194`, stable/nightly Rust `30850524148`,
+  CodeQL `30850520457`, and aggregate `91809289681`. No matrix row is promoted:
+  `CORE-023` accepts only its non-entry monomorphic Boolean semantic sub-slice.
+  `AUDIT-030` is a preregistered read-only ranking of all eleven residuals and cannot
+  change implementation or capability classification.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

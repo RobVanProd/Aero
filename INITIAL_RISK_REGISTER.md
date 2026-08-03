@@ -254,3 +254,11 @@ aggregate `91807553635`. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED:
 Boolean entry/ABI and every excluded String/custom/contextual/structural/generic/
 composite/reference/closure/method/coercion/defaulting boundary remain open or
 quarantined.
+
+Exact triple-reviewed `CORE-023` record closure `0b88530`, tree `71ac4da7`, diff
+`adba01a1`, passes compiler `30850519757` / `30850524194`, stable/nightly Rust
+`30850524148`, CodeQL `30850520457`, and aggregate `91809289681`. R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED. `AUDIT-030` is preregistered to rank the
+complete remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
+R-016 set from this clean head, excluding every accepted sub-slice and carrying no
+implementation authority.

@@ -1310,8 +1310,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-028 - Boolean helper functions use exact semantic contracts
 
 - Date: 2026-08-03
-- Status: implemented and all-eight public green at `67ccdf2` under `CORE-023`;
-  exact record-only closure pending.
+- Status: accepted and closed at exact public record `0b88530` under `CORE-023`.
 - Decision: for monomorphic non-entry top-level helper functions, source `bool`
   parameters and returns participate in the existing exact function-contract path as
   `Ty::Bool`. Calls use exact arity and equality checks, Boolean results infer
@@ -1352,6 +1351,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `c0b538c9`, passes focused and preservation gates, exact `./tools/test.sh`, compiler
   `30850000615` / `30850005598`, Rust `30850005670`, CodeQL `30850001251`, and
   aggregate `91807553635`.
+- Final closure: exact triple-reviewed tree `71ac4da7`, diff `adba01a1`, was
+  published unchanged as `0b88530` and passes compiler `30850519757` /
+  `30850524194`, stable/nightly Rust `30850524148`, CodeQL `30850520457`, and
+  aggregate `91809289681`.
 - Residual: DEC-028 accepts only non-entry monomorphic Boolean helper contracts.
   Boolean `main`, other entry/ABI validation, String/custom/contextual/structural/
   generic/composite/reference/closure/method contracts, coercion/defaulting, and
