@@ -2781,3 +2781,123 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   controlled for the selected strict Phase 5 syntax-evidence classification; Cargo
   overlap, 299 dormant tests, and every semantic capability claim remain open. This
   final-state sync changes records only.
+
+## AUDIT-024 — Re-audit R-007 execution and backend claims after CORE-017
+
+- Task ID/date/basis: `AUDIT-024`, 2026-08-03, clean public
+  `9ddc571ac47f1c2ffcf7a737e4be442f01c0f78b`, tree
+  `20ab4e6b87ead659a138e57bc27c073f817d15cb`; integration branch exactly matches
+  origin, PR #4 is open/draft/mergeable, all eight checks pass, and upstream master
+  remains `8f8c733`.
+- Observed behavior: CPU `run` verifies, objects/links, executes a host process, and
+  passes through its status. ROCm `run` requires verification and can invoke `llc`
+  for a temporary AMDGPU object, prints object validation, never checks that object
+  exists, never links or launches, then returns status zero. CUDA returns operational
+  `1`. The `gpu` selector uses environment/tool presence and can silently choose CPU.
+- Claim finding: graph compilation writes externally verified LLVM containing
+  internal scalar-`double` helpers; quantization writes externally verified scalar-
+  `double` helpers using fixed/default or sample-derived scales. Names, comments,
+  counters, and backend labels are not device execution, real FP8, per-channel
+  execution, numerical correctness, or hardware calibration. Current CLI help/
+  reporting, README, BUILD, Tutorial 1, quantization notes, and enabled Aero ROCm
+  GGUF configuration exceed that evidence.
+- Preserved evidence: all 27 paths declared by `claim-verification/claims.json` exist.
+  Its GGUF result is accurately external llama.cpp reference evidence and its Aero
+  GPU claims remain blocked. `claim-verification/**`, formal design specifications,
+  and experimental implementations are frozen.
+- Verification: root ran the seven-test `cli_status_contract_tests` target (7/7),
+  graph unit filter (3/3 in library and 3/3 in binary), and quantization unit filter
+  (5/5 in library and 5/5 in binary). Three independent read-only auditors traced
+  type/safety, IR/codegen, and backend/claim boundaries and unanimously classified
+  the ROCm zero-status route as P1 false success. No files changed and no hardware,
+  benchmark, or artifact command ran.
+- Remaining uncertainty: no ROCm/CUDA device was probed; object usability, graph
+  semantic equivalence, and quantization numerical correctness remain unproved.
+- Risk/recommendation: R-007 remains OPEN HIGH/HIGH. Take the bounded tests-first
+  fail-closed/status/claim slice below. Do not infer device capability from a green
+  CPU/LLVM gate.
+- Status: complete, read-only; result commit none.
+
+## CORE-018 — Fail object-only execution closed and reclassify backend claims
+
+- Task ID/owner: `CORE-018`; lead-owned CLI/backend-claim vertical slice with
+  independent type/safety, IR/codegen, and backend/claim review at every publication
+  boundary.
+- Observed behavior: explicit ROCm `run` can report zero without execution; `llc`
+  success lacks an object postcondition; `gpu` is an ambiguous heuristic target;
+  current graph/quant/GGUF wording exceeds the implementation and immutable evidence.
+- Hypothesis: exact status, postcondition, target-selection, and claim contracts can
+  control the false-success surface while preserving all experimental transforms and
+  avoiding device or numerical semantics.
+- Frozen execution semantics: CPU `run` and delegated child status are unchanged.
+  ROCm may invoke `llc` to emit a temporary target object from externally verified
+  LLVM, but must require the requested `.o` path to be a regular file before reporting
+  the stage. Regular-file existence is only an emission postcondition, not object
+  validity or usability. The exact stage line is `ROCm object stage complete: llc
+  produced a temporary file; no link or execution occurred.` ROCm must then return
+  operational `1` with the exact diagnostic `ROCm run is unavailable: HIP link and
+  device launch are not implemented; no program was executed.` A zero-status `llc`
+  without a regular output file fails with exact diagnostic `ROCm object generation
+  failed: llc reported success but did not create the requested regular object file.`
+  CUDA remains operational `1`, says object/link/device launch are unavailable and no
+  program executed, and recommends CPU only. Preserve existing cleanup attempts and
+  cleanup-error precedence; tests prove no temporary artifacts remain on covered
+  ordinary success/error paths.
+- Frozen target semantics: both public spellings `--target gpu` and `--backend gpu`
+  are rejected for both build and run with invocation status `2` and the exact core
+  diagnostic `target \`gpu\` is ambiguous and does not prove a usable device; choose
+  cpu, rocm, or cuda explicitly`. Explicit targets remain accepted; internal auto-
+  detection code is preserved but unused by these public routes.
+- Frozen claim semantics: graph instruction/helper bodies and existing report fields/
+  schema/values remain unchanged. Only additive non-semantic LLVM comments plus CLI
+  stdout/help may add `execution_scope=internal-scalar-helper` and
+  `device_execution=false`; current docs use the same stage terms. Quantization
+  instruction/helper bodies, report schema/field names/counts, and every non-`notes`
+  report value remain unchanged. Wording-only changes to `QuantizationReport.notes`
+  are the sole report-value exception; additive non-semantic LLVM comments, CLI
+  stdout/help, those notes, and current docs may describe scalar-double helper
+  transformation with default/sample-derived scaling and explicitly deny device
+  execution, real FP8 representation, per-channel execution, and numerical proof.
+  The quantization claim test binds this exact notes exception. The example
+  `aero_rocm` GGUF backend is disabled with a reason because its source/arguments/
+  execution path do not exist; external backends and evidence are preserved.
+- Tests-first red contract: add two ROCm fake-tool tests—one `llc` writes the requested
+  regular object and one returns zero without it—plus one exact ambiguous-`gpu`
+  rejection test that matrices build/run × `--target`/`--backend`, all at status `2`,
+  to `cli_status_contract_tests.rs`. Before implementation that target must be exactly
+  7 passed / 3 failed. Add `backend_claim_contract_tests.rs` with exactly seven tests:
+  two green preservation tests for the formal design-target notice and immutable
+  external-GGUF qualification, and five intended failures binding CLI stage/help,
+  current README/BUILD/tutorial wording, graph telemetry, quantization boundaries,
+  and the disabled Aero GGUF example. The red target must be exactly 2 passed / 5
+  failed. `--no-fail-fast` must prove every other target and doc tests green; public
+  red may fail only both compiler-test jobs and stable/nightly Rust while all four
+  CodeQL checks remain green.
+- Allowed files: `src/compiler/src/main.rs`; wording/adjacent telemetry only in
+  `src/compiler/src/graph_compiler.rs` and `src/compiler/src/quantization.rs`;
+  `src/compiler/tests/cli_status_contract_tests.rs`;
+  `src/compiler/tests/backend_claim_contract_tests.rs`; `README.md`; `BUILD.md`;
+  `BACKEND_STATUS.md`; `tutorials/01-getting-started.md`;
+  `benchmarks/gguf/README.md`; `benchmarks/gguf/config.rx7800xt.example.json`; and
+  minimal updates to the six task/decision/risk/capability/matrix/project records.
+- Frozen files/surfaces: Cargo manifests/lock/dependencies; workflows/test runner;
+  parser, AST, semantics, checked IR, codegen algorithms, graph/quant algorithms and
+  serialized field names; GPU discovery implementation; object/linker flags and
+  verifier policy; claim-verification/results; benchmark runners/results; founding
+  PDFs/formal spec/grammar; packages/registry/releases; external artifacts; master.
+- Acceptance: failing tests first; focused red matrices exactly 7/3 and 2/5; three
+  exact diff/tree approvals before every publication; implementation focused targets
+  10/10 and 7/7 green; existing CPU child-status, CUDA unavailable, verifier-before-
+  publication, graph, and quant controls green; exact `./tools/test.sh` green; then
+  all eight public checks green for implementation, closure, and final-state sync.
+- Risks: scripts may have relied on incorrect ROCm zero status or heuristic CPU
+  fallback; broad wording assertions could erase design-only material; field renames
+  could break consumers; shared run changes could disturb CPU status; claiming object
+  existence as validity could overstate evidence.
+- Stop conditions: any HIP/CUDA ABI, linker, runtime, device discovery, memory
+  transfer, synchronization, launch, result comparison, performance run/claim, real
+  FP8/per-channel/numerical definition, graph/quant algorithm change, report field
+  rename, persistent ROCm artifact, language semantic change, dependency/workflow
+  change, more than two compiler phases, unexpected red baseline, external artifact,
+  package/release/registry action, or master modification.
+- Status: preregistered candidate; no tests or implementation changed yet.

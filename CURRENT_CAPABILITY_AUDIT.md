@@ -606,6 +606,37 @@ upgrading any artifact.
   evidence-classification boundary; Cargo overlap and 299 dormant tests remain, and
   no semantic or execution capability class changes.
 
+### Post-CORE-017 backend truth recheck (`AUDIT-024`)
+
+- The audit basis is clean public head `9ddc571`, tree `20ab4e6`, with all eight
+  checks green. The root also reran the seven-test CLI status contract and the graph
+  and quantization unit filters (3/3 and 5/5 in each duplicated lib/bin target); all
+  passed before any edit.
+- CPU `run` has a real externally verified host object/link/process path and passes
+  the child status through. ROCm `run` requires LLVM verification and invokes `llc`
+  for a temporary AMDGPU object, but it neither checks that the object exists nor
+  links, launches, synchronizes, or executes anything; it then returns status zero.
+  CUDA `run` correctly returns operational status `1` and has no object/link/launch
+  path.
+- The `gpu` alias is an environment/tool-presence heuristic, not usable-device
+  detection. It can silently choose CPU and does not probe CUDA capability.
+- Graph compilation externally verifies textual LLVM transformation into ordinary
+  internal scalar-`double` helpers. Backend names and existing `executable*` report
+  fields do not establish a device ABI or execution. Quantization likewise emits
+  scalar-`double` helpers using default or sample-derived scale; it has no FP8
+  representation/rounding, executed per-channel behavior, numerical proof, or device
+  execution.
+- Current README, BUILD, tutorial, CLI help/reporting, quantization notes, and the
+  enabled Aero ROCm GGUF example exceed that evidence. All 27 declared immutable
+  claim artifacts exist, and `claim-verification/` already classifies the real GGUF
+  run as external llama.cpp reference evidence and Aero GPU claims as blocked.
+- All three independent read-only reviewers classify the ROCm zero-status path as a
+  P1 false success and recommend a tests-first fail-closed correction. `CORE-018`
+  freezes operational status `1` for object-only ROCm `run`, a regular-file emission
+  postcondition, explicit target selection, and stage-accurate current claims while
+  preserving algorithms and compatibility field names. R-007 remains OPEN because
+  no Aero accelerator execution or correctness evidence exists.
+
 ## Audit completion
 
 All eight requested read-only areas were completed in bounded waves. The audit

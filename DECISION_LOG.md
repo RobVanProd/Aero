@@ -1057,3 +1057,42 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `3dd3bb4` passes both compiler-test jobs, stable/nightly Rust, all three CodeQL
   analyses, and aggregate CodeQL. The decision is accepted without claiming semantic,
   generic/trait, execution, conformance, compatibility, or stability uplift.
+
+## DEC-023 — `run` success requires execution; backend labels require stage evidence
+
+- Date: 2026-08-03
+- Status: proposed for `CORE-018`; not implemented.
+- Decision: a successful `aero run` means a program process actually executed. CPU
+  keeps its existing object/link/process path and delegated exit status. ROCm may
+  retain required LLVM verification and temporary AMDGPU object probing, but even a
+  successful regular-file emission postcondition returns operational status `1`
+  because Aero has no HIP link or launch. File existence is not object validity or
+  usability. An `llc` zero exit without the requested regular file is also an
+  operational failure. CUDA remains operationally unavailable and recommends CPU,
+  not ROCm, for execution.
+- Target decision: `gpu` is not a capability target. `build` and `run` reject the
+  alias through both `--target gpu` and `--backend gpu` as ambiguous invocation status
+  `2` and require explicit `cpu`, `rocm`, or `cuda`. The internal auto-detection helper
+  remains experimental and unchanged; this decision does not certify explicit
+  accelerator targets.
+- Claim decision: graph output is externally verified textual extraction of internal
+  scalar helpers. Quantization output is externally verified scalar-double helper
+  transformation using default or sample-derived scale. Backend labels and retained
+  `executable*` compatibility fields are not device execution. Current CLI/docs must
+  deny device ABI/link/launch, real FP8 representation, executed per-channel
+  behavior, numerical correctness, and Aero GGUF performance evidence.
+- Compatibility boundary: preserve command names, explicit CPU/ROCm/CUDA flags,
+  algorithms and generated instruction/helper bodies, existing report schema/field
+  names/counts, every non-`notes` report value, external verifier policy, CPU status
+  behavior, and immutable evidence. Wording-only changes to
+  `QuantizationReport.notes` are the sole report-value exception. Additive non-
+  semantic LLVM comments and CLI presentation are allowed only for the frozen stage
+  telemetry. Disabling the non-runnable Aero ROCm example is an evidence correction,
+  not benchmark execution or deletion.
+- Alternatives rejected: treating object generation as execution success; silently
+  choosing CPU for `gpu`; implementing HIP/CUDA launch in a claim slice; renaming
+  report fields; fixing quantization mathematics without frozen semantics; deleting
+  experimental transforms; publishing the external llama.cpp result as Aero proof.
+- Revisit when: a separate decision specifies device discovery or a persistent object
+  command, or hardware-gated Aero link/launch/transfer/synchronization/result evidence
+  satisfies `BACKEND_STATUS.md`. None is inferred from `CORE-018`.

@@ -4,22 +4,23 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 18 final-state sync — `CORE-017` is accepted at exact three-review-approved
-public closure `3dd3bb4`, with all eight checks green. The Phase 5 target passes
-exactly 22 strict lexer/parser-retention tests, lists exactly 38 total, and retains
-exactly 16 explicit quarantines; the exact full gate passes. R-012 is partially
-controlled only for this evidence-classification boundary. No production behavior,
-semantic capability, execution claim, or stability claim is inferred. This sync is
-record-only before the next clean-head risk re-ranking.
+Milestone 19 preregistration — `AUDIT-024` at clean public head `9ddc571` found an
+active R-007 false success: `aero run --target rocm` can return status zero after
+temporary object generation although Aero never links or executes a program. The
+same audit found ambiguous `gpu` target fallback and current CLI/documentation terms
+that overstate scalar graph/quantization transforms as device execution. `CORE-018`
+is a bounded fail-closed and claim-surface correction; it does not implement a GPU
+backend or close R-007.
 
 ## Active hypothesis
 
-`CORE-017` partially controls R-012 without changing compiler behavior: strict
-fallible helpers plus exact token/retained-AST assertions make 22 syntax tests honest
-active `PARSED_ONLY` evidence, while 14 semantic and 2 generic-impl tests remain
-explicitly quarantined. Any strict failure or need for production changes stops the
-slice. Ownership, provenance, generic/trait enforcement, execution, and stability are
-not inferred.
+If `run` success is reserved for a process that actually executed, ROCm object-only
+probing returns operational status `1`, an `llc` zero exit must satisfy an object-file
+postcondition, and the heuristic `gpu` alias is rejected in favor of an explicit
+target, then the active false-success boundary can be controlled without inventing
+HIP/CUDA semantics. Exact current-facing wording can simultaneously preserve the
+experimental transforms while denying device execution, real FP8/per-channel
+behavior, numerical proof, and Aero GGUF performance evidence.
 
 ## Founding-framework checkpoint
 
@@ -95,6 +96,13 @@ not inferred.
   `166ec7a5e4156da1cefeb9f921a31714461c6839` with no P0-P3 findings. Both
   compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
   CodeQL pass; draft PR #4 remains open and mergeable.
+- Accepted public `CORE-017` final-state sync head:
+  `9ddc571ac47f1c2ffcf7a737e4be442f01c0f78b`. Three independent reviewers approved
+  exact record-only diff `1c5af4fe131ad73eebecc6b17cc2428686ec431e` and tree
+  `20ab4e6b87ead659a138e57bc27c073f817d15cb` with no P0-P3 findings. Both compiler-
+  test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL
+  pass in runs `30814906589`, `30814909709`, `30814909985`, and `30814903903`; draft
+  PR #4 remains open and mergeable and upstream `master` remains `8f8c733`.
 - Accepted public `CORE-015` final-state sync head:
   `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`. Three independent reviewers approved
   exact staged diff `674b1831accef7b714ba21799249f346cc5a7491` and tree
@@ -565,12 +573,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze, exactly review, and publish this record-only final-state sync; require all
-eight public checks green. Then begin the next clean-head read-only audit and re-rank
-the remaining risks before preregistering another bounded slice. Do not infer
-semantic, ownership, trait/generic, IR/backend, execution, or stability capability;
-change package/release state; publish benchmarks or registry artifacts; or modify
-`master`.
+Review and publish the exact six-record `AUDIT-024`/`CORE-018` preregistration and
+require all eight public checks green. Then add the frozen tests-only red checkpoint:
+the CLI status target must be exactly 7 passed / 3 failed and the backend-claim target
+exactly 2 passed / 5 failed, with every other test green under `--no-fail-fast`.
+Do not implement HIP/CUDA execution, quantization mathematics, a benchmark, a schema
+rename, language semantics, package/release state, or any change to `master`.
 
 ## Unauthorized actions
 

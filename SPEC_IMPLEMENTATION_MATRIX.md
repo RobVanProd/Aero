@@ -50,7 +50,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Library `compile_program` | Y | P | LLVM text or located parse error | Y | P | P | PARTIAL |
 | Compiler options | Y | N | Ignored | N | N | P | PARSED_ONLY |
 | CLI build/check | Y | N | P; surfaced compile failures nonzero | Y | P | Y | PARTIAL |
-| CLI run | Y | N | CPU path; ROCm staged; CUDA absent | Y | P | Y | PARTIAL |
+| CLI run | Y | N | CPU executes; ROCm object-only false success under CORE-018; CUDA absent | Y | P | P | PARTIAL |
 | CLI test | Y | N | Analysis-only result; failures nonzero | Y | P | Y | PARTIAL |
 | Formatter | Y | N | Text trimming | N | N | P | EXPERIMENTAL |
 | Diagnostics/source spans | Y | P | Point/one-char ranges | P | P | Y | PARTIAL |
@@ -70,10 +70,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 | Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | CPU | Y | Y | P | P | P | P | P | PARTIAL |
-| ROCm | Y | Y | P | N | N | N | Historical/under audit | EXPERIMENTAL |
+| ROCm | Y | Y | P, temporary/unchecked at AUDIT-024 | N | N | N | External llama.cpp only | EXPERIMENTAL |
 | CUDA | Y | P | N | N | N | N | N | PARSED_ONLY |
-| Graph compilation | Y | Y | — | — | Helper lowering only under audit | P | N | EXPERIMENTAL |
-| Quantization | Y | Y | — | — | Helper lowering only under audit | P | N | EXPERIMENTAL |
+| Graph compilation | Y | Y | — | — | Internal scalar-helper transform only | N | N | EXPERIMENTAL |
+| Quantization | Y | Y | — | — | Scalar-double helper transform only | N | N | EXPERIMENTAL |
 
 ## Evidence notes
 
@@ -114,6 +114,14 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   `3dd3bb4` also passes all eight public checks. R-012 is partially controlled for
   those 22 accepted `PARSED_ONLY` tests only; the 16 quarantines, 299 dormant tests,
   Cargo overlap, and all semantic/execution rows remain unchanged.
+- `AUDIT-024` at clean public head `9ddc571` confirms CPU as the only real process
+  execution route. ROCm reaches an unchecked temporary `llc` object and incorrectly
+  returns status zero without link/launch; CUDA returns unavailable. The `gpu` alias
+  is a tool/environment heuristic, graph output is verified textual internal scalar
+  helpers, and quantization is scalar-double helper transformation without real FP8,
+  per-channel execution, numerical proof, or device execution. `CORE-018` is
+  preregistered to fail the false execution boundary closed and make current claims
+  stage-accurate. It does not promote a backend row or close R-007.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
