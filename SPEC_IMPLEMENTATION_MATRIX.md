@@ -106,6 +106,19 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   needed to enforce them are covered by 18 focused tests, the full gate, and dual
   independent review. This does not add typed local slots, conversions,
   reassignment, definite initialization, or non-numeric annotation support.
+- `AUDIT-021` at clean public head `1535ce2` proves the remaining initialized
+  binding surface is not merely uncertified: String/bool/custom-name/fixed-array
+  type and fixed-array length mismatches pass check/build and publish LLVM because
+  semantics and checked IR discard the annotation. Mixed arrays and non-int indexes
+  fail only after semantic success. `CORE-015` preserves existing numeric scalar
+  enforcement and, outside active semantic generic scopes, selects `bool`, canonical
+  `String`, and nonempty flat fixed numeric arrays. It closes four reproduced
+  annotation false successes, adds numeric all-element/count/index typing, and verifies optional
+  binary-type metadata in checked IR after semantic operand inference remains
+  unchanged. Lowercase `string`, contextual/structural annotations, nonnumeric arrays,
+  and new generic-scope annotation/array behavior retain pre-task outcomes under green
+  controls. No recursive mapping, conversion,
+  representation, layout, or execution change is selected.
 - At `c000d91`, `%` is specified, lexed, parsed, and numerically typed but absent
   from IR/backend lowering. Integer, float, mixed, and zero-RHS forms pass semantic
   `check` then panic in IR. `CORE-005` deliberately preregisters a temporary

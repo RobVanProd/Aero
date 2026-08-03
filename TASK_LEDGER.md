@@ -2144,5 +2144,217 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   completed the documented build/init/check/run path with status zero and exactly
   one anchored `Output: Hello, Aero!` line. Nightly Rust, both compiler-test jobs,
   all three CodeQL language analyses, and aggregate CodeQL also pass.
-- Status: implemented and accepted at public `c56b1d5`; acceptance records are
-  under exact independent review before closure publication.
+- Acceptance closure: exact documentation diff
+  `6e05c26763ed3a1c6e4ec359361867f76e9d4c4c` and tree
+  `b3a6bf38769579dbfc0fa0da5c4881620f7129c3` received three independent approvals
+  with no P0-P3 findings after correction of stale CPU-evidence and CodeQL-count
+  wording. Public closure commit
+  `1535ce2a214f512c140535e7c42799af1f920d5c` passes both compiler-test workflows,
+  stable/nightly Rust, all three CodeQL language analyses, and aggregate CodeQL.
+- Status: complete at accepted public closure head `1535ce2`.
+
+## AUDIT-021 — Re-rank open compiler-integrity risks after executable Quick Start
+
+- Objective: from the clean accepted `CORE-014` closure, retest the remaining
+  high/critical type and ownership risks, compare them with high/high aggregate,
+  backend, grammar, diagnostic, and coverage risks, and select one bounded slice
+  before adding tests or production edits.
+- Audit base: clean public head
+  `1535ce2a214f512c140535e7c42799af1f920d5c`; accepted compiler behavior remains
+  `a78dd004aa37c39212711027b777698118d9dc02`; upstream `master` remains
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`. Draft PR #4 has exactly eight
+  successful checks and reports a clean merge state.
+- Reproduced R-002 false success: each of `let value: String = 1`,
+  `let value: bool = 1`, `let value: Widget = 1`,
+  `let values: [int; 2] = [1.0, 2.0]`, and
+  `let values: [int; 3] = [1, 2]` passes CLI `check`, exits zero from CLI `build`,
+  and creates the requested LLVM artifact. The semantic analyzer validates only
+  numeric binding annotations; checked IR admission ignores every binding
+  annotation. Exact `String = "ready"`, comparison-produced `bool`, and homogeneous
+  integer-array controls pass both commands and produce artifacts.
+- Aggregate phase evidence: mixed `[1, 2.5]` and `[1, 2][1.5]` both return nonzero
+  and produce no artifact, but the build trace first reports semantic success. The
+  mixed literal reaches the internal verifier and fails an Int/Float store; the
+  index reaches checked IR admission and fails `array index must be Int`. Array
+  semantics currently infer only the first element and discard the index type.
+- Checked-boundary parity evidence: public checked admission prefers optional
+  caller-supplied `Expression::Binary.ty` over its operand-derived result, so a
+  constructed `float`-annotated binding can spoof `1 + 2` as float and reach
+  lowering as a contextual promotion. It also treats lowercase `string` as
+  `Ty::String`, while active semantics maps that spelling to the distinct named
+  `Ty::Struct("string")`. Neither divergence is an authorized conversion or alias.
+- Adjacent critical controls: an uninitialized annotated read returns nonzero in
+  semantics and produces no artifact, so it is not part of the reproduced false
+  success. A mutable-reference-copy probe also returns nonzero without an artifact,
+  but only because checked IR rejects borrow/deref after semantic success. R-004
+  remains critical: correcting mutable-reference Copy alone would falsely imply a
+  borrow/lifetime model, while credible closure requires unfrozen CFG/provenance
+  work across more than two phases.
+- Risk comparison: R-005 trusted checked publication routes remain controlled and
+  restricting public unchecked compatibility APIs requires a major-boundary policy.
+  R-006, R-009, R-010, and full R-012 restoration span more than two phases; R-007
+  needs device evidence; R-008 and R-016 need explicit version/toolchain policy.
+  R-011's reproduced cases already fail closed, although too late. R-002 is the
+  highest-impact active false-success boundary; four reproduced forms can be closed
+  in semantics plus checked IR without changing syntax, representation, or backend
+  lowering, while the contextual custom-name case remains open.
+- Current coverage inventory: Cargo lists 139 library and 148 binary unit tests,
+  with 105 names shared by both compiled module trees. `cargo test --tests -- --list`
+  reports 557 test-target entries and 437 distinct displayed names; those names are
+  not claimed as independent behaviors. All 38 `phase5_tests` remain ignored.
+  R-012 remains open and is not used as evidence for type-contract closure.
+- Selection: existing exact scalar `int`/`i32`/`float`/`f64` annotation behavior
+  remains unchanged in fully analyzed bindings; syntax-preflighted trait defaults
+  remain outside it. Outside active semantic generic scopes, `CORE-015` adds a closed,
+  nonrecursive binding-local rule for exact `Type::Named("bool")`,
+  `Type::Named("String")`, and one-dimensional
+  `Type::Array(Type::Named(name), count)` when `name` is one of the four numeric
+  spellings and `count > 0`. This selects four of five reproduced annotation false
+  successes. In the same non-generic semantic scope, numeric arrays validate every element left-to-right,
+  exact homogeneity/count, and integer indexes before IR. Checked admission mirrors
+  numeric/bool/String/fixed-numeric equality for direct/non-generic AST and separately
+  derives/verifies binary result metadata. Lowercase `string` is excluded. No
+  conversion, alias, generic, or aggregate-execution behavior is implemented.
+- Audit restrictions: temporary probe sources and requested LLVM outputs were
+  isolated under `.audit-021`, inspected, then deleted; the empty directory is
+  untracked. No benchmark, registry, release, device, compiler source, test, or
+  external artifact was changed or published.
+- Status: complete; the reproduction, ranking, and selected boundary are recorded
+  before test or production changes.
+
+## CORE-015 — Enforce selected initialized binding types before IR
+
+- Problem: selected `String`, `bool`, and nonempty fixed numeric-array binding
+  annotations are discarded. Invalid typed programs can therefore pass semantics and checked IR,
+  publish valid LLVM for the inferred value type, and report success. The reproduced
+  custom-name false success remains open because arbitrary named annotations overlap
+  in-scope generic parameters. Array semantics also infer only the first numeric
+  element and ignore index type, leaving checked IR/verifier to reject related invalid
+  programs after the semantic boundary.
+- Priority: P1 compiler correctness / R-002 HIGH-CRITICAL. Unlike the adjacent
+  ownership and architecture gaps, this is an active false-success artifact boundary
+  with an exact two-phase correction.
+- Dependencies: accepted `CORE-014` closure `1535ce2`; completed `AUDIT-021`; and
+  `DEC-020`, which freezes exact selected binding equality and array inference
+  without defining conversions or new aggregate behavior.
+- Frozen semantics: the existing numeric scalar contract remains active wherever
+  semantics fully analyzes bindings. Syntax-preflighted trait default bodies retain
+  pre-task behavior. New eligibility requires fully analyzed code with no active
+  generic type-parameter scope and is syntax-level, nonrecursive, and binding-local:
+  exactly `bool`, canonical
+  `String`, or a nonempty one-dimensional fixed array over
+  `int`/`i32`/`float`/`f64`. A selected
+  initialized annotation must equal the fully inferred `Ty`; bool maps to `Ty::Bool`,
+  canonical String to `Ty::String`, and numeric aliases normalize as before. The new
+  mapper must not change global/recursive AST mapping. An exact annotation preserves
+  the inferred type; a mismatch reports the binding plus expected/actual types before
+  lowering. Lowercase `string`, custom `Widget`, explicit generic/reference/tuple
+  annotations, flat nonnumeric arrays, nested arrays, and arrays wrapping excluded
+  forms keep pre-task annotation-ignore behavior. Inside a semantic generic scope,
+  contextual `T`/`bool`/`String`/`string` and fixed numeric-array annotations also keep
+  pre-task behavior across generic function, impl, and trait containers. None is
+  represented as supported. No conversion, subtyping, structural fabrication, or
+  String ownership/slice decision occurs.
+- Array contract: outside active semantic generic scopes, a numeric array literal
+  whose first successfully inferred element is `Ty::Int` or `Ty::Float` infers every
+  element left-to-right. After preserving any child diagnostic, every later element
+  must exactly equal the first; indexing an inferred numeric fixed array requires
+  `int`; and a selected fixed numeric-array annotation exactly matches type and count.
+  Mixed numeric elements are not promoted. Generic-scope numeric arrays and all
+  nonnumeric array inference/index behavior remain unchanged, as do empty/nested
+  admission, bounds, mutation, slices, layout, and execution. Specifically, empty
+  literals and zero-length annotations are excluded: semantics retains the `[Int; 0]`
+  default plus current annotation-ignore acceptance, while checked IR retains its
+  no-logical-element-type rejection before binding comparison. Typed zero-length
+  array repeats remain admitted at existing boundaries with annotations ignored.
+- Boundary coverage: active `SemanticAnalyzer` routes must reject first. Public
+  checked `IrGenerator::try_generate_ir` must independently reject constructed AST
+  callers that bypass semantics. Checked admission derives binary results from the
+  admitted operands/operator; optional `Expression::Binary.ty` is an assertion, not
+  an inference input, and must exactly match that result before binding comparison
+  or lowering. Existing recursive/global `admission_type` behavior for excluded forms
+  is frozen. Checked IR's existing rejection of generic functions before body
+  admission is frozen; selected binding comparisons must also be skipped in generic
+  impl contexts, while trait bodies remain syntax-only. The binary metadata assertion
+  applies to every otherwise admitted checked expression, including generic-impl
+  methods, but performs no generic substitution or annotation remapping.
+  Every semantic generic-scope push must be balanced on success and error before the
+  public analyzer returns so reuse cannot inherit a false scope exemption.
+  Library compilation, root/direct-module CLI check, and
+  root/direct-module CLI build must surface the semantic failure; failed builds
+  create no requested artifact. Syntax-only default trait bodies never reach IR and
+  remain outside full type checking; this task must not imply otherwise.
+- Uninitialized boundary: declarations without values and their later-use error are
+  unchanged; Aero has no active reassignment statement in this slice. Existing
+  duplicate-binding, child-error, numeric annotation, scope, function-contract,
+  unsupported-expression, excluded-annotation, and checked-verifier diagnostic
+  precedence must remain.
+- Red tests: add `src/compiler/tests/binding_type_contract_tests.rs`. It must prove
+  direct semantic and checked-IR failure for String/bool/array element/array length
+  mismatches plus direct checked-IR failure for int-from-float and float-from-int
+  scalar mismatches;
+  full left-to-right numeric homogeneity; mixed numeric literal
+  and non-int index failure in the semantic phase; later-element child-error
+  precedence; direct constructed-AST rejection of spoofed binary result metadata on
+  an unannotated or excluded binding and within a generic impl; passing controls for
+  matching and absent binary metadata; semantic and checked-IR selected-mismatch
+  rejection in a non-generic impl;
+  exact numeric/String/bool/fixed-numeric-array controls; unannotated controls;
+  uninitialized-use and duplicate-name controls; library no-unwind errors; and
+  isolated root/direct-module check/build status, diagnostics, and no-artifact
+  behavior. Green preservation controls at direct semantic and checked-IR boundaries
+  must pin current annotation-ignore behavior for lowercase `string`, custom
+  `Widget`, explicit generic/reference/tuple forms, flat bool/String/string arrays,
+  nested arrays, and arrays wrapping each excluded form. Semantic-only generic-
+  function/impl controls must pin deliberately mismatched in-scope `T`, `bool`,
+  `String`, `string`, and fixed numeric-array annotations, plus mixed numeric arrays
+  and float numeric-array indexes; another must preserve numeric-scalar mismatch
+  rejection in fully analyzed generic function/impl bodies. Generic trait defaults
+  must retain syntax-preflight acceptance. Separate semantic-only controls must
+  preserve representative nonnumeric array heterogeneity and non-integer indexing. Checked-IR
+  controls must retain generic-function rejection before body admission, generic-impl
+  annotation-ignore and mixed-numeric-array behavior, existing non-integer-index
+  rejection, and syntax-only generic trait bodies. These are quarantine controls,
+  not support. Phase-specific empty-array controls must preserve semantic acceptance
+  for unannotated, `[int; 0]`, and `[float; 0]` bindings and direct checked-IR rejection
+  for all three before annotation equality. Direct semantic and checked-IR green
+  controls must preserve `[float; 0] = [1; 0]` and `[int; 0] = [1.5; 0]` typed repeats;
+  these deliberately mismatched types directly bind the `count > 0` selector guard.
+  A same-analyzer test must first fail a generic impl on an existing numeric mismatch
+  and then prove a non-generic selected mismatch still rejects after balanced scope
+  cleanup.
+  Before production edits, only the frozen new negative assertions may fail; every
+  preservation/control case and all prior tests must pass.
+- Full acceptance: focused red/green matrices, exact complete `./tools/test.sh`,
+  three exact independent reviews of preregistration, tests-only red, implementation,
+  and closure, followed by the complete public CI matrix at each published green
+  checkpoint. A verifier rejection is not acceptable semantic evidence.
+- Files allowed: new `src/compiler/tests/binding_type_contract_tests.rs`;
+  `src/compiler/src/semantic_analyzer.rs`; `src/compiler/src/ir_generator.rs`; and
+  minimal ledger, decision, risk, capability, matrix, backend-count, and project
+  control records.
+- Files frozen: lexer, parser, AST/type representation, code generator, IR verifier,
+  LLVM verifier, CLI dispatch/status taxonomy, modules/cache, ownership/borrowing,
+  function/generic/trait semantics, aggregate layout/execution, backends, workflow,
+  dependencies, version/release policy, registry, benchmarks/claims, examples,
+  scaffold, external state, and `master`.
+- Risks: exact equality can accidentally reject a documented alias or introduce a
+  conversion; first-element errors can mask later child failures; semantic and IR
+  selected predicates can drift; caller metadata can override derived types;
+  lowercase `string`, a selected-spelling generic parameter, or an excluded recursive
+  form can be captured; error cleanup can leak a generic scope; zero length can be
+  mistaken for a selected array; array count can be confused with bounds; cached/
+  public builds can retain stale artifacts; or the change can appear to
+  certify String, bool, arrays, custom, generic, or ownership execution broadly.
+  Tests must bind exact spelling/shape eligibility, excluded green controls, phase
+  identity, metadata parity, source order, fresh outputs, and non-promotion.
+- Stop conditions: correctness needs a conversion/subtyping/defaulting policy, a
+  parser/AST/type-representation change, assignment or definite-initialization
+  semantics, ownership/provenance, a third compiler phase, array layout/codegen,
+  generic substitution, a change to any generic-scope annotation/array or excluded
+  annotation/array behavior, or any backend/version/benchmark/release/registry action.
+  Stop rather than infer policy, widen the slice, or weaken a failing contract.
+- Owner: lead-owned two-phase vertical slice. Independent type, IR/codegen, and
+  backend/claim reviewers must approve the exact preregistration, tests-only red
+  checkpoint, implementation candidate, and acceptance closure before publication.
+- Status: preregistered only; no test or production change exists.

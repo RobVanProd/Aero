@@ -4,18 +4,22 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 15 acceptance closure — record the independently approved `CORE-014`
-implementation and its complete public CI evidence, then publish these closure
-records only after exact review. Accepted `CORE-013` remains closed at public
-documentation head `18526ff`; benchmark execution remains quarantined.
+Milestone 16 preregistration — freeze the two-phase `CORE-015` binding-type
+contract selected by clean-head `AUDIT-021`, then publish no tests or production
+change until the exact contract receives independent approval. Accepted `CORE-014`
+remains closed at public head `1535ce2`; benchmark execution remains quarantined.
 
 ## Active hypothesis
 
-`CORE-014` makes the first public user path executable by correcting the root
-manifest and binary paths, using the existing generated project as the only flagship
-program, and running that path in stable Linux CI. This bounded documentation/test/
-workflow slice does not select a release version, admit language syntax, implement
-accelerator execution, or change compiler/CLI behavior.
+`CORE-015` can close four of the five highest-severity reproduced type-contract false
+successes without inventing conversions. Existing numeric scalar enforcement remains
+unchanged. Outside active semantic generic scopes, the new binding-local predicate
+selects `bool`, canonical `String`, and one-dimensional fixed arrays over the four
+numeric spellings with positive count; numeric arrays infer every element plus an
+integer index before IR. Lowercase `string`, custom/contextual/structural annotations, nonnumeric arrays,
+and all new annotation/array behavior inside generic semantic scopes remains
+quarantined under explicit preservation controls. The slice does not admit a new
+type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
 
 ## Founding-framework checkpoint
 
@@ -41,7 +45,13 @@ accelerator execution, or change compiler/CLI behavior.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current public head and accepted `CORE-014` implementation:
+- Current public acceptance-closure head:
+  `1535ce2a214f512c140535e7c42799af1f920d5c`. Its exact reviewed staged diff is
+  `6e05c26763ed3a1c6e4ec359361867f76e9d4c4c` and tree is
+  `b3a6bf38769579dbfc0fa0da5c4881620f7129c3`. Three independent reviewers
+  approved it with no P0-P3 findings after two backend-evidence precision
+  corrections; all eight public checks pass and the draft PR is cleanly mergeable.
+- Accepted `CORE-014` implementation:
   `c56b1d561930a042eeff214196fd1b4f05a77fb6`. Its exact reviewed staged diff is
   `687dd5f3d6360dfd7822e7809944f63d4caccfdd` and tree is
   `869fca43edb8b5888bdec01d0bfc7cdecfa451a5`. Three independent reviewers
@@ -185,12 +195,17 @@ accelerator execution, or change compiler/CLI behavior.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `a78dd004aa37c39212711027b777698118d9dc02`.
-- Worktree: acceptance records for the documentation/workflow-only `CORE-014`
-  implementation. The accepted public implementation is `c56b1d5`; focused and
-  complete local gates, three exact reviews, and all eight public checks pass.
-  Closure-record review and publication remain pending. Production compiler
-  behavior remains accepted public implementation `a78dd00` because no compiler
-  code changed.
+- Worktree: `AUDIT-021` and `CORE-015` preregistration records only. Clean-head
+  probes reproduced five initialized annotation mismatches that pass `check`, exit
+  zero from `build`, and publish requested LLVM artifacts. Mixed-element arrays and
+  float indexes fail without artifacts, but only after semantic success in checked
+  IR/verifier phases. Checked admission also trusts optional binary type metadata
+  and disagrees with semantics about lowercase `string`; the frozen contract rejects
+  spoofed metadata but leaves the lowercase mapping divergence quarantined. The slice
+  selects four false successes outside generic scopes; custom/contextual, structural,
+  nonnumeric-array, and generic-scope gaps remain open under preservation controls.
+  No test or production file has changed. Production compiler behavior remains
+  accepted public implementation `a78dd00` because `CORE-014` changed no compiler code.
   One earlier full-gate attempt stopped in the unchanged
   `cli_status_contract_tests`; that target immediately passed 7/7 in isolation and
   the unchanged complete gate passed on rerun. The interruption is not reproduced
@@ -431,14 +446,23 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   `performance_benchmark.py` compilation timings are an invalid measurement of a
   bare-source usage path; public and historical lexer evidence remain separately
   qualified, and the external GGUF record remains reference-only.
+- `AUDIT-021` at clean public head `1535ce2` reproduced active R-002 false success:
+  initialized `String`, `bool`, custom named, fixed-array element-type, and
+  fixed-array length annotation mismatches all pass `check` and `build`, with a
+  requested LLVM artifact. Exact String/bool and homogeneous-array controls pass.
+  An uninitialized read fails in semantics. Mixed `[1, 2.5]` and float indexing
+  fail closed without artifacts, but only after semantic success. R-004 remains
+  stopped because the mutable-reference Copy/provenance defect requires unfrozen
+  ownership work across more than two phases.
 
 ## Exact next action
 
-Freeze and independently review the exact `CORE-014` acceptance records. Publish
-them only after all three exact reviews approve, then require the complete public CI
-matrix to pass on the closure commit. Do not change compiler/CLI semantics, version
-policy, backend behavior, project scaffolding, benchmark code/results, registry
-transport, or infer language/backend/release/merge authorization.
+Freeze and independently review the exact `AUDIT-021` / `CORE-015`
+preregistration. Only after all three reviews approve may a tests-only red snapshot
+be created for the selected initialized-binding and numeric-array phase contract. Do
+not change lexer/parser syntax, type representation, conversions, assignment, ownership,
+aggregate layout/codegen, backend behavior, version policy, benchmarks, registry,
+release state, or `master`.
 
 ## Unauthorized actions
 

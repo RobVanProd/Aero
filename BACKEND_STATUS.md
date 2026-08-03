@@ -17,11 +17,14 @@ execution, numerical correctness, or performance.
 ## CPU path
 
 `run_aero_program` writes LLVM, invokes `llc` for a host object, links with
-`clang`, and executes the resulting process (`src/compiler/src/main.rs`, roughly
-lines 1637–1710). This is a real execution path when those external tools exist.
+`clang`, and executes the resulting process (`run_aero_program` in
+`src/compiler/src/main.rs`, roughly lines 1869–1985). This is a real execution path
+when those external tools exist.
 The secondary Rust workflow verifies four small examples on Ubuntu by expected
-exit status. The current Windows audit environment has not yet provided local
-LLVM/linker execution evidence, so Windows support is not classified end-to-end.
+exit status, and `CORE-014` adds the generated `Hello, Aero!` project with explicit
+status and anchored-output proof. The current Windows audit environment has not yet
+provided local LLVM/linker execution evidence, so Windows support is not classified
+end-to-end.
 
 The CPU path can fall back to direct Clang compilation if `llc` is missing. It
 also prints a success message before interpreting a nonzero program exit status,

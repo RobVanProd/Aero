@@ -123,15 +123,20 @@ correctness gates.
 - A dormant call validator confirms the mandate's suspected fallbacks: unknown
   named, array, tuple, reference, and generic parameter types map to `Int`.
 - Initialized exact numeric `let` annotations are enforced at `bc9a148`.
-  Uninitialized and non-numeric annotations remain outside that slice. Numeric/void
-  function return declarations are enforced at `8d5d8e7`; boolean, generic,
-  composite, and other declarations remain open. Unknown named types are assumed
-  to be structs, and unknown backend type strings lower as LLVM `double`.
+  `AUDIT-021` at `1535ce2` confirms every other initialized binding annotation is
+  discarded by semantics and checked IR: String/bool/custom-name/array-element/
+  array-count mismatches pass check/build and publish LLVM for the inferred value.
+  Uninitialized reads already fail in semantics. Numeric/void function return
+  declarations are enforced at `8d5d8e7`; generic/composite function contracts and
+  reassignment remain open. Unknown named types are assumed to be structs, and
+  unknown backend type strings lower as LLVM `double`.
 - Field access, tuples, struct/enum construction, matches, closures, and unknown
   methods can bypass subtree validation and acquire `Int`. IR lowering replaces
   several of these forms, including borrow/deref, with integer zero.
-- Array inference checks only the first element; index types are not constrained;
-  backend lowering uses `double` array storage and truncates float indices.
+- Array semantics checks only the first element and discards index type. Checked IR
+  now rejects non-int indexes and the internal verifier rejects mixed logical stores,
+  so reproduced cases fail without artifacts but after semantic success. Backend
+  lowering still uses `double` array storage; bounds/layout remain uncertified.
 - Move tracking is shallow and skipped in initializers, returns, block tails, and
   nested calls. Borrow state has no lifetime/provenance analysis or scope-based
   release, and mutable references are classified `Copy`.
@@ -441,10 +446,11 @@ upgrading any artifact.
 
 ## Testing and fuzzing audit
 
-- The default run executes 106 library, 111 binary, and 59 frontend tests, but 78
-  names are duplicated by compiling overlapping modules into both library and
-  binary targets. The result has at most 198 distinct active test names, not 276
-  independent behaviors.
+- At the original audit basis the default run executed 106 library, 111 binary,
+  and 59 frontend tests, with 78 overlapping library/binary names. At clean public
+  head `1535ce2`, Cargo lists 139 library and 148 binary unit tests with 105 shared
+  names. `cargo test --tests -- --list` reports 557 target entries and 437 distinct
+  displayed names; neither count proves independent behavior coverage.
 - All 38 `phase5_tests` are ignored. They cover ownership/moves, borrowing,
   generics, traits, and combined integration—the areas with the strongest public
   safety/abstraction claims.
@@ -459,6 +465,35 @@ upgrading any artifact.
 - There is no active arbitrary-input fuzzing, property testing, differential
   execution, compile-fail artifact check, LLVM verifier suite, Windows CI, or
   ROCm/CUDA hardware execution job.
+
+### Post-CORE-014 binding-contract recheck (`AUDIT-021`)
+
+- Five initialized annotation mismatches—String from int, bool from int, an unknown
+  named type from int, fixed float-array value under an int-array annotation, and a
+  two-element value under a three-element annotation—each pass CLI check/build and
+  create the requested LLVM artifact. Exact String, comparison-produced bool, and
+  homogeneous integer-array controls pass.
+- Mixed numeric arrays and float indexes return nonzero and create no artifact, but
+  build traces record semantic success before an internal-verifier or checked-IR
+  error. Direct source inspection confirms semantics infers only the first array
+  element and ignores the index result; checked IR ignores binding annotations.
+- Direct source inspection also finds two checked-boundary parity defects relevant
+  to exact equality: checked IR trusts optional caller-supplied `Binary.ty` ahead of
+  operand inference, and it maps lowercase `string` to `Ty::String` while active
+  semantics maps that spelling to the distinct named `Ty::Struct("string")`.
+- Uninitialized reads fail in semantics. Borrow/deref sources fail in checked IR,
+  while mutable references remain classified Copy and lifetime provenance remains
+  absent. This keeps R-004 stopped rather than pretending a one-predicate edit would
+  establish ownership safety.
+- `CORE-015` preserves existing numeric scalar enforcement and, outside active
+  semantic generic scopes, adds a closed binding-local rule for `bool`, canonical
+  `String`, and nonempty one-dimensional fixed arrays over the four numeric spellings.
+  It closes four of five reproduced false successes, adds all-element numeric-array
+  inference/count/integer indexes in the same scope, and verifies binary type
+  metadata. Lowercase `string`, custom/contextual/structural annotations, nonnumeric
+  arrays, and all new generic-scope annotation/array behavior must retain pre-task
+  outcomes under required green controls. No global recursive mapping, conversion, new type,
+  assignment, ownership, aggregate lowering, or backend claim is selected.
 
 ## Audit completion
 
