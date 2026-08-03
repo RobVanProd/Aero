@@ -110,9 +110,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 - Public-green preregistration `2c61535` freezes that boundary. Exact three-review-
   approved implementation `8be8c21` has exactly 22 strict lexer/parser-retention
   passes and 16 explicit quarantines with no production change; the exact full gate
-  and all eight public checks pass. Those 22 tests are accepted implementation
-  `PARSED_ONLY` evidence; only record-only acceptance closure remains before R-012
-  moves to partially controlled. No semantic or execution row changes.
+  and all eight public checks pass. Exact three-review-approved record-only closure
+  `3dd3bb4` also passes all eight public checks. R-012 is partially controlled for
+  those 22 accepted `PARSED_ONLY` tests only; the 16 quarantines, 299 dormant tests,
+  Cargo overlap, and all semantic/execution rows remain unchanged.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

@@ -1018,8 +1018,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-022 — Separate strict syntax retention from quarantined Phase 5 semantics
 
 - Date: 2026-08-03
-- Status: implementation accepted at public-green checkpoint `8be8c21`; record-only
-  `CORE-017` acceptance closure remains pending exact review/publication.
+- Status: accepted and closed for `CORE-017` at public-green record-only closure
+  `3dd3bb4`.
 - Decision: the existing Phase 5 target remains one 38-test inventory, but only 22
   existing syntax tests may become active: four exact strict-token tests and 18 exact
   strict parser-retention tests. Exactly 16 remain ignored: all 14 semantic tests and
@@ -1051,3 +1051,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `8be8c21` passes both compiler-test jobs, stable/nightly Rust, all three CodeQL
   analyses, and aggregate CodeQL without changing production, semantic, IR/backend,
   benchmark, registry, release, package, or `master` state.
+- Closure evidence: three reviewers approved exact record-only diff
+  `3239da0b313f819bad7beef69cea8b6bd5e658a8` and tree
+  `166ec7a5e4156da1cefeb9f921a31714461c6839` with no P0-P3 findings. Public closure
+  `3dd3bb4` passes both compiler-test jobs, stable/nightly Rust, all three CodeQL
+  analyses, and aggregate CodeQL. The decision is accepted without claiming semantic,
+  generic/trait, execution, conformance, compatibility, or stability uplift.

@@ -600,10 +600,11 @@ upgrading any artifact.
 - Public-green preregistration `2c61535` binds the conservative 22/16 split. Exact
   three-review-approved implementation `8be8c21` passes exactly 22 strict syntax-
   retention tests with 16 explicit quarantines and 38 total listed entries. Current
-  CLAUDE/framework/roadmap lines classify this as parsed-only evidence, the exact full
-  gate passes, and all eight public checks are green. R-012 remains candidate-
-  partially-controlled until the record-only acceptance closure is exactly reviewed
-  and publicly green; no capability class changes.
+  CLAUDE/framework/roadmap lines classify this as parsed-only evidence, and the exact
+  full gate passes. Exact three-review-approved record-only closure `3dd3bb4` is also
+  public with all eight checks green. R-012 is partially controlled for this selected
+  evidence-classification boundary; Cargo overlap and 299 dormant tests remain, and
+  no semantic or execution capability class changes.
 
 ## Audit completion
 

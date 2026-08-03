@@ -2771,7 +2771,13 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `8be8c21696cf98602c82e1e5e4fdfc6bf10e9777` passes both compiler-test jobs,
   stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. CI runs are
   `30796167886`, `30796170222`, Rust `30796170162`, and CodeQL `30796168359`.
-- Status: implementation checkpoint public and green; record-only acceptance closure
-  is the sole remaining `CORE-017` action. R-012 stays candidate-partially-controlled
-  until that exact closure is reviewed, published, and publicly green. Cargo overlap,
-  299 dormant tests, and every semantic capability claim remain outside this slice.
+- Closure review/publication: all three independent reviewers approved exact
+  record-only diff `3239da0b313f819bad7beef69cea8b6bd5e658a8` and tree
+  `166ec7a5e4156da1cefeb9f921a31714461c6839` with no P0-P3 findings. Public closure
+  `3dd3bb41d601ddfe5f7ac2722cde39bad124973d` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. CI runs are
+  `30814475780`, `30814478296`, Rust `30814478178`, and CodeQL `30814475319`.
+- Status: complete and accepted at public closure `3dd3bb4`. R-012 is partially
+  controlled for the selected strict Phase 5 syntax-evidence classification; Cargo
+  overlap, 299 dormant tests, and every semantic capability claim remain open. This
+  final-state sync changes records only.

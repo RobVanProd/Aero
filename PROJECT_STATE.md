@@ -4,17 +4,17 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 18 acceptance closure — exact three-review-approved `CORE-017`
-implementation `8be8c21` is public and all eight checks pass. The Phase 5 target now
-passes exactly 22 strict lexer/parser-retention tests, lists exactly 38 total, and
-retains exactly 16 explicit quarantines; the exact full gate passes. Only a
-record-only exact-reviewed/public-green closure remains before R-012 can move from
-candidate-partially-controlled to partially controlled. No production file or
-capability class changed.
+Milestone 18 final-state sync — `CORE-017` is accepted at exact three-review-approved
+public closure `3dd3bb4`, with all eight checks green. The Phase 5 target passes
+exactly 22 strict lexer/parser-retention tests, lists exactly 38 total, and retains
+exactly 16 explicit quarantines; the exact full gate passes. R-012 is partially
+controlled only for this evidence-classification boundary. No production behavior,
+semantic capability, execution claim, or stability claim is inferred. This sync is
+record-only before the next clean-head risk re-ranking.
 
 ## Active hypothesis
 
-`CORE-017` can partially control R-012 without changing compiler behavior: strict
+`CORE-017` partially controls R-012 without changing compiler behavior: strict
 fallible helpers plus exact token/retained-AST assertions make 22 syntax tests honest
 active `PARSED_ONLY` evidence, while 14 semantic and 2 generic-impl tests remain
 explicitly quarantined. Any strict failure or need for production changes stops the
@@ -89,6 +89,12 @@ not inferred.
   `83bf4f0ba8f973e7ec39167e53114cf5714fd03b` with no P0-P3 findings. Both
   compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
   CodeQL pass; draft PR #4 is open and mergeable.
+- Accepted public `CORE-017` closure head:
+  `3dd3bb41d601ddfe5f7ac2722cde39bad124973d`. Three independent reviewers approved
+  exact record-only diff `3239da0b313f819bad7beef69cea8b6bd5e658a8` and tree
+  `166ec7a5e4156da1cefeb9f921a31714461c6839` with no P0-P3 findings. Both
+  compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  CodeQL pass; draft PR #4 remains open and mergeable.
 - Accepted public `CORE-015` final-state sync head:
   `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`. Three independent reviewers approved
   exact staged diff `674b1831accef7b714ba21799249f346cc5a7491` and tree
@@ -559,12 +565,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Prepare only the minimal six-record `CORE-017` acceptance closure, run the exact full
-gate, freeze its canonical diff/tree, and obtain three independent reviews. Publish
-only after all approve, then require both compiler-test jobs, stable/nightly Rust, all
-three CodeQL analyses, and aggregate CodeQL to pass. Do not change production or test
-files, semantic or generic-impl AST behavior, backends, package/release state,
-benchmarks, registry, or `master`.
+Freeze, exactly review, and publish this record-only final-state sync; require all
+eight public checks green. Then begin the next clean-head read-only audit and re-rank
+the remaining risks before preregistering another bounded slice. Do not infer
+semantic, ownership, trait/generic, IR/backend, execution, or stability capability;
+change package/release state; publish benchmarks or registry artifacts; or modify
+`master`.
 
 ## Unauthorized actions
 
