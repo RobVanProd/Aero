@@ -875,6 +875,26 @@ mod tests {
     }
 
     #[test]
+    fn parser_diagnostic_columns_use_utf16_coordinates() {
+        let diagnostics = syntax_diagnostics(
+            "let text = \"😀\"; let ;",
+            Some("file:///tmp/invalid.aero".to_string()),
+        );
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].range.start.line, 0);
+        assert_eq!(diagnostics[0].range.start.character, 21);
+        assert_eq!(diagnostics[0].range.end.line, 0);
+        assert_eq!(diagnostics[0].range.end.character, 22);
+        assert_eq!(diagnostics[0].severity, 1);
+        assert_eq!(diagnostics[0].source, "aero-parser");
+        assert_eq!(
+            diagnostics[0].message,
+            "Error at file:///tmp/invalid.aero:1:21: Expected variable name, found Semicolon"
+        );
+    }
+
+    #[test]
     fn syntax_diagnostics_reports_lexical_error() {
         let diagnostics = syntax_diagnostics(
             "let text = \"\u{1F600}\"; @",
