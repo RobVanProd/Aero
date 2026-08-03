@@ -313,7 +313,7 @@ fn configure_verifier(command: &mut Command, workspace: &TestWorkspace, verifier
     command.env("PATHEXT", ".CMD;.EXE");
 }
 
-fn write_fake_native_tools(workspace: &TestWorkspace, child_exit: i32) -> PathBuf {
+fn write_fake_native_tools(workspace: &TestWorkspace) -> PathBuf {
     let bin = workspace.path("native-tools");
     fs::create_dir_all(&bin).expect("create fake native tool directory");
 
@@ -321,36 +321,40 @@ fn write_fake_native_tools(workspace: &TestWorkspace, child_exit: i32) -> PathBu
     {
         let source = workspace.write(
             "fake-native.rs",
-            &format!(
-                r#"use std::env;
+            r#"use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-fn output_arg() -> PathBuf {{
+fn output_arg() -> PathBuf {
     let args: Vec<_> = env::args_os().collect();
     let index = args.iter().position(|arg| arg == "-o").expect("missing -o");
     PathBuf::from(&args[index + 1])
-}}
+}
 
-fn main() {{
+fn main() {
     let executable = env::current_exe().expect("current exe");
     let name = executable.file_stem().unwrap().to_string_lossy().to_ascii_lowercase();
-    if env::args_os().any(|arg| arg == "--version") {{
+    if env::args_os().any(|arg| arg == "--version") {
         println!("LLVM version 22.1.0");
         return;
-    }}
-    if name == "llc" {{
+    }
+    if name == "llc" {
         fs::write(output_arg(), b"fake object").expect("write object");
         return;
-    }}
-    if name == "clang" {{
+    }
+    if name == "clang" {
         fs::copy(&executable, output_arg()).expect("copy runner");
         return;
-    }}
-    std::process::exit({child_exit});
-}}
-"#
-            ),
+    }
+    let child_exit = env::var("AERO_TEST_DELEGATED_EXIT")
+        .expect("delegated exit")
+        .parse::<i32>()
+        .expect("integer delegated exit");
+    println!("delegated child stdout");
+    eprintln!("delegated child stderr");
+    std::process::exit(child_exit);
+}
+"#,
         );
         let llc = bin.join("llc.exe");
         let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
@@ -388,17 +392,15 @@ printf '%s\n' 'fake object' > "$out"
         let clang = bin.join("clang");
         fs::write(
             &clang,
-            format!(
-                r#"#!/bin/sh
-if [ "${{1:-}}" = "--version" ]; then echo "LLVM version 22.1.0"; exit 0; fi
+            r#"#!/bin/sh
+if [ "${1:-}" = "--version" ]; then echo "LLVM version 22.1.0"; exit 0; fi
 out=""
 while [ "$#" -gt 0 ]; do
   if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
 done
-printf '%s\n' '#!/bin/sh' 'exit {child_exit}' > "$out"
+printf '%s\n' '#!/bin/sh' 'printf "%s\n" "delegated child stdout"' 'printf "%s\n" "delegated child stderr" >&2' 'exit "$AERO_TEST_DELEGATED_EXIT"' > "$out"
 /bin/chmod +x "$out"
-"#
-            ),
+"#,
         )
         .expect("write fake clang");
         make_executable(&clang);
@@ -1671,6 +1673,71 @@ fn assert_run_workspace_is_clean(workspace: &TestWorkspace) {
     }
 }
 
+fn record_run_workspace_is_clean(
+    failures: &mut Vec<String>,
+    label: &str,
+    workspace: &TestWorkspace,
+) {
+    let run_root = workspace.path("target/aero-run");
+    if !run_root.exists() {
+        return;
+    }
+    let entries = match fs::read_dir(&run_root) {
+        Ok(entries) => entries,
+        Err(error) => {
+            failures.push(format!(
+                "{label}: could not inspect temporary run artifacts at {}: {error}",
+                run_root.display()
+            ));
+            return;
+        }
+    };
+    let mut remaining = Vec::new();
+    for entry in entries {
+        match entry {
+            Ok(entry) => remaining.push(entry.path()),
+            Err(error) => failures.push(format!(
+                "{label}: could not inspect an entry under {}: {error}",
+                run_root.display()
+            )),
+        }
+    }
+    if !remaining.is_empty() {
+        failures.push(format!(
+            "{label}: temporary run artifacts remain: {remaining:?}"
+        ));
+    }
+}
+
+fn record_exact_stdout_presentation_suffix(
+    failures: &mut Vec<String>,
+    label: &str,
+    output: &Output,
+    anchor_line: &str,
+    expected_lines: &[&str],
+) {
+    let out = stdout(output);
+    let lines: Vec<_> = out.lines().filter(|line| !line.is_empty()).collect();
+    let anchors: Vec<_> = lines
+        .iter()
+        .enumerate()
+        .filter_map(|(index, line)| (*line == anchor_line).then_some(index))
+        .collect();
+    if anchors.len() != 1 {
+        failures.push(format!(
+            "{label}: expected exactly one stdout presentation anchor {anchor_line:?}, found {}; stdout={out:?}",
+            anchors.len()
+        ));
+        return;
+    }
+    let actual_lines = &lines[anchors[0] + 1..];
+    if actual_lines != expected_lines {
+        failures.push(format!(
+            "{label}: stdout presentation suffix mismatch; expected={expected_lines:?}; actual={actual_lines:?}; stdout={out:?}"
+        ));
+    }
+}
+
 #[test]
 fn rocm_run_with_regular_object_fails_closed_without_execution() {
     let workspace = TestWorkspace::new("rocm-object-only");
@@ -2153,29 +2220,55 @@ fn semantic_only_test_command_reports_analysis_without_execution_claims() {
 
 #[test]
 fn delegated_cpu_program_exit_is_passed_through_outside_cli_owned_statuses() {
-    const CHILD_EXIT: i32 = 7;
-
     let workspace = TestWorkspace::new("child-exit");
     let source = workspace.write("child.aero", "fn main() { }\n");
     let verifier = write_fake_verifier(&workspace, "child", true);
-    let native_tools = write_fake_native_tools(&workspace, CHILD_EXIT);
-    let output = run_aero_configured(
-        &workspace,
-        &[OsString::from("run"), path_arg(&source)],
-        |command| configure_native_run(command, &verifier, &native_tools),
-    );
+    let native_tools = write_fake_native_tools(&workspace);
     let mut failures = Vec::new();
-    record_case(
-        &mut failures,
-        "delegated-child-exit",
-        &output,
-        CHILD_EXIT,
-        &["Program executed successfully.", "Exit code: 7"],
-        &[],
-        false,
-        true,
-        &["Usage:", "Unknown command"],
-    );
+
+    for child_exit in [0, 1, 2, 7] {
+        let output = run_aero_configured(
+            &workspace,
+            &[OsString::from("run"), path_arg(&source)],
+            |command| {
+                configure_native_run(command, &verifier, &native_tools);
+                command.env("AERO_TEST_DELEGATED_EXIT", child_exit.to_string());
+            },
+        );
+        let label = format!("delegated-child-exit-{child_exit}");
+        let exit_line = format!("Exit code: {child_exit}");
+        let mut exact_stdout_lines = vec![
+            "Program executed successfully.",
+            exit_line.as_str(),
+            "Output: delegated child stdout",
+            "Error output: delegated child stderr",
+        ];
+        let mut forbidden = vec!["Usage:", "Unknown command"];
+        if child_exit != 0 {
+            exact_stdout_lines.remove(0);
+            forbidden.push("Program executed successfully.");
+        }
+        record_case(
+            &mut failures,
+            &label,
+            &output,
+            child_exit,
+            &[],
+            &[],
+            false,
+            true,
+            &forbidden,
+        );
+        record_exact_stdout_presentation_suffix(
+            &mut failures,
+            &label,
+            &output,
+            "Performance-optimized compilation process completed successfully.",
+            &exact_stdout_lines,
+        );
+        record_run_workspace_is_clean(&mut failures, &label, &workspace);
+    }
+
     assert_no_failures(failures);
 }
 
