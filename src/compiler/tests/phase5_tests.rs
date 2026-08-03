@@ -1,6 +1,22 @@
 use compiler::lexer;
+use compiler::lexer::Token;
 use compiler::parser;
 use compiler::semantic_analyzer::SemanticAnalyzer;
+
+fn strict_tokens(source: &str) -> Vec<compiler::lexer::Token> {
+    lexer::try_tokenize_with_locations(source, Some("phase5_contract.aero".to_string()))
+        .expect("selected Phase 5 syntax must lex strictly")
+        .into_iter()
+        .map(|located| located.token)
+        .collect()
+}
+
+fn strict_parse(source: &str) -> Vec<compiler::ast::AstNode> {
+    let tokens =
+        lexer::try_tokenize_with_locations(source, Some("phase5_contract.aero".to_string()))
+            .expect("selected Phase 5 syntax must lex strictly");
+    parser::parse_with_locations(tokens).expect("selected Phase 5 syntax must parse strictly")
+}
 
 // =============================================================================
 // Phase 5a: Ownership and Move Semantics
@@ -14,7 +30,7 @@ use compiler::semantic_analyzer::SemanticAnalyzer;
 // - Functions taking ownership of a parameter invalidate the caller's binding
 
 #[test]
-#[ignore] // Phase 5a: semantic analyzer needs ownership tracking
+#[ignore = "quarantined: recovery-path shallow move diagnostic is not a full ownership model"]
 fn test_semantic_use_after_move_simple() {
     // Assigning a non-Copy value to another variable moves it.
     // Using the original after the move should be a compile-time error.
@@ -33,7 +49,7 @@ fn test_semantic_use_after_move_simple() {
 }
 
 #[test]
-#[ignore] // Phase 5a: semantic analyzer needs Copy type distinction
+#[ignore = "quarantined: positive Copy smoke does not establish ownership semantics"]
 fn test_semantic_copy_types_not_moved() {
     // Integers are Copy types. Assigning them creates a copy,
     // and both the original and the copy remain valid.
@@ -55,7 +71,7 @@ fn test_semantic_copy_types_not_moved() {
 }
 
 #[test]
-#[ignore] // Phase 5a: semantic analyzer needs ownership tracking across function calls
+#[ignore = "quarantined: recovery-path call move diagnostic needs a frozen ownership model"]
 fn test_semantic_move_into_function() {
     // Passing a non-Copy value to a function that takes ownership
     // invalidates the caller's binding.
@@ -82,7 +98,7 @@ fn test_semantic_move_into_function() {
 }
 
 #[test]
-#[ignore] // Phase 5a: semantic analyzer needs ownership return tracking
+#[ignore = "quarantined: initializer call does not prove move-return reownership"]
 fn test_semantic_move_return_reownership() {
     // A function can return ownership. The returned value binds to a
     // new variable that is valid; the original variable remains moved.
@@ -106,7 +122,7 @@ fn test_semantic_move_return_reownership() {
 }
 
 #[test]
-#[ignore] // Phase 5a: semantic analyzer needs struct move semantics
+#[ignore = "quarantined: passes on unsupported struct construction before move semantics"]
 fn test_semantic_move_in_struct_field() {
     // A struct containing a non-Copy field (String) is itself non-Copy.
     // Moving it invalidates the source variable.
@@ -145,35 +161,62 @@ fn test_semantic_move_in_struct_field() {
 //   * References must not outlive the data they point to
 
 #[test]
-#[ignore] // Phase 5b: lexer needs single & token
-fn test_lexer_ampersand_token() {
+fn test_strict_lexer_ampersand_token_stream() {
     // The lexer should recognize a single & as a borrow/reference operator,
     // distinct from && (logical and).
     let source = "let r = &x;";
-    let tokens = lexer::tokenize(source);
-    // Expected tokens: Let, Identifier("r"), Assign, Ampersand, Identifier("x"), Semicolon, Eof
-    // Currently single & prints an error. After Phase 5b, it should be a valid token.
-    assert!(tokens.len() >= 6, "Should tokenize & as a standalone token");
+    assert_eq!(
+        strict_tokens(source),
+        vec![
+            Token::Let,
+            Token::Identifier("r".to_string()),
+            Token::Assign,
+            Token::Ampersand,
+            Token::Identifier("x".to_string()),
+            Token::Semicolon,
+            Token::Eof,
+        ]
+    );
+    assert_eq!(
+        strict_tokens("let both = left && right;"),
+        vec![
+            Token::Let,
+            Token::Identifier("both".to_string()),
+            Token::Assign,
+            Token::Identifier("left".to_string()),
+            Token::LogicalAnd,
+            Token::Identifier("right".to_string()),
+            Token::Semicolon,
+            Token::Eof,
+        ]
+    );
 }
 
 #[test]
-#[ignore] // Phase 5b: lexer needs single & token
-fn test_lexer_ampersand_mut_tokens() {
+fn test_strict_lexer_ampersand_mut_token_stream() {
     // &mut should tokenize as Ampersand followed by the existing Mut keyword.
     let source = "let r = &mut x;";
-    let tokens = lexer::tokenize(source);
-    // Expected: Let, Identifier("r"), Assign, Ampersand, Mut, Identifier("x"), Semicolon, Eof
-    assert!(tokens.len() >= 7, "Should tokenize &mut as Ampersand + Mut");
+    assert_eq!(
+        strict_tokens(source),
+        vec![
+            Token::Let,
+            Token::Identifier("r".to_string()),
+            Token::Assign,
+            Token::Ampersand,
+            Token::Mut,
+            Token::Identifier("x".to_string()),
+            Token::Semicolon,
+            Token::Eof,
+        ]
+    );
 }
 
 #[test]
-#[ignore] // Phase 5b: parser needs Type::Reference
-fn test_parse_immutable_reference_param() {
+fn test_strict_parse_immutable_reference_param_retained_shape() {
     // Function parameter typed as &String should parse as
     // Type::Reference(Box<Type::Named("String")>, false).
     let source = "fn calc_length(s: &String) -> i32 { return 0; }";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
@@ -195,13 +238,11 @@ fn test_parse_immutable_reference_param() {
 }
 
 #[test]
-#[ignore] // Phase 5b: parser needs Type::Reference with mutable flag
-fn test_parse_mutable_reference_param() {
+fn test_strict_parse_mutable_reference_param_retained_shape() {
     // Function parameter typed as &mut String should parse as
     // Type::Reference(Box<Type::Named("String")>, true).
     let source = "fn append(s: &mut String) { return; }";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
@@ -223,79 +264,74 @@ fn test_parse_mutable_reference_param() {
 }
 
 #[test]
-#[ignore] // Phase 5b: parser needs Expression::Borrow
-fn test_parse_borrow_expression() {
+fn test_strict_parse_borrow_expression_retained_shape() {
     // Taking a reference with & should parse as Expression::Borrow { mutable: false }.
     let source = "let r = &x;";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
             name, value, ..
         }) => {
             assert_eq!(name, "r");
-            assert!(
-                matches!(
-                    value,
-                    Some(compiler::ast::Expression::Borrow { mutable: false, .. })
-                ),
-                "Should parse & as an immutable borrow expression"
-            );
+            assert!(matches!(
+                value,
+                Some(compiler::ast::Expression::Borrow {
+                    mutable: false,
+                    expr,
+                }) if matches!(expr.as_ref(), compiler::ast::Expression::Identifier(identifier) if identifier == "x")
+            ));
         }
         _ => panic!("Expected let statement with borrow"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5b: parser needs Expression::Borrow with mutable flag
-fn test_parse_mutable_borrow_expression() {
+fn test_strict_parse_mutable_borrow_expression_retained_shape() {
     // Taking a mutable reference with &mut should parse as Expression::Borrow { mutable: true }.
     let source = "let r = &mut x;";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
             name, value, ..
         }) => {
             assert_eq!(name, "r");
-            assert!(
-                matches!(
-                    value,
-                    Some(compiler::ast::Expression::Borrow { mutable: true, .. })
-                ),
-                "Should parse &mut as a mutable borrow expression"
-            );
+            assert!(matches!(
+                value,
+                Some(compiler::ast::Expression::Borrow {
+                    mutable: true,
+                    expr,
+                }) if matches!(expr.as_ref(), compiler::ast::Expression::Identifier(identifier) if identifier == "x")
+            ));
         }
         _ => panic!("Expected let statement with mutable borrow"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5b: parser needs Expression::Deref
-fn test_parse_deref_expression() {
+fn test_strict_parse_deref_expression_retained_shape() {
     // The dereference operator * should parse as Expression::Deref.
     let source = "let val = *r;";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
             name, value, ..
         }) => {
             assert_eq!(name, "val");
-            assert!(
-                matches!(value, Some(compiler::ast::Expression::Deref(_))),
-                "Should parse *r as a Deref expression"
-            );
+            assert!(matches!(
+                value,
+                Some(compiler::ast::Expression::Deref(expr))
+                    if matches!(expr.as_ref(), compiler::ast::Expression::Identifier(identifier) if identifier == "r")
+            ));
         }
         _ => panic!("Expected let statement with deref"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5b: semantic analyzer needs borrow checker
+#[ignore = "quarantined: positive shallow borrow smoke does not prove lifetime or provenance"]
 fn test_semantic_multiple_immutable_borrows_ok() {
     // Multiple immutable borrows of the same value are allowed.
     //
@@ -317,7 +353,7 @@ fn test_semantic_multiple_immutable_borrows_ok() {
 }
 
 #[test]
-#[ignore] // Phase 5b: semantic analyzer needs borrow checker
+#[ignore = "quarantined: shallow conflict diagnostic is not a complete borrow checker"]
 fn test_semantic_mutable_and_immutable_borrow_conflict() {
     // Cannot have an immutable borrow active while a mutable borrow exists.
     //
@@ -339,7 +375,7 @@ fn test_semantic_mutable_and_immutable_borrow_conflict() {
 }
 
 #[test]
-#[ignore] // Phase 5b: semantic analyzer needs borrow checker
+#[ignore = "quarantined: shallow conflict diagnostic is not a complete borrow checker"]
 fn test_semantic_double_mutable_borrow_conflict() {
     // Cannot have two mutable borrows of the same value at the same time.
     //
@@ -361,7 +397,7 @@ fn test_semantic_double_mutable_borrow_conflict() {
 }
 
 #[test]
-#[ignore] // Phase 5b: semantic analyzer needs borrow checker
+#[ignore = "quarantined: nested call borrow is not registered and x is Copy"]
 fn test_semantic_borrow_keeps_value_alive() {
     // Borrowing does not move the value. The owner can still use it
     // after the reference is no longer needed.
@@ -385,7 +421,7 @@ fn test_semantic_borrow_keeps_value_alive() {
 }
 
 #[test]
-#[ignore] // Phase 5b: semantic analyzer needs borrow checker
+#[ignore = "quarantined: unsupported assignment is dropped by compatibility parser recovery"]
 fn test_semantic_cannot_mutate_through_immutable_ref() {
     // An immutable reference should not allow mutation of the underlying value.
     //
@@ -420,13 +456,11 @@ fn test_semantic_cannot_mutate_through_immutable_ref() {
 // parser must disambiguate in type position vs expression position.
 
 #[test]
-#[ignore] // Phase 5c: parser needs generic function syntax
-fn test_parse_generic_function() {
+fn test_strict_parse_generic_function_retained_shape() {
     // fn identity<T>(x: T) -> T { return x; }
     // Should parse with type_params = ["T"]
     let source = "fn identity<T>(x: T) -> T { return x; }";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
@@ -434,10 +468,12 @@ fn test_parse_generic_function() {
             parameters,
             return_type,
             type_params,
+            trait_bounds,
             ..
         }) => {
             assert_eq!(name, "identity");
             assert_eq!(type_params, &vec!["T".to_string()]);
+            assert!(trait_bounds.is_empty());
             assert_eq!(parameters.len(), 1);
             assert_eq!(parameters[0].name, "x");
             assert!(matches!(&parameters[0].param_type, compiler::ast::Type::Named(n) if n == "T"));
@@ -448,13 +484,11 @@ fn test_parse_generic_function() {
 }
 
 #[test]
-#[ignore] // Phase 5c: parser needs generic function syntax
-fn test_parse_generic_function_multiple_params() {
+fn test_strict_parse_generic_function_multiple_params_retained_shape() {
     // fn pair<A, B>(a: A, b: B) -> (A, B) { ... }
     // Should parse with type_params = ["A", "B"]
     let source = "fn pair<A, B>(a: A, b: B) -> (A, B) { return (a, b); }";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
@@ -467,22 +501,30 @@ fn test_parse_generic_function_multiple_params() {
             assert_eq!(name, "pair");
             assert_eq!(type_params, &vec!["A".to_string(), "B".to_string()]);
             assert_eq!(parameters.len(), 2);
+            assert_eq!(parameters[0].name, "a");
             assert!(
-                matches!(return_type, Some(compiler::ast::Type::Tuple(types)) if types.len() == 2)
+                matches!(&parameters[0].param_type, compiler::ast::Type::Named(name) if name == "A")
             );
+            assert_eq!(parameters[1].name, "b");
+            assert!(
+                matches!(&parameters[1].param_type, compiler::ast::Type::Named(name) if name == "B")
+            );
+            assert!(matches!(
+                return_type,
+                Some(compiler::ast::Type::Tuple(types))
+                    if matches!(types.as_slice(), [compiler::ast::Type::Named(a), compiler::ast::Type::Named(b)] if a == "A" && b == "B")
+            ));
         }
         _ => panic!("Expected generic function definition"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5c: parser needs generic struct syntax
-fn test_parse_generic_struct() {
+fn test_strict_parse_generic_struct_retained_shape() {
     // struct Container<T> { value: T }
     // Should parse with type_params = ["T"]
     let source = "struct Container<T> { value: T }";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef {
@@ -501,13 +543,11 @@ fn test_parse_generic_struct() {
 }
 
 #[test]
-#[ignore] // Phase 5c: parser needs generic enum syntax
-fn test_parse_generic_enum() {
+fn test_strict_parse_generic_enum_payloads_retained_shape() {
     // enum Result<T, E> { Ok(T), Err(E) }
     // Should parse with type_params = ["T", "E"]
     let source = "enum Result<T, E> { Ok(T), Err(E) }";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::EnumDef {
@@ -520,19 +560,27 @@ fn test_parse_generic_enum() {
             assert_eq!(variants.len(), 2);
             assert_eq!(variants[0].name, "Ok");
             assert_eq!(variants[1].name, "Err");
+            assert!(matches!(
+                &variants[0].kind,
+                compiler::ast::VariantDeclKind::Tuple(types)
+                    if matches!(types.as_slice(), [compiler::ast::Type::Named(name)] if name == "T")
+            ));
+            assert!(matches!(
+                &variants[1].kind,
+                compiler::ast::VariantDeclKind::Tuple(types)
+                    if matches!(types.as_slice(), [compiler::ast::Type::Named(name)] if name == "E")
+            ));
         }
         _ => panic!("Expected generic enum definition"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5c: parser needs Type::Generic in annotations
-fn test_parse_generic_type_annotation() {
+fn test_strict_parse_generic_type_annotation_retained_shape() {
     // let x: Container<i32> = ...;
     // Type annotation should be Type::Generic("Container", [Type::Named("i32")])
     let source = "let x: Container<i32> = Container { value: 42 };";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Let {
@@ -554,7 +602,7 @@ fn test_parse_generic_type_annotation() {
 }
 
 #[test]
-#[ignore] // Phase 5c: parser needs generic impl blocks
+#[ignore = "quarantined: generic impl target arguments and declaration bounds are not retained"]
 fn test_parse_generic_impl_block() {
     // impl<T> Container<T> { fn new(value: T) -> Container<T> { ... } }
     // ImplBlock should have type_params = ["T"]
@@ -600,32 +648,33 @@ fn test_parse_generic_impl_block() {
 // Parser needs: trait definition, impl Trait for Type, trait bounds on generics
 
 #[test]
-#[ignore] // Phase 5d: lexer needs trait keyword
-fn test_lexer_trait_keyword() {
+fn test_strict_lexer_trait_keyword_stream() {
     // "trait" should tokenize as a keyword, not an Identifier("trait").
     let source = "trait Display { }";
-    let tokens = lexer::tokenize(source);
-    assert!(
-        !matches!(&tokens[0], compiler::lexer::Token::Identifier(s) if s == "trait"),
-        "trait should be a keyword, not an identifier"
+    assert_eq!(
+        strict_tokens(source),
+        vec![
+            Token::Trait,
+            Token::Identifier("Display".to_string()),
+            Token::LeftBrace,
+            Token::RightBrace,
+            Token::Eof,
+        ]
     );
 }
 
 #[test]
-#[ignore] // Phase 5d: lexer needs where keyword
-fn test_lexer_where_keyword() {
+fn test_strict_lexer_where_keyword_stream() {
     // "where" should tokenize as a keyword, not an Identifier("where").
     let source = "where T";
-    let tokens = lexer::tokenize(source);
-    assert!(
-        !matches!(&tokens[0], compiler::lexer::Token::Identifier(s) if s == "where"),
-        "where should be a keyword, not an identifier"
+    assert_eq!(
+        strict_tokens(source),
+        vec![Token::Where, Token::Identifier("T".to_string()), Token::Eof]
     );
 }
 
 #[test]
-#[ignore] // Phase 5d: parser needs Statement::TraitDef
-fn test_parse_trait_definition_single_method() {
+fn test_strict_parse_trait_definition_single_method_retained_shape() {
     // trait Printable { fn to_string(&self) -> String; }
     // Should parse as TraitDef with one method signature (no body)
     let source = r#"
@@ -633,8 +682,7 @@ fn test_parse_trait_definition_single_method() {
             fn to_string(&self) -> String;
         }
     "#;
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::TraitDef {
@@ -646,19 +694,28 @@ fn test_parse_trait_definition_single_method() {
             assert!(type_params.is_empty());
             assert_eq!(methods.len(), 1);
             assert_eq!(methods[0].name, "to_string");
+            assert!(matches!(
+                methods[0].parameters.as_slice(),
+                [compiler::ast::Parameter {
+                    name,
+                    param_type: compiler::ast::Type::Reference(inner, false),
+                }] if name == "self" && matches!(inner.as_ref(), compiler::ast::Type::Named(inner_name) if inner_name == "Self")
+            ));
             assert!(
                 methods[0].body.is_none(),
                 "Trait method signatures have no body"
             );
-            assert!(methods[0].return_type.is_some());
+            assert!(matches!(
+                &methods[0].return_type,
+                Some(compiler::ast::Type::Named(name)) if name == "String"
+            ));
         }
         _ => panic!("Expected trait definition"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5d: parser needs Statement::TraitDef
-fn test_parse_trait_with_multiple_methods() {
+fn test_strict_parse_trait_with_multiple_methods_retained_shape() {
     // trait Shape { fn area(&self) -> f64; fn perimeter(&self) -> f64; }
     let source = r#"
         trait Shape {
@@ -667,8 +724,7 @@ fn test_parse_trait_with_multiple_methods() {
             fn name(&self) -> String;
         }
     "#;
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::TraitDef {
@@ -681,14 +737,32 @@ fn test_parse_trait_with_multiple_methods() {
             assert_eq!(methods[0].name, "area");
             assert_eq!(methods[1].name, "perimeter");
             assert_eq!(methods[2].name, "name");
+            for method in methods {
+                assert!(matches!(
+                    method.parameters.as_slice(),
+                    [compiler::ast::Parameter {
+                        name,
+                        param_type: compiler::ast::Type::Reference(inner, false),
+                    }] if name == "self" && matches!(inner.as_ref(), compiler::ast::Type::Named(inner_name) if inner_name == "Self")
+                ));
+                assert!(method.body.is_none());
+            }
+            assert!(
+                matches!(&methods[0].return_type, Some(compiler::ast::Type::Named(name)) if name == "f64")
+            );
+            assert!(
+                matches!(&methods[1].return_type, Some(compiler::ast::Type::Named(name)) if name == "f64")
+            );
+            assert!(
+                matches!(&methods[2].return_type, Some(compiler::ast::Type::Named(name)) if name == "String")
+            );
         }
         _ => panic!("Expected trait definition"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5d: parser needs impl Trait for Type syntax
-fn test_parse_impl_trait_for_type() {
+fn test_strict_parse_impl_trait_for_non_generic_type_retained_shape() {
     // impl Printable for Point { fn to_string(&self) -> String { ... } }
     // ImplBlock with trait_name = Some("Printable"), type_name = "Point"
     let source = r#"
@@ -698,8 +772,7 @@ fn test_parse_impl_trait_for_type() {
             }
         }
     "#;
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::ImplBlock {
@@ -712,14 +785,37 @@ fn test_parse_impl_trait_for_type() {
             assert_eq!(trait_name, &Some("Printable".to_string()));
             assert!(type_params.is_empty());
             assert_eq!(methods.len(), 1);
+            match &methods[0] {
+                compiler::ast::Statement::Function {
+                    name,
+                    parameters,
+                    return_type: Some(compiler::ast::Type::Named(return_name)),
+                    body,
+                    ..
+                } => {
+                    assert_eq!(name, "to_string");
+                    assert_eq!(return_name, "String");
+                    assert!(matches!(
+                        body.statements.as_slice(),
+                        [compiler::ast::Statement::Return(Some(
+                            compiler::ast::Expression::StringLiteral(value)
+                        ))] if value == "point"
+                    ));
+                    assert!(body.expression.is_none());
+                    assert!(matches!(parameters.as_slice(), [compiler::ast::Parameter {
+                        name: self_name,
+                        param_type: compiler::ast::Type::Reference(inner, false),
+                    }] if self_name == "self" && matches!(inner.as_ref(), compiler::ast::Type::Named(inner_name) if inner_name == "Self")));
+                }
+                _ => panic!("Expected a retained to_string method"),
+            }
         }
         _ => panic!("Expected impl Trait for Type block"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5d: parser needs trait bound syntax on generics
-fn test_parse_trait_bound_on_generic() {
+fn test_strict_parse_single_trait_bound_retained_metadata() {
     // fn print_item<T: Display>(item: T) { ... }
     // The parser should record that T has a bound of Display.
     // This could be stored as part of type_params or a separate bounds map.
@@ -728,26 +824,28 @@ fn test_parse_trait_bound_on_generic() {
             return;
         }
     "#;
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
             name,
             type_params,
+            trait_bounds,
             ..
         }) => {
             assert_eq!(name, "print_item");
-            // type_params should contain "T" (and its bound "Display" somewhere)
-            assert!(!type_params.is_empty(), "Should have generic type params");
+            assert_eq!(type_params, &vec!["T".to_string()]);
+            assert_eq!(
+                trait_bounds,
+                &vec![("T".to_string(), vec!["Display".to_string()])]
+            );
         }
         _ => panic!("Expected function with trait-bounded generic"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5d: parser needs multiple trait bounds with +
-fn test_parse_multiple_trait_bounds() {
+fn test_strict_parse_multiple_trait_bounds_retained_metadata() {
     // fn clone_and_print<T: Display + Clone>(item: T) -> T { ... }
     // T should have bounds [Display, Clone]
     let source = r#"
@@ -755,51 +853,72 @@ fn test_parse_multiple_trait_bounds() {
             return item;
         }
     "#;
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
             name,
             type_params,
+            trait_bounds,
             ..
         }) => {
             assert_eq!(name, "clone_and_print");
-            assert!(!type_params.is_empty());
+            assert_eq!(type_params, &vec!["T".to_string()]);
+            assert_eq!(
+                trait_bounds,
+                &vec![(
+                    "T".to_string(),
+                    vec!["Display".to_string(), "Clone".to_string()]
+                )]
+            );
         }
         _ => panic!("Expected function with multiple trait bounds"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5d: parser needs where clause syntax
-fn test_parse_where_clause() {
+fn test_strict_parse_where_clause_retained_metadata() {
     // fn process<T, U>(source: T, sink: U) where T: Clone, U: Default { ... }
     let source = r#"
         fn process<T, U>(source: T, sink: U) where T: Clone, U: Default {
             return;
         }
     "#;
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
             name,
             parameters,
             type_params,
+            trait_bounds,
             ..
         }) => {
             assert_eq!(name, "process");
             assert_eq!(parameters.len(), 2);
             assert_eq!(type_params.len(), 2);
+            assert_eq!(parameters[0].name, "source");
+            assert!(
+                matches!(&parameters[0].param_type, compiler::ast::Type::Named(name) if name == "T")
+            );
+            assert_eq!(parameters[1].name, "sink");
+            assert!(
+                matches!(&parameters[1].param_type, compiler::ast::Type::Named(name) if name == "U")
+            );
+            assert_eq!(
+                trait_bounds,
+                &vec![
+                    ("T".to_string(), vec!["Clone".to_string()]),
+                    ("U".to_string(), vec!["Default".to_string()]),
+                ]
+            );
         }
         _ => panic!("Expected function with where clause"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5d: semantic analyzer needs trait completeness checking
+#[ignore = "quarantined: recovery-path shallow completeness diagnostic is not trait execution"]
 fn test_semantic_trait_method_not_implemented() {
     // Implementing a trait but missing a required method should be a compile-time error.
     //
@@ -827,7 +946,7 @@ fn test_semantic_trait_method_not_implemented() {
 }
 
 #[test]
-#[ignore] // Phase 5d: semantic analyzer needs trait bound verification
+#[ignore = "quarantined: passes on unsupported struct construction before bound checking"]
 fn test_semantic_unsatisfied_trait_bound() {
     // Calling a function with a trait-bounded generic using a type that
     // does not implement the required trait should be a compile-time error.
@@ -861,13 +980,11 @@ fn test_semantic_unsatisfied_trait_bound() {
 // =============================================================================
 
 #[test]
-#[ignore] // Phase 5 integration: generics + borrowing
-fn test_parse_generic_struct_with_reference_field() {
+fn test_strict_parse_generic_struct_reference_field_retained_shape() {
     // struct Ref<T> { value: &T }
     // Combines generic type params with reference types.
     let source = "struct Ref<T> { value: &T }";
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::StructDef {
@@ -878,6 +995,7 @@ fn test_parse_generic_struct_with_reference_field() {
             assert_eq!(name, "Ref");
             assert_eq!(type_params, &vec!["T".to_string()]);
             assert_eq!(fields.len(), 1);
+            assert_eq!(fields[0].name, "value");
             assert!(
                 matches!(&fields[0].field_type,
                     compiler::ast::Type::Reference(inner, false)
@@ -891,7 +1009,7 @@ fn test_parse_generic_struct_with_reference_field() {
 }
 
 #[test]
-#[ignore] // Phase 5 integration: ownership + generics
+#[ignore = "quarantined: passes on unsupported generic struct construction before ownership"]
 fn test_semantic_generic_ownership_transfer() {
     // A generic container owning a non-Copy value should exhibit move semantics.
     //
@@ -915,7 +1033,7 @@ fn test_semantic_generic_ownership_transfer() {
 }
 
 #[test]
-#[ignore] // Phase 5 integration: traits + borrowing
+#[ignore = "quarantined: unsupported struct and method paths precede receiver-borrow semantics"]
 fn test_semantic_trait_method_borrows_self() {
     // A trait method with &self should not move the receiver.
     // Calling it multiple times on the same value should be valid.
@@ -948,8 +1066,7 @@ fn test_semantic_trait_method_borrows_self() {
 }
 
 #[test]
-#[ignore] // Phase 5 integration: generics + traits + borrowing
-fn test_parse_generic_function_with_trait_bound_and_ref() {
+fn test_strict_parse_generic_function_bound_reference_retained_shape() {
     // fn display_ref<T: Display>(item: &T) { ... }
     // Combines trait bounds on generics with reference parameter types.
     let source = r#"
@@ -957,33 +1074,36 @@ fn test_parse_generic_function_with_trait_bound_and_ref() {
             return;
         }
     "#;
-    let tokens = lexer::tokenize(source);
-    let ast = parser::parse(tokens);
+    let ast = strict_parse(source);
     assert_eq!(ast.len(), 1);
     match &ast[0] {
         compiler::ast::AstNode::Statement(compiler::ast::Statement::Function {
             name,
             parameters,
             type_params,
+            trait_bounds,
             ..
         }) => {
             assert_eq!(name, "display_ref");
-            assert!(!type_params.is_empty());
-            assert_eq!(parameters.len(), 1);
-            assert!(
-                matches!(
-                    &parameters[0].param_type,
-                    compiler::ast::Type::Reference(_, false)
-                ),
-                "Parameter should be a reference type"
+            assert_eq!(type_params, &vec!["T".to_string()]);
+            assert_eq!(
+                trait_bounds,
+                &vec![("T".to_string(), vec!["Display".to_string()])]
             );
+            assert_eq!(parameters.len(), 1);
+            assert_eq!(parameters[0].name, "item");
+            assert!(matches!(
+                &parameters[0].param_type,
+                compiler::ast::Type::Reference(inner, false)
+                    if matches!(inner.as_ref(), compiler::ast::Type::Named(name) if name == "T")
+            ));
         }
         _ => panic!("Expected generic function with reference param"),
     }
 }
 
 #[test]
-#[ignore] // Phase 5 integration: traits + generics in impl
+#[ignore = "quarantined: generic impl target arguments and declaration bounds are not retained"]
 fn test_parse_impl_trait_for_generic_struct() {
     // impl<T: Display> Printable for Container<T> { ... }
     // Combines generic type params with trait bounds on an impl block.

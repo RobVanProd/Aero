@@ -1018,7 +1018,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-022 — Separate strict syntax retention from quarantined Phase 5 semantics
 
 - Date: 2026-08-03
-- Status: proposed for `CORE-017`; audit complete at clean public head `8869eca`
+- Status: implementation candidate; preregistration is public and green at `2c61535`
 - Decision: the existing Phase 5 target remains one 38-test inventory, but only 22
   existing syntax tests may become active: four exact strict-token tests and 18 exact
   strict parser-retention tests. Exactly 16 remain ignored: all 14 semantic tests and
@@ -1037,3 +1037,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Revisit when: generic-impl target argument/bound retention has a separate AST/parser
   contract, or ownership/trait semantics have a frozen model and diagnostic-specific
   trusted-path tests.
+- Candidate evidence: exactly 22 selected tests use strict fallible helpers and exact
+  token/retained-AST assertions; exactly 16 carry explicit quarantine reasons.
+  Focused execution is 22 passed / 0 failed / 16 ignored, the full list is 38, and the
+  ignored-only list is the exact frozen 16 without execution. Three current evidence
+  documents preserve the parsed-only/no-semantic-uplift boundary. Exact
+  `./tools/test.sh` passes; exact review and public-green evidence remain pending.

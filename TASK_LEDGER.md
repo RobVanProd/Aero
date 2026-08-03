@@ -2737,5 +2737,30 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   because this is evidence reclassification with production behavior frozen.
 - Owner: lead-owned test/evidence slice with independent type/safety, IR/parser, and
   backend/claim review at every publication boundary.
-- Status: preregistration candidate only. Test and current-document edits remain
-  prohibited until this exact six-record contract is reviewed and public green.
+- Preregistration review/publication: all three independent reviewers approved exact
+  six-record diff `ebe348e00721596f768b900547b9d19b56e44df4` and tree
+  `1d890b93351e54fb6903aa952957494a517d40a9` with no P0-P3 findings. Public commit
+  `2c61535092f22f2f513aac0fcee9d34d9c621212` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. CI runs are
+  `30794999601`, `30795002178`, Rust `30795002200`, and CodeQL `30794999815`.
+- Implementation candidate: one shared strict-token helper and one strict-parse
+  helper make the selected tests fail closed. Four lexer tests now assert complete
+  token streams including EOF and the `&` versus `&&` distinction. Eighteen parser
+  tests bind exact retained references/borrow/deref operands, generic parameter and
+  enum payload types, trait receivers/method bodies, ordered inline/where bounds, and
+  combined reference/bound shapes. Names say strict token or retained shape. No
+  production source changed.
+- Quarantine implementation: exactly 16 `#[ignore = "quarantined: ..."]` attributes
+  remain on the 14 semantic and two generic-impl tests, with per-test blockers. The
+  three current evidence documents say 22 syntax-retention tests are active and 16
+  remain quarantined, and explicitly deny semantic/execution evidence.
+- Focused evidence: default `phase5_tests` is exactly 22 passed / 0 failed / 16
+  ignored. `--list` reports exactly 38 entries. `--ignored --list` reports exactly the
+  frozen 16 names without executing them. Inventory source counts are 4 strict lexer,
+  18 strict parser, and 16 ignored.
+- Full-gate evidence: exact `./tools/test.sh` exits zero after formatting,
+  correctness Clippy, 139 library tests, 148 binary tests, every integration target
+  including Phase 5's 22 passed / 16 ignored result, and doc tests.
+- Status: local implementation candidate is fully green and awaits exact three-review
+  approval. Publication and closure remain blocked; R-012 is not yet partially
+  controlled.

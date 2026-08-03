@@ -4,12 +4,11 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 18 preregistration — `AUDIT-023` at clean accepted public head `8869eca`
-classifies all 38 ignored Phase 5 tests. `CORE-017` conservatively selects exactly 22
-strict lexer/parser-retention tests for activation and leaves exactly 16 tests
-quarantined. The slice is test/evidence-only; no production behavior or capability
-class changes. Test and current-document edits remain blocked until the exact
-preregistration is reviewed and public green.
+Milestone 18 implementation review — public-green preregistration `2c61535` freezes
+the conservative 22/16 boundary. The local `CORE-017` candidate now passes exactly 22
+strict lexer/parser-retention tests, lists exactly 38 total, and retains exactly 16
+explicit quarantines. Exact full gate passes. No production file or capability class
+changed; exact three-review approval remains before publication.
 
 ## Active hypothesis
 
@@ -75,6 +74,12 @@ not inferred.
   `4318bd3f0eea4dda7f6264ac5e9ae1694d0d5960` with no P0-P3 findings after two stale
   state anchors were rejected and fixed. Both compiler-test jobs, stable/nightly Rust,
   all three CodeQL analyses, and aggregate CodeQL pass; draft PR #4 is mergeable.
+- Public `CORE-017` preregistration head:
+  `2c61535092f22f2f513aac0fcee9d34d9c621212`. Three independent reviewers approved
+  exact diff `ebe348e00721596f768b900547b9d19b56e44df4` and tree
+  `1d890b93351e54fb6903aa952957494a517d40a9` with no P0-P3 findings. Both
+  compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  CodeQL pass; draft PR #4 is open and mergeable.
 - Accepted public `CORE-015` final-state sync head:
   `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`. Three independent reviewers approved
   exact staged diff `674b1831accef7b714ba21799249f346cc5a7491` and tree
@@ -545,11 +550,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Stage only the six `AUDIT-023`/`CORE-017` preregistration records, compute the exact
-canonical diff/tree, and obtain three independent reviews. Publish only after all
-three approve and require all eight public checks green before editing the test target
-or current evidence documents. Do not change production, semantics, generic-impl AST
-retention, backends, package/release state, benchmarks, registry, or `master`.
+Verify only the one test file, three current evidence documents, and six records
+changed, then freeze the full-green candidate's canonical diff/tree for three
+independent reviews. Publish only after all approve and require all eight public
+checks green before record-only closure. Do not change production, semantics,
+generic-impl AST retention, backends, package/release state, benchmarks, registry, or
+`master`.
 
 ## Unauthorized actions
 

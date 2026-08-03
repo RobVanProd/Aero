@@ -107,6 +107,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   semantic plus 2 generic-impl retention gaps). `CORE-017` selects only test/evidence
   classification. Even if active, the 22 remain `PARSED_ONLY` evidence and do not
   change language semantics, capability classes, IR/backend behavior, or stability.
+- Public-green preregistration `2c61535` freezes that boundary. The local candidate is
+  exactly 22 strict lexer/parser-retention passes and 16 explicit quarantines with no
+  production change, and exact full gate passes. It remains candidate `PARSED_ONLY`
+  evidence until exact review and public green; no semantic or execution row changes.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

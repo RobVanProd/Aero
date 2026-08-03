@@ -62,7 +62,7 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 | Framework direction | Current evidence | Required next proof |
 |---|---|---|
 | Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed | A specified stable subset with exact positive, negative, diagnostic, and execution tests |
-| Ownership-based safety | Shallow move/borrow checks exist; 38 Phase 5 tests remain intentionally ignored and lifetime provenance is absent | Active CFG-aware move, borrow, lifetime, and destruction conformance |
+| Ownership-based safety | Shallow move/borrow checks exist; 22 active strict Phase 5 tests cover lexer/parser retention only, while 16 semantic/lossy-shape tests remain quarantined and lifetime provenance is absent | Active CFG-aware move, borrow, lifetime, and destruction conformance |
 | Structs, enums, traits, and Match | Declarations and syntax are present, but aggregate layout/value lowering and Match execution are not trustworthy | One typed aggregate/ADT vertical slice from source through verified LLVM and runtime output |
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist; typed-IR invariants and verification are incomplete | Fallible typed IR, structural verifier, LLVM verifier, object/link/runtime gates on supported platforms |
 | Zero-cost performance | A benchmark protocol now exists, but no audited public Aero runtime or device performance claim passes it | Correct real programs, raw samples, reproducible baselines, and separately reported compile/runtime/resource costs |

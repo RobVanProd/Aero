@@ -25,7 +25,7 @@ Aero is a high-performance, ergonomic programming language. The compiler is writ
 - **Minimal prototype / correctness recovery.** No language feature is classified stable.
 - Scalar parsing, selected semantic contracts, checked IR, and the qualified CPU LLVM path have active evidence; see `CURRENT_CAPABILITY_AUDIT.md` and `SPEC_IMPLEMENTATION_MATRIX.md`.
 - Ownership, borrowing, generic, trait, struct, enum, tuple, and pattern syntax does not establish complete type checking, a borrow checker, lifetime safety, layout, or execution support.
-- The 38 Phase 5 integration tests remain ignored pending test-by-test recovery/stub classification; they are not current coverage evidence.
+- Phase 5 evidence includes 22 active strict lexer/parser-retention tests; 16 tests remain explicitly quarantined (14 semantic and 2 lossy generic-impl shapes). Syntax retention is not ownership, borrow-checker, generic/trait enforcement, or execution evidence.
 - Use `PROJECT_STATE.md` for current test counts and accepted public checkpoints.
 
 ## Key Design Docs

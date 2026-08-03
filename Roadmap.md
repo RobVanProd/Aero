@@ -45,7 +45,7 @@ diagnostic, verifier, platform, and reproducibility evidence.
 - Complete generic substitution, trait dispatch/bounds, and error types.
 - Replace shallow ownership tracking with CFG-aware moves, borrows, lifetimes,
   and explicit unsafe boundaries.
-- Activate or replace the 38 intentionally ignored Phase 5 tests.
+- Preserve the 22 active strict Phase 5 syntax-retention tests and replace or recover the 16 quarantined semantic/lossy-shape tests only after their missing contracts are frozen.
 
 Exit gate: at least one real ownership-intensive program and one generic data
 structure pass conformance, LLVM verification, and runtime checks without ignored
