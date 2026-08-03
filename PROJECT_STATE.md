@@ -4,19 +4,20 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 30 `CORE-025` preregistration - public-green read-only `AUDIT-031` selects
-initialized exact outer tuple-binding annotation containment as a two-phase R-002
-slice. No test or implementation edit is authorized until this exact six-record
-full-local-gate-green contract passes its review and public gates.
+Milestone 30 `CORE-025` record closure - initialized exact outer tuple-binding
+annotations now fail closed in semantic analysis and independently at checked IR
+admission before generation. The implementation is triple-reviewed, full-local-
+gate green, and all-eight public green; the six evidence records are pending their
+own exact review and unchanged publication.
 
 ## Active hypothesis
 
-Both direct semantics and checked admission already validate the RHS before binding
-insertion, so an exact outer `Type::Tuple(_)` guard immediately afterward can stop
-the current scalar fallback without defining tuple values, layout, ABI, generics,
-ownership, verifier, codegen, or backend behavior. Here `generics` means type/
-parameter semantics: the rejection must bypass current generic-context annotation
-skips while preserving child-error precedence.
+Both accepted guards run after RHS/child validation and before binding insertion.
+Semantic analysis stops trusted compilation before IR; checked admission separately
+stops direct-AST callers, including the prior generic-impl bypass. Exact diagnostics
+and preservation controls are green. This is rejection-only containment: tuple
+values, layout, ABI, generic type semantics, ownership, verifier, codegen, and
+backend behavior remain absent or quarantined.
 
 ## Founding-framework checkpoint
 
@@ -42,6 +43,26 @@ skips while preserving child-error precedence.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-025` implementation
+  `1ec8bebc04e6dbc30a47ef011bdb8fae334194a9`, tree `ac2c8fdd`, diff `b765db31`,
+  passes focused 1/1, binding 17/17, exact `./tools/test.sh` at 139/139 library and
+  149/149 binary tests, compiler `30857775577` / `30857777431`, stable/nightly Rust
+  `30857777314`, all three analyses in CodeQL `30857775231`, and aggregate
+  `91832840108`. Three exact reviewers found no P0-P3 issue. Exact initialized outer
+  tuple binding annotations now stop after child validation in semantics and checked
+  admission; tuple capability remains unpromoted and broader R-002 remains
+  PARTIALLY CONTROLLED.
+- Triple-reviewed tests-only `39ccd9c97cdd25126f925febd93308c071878f58`,
+  tree `5b05499f`, diff `765bca0b`, produces exactly 16 passed/1 failed in compiler
+  `30857467570` / `30857469931` and nightly Rust `30857470046`, with only the five-
+  boundary tuple-annotation target failing. Stable is fail-fast cancelled. CodeQL
+  `30857468030` and aggregate `91831822409` pass. A prior snapshot was rejected P2
+  because it matched diagnostic fragments; the accepted snapshot requires exact
+  complete strings, including child-precedence controls.
+- Public `CORE-025` preregistration
+  `722d4d129abde2f6b276770aa03b05c933580de5`, tree `5eed3943`, diff `32520171`,
+  passes compiler `30856866754` / `30856869023`, stable/nightly Rust `30856869057`,
+  CodeQL `30856866855`, and aggregate `91829921341`.
 - Public `AUDIT-031` authorization
   `ba258c6e424454930b670d9c3e95f0b027ff33cf`, tree `651762a8`, diff `20115b18`,
   passes compiler `30855407928` / `30855410819`, stable/nightly Rust `30855410731`,
@@ -643,11 +664,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three exact approvals for this full-local-gate-green six-record `CORE-025`
-preregistration, publish it unchanged, and require all eight public checks before
-adding the failing regression. Do not edit source/tests beforehand; broaden the rule
-beyond initialized exact outer tuple annotations; alter workflows/dependencies;
-publish benchmarks/packages/releases; modify immutable claim evidence; or touch
-`master`.
+closure, publish it unchanged, and require all eight public checks. Then synchronize
+the accepted closure and preregister the next clean-head read-only residual audit.
+Do not broaden beyond initialized exact outer tuple annotations; promote tuple or
+R-002 capability; alter workflows/dependencies; publish benchmarks/packages/
+releases; modify immutable claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

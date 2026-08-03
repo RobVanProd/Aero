@@ -4107,7 +4107,44 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   benchmark, package/release/registry, immutable evidence, history rewrite,
   destructive-system, or `master` action; more than the semantic and checked-
   admission phases; or any unsupported source-type fallback.
-- Status: preregistered and full-local-gate green with 139/139 library and 149/149
-  binary tests plus every active integration and doc test. No test or production
-  edit is authorized until this exact six-record snapshot passes three exact reviews,
-  unchanged publication, and all eight public checks.
+- Preregistration acceptance: exact six-record tree
+  `5eed3943aa47b7d98b224183e29302d87485fbab` and diff
+  `3252017135e44e4451acbae70c0d00e84204dd7e` received three approvals with no
+  P0-P3 findings and were published unchanged as
+  `722d4d129abde2f6b276770aa03b05c933580de5`. Compiler runs `30856866754` /
+  `30856869023`, stable/nightly Rust `30856869057`, CodeQL `30856866855`, and
+  aggregate `91829921341` all pass.
+- Tests-first checkpoint: after one P2 review rejected fragment-only diagnostic
+  assertions, the corrected exact one-file tree
+  `5b05499faa5e5f3e65326e1789c95acbfa55dbec` and diff
+  `765bca0b1da49c5acf798b0db1b8c2d7db537497` received three approvals and were
+  published unchanged as `39ccd9c97cdd25126f925febd93308c071878f58`.
+  Compiler runs `30857467570` / `30857469931` reproduce exactly 16 passed/1 failed: only
+  `initialized_tuple_annotations_fail_closed_before_generation` fails and lists
+  ordinary semantic, checked-admission, public-library, generic semantic, and
+  generic checked-admission acceptance. Nightly in Rust run `30857470046` reaches
+  the same exact failure; stable is fail-fast cancelled before the target. All
+  three analyses in CodeQL `30857468030` and aggregate `91831822409` pass. This is
+  intentional red evidence, not accepted implementation behavior.
+- Implementation acceptance: exact two-file tree
+  `ac2c8fdd7c486df6b1d75c6c15e2041f051e3ade` and diff
+  `b765db3179dc0211f2b17b24487e519b319ba22e` received three approvals with no
+  P0-P3 findings and were published unchanged as
+  `1ec8bebc04e6dbc30a47ef011bdb8fae334194a9`. The focused regression passes 1/1,
+  the binding-contract suite passes 17/17, and exact `./tools/test.sh` passes
+  locally with 139/139 library and 149/149 binary tests plus every active
+  integration and doc test. Public compiler runs `30857775577` / `30857777431`,
+  stable/nightly Rust `30857777314`, all three analyses in CodeQL `30857775231`,
+  and aggregate `91832840108` all pass.
+- Result: semantic analysis now rejects the exact initialized outer tuple
+  annotation after RHS initialization/value validation and before contract,
+  ownership, or scope insertion. Checked admission independently rejects after
+  child/void validation and before generic bypass or binding insertion, so direct-
+  AST callers stop before IR generation. Exact diagnostics, generic-impl traversal,
+  and child precedence are tested. Uninitialized and nested tuple annotations,
+  tuple values/layout/ABI, every excluded annotation, and every backend remain
+  unchanged or quarantined.
+- Status: implementation accepted at public `1ec8beb`; this six-record closure is
+  full-local-gate green with 139/139 library and 149/149 binary tests plus every
+  active integration and doc test. It is pending exact review and public all-eight
+  verification. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.

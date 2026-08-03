@@ -256,6 +256,16 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   and before generation. Tuple remains PARSED_ONLY; no tuple value, layout, ABI,
   lowering, execution, ownership, generic-type, nested-annotation, or matrix
   promotion is authorized before separate accepted evidence.
+- Accepted `CORE-025` implementation `1ec8beb`, tree `ac2c8fdd`, supplies that
+  bounded evidence. Corrected tests-only `39ccd9c` publicly reproduces exactly 16
+  passed/1 failed in compiler and nightly Rust, with only the selected five-boundary
+  target red; the two-file implementation passes focused 1/1, binding 17/17, the exact
+  full gate, compiler `30857775577` / `30857777431`, stable/nightly Rust
+  `30857777314`, CodeQL `30857775231`, and aggregate `91832840108`. Semantic and
+  checked-admission guards now reject only initialized exact outer tuple binding
+  annotations after child validation and before insertion/generation. Tuple remains
+  PARSED_ONLY; no matrix cell or tuple value/layout/ABI/ownership/lowering/execution
+  capability is promoted, and uninitialized/nested annotations remain quarantined.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

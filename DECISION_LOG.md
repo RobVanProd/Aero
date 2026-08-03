@@ -1390,7 +1390,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-030 - Initialized outer tuple binding annotations fail closed
 
 - Date: 2026-08-03
-- Status: proposed under `CORE-025`; tests and implementation pending.
+- Status: accepted in the compiler at public `1ec8beb`; record closure pending.
 - Decision: an initialized binding with exact outer AST annotation `Type::Tuple(_)`
   is unsupported and must reject after existing RHS validation but before binding
   insertion in both direct semantic analysis and checked IR admission. The rule
@@ -1410,3 +1410,13 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   layout/backend, grammar rules, and capability promotion.
 - Revisit tuple annotation support only with separately frozen tuple type/value,
   representation, layout, ABI, ownership, lowering, and execution contracts.
+- Evidence: triple-reviewed preregistration `722d4d1` is all-eight green. Corrected
+  triple-reviewed tests-only `39ccd9c` produces exactly 16 passed/1 failed in compiler
+  runs `30857467570` / `30857469931` and the nightly job in Rust `30857470046`,
+  with stable fail-fast cancelled and CodeQL/aggregate green. Triple-reviewed
+  implementation `1ec8beb`, tree `ac2c8fdd`, passes focused 1/1, binding 17/17,
+  the exact full local gate, compiler `30857775577` / `30857777431`, stable/nightly
+  Rust `30857777314`, CodeQL `30857775231`, and aggregate `91832840108`.
+- Residual: this accepts fail-closed rejection only. R-002 remains PARTIALLY
+  CONTROLLED, tuple remains PARSED_ONLY, and no tuple type/value support, ABI,
+  layout, execution, ownership, generic substitution, or stability is inferred.

@@ -934,6 +934,21 @@ upgrading any artifact.
   traversed generic statement contexts; tuple values/layout/ABI and every nested/
   uninitialized/generic-type/reference boundary remain unchanged. No capability is
   promoted before tests-first and public evidence.
+- `CORE-025` now supplies that evidence without promoting tuple capability.
+  Preregistration `722d4d1` is all-eight public green. After a P2 review corrected
+  fragment-only diagnostics to exact equality, triple-reviewed tests-only
+  `39ccd9c`, tree `5b05499f`, reproduces exactly 16 passed/1 failed in compiler
+  `30857467570` /
+  `30857469931` and nightly Rust `30857470046`; stable is fail-fast cancelled,
+  while CodeQL `30857468030` and aggregate `91831822409` pass. Triple-reviewed
+  two-phase implementation `1ec8beb`, tree `ac2c8fdd`, passes focused 1/1, binding
+  17/17, the exact full gate, compiler `30857775577` / `30857777431`, stable/nightly
+  Rust `30857777314`, CodeQL `30857775231`, and aggregate `91832840108`.
+  Initialized exact outer tuple binding annotations now fail after child validation
+  in semantics and independently at checked admission before binding insertion or
+  generation, including traversed generic-impl contexts. Tuple values, uninitialized
+  and nested annotations, layout, ABI, ownership, lowering, and execution remain
+  absent or quarantined; tuple stays PARSED_ONLY and R-002 stays PARTIALLY CONTROLLED.
 
 ## Audit completion
 
