@@ -314,3 +314,11 @@ after child validation in both semantic analysis and checked admission, before
 binding insertion or generation. R-002 remains HIGH/CRITICAL and PARTIALLY
 CONTROLLED: tuple values, uninitialized/nested annotations, every other excluded
 type/shape, entry/ABI, and generic behavior remain open or quarantined.
+
+Corrected exact `CORE-025` record closure `b0fe242`, tree `2a5d233f`, diff
+`98916b4d`, passes compiler `30858384541` / `30858387195`, stable/nightly Rust
+`30858387193`, CodeQL `30858385234`, and aggregate `91834740790` after three exact
+approvals. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED. `AUDIT-032` is
+preregistered to rank the complete remaining R-002/R-004/R-005/R-006/R-007/R-009/
+R-010/R-011/R-012/R-013/R-016 set from a clean public head, excluding every
+accepted sub-slice and carrying no implementation authority.

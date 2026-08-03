@@ -4148,3 +4148,76 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   full-local-gate green with 139/139 library and 149/149 binary tests plus every
   active integration and doc test. It is pending exact review and public all-eight
   verification. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+- Final closure: corrected exact six-record tree
+  `2a5d233f4d0940f26bfcb8748d82be46a08aaede` and diff
+  `98916b4ddb78ca1cc2ceca5a5add31ed714e0127` received three approvals with no
+  P0-P3 findings after a prior snapshot was rejected for ambiguous red-result
+  wording and an unreproduced review-side patch identity. Both plain and binary
+  cached-diff commands reproduced the corrected identity. It was published
+  unchanged as `b0fe242c0bfaf4aaf3030f36ec333de700dd18a3`. Compiler runs
+  `30858384541` / `30858387195`, stable/nightly Rust `30858387193`, all three
+  analyses in CodeQL `30858385234`, and aggregate `91834740790` all pass.
+- Status: complete at public record closure `b0fe242`. Only initialized exact outer
+  tuple binding-annotation rejection is accepted. Tuple remains PARSED_ONLY and
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+## AUDIT-032 - Clean-head residual-risk re-ranking after CORE-025
+
+- Task ID/date/owner: `AUDIT-032`, 2026-08-03, lead-owned read-only reconciliation
+  with independent type/safety, IR/codegen, and backend/claim auditors.
+- Observed behavior: `CORE-025` is complete at public closure `b0fe242`. Its selected
+  initialized exact outer tuple-annotation false success is controlled, but R-002
+  remains PARTIALLY CONTROLLED for entry/ABI, excluded types/shapes, tuple support,
+  and generic behavior. The complete remaining OPEN or PARTIALLY CONTROLLED set is
+  R-002, R-004, R-005, R-006, R-007, R-009, R-010, R-011, R-012, R-013, and R-016.
+  No next implementation is authorized.
+- Hypothesis: a clean-head, delta-aware full-set ranking can identify the highest-
+  severity bounded residual with frozen semantics, deterministic tests-first
+  evidence, and at most two compiler phases, without repeating an accepted slice,
+  inheriting a prior ordering, or treating rejection, records, annotations, flags,
+  simulation, object emission, or editor coordinate projection as broader capability.
+- Frozen audit semantics: the basis is the exact commit publishing this contract,
+  only after its full local gate, three exact approvals, unchanged publication, and
+  all eight public checks pass. Each auditor independently ranks all eleven
+  residuals by current reproducibility, severity, reach, semantic readiness, phase
+  count, compatibility ambiguity, and tests-first feasibility. Accepted sub-slices
+  remain excluded from candidate scope. Any next task requires complete evidence,
+  explicit exclusions, one frozen contract, and a separate reviewed authorization.
+- Candidate boundaries and stops: R-002 excludes accepted numeric, selected binding/
+  array, non-entry Boolean helper, and initialized exact outer tuple-rejection
+  contracts; unresolved entry/ABI, other excluded types/shapes, tuple support, and
+  generic behavior remain. R-004 needs ownership/provenance semantics. R-005 needs
+  an unchecked-API compatibility policy or a distinct bounded trusted-path defect.
+  R-006 excludes accepted direct modules/options controls but retains duplicated
+  orchestration. R-007 requires real hardware execution/correctness evidence. R-009
+  excludes the accepted parser-start adapter but retains spans/recovery. R-010 needs
+  an authority/compatibility boundary. R-011 needs aggregate bounds/layout/execution
+  semantics. R-012 needs an exact dormant-inventory slice. R-013 excludes accepted
+  status/wording/init controls but retains rollback, helper, maturity, and execution
+  boundaries. R-016 needs a supported-toolchain policy.
+- Allowed files/actions: during the audit, root and auditors are strictly read-only.
+  After all findings are reconciled, only `TASK_LEDGER.md`, `DECISION_LOG.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  and `INITIAL_RISK_REGISTER.md` may record the result and separately frozen next
+  contract. No test, probe, benchmark, artifact, source, workflow, dependency,
+  package/release/registry, immutable claim-evidence, backend, or `master` change.
+- Acceptance: this preregistration passes exact `./tools/test.sh`, three exact-
+  snapshot reviews, unchanged publication, and all eight public checks before audit
+  work begins. Then three complete independent reports rank every residual and state
+  findings, evidence, commands, uncertainty, regression risks, and recommended next
+  action. The lead reconciles one bounded selection or an explicit stop. Any test or
+  implementation edit requires a later reviewed task contract.
+- Risks: stale residual accounting; ranking titles instead of active behavior;
+  reselecting an accepted slice; inventing language, ownership, aggregate, entry,
+  grammar, toolchain, or backend semantics; mistaking rejection, test, or editor
+  evidence for capability; or allowing an invalid program to IR/backend.
+- Stop conditions: omitted residual; edit/test/probe/artifact/external query during
+  the audit; implementation before reconciliation and a separate task contract;
+  unsupported source-type fallback; more than two compiler phases; unresolved
+  semantic choice; workflow/dependency, benchmark, package/release/registry,
+  immutable evidence, history rewrite, destructive-system, or `master` action.
+- Status: preregistered and full-local-gate green with 139/139 library and 149/149
+  binary tests plus every active integration and doc test. Audit work is prohibited
+  until this exact six-record contract passes three exact reviews, unchanged
+  publication, and all eight public checks.

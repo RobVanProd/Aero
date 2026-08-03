@@ -4,20 +4,20 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 30 `CORE-025` record closure - initialized exact outer tuple-binding
-annotations now fail closed in semantic analysis and independently at checked IR
-admission before generation. The implementation is triple-reviewed, full-local-
-gate green, and all-eight public green; the six evidence records are pending their
-own exact review and unchanged publication.
+Milestone 31 `AUDIT-032` authorization - `CORE-025` is complete at public record
+closure `b0fe242`. Immediate work is exact approval, unchanged publication, and all-
+eight verification of this full-local-gate-green preregistration. The clean-head
+rankings are prohibited until those gates pass. No implementation is authorized
+until the later audit is reconciled and a separate frozen task contract passes its
+own gates.
 
 ## Active hypothesis
 
-Both accepted guards run after RHS/child validation and before binding insertion.
-Semantic analysis stops trusted compilation before IR; checked admission separately
-stops direct-AST callers, including the prior generic-impl bypass. Exact diagnostics
-and preservation controls are green. This is rejection-only containment: tuple
-values, layout, ABI, generic type semantics, ownership, verifier, codegen, and
-backend behavior remain absent or quarantined.
+A full-set, delta-aware comparison from the clean accepted head can select one
+bounded, reproducible residual—or an explicit stop—without inheriting prior
+rankings or repeating accepted slices. The audit remains static and read-only;
+semantic ambiguity, more than two compiler phases, hardware needs, or unsupported
+capability claims are stop conditions rather than implementation invitations.
 
 ## Founding-framework checkpoint
 
@@ -43,6 +43,12 @@ backend behavior remain absent or quarantined.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-025` record closure
+  `b0fe242c0bfaf4aaf3030f36ec333de700dd18a3`, tree `2a5d233f`, diff `98916b4d`,
+  passes compiler `30858384541` / `30858387195`, stable/nightly Rust `30858387193`,
+  all three analyses in CodeQL `30858385234`, and aggregate `91834740790`. Three
+  exact reviewers approved the corrected closure. PR #4 remains open, draft, and
+  mergeable; upstream `master` remains `8f8c733`.
 - Accepted public `CORE-025` implementation
   `1ec8bebc04e6dbc30a47ef011bdb8fae334194a9`, tree `ac2c8fdd`, diff `b765db31`,
   passes focused 1/1, binding 17/17, exact `./tools/test.sh` at 139/139 library and
@@ -663,12 +669,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for this full-local-gate-green six-record `CORE-025`
-closure, publish it unchanged, and require all eight public checks. Then synchronize
-the accepted closure and preregister the next clean-head read-only residual audit.
-Do not broaden beyond initialized exact outer tuple annotations; promote tuple or
-R-002 capability; alter workflows/dependencies; publish benchmarks/packages/
-releases; modify immutable claim evidence; or touch `master`.
+Obtain three exact approvals for this full-local-gate-green six-record `AUDIT-032`
+preregistration, publish it unchanged, and require all eight public checks. Only
+then conduct the three independent read-only full-set rankings and reconcile one
+bounded selection or an explicit stop. Do not edit tests/source during the audit;
+inherit prior ordering; repeat an accepted slice; promote capability; alter
+workflows/dependencies; publish benchmarks/packages/releases; modify immutable
+claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

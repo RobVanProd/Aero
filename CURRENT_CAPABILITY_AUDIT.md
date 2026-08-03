@@ -949,6 +949,15 @@ upgrading any artifact.
   generation, including traversed generic-impl contexts. Tuple values, uninitialized
   and nested annotations, layout, ABI, ownership, lowering, and execution remain
   absent or quarantined; tuple stays PARSED_ONLY and R-002 stays PARTIALLY CONTROLLED.
+- Corrected exact `CORE-025` record closure `b0fe242`, tree `2a5d233f`, diff
+  `98916b4d`, received three approvals and passes compiler `30858384541` /
+  `30858387195`, stable/nightly Rust `30858387193`, CodeQL `30858385234`, and
+  aggregate `91834740790`. This closes only the selected fail-closed annotation
+  boundary; no capability class or matrix row is promoted.
+- `AUDIT-032` is preregistered to re-rank the complete remaining R-002/R-004/R-005/
+  R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from a clean public head.
+  It excludes every accepted sub-slice, must begin read-only only after its own
+  exact review/public gates, and carries no implementation or capability authority.
 
 ## Audit completion
 

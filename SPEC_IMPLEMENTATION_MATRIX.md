@@ -266,6 +266,13 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   annotations after child validation and before insertion/generation. Tuple remains
   PARSED_ONLY; no matrix cell or tuple value/layout/ABI/ownership/lowering/execution
   capability is promoted, and uninitialized/nested annotations remain quarantined.
+- Corrected exact `CORE-025` record closure `b0fe242`, tree `2a5d233f`, diff
+  `98916b4d`, is triple-approved and all-eight public green in compiler
+  `30858384541` / `30858387195`, Rust `30858387193`, CodeQL `30858385234`, and
+  aggregate `91834740790`. Tuple remains PARSED_ONLY and no matrix cell changes.
+  Preregistered read-only `AUDIT-032` may re-rank all eleven residual risks only
+  after its own exact gates; it cannot change a matrix cell, capability class, or
+  implementation.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
