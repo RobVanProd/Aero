@@ -1152,3 +1152,37 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   dependencies, package/release/registry state, and `master`.
 - Revisit when a separate decision specifies executable test entrypoints, isolation,
   fixtures, assertions, result protocol, and process/runtime behavior.
+
+## DEC-025 — Unsupported nondefault `CompilerOptions` fail closed
+
+- Date: 2026-08-03
+- Status: accepted as the compatibility policy for preregistered `CORE-020`;
+  implementation and public acceptance have not started.
+- Decision: preserve public `CompilerOptions`, its `optimize`, `debug_info`, and
+  `target` fields, `Debug`/`Clone`/`Default` derives, default values, and
+  `compile_program(&str, CompilerOptions) -> Result<String, String>`. The only
+  currently supported value is exactly `CompilerOptions::default()`:
+  `optimize == false`, `debug_info == false`, and an empty `target`.
+- Fail-closed contract: if `optimize` or `debug_info` is true, or `target` is nonempty,
+  `compile_program` returns exactly `Unsupported CompilerOptions: only
+  CompilerOptions::default() is supported; optimize, debug_info, and target behavior
+  is not implemented`. Validation precedes lexing, so this diagnostic wins even when
+  source text is malformed. It is an error, not a warning or silent normalization.
+- Evidence and rationale: `AUDIT-026` found 62 in-repository calls, all default, and
+  no CLI consumer. Static tracing proves the accepted value is never read, so all
+  values enter the same checked parse/semantic/IR/codegen path. Temporary probe claims
+  are excluded because probe creation exceeded the audit stop boundary. Silent
+  success falsely implies field behavior; explicit unsupported rejection is the
+  smallest truth-preserving correction and adds no language or option semantics.
+- Compatibility decision: external nondefault consumers are unknown and may change
+  from `Ok` or a source error to this earlier `Err`. The lead accepts that behavioral
+  break for an experimental `0.3.0` facade because preserving false success would be
+  less safe. Source construction, field access, signatures, derives, and every default
+  caller remain compatible.
+- Excluded: defining optimization levels/passes, debug formats/metadata, target names
+  or triples, whitespace normalization, CLI `BuildTarget`/`BuildConfig` mapping,
+  environment-based defaults, parser/semantic/IR/codegen/backend changes, artifacts,
+  workflows/dependencies, benchmarks, package/release/registry state, and `master`.
+- Revisit only when a separate decision specifies one option's accepted values,
+  observable behavior, diagnostics, pipeline phase, platform/toolchain requirements,
+  compatibility plan, and positive/negative evidence end to end.

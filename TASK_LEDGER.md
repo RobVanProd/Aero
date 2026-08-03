@@ -3114,4 +3114,88 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   decision, hardware/device probe, benchmark run/claim, workflow/dependency change,
   immutable evidence, external artifact, package/release/registry action, destructive
   command, or `master` modification.
-- Status: preregistered; audit not started.
+- Findings: all three independent auditors traced the public struct at
+  `src/compiler/src/lib.rs` and ranked ignored nondefault options as the best bounded
+  next candidate under R-006. The 62 callers outside the definition comprise 28 calls
+  across five benchmarks and 34 across thirteen test files; all use
+  `CompilerOptions::default()`, none constructs a nondefault value, and the private
+  CLI target/configuration path does not consume the public type. Static phase tracing
+  proves `_options` has no read before or within lexing, parsing, direct-module
+  collection, semantics, checked IR, or checked code generation. No dynamic probe
+  result is accepted as audit evidence.
+- Commands/evidence: auditors used read-only `rg` inventories and source tracing; the
+  IR/codegen audit ran the existing binding (16), checked-IR (6), fatal-parse (11),
+  and module-pipeline (7) targets, all 40/40 green. No auditor edited, staged, or
+  committed repository files.
+- Process deviation and resolution: two auditors attempted temporary external `rustc`
+  probes even though the frozen stop conditions prohibited an external artifact. One
+  probe reported results; the type/safety phase probe was interrupted and returned no
+  result. The lead excludes both probes from every accepted finding and decision.
+  Exact read-only checks confirm their two named executables no longer exist; two
+  inert PDB byproducts remain in `%TEMP%`. Nothing was published or added to the
+  repository. This recorded exclusion and cleanup verification resolves the audit
+  deviation without treating probe output as evidence.
+- Remaining uncertainty/regression risk: external nondefault consumers are unknown;
+  identical outputs do not define intended meanings; fail-closed precedence changes
+  their runtime result and can mask a source diagnostic. Broad CLI/library pipeline
+  duplication remains open.
+- Status: complete at public-green preregistration
+  `2c61ff994b8ee903d84d7b0d116503ef3dc7dcfb`, tree
+  `ff20cf4332f4bfd54c8b2c20b8364100557ee59b`. Compiler runs
+  `30831057824`/`30831063857`, Rust `30831066619`, CodeQL `30831055856`, and
+  aggregate `91744957183` provide all eight green checks. Recommended next action is
+  the separately frozen `CORE-020`; no capability is promoted by this audit.
+
+## CORE-020 — Fail silently ignored nondefault `CompilerOptions` closed
+
+- Task ID/date/owner: `CORE-020`, 2026-08-03, lead-owned vertical slice under R-006
+  and accepted DEC-025.
+- Observed behavior: public `compile_program` accepts `CompilerOptions` but names it
+  `_options` and ignores every field. `optimize = true`, `debug_info = true`, any
+  nonempty `target`, and combinations can return the same successful LLVM as defaults,
+  falsely implying unsupported behavior.
+- Hypothesis: one guard at the public library boundary can stop that false success
+  before lexing while preserving the full default path and avoiding option, CLI, IR,
+  codegen, or backend semantics.
+- Frozen semantics: preserve the public struct, fields, derives/default, function
+  signature, and exact default parse/modules/semantics/checked-IR/checked-codegen
+  output and diagnostic behavior. Exactly `(false, false, String::new())` is supported.
+  Any true Boolean field or nonempty `target` returns exactly `Unsupported
+  CompilerOptions: only CompilerOptions::default() is supported; optimize, debug_info,
+  and target behavior is not implemented` before lexing; malformed source with a
+  nondefault option returns this options error. Do not trim or interpret `target`.
+- Tests first: add only
+  `src/compiler/tests/compiler_options_contract_tests.rs` with two tests. One default
+  preservation test must pass against unchanged production, requiring byte-identical
+  LLVM for one valid source and the exact existing parse diagnostic for one invalid
+  source against literals captured at parent `2c61ff9`. One comprehensive nondefault
+  contract must fail, covering
+  each Boolean field, a normal nonempty target, a whitespace-only target, a combined
+  value, valid source, and the known strict lexical failure `let value = 1@;`; every
+  nondefault case must require the exact options diagnostic. The test must evaluate
+  all table cases and aggregate mismatches before its final assertion, so the first
+  failure cannot hide an uncovered field/precedence case. This proves no target
+  trimming and validation before lexing. The target must be exactly 1 passed / 1
+  failed; every other target remains baseline. Exact three-review approval precedes
+  red publication.
+- Implementation files: `src/compiler/src/lib.rs`, the new test file, and the six
+  current control records only. The production change is the smallest boundary guard;
+  rustdoc may state the supported-default contract. No other file is authorized.
+- Acceptance: this preregistration passes exact `./tools/test.sh`, three independent
+  reviews, and all eight public checks. Tests-only publication reproduces exactly 1/1
+  in both compiler checks and every Rust matrix job that reaches this target, with
+  fail-fast cancellation permitted and all four CodeQL checks green. Implementation
+  is focused 2/2; existing binding/checked-IR/fatal-parse/module targets are 40/40;
+  exact full gate, three independent reviews, and all eight public checks pass.
+- Risks: external nondefault callers change from `Ok`/source errors to an earlier
+  `Err`; exact string assertions make diagnostic edits deliberate; guard placement
+  could accidentally alter defaults; broad tests could imply option meanings; CLI
+  target configuration may be confused with this library facade.
+- Stop conditions: any optimization, debug-info, target-name/triple, CLI target/
+  backend mapping, environment default, warning/normalization, public API/derive/
+  default/signature change; parser/modules/semantics/IR/codegen/backend/runtime or
+  artifact behavior; more than the boundary plus tests/records; workflow/dependency,
+  benchmark, immutable-evidence, package/release/registry, external-artifact,
+  destructive-system, or `master` change. Stop on any unexpected second compiler
+  phase or semantic decision.
+- Status: preregistered; tests-only work has not started.

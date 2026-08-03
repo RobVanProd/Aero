@@ -51,7 +51,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Compiler options | Y | N | Ignored | N | N | P | PARSED_ONLY |
 | CLI build/check | Y | N | P; surfaced compile failures nonzero | Y | P | Y | PARTIAL |
 | CLI run | Y | N | CPU executes; accepted CORE-018 makes ROCm a temporary regular-file probe followed by status 1/no execution; CUDA status 1 | Y | P | Y | PARTIAL |
-| CLI test | Y | N | Semantic analysis only; current output incorrectly claims running/passed; failures nonzero | Y | P | P | PARTIAL |
+| CLI test | Y | N | Semantic analysis only; explicitly reports no execution; failures nonzero | Y | P | Y | PARTIAL |
 | Formatter | Y | N | Text trimming | N | N | P | EXPERIMENTAL |
 | Diagnostics/source spans | Y | P | Point/one-char ranges | P | P | Y | PARTIAL |
 | LSP | Y | N | P | P | P | Y | EXPERIMENTAL |
@@ -145,6 +145,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 - Exact three-review-approved final-state sync `25dec51` also passes all eight public
   checks. `AUDIT-026` is read-only and cannot promote any row or define
   `CompilerOptions` behavior.
+- Public-green `AUDIT-026` preregistration `2c61ff9` supports the completed read-only
+  finding: all 62 in-repository library callers use defaults, while every nondefault
+  option is ignored across checked compilation. DEC-025 and preregistered `CORE-020`
+  select pre-lexing rejection of nondefaults while preserving the facade and exact
+  default behavior. Until accepted implementation evidence exists, the compiler-
+  options row remains `PARSED_ONLY` with ignored behavior and no promotion.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

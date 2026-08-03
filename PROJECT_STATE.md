@@ -4,19 +4,20 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 21 preregistration — accepted public `CORE-019` final-state sync `25dec51`,
-tree `46828e7d`, passes all eight checks and leaves the repository clean. `AUDIT-026`
-will re-rank remaining compiler-integrity risks read-only, with silently ignored
-nondefault public `CompilerOptions` as the bounded runner-up to reproduce and compare,
-not as an implementation already selected.
+Milestone 22 preregistration — public `AUDIT-026` preregistration `2c61ff9`, tree
+`ff20cf43`, passes all eight checks and leaves the repository clean. The completed
+read-only audit ranks silently ignored nondefault public `CompilerOptions` as the
+highest bounded active false-success boundary under R-006. `CORE-020` freezes
+fail-closed validation before lexing while preserving the public facade and exact
+default behavior; implementation has not started.
 
 ## Active hypothesis
 
-An exact clean-head audit can determine whether the public `compile_program(source,
-CompilerOptions)` facade silently ignoring `optimize`, `debug_info`, and `target` is
-the highest-severity bounded active false success. No meaning for those fields is
-assumed; fail-closed rejection, implementation, compatibility, or deprecation must
-wait for a separately frozen decision and tests-first contract.
+Rejecting `optimize = true`, `debug_info = true`, or a nonempty `target` before
+lexing prevents a public successful compilation from falsely implying unsupported
+option behavior. The public struct, fields, derives, default, function signature,
+and exact default pipeline/output/diagnostics remain unchanged. No option meaning is
+implemented or inferred.
 
 ## Founding-framework checkpoint
 
@@ -532,7 +533,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Public version: compiler CLI/banner presentation is manifest-derived package
   `0.3.0`; language `v1.0.0` material is a design target, not current conformance,
   stability, compatibility, or release evidence (`CORE-016`, `ea036f2`).
-- Library compiler options: accepted but ignored by `compile_program`.
+- Library compiler options: accepted but ignored by `compile_program`; completed
+  `AUDIT-026` selects explicit fail-closed nondefault validation for `CORE-020`.
 - Compiler architecture: binary and library declare overlapping modules.
 
 ## Known blockers and regressions
@@ -602,12 +604,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze, exactly review, and publish this six-record `AUDIT-026` preregistration and
-require all eight public checks green. Then complete the clean-head read-only audit
-before selecting `CompilerOptions` or any other implementation slice.
-Do not execute Aero tests, add checked IR/codegen/runtime behavior, change discovery/
-count/status semantics, implement `CompilerOptions`, publish benchmarks or packages,
-or modify `master`.
+Exactly review and publish this six-record `AUDIT-026` closure and `CORE-020`
+preregistration, then require all eight public checks green. Add only the frozen
+tests-first `CompilerOptions` contract and publish the exact red checkpoint before
+the smallest pre-lexing validation change.
+Do not implement option meanings, connect CLI targets, change default compilation,
+IR/codegen/runtime behavior, workflows/dependencies, benchmarks/packages, or `master`.
 
 ## Unauthorized actions
 

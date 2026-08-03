@@ -710,6 +710,38 @@ upgrading any artifact.
   remaining risks, and recommend one bounded next action or stop. It does not define
   option semantics, authorize code/tests, or change any capability class.
 
+### Completed `AUDIT-026` findings and `CORE-020` selection
+
+- Public preregistration `2c61ff9`, tree `ff20cf43`, passed compiler runs
+  `30831057824`/`30831063857`, Rust `30831066619`, CodeQL `30831055856`, and
+  aggregate `91744957183`; all eight checks are green.
+- `CompilerOptions` publicly exposes `optimize`, `debug_info`, and `target`, derives
+  `Debug`, `Clone`, and `Default`, and is described as compiler options for
+  benchmarking. `compile_program` accepts the value as `_options` but never reads it.
+  Its checked parse-to-codegen path is therefore identical for every field value.
+- The repository has 62 direct calls outside the definition: 28 across five
+  benchmarks and 34 across thirteen test files. Every call constructs
+  `CompilerOptions::default()`; no in-repository nondefault construction exists.
+  No CLI route consumes this public type, and CLI CPU/ROCm/CUDA `BuildTarget`/
+  `BuildConfig` orchestration is a separate private surface.
+- Static tracing proves `_options` has no read before or within the checked pipeline;
+  existing binding (16), checked-IR (6), fatal-parse (11), and module (7) targets
+  remained 40/40 green. Two attempted temporary external probes exceeded the audit's
+  read-only/external-artifact stop boundary: one reported dynamic results and one was
+  interrupted. Both are excluded from accepted findings. Their named executables no
+  longer exist; two inert PDB files remain in the user temp directory and are not
+  repository or publication artifacts.
+- All three independent type/safety, IR/codegen, and backend/claim auditors rank this
+  as the best bounded next action under R-006. External nondefault consumers cannot
+  be inventoried, so returning an error is a behavior compatibility change, although
+  public names, layout, signature, construction, and default behavior remain intact.
+- Lead-owned DEC-025 selects `CORE-020`: exactly the default tuple
+  `(false, false, String::new())` remains supported. Any true Boolean option or
+  nonempty target returns one stable unsupported-options error before lexing. This
+  contains false assurance without defining optimization, debug information, target
+  selection, CLI mapping, IR, codegen, or backend semantics. No capability row or
+  class is promoted by the audit or preregistration.
+
 ## Audit completion
 
 All eight requested read-only areas were completed in bounded waves. The audit
