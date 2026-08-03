@@ -4,13 +4,13 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 19 implementation candidate — the triple-approved tests-only checkpoint is
-public at `427fb4c` and reproduced the exact intended CI red split. The local
-`CORE-018` candidate now reserves `run` success for CPU process execution, fails
-ROCm/CUDA object-only routes closed, rejects ambiguous `gpu`, adds exact non-device
-telemetry, corrects current claims, and disables the nonexistent Aero GGUF route.
-Focused contracts are CLI 10/10 and claims 7/7 green. This does not implement an
-accelerator backend or close R-007.
+Milestone 19 record closure — triple-approved `CORE-018` implementation `8bde0ff`
+is public and all eight checks pass. `run` success is reserved for CPU process
+execution; ROCm/CUDA object-only routes fail closed; ambiguous `gpu` is rejected;
+graph/quant stages disclose non-device scalar helpers; and the nonexistent Aero GGUF
+route is disabled. This selected false-success/claim boundary is controlled. It does
+not implement an accelerator backend or close R-007, which still requires independent
+hardware execution and correctness evidence.
 
 ## Active hypothesis
 
@@ -573,12 +573,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-The exact repository gate is green. Freeze the implementation diff/tree and require
-all three independent reviews before publication. Then require all eight public checks
-green, publish a record-only closure with the same review/CI discipline, and finish a
-final-state sync. Do not implement HIP/CUDA execution, quantization mathematics, a
-benchmark, a schema rename, language semantics, package/release state, or any change
-to `master`.
+Freeze and review this six-record closure, publish only the exact approved tree, and
+require all eight public checks green. Then perform the final-state record sync with
+the same exact review/public-green discipline. Do not implement HIP/CUDA execution,
+quantization mathematics, a benchmark, a schema rename, language semantics,
+package/release state, or any change to `master`.
 
 ## Unauthorized actions
 

@@ -643,8 +643,11 @@ upgrading any artifact.
   emission then returns status 1 without link/launch; CUDA returns status 1; ambiguous
   `gpu` fails before source access; graph/quant output states non-device scalar-helper
   scope; and the nonexistent Aero GGUF route is disabled while external references
-  remain exact. The complete repository gate is green; exact-review and public-green
-  acceptance are still pending.
+  remain exact. Exact implementation tree `d10567be` received three independent
+  approvals and was published as `8bde0ff`; the complete local gate and all eight
+  public checks pass. The selected false-success/current-claim boundary is controlled,
+  but R-007 remains open because no accelerator execution or correctness evidence was
+  produced.
 
 ## Audit completion
 

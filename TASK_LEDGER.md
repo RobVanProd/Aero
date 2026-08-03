@@ -2916,6 +2916,13 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Gate evidence: exact Windows Git Bash `./tools/test.sh` passes, including 139
   library, 148 binary, claims 7/7, CLI 10/10, every remaining integration target,
   the explicit 22/16 Phase 5 split, and doc tests.
-- Status: implementation candidate; exact three-review approval, public green CI,
-  record-only closure, and final-state sync remain required. R-007 remains open
-  because no Aero accelerator execution or correctness evidence was produced.
+- Implementation acceptance: exact diff
+  `7984dbce4a543223482b628fe7b473cd81a6a628`, tree
+  `d10567bec4713c6623772606f4c3ea0a1418f37d`, received three independent approvals
+  with no P0-P3 findings and was published as `8bde0ff0189d1636a86757bf20ee3814ec3f932a`.
+  Compiler runs `30822531693` and `30822533924`, stable/nightly run `30822533179`,
+  CodeQL run `30822528126`, and aggregate `91715952709` all pass.
+- Status: accepted implementation; the selected object-only false success and current
+  claim surface are controlled. Record-only closure and final-state sync remain.
+  R-007 remains open because no Aero accelerator execution or correctness evidence
+  was produced.
