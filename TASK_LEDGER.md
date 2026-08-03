@@ -3365,7 +3365,7 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   probe outside the existing isolated process fixture; workflow/dependency, benchmark,
   package/release/registry, immutable-evidence, destructive-system, history rewrite,
   or `master` change. Stop on any second production phase or semantic decision.
-- Status: implementation candidate under validation. The exact six-record
+- Status: implementation accepted; record-only closure pending. The exact six-record
   preregistration was accepted at `a61ea24` after the full local gate, three
   independent approvals, and all eight public checks (compiler `30837838305` /
   `30837843933`, Rust `30837844778`, CodeQL `30837838554`, aggregate
@@ -3380,6 +3380,12 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   by matrix fail-fast. CodeQL run `30839264268` passes actions/Python/Rust analyses
   and aggregate `91772180985` passes. Production now has only the frozen
   `exit_code == 0` guard in `src/compiler/src/main.rs`. Formatting, focused CLI
-  11/11, backend-claim 7/7, and exact `./tools/test.sh` are green; exact
-  implementation reviews, public-green acceptance, and record-only closure remain
-  pending.
+  11/11, backend-claim 7/7, and exact `./tools/test.sh` are green. Exact staged tree
+  `0ad98c8223b0cbb23764df9fd964b9f50c2315b6` and diff
+  `2dbbc39582abbfa5b82a467e4ad7a5ca15ed3f83` received three independent approvals
+  with no P0-P3 findings and were published unchanged as `a4327be`. All eight public
+  checks pass in compiler runs `30839860335` / `30839862442`, stable/nightly Rust
+  run `30839862423`, CodeQL run `30839859840`, and aggregate `91774125621`.
+  `CORE-021` therefore accepts only the frozen delegated-exit presentation boundary.
+  This exact six-record final-state sync passes the full local gate; exact review and
+  public closure remain pending.

@@ -824,10 +824,13 @@ upgrading any artifact.
   all four cases execute. Local and public evidence is exact 10/1 on the false
   nonzero success line: compiler `30839264536` / `30839272375` and nightly in Rust
   `30839272429`; stable is cancelled during its test step by fail-fast. CodeQL
-  `30839264268` and aggregate `91772180985` pass. The one-condition production
-  candidate passes focused CLI 11/11, backend-claim 7/7, and the exact full local
-  gate; exact review and public acceptance remain pending, so no capability is yet
-  accepted or promoted.
+  `30839264268` and aggregate `91772180985` pass. The one-condition implementation
+  passes focused CLI 11/11, backend-claim 7/7, and the exact full local gate. Exact
+  tree `0ad98c82`, diff `2dbbc395`, received three approvals and was published as
+  `a4327be`; compiler `30839860335` / `30839862442`, Rust `30839862423`, CodeQL
+  `30839859840`, and aggregate `91774125621` all pass. The selected truthful
+  presentation boundary is accepted without promoting any language, execution,
+  backend, safety, or stability capability.
 
 ## Audit completion
 

@@ -4,18 +4,16 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 24 `CORE-021` implementation review — preregistration `a61ea24` is
-public green and exact three-review-approved tests-only `0873f65` is public red only
-on the frozen false-success contract. The production candidate changes one condition:
-preserve exact delegated CPU behavior but print `Program executed successfully.` only
-for exit zero. Focused CLI 11/11, backend-claim 7/7, and the exact full local gate pass.
+Milestone 24 `CORE-021` record-only closure — exact three-review-approved
+implementation `a4327be` is all-eight public green. It preserves exact delegated CPU
+behavior but prints `Program executed successfully.` only for exit zero. This
+final-state sync changes the six control records only.
 
 ## Active hypothesis
 
-The accepted public red checkpoint proves the CPU `run` path prints `Program executed
-successfully.` before reporting nonzero delegated child statuses. Conditioning only
-that line on exit zero makes the focused contract 11/11 while preserving exact
-child status, output forwarding, artifact cleanup, CLI-owned status boundary, and all
+Accepted `a4327be` conditions only the CPU delegated-success line on exit zero and
+makes the focused contract 11/11 while preserving exact child status, output
+forwarding, artifact cleanup, CLI-owned status boundary, and all
 compiler/backend behavior.
 
 ## Founding-framework checkpoint
@@ -551,11 +549,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - The local shell required Rust installation before tests could run.
 - Real backend verification may be blocked by absent LLVM/GPU toolchains or
   hardware; absence will be recorded rather than simulated.
-- Public tests-only `0873f65` proves CPU `run` falsely prints `Program executed
-  successfully.` for delegated nonzero statuses. The one-condition `CORE-021`
-  production candidate is not accepted until its local/public gates and reviews pass.
-  `run_aero_program` still calls `exit` internally after cleanup, and that separate
-  helper/API architecture boundary remains open.
+- Accepted `a4327be` removes the false CPU delegated-nonzero success line while
+  preserving exact child status/output/cleanup. `run_aero_program` still calls `exit`
+  internally after cleanup, and that separate helper/API architecture boundary
+  remains open.
 - Legacy recovery lexing remains public for compatibility and LSP symbol recovery;
   trusted repository paths no longer feed it into semantics, IR, or artifacts.
 - Numeric and void top-level function contracts are controlled at `8d5d8e7`.
@@ -614,9 +611,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact-snapshot approvals for the local-green one-condition `CORE-021`
-production candidate; then publish and require all eight public checks green before
-record-only closure. Do
+Obtain three exact-snapshot approvals for this full-local-gate-green six-record
+`CORE-021` closure; then publish it and require all eight public checks green before
+the next read-only risk ranking. Do
 not refactor helper termination, remap delegated statuses, add replacement wording,
 change child output/cleanup, touch init rollback, or alter compiler/backend behavior,
 workflows/dependencies, benchmarks/packages, immutable claim evidence, or `master`.

@@ -173,9 +173,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   publicly reproduces the selected delegated-exit false-success boundary in compiler
   runs `30839264536` / `30839272375` and nightly Rust run `30839272429`; stable is
   cancelled during tests by fail-fast. CodeQL `30839264268` and aggregate
-  `91772180985` pass. The one-condition production candidate passes focused CLI
-  11/11, backend-claim 7/7, and the exact full local gate, but remains unaccepted
-  pending exact review/public evidence and does not promote any compiler/backend row.
+  `91772180985` pass. The one-condition production implementation passes focused CLI
+  11/11, backend-claim 7/7, and the exact full local gate. Exact tree `0ad98c82`, diff
+  `2dbbc395`, received three approvals and was published as `a4327be`; compiler
+  `30839860335` / `30839862442`, Rust `30839862423`, CodeQL `30839859840`, and
+  aggregate `91774125621` all pass. The selected presentation boundary is accepted
+  without changing or promoting any compiler/backend row.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
