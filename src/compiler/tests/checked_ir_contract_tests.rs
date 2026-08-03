@@ -1,4 +1,4 @@
-use compiler::ast::AstNode;
+use compiler::ast::{AstNode, Block, ComparisonOp, Expression, Parameter, Statement, Type};
 use compiler::{
     CodeGenerationError, CodeGenerator, CompilerOptions, IrGenerationError, IrGenerator,
     SemanticAnalyzer, compile_program, generate_code, parse_with_locations, try_generate_code,
@@ -136,6 +136,422 @@ fn checked_ir_generator_reuse_starts_from_a_clean_module_state() {
     assert!(
         !llvm.contains("@closure_"),
         "stale closure leaked into LLVM:\n{llvm}"
+    );
+}
+
+#[test]
+fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
+    fn named(name: &str) -> Type {
+        Type::Named(name.to_string())
+    }
+
+    fn parameter(name: &str, ty: Type) -> Parameter {
+        Parameter {
+            name: name.to_string(),
+            param_type: ty,
+        }
+    }
+
+    fn function(
+        name: &str,
+        parameters: Vec<Parameter>,
+        return_type: Option<Type>,
+        type_params: Vec<&str>,
+        statements: Vec<Statement>,
+    ) -> AstNode {
+        AstNode::Statement(Statement::Function {
+            name: name.to_string(),
+            parameters,
+            return_type,
+            body: Block {
+                statements,
+                expression: None,
+            },
+            type_params: type_params.into_iter().map(str::to_string).collect(),
+            trait_bounds: Vec::new(),
+        })
+    }
+
+    fn main_function(statements: Vec<Statement>) -> AstNode {
+        function("main", Vec::new(), None, Vec::new(), statements)
+    }
+
+    fn int_function(name: &str, parameters: Vec<Parameter>) -> AstNode {
+        function(
+            name,
+            parameters,
+            Some(named("int")),
+            Vec::new(),
+            vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
+        )
+    }
+
+    fn call(name: &str, arguments: Vec<Expression>) -> Expression {
+        Expression::FunctionCall {
+            name: name.to_string(),
+            arguments,
+        }
+    }
+
+    fn checked_error(ast: Vec<AstNode>, label: &str) -> IrGenerationError {
+        match IrGenerator::new().try_generate_ir(ast) {
+            Ok(_) => panic!("{label}: checked IR unexpectedly succeeded"),
+            Err(error) => error,
+        }
+    }
+
+    fn assert_admission(ast: Vec<AstNode>, expected: &str, label: &str) {
+        match checked_error(ast, label) {
+            IrGenerationError::Admission(message) => {
+                assert_eq!(message, expected, "{label}: changed Admission diagnostic")
+            }
+            IrGenerationError::Verification(error) => {
+                panic!("{label}: reached verification instead of Admission: {error}")
+            }
+        }
+    }
+
+    fn assert_verification(ast: Vec<AstNode>, expected_fragment: &str, label: &str) {
+        match checked_error(ast, label) {
+            IrGenerationError::Verification(error) => assert!(
+                error.to_string().contains(expected_fragment),
+                "{label}: wrong verifier diagnostic: {error}"
+            ),
+            IrGenerationError::Admission(message) => {
+                panic!("{label}: verifier precedence changed to Admission: {message}")
+            }
+        }
+    }
+
+    fn assert_checked(ast: Vec<AstNode>, label: &str) {
+        if let Err(error) = IrGenerator::new().try_generate_ir(ast) {
+            panic!("{label}: valid checked AST failed: {error}");
+        }
+    }
+
+    assert_admission(
+        vec![
+            int_function("child_first", vec![parameter("value", named("int"))]),
+            main_function(vec![Statement::Expression(call(
+                "child_first",
+                vec![
+                    Expression::IntegerLiteral(1),
+                    Expression::TupleLiteral(vec![Expression::IntegerLiteral(2)]),
+                ],
+            ))]),
+        ],
+        "aggregate expression is not admitted in checked IR",
+        "surplus child precedence",
+    );
+
+    assert_checked(
+        vec![
+            int_function("shadowed", vec![parameter("value", named("int"))]),
+            main_function(vec![
+                Statement::Let {
+                    name: "shadowed".to_string(),
+                    mutable: false,
+                    type_annotation: None,
+                    value: Some(Expression::Closure {
+                        params: Vec::new(),
+                        body: Box::new(Expression::IntegerLiteral(9)),
+                    }),
+                },
+                Statement::Expression(call("shadowed", Vec::new())),
+            ]),
+        ],
+        "local callable precedence",
+    );
+
+    assert_admission(
+        vec![
+            function(
+                "consume",
+                vec![parameter("value", named("int"))],
+                None,
+                Vec::new(),
+                Vec::new(),
+            ),
+            main_function(vec![Statement::Let {
+                name: "captured".to_string(),
+                mutable: false,
+                type_annotation: None,
+                value: Some(call("consume", Vec::new())),
+            }]),
+        ],
+        "Void function calls cannot be used as values",
+        "Void-as-value precedence",
+    );
+
+    assert_checked(
+        vec![
+            main_function(vec![Statement::Expression(call(
+                "forward",
+                vec![Expression::IntegerLiteral(1)],
+            ))]),
+            int_function("forward", vec![parameter("value", named("int"))]),
+        ],
+        "forward exact-arity call",
+    );
+    assert_checked(
+        vec![
+            function(
+                "recur",
+                vec![parameter("value", named("int"))],
+                Some(named("int")),
+                Vec::new(),
+                vec![Statement::Return(Some(call(
+                    "recur",
+                    vec![Expression::Identifier("value".to_string())],
+                )))],
+            ),
+            main_function(vec![Statement::Expression(call(
+                "recur",
+                vec![Expression::IntegerLiteral(1)],
+            ))]),
+        ],
+        "recursive exact-arity call",
+    );
+    assert_checked(
+        vec![
+            function(
+                "identity_bool",
+                vec![parameter("flag", named("bool"))],
+                Some(named("bool")),
+                Vec::new(),
+                vec![Statement::Return(Some(Expression::Identifier(
+                    "flag".to_string(),
+                )))],
+            ),
+            main_function(vec![Statement::Expression(call(
+                "identity_bool",
+                vec![Expression::Comparison {
+                    op: ComparisonOp::Equal,
+                    left: Box::new(Expression::IntegerLiteral(1)),
+                    right: Box::new(Expression::IntegerLiteral(1)),
+                }],
+            ))]),
+        ],
+        "Boolean exact-arity call",
+    );
+    assert_checked(
+        vec![
+            function(
+                "identity_float",
+                vec![parameter("value", named("float"))],
+                Some(named("float")),
+                Vec::new(),
+                vec![Statement::Return(Some(Expression::Identifier(
+                    "value".to_string(),
+                )))],
+            ),
+            main_function(vec![Statement::Expression(call(
+                "identity_float",
+                vec![Expression::FloatLiteral(1.5)],
+            ))]),
+        ],
+        "Float exact-arity call",
+    );
+    assert_checked(
+        vec![
+            function(
+                "discard_void",
+                vec![parameter("value", named("int"))],
+                None,
+                Vec::new(),
+                Vec::new(),
+            ),
+            main_function(vec![Statement::Expression(call(
+                "discard_void",
+                vec![Expression::IntegerLiteral(1)],
+            ))]),
+        ],
+        "discarded Void exact-arity call",
+    );
+
+    assert_verification(
+        vec![
+            int_function("bad-name", vec![parameter("value", named("int"))]),
+            main_function(vec![Statement::Expression(call("bad-name", Vec::new()))]),
+        ],
+        "function symbol `bad-name` is not admitted for LLVM emission",
+        "invalid function symbol",
+    );
+    assert_verification(
+        vec![
+            int_function("printf", vec![parameter("value", named("int"))]),
+            main_function(vec![Statement::Expression(call("printf", Vec::new()))]),
+        ],
+        "`printf` is reserved by the checked runtime ABI",
+        "reserved function symbol",
+    );
+    assert_verification(
+        vec![
+            int_function("bad_parameter", vec![parameter("bad-name", named("int"))]),
+            main_function(vec![Statement::Expression(call(
+                "bad_parameter",
+                Vec::new(),
+            ))]),
+        ],
+        "parameter symbol `bad-name` is not admitted for LLVM emission",
+        "invalid parameter symbol",
+    );
+    assert_verification(
+        vec![
+            int_function(
+                "duplicate_parameter",
+                vec![
+                    parameter("value", named("int")),
+                    parameter("value", named("int")),
+                ],
+            ),
+            main_function(vec![Statement::Expression(call(
+                "duplicate_parameter",
+                Vec::new(),
+            ))]),
+        ],
+        "function signature defines duplicate parameter `value`",
+        "duplicate parameter symbol",
+    );
+    assert_verification(
+        vec![
+            int_function("duplicate", vec![parameter("first", named("int"))]),
+            int_function(
+                "duplicate",
+                vec![
+                    parameter("first", named("int")),
+                    parameter("second", named("int")),
+                ],
+            ),
+            main_function(vec![Statement::Expression(call("duplicate", Vec::new()))]),
+        ],
+        "duplicate result definition",
+        "duplicate top-level declaration",
+    );
+
+    assert_verification(
+        vec![
+            int_function("entry_caller", Vec::new()),
+            main_function(vec![Statement::Expression(call(
+                "main",
+                vec![Expression::IntegerLiteral(1)],
+            ))]),
+        ],
+        "call to `main` has 1 arguments but its signature requires 0",
+        "entry behavior remains ineligible",
+    );
+    assert_admission(
+        vec![
+            main_function(vec![Statement::Expression(call("generic", Vec::new()))]),
+            function(
+                "generic",
+                vec![parameter("value", named("int"))],
+                Some(named("int")),
+                vec!["T"],
+                vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
+            ),
+        ],
+        "generic function IR is not admitted in CORE-010",
+        "generic signature remains ineligible",
+    );
+    for (label, parameter_type) in [
+        (
+            "composite signature remains ineligible",
+            Type::Array(Box::new(named("int")), 1),
+        ),
+        (
+            "reference signature remains ineligible",
+            Type::Reference(Box::new(named("int")), false),
+        ),
+    ] {
+        assert_admission(
+            vec![
+                main_function(vec![Statement::Expression(call("ineligible", Vec::new()))]),
+                int_function("ineligible", vec![parameter("value", parameter_type)]),
+            ],
+            "function parameter `value` is not an admitted scalar type",
+            label,
+        );
+    }
+    for (label, return_type) in [
+        (
+            "composite result remains ineligible",
+            Type::Array(Box::new(named("int")), 1),
+        ),
+        (
+            "reference result remains ineligible",
+            Type::Reference(Box::new(named("int")), false),
+        ),
+    ] {
+        assert_admission(
+            vec![
+                main_function(vec![Statement::Expression(call(
+                    "ineligible_result",
+                    vec![Expression::IntegerLiteral(1)],
+                ))]),
+                function(
+                    "ineligible_result",
+                    Vec::new(),
+                    Some(return_type),
+                    Vec::new(),
+                    vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
+                ),
+            ],
+            "function return type is not an admitted scalar or Void type",
+            label,
+        );
+    }
+
+    let wrong_arity = [
+        (
+            "too few",
+            vec![
+                int_function(
+                    "needs_two",
+                    vec![
+                        parameter("left", named("int")),
+                        parameter("right", named("int")),
+                    ],
+                ),
+                main_function(vec![Statement::Expression(call(
+                    "needs_two",
+                    vec![Expression::IntegerLiteral(1)],
+                ))]),
+            ],
+            "call to `needs_two` has 1 arguments but its signature requires 2",
+        ),
+        (
+            "too many",
+            vec![
+                int_function("needs_one", vec![parameter("value", named("int"))]),
+                main_function(vec![Statement::Expression(call(
+                    "needs_one",
+                    vec![Expression::IntegerLiteral(1), Expression::IntegerLiteral(2)],
+                ))]),
+            ],
+            "call to `needs_one` has 2 arguments but its signature requires 1",
+        ),
+    ];
+    let observed = wrong_arity
+        .into_iter()
+        .map(|(label, ast, expected)| match checked_error(ast, label) {
+            IrGenerationError::Admission(message) => {
+                assert_eq!(message, expected, "{label}: wrong Admission diagnostic");
+                format!("{label}: Admission")
+            }
+            IrGenerationError::Verification(error) => {
+                assert!(
+                    error.to_string().contains(expected),
+                    "{label}: wrong pre-fix verifier diagnostic: {error}"
+                );
+                format!("{label}: Verification")
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        observed,
+        ["too few: Admission", "too many: Admission"],
+        "wrong-arity calls reached raw IR verification instead of checked admission"
     );
 }
 
