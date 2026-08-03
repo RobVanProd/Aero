@@ -322,3 +322,22 @@ approvals. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED. `AUDIT-032` is
 preregistered to rank the complete remaining R-002/R-004/R-005/R-006/R-007/R-009/
 R-010/R-011/R-012/R-013/R-016 set from a clean public head, excluding every
 accepted sub-slice and carrying no implementation authority.
+
+`AUDIT-032` authorization `b6b1c63`, tree `c8803965`, is triple-approved and
+all-eight public green. Independent rankings and unanimous targeted reconciliation
+select a distinct R-005 phase-order defect above R-010: direct checked-AST too-few
+and too-many calls to eligible known scalar top-level helpers generate raw IR before
+verifier `CallArity` rejection. `CORE-026` preregisters only an exact-arity checked-
+admission guard for nongeneric, non-entry scalar/Void signatures after existing
+child, local-callable, and Void-use validation. R-005 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED; unchecked APIs, argument typing, other signatures/callables,
+IR/verifier/codegen/backend behavior, and all public capability claims remain open
+or unchanged. R-010 is the runner-up and every other recorded stop remains.
+
+The first `CORE-026` authorization snapshot was rejected at P2 before publication:
+duplicate top-level identities and verifier-invalid/reserved function or parameter
+signatures were not explicitly ineligible, so the new arity phase could mask their
+existing verifier diagnostics. The corrected contract requires one declaration and
+verifier-valid, unique, non-reserved signature symbols, with green preservation
+controls. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no risk status or
+capability changes from authorization text alone.

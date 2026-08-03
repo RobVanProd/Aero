@@ -1428,3 +1428,35 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   PARTIALLY CONTROLLED risks from a clean public head only after its separate exact
   six-record authorization is reviewed, published unchanged, and all-eight green.
   It carries no implementation or capability-promotion authority.
+
+## DEC-031 - Known scalar top-level arity fails at checked admission before IR
+
+- Date: 2026-08-03
+- Status: frozen for tests-first evidence; not yet implemented or accepted.
+- Decision: checked direct-AST admission must reject an exact-arity mismatch for a
+  known eligible top-level helper before raw IR generation. Eligibility requires
+  exactly one top-level declaration for the name; a verifier-valid function symbol
+  other than reserved `printf`; verifier-valid, pairwise-distinct parameter symbols;
+  no generic parameters; a non-entry name; parameters all admitted scalar
+  `Int`/`Float`/`Bool`; and an admitted scalar result or omitted `Void`.
+- Ordering: validate all supplied arguments left-to-right, including surplus
+  arguments; resolve an admitted local callable first; preserve Void-as-value
+  rejection; only then compare the eligible top-level signature's exact arity.
+- Diagnostic: exact Admission display is `call to \`NAME\` has ACTUAL arguments but
+  its signature requires EXPECTED`, matching the existing verifier `CallArity`
+  text. The verifier remains an independent defensive boundary.
+- Basis: public-green `AUDIT-032` authorization `b6b1c63`, tree `c8803965`, passes
+  compiler `30858876643` / `30858879497`, Rust `30858879480`, CodeQL `30858875767`,
+  and aggregate `91836318450`. All three complete independent rankings, followed
+  by targeted reconciliation, place this distinct one-phase R-005 defect above
+  R-010 once the eligibility and precedence boundaries are frozen.
+- Excluded: source semantics; parameter type comparisons; conversions/coercions;
+  unknown targets; local callable, method, constructor, entry, generic, composite,
+  or reference behavior; raw generation; IR/verifier/codegen/ABI/backend changes;
+  and any broader R-005 or capability claim.
+- Preservation boundary: malformed or reserved function symbols, malformed or
+  duplicate parameter symbols, and duplicate top-level declaration identities are
+  ineligible. Their current generation/verifier failures retain precedence over the
+  new arity guard.
+- Revisit argument type admission or broader callable contracts only through a
+  separately frozen semantic and compatibility decision with tests-first evidence.

@@ -273,6 +273,19 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   Preregistered read-only `AUDIT-032` may re-rank all eleven residual risks only
   after its own exact gates; it cannot change a matrix cell, capability class, or
   implementation.
+- Public-green read-only `AUDIT-032` authorization `b6b1c63` identifies a bounded
+  R-005 checked-admission phase-order defect: wrong-arity direct checked-AST calls
+  to known admitted scalar top-level helpers reach raw IR and fail only in verifier
+  `CallArity`. `CORE-026` preregisters tests-first rejection before generation for
+  only nongeneric, non-entry scalar/Void signatures, with existing child, local-
+  callable, and Void-use precedence preserved. No matrix cell changes before
+  accepted implementation evidence; source semantics, valid lowering, verifier,
+  codegen, ABI, backend, and every broader callable/type surface remain unchanged.
+- The first `CORE-026` authorization review rejected ambiguous malformed/duplicate
+  signature eligibility at P2 before publication. The corrected boundary admits an
+  arity guard only for one verifier-valid, unique, non-reserved top-level declaration
+  and requires controls preserving current verifier failures for every excluded
+  signature. This correction changes no matrix cell or implementation.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

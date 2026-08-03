@@ -4221,3 +4221,94 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   binary tests plus every active integration and doc test. Audit work is prohibited
   until this exact six-record contract passes three exact reviews, unchanged
   publication, and all eight public checks.
+
+- Authorization evidence: exact six-record authorization `b6b1c63`, tree
+  `c8803965`, diff `891bb8a4`, received three approvals and passes compiler runs
+  `30858876643` / `30858879497`, stable/nightly Rust `30858879480`, all three
+  analyses in CodeQL `30858875767`, and aggregate `91836318450`.
+- Independent complete rankings: type/safety ranks R-010/R-002/R-012/R-004/R-005/
+  R-011/R-013/R-006/R-009/R-016/R-007; IR/codegen ranks R-005/R-010/R-013/R-002/
+  R-012/R-004/R-009/R-011/R-006/R-016/R-007; backend/claims ranks R-010/R-013/
+  R-002/R-012/R-005/R-011/R-006/R-009/R-016/R-004/R-007. All accepted sub-slices
+  were excluded and no audit edit, test, probe, artifact, or external query occurred.
+- Reconciliation finding: `IrGenerator::try_generate_ir` validates, generates raw
+  IR, and then verifies. Its checked-admission precollection retains only top-level
+  result types, while `Expression::FunctionCall` validates children/local-callable/
+  Void rules without checking a known top-level signature's arity. Therefore direct
+  checked-AST too-few and too-many calls to otherwise admitted scalar helpers reach
+  generation and fail only as verifier `CallArity`, contrary to the fail-before-IR
+  rule. `IrGenerator::validate_checked_ast`, `validate_expression`, and
+  `IrVerifier::verify_function` supply the static evidence.
+- Targeted reconciliation: all three auditors rank this distinct one-phase R-005
+  defect above R-010 once narrowed to nongeneric, non-entry, monomorphic top-level
+  functions whose parameters are all admitted `Int`/`Float`/`Bool` and whose result
+  is admitted scalar or omitted `Void`. Existing child-left-to-right, local-callable,
+  and Void-as-value precedence is preserved. R-010 grammar-authority containment is
+  the runner-up; every other residual and stop remains unchanged.
+- Status: complete read-only audit. No capability is promoted and no implementation
+  was authorized by this audit itself. The separately frozen `CORE-026` contract
+  below is the only candidate continuation.
+
+## CORE-026 - Reject known scalar top-level call arity at checked admission
+
+- Task ID/date/owner: `CORE-026`, 2026-08-03, lead-owned one-phase R-005
+  fail-before-IR containment.
+- Observed behavior: direct checked-AST calls with too few or too many arguments to
+  a known otherwise-admitted scalar top-level helper pass `validate_checked_ast`,
+  generate raw IR, and return `IrGenerationError::Verification(CallArity)`. Accepted
+  source semantics already enforce exact arity; this task addresses only the checked
+  direct-AST admission boundary.
+- Primary hypothesis: precollecting the arity together with the admitted result for
+  eligible top-level signatures and checking it after existing argument, binding,
+  and Void-use validation will return exact `IrGenerationError::Admission` before
+  raw IR without changing any accepted program or another compiler phase.
+- Frozen semantics: eligibility requires exactly one top-level declaration for the
+  name; a verifier-valid ASCII function symbol other than reserved `printf`;
+  verifier-valid ASCII parameter symbols that are pairwise distinct; no generic
+  parameters; a non-entry name; every parameter exactly admitted as `Ty::Int`,
+  `Ty::Float`, or `Ty::Bool`; and an exactly admitted scalar result or no annotation
+  (`Void`). Validate every supplied argument left-to-right, including surplus arguments;
+  preserve local callable-binding precedence; preserve the existing Void-call-as-
+  value diagnostic; then require exact arity. Forward and recursive calls, valid
+  Boolean calls, valid discarded Void calls, and exact-arity calls remain accepted.
+- Exact diagnostic: return `IrGenerationError::Admission` whose display is exactly
+  `call to \`NAME\` has ACTUAL arguments but its signature requires EXPECTED`, reusing
+  the verifier's established `CallArity` wording while changing the failure phase.
+- Allowed files: tests-first may change only
+  `src/compiler/tests/checked_ir_contract_tests.rs`; implementation may then change
+  only `src/compiler/src/ir_generator.rs`; closure may change only the six state/
+  decision/risk/matrix/ledger records. No other file is authorized.
+- Regression acceptance: one tests-only target must prove too-few and too-many
+  known scalar calls return exact Admission rather than Verification, while controls
+  preserve left-to-right child precedence including a surplus invalid child,
+  local-callable precedence, Void-as-value precedence, forward/recursive valid
+  calls, exact-arity Int/Float/Bool and discarded Void calls, and ineligible generic/
+  composite/reference/entry behavior. Green preservation controls must prove that
+  invalid/reserved function symbols, invalid or duplicate parameter symbols, and
+  duplicate top-level declarations retain their current verifier-phase failures.
+  Tests-only must fail solely on the two phase-order expectations. Implementation
+  must pass that target, the checked-IR contract file, and exact `./tools/test.sh`,
+  then the unchanged public all-eight gate.
+- Explicit exclusions: argument type checking, conversions, coercions, promotions,
+  unknown-function policy, closure/local-callable semantics, methods, enum
+  constructors, entry handling, source semantic behavior, raw `generate_ir`, IR
+  shape, verifier behavior, codegen, ABI, backend, CORE-025, generic/composite/
+  reference signature support, grammar authority, and capability promotion.
+- Risks: broadening known-call identity; accepting unsupported signature types;
+  changing diagnostic precedence; failing to validate surplus children; altering
+  successful forward/recursive/Boolean/Void lowering; or accidentally replacing
+  verifier defense instead of adding admission defense.
+- Stop conditions: any semantic choice beyond this contract; source/parser/semantic/
+  verifier/codegen/backend change; more than one compiler phase; valid-program IR
+  difference; unsupported type fallback; workflow/dependency/artifact/benchmark/
+  package/release/registry/immutable-evidence/master/history/destructive action; or
+  a red baseline unrelated to the new regression.
+- Rejected authorization review: immutable snapshot `4cdcee75`, tree `5fcd3c29`,
+  diff `26cba830`, was rejected at P2 because duplicate top-level identities and
+  verifier-invalid/reserved function or parameter signatures were not explicitly
+  ineligible, and because its completed-gate chronology retained future wording.
+  No test, production, publication, or capability change followed that rejection.
+- Status: corrected authorization is full-local-gate green with 139/139 library and
+  149/149 binary tests plus every active integration and doc test. Test and production
+  edits remain prohibited pending three fresh exact approvals, unchanged publication,
+  and all eight public checks.

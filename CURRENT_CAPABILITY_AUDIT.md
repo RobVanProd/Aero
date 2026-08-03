@@ -958,6 +958,24 @@ upgrading any artifact.
   R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from a clean public head.
   It excludes every accepted sub-slice, must begin read-only only after its own
   exact review/public gates, and carries no implementation or capability authority.
+- `AUDIT-032` authorization `b6b1c63`, tree `c8803965`, is triple-approved and
+  all-eight green in compiler `30858876643` / `30858879497`, stable/nightly Rust
+  `30858879480`, CodeQL `30858875767`, and aggregate `91836318450`. Three complete
+  independent rankings and targeted reconciliation identify a distinct R-005
+  phase-order defect: direct checked-AST arity mismatches for known otherwise-
+  admitted scalar top-level helpers reach raw IR and fail only in verification.
+- All three auditors rank the narrow one-phase admission guard above R-010 after
+  freezing eligibility to nongeneric, non-entry scalar/Void signatures and
+  preserving argument-child, local-callable, and Void-as-value precedence.
+  `CORE-026` authorizes tests-first evidence for only this fail-before-IR boundary.
+  Source semantics, accepted output, verifier defense, argument types, other
+  callables/signatures, and every capability classification remain unchanged.
+- Exact review rejected the first `CORE-026` authorization at P2: scalar-shaped but
+  verifier-invalid/reserved signatures and duplicate top-level identities were not
+  excluded, so an arity guard could mask existing verifier failures. The corrected
+  boundary additionally requires one declaration, verifier-valid unique symbols,
+  and a non-reserved function identity; dedicated controls must preserve every
+  excluded verifier failure. No implementation or capability change occurred.
 
 ## Audit completion
 

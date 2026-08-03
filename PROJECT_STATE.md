@@ -4,14 +4,26 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 31 `AUDIT-032` authorization - `CORE-025` is complete at public record
-closure `b0fe242`. Immediate work is exact approval, unchanged publication, and all-
-eight verification of this full-local-gate-green preregistration. The clean-head
-rankings are prohibited until those gates pass. No implementation is authorized
-until the later audit is reconciled and a separate frozen task contract passes its
-own gates.
+Milestone 32 `CORE-026` authorization - public-green read-only `AUDIT-032` is
+complete at `b6b1c63`. Its three independent full rankings and unanimous targeted
+reconciliation select a distinct R-005 phase-order defect: direct checked-AST wrong-
+arity calls to known admitted scalar top-level helpers reach raw IR before verifier
+rejection. Immediate work is to gate the separate tests-first authorization; no test
+or production edit is yet authorized. The first review snapshot was rejected at P2
+for ambiguous malformed/duplicate signature eligibility and stale gate chronology;
+the corrected six-record contract is full-local-gate green with 139/139 library and
+149/149 binary tests plus every active integration and doc test.
 
 ## Active hypothesis
+
+For exactly one verifier-valid, unique, non-reserved, nongeneric, non-entry top-level
+scalar/Void signature, collecting arity with the existing checked-admission result
+contract and checking it after all argument children, local-callable precedence, and
+Void-as-value validation will move only direct-AST wrong-arity failures from post-
+generation Verification to exact pre-generation Admission. Malformed or duplicate
+signatures, accepted source programs, and valid IR remain unchanged.
+
+The completed `AUDIT-032` hypothesis was:
 
 A full-set, delta-aware comparison from the clean accepted head can select one
 bounded, reproducible residual—or an explicit stop—without inheriting prior
@@ -669,13 +681,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for this full-local-gate-green six-record `AUDIT-032`
-preregistration, publish it unchanged, and require all eight public checks. Only
-then conduct the three independent read-only full-set rankings and reconcile one
-bounded selection or an explicit stop. Do not edit tests/source during the audit;
-inherit prior ordering; repeat an accepted slice; promote capability; alter
-workflows/dependencies; publish benchmarks/packages/releases; modify immutable
-claim evidence; or touch `master`.
+Obtain three fresh exact approvals for the corrected full-local-gate-green six-record
+`CORE-026` authorization, publish it unchanged, and require all eight public checks.
+Only then add the single
+tests-first checked-IR regression target. Do not edit production/tests before those
+gates, broaden callable or type semantics, change source/IR/verifier/codegen/backend
+behavior, promote capability, alter workflows/dependencies, publish external
+artifacts, modify immutable claim evidence, or touch `master`.
 
 ## Unauthorized actions
 
