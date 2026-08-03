@@ -4,16 +4,17 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 25 `CORE-022` complete — exact record closure `aa29a00` is triple-reviewed
-and all-eight public green. It controls only the selected dangling-entry `aero init`
-preflight. No next implementation is authorized.
+Milestone 26 `AUDIT-029` preregistration — `CORE-022` is complete and exact status
+sync `21153f3` is triple-reviewed, all-eight public green, and clean. The next work is
+a full-set, read-only residual-risk feasibility ranking; no implementation is
+authorized.
 
 ## Active hypothesis
 
-The accepted non-following destination inspection treats every preexisting final
-manifest/source entry as occupied before any create/write. Exact Linux red-to-green
-evidence closes the reproduced partial manifest without deleting user entries or
-promising rollback, atomicity, ancestor-symlink containment, or race freedom.
+A delta-aware comparison of all eleven remaining residuals can select one distinct,
+semantically frozen, deterministic tests-first slice within two compiler phases—or
+stop explicitly—without inheriting AUDIT-028 ordering or repeating an accepted
+boundary.
 
 ## Founding-framework checkpoint
 
@@ -614,12 +615,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-From clean public closure `aa29a00`, separately preregister a read-only audit of the
-remaining OPEN or PARTIALLY CONTROLLED risks before selecting any next slice. Do not
-expand init preflight into rollback, atomicity, ancestor-symlink, or race-freedom
-claims; refactor helper termination; remap statuses; alter compiler/backend behavior;
-change workflows/dependencies; publish benchmarks/packages/releases; modify immutable
-claim evidence; or touch `master`.
+Obtain three exact approvals, publish this full-local-gate-green six-record
+`AUDIT-029` preregistration unchanged, and require all eight public checks before the
+read-only audit. Do not begin tests or implementation; repeat accepted slices; invent
+semantics; expand init preflight claims; alter workflows/dependencies; publish
+benchmarks/packages/releases; modify immutable claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

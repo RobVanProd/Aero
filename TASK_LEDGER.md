@@ -3552,3 +3552,52 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Status: complete at record closure `aa29a00`. Only the selected final-entry init
   preflight is accepted; R-013 remains partially controlled and every excluded
   boundary remains open.
+
+## AUDIT-029 — Clean-head residual-risk feasibility ranking
+
+- Task ID/date/owner: `AUDIT-029`, 2026-08-03, lead-owned reconciliation with
+  independent type/safety, IR/codegen, and backend/claim read-only auditors.
+- Observed behavior: `CORE-022` is complete at public closure `aa29a00`; exact
+  triple-reviewed status synchronization `21153f3`, tree `d667ce37`, diff
+  `c69c5a1e`, passes compiler `30844798322` / `30844802332`, stable/nightly Rust
+  `30844802044`, CodeQL `30844799426`, and aggregate `91790481511`. No next
+  implementation is authorized. The remaining OPEN or PARTIALLY CONTROLLED set is
+  R-002, R-004, R-005, R-006, R-007, R-009, R-010, R-011, R-012, R-013, and R-016.
+- Hypothesis: a clean-head, delta-aware full-set ranking can identify the highest-
+  severity bounded residual that has frozen semantics, deterministic tests-first
+  evidence, and at most two compiler phases, without reselecting an accepted slice or
+  mistaking records, annotations, flags, simulation, or object emission for language
+  or hardware capability.
+- Frozen audit semantics: the audit basis is the exact commit publishing this
+  contract, only after its exact full local gate, three approvals, and all eight
+  public checks pass. Each auditor must inspect and rank every listed residual while
+  separating accepted sub-slices from still-open behavior. No inherited AUDIT-028
+  ordering and no candidate may merely repeat CORE-022 or another accepted slice.
+  Each auditor proposes at most three candidates and, for each, cites current
+  observable evidence, exact source/test paths, expected phase count, unresolved
+  compatibility or semantic choices, a deterministic failing-test route, and stop
+  conditions. A risk may recur only through a distinct open boundary. Unsupported
+  semantics, more than two compiler phases, absent deterministic evidence, or a
+  hardware/performance/stability claim without immutable proof is a stop, not a
+  lower-confidence implementation recommendation.
+- Allowed files: this preregistration may change only `TASK_LEDGER.md`,
+  `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`. The audit itself
+  is strictly read-only and changes no file, index, worktree, branch, issue, PR,
+  workflow, dependency, artifact, claim evidence, or external state.
+- Acceptance: this exact six-record preregistration passes `./tools/test.sh`, three
+  exact-snapshot reviews with no P0-P3 findings, unchanged publication, and all eight
+  public checks. Then all three auditors report the required nine fields and complete
+  ranking; the lead reconciles one distinct bounded selection or an explicit stop.
+  A separately frozen task contract must pass before any test or implementation edit.
+- Risks: stale accepted-boundary accounting; risk-title ranking; accidental semantic
+  invention; treating public unchecked compatibility APIs as trusted compiler paths;
+  treating ignored tests as capability; or confusing CPU, ROCm, and CUDA evidence.
+- Stop conditions: omitted residual; edit/test/probe/artifact/external query during
+  the audit; implementation before reconciliation and a separate task contract;
+  unsupported source-type default; invalid-program path to IR/backend; more than two
+  compiler phases; workflow/dependency, benchmark, package/release/registry,
+  immutable evidence, history rewrite, destructive-system, or `master` action.
+- Status: preregistered and full-local-gate green. Audit work is prohibited until
+  this exact contract passes three exact reviews, unchanged publication, and all
+  eight public checks.

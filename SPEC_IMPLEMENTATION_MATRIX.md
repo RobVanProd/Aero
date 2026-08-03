@@ -197,6 +197,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   and passes compiler `30844324249` / `30844328660`, Rust `30844328850`, CodeQL
   `30844325051`, and aggregate `91788926688`. `CORE-022` is closed without changing
   any compiler/backend matrix classification.
+- Public-green status synchronization `21153f3` passes compiler `30844798322` /
+  `30844802332`, Rust `30844802044`, CodeQL `30844799426`, and aggregate
+  `91790481511`. Preregistered read-only `AUDIT-029` ranks the complete residual set
+  but cannot change or promote any matrix row.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

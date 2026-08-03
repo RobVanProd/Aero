@@ -1301,3 +1301,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Final closure: triple-reviewed tree `e740df48`, diff `3eb8264b`, was published
   unchanged as `aa29a00` and passes compiler `30844324249` / `30844328660`, Rust
   `30844328850`, CodeQL `30844325051`, and aggregate `91788926688`.
+- Next-decision boundary: public-green status synchronization `21153f3` authorizes no
+  implementation. `AUDIT-029` must independently rank every remaining OPEN or
+  PARTIALLY CONTROLLED residual, exclude accepted sub-slices, and return one distinct
+  bounded candidate or a stop. Any implementation still requires a separate frozen
+  decision/task contract.

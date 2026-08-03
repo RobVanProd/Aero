@@ -857,6 +857,12 @@ upgrading any artifact.
   `30844325051`, and aggregate `91788926688`. `CORE-022` is complete only for the
   selected final-entry preflight; R-013 and all broader capability boundaries retain
   their recorded residual status.
+- Exact triple-reviewed status synchronization `21153f3` is all-eight public green in
+  compiler `30844798322` / `30844802332`, Rust `30844802044`, CodeQL `30844799426`,
+  and aggregate `91790481511`. `AUDIT-029` is preregistered as a read-only,
+  delta-aware ranking of all eleven remaining OPEN or PARTIALLY CONTROLLED risks. It
+  cannot repeat an accepted slice, authorize implementation, or promote any
+  capability.
 
 ## Audit completion
 

@@ -222,3 +222,11 @@ final-entry preflight is accepted. Exact triple-reviewed record closure `aa29a00
 passes compiler `30844324249` / `30844328660`, Rust `30844328850`, CodeQL
 `30844325051`, and aggregate `91788926688`. Other R-013 boundaries remain open, and
 all unselected residuals retain their prior status.
+
+Exact triple-reviewed status synchronization `21153f3`, tree `d667ce37`, diff
+`c69c5a1e`, passes compiler `30844798322` / `30844802332`, Rust `30844802044`,
+CodeQL `30844799426`, and aggregate `91790481511`. `AUDIT-029` is preregistered to
+rank the complete remaining set R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/
+R-012/R-013/R-016 from a clean head, separating every accepted sub-slice from its
+open residual and prohibiting implementation until separate reconciliation and a
+frozen task contract.
