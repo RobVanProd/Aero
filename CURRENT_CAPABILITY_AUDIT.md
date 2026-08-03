@@ -715,16 +715,18 @@ upgrading any artifact.
 - Public preregistration `2c61ff9`, tree `ff20cf43`, passed compiler runs
   `30831057824`/`30831063857`, Rust `30831066619`, CodeQL `30831055856`, and
   aggregate `91744957183`; all eight checks are green.
-- `CompilerOptions` publicly exposes `optimize`, `debug_info`, and `target`, derives
-  `Debug`, `Clone`, and `Default`, and is described as compiler options for
-  benchmarking. `compile_program` accepts the value as `_options` but never reads it.
-  Its checked parse-to-codegen path is therefore identical for every field value.
-- The repository has 62 direct calls outside the definition: 28 across five
-  benchmarks and 34 across thirteen test files. Every call constructs
-  `CompilerOptions::default()`; no in-repository nondefault construction exists.
-  No CLI route consumes this public type, and CLI CPU/ROCm/CUDA `BuildTarget`/
-  `BuildConfig` orchestration is a separate private surface.
-- Static tracing proves `_options` has no read before or within the checked pipeline;
+- At audited head `25dec51`, `CompilerOptions` publicly exposed `optimize`,
+  `debug_info`, and `target`, derived `Debug`, `Clone`, and `Default`, and was
+  described as compiler options for benchmarking. `compile_program` accepted the
+  value as `_options` but did not read it. Its checked parse-to-codegen path was
+  therefore identical for every field value.
+- At audited head `25dec51`, the repository had 62 direct calls outside the
+  definition: 28 across five benchmarks and 34 across thirteen test files. Every call
+  constructed `CompilerOptions::default()`; no in-repository nondefault construction
+  existed. No CLI route consumed this public type, and CLI CPU/ROCm/CUDA
+  `BuildTarget`/`BuildConfig` orchestration was a separate private surface.
+- Static tracing at audited head `25dec51` proved `_options` had no read before or
+  within the checked pipeline;
   existing binding (16), checked-IR (6), fatal-parse (11), and module (7) targets
   remained 40/40 green. Two attempted temporary external probes exceeded the audit's
   read-only/external-artifact stop boundary: one reported dynamic results and one was
@@ -749,12 +751,21 @@ upgrading any artifact.
   run `30833845526` fail only the frozen target at 1/1; stable is cancelled during
   tests by permitted matrix fail-fast. CodeQL `30833844647` and aggregate
   `91754222422` provide all four green security checks.
-- The local implementation candidate adds one guard at `compile_program` before the
+- Before publication, the local implementation candidate added one guard at
+  `compile_program` before the
   first lexer call and changes no other compiler phase. The new contract is 2/2,
   binding/checked-IR/fatal-parse/module preservation is 40/40, and exact
   `./tools/test.sh` passes. Public API/default values and byte-exact default LLVM and
   parse diagnostics are preserved. No optimizer, debug, target, CLI, IR, codegen, or
-  backend behavior is added; public green acceptance remains pending.
+  backend behavior was added; public green acceptance remained pending at that
+  checkpoint.
+- Exact three-review-approved implementation `70cb0ad`, tree `7c8b2ce1`, diff
+  `33e5883e`, passes both compiler runs `30834445685`/`30834446600`, stable/nightly
+  Rust run `30834446605`, all three CodeQL analyses in `30834443841`, and aggregate
+  `91756251121`. `CORE-020` is accepted at the selected ignored-option boundary.
+  Compiler options remain `PARSED_ONLY`: unsupported rejection is enforced, but no
+  optimization, debug-information, target, CLI, IR, codegen, or backend semantics are
+  implemented. Broad R-006 convergence remains open.
 
 ## Audit completion
 

@@ -12,7 +12,7 @@ open until a regression test and the applicable full gate prove closure.
 | R-003 | Unsupported expressions are accepted with invented integer/zero semantics | HIGH | CRITICAL | `%`, tuple values, named fields, Match, and StructLiteral fail closed at their reviewed boundaries; accepted `CORE-010` at `db349ef` adds generic checked-IR rejection for every unadmitted trusted-path fallback, including ordinary MethodCall, enum construction, and Deref/Borrow | Retain checked admission on every trusted caller; keep non-deprecated raw `generate_ir` and deprecated `generate_code` ineligible as trusted public boundaries, while permitting only checked-wrapper reuse followed by verification; define aggregate/ownership/method semantics before implementation | CONTROLLED — trusted checked compiler paths no longer fabricate scalar values; direct public unchecked compatibility use remains uncertified |
 | R-004 | Ownership claims exceed enforcement and permit dangling/aliased/moved values | HIGH | CRITICAL | Shallow move tracking, no lifetime provenance, mutable references considered `Copy` | Freeze ownership model; CFG/provenance checking; permanent compile-fail suite | OPEN |
 | R-005 | Invalid programs pass semantics then panic, miscompile, or produce invalid LLVM | HIGH | CRITICAL | Accepted `CORE-010` at `db349ef` provides checked logical IR admission, mandatory in-process verification, exhaustive checked codegen errors, and qualified final LLVM 22 verification across trusted callers; focused contracts, full gate, and public CI pass | Preserve mandatory checked APIs/verifiers, deprecate/restrict then retire public unchecked compatibility APIs at a major boundary, and extend typed negative evidence as language forms become admitted | PARTIALLY CONTROLLED — trusted checked scalar IR and externally verified publication routes are controlled; CLI `InternalOnly` and library-returned LLVM without external verification, broader language semantics, and public unchecked APIs remain uncertified |
-| R-006 | CLI and library compile through divergent module instances | HIGH | HIGH | Accepted `CORE-011` at `a711dd5` centralizes direct-module collection; `AUDIT-026` inventories 62 default-only callers; public tests-only `037f44d` proves ignored nondefaults at exact 1/1, and the local `CORE-020` pre-lexing guard passes focused/preservation/full gates | Preserve the shared collector and exact default path; accept `CORE-020` only after review/public green; separately design canonical library/thin-CLI orchestration and real option semantics | PARTIALLY CONTROLLED — direct-module boundary is closed; ignored-option containment is locally green but not publicly accepted; duplicated orchestration and full convergence remain open |
+| R-006 | CLI and library compile through divergent module instances | HIGH | HIGH | Accepted `CORE-011` at `a711dd5` centralizes direct-module collection; public red `037f44d` proves ignored nondefaults; exact three-review-approved implementation `70cb0ad` passes all eight checks with pre-lexing rejection and byte-exact default preservation | Preserve the shared collector, default path, and fail-closed option boundary; separately design canonical library/thin-CLI orchestration and real option semantics | PARTIALLY CONTROLLED — direct-module and ignored-option boundaries are closed; duplicated orchestration, option meanings, and full convergence remain open |
 | R-007 | Backend labels are mistaken for device execution | HIGH | HIGH | `AUDIT-024` at `9ddc571` proved the false success; tests-only `427fb4c` reproduced the public red boundary; exact three-review-approved implementation `8bde0ff` and record-only closure `2e0e17f` pass their full gates and all eight public checks with fail-closed ROCm/CUDA, explicit targets, non-device telemetry, and the Aero GGUF route disabled | Preserve the accepted false-success controls; require separate hardware execution/correctness gates before any device claim | PARTIALLY CONTROLLED — selected object-only/current-claim boundary accepted at `2e0e17f`; no Aero device evidence |
 | R-008 | Public 1.0/formal/safety messaging outruns evidence | HIGH | HIGH | `AUDIT-022` reproduced the mismatch; reviewed public red `4b94dbd` bound exactly 2 preservation passes / 5 claim failures; exact three-review-approved implementation `cc984d0` derives CLI presentation from package metadata and bounds conformance/design/history claims; exact three-review-approved record-only closure `ea036f2` passes all eight public checks | Preserve manifest-derived CLI implementation version; distinguish the v1.0.0 language design target; keep conformance compatibility schema/counts unchanged; retain visible design/history qualifications and unsupported safety/type boundaries | CONTROLLED — selected public false-claim boundary accepted at `ea036f2`; no version/release or underlying language-safety capability is inferred |
 | R-009 | Source ranges and recovery cannot support trustworthy diagnostics | HIGH | HIGH | Token start points only, no AST spans, one-character LSP ranges, recovery consumes valid code | End-to-end span model and recovery-retention tests | OPEN |
@@ -158,18 +158,25 @@ nondefault `CompilerOptions` remain the next bounded runner-up under R-006.
 
 `AUDIT-026` at public-green preregistration `2c61ff9` completes that clean-head
 comparison. All three independent auditors rank the ignored public options as the
-best bounded active false-success correction: 62 in-repository calls are default-only,
-all field combinations currently traverse the same checked compiler path, and CLI
-targets are separate. Lead-owned DEC-025 accepts the explicit compatibility change
+best bounded active false-success correction: 62 in-repository calls were default-only,
+all field combinations traversed the same checked compiler path at that audited head,
+and CLI targets were separate. Lead-owned DEC-025 accepts the explicit compatibility change
 from silent nondefault success to one pre-lexing error while preserving the public
-facade and exact default behavior. `CORE-020` is preregistered; R-006 remains only
-partially controlled until tests-first, implementation, full-gate, exact-review, and
-public evidence are accepted. Broad pipeline convergence remains out of scope.
+facade and exact default behavior. At preregistration, R-006 remained only partially
+controlled pending tests-first, implementation, full-gate, exact-review, and public
+evidence. Broad pipeline convergence remained out of scope.
 
 Exact three-review-approved `fae1374` publishes that audit closure and DEC-025 with
 all eight checks green. Exact three-review-approved tests-only `037f44d` then proves
 the public 1/1 red split in both compiler runs and nightly Rust, with stable cancelled
 during tests by fail-fast and all four CodeQL checks green. The local one-guard
 implementation is focused 2/2, preservation 40/40, and complete-gate green. R-006
-remains partially controlled until exact implementation review and public green; no
-option meaning or broad pipeline convergence is inferred.
+remained partially controlled pending exact implementation review and public green;
+no option meaning or broad pipeline convergence was inferred at that checkpoint.
+
+Exact three-review-approved implementation `70cb0ad` passes focused 2/2,
+preservation 40/40, the exact complete local gate, and all eight public checks in
+compiler runs `30834445685`/`30834446600`, Rust `30834446605`, CodeQL
+`30834443841`, and aggregate `91756251121`. The selected ignored-option boundary is
+controlled. R-006 remains partially controlled because public options still have no
+meaning and the CLI/library compiler orchestration remains duplicated.

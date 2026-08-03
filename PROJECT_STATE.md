@@ -4,13 +4,12 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 22 implementation — exact three-review-approved preregistration `fae1374`
-passes all eight public checks, and exact three-review-approved tests-only `037f44d`
-reproduces the frozen 1/1 public red boundary while all four CodeQL checks pass. The
-local `CORE-020` candidate rejects every nondefault public `CompilerOptions` value
-before lexing while preserving the public facade and exact default behavior; focused,
-40-test preservation, and complete repository gates pass. Public green acceptance is
-pending.
+Milestone 22 acceptance closure — exact three-review-approved implementation
+`70cb0ad`, tree `7c8b2ce1`, passes all eight public checks. `CORE-020` now rejects
+every nondefault public `CompilerOptions` value before lexing while preserving the
+public facade and byte-exact default LLVM/diagnostic behavior. The selected ignored-
+option boundary is accepted; real option semantics and broad R-006 CLI/library
+convergence remain open.
 
 ## Active hypothesis
 
@@ -534,8 +533,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Public version: compiler CLI/banner presentation is manifest-derived package
   `0.3.0`; language `v1.0.0` material is a design target, not current conformance,
   stability, compatibility, or release evidence (`CORE-016`, `ea036f2`).
-- Library compiler options: the local `CORE-020` candidate preserves defaults and
-  rejects nondefaults before lexing; option meanings remain unimplemented.
+- Library compiler options: accepted `CORE-020` preserves defaults and rejects
+  nondefaults before lexing; option meanings remain unimplemented.
 - Compiler architecture: binary and library declare overlapping modules.
 
 ## Known blockers and regressions
@@ -605,9 +604,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Exactly review and publish the `CORE-020` implementation candidate, then require all
-eight public checks green before closure. Preserve the exact default LLVM/diagnostic
-bytes and the pre-lexing unsupported-options error.
+Exactly review and publish this six-record `CORE-020` acceptance closure, then require
+all eight public checks green. Resume clean-head read-only risk ranking only after that
+evidence is complete. Preserve the exact default LLVM/diagnostic bytes and pre-lexing
+unsupported-options error.
 Do not implement option meanings, connect CLI targets, change default compilation,
 IR/codegen/runtime behavior, workflows/dependencies, benchmarks/packages, or `master`.
 

@@ -2989,7 +2989,8 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   R-002/R-004/R-005/R-007/R-009/R-010/R-011/R-012/R-016 stop or defer for the
   semantic, compatibility, hardware, architectural, evidence-scope, or policy reasons
   recorded in the current audit/risk documents.
-- Verification: root confirmed the unused `_options` facade and 62 default-only
+- Verification at `AUDIT-025` basis head `d0bd54e`: root confirmed the unused
+  `_options` facade and 62 default-only
   repository calls; focused checked-IR 6/6, fatal-parse 11/11, and module-pipeline
   7/7 pass. Independent focused evidence includes binding 16/16, active frontend
   21/21, CLI 10/10, and backend claims 7/7. No benchmark or hardware ran.
@@ -3085,9 +3086,10 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `46828e7d715c6489eb2c7a661a7ef95b7cb4555b`; integration branch matches origin,
   PR #4 is open/draft/mergeable, all eight checks pass, and upstream `master` remains
   `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
-- Observed behavior: `CORE-019` controls its selected presentation boundary. The
-  public `CompilerOptions` facade still exposes `optimize`, `debug_info`, and `target`
-  while `compile_program` names the value `_options` and does not read it. Remaining
+- Observed behavior at basis head `25dec51`: `CORE-019` controlled its selected
+  presentation boundary. The public `CompilerOptions` facade exposed `optimize`,
+  `debug_info`, and `target` while `compile_program` named the value `_options` and
+  did not read it. Remaining
   safety, compatibility, backend, diagnostic, aggregate, and tooling risks retain
   their current open/partial boundaries.
 - Hypothesis: independently reproducing ignored nondefault options and comparing user
@@ -3116,12 +3118,14 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   command, or `master` modification.
 - Findings: all three independent auditors traced the public struct at
   `src/compiler/src/lib.rs` and ranked ignored nondefault options as the best bounded
-  next candidate under R-006. The 62 callers outside the definition comprise 28 calls
-  across five benchmarks and 34 across thirteen test files; all use
-  `CompilerOptions::default()`, none constructs a nondefault value, and the private
-  CLI target/configuration path does not consume the public type. Static phase tracing
-  proves `_options` has no read before or within lexing, parsing, direct-module
-  collection, semantics, checked IR, or checked code generation. No dynamic probe
+  next candidate under R-006. At basis head `25dec51`, the 62 callers outside the
+  definition comprised 28 calls across five benchmarks and 34 across thirteen test
+  files; all used `CompilerOptions::default()`, none constructed a nondefault value,
+  and the private CLI target/configuration path did not consume the public type.
+  Static phase tracing
+  at basis head `25dec51` proved `_options` had no read before or within lexing,
+  parsing, direct-module collection, semantics, checked IR, or checked code generation.
+  No dynamic probe
   result is accepted as audit evidence.
 - Commands/evidence: auditors used read-only `rg` inventories and source tracing; the
   IR/codegen audit ran the existing binding (16), checked-IR (6), fatal-parse (11),
@@ -3150,10 +3154,10 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 
 - Task ID/date/owner: `CORE-020`, 2026-08-03, lead-owned vertical slice under R-006
   and accepted DEC-025.
-- Observed behavior: public `compile_program` accepts `CompilerOptions` but names it
-  `_options` and ignores every field. `optimize = true`, `debug_info = true`, any
-  nonempty `target`, and combinations can return the same successful LLVM as defaults,
-  falsely implying unsupported behavior.
+- Observed behavior before implementation: public `compile_program` accepted
+  `CompilerOptions` but named it `_options` and ignored every field. `optimize = true`,
+  `debug_info = true`, any nonempty `target`, and combinations could return the same
+  successful LLVM as defaults, falsely implying unsupported behavior.
 - Hypothesis: one guard at the public library boundary can stop that false success
   before lexing while preserving the full default path and avoiding option, CLI, IR,
   codegen, or backend semantics.
@@ -3227,3 +3231,17 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   option semantics and broad CLI/library convergence remain undefined.
 - Status: implementation candidate locally green; exact review and public all-eight
   acceptance pending. No capability or class is promoted.
+- Implementation acceptance: exact staged tree
+  `7c8b2ce1e93c82ca5f42100723431688e7505a22` and diff
+  `33e5883e84d82c6a2fa105b7fdfad7d7cebc6ad8` received three independent approvals
+  with no P0-P3 findings and were published as
+  `70cb0ad1afe3e3649e14a3faca444d8cd16589cb`. Compiler runs
+  `30834445685`/`30834446600`, stable/nightly Rust run `30834446605`, CodeQL run
+  `30834443841`, and aggregate `91756251121` provide all eight green checks.
+- Accepted result: every nondefault option fails with the exact frozen diagnostic
+  before lexing, including whitespace-only targets; defaults retain the exact parent
+  LLVM and parse diagnostic. Public API shape/defaults are unchanged. No option/CLI/
+  IR/codegen/backend semantics or capability class is added.
+- Status: selected boundary accepted at implementation `70cb0ad`; this record-only
+  closure is pending exact review and public all-eight verification. Real option
+  semantics and broad R-006 convergence remain open.
