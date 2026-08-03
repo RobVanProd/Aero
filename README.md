@@ -116,10 +116,19 @@ compiler surfaces with the limitations recorded in the current compiler table
 below and in [backend capability status](BACKEND_STATUS.md). They are not evidence
 that every backend performs device execution.
 
+CPU is the only current process-execution target. A ROCm `run` request can probe
+temporary object emission, then returns unavailable because there is no HIP link
+or device launch. CUDA has no active object, link, or launch path. The ambiguous
+`gpu` target is rejected; select `cpu`, `rocm`, or `cuda` explicitly.
+
+Graph optimization is a verified textual rewrite to internal scalar helpers;
+backend labels do not establish device execution. Quantization uses
+scalar-`double` helpers: there is no real FP8 representation, per-channel
+execution, or numerical correctness proof.
+
 ```bash
-aero run --target rocm --gpu gfx1100 src/main.aero
-aero run --backend rocm --gpu gfx1100 src/main.aero
-aero run --target gpu src/main.aero
+aero run --target cpu src/main.aero
+aero build src/main.aero -o main.rocm.ll --target rocm --gpu gfx1100
 aero doc src/main.aero -o main.md
 aero profile src/main.aero -o trace.json
 aero graph-opt main.ll -o main.opt.ll --backend rocm --gpu gfx1100
@@ -145,7 +154,7 @@ aero lsp
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
-| **Phase 8 Runtime Slice** | Hardware-calibrated INT8/FP8 lowering (CPU/CUDA/ROCm), executable fused-kernel backend generation, local `registry.aero` search and dry-run planning, and 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
+| **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
 > **Tuple status:** tuple literal, tuple-index, type, and pattern syntax is

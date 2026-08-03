@@ -50,7 +50,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Library `compile_program` | Y | P | LLVM text or located parse error | Y | P | P | PARTIAL |
 | Compiler options | Y | N | Ignored | N | N | P | PARSED_ONLY |
 | CLI build/check | Y | N | P; surfaced compile failures nonzero | Y | P | Y | PARTIAL |
-| CLI run | Y | N | CPU executes; ROCm object-only false success under CORE-018; CUDA absent | Y | P | P | PARTIAL |
+| CLI run | Y | N | CPU executes; CORE-018 candidate makes ROCm a temporary regular-file probe followed by status 1/no execution; CUDA status 1 | Y | P | Y | PARTIAL |
 | CLI test | Y | N | Analysis-only result; failures nonzero | Y | P | Y | PARTIAL |
 | Formatter | Y | N | Text trimming | N | N | P | EXPERIMENTAL |
 | Diagnostics/source spans | Y | P | Point/one-char ranges | P | P | Y | PARTIAL |
@@ -119,9 +119,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   returns status zero without link/launch; CUDA returns unavailable. The `gpu` alias
   is a tool/environment heuristic, graph output is verified textual internal scalar
   helpers, and quantization is scalar-double helper transformation without real FP8,
-  per-channel execution, numerical proof, or device execution. `CORE-018` is
-  preregistered to fail the false execution boundary closed and make current claims
-  stage-accurate. It does not promote a backend row or close R-007.
+  per-channel execution, numerical proof, or device execution. Triple-approved
+  tests-only `427fb4c` reproduced the exact public red split. The local `CORE-018`
+  candidate passes CLI 10/10 and claims 7/7 with fail-closed ROCm/CUDA, explicit
+  targets, exact non-device scalar-helper telemetry, and the Aero GGUF route disabled.
+  The complete gate is green; exact-review/public acceptance remains pending. No
+  backend row is promoted and R-007 remains open.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

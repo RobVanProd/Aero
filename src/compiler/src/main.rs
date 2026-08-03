@@ -73,14 +73,6 @@ impl BuildTarget {
             "cpu" | "host" => Some(Self::Cpu),
             "rocm" | "amd" => Some(Self::Rocm),
             "cuda" | "nvidia" => Some(Self::Cuda),
-            "gpu" => {
-                let detected = GpuDevice::auto_detect();
-                Some(match detected.backend() {
-                    AcceleratorBackend::Rocm => Self::Rocm,
-                    AcceleratorBackend::Cuda => Self::Cuda,
-                    AcceleratorBackend::Cpu => Self::Cpu,
-                })
-            }
             _ => None,
         }
     }
@@ -92,6 +84,21 @@ impl BuildTarget {
             Self::Cuda => "cuda",
         }
     }
+}
+
+fn parse_explicit_build_target(input: &str) -> Result<BuildTarget, String> {
+    if input.trim().eq_ignore_ascii_case("gpu") {
+        return Err(
+            "target `gpu` is ambiguous and does not prove a usable device; choose cpu, rocm, or cuda explicitly"
+                .to_string(),
+        );
+    }
+    BuildTarget::parse(input).ok_or_else(|| {
+        format!(
+            "error: unsupported target `{}` (expected cpu|rocm|cuda)",
+            input
+        )
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -757,7 +764,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
             println!("Wrote graph-optimized IR to {}", output_file);
             let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
             println!(
-                "Backend: {} | gpu: {} | fused kernels: {} | executable kernels: {} | skipped chains: {} | total fused ops: {}",
+                "execution_scope=internal-scalar-helper | device_execution=false | backend: {} | gpu metadata: {} | fused chains: {} | rewritten helper chains: {} | skipped chains: {} | total fused ops: {}",
                 report.backend,
                 gpu_arch,
                 report.fused_kernel_count,
@@ -933,7 +940,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
             println!("Wrote quantization IR to {}", output_file);
             let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
             println!(
-                "Mode: {} | backend: {} | gpu: {} | candidates: {} | lowered: {} | helpers: {} | calibration samples: {}",
+                "execution_scope=scalar-double-helper | device_execution=false | mode label: {} | backend metadata: {} | gpu metadata: {} | candidates: {} | rewritten ops: {} | scalar helpers: {} | calibration samples: {}",
                 report.mode,
                 report.backend,
                 gpu_arch,
@@ -1459,7 +1466,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
 fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), String> {
     if args.len() < 3 {
         return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
             args[0]
         ));
     }
@@ -1473,7 +1480,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "-o" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
@@ -1483,23 +1490,17 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "--target" | "--backend" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
-                let Some(target) = BuildTarget::parse(&args[i + 1]) else {
-                    return Err(format!(
-                        "error: unsupported target `{}` (expected cpu|rocm|cuda|gpu)",
-                        args[i + 1]
-                    ));
-                };
-                config.target = target;
+                config.target = parse_explicit_build_target(&args[i + 1])?;
                 i += 2;
             }
             "--gpu" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
@@ -1512,7 +1513,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             }
             _ => {
                 return Err(format!(
-                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
+                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
                     args[0]
                 ));
             }
@@ -1521,7 +1522,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
 
     let Some(output_file) = output_file else {
         return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>] [--require-llvm-verifier]",
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
             args[0]
         ));
     };
@@ -1532,8 +1533,8 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
 fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
     if args.len() < 3 {
         return Err(format!(
-            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
-            args[0], args[0]
+            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+            args[0]
         ));
     }
 
@@ -1546,23 +1547,17 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
             "--target" | "--backend" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
-                let Some(target) = BuildTarget::parse(&args[i + 1]) else {
-                    return Err(format!(
-                        "error: unsupported target `{}` (expected cpu|rocm|cuda|gpu)",
-                        args[i + 1]
-                    ));
-                };
-                config.target = target;
+                config.target = parse_explicit_build_target(&args[i + 1])?;
                 i += 2;
             }
             "--gpu" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
@@ -1571,7 +1566,7 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
             }
             value if value.starts_with('-') => {
                 return Err(format!(
-                    "error: unknown option `{}`\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                    "error: unknown option `{}`\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
                     value, args[0]
                 ));
             }
@@ -1579,7 +1574,7 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
                 if input_file.is_some() {
                     let existing = input_file.as_deref().unwrap_or("<unknown>");
                     return Err(format!(
-                        "error: multiple input files provided (`{}` and `{}`)\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "error: multiple input files provided (`{}` and `{}`)\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
                         existing, value, args[0]
                     ));
                 }
@@ -1591,8 +1586,8 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
 
     let Some(input_file) = input_file else {
         return Err(format!(
-            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
-            args[0], args[0]
+            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+            args[0]
         ));
     };
 
@@ -2018,13 +2013,18 @@ fn run_aero_program_with_artifacts(
                             String::from_utf8_lossy(&output.stderr)
                         ));
                     }
+                    if !artifacts.gpu_obj_file.is_file() {
+                        return Err(
+                            "ROCm object generation failed: llc reported success but did not create the requested regular object file."
+                                .to_string(),
+                        );
+                    }
                     println!(
-                        "ROCm object generation validated for {} using temporary artifact {}",
-                        build_config.gpu_arch_or_default(),
-                        artifacts.gpu_obj_file.display()
+                        "ROCm object stage complete: llc produced a temporary file; no link or execution occurred."
                     );
-                    println!(
-                        "Runtime execution for ROCm kernels is staged for HIP launcher integration; run publishes no persistent ROCm artifact."
+                    return Err(
+                        "ROCm run is unavailable: HIP link and device launch are not implemented; no program was executed."
+                            .to_string(),
                     );
                 }
                 Err(err) => {
@@ -2037,13 +2037,11 @@ fn run_aero_program_with_artifacts(
         }
         BuildTarget::Cuda => {
             return Err(
-                "CUDA run target is not implemented yet in this build. Use --target cpu or --target rocm."
+                "CUDA run is unavailable: object generation, link, and device launch are not implemented; no program was executed. Use --target cpu for execution."
                     .to_string(),
             );
         }
     }
-
-    Ok(None)
 }
 
 fn find_llvm_tool(tool: &str) -> Option<String> {
@@ -2089,10 +2087,10 @@ fn print_help(program_name: &str) {
     println!();
     println!("COMMANDS:");
     println!(
-        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]"
+        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda>] [--gpu <arch>]"
     );
     println!(
-        "    run <input.aero>                     Compile and run source [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]"
+        "    run <input.aero>                     Compile source; execution availability depends on target [--target <cpu|rocm|cuda>] [--gpu <arch>]"
     );
     println!(
         "    check <input.aero>                   Validate frontend and checked IR (no LLVM emission)"
@@ -2102,11 +2100,11 @@ fn print_help(program_name: &str) {
     println!("    doc <input.aero> [-o <output.md>]    Generate Markdown API docs from source");
     println!("    profile <input.aero> [-o <trace.json>] Profile compilation phases");
     println!(
-        "    graph-opt <input.ll> -o <output.ll>  Apply graph compilation and executable kernel fusion [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
+        "    graph-opt <input.ll> -o <output.ll>  graph-opt: verified textual internal scalar-helper rewrite; device_execution=false [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
     );
     println!("    quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>");
     println!(
-        "                                         Apply calibrated INT8/FP8 lowering interface [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
+        "                                         quantize: scalar-double helper rewrite; no real FP8, per-channel execution, numerical proof, or device execution [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
     );
     println!(
         "    registry <subcommand>                Search a local index or create network-free publish/install previews"
@@ -2119,6 +2117,11 @@ fn print_help(program_name: &str) {
     println!("    -h, --help       Print this help message");
     println!("    -v, --version    Print version information");
     println!();
+    println!("EXECUTION BOUNDARIES:");
+    println!("    CPU is the only current process-execution target.");
+    println!("    ROCm run probes temporary object emission but has no HIP link or device launch.");
+    println!("    CUDA run has no object, link, or device-launch path.");
+    println!();
     println!("EXAMPLES:");
     println!("    {} build hello.aero -o hello.ll", program_name);
     println!(
@@ -2126,10 +2129,6 @@ fn print_help(program_name: &str) {
         program_name
     );
     println!("    {} run hello.aero", program_name);
-    println!(
-        "    {} run --target rocm --gpu gfx1101 examples/gguf_inference.aero",
-        program_name
-    );
     println!("    {} check hello.aero", program_name);
     println!("    {} test", program_name);
     println!("    {} fmt hello.aero", program_name);
@@ -2358,7 +2357,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_run_args_supports_gpu_auto_target() {
+    fn parse_run_args_rejects_ambiguous_gpu_target() {
         let args = vec![
             "aero".to_string(),
             "run".to_string(),
@@ -2366,12 +2365,11 @@ mod tests {
             "gpu".to_string(),
             "examples/gguf_inference.aero".to_string(),
         ];
-        let (_input, config) =
-            parse_run_args(&args).expect("run args should parse with --target gpu");
-        assert!(matches!(
-            config.target,
-            BuildTarget::Cpu | BuildTarget::Rocm | BuildTarget::Cuda
-        ));
+        let error = parse_run_args(&args).expect_err("run args must reject --target gpu");
+        assert_eq!(
+            error,
+            "target `gpu` is ambiguous and does not prove a usable device; choose cpu, rocm, or cuda explicitly"
+        );
     }
 
     #[test]

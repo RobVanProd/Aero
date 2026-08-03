@@ -4,13 +4,13 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 19 preregistration — `AUDIT-024` at clean public head `9ddc571` found an
-active R-007 false success: `aero run --target rocm` can return status zero after
-temporary object generation although Aero never links or executes a program. The
-same audit found ambiguous `gpu` target fallback and current CLI/documentation terms
-that overstate scalar graph/quantization transforms as device execution. `CORE-018`
-is a bounded fail-closed and claim-surface correction; it does not implement a GPU
-backend or close R-007.
+Milestone 19 implementation candidate — the triple-approved tests-only checkpoint is
+public at `427fb4c` and reproduced the exact intended CI red split. The local
+`CORE-018` candidate now reserves `run` success for CPU process execution, fails
+ROCm/CUDA object-only routes closed, rejects ambiguous `gpu`, adds exact non-device
+telemetry, corrects current claims, and disables the nonexistent Aero GGUF route.
+Focused contracts are CLI 10/10 and claims 7/7 green. This does not implement an
+accelerator backend or close R-007.
 
 ## Active hypothesis
 
@@ -573,12 +573,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Review and publish the exact six-record `AUDIT-024`/`CORE-018` preregistration and
-require all eight public checks green. Then add the frozen tests-only red checkpoint:
-the CLI status target must be exactly 7 passed / 3 failed and the backend-claim target
-exactly 2 passed / 5 failed, with every other test green under `--no-fail-fast`.
-Do not implement HIP/CUDA execution, quantization mathematics, a benchmark, a schema
-rename, language semantics, package/release state, or any change to `master`.
+The exact repository gate is green. Freeze the implementation diff/tree and require
+all three independent reviews before publication. Then require all eight public checks
+green, publish a record-only closure with the same review/CI discipline, and finish a
+final-state sync. Do not implement HIP/CUDA execution, quantization mathematics, a
+benchmark, a schema rename, language semantics, package/release state, or any change
+to `master`.
 
 ## Unauthorized actions
 

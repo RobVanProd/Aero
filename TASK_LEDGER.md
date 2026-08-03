@@ -2900,4 +2900,22 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   rename, persistent ROCm artifact, language semantic change, dependency/workflow
   change, more than two compiler phases, unexpected red baseline, external artifact,
   package/release/registry action, or master modification.
-- Status: preregistered candidate; no tests or implementation changed yet.
+- Tests-first evidence: exact three-review-approved diff
+  `ee9b26ddf59a41cfb55a4b8df8e23300c14d0696`, tree
+  `4a65ecf7325c2b90380f9b7023765ca35145a372`, was published as tests-only commit
+  `427fb4c`. Local evidence was exactly CLI 7/3 and claims 2/5, with only those two
+  targets red under `--no-fail-fast`. Public compiler runs `30821149904` and
+  `30821155003` plus stable/nightly run `30821156690` failed as designed; CodeQL
+  run `30821150397` and aggregate `91711261389` passed.
+- Implementation candidate: explicit `gpu` rejection, ROCm regular-file/fail-closed
+  behavior, CUDA no-execution wording, exact graph/quant stage telemetry, wording-
+  only quantization notes, current documentation, and the disabled Aero GGUF route
+  are implemented within the allowed files. Focused targets are CLI 10/10 and
+  claims 7/7 green; graph/quant bodies, schemas, non-note values, CPU behavior,
+  external backends, immutable evidence, and benchmark results remain unchanged.
+- Gate evidence: exact Windows Git Bash `./tools/test.sh` passes, including 139
+  library, 148 binary, claims 7/7, CLI 10/10, every remaining integration target,
+  the explicit 22/16 Phase 5 split, and doc tests.
+- Status: implementation candidate; exact three-review approval, public green CI,
+  record-only closure, and final-state sync remain required. R-007 remains open
+  because no Aero accelerator execution or correctness evidence was produced.

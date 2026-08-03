@@ -636,6 +636,15 @@ upgrading any artifact.
   postcondition, explicit target selection, and stage-accurate current claims while
   preserving algorithms and compatibility field names. R-007 remains OPEN because
   no Aero accelerator execution or correctness evidence exists.
+- The exact tests-only tree `4a65ecf7` was independently approved and published as
+  `427fb4c`. Both compiler jobs and stable/nightly failed on the prescribed new
+  contracts while all four CodeQL checks passed. The local implementation candidate
+  now passes CLI 10/10 and claims 7/7: CPU is unchanged; ROCm checks only regular-file
+  emission then returns status 1 without link/launch; CUDA returns status 1; ambiguous
+  `gpu` fails before source access; graph/quant output states non-device scalar-helper
+  scope; and the nonexistent Aero GGUF route is disabled while external references
+  remain exact. The complete repository gate is green; exact-review and public-green
+  acceptance are still pending.
 
 ## Audit completion
 

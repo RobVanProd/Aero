@@ -96,12 +96,13 @@ Use `run` to compile and execute in one command:
 aero run src/main.aero
 ```
 
-The following ROCm-targeted command is experimental and is not part of the
-generated-project Quick Start. Review [backend capability status](../BACKEND_STATUS.md)
-before interpreting object generation as device execution:
+CPU is the only current process-execution target. A ROCm request can reach only
+temporary object emission; it has no HIP link, device launch, or program
+execution. CUDA has no active object, link, or launch path. To inspect ROCm
+target metadata without requesting execution, build LLVM IR explicitly:
 
 ```bash
-aero run --target rocm --gpu gfx1101 src/main.aero
+aero build src/main.aero -o main.rocm.ll --target rocm --gpu gfx1101
 ```
 
 The CPU command should complete successfully and include exactly this program-output
@@ -151,17 +152,20 @@ Use `profile` to print per-stage compilation timing and optionally export a trac
 aero profile src/main.aero -o trace.json
 ```
 
-### 7. Run graph compilation and executable kernel fusion
+### 7. Inspect graph helper rewriting
 
-Use `graph-opt` on LLVM IR to generate backend-aware fused kernels:
+Use `graph-opt` on LLVM IR to rewrite selected chains to internal scalar helpers.
+Backend labels are metadata and do not establish device execution:
 
 ```bash
 aero graph-opt main.ll -o main.opt.ll --backend rocm --gpu gfx1101
 ```
 
-### 8. Apply calibrated quantization lowering (INT8/FP8)
+### 8. Inspect quantization-label helper rewriting
 
-Use `quantize` to lower floating-point ops through calibrated quantization helpers:
+Use `quantize` to rewrite floating-point operations through scalar-`double` helpers.
+There is no real FP8 representation, per-channel execution, or
+numerical-correctness proof:
 
 ```bash
 aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --gpu gfx1101 --calibration calib.json

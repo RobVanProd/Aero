@@ -11,8 +11,8 @@ execution, numerical correctness, or performance.
 | Backend | Interface | IR transformation | Object generation | Linking | Real execution | Numerical correctness | Performance evidence | Classification |
 |---|---|---|---|---|---|---|---|---|
 | CPU | `build`/`run` selectable | Host LLVM text generated | Implemented through `llc` when available | Implemented through `clang` when available | Process execution implemented; small Linux CI exit-code programs exist | Small integer/float exit-code checks only | Current README compilation series is invalid; no accepted runtime claim in this audit | PARTIAL |
-| ROCm | Target/backend/gpu flags selectable | Module triple/data layout retargeted; backend-named graph/quant helpers | AMDGPU object invocation through `llc` exists | No HIP launcher/link path in active `run` | Absent; CLI explicitly says launcher integration is staged | No Aero hardware result comparison | Tracked GGUF result is external llama.cpp only; not Aero execution | EXPERIMENTAL |
-| CUDA | Target/backend/gpu flags selectable | Target metadata/backend-named helpers only | Absent from active `run` | Absent | Explicitly unimplemented | Absent | Absent | PARSED_ONLY |
+| ROCm | Explicit `rocm` target/backend selectable; ambiguous `gpu` is rejected | Module triple/data layout retargeted; backend-named graph/quant scalar helpers | `run` can ask `llc` for a temporary regular file; existence is not object validity | No HIP launcher/link path | Absent; `run` returns status 1 and states that no program ran | No Aero hardware result comparison | Tracked GGUF result is external llama.cpp only; not Aero execution | EXPERIMENTAL |
+| CUDA | Explicit `cuda` target/backend selectable; ambiguous `gpu` is rejected | Target metadata/backend-named scalar helpers only | Absent from active `run` | Absent | Absent; `run` returns status 1 and recommends CPU | Absent | Absent | PARSED_ONLY |
 
 ## CPU path
 
@@ -47,27 +47,30 @@ feature or execution classification.
 
 ## ROCm path
 
-The CLI can retarget module metadata and invoke `llc` for an AMDGPU object, but it
-does not link or launch that object. Its own message states that runtime execution
-is staged for HIP launcher integration (`src/compiler/src/main.rs`, roughly lines
-1712–1765). No current Aero program has been proven to transfer data, launch a
-kernel, synchronize, or validate a result on ROCm in this audit.
+The CLI can retarget module metadata and invoke `llc` with AMDGPU flags, but it
+checks only that `llc` produced a temporary regular file. That postcondition does
+not establish a valid or usable object. `run` then returns operational status 1
+with an explicit statement that HIP linking and device launch are absent and no
+program was executed. No current Aero program has been proven to transfer data,
+launch a kernel, synchronize, or validate a result on ROCm in this audit.
 
 The tracked GGUF ROCm evidence executes a local llama.cpp CLI. The README
 qualifies it as an external reference; it is not evidence of Aero code generation
 or execution.
 
-GPU auto-detection honors an environment selection and otherwise probes ROCm
-tool presence before falling back to CPU; it does not establish a usable device
-and does not auto-probe CUDA. On the current host it selects CPU despite an AMD
-GPU because the expected tools are absent.
+An internal GPU auto-detection helper remains experimental, honors an environment
+selection, and otherwise probes ROCm tool presence before falling back to CPU; it
+does not establish a usable device and does not auto-probe CUDA. Public `build`
+and `run` reject the ambiguous `gpu` alias before reading source and require an
+explicit `cpu`, `rocm`, or `cuda` selection.
 
 ## CUDA path
 
-CUDA is accepted by backend parsing and target-selection interfaces, but active
-`run` returns an explicit not-implemented message (`src/compiler/src/main.rs`,
-roughly lines 1767–1771). No CUDA object, link, launch, correctness, or Aero
-performance evidence was found.
+CUDA is accepted by explicit backend and target-selection interfaces, but active
+`run` returns operational status 1 and states that object generation, linking,
+device launch, and program execution are unavailable. It recommends `--target
+cpu` for execution. No CUDA object, link, launch, correctness, or Aero performance
+evidence was found.
 
 ## Graph compilation
 
@@ -77,6 +80,9 @@ label. It does not emit a verified device-kernel calling convention, device
 intrinsics, memory transfers, launches, synchronization, or backend object/link
 steps. Existing tests prove deterministic transformation and helper emission,
 not CPU/GPU execution equivalence.
+Emitted text carries `execution_scope=internal-scalar-helper` and
+`device_execution=false` telemetry; report field names remain compatibility data,
+not evidence of executable device kernels.
 
 In the accepted `CORE-010` production implementation, standalone graph optimization verifies both its
 arbitrary LLVM input and final transformed output before publication. Verification
@@ -92,6 +98,9 @@ The audit also identified incorrect algebra in INT8 multiplication/division
 dequantization, and conversion occurs before later clamps can protect exceptional
 or out-of-range inputs. Current tests cover transformation shape and determinism,
 not a trusted reference comparison across modes/backends.
+Emitted text carries `execution_scope=scalar-double-helper` and
+`device_execution=false`. Report notes explicitly deny real FP8 representation,
+per-channel execution, numerical proof, and device execution.
 
 In the accepted `CORE-010` production implementation, standalone quantization verifies both arbitrary
 LLVM input and final transformed output before publication. This guards LLVM module
