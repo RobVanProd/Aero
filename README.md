@@ -38,12 +38,7 @@ The latest public-branch verification was run on 2026-05-28 at commit
 
 Verified current results:
 
-- `bash ./scripts/run_performance_benchmarks.sh` completed with exit code 0
-  on the public `master` branch. The Python harness measured 19 compilation
-  benchmark cases with mean times from 0.0401563915 s to 0.6799075492 s. The
-  highest mean was `function_performance.aero`, whose median was 0.0417738980 s
-  and whose max run was 6.4224741870 s.
-- The same run completed Rust Criterion lexer-only benchmarks. The reported
+- The public-branch run completed Rust Criterion lexer-only benchmarks. The reported
   median tokenization times ranged from 282.31 ns for `tokenize_simple_io` to
   21.507 us for `tokenize_large_program`.
 - The GGUF harness completed a real local llama.cpp CLI ROCm inference run with
@@ -52,13 +47,23 @@ Verified current results:
   one measured run reported 44.94 eval tokens/s, 186.94 prompt eval tokens/s,
   and 2701.84 ms load time
   ([result JSON](claim-verification/results/aero_gguf_llama_cli_7900xtx_20260528T224200Z/claim_result.json)).
-- An earlier local benchmark artifact from commit
+
+Invalid compilation measurements:
+
+- `benchmarks/performance_benchmark.py` passed each bare source path directly to
+  the Aero executable, without a required command such as `build`. The resulting
+  public-master and post-reboot timing series measured the process's successful
+  usage fallthrough, not Aero compilation, and are classified as invalid. Their
+  raw artifacts remain available for audit; none of those compilation numbers is
+  a verified performance result.
+
+Historical lexer evidence:
+
+- An earlier local lexer artifact from commit
   `f263568e06073317467416c2f954c73927c00f3e` is tracked as a historical
-  artifact. It completed `bash ./scripts/run_performance_benchmarks.sh` on
-  the Radeon RX 7900 XTX system and reported Python harness compilation mean
-  times from 0.0385207161 s to 0.0473603038 s plus Criterion lexer
-  tokenization times from 340.38 ns to 22.956 us. This historical artifact is
-  not the latest public-branch verification
+  artifact. Its Criterion lexer tokenization times ranged from 340.38 ns to
+  22.956 us. This historical lexer record is separate from the invalid Python
+  timing series and is not the latest public-branch verification
   ([result JSON](claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/claim_result.json)).
 
 Blocked or omitted claims:

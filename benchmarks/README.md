@@ -57,22 +57,17 @@ This directory contains comprehensive performance benchmarks for Aero Phase 3 co
 
 ## Running Benchmarks
 
-### Quick Start
-```bash
-# On Windows
-scripts\run_performance_benchmarks.bat
+### Quarantined benchmark driver
 
-# On Unix/Linux/macOS
-scripts/run_performance_benchmarks.sh
-```
+`benchmarks/performance_benchmark.py` is retained as historical source, but its
+compilation path invokes Aero with a bare source path instead of a command such as
+`build`. That produces an invalid compilation measurement of usage/process startup,
+not compiler work. The shell and batch wrappers also invoke this driver, so they are
+not a valid compilation-performance entry point. Do not use the driver or its
+existing JSON timing output as evidence until a separate benchmark task supplies a
+correctness-gated command protocol and new preregistered results.
 
 ### Manual Execution
-
-#### Python Benchmarks (Recommended)
-```bash
-# Install Python 3.6+ if not already installed
-python3 benchmarks/performance_benchmark.py
-```
 
 #### GGUF Cross-Framework Benchmarks (Aero vs llama.cpp vs PyTorch)
 ```bash
@@ -106,7 +101,8 @@ cargo bench --bench lexer_only_benchmarks
 ## Benchmark Results
 
 Results are saved in the `results/` directory with timestamps:
-- `performance_results_<timestamp>.json` - Python benchmark results
+- `performance_results_<timestamp>.json` - preserved output from the quarantined
+  Python driver; existing compilation timings are invalid measurements
 - `target/criterion/` - Rust criterion benchmark results and HTML reports
 
 ### Interpreting Results
@@ -155,11 +151,11 @@ Results are saved in the `results/` directory with timestamps:
 
 ## Benchmark Infrastructure
 
-### Python Benchmark Framework
-- **Cross-platform**: Works on Windows, macOS, and Linux
-- **Comprehensive**: Tests both compilation and execution
-- **Flexible**: Easy to add new benchmark categories
-- **Detailed reporting**: JSON output with statistical analysis
+### Quarantined Python framework
+
+The Python framework remains in the repository for auditability. Its current
+compilation route is not an Aero compiler benchmark and must not be extended or
+used for claims without a separately reviewed repair and measurement protocol.
 
 ### Rust Criterion Framework
 - **Statistical rigor**: Proper statistical analysis of performance
@@ -169,10 +165,12 @@ Results are saved in the `results/` directory with timestamps:
 
 ## Adding New Benchmarks
 
-### Python Benchmarks
-1. Add new test programs to `aero/` directory
-2. Extend `performance_benchmark.py` with new benchmark methods
-3. Update benchmark categories in `run_all_benchmarks()`
+### Python driver
+
+Do not add claim-bearing compilation cases to `performance_benchmark.py` while its
+bare-source invocation remains quarantined. A future replacement must first define
+the command, correctness oracle, warmup/sample policy, artifact hashes, and failure
+handling.
 
 ### Rust Benchmarks
 1. Create new benchmark file in `src/compiler/benches/`
@@ -203,7 +201,8 @@ criterion_main!(new_benchmarks);
 ## Troubleshooting
 
 ### Common Issues
-1. **Compiler build errors**: Use Python benchmarks or lexer-only Rust benchmarks
+1. **Compiler build errors**: Fix the compiler build before any compiler benchmark;
+   lexer-only Rust benchmarks may still be used only for lexer microbenchmark work
 2. **Python not found**: Install Python 3.6+ and add to PATH
 3. **Cargo not found**: Install Rust toolchain
 4. **Permission errors**: Ensure scripts are executable

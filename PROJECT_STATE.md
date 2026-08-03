@@ -4,19 +4,20 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 14 — obtain exact independent approval and publish the `AUDIT-019` /
-`CORE-013` preregistration, then create the focused tests-only red checkpoint for the
-typed CLI status boundary. Benchmark execution remains quarantined.
+Milestone 14 — obtain exact independent approval and publish the completed
+`CORE-013` implementation candidate, then require the full public CI matrix before
+acceptance closure. The reviewed tests-only red checkpoint is already public at
+`d405fc9`; benchmark execution remains quarantined.
 
 ## Active hypothesis
 
-`AUDIT-019` confirms that one typed CLI-owned dispatcher boundary can replace broad
-diagnostic-plus-zero fallthrough with success `0`, operational failure `1`, and
-invocation failure `2` without changing command or compiler semantics. Delegated CPU
-program exits remain arbitrary pass-through values and output rollback remains
-non-atomic. The same unknown-command correction makes the legacy Python compilation
-driver fail closed; its numbers still require explicit invalid-measurement
-classification, not reuse.
+The `CORE-013` candidate demonstrates that one typed CLI-owned dispatcher boundary
+replaces broad diagnostic-plus-zero fallthrough with success `0`, operational failure
+`1`, and invocation failure `2` without changing command or compiler semantics.
+Delegated CPU program exits remain arbitrary pass-through values and output rollback
+remains non-atomic. The same unknown-command correction makes the legacy Python
+compilation driver fail closed; its numbers still require explicit
+invalid-measurement classification, not reuse.
 
 ## Founding-framework checkpoint
 
@@ -163,8 +164,10 @@ classification, not reuse.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `6780a23cd8b63df124477c7db1190d61dd25f3b8`.
-- Worktree: documentation-only `AUDIT-019` / `CORE-013` preregistration under exact
-  review; production behavior remains the accepted `CORE-012` implementation.
+- Worktree: staged `CORE-013` implementation/evidence candidate under exact review;
+  public production behavior remains the accepted `CORE-012` implementation plus
+  the intentionally red `CORE-013` tests-only checkpoint at `d405fc9` until this
+  candidate is independently accepted and pushed.
 
 ## Environment and verification
 
@@ -395,14 +398,18 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   retaining the legacy no-module key. General CLI status handling, namespaces,
   visibility/import semantics, recursive graphs, and full pipeline consolidation
   remain separate.
+- `CORE-013` contains the false-success CLI boundary. The tracked
+  `performance_benchmark.py` compilation timings are an invalid measurement of a
+  bare-source usage path; public and historical lexer evidence remain separately
+  qualified, and the external GGUF record remains reference-only.
 
 ## Exact next action
 
-Independently review the exact documentation-only `AUDIT-019` / `CORE-013`
-preregistration, publish it only after approval, then add the focused process-level
-tests-only red matrix. Do not edit or run benchmark drivers, generate performance
-results, change command maturity, refactor `run_aero_program`, re-enable registry
-transport, or infer language/backend/release/merge authorization.
+Independently review the exact `CORE-013` implementation candidate, publish it only
+after all required reviewers approve the same snapshot, then require the complete
+public CI matrix before acceptance closure. Do not edit or run benchmark drivers,
+generate performance results, change command maturity, refactor `run_aero_program`,
+re-enable registry transport, or infer language/backend/release/merge authorization.
 
 ## Unauthorized actions
 

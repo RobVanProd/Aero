@@ -1970,4 +1970,17 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Owner: lead-owned tests-first vertical slice. Independent type/IR/backend reviewers
   must approve the exact preregistration, tests-only red checkpoint, implementation
   candidate, and acceptance closure before publication.
-- Status: preregistered; no tests or production behavior are part of this snapshot.
+- Red checkpoint: public commit `d405fc9` records the independently approved
+  tests-only matrix. It reproduced exactly three existing success controls and four
+  aggregate failures covering the frozen invocation, operational/publication, and
+  claim-classification gaps.
+- Implementation evidence: one typed outer `CliStatus` boundary now maps completed
+  CLI-owned work to `0`, operational failure to `1`, and invalid invocation to `2`.
+  Strict arity, direct-write failure, explicit registry help, and all previously
+  false-zero branches are controlled without refactoring delegated CPU execution.
+  The exact focused matrix passes 7/7 and the complete `./tools/test.sh` gate passes.
+  The two `performance_benchmark.py` compilation series are invalid measurements;
+  raw artifacts, current/historical Lexer evidence, and the external llama.cpp
+  reference remain preserved and separately qualified. No benchmark was executed.
+- Status: implementation candidate complete; exact independent review and public CI
+  acceptance remain pending.

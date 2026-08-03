@@ -11,8 +11,8 @@
   "claims": [
     {
       "id": "aero_public_master_compilation_benchmark_20260528",
-      "status": "verified_current",
-      "claim": "bash ./scripts/run_performance_benchmarks.sh completed with exit code 0 on public master commit 7d6ad2f865560cdcca4e30390430a7878c65fa69. The Python harness measured 19 compilation benchmark cases with mean times from 0.0401563915 s to 0.6799075492 s. The highest mean was function_performance.aero, whose median was 0.0417738980 s and whose max run was 6.4224741870 s.",
+      "status": "invalid_measurement",
+      "claim": "benchmarks/performance_benchmark.py invoked the Aero executable with a bare source path instead of a required command. Its zero statuses therefore produced an invalid measurement of process startup and usage handling, not Aero compilation. The raw public-master artifacts are preserved for audit and must not be used as compiler-performance evidence.",
       "artifacts": [
         "benchmarks/results/performance_results_1780007130.json",
         "claim-verification/results/aero_public_master_7900xtx_20260528T223000Z/run_performance_benchmarks.stdout.log",
@@ -56,8 +56,8 @@
     },
     {
       "id": "aero_post_reboot_compilation_benchmark_20260528",
-      "status": "historical_artifact",
-      "claim": "An earlier local benchmark artifact from commit f263568e06073317467416c2f954c73927c00f3e completed `bash ./scripts/run_performance_benchmarks.sh` on the Radeon RX 7900 XTX system. The Python benchmark harness measured Aero compilation mean times from 0.0385207161 s to 0.0473603038 s across the checked benchmark inputs, and Rust Criterion lexer-only benchmarks measured tokenization cases from 340.38 ns to 22.956 us. This historical artifact is not the latest public-branch verification.",
+      "status": "invalid_measurement",
+      "claim": "The post-reboot benchmarks/performance_benchmark.py series also invoked the Aero executable with a bare source path instead of a required command. Its reported timings are an invalid measurement of process startup and usage handling, not Aero compilation. All raw post-reboot artifacts are preserved for audit and must not be used as compiler-performance evidence.",
       "artifacts": [
         "benchmarks/results/performance_results_1780006109.json",
         "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/claim_result.json",
@@ -65,6 +65,21 @@
         "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/run_performance_benchmarks.stderr.log",
         "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/exit_code.txt",
         "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/generated_files.txt",
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/hardware_software_metadata.txt"
+      ],
+      "metadata": {
+        "repo_commit_at_run": "f263568e06073317467416c2f954c73927c00f3e",
+        "hardware": "Radeon RX 7900 XTX / gfx1100 / PCI device 1002:744c",
+        "software": "Python 3.10.12, rustc 1.93.0, cargo 1.93.0, PyTorch 2.5.1+rocm6.2, HIP 6.2.41133-dd7f95766"
+      }
+    },
+    {
+      "id": "aero_post_reboot_lexer_criterion_20260528",
+      "status": "historical_artifact",
+      "claim": "The post-reboot run at commit f263568e06073317467416c2f954c73927c00f3e contains genuine historical Rust Criterion lexer-only evidence, with reported tokenization cases from 340.38 ns to 22.956 us. This record is separate from the invalid Python compilation measurements and is not current public-branch verification.",
+      "artifacts": [
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/claim_result.json",
+        "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/run_performance_benchmarks.stdout.log",
         "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/hardware_software_metadata.txt"
       ],
       "metadata": {

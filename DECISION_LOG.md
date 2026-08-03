@@ -699,7 +699,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-018 — CLI-owned process status is a typed public correctness boundary
 
 - Date: 2026-08-02
-- Status: accepted for `CORE-013`; implementation pending
+- Status: accepted for `CORE-013`; implementation candidate complete, independent
+  acceptance review pending
 - Decision: outcomes owned by the CLI before delegated program execution must use
   one typed status boundary: `0` for completed work and explicit help/version, `1`
   for operational or compiler failure, and `2` for invalid invocation. Printing a
@@ -724,9 +725,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   arbitrary exit code. It may equal `1`, `2`, or another value, so the numeric codes
   are not globally unique without command context. This is intentional pass-through,
   not a CLI-owned classification. Refactoring or remapping that helper is frozen.
-- Benchmark consequence: the tracked Python driver invokes a source path without a
-  command. Under this contract that route returns `2`, so it cannot be counted as a
-  successful compilation. This is fail-closed containment, not benchmark repair.
+- Benchmark consequence: the tracked `performance_benchmark.py` driver invokes a
+  source path without a command. Under this contract that route returns `2`, so it
+  cannot be counted as a successful compilation. This is fail-closed containment,
+  not benchmark repair. The lexer and external llama.cpp records retain their
+  separately audited qualifications.
   Both tracked Python compilation series are reclassified as invalid measurements;
   their artifacts remain intact. Benchmark code is not run or changed, and no
   performance statement is upgraded.

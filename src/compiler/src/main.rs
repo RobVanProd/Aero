@@ -322,12 +322,35 @@ fn environment_requires_llvm_verifier() -> bool {
         .unwrap_or(false)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CliStatus {
+    Success,
+    OperationalFailure,
+    InvocationFailure,
+}
+
+impl CliStatus {
+    fn exit_code(self) -> i32 {
+        match self {
+            Self::Success => 0,
+            Self::OperationalFailure => 1,
+            Self::InvocationFailure => 2,
+        }
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
+    let status = dispatch_cli(&args);
+    if status != CliStatus::Success {
+        exit(status.exit_code());
+    }
+}
 
+fn dispatch_cli(args: &[String]) -> CliStatus {
     if args.len() < 2 {
         print_help(&args[0]);
-        return;
+        return CliStatus::InvocationFailure;
     }
 
     let command = &args[1];
@@ -335,18 +358,26 @@ fn main() {
     match command.as_str() {
         "--help" | "-h" => {
             print_help(&args[0]);
-            return;
+            return if args.len() == 2 {
+                CliStatus::Success
+            } else {
+                CliStatus::InvocationFailure
+            };
         }
         "--version" | "-v" => {
             println!("Aero compiler version 1.0.0");
-            return;
+            return if args.len() == 2 {
+                CliStatus::Success
+            } else {
+                CliStatus::InvocationFailure
+            };
         }
         "build" => {
             let (input_file, output_file, build_config) = match parse_build_args(&args) {
                 Ok(parsed) => parsed,
                 Err(usage) => {
                     eprintln!("{}", usage);
-                    return;
+                    return CliStatus::InvocationFailure;
                 }
             };
             apply_target_environment(&build_config);
@@ -355,7 +386,7 @@ fn main() {
                 Ok(content) => content,
                 Err(err) => {
                     eprintln!("Error reading file {}: {}", input_file, err);
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
@@ -363,7 +394,7 @@ fn main() {
                 compile_to_llvm_ir(&source_code, &output_file, &input_file, &build_config)
             {
                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                exit(1);
+                return CliStatus::OperationalFailure;
             }
         }
         "run" => {
@@ -371,7 +402,7 @@ fn main() {
                 Ok(parsed) => parsed,
                 Err(usage) => {
                     eprintln!("{}", usage);
-                    return;
+                    return CliStatus::InvocationFailure;
                 }
             };
             apply_target_environment(&build_config);
@@ -380,19 +411,19 @@ fn main() {
                 Ok(content) => content,
                 Err(err) => {
                     eprintln!("Error reading file {}: {}", input_file, err);
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
             if let Err(err) = run_aero_program(&source_code, &input_file, &build_config) {
                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                exit(1);
+                return CliStatus::OperationalFailure;
             }
         }
         "check" => {
-            if args.len() < 3 {
+            if args.len() != 3 {
                 eprintln!("Usage: {} check <input.aero>", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
             let input_file = &args[2];
 
@@ -403,16 +434,20 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
             if let Err(err) = check_aero_program(&source_code, input_file) {
                 report_check_error(&source_code, input_file, &err);
-                exit(1);
+                return CliStatus::OperationalFailure;
             }
         }
         "test" => {
+            if args.len() != 2 {
+                eprintln!("Usage: {} test", args[0]);
+                return CliStatus::InvocationFailure;
+            }
             // Discover and run *_test.aero files in examples/ and current directory
             let test_dirs = vec!["examples", "tests", "."];
             let mut test_count = 0;
@@ -481,14 +516,14 @@ fn main() {
                     pass_count, failure_count, test_count
                 );
                 if failure_count > 0 {
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
         }
         "fmt" => {
-            if args.len() < 3 {
+            if args.len() != 3 {
                 eprintln!("Usage: {} fmt <input.aero>", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
             let input_file = &args[2];
 
@@ -499,7 +534,7 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
@@ -510,18 +545,19 @@ fn main() {
                 .collect::<Vec<&str>>()
                 .join("\n");
 
-            match fs::write(input_file, &formatted) {
-                Ok(_) => println!("\x1b[1;32m   Formatted\x1b[0m {}", input_file),
-                Err(err) => eprintln!(
+            if let Err(err) = fs::write(input_file, &formatted) {
+                eprintln!(
                     "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
                     input_file, err
-                ),
+                );
+                return CliStatus::OperationalFailure;
             }
+            println!("\x1b[1;32m   Formatted\x1b[0m {}", input_file);
         }
         "doc" => {
             if args.len() < 3 {
                 eprintln!("Usage: {} doc <input.aero> [-o <output.md>]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             let input_file = &args[2];
@@ -531,7 +567,7 @@ fn main() {
                 default_doc_output_path(input_file)
             } else {
                 eprintln!("Usage: {} doc <input.aero> [-o <output.md>]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             };
 
             let source_code = match fs::read_to_string(input_file) {
@@ -541,28 +577,31 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
             match doc_generator::generate_markdown(input_file, &source_code) {
-                Ok(markdown) => match fs::write(&output_file, markdown) {
-                    Ok(_) => println!("Generated documentation at {}", output_file),
-                    Err(err) => eprintln!(
-                        "\x1b[1;31merror\x1b[0m: could not write docs {}: {}",
-                        output_file, err
-                    ),
-                },
+                Ok(markdown) => {
+                    if let Err(err) = fs::write(&output_file, markdown) {
+                        eprintln!(
+                            "\x1b[1;31merror\x1b[0m: could not write docs {}: {}",
+                            output_file, err
+                        );
+                        return CliStatus::OperationalFailure;
+                    }
+                    println!("Generated documentation at {}", output_file);
+                }
                 Err(err) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
         }
         "profile" => {
             if args.len() < 3 {
                 eprintln!("Usage: {} profile <input.aero> [-o <trace.json>]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             let input_file = &args[2];
@@ -572,7 +611,7 @@ fn main() {
                 None
             } else {
                 eprintln!("Usage: {} profile <input.aero> [-o <trace.json>]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             };
 
             let source_code = match fs::read_to_string(input_file) {
@@ -582,7 +621,7 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
@@ -594,14 +633,14 @@ fn main() {
                             Ok(_) => println!("Wrote trace file to {}", path),
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     }
                 }
                 Err(err) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
         }
@@ -612,7 +651,7 @@ fn main() {
             );
             if args.len() < 5 {
                 eprintln!("{}", graph_usage);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             let input_file = &args[2];
@@ -627,7 +666,7 @@ fn main() {
                     "-o" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", graph_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         output_file = Some(args[i + 1].clone());
                         i += 2;
@@ -635,14 +674,14 @@ fn main() {
                     "--backend" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", graph_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         let Some(parsed) = AcceleratorBackend::parse(&args[i + 1]) else {
                             eprintln!(
                                 "\x1b[1;31merror\x1b[0m: unsupported backend `{}`",
                                 args[i + 1]
                             );
-                            return;
+                            return CliStatus::InvocationFailure;
                         };
                         backend = parsed;
                         i += 2;
@@ -650,7 +689,7 @@ fn main() {
                     "--gpu" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", graph_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         gpu_arch = Some(args[i + 1].clone());
                         i += 2;
@@ -661,13 +700,13 @@ fn main() {
                     }
                     _ => {
                         eprintln!("{}", graph_usage);
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                 }
             }
             let Some(output_file) = output_file else {
                 eprintln!("{}", graph_usage);
-                return;
+                return CliStatus::InvocationFailure;
             };
 
             let input = match fs::read_to_string(input_file) {
@@ -677,7 +716,7 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
             match llvm_verifier::verify_llvm_module(
@@ -687,7 +726,7 @@ fn main() {
                 Ok(status) => println!("LLVM input verification: {status}"),
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
 
@@ -705,28 +744,27 @@ fn main() {
                 Ok(status) => println!("LLVM output verification: {status}"),
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
-            match fs::write(&output_file, optimized) {
-                Ok(_) => {
-                    println!("Wrote graph-optimized IR to {}", output_file);
-                    let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
-                    println!(
-                        "Backend: {} | gpu: {} | fused kernels: {} | executable kernels: {} | skipped chains: {} | total fused ops: {}",
-                        report.backend,
-                        gpu_arch,
-                        report.fused_kernel_count,
-                        report.executable_kernel_count,
-                        report.skipped_chains,
-                        report.total_fused_ops
-                    );
-                }
-                Err(err) => eprintln!(
+            if let Err(err) = fs::write(&output_file, optimized) {
+                eprintln!(
                     "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
                     output_file, err
-                ),
+                );
+                return CliStatus::OperationalFailure;
             }
+            println!("Wrote graph-optimized IR to {}", output_file);
+            let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
+            println!(
+                "Backend: {} | gpu: {} | fused kernels: {} | executable kernels: {} | skipped chains: {} | total fused ops: {}",
+                report.backend,
+                gpu_arch,
+                report.fused_kernel_count,
+                report.executable_kernel_count,
+                report.skipped_chains,
+                report.total_fused_ops
+            );
         }
         "quantize" => {
             let quant_usage = format!(
@@ -735,7 +773,7 @@ fn main() {
             );
             if args.len() < 7 {
                 eprintln!("{}", quant_usage);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             let input_file = &args[2];
@@ -753,7 +791,7 @@ fn main() {
                     "-o" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         output_file = Some(args[i + 1].clone());
                         i += 2;
@@ -761,7 +799,7 @@ fn main() {
                     "--mode" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         mode = quantization::QuantizationMode::parse(&args[i + 1]);
                         if mode.is_none() {
@@ -769,21 +807,21 @@ fn main() {
                                 "\x1b[1;31merror\x1b[0m: unsupported quantization mode `{}`",
                                 args[i + 1]
                             );
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         i += 2;
                     }
                     "--backend" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         let Some(parsed) = AcceleratorBackend::parse(&args[i + 1]) else {
                             eprintln!(
                                 "\x1b[1;31merror\x1b[0m: unsupported backend `{}`",
                                 args[i + 1]
                             );
-                            return;
+                            return CliStatus::InvocationFailure;
                         };
                         backend = parsed;
                         i += 2;
@@ -791,7 +829,7 @@ fn main() {
                     "--gpu" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         gpu_arch = Some(args[i + 1].clone());
                         i += 2;
@@ -799,7 +837,7 @@ fn main() {
                     "--calibration" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         calibration_file = Some(args[i + 1].clone());
                         i += 2;
@@ -814,18 +852,18 @@ fn main() {
                     }
                     _ => {
                         eprintln!("{}", quant_usage);
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                 }
             }
 
             let Some(output_file) = output_file else {
                 eprintln!("{}", quant_usage);
-                return;
+                return CliStatus::InvocationFailure;
             };
             let Some(mode) = mode else {
                 eprintln!("{}", quant_usage);
-                return;
+                return CliStatus::InvocationFailure;
             };
 
             let input = match fs::read_to_string(input_file) {
@@ -835,7 +873,7 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
             match llvm_verifier::verify_llvm_module(
@@ -845,7 +883,7 @@ fn main() {
                 Ok(status) => println!("LLVM input verification: {status}"),
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
 
@@ -868,7 +906,7 @@ fn main() {
                     }
                     Err(err) => {
                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                        return;
+                        return CliStatus::OperationalFailure;
                     }
                 }
             }
@@ -882,37 +920,36 @@ fn main() {
                 Ok(status) => println!("LLVM output verification: {status}"),
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
-            match fs::write(&output_file, quantized_ir) {
-                Ok(_) => {
-                    println!("Wrote quantization IR to {}", output_file);
-                    let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
-                    println!(
-                        "Mode: {} | backend: {} | gpu: {} | candidates: {} | lowered: {} | helpers: {} | calibration samples: {}",
-                        report.mode,
-                        report.backend,
-                        gpu_arch,
-                        report.candidate_ops,
-                        report.lowered_ops,
-                        report.helper_count,
-                        report.calibration_samples
-                    );
-                    for note in report.notes {
-                        println!("  - {}", note);
-                    }
-                }
-                Err(err) => eprintln!(
+            if let Err(err) = fs::write(&output_file, quantized_ir) {
+                eprintln!(
                     "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
                     output_file, err
-                ),
+                );
+                return CliStatus::OperationalFailure;
+            }
+            println!("Wrote quantization IR to {}", output_file);
+            let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
+            println!(
+                "Mode: {} | backend: {} | gpu: {} | candidates: {} | lowered: {} | helpers: {} | calibration samples: {}",
+                report.mode,
+                report.backend,
+                gpu_arch,
+                report.candidate_ops,
+                report.lowered_ops,
+                report.helper_count,
+                report.calibration_samples
+            );
+            for note in report.notes {
+                println!("  - {}", note);
             }
         }
         "registry" => {
             if args.len() < 3 {
                 print_registry_help(&args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             match args[2].as_str() {
@@ -922,7 +959,7 @@ fn main() {
                             "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                             args[0]
                         );
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                     let query = &args[3];
                     let mut index_path = registry::DEFAULT_LOCAL_INDEX_PATH.to_string();
@@ -940,7 +977,7 @@ fn main() {
                                         "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 index_path = args[i + 1].clone();
                                 i += 2;
@@ -951,7 +988,7 @@ fn main() {
                                         "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 registry_url = Some(args[i + 1].clone());
                                 i += 2;
@@ -966,7 +1003,7 @@ fn main() {
                                         "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token = Some(args[i + 1].clone());
                                 i += 2;
@@ -977,7 +1014,7 @@ fn main() {
                                         "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token_file = Some(args[i + 1].clone());
                                 i += 2;
@@ -987,14 +1024,14 @@ fn main() {
                                     "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                     args[0]
                                 );
-                                return;
+                                return CliStatus::InvocationFailure;
                             }
                         }
                     }
 
                     if live && let Err(err) = registry::live_registry_transport_guard() {
                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                        exit(1);
+                        return CliStatus::OperationalFailure;
                     }
 
                     let client = registry::RegistryClient::new(registry_url.as_deref());
@@ -1008,7 +1045,7 @@ fn main() {
                             Ok(auth) => auth,
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     } else {
@@ -1035,7 +1072,7 @@ fn main() {
                         }
                         Err(err) => {
                             eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
+                            return CliStatus::OperationalFailure;
                         }
                     }
                 }
@@ -1045,7 +1082,7 @@ fn main() {
                             "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                             args[0]
                         );
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                     let package_dir = &args[3];
                     let mut registry_url: Option<String> = None;
@@ -1062,7 +1099,7 @@ fn main() {
                                         "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 registry_url = Some(args[i + 1].clone());
                                 i += 2;
@@ -1073,7 +1110,7 @@ fn main() {
                                         "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token = Some(args[i + 1].clone());
                                 i += 2;
@@ -1084,7 +1121,7 @@ fn main() {
                                         "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token_file = Some(args[i + 1].clone());
                                 i += 2;
@@ -1098,7 +1135,7 @@ fn main() {
                                     "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                     args[0]
                                 );
-                                return;
+                                return CliStatus::InvocationFailure;
                             }
                         }
                     }
@@ -1113,19 +1150,19 @@ fn main() {
                                     Ok(json) => println!("{}", json),
                                     Err(err) => {
                                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                        exit(1);
+                                        return CliStatus::OperationalFailure;
                                     }
                                 }
                             }
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     } else {
                         if let Err(err) = registry::live_registry_transport_guard() {
                             eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
+                            return CliStatus::OperationalFailure;
                         }
                         let auth = match registry::resolve_registry_auth(
                             token.as_deref(),
@@ -1134,7 +1171,7 @@ fn main() {
                             Ok(auth) => auth,
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         };
                         match registry::publish_live(
@@ -1149,13 +1186,13 @@ fn main() {
                                     Ok(json) => println!("{}", json),
                                     Err(err) => {
                                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                        exit(1);
+                                        return CliStatus::OperationalFailure;
                                     }
                                 }
                             }
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     }
@@ -1166,7 +1203,7 @@ fn main() {
                             "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                             args[0]
                         );
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                     let package_name = &args[3];
                     let mut version: Option<String> = None;
@@ -1187,7 +1224,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 version = Some(args[i + 1].clone());
                                 i += 2;
@@ -1198,7 +1235,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 registry_url = Some(args[i + 1].clone());
                                 i += 2;
@@ -1209,7 +1246,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 target_dir = args[i + 1].clone();
                                 i += 2;
@@ -1220,7 +1257,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token = Some(args[i + 1].clone());
                                 i += 2;
@@ -1231,7 +1268,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token_file = Some(args[i + 1].clone());
                                 i += 2;
@@ -1242,7 +1279,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 expected_sha256 = Some(args[i + 1].clone());
                                 i += 2;
@@ -1260,7 +1297,7 @@ fn main() {
                                     "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                     args[0]
                                 );
-                                return;
+                                return CliStatus::InvocationFailure;
                             }
                         }
                     }
@@ -1280,13 +1317,13 @@ fn main() {
                             Ok(json) => println!("{}", json),
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     } else {
                         if let Err(err) = registry::live_registry_transport_guard() {
                             eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
+                            return CliStatus::OperationalFailure;
                         }
                         let auth = match registry::resolve_registry_auth(
                             token.as_deref(),
@@ -1295,7 +1332,7 @@ fn main() {
                             Ok(auth) => auth,
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         };
                         match registry::install_live(
@@ -1314,19 +1351,26 @@ fn main() {
                                     Ok(json) => println!("{}", json),
                                     Err(err) => {
                                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                        exit(1);
+                                        return CliStatus::OperationalFailure;
                                     }
                                 }
                             }
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     }
                 }
+                "help" | "--help" | "-h" => {
+                    print_registry_help(&args[0]);
+                    if args.len() != 3 {
+                        return CliStatus::InvocationFailure;
+                    }
+                }
                 _ => {
                     print_registry_help(&args[0]);
+                    return CliStatus::InvocationFailure;
                 }
             }
         }
@@ -1338,14 +1382,14 @@ fn main() {
                     "-o" => {
                         if i + 1 >= args.len() {
                             eprintln!("Usage: {} conformance [-o <report.json>]", args[0]);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         output_json = Some(args[i + 1].clone());
                         i += 2;
                     }
                     _ => {
                         eprintln!("Usage: {} conformance [-o <report.json>]", args[0]);
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                 }
             }
@@ -1358,18 +1402,18 @@ fn main() {
                 Ok(command) => command,
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             };
             println!("{}", command.stdout);
             if command.exit_code != 0 {
-                exit(command.exit_code);
+                return CliStatus::OperationalFailure;
             }
         }
         "init" => {
             if args.len() > 3 {
                 eprintln!("Usage: {} init [path]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
             let target = if args.len() == 3 {
                 args[2].as_str()
@@ -1386,14 +1430,18 @@ fn main() {
                 }
                 Err(err) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
         }
         "lsp" => {
+            if args.len() != 2 {
+                eprintln!("Usage: {} lsp", args[0]);
+                return CliStatus::InvocationFailure;
+            }
             if let Err(err) = lsp::run_language_server() {
                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                exit(1);
+                return CliStatus::OperationalFailure;
             }
         }
         _ => {
@@ -1401,8 +1449,11 @@ fn main() {
             eprintln!(
                 "Available commands: build, run, check, test, fmt, doc, profile, graph-opt, quantize, registry, conformance, init, lsp"
             );
+            return CliStatus::InvocationFailure;
         }
     }
+
+    CliStatus::Success
 }
 
 fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), String> {

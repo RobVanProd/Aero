@@ -279,29 +279,38 @@ correctness gates.
 The README's tracked 19-case "compilation" series is invalid as a compilation
 measurement. `benchmarks/performance_benchmark.py` invokes
 `cargo run --release -- <sourcefile>`, but the CLI requires a `build`, `run`, or
-other command. It prints `Unknown command` and exits zero, which the harness
-counts as a successful compilation. A current-session probe reproduced exit zero
-for this path. Those numbers measure Cargo startup/unknown-command handling and
-must not support Aero compilation-speed claims.
+other command. At the `AUDIT-019` reproduction basis it printed `Unknown command`
+and exited zero, which the harness counted as a successful compilation. The
+`CORE-013` candidate now makes that bare-source invocation fail closed with status
+`2`; it does not retroactively validate or repair the timings. Those numbers measure
+Cargo startup/unknown-command handling and must not support Aero compilation-speed
+claims.
 
-All five entries in `claim-verification/claims.json` reference existing files,
-but none meets the full benchmark protocol. The public and historical compilation
-claims share the invalid command. The lexer Criterion run is genuine historical
-microbenchmark evidence, but retained output does not justify calling the center
-estimate a median and lacks raw samples/hashes/correctness checks. The GGUF entry
-is a genuine one-run external llama.cpp observation with zero warmups, truncated
-output, no correctness gate, incomplete hashes, and inconsistent top-level versus
-artifact commit attribution. The blocked/omitted GPU-claim record is accurate.
+All six candidate entries in `claim-verification/claims.json` reference existing
+files, but none meets the full benchmark protocol. The two compilation claims share
+the invalid command and are classified `invalid_measurement`. The current and split
+historical lexer Criterion records retain their separate qualifications; retained
+output does not justify strengthening their statistics and lacks raw
+samples/hashes/correctness checks. The GGUF entry is a genuine one-run external
+llama.cpp observation with zero warmups, truncated output, no correctness gate,
+incomplete hashes, and inconsistent top-level versus artifact commit attribution.
+The blocked/omitted GPU-claim record is accurate.
+
+The split historical lexer Criterion run is genuine historical microbenchmark
+evidence; that preservation does not rehabilitate either Python compilation series.
 
 No current public Aero runtime, device, graph, or quantization performance claim
-passes `BENCHMARK_PROTOCOL.md`. Existing evidence remains preserved and must be
-reclassified rather than deleted.
+passes `BENCHMARK_PROTOCOL.md`. Existing evidence remains preserved; the `CORE-013`
+candidate classifies the two invalid Python compilation series without deleting or
+upgrading any artifact.
 
 ## Tooling and API audit
 
-- `build`, `check`, `graph-opt`, `test`, unknown commands, missing inputs, failed
-  output writes, and failing conformance paths commonly return process status
-  zero. Automation cannot use the CLI status as a correctness signal.
+- Before `CORE-013`, `build`, `check`, `graph-opt`, `test`, unknown commands, missing
+  inputs, failed output writes, and failing conformance paths commonly returned
+  process status zero. The candidate now gives automation a typed `0/1/2` correctness
+  signal for CLI-owned outcomes; delegated CPU program statuses remain contextual
+  arbitrary pass-through values.
 - The library and binary compile their own module instances. The library ignores
   every `CompilerOptions` field; the CLI never calls `compile_program`, and its
   advertised optimizer objects are often constructed but unused.
@@ -394,23 +403,28 @@ reclassified rather than deleted.
 
 ### Post-CORE-012 CLI and benchmark revalidation (`AUDIT-019`)
 
-- Audit basis: clean public documentation head
-  `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`; production behavior remains the
-  exact accepted `6780a23cd8b63df124477c7db1190d61dd25f3b8` snapshot.
-- An initial argument-dropping process batch was invalid and discarded. A corrected
-  explicit-argument probe shows status zero for no command, unknown command, bare
+- Historical audit basis: clean public documentation head
+  `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`; accepted production behavior at that
+  point was exact `6780a23cd8b63df124477c7db1190d61dd25f3b8`. The current staged
+  `CORE-013` candidate supersedes the status/claim findings below, pending exact
+  review and public CI.
+- An initial argument-dropping process batch was invalid and discarded. The corrected
+  pre-implementation explicit-argument probe showed status zero for no command,
+  unknown command, bare
   benchmark source path, malformed and missing-input build/run/check/fmt/doc/profile/
   graph-opt/quantize routes, registry no/unknown subcommand, and malformed
-  conformance. Static inspection finds the same fallthrough for failed output writes
+  conformance. Static inspection found the same fallthrough for failed output writes
   and ignored extra operands in check/fmt/test/lsp.
-- `performance_benchmark.py` sends the bare source path and accepts its zero status;
-  the shell harness declares its compile/run work simulated. No benchmark was run.
-  The tracked Python compilation numbers remain invalid measurements and their raw
-  evidence must be preserved but reclassified.
+- `performance_benchmark.py` sends the bare source path and would have accepted the
+  former zero status; the `CORE-013` candidate now returns `2`. The shell harness
+  declares its compile/run work simulated. No benchmark was run. The tracked Python
+  compilation numbers remain invalid measurements and their raw evidence is
+  preserved under that classification.
 - R-004 remains stopped on unfrozen multi-phase ownership semantics; reproduced
-  R-011 arrays fail closed before output. The bounded next control is `CORE-013`: a
-  typed CLI-owned `0` success / `1` operational failure / `2` invocation failure
-  contract plus evidence-preserving quarantine of the affected compilation claims.
+  R-011 arrays fail closed before output. The bounded `CORE-013` candidate now
+  provides a typed CLI-owned `0` success / `1` operational failure / `2` invocation
+  failure contract plus evidence-preserving quarantine of the affected compilation
+  claims.
   Delegated CPU-program exits remain arbitrary pass-through values; write rollback
   remains non-atomic and out of scope. Benchmark code, command maturity, and compiler
   phases remain frozen.
