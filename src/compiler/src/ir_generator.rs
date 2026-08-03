@@ -34,6 +34,11 @@ struct AdmissionBinding {
     callable: bool,
 }
 
+struct AdmissionTopLevelFunction {
+    result: Ty,
+    arity: Option<usize>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ExpressionUse {
     Value,
@@ -209,17 +214,33 @@ impl IrGenerator {
     }
 
     fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
-        let mut top_level_functions = HashMap::new();
+        let mut top_level_functions: HashMap<String, AdmissionTopLevelFunction> = HashMap::new();
         for node in ast {
             if let AstNode::Statement(Statement::Function {
-                name, return_type, ..
+                name,
+                parameters,
+                return_type,
+                type_params,
+                ..
             }) = node
             {
                 let result = return_type
                     .as_ref()
                     .map(Self::admission_type)
                     .unwrap_or(Ty::Void);
-                top_level_functions.insert(name.clone(), result);
+                let arity = Self::admitted_top_level_arity(
+                    name,
+                    parameters,
+                    return_type.as_ref(),
+                    type_params,
+                );
+                if let Some(existing) = top_level_functions.get_mut(name) {
+                    existing.result = result;
+                    existing.arity = None;
+                } else {
+                    top_level_functions
+                        .insert(name.clone(), AdmissionTopLevelFunction { result, arity });
+                }
             }
         }
 
@@ -243,10 +264,52 @@ impl IrGenerator {
         Ok(())
     }
 
+    fn admitted_symbol(name: &str) -> bool {
+        let mut characters = name.chars();
+        characters
+            .next()
+            .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
+            && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
+    }
+
+    fn admitted_top_level_arity(
+        name: &str,
+        parameters: &[crate::ast::Parameter],
+        return_type: Option<&Type>,
+        type_params: &[String],
+    ) -> Option<usize> {
+        if matches!(name, "main" | "printf")
+            || !Self::admitted_symbol(name)
+            || !type_params.is_empty()
+            || return_type.is_some_and(|return_type| {
+                !matches!(
+                    Self::admission_type(return_type),
+                    Ty::Int | Ty::Float | Ty::Bool
+                )
+            })
+        {
+            return None;
+        }
+
+        let mut parameter_names = std::collections::HashSet::new();
+        for parameter in parameters {
+            if !Self::admitted_symbol(&parameter.name)
+                || !parameter_names.insert(parameter.name.as_str())
+                || !matches!(
+                    Self::admission_type(&parameter.param_type),
+                    Ty::Int | Ty::Float | Ty::Bool
+                )
+            {
+                return None;
+            }
+        }
+        Some(parameters.len())
+    }
+
     fn validate_block(
         block: &crate::ast::Block,
         bindings: &mut HashMap<String, AdmissionBinding>,
-        top_level_functions: &HashMap<String, Ty>,
+        top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
         inside_loop: bool,
         inside_generic_impl: bool,
     ) -> Result<(), IrGenerationError> {
@@ -273,7 +336,7 @@ impl IrGenerator {
     fn validate_statement(
         statement: &Statement,
         bindings: &mut HashMap<String, AdmissionBinding>,
-        top_level_functions: &HashMap<String, Ty>,
+        top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
         inside_loop: bool,
         inside_generic_impl: bool,
     ) -> Result<(), IrGenerationError> {
@@ -532,7 +595,7 @@ impl IrGenerator {
     fn validate_expression(
         expression: &Expression,
         bindings: &HashMap<String, AdmissionBinding>,
-        top_level_functions: &HashMap<String, Ty>,
+        top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
         expression_use: ExpressionUse,
     ) -> Result<Ty, IrGenerationError> {
         let admission_error = |message: &str| IrGenerationError::Admission(message.to_string());
@@ -622,13 +685,21 @@ impl IrGenerator {
                         };
                     }
                 }
-                if let Some(result) = top_level_functions.get(name) {
-                    if *result == Ty::Void && expression_use != ExpressionUse::Discarded {
+                if let Some(function) = top_level_functions.get(name) {
+                    if function.result == Ty::Void && expression_use != ExpressionUse::Discarded {
                         return Err(admission_error(
                             "Void function calls cannot be used as values",
                         ));
                     }
-                    return Ok(result.clone());
+                    if let Some(expected) = function.arity
+                        && arguments.len() != expected
+                    {
+                        return Err(admission_error(&format!(
+                            "call to `{name}` has {} arguments but its signature requires {expected}",
+                            arguments.len()
+                        )));
+                    }
+                    return Ok(function.result.clone());
                 }
                 if !top_level_functions.contains_key(name) && matches!(name.as_str(), "Some" | "Ok")
                 {
