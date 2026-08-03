@@ -2110,4 +2110,30 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Owner: lead-owned tests-first documentation/CI slice. Independent type, IR/codegen,
   and backend/claim reviewers must approve the exact preregistration, tests-only red
   checkpoint, implementation candidate, and acceptance closure before publication.
-- Status: preregistered; no tests or implementation edits started.
+- Red checkpoint: public commit `fc77e9979f996aaa0110ba48246b24ebca67acbd`
+  records the independently approved tests-only contract. Its exact reviewed staged
+  diff is `b02c2bad25a28ec069303c02fa39de68b64561e8` and tree is
+  `f301087d2749d4425bc7d913b3109b1b7aab64e2`. Local evidence was exactly two
+  passing controls and three intended README/BUILD/workflow failures. Public
+  compiler-test and stable Rust jobs reproduced only those failures after their
+  earlier steps passed; nightly reached its test step and was cancelled by the
+  unchanged matrix fail-fast behavior after stable failed.
+- Implementation candidate: README now uses the exact manifest-qualified release
+  build, binary PATH, generated source, init/check/run sequence, platform and backend
+  links; advanced commands are separately labeled experimental. `BUILD.md` supplies
+  the exact PowerShell path and names the complete LLVM 22 native toolchain,
+  including the required `opt`/`llvm-as` verifier choice. A review-found omission
+  received a focused corrective assertion first, reproducing exactly 4 pass / 1
+  intended prerequisite failure before the documentation correction. The
+  getting-started tutorial uses the same generated project. Stable Linux CI binds
+  unversioned LLVM/Clang discovery to LLVM 22, retains verifier overrides, and
+  executes the exact fresh-project path with status and anchored-output proof.
+  Focused tests pass 5/5 and exact complete
+  `./tools/test.sh` passes locally. No compiler, scaffold, backend, benchmark,
+  version, dependency, registry, release, or master behavior changed.
+  One prior complete-gate attempt stopped in the unchanged
+  `cli_status_contract_tests`; the target immediately passed 7/7 in isolation and
+  the unchanged full gate passed on rerun. This is retained as residual pre-existing
+  flake uncertainty, not classified as a `CORE-014` regression.
+- Status: locally green implementation candidate; exact independent implementation
+  review and complete public CI acceptance remain pending.

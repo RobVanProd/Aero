@@ -47,6 +47,34 @@ jobs:
         llc-22 --version
         clang-22 --version
 
+    - name: Verify documented Quick Start
+      if: matrix.rust == 'stable'
+      shell: bash
+      run: |
+        export PATH="/usr/lib/llvm-22/bin:${PATH}"
+        test "$(command -v clang)" = "/usr/lib/llvm-22/bin/clang"
+        test "$(command -v llc)" = "/usr/lib/llvm-22/bin/llc"
+        clang --version | grep -Eq 'clang version 22\.'
+        llc --version | grep -Eq 'LLVM version 22\.'
+        test "${AERO_LLVM_OPT}" = "/usr/bin/opt-22"
+        test "${AERO_LLVM_AS}" = "/usr/bin/llvm-as-22"
+        cargo build --release --manifest-path src/compiler/Cargo.toml
+        export PATH="${GITHUB_WORKSPACE}/src/compiler/target/release:${PATH}"
+        aero --version
+        quick_start_root="$(mktemp -d)"
+        cd "${quick_start_root}"
+        aero init my_app
+        cd my_app
+        aero check src/main.aero
+        set +e
+        run_output="$(aero run src/main.aero)"
+        run_status=$?
+        set -e
+        printf '%s\n' "${run_output}"
+        test "${run_status}" -eq 0
+        output_count="$(printf '%s\n' "${run_output}" | grep -c '^Output: Hello, Aero!$' || true)"
+        test "${output_count}" -eq 1
+
     - name: Confirm LLVM 22 rejects known-invalid IR
       if: matrix.rust == 'stable'
       shell: bash

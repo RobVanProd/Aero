@@ -5,29 +5,31 @@ This repo contains the Aero compiler written in Rust (`src/compiler`).
 ## Prerequisites
 
 - Rust toolchain (stable): <https://rustup.rs>
-- LLVM tooling available on your PATH:
+- LLVM 22 tooling available on your PATH:
   - `clang`
   - `llc`
+  - `opt` (preferred verifier)
+  - `llvm-as` (fallback verifier)
 
-Install LLVM on common platforms:
-
-- **Ubuntu/Debian:** `sudo apt-get install clang llvm`
-- **macOS (Homebrew):** `brew install llvm` (then ensure Homebrew LLVM is on PATH)
-- **Windows:** install LLVM from <https://llvm.org/> (or `winget install LLVM.LLVM`) and ensure `clang`/`llc` are on PATH
+At least one verifier (`opt` or `llvm-as`) is required before native lowering.
+Confirm `clang --version`, `llc --version`, and either `opt --version` or
+`llvm-as --version` report major version 22. Package names and installation
+locations vary by platform; the stable Linux CI contract installs `clang-22` and
+`llvm-22`, then places `/usr/lib/llvm-22/bin` first on PATH. On Windows, install an
+LLVM 22 distribution from <https://llvm.org/> and use its `bin` directory.
 
 ## Build the compiler
 
 From the repo root:
 
 ```bash
-cd src/compiler
-cargo build --release
+cargo build --release --manifest-path src/compiler/Cargo.toml
 ```
 
 The compiler binary will be at:
 
 - `src/compiler/target/release/aero` (Linux/macOS)
-- `src\\compiler\\target\\release\\aero.exe` (Windows)
+- `src\compiler\target\release\aero.exe` (Windows)
 
 ### Install (optional)
 
@@ -36,6 +38,21 @@ cargo install --path src/compiler
 ```
 
 This installs `aero` into your Cargo bin directory (typically `~/.cargo/bin`).
+
+## Windows PowerShell
+
+From the repository root, build the compiler and add its release directory to
+the current PowerShell session's PATH:
+
+```powershell
+cargo build --release --manifest-path src/compiler/Cargo.toml
+$env:PATH = "$PWD\src\compiler\target\release;$env:PATH"
+aero.exe --version
+```
+
+The compiler executable is `src\compiler\target\release\aero.exe`. Before using
+`aero run`, ensure `clang.exe`, `llc.exe`, and either `opt.exe` or `llvm-as.exe`
+from the same LLVM 22 distribution are also on PATH.
 
 ## CLI command summary (v1.0.0)
 

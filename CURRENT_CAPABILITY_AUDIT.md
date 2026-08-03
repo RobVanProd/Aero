@@ -63,9 +63,10 @@ correctness gates.
   integration tests; 38 `phase5_tests` are ignored. Doc tests also passed.
 - The current conformance command reports three cases and four repeatability
   checks. It does not prove the formal semantics.
-- The documented root-level `cargo build --release` fails with exit 101 because
-  the repository root has no `Cargo.toml`; the compiler manifest is under
-  `src/compiler/`.
+- `AUDIT-020` reproduced that the former documented root-level
+  `cargo build --release` command exited 101 because the repository root has no
+  `Cargo.toml`; the locally green `CORE-014` candidate instead selects the compiler
+  manifest under `src/compiler/` explicitly.
 
 ## Specification and public-surface audit
 
@@ -73,8 +74,11 @@ correctness gates.
   and CLI print `1.0.0`; no language/package version distinction is documented.
 - Formal and split grammar documents disagree about keywords, formatted strings,
   struct-field delimiters, rebinding, and lifetime maturity.
-- The README flagship snippet uses grouped imports, named arguments, and absent
-  `aeronum`/`aeronn` packages that the active repository cannot compile.
+- The public `CORE-014` red checkpoint proves the former README flagship used
+  grouped imports, named arguments, and absent `aeronum`/`aeronn` packages that the
+  active repository cannot compile. The locally green documentation/workflow
+  candidate replaces it with the exact existing generated CPU project; public CI
+  acceptance remains pending.
 - Several shipped examples use legacy top-level statements outside the normative
   module grammar. `examples/scoping.aero` also conflicts with the documented and
   active same-scope rebinding rule.

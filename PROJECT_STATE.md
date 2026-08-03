@@ -4,10 +4,11 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 15 preregistration — independently review and publish the `AUDIT-020`
-risk re-ranking and bounded `CORE-014` public Quick Start contract before adding its
-tests-only red checkpoint. Accepted `CORE-013` is closed at public documentation head
-`18526ff`; benchmark execution remains quarantined.
+Milestone 15 implementation — validate the bounded `CORE-014` documentation and
+stable-Linux CI candidate against its independently approved public red checkpoint,
+then publish it only after exact implementation review. Accepted `CORE-013` remains
+closed at public documentation head `18526ff`; benchmark execution remains
+quarantined.
 
 ## Active hypothesis
 
@@ -41,8 +42,19 @@ execution, or change compiler/CLI behavior.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current clean public head and `CORE-013` acceptance closure:
+- Current public head and `CORE-014` tests-only red checkpoint:
+  `fc77e9979f996aaa0110ba48246b24ebca67acbd`. Its three intended Quick Start
+  contracts fail after all earlier public test steps pass; this is red evidence,
+  not an accepted implementation.
+- Prior clean `CORE-013` acceptance closure:
   `18526ff7a80db222c1348496f24f710d09249dfc`. All eight public checks pass.
+- The `CORE-014` red checkpoint's exact reviewed staged diff is
+  `b02c2bad25a28ec069303c02fa39de68b64561e8` and tree is
+  `f301087d2749d4425bc7d913b3109b1b7aab64e2`. Three independent reviewers
+  approved it with no P0-P3 findings. Focused local evidence was two controls
+  passing and exactly three intended documentation/workflow failures. Public
+  compiler-test and stable Rust jobs reproduced those same failures; the unchanged
+  nightly matrix job was cancelled by matrix fail-fast after stable failed.
 - Accepted `CORE-013` implementation code commit:
   `a78dd004aa37c39212711027b777698118d9dc02`. All eight implementation checks pass.
 - Prior `CORE-012` acceptance-documentation head:
@@ -166,9 +178,14 @@ execution, or change compiler/CLI behavior.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `a78dd004aa37c39212711027b777698118d9dc02`.
-- Worktree: documentation-only `AUDIT-020`/`CORE-014` preregistration being frozen
-  for exact review; production behavior remains accepted public implementation
-  `a78dd00`.
+- Worktree: documentation/workflow-only `CORE-014` implementation candidate. The
+  focused target passes 5/5 and exact complete `./tools/test.sh` passes locally;
+  exact implementation review and public CI remain pending. Production behavior
+  remains accepted public implementation `a78dd00` because no compiler code changed.
+  One earlier full-gate attempt stopped in the unchanged
+  `cli_status_contract_tests`; that target immediately passed 7/7 in isolation and
+  the unchanged complete gate passed on rerun. The interruption is not reproduced
+  or attributed to `CORE-014`, but remains residual pre-existing flake uncertainty.
 
 ## Environment and verification
 
@@ -407,11 +424,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Independently review and publish the exact `AUDIT-020`/`CORE-014` preregistration.
-Only then add the focused tests-only red checkpoint for the frozen Quick Start
-documentation and CI contract. Do not change compiler/CLI semantics, version policy,
-backend behavior, project scaffolding, benchmark code/results, registry transport,
-or infer language/backend/release/merge authorization.
+Freeze and independently review the exact locally green `CORE-014` implementation
+candidate. Publish it only after all three exact reviews approve, then require the
+complete public CI matrix and the stable-only `Verify documented Quick Start` step
+to pass before acceptance closure. Do not change compiler/CLI semantics, version
+policy, backend behavior, project scaffolding, benchmark code/results, registry
+transport, or infer language/backend/release/merge authorization.
 
 ## Unauthorized actions
 

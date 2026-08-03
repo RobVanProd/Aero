@@ -81,69 +81,55 @@ Blocked or omitted claims:
 
 ## 📦 Quick Start
 
+Use a POSIX shell from a machine with Rust and the documented LLVM 22/Clang
+[build prerequisites](BUILD.md#prerequisites):
+
 ```bash
 git clone https://github.com/RobVanProd/Aero.git
 cd Aero
-cargo build --release
-export PATH="$PWD/target/release:$PATH"
-
-# Initialize a new project scaffold
+cargo build --release --manifest-path src/compiler/Cargo.toml
+export PATH="$PWD/src/compiler/target/release:$PATH"
+aero --version
 aero init my_app
 cd my_app
-
-# Compile + run
-aero run src/main.aero
-
-# ROCm-targeted compile path
-aero run --target rocm --gpu gfx1100 src/main.aero
-
-# Backend alias form (equivalent to --target)
-aero run --backend rocm --gpu gfx1100 src/main.aero
-
-# Auto-detect local GPU backend (ROCm/CUDA/CPU fallback)
-aero run --target gpu src/main.aero
-
-# Type-check only (no codegen)
 aero check src/main.aero
+aero run src/main.aero
+```
 
-# Generate Markdown API docs from source
+The generated `src/main.aero` is:
+
+```aero
+fn main() {
+    println!("Hello, Aero!");
+}
+```
+
+The final command must complete successfully and print `Output: Hello, Aero!`.
+See the [Windows PowerShell instructions](BUILD.md) for the equivalent Windows
+build and PATH commands, and consult the [backend capability status](BACKEND_STATUS.md)
+before using an accelerator target.
+
+## Experimental Command Examples
+
+These commands are outside the minimal Quick Start. They expose experimental
+compiler surfaces with the limitations recorded in the current compiler table
+below and in [backend capability status](BACKEND_STATUS.md). They are not evidence
+that every backend performs device execution.
+
+```bash
+aero run --target rocm --gpu gfx1100 src/main.aero
+aero run --backend rocm --gpu gfx1100 src/main.aero
+aero run --target gpu src/main.aero
 aero doc src/main.aero -o main.md
-
-# Profile compilation pipeline and export trace JSON
 aero profile src/main.aero -o trace.json
-
-# Apply graph compilation with executable fusion (CPU/CUDA/ROCm)
 aero graph-opt main.ll -o main.opt.ll --backend rocm --gpu gfx1100
-
-# Apply hardware-calibrated quantization lowering (INT8/FP8)
 aero quantize main.opt.ll -o main.int8.ll --mode int8 --backend rocm --gpu gfx1100 --calibration calib.json
-
-# Run the GGUF benchmark harness when configured locally
 python benchmarks/gguf/gguf_compare.py --config benchmarks/gguf/config.rx7800xt.example.json
-
-# Registry local search and network-free publish/install previews
 aero registry search vision --index registry/index.json
 aero registry publish . --dry-run
 aero registry install vision-core --version 0.2.0 --target pkgs --dry-run
-
-# Run formal conformance + mechanized checks
 aero conformance -o conformance_report.json
-
-# Language server for editor integration (stdio)
 aero lsp
-```
-
-Try the flagship example directly in the Interactive Playground:
-
-```aero
-use aeronum::Array;
-use aeronn::{Transformer, Sequential};
-
-fn main() {
-    let mut model = Transformer::new(layers: 6, dim: 384, heads: 6);
-    model.to("distributed", 4);
-    // Training behavior depends on the available runtime backend.
-}
 ```
 
 ## 🛠️ Current Compiler Surface (Experimental)

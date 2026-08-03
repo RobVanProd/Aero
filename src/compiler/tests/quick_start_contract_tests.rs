@@ -368,6 +368,25 @@ fn readme_quick_start_has_exact_executable_blocks_and_links() {
 #[test]
 fn build_guide_has_exact_windows_powershell_block() {
     let build = fs::read_to_string(repo_root().join("BUILD.md")).expect("read BUILD guide");
+    let prerequisites = unique_h2_section(&build, "Prerequisites").unwrap_or_else(|error| {
+        panic!("BUILD prerequisites section error: {error}");
+    });
+    for fragment in [
+        "LLVM 22 tooling",
+        "`clang`",
+        "`llc`",
+        "`opt` (preferred verifier)",
+        "`llvm-as` (fallback verifier)",
+        "`clang --version`",
+        "`llc --version`",
+        "`opt --version`",
+        "`llvm-as --version`",
+    ] {
+        assert!(
+            prerequisites.contains(fragment),
+            "BUILD prerequisites omitted required LLVM fragment {fragment:?}"
+        );
+    }
     let windows = unique_h2_section(&build, "Windows PowerShell").unwrap_or_else(|error| {
         panic!("BUILD Windows PowerShell section error: {error}");
     });
@@ -395,6 +414,10 @@ fn build_guide_has_exact_windows_powershell_block() {
     assert!(
         windows.contains(r"`src\compiler\target\release\aero.exe`"),
         "BUILD Windows section omitted exact compiler executable location"
+    );
+    assert!(
+        windows.contains("`opt.exe` or `llvm-as.exe`"),
+        "BUILD Windows section omitted the required LLVM verifier PATH guidance"
     );
 }
 
