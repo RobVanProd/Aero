@@ -4,20 +4,19 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 23 clean-head risk re-ranking — exact three-review-approved record-only
-closure `5a8cd06`, tree `df4a04a`, passes all eight public checks and closes
-`CORE-020` without promoting compiler-option capability. Publish this final-state
-sync and `AUDIT-027` contract unchanged, require its own all-eight green evidence,
-then compare the remaining open risks from that clean public head before selecting
-any implementation.
+Milestone 23 audit closure and `CORE-021` preregistration — public audit basis
+`aa3e7a8`, tree `4caa5c33`, passes all eight checks. All three independent auditors
+rank R-013 first. After explicit comparison of its three bounded slices, the lead
+selects truthful delegated CPU-exit presentation: preserve exact child behavior but
+print `Program executed successfully.` only for exit zero.
 
 ## Active hypothesis
 
-After the bounded false-success corrections through `CORE-020`, a new source- and
-evidence-only comparison is required to identify the highest-reach remaining task
-that has frozen semantics, fits at most two compiler phases, and can begin with a
-failing regression test. Raw severity alone does not authorize unresolved type,
-ownership, aggregate, accelerator, option, or toolchain semantics.
+The CPU `run` path currently prints `Program executed successfully.` before reporting
+every delegated child status, including nonzero values. Conditioning only that line
+on exit zero removes a user-facing false-success claim while preserving the exact
+child status, output forwarding, artifact cleanup, CLI-owned status boundary, and all
+compiler/backend behavior.
 
 ## Founding-framework checkpoint
 
@@ -48,6 +47,10 @@ ownership, aggregate, accelerator, option, or toolchain semantics.
   analyses in CodeQL run `30835594365`, and aggregate `91759990615`. The selected
   unsupported-options boundary is closed; real option behavior and broad R-006
   convergence remain open.
+- `AUDIT-027` public basis `aa3e7a8`, tree `4caa5c33`, passes compiler runs
+  `30836250279`/`30836251909`, stable/nightly Rust run `30836255407`, all three
+  analyses in CodeQL run `30836248101`, and aggregate `91762198170`. The worktree
+  remained clean and auditors used static repository evidence only.
 - Accepted public `CORE-019` final-state sync head:
   `25dec51e7fb24a5dd835712568242d685af649cf`. Three independent reviewers approved
   exact record-only diff `a3cd465fab08c4c9b6b238c7aadd4a39a4d06c3d` and tree
@@ -548,9 +551,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - The local shell required Rust installation before tests could run.
 - Real backend verification may be blocked by absent LLVM/GPU toolchains or
   hardware; absence will be recorded rather than simulated.
-- `run_aero_program` still calls `exit` internally after a valid CPU process;
-  this pre-existing hidden termination violates the desired helper/API boundary
-  and remains a separate tooling task.
+- CPU `run` unconditionally prints `Program executed successfully.` even for a
+  delegated nonzero child status; `CORE-021` selects only that presentation defect.
+  `run_aero_program` still calls `exit` internally after cleanup, and that separate
+  helper/API architecture boundary remains open.
 - Legacy recovery lexing remains public for compatibility and LSP symbol recovery;
   trusted repository paths no longer feed it into semantics, IR, or artifacts.
 - Numeric and void top-level function contracts are controlled at `8d5d8e7`.
@@ -609,11 +613,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Exactly review and publish this six-record final-state sync and `AUDIT-027`
-preregistration, then require all eight public checks green. Only then perform the
-frozen read-only comparison; do not create probes, tests, artifacts, implementation,
-or a semantic decision during the audit. Preserve the exact `CORE-020` default bytes
-and pre-lexing unsupported-options error. Do not change workflows/dependencies,
+Exactly review and publish this six-record `AUDIT-027` closure, DEC-026, and
+`CORE-021` preregistration, then require all eight public checks green. Only then
+publish the frozen tests-only red checkpoint. Do not refactor helper termination,
+remap delegated statuses, add replacement wording, change child output/cleanup,
+touch init rollback, or alter compiler/backend behavior, workflows/dependencies,
 benchmarks/packages, immutable claim evidence, or `master`.
 
 ## Unauthorized actions

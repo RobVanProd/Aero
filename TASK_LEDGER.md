@@ -3295,5 +3295,76 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   release/registry action, immutable-evidence mutation, destructive system action,
   branch/history rewrite, or `master` change. Stop rather than select work crossing
   more than two compiler phases or lacking frozen semantics and a failing-test path.
-- Status: preregistered locally; audit execution is prohibited until this exact
-  six-record sync is reviewed, published, and all eight public checks pass.
+- Preregistration acceptance: exact staged tree
+  `4caa5c339810412f7f96ba673dac2d6ec8301094` and diff
+  `bd174a08c90b07f03810ef2ce6ed9aab7ba18d0a` received three independent approvals
+  with no P0-P3 findings after an omitted R-013 candidate was corrected. Published
+  as `aa3e7a8d29f73c59e8495b3c18702abb16a4f9c6`; compiler runs
+  `30836250279`/`30836251909`, stable/nightly Rust run `30836255407`, CodeQL run
+  `30836248101`, and aggregate `91762198170` provide all eight green checks.
+- Findings: all three auditors rank R-013 first. The full set was compared without
+  edits, tests, probes, or artifacts. R-012 is next actionable evidence debt but its
+  slice is unclassified; R-002/R-004/R-005 need semantics or major-version policy;
+  R-006/R-009/R-010/R-011 are architectural or semantic; R-007 needs hardware; and
+  R-016 needs a supported-toolchain decision.
+- Slice reconciliation: A suppresses false success wording on nonzero CPU children;
+  B returns delegated status instead of exiting inside the helper; C contains a
+  dangling destination entry before `init` writes a partial manifest. Backend/claim
+  and IR/codegen auditors rank A first; type/safety ranks C first and A second. The
+  lead selects A for its every-nonzero reach, direct false claim, cross-platform
+  deterministic test, zero compiler phases, and preserved status/cleanup contract.
+  C remains the bounded runner-up; B has no failing observable contract.
+- Status: complete at immutable public basis `aa3e7a8`; no capability or class is
+  promoted. Recommended next action is the separately frozen `CORE-021`.
+
+## CORE-021 — Truthful delegated CPU exit presentation
+
+- Task ID/date/owner: `CORE-021`, 2026-08-03, lead-owned R-013 tooling slice under
+  accepted DEC-026.
+- Observed behavior: `run_aero_program_with_artifacts` obtains a CPU child's exit via
+  `status.code().unwrap_or(-1)`, unconditionally prints `Program executed
+  successfully.`, then prints `Exit code: N`. The process test supplies exit 7 and
+  currently requires both lines, so a failing delegated program is presented as
+  successful even though the exact nonzero status is passed through after cleanup.
+- Hypothesis: condition only the success line on `exit_code == 0`; this removes false
+  presentation without changing execution, status, output forwarding, cleanup, CLI
+  classification, compiler phases, or backend behavior.
+- Frozen semantics: for delegated CPU exits `0`, `1`, `2`, and `7`, preserve the
+  exact process status and exact `Exit code: N`. Preserve signal fallback `-1` and
+  print no success line for it. Preserve deterministic child stdout and stderr
+  presentation, artifact cleanup before status propagation, cleanup/error precedence,
+  verifier/object/link/process behavior, and exact zero-exit success wording. Print
+  no replacement success/failure phrase for nonzero. Delegated `1`/`2` remain child
+  statuses, not CLI-owned `CliStatus` classifications. ROCm/CUDA are unchanged.
+- Tests first: change only
+  `src/compiler/tests/cli_status_contract_tests.rs`. Extend the existing delegated-
+  exit process contract within its single test function to cover exits `0`, `1`,
+  `2`, and `7`, exact stdout/stderr markers, exact status/exit line, empty temporary
+  run-artifact directories, success wording required only for zero, and forbidden
+  for every nonzero. Reuse one configurable fake native tool rather than compiling
+  one per exit. On unchanged production the focused target must be exactly 10 passed /
+  1 failed, with only this test function failing at its final aggregate assertion;
+  all four cases must execute before assertion. Exact three-review approval precedes
+  public red publication.
+- Implementation files: only `src/compiler/src/main.rs`, the unchanged tests-first
+  file, and the six current control records. Production adds one `exit_code == 0`
+  condition around the existing success print. No replacement wording or refactor.
+- Acceptance: tests-only public compiler checks and every Rust matrix job reaching
+  the target reproduce exact 10/1 while all four CodeQL checks pass; fail-fast
+  cancellation is recorded rather than hidden. Implementation produces focused
+  11/11, exact `./tools/test.sh`, three independent exact-snapshot approvals, and all
+  eight public checks while preserving every frozen output/status/cleanup control.
+- Risks: external scripts may parse the misleading line; changing it is intentionally
+  incompatible for nonzero runs. Test helpers can accidentally compile repeatedly or
+  create security-noisy executables; production could remap child `1`/`2`, suppress
+  zero success, change stdout/stderr ordering, exit before cleanup, or affect GPU
+  paths.
+- Stop conditions: any child-status remapping; new wording; helper-return/internal-
+  exit refactor; cleanup/error-precedence change; init containment/rollback; `aero
+  test` execution; parser/semantics/IR/codegen/backend/option behavior; new native
+  probe outside the existing isolated process fixture; workflow/dependency, benchmark,
+  package/release/registry, immutable-evidence, destructive-system, history rewrite,
+  or `master` change. Stop on any second production phase or semantic decision.
+- Status: preregistered locally; tests or production changes are prohibited until
+  this exact six-record audit closure/decision/task contract passes the full local
+  gate, three independent reviews, and all eight public checks.

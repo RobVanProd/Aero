@@ -165,6 +165,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   checks in compiler runs `30835593703`/`30835597576`, Rust `30835597620`, CodeQL
   `30835594365`, and aggregate `91759990615`. It changes no row or capability class.
   `AUDIT-027` is preregistered as read-only re-ranking and cannot promote a row.
+- Public-green `AUDIT-027` basis `aa3e7a8` completes the read-only comparison. All
+  auditors rank R-013 first; DEC-026 and preregistered `CORE-021` select only removal
+  of the CPU success phrase for delegated nonzero exits while preserving exact child
+  behavior. No compiler/backend row or capability class is changed or promoted.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

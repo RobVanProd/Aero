@@ -792,6 +792,33 @@ upgrading any artifact.
   not define language/toolchain/hardware semantics, create probes or artifacts, edit
   code/tests/workflows/dependencies, or promote any matrix row or capability class.
 
+### Completed `AUDIT-027` findings and `CORE-021` selection
+
+- Exact three-review-approved public basis `aa3e7a8`, tree `4caa5c33`, passes
+  compiler runs `30836250279`/`30836251909`, stable/nightly Rust run `30836255407`,
+  all three analyses in CodeQL run `30836248101`, and aggregate `91762198170`.
+  Auditors made no changes, ran no tests or probes, and left the worktree clean.
+- All three auditors rank R-013 first by active reproducibility, reach, semantic
+  readiness, phase count, compatibility ambiguity, and tests-first feasibility.
+  Remaining raw-critical type, ownership, and unchecked-API work requires unfrozen
+  semantics or a major-boundary policy; hardware needs real devices; spans, grammar,
+  aggregates, and compiler convergence are architectural; the next dormant-test
+  slice and supported-toolchain policy are not yet frozen.
+- At the audited basis, the CPU execution branch obtains the delegated status, then
+  unconditionally prints `Program executed successfully.` and `Exit code: N`.
+  The process contract deterministically supplies exit 7 and currently requires the
+  false success line. Cleanup completes before the wrapper propagates the exact child
+  status; ROCm/CUDA remain fail closed.
+- Reconciliation compared three R-013 slices. Two auditors rank the nonzero false-
+  success presentation first; one ranks dangling-entry `init` containment first and
+  presentation second. The lead selects presentation because it affects every
+  nonzero CPU child, has a cross-platform deterministic regression, changes zero
+  compiler phases, and preserves status/cleanup semantics. Entry-aware `init`
+  preflight remains the bounded runner-up; hidden helper termination remains open.
+- DEC-026 and `CORE-021` freeze one output condition only. This is claim containment,
+  not language, execution, backend, safety, or stability capability; no matrix row or
+  capability class is promoted.
+
 ## Audit completion
 
 All eight requested read-only areas were completed in bounded waves. The audit

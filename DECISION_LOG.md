@@ -1216,3 +1216,31 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Next-decision boundary: `AUDIT-027` is read-only re-ranking, not a semantic
   decision. No new implementation may be selected until its exact preregistration is
   public-green and its three independent findings are reconciled by the lead.
+
+## DEC-026 — Delegated CPU success wording requires exit zero
+
+- Date: 2026-08-03
+- Status: selected by completed `AUDIT-027`; implementation pending tests-first and
+  exact public acceptance under `CORE-021`.
+- Decision: after a CPU child executes, print the exact existing `Program executed
+  successfully.` line only when `status.code().unwrap_or(-1) == 0`. Every exit still
+  prints exact `Exit code: N`. Nonzero exits receive no replacement success/failure
+  wording in this slice.
+- Preservation: keep exact arbitrary delegated statuses, including `1`, `2`, and
+  `7`, plus the current internal/printed `status.code().unwrap_or(-1)` signal
+  fallback and platform propagation; do not reinterpret them as CLI-owned classes. Preserve
+  child stdout/stderr presentation, compilation/linking/verifier behavior, artifact
+  cleanup before status propagation, cleanup/error precedence, zero-exit wording,
+  and fail-closed ROCm/CUDA behavior.
+- Compatibility decision: removing a false success line from nonzero CPU runs is an
+  intentional output compatibility change. Exact process status and all truthful
+  output remain compatible; external text parsers are unknown.
+- Excluded: replacement wording, helper-return or internal-`exit` refactoring,
+  status remapping, project-init containment/rollback, executable `aero test`,
+  compiler pipeline or option convergence, language/type/ownership/IR/codegen/
+  backend semantics, workflows/dependencies, packages/releases, and `master`.
+- Evidence: immutable audit basis `aa3e7a8`, tree `4caa5c33`, is all-eight public
+  green in compiler runs `30836250279`/`30836251909`, Rust `30836255407`, CodeQL
+  `30836248101`, and aggregate `91762198170`. All three auditors rank R-013 first;
+  after A/B/C reconciliation, two rank this presentation slice first and one ranks it
+  second behind entry-aware `init` preflight. The lead selects this exact boundary.
