@@ -289,3 +289,14 @@ remains HIGH/HIGH and OPEN. `AUDIT-031` is preregistered to rank the complete
 remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
 from this clean head, excluding every accepted sub-slice and carrying no
 implementation authority.
+
+`AUDIT-031` is authorized and all-eight public green at `ba258c6`, tree `651762a8`,
+with compiler `30855407928` / `30855410819`, Rust `30855410731`, CodeQL
+`30855409113`, and aggregate `91825280915`. Three complete rankings and targeted
+reconciliation select one distinct R-002 containment: initialized exact outer tuple
+annotations currently disappear in both semantics and checked admission, allowing a
+scalar RHS to reach generation. `CORE-025` preregisters rejection only, after child
+validation and before binding insertion, across traversed statement contexts. R-002
+remains HIGH/CRITICAL and PARTIALLY CONTROLLED; every tuple value/layout/ABI,
+uninitialized/nested annotation, and other excluded type boundary stays open or
+quarantined. R-010 is the bounded runner-up; all other stops remain.

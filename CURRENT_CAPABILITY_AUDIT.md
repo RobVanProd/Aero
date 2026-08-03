@@ -923,6 +923,17 @@ upgrading any artifact.
   `AUDIT-031` is preregistered to re-rank all eleven remaining OPEN or PARTIALLY
   CONTROLLED risks from a clean public head without inherited ordering, repeated
   slices, implementation authority, or unsupported language/backend claims.
+- Public-green `AUDIT-031` authorization `ba258c6`, tree `651762a8`, passes compiler
+  `30855407928` / `30855410819`, Rust `30855410731`, CodeQL `30855409113`, and
+  aggregate `91825280915`. All three complete read-only rankings were reconciled on
+  one distinct R-002 defect: an initialized exact outer tuple annotation silently
+  disappears at direct semantics and checked admission, allowing a scalar RHS type
+  to reach generation. Targeted reconciliation ranks that two-phase fail-closed
+  containment above R-010's zero-phase grammar notice. `CORE-025` preregisters only
+  categorical initialized outer-tuple rejection after child validation, including
+  traversed generic statement contexts; tuple values/layout/ABI and every nested/
+  uninitialized/generic-type/reference boundary remain unchanged. No capability is
+  promoted before tests-first and public evidence.
 
 ## Audit completion
 

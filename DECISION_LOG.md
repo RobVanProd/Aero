@@ -1386,3 +1386,27 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   grammar authority, and any claim that broader R-009 is controlled.
 - Revisit full ranges only through a separately frozen end-to-end span and recovery
   model with positive, negative, retention, and protocol evidence.
+
+## DEC-030 - Initialized outer tuple binding annotations fail closed
+
+- Date: 2026-08-03
+- Status: proposed under `CORE-025`; tests and implementation pending.
+- Decision: an initialized binding with exact outer AST annotation `Type::Tuple(_)`
+  is unsupported and must reject after existing RHS validation but before binding
+  insertion in both direct semantic analysis and checked IR admission. The rule
+  applies wherever those statement paths are traversed, including generic-impl
+  contexts that otherwise bypass selected annotation comparisons.
+- Basis: exact public-green `AUDIT-031` authorization `ba258c6`, tree `651762a8`,
+  passes compiler `30855407928` / `30855410819`, Rust `30855410731`, CodeQL
+  `30855409113`, and aggregate `91825280915`. All three auditors rank the distinct
+  active false success above R-010 after targeted reconciliation.
+- Diagnostics: direct semantics identifies the variable and unsupported initialized
+  tuple annotation; checked admission identifies the checked binding and same
+  unsupported annotation. Existing duplicate/child/void/unsupported-expression and
+  outer-generic diagnostics retain precedence.
+- Excluded: tuple values/projections, uninitialized or nested tuple annotations,
+  parameters/returns, generic type/parameter semantics, references/ownership/
+  coercions, type conversion, unchecked compatibility APIs, verifier/codegen/ABI/
+  layout/backend, grammar rules, and capability promotion.
+- Revisit tuple annotation support only with separately frozen tuple type/value,
+  representation, layout, ABI, ownership, lowering, and execution contracts.

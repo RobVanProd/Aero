@@ -4,19 +4,19 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 30 `AUDIT-031` preregistration - `CORE-024` is complete at public-green
-record closure `226b7fb`. The next action is a strictly read-only, clean-head ranking
-of all eleven remaining OPEN or PARTIALLY CONTROLLED risks, but audit work is not
-authorized until this full-local-gate-green six-record contract passes its review
-and public gates. No next implementation is authorized.
+Milestone 30 `CORE-025` preregistration - public-green read-only `AUDIT-031` selects
+initialized exact outer tuple-binding annotation containment as a two-phase R-002
+slice. No test or implementation edit is authorized until this exact six-record
+full-local-gate-green contract passes its review and public gates.
 
 ## Active hypothesis
 
-After excluding every accepted sub-slice, a delta-aware comparison of current
-reproducibility, severity, reach, semantic readiness, phase count, compatibility
-ambiguity, and tests-first feasibility can identify one bounded next correction or
-an explicit stop without inventing semantics. R-009 remains open beyond the accepted
-parser-start adapter; R-010 is only a prior runner-up, not an inherited selection.
+Both direct semantics and checked admission already validate the RHS before binding
+insertion, so an exact outer `Type::Tuple(_)` guard immediately afterward can stop
+the current scalar fallback without defining tuple values, layout, ABI, generics,
+ownership, verifier, codegen, or backend behavior. Here `generics` means type/
+parameter semantics: the rejection must bypass current generic-context annotation
+skips while preserving child-error precedence.
 
 ## Founding-framework checkpoint
 
@@ -42,6 +42,12 @@ parser-start adapter; R-010 is only a prior runner-up, not an inherited selectio
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Public `AUDIT-031` authorization
+  `ba258c6e424454930b670d9c3e95f0b027ff33cf`, tree `651762a8`, diff `20115b18`,
+  passes compiler `30855407928` / `30855410819`, stable/nightly Rust `30855410731`,
+  all three analyses in CodeQL `30855409113`, and aggregate `91825280915`. Three
+  auditors completed full read-only rankings; targeted reconciliation selects the
+  exact R-002 tuple-annotation containment and leaves R-010 as runner-up.
 - Accepted public `CORE-024` record closure
   `226b7fbb89cfe9854b54d776ff5416bed516a670`, tree `1337945c`, diff `861b5ec3`,
   passes compiler `30854853182` / `30854856449`, stable/nightly Rust `30854856190`,
@@ -636,11 +642,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for this full-local-gate-green six-record `AUDIT-031`
+Obtain three exact approvals for this full-local-gate-green six-record `CORE-025`
 preregistration, publish it unchanged, and require all eight public checks before
-any audit work. Do not edit tests/source; run probes/benchmarks; assume R-010 is
-selected; broaden R-009 into span/recovery work; alter workflows/dependencies;
-publish packages/releases; modify immutable claim evidence; or touch `master`.
+adding the failing regression. Do not edit source/tests beforehand; broaden the rule
+beyond initialized exact outer tuple annotations; alter workflows/dependencies;
+publish benchmarks/packages/releases; modify immutable claim evidence; or touch
+`master`.
 
 ## Unauthorized actions
 

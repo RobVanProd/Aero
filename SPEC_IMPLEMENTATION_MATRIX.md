@@ -249,6 +249,13 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   `91823492290`. Diagnostics/source spans remain PARTIAL and LSP remains
   EXPERIMENTAL. Preregistered read-only `AUDIT-031` may re-rank residual risks but
   cannot change a matrix cell, capability class, or implementation.
+- Public-green read-only `AUDIT-031` authorization `ba258c6` selects a distinct
+  R-002 containment for `CORE-025`: initialized exact outer tuple binding annotations
+  currently disappear at semantic and checked-admission boundaries, allowing the
+  scalar RHS type to win. The task may add rejection only, after child validation
+  and before generation. Tuple remains PARSED_ONLY; no tuple value, layout, ABI,
+  lowering, execution, ownership, generic-type, nested-annotation, or matrix
+  promotion is authorized before separate accepted evidence.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

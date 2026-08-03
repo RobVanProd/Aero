@@ -3995,3 +3995,119 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   binary tests plus every active integration and doc test. Audit work is prohibited
   until this exact six-record contract passes three exact reviews, unchanged
   publication, and all eight public checks.
+
+- Authorization evidence: exact triple-approved commit
+  `ba258c6e424454930b670d9c3e95f0b027ff33cf`, tree
+  `651762a833306c4a0fa9bb7c4d661f77fa49f446`, and diff
+  `20115b1807e9f66200651cc891a7aa25668536d8` pass compiler runs
+  `30855407928` / `30855410819`, stable/nightly Rust `30855410731`, CodeQL
+  `30855409113`, and aggregate `91825280915`.
+- Findings: all three auditors completed the required read-only nine-field reports
+  and ranked all eleven residuals. Type/safety initially ranks R-010/R-012/R-002/
+  R-004/R-005/R-011/R-013/R-006/R-009/R-016/R-007. IR/codegen ranks R-002/R-010/
+  R-012/R-013/R-005/R-016/R-006/R-011/R-009/R-004/R-007. Backend/claim initially
+  ranks R-010/R-013/R-012/R-002/R-005/R-011/R-006/R-009/R-016/R-004/R-007. No
+  auditor changed files, ran tests/probes/benchmarks, created artifacts, or made
+  external queries.
+- Reconciliation: IR/codegen identifies a distinct R-002 false success that the
+  other reports grouped with broader unfrozen types: an initialized exact
+  `Type::Tuple(_)` binding annotation is omitted by both direct semantics and
+  checked admission, so `let value: (int, float) = 1;` silently becomes `Int` and
+  reaches generation. Targeted read-only reconciliation makes all three auditors
+  rank this exact containment above R-010. Rejecting the unsupported outer tuple
+  annotation after child validation is already required by the repository's
+  fail-closed type and phase-order rules; it defines no tuple value, layout, ABI,
+  coercion, generic, ownership, verifier, codegen, or backend semantics.
+- Selection: `CORE-025` may preregister only initialized exact outer tuple-binding
+  annotation rejection at direct semantics and checked admission, in every statement
+  context those phases traverse, including the existing generic-impl bypass. R-010
+  grammar-authority containment remains the bounded zero-phase runner-up. R-012
+  remains stopped on an undefined dormant-inventory population. Entry/ABI, ownership,
+  aggregate bounds/layout, unchecked-API compatibility, orchestration, tooling
+  mutation/execution, spans/recovery, toolchain policy, and hardware retain their
+  recorded stops.
+- Status: complete, strictly read-only, result commit none. Only the separately
+  frozen `CORE-025` contract below may proceed; no test or implementation edit was
+  authorized or executed by this audit.
+
+## CORE-025 - Reject initialized tuple binding annotations before generation
+
+- Task ID/date/owner: `CORE-025`, 2026-08-03, lead-owned two-phase R-002 containment
+  under DEC-030, with independent type/safety, IR/codegen, and backend/claim review
+  at every publication boundary.
+- Observed behavior: parser and AST retain an outer tuple binding annotation, but
+  `SemanticAnalyzer::binding_contract_type` and `IrGenerator::binding_contract_type`
+  return `None` for it. After successfully inferring the RHS, both statement paths
+  treat the missing contract as permission to insert the inferred scalar type.
+  `fn main() { let value: (int, float) = 1; }` is explicitly preserved as accepted
+  at both direct frontend boundaries and can pass `compile_program`, even though
+  tuple values are PARSED_ONLY and tuple expressions already fail closed.
+- Hypothesis: after existing duplicate/child/value checks and before binding
+  insertion, reject an initialized binding whose exact outer annotation is
+  `Type::Tuple(_)` in both direct semantics and checked admission. Apply the
+  rejection wherever those statement paths are traversed, regardless of active
+  semantic generic scopes or checked `inside_generic_impl` bypass. This prevents an
+  unsupported source type from silently becoming the RHS type without defining any
+  tuple execution semantics.
+- Frozen behavior: scope is only `Statement::Let` with `value: Some(_)` and exact
+  outer `Type::Tuple(_)`. Existing RHS validation runs first: tuple literal/
+  projection, void, unsupported child, binary-metadata, duplicate-binding, and other
+  earlier diagnostics retain precedence. After a valid RHS, direct semantics emits
+  exact `Error: Variable \`NAME\` uses an unsupported tuple type annotation for an
+  initialized binding.` Checked admission independently emits exact `checked IR
+  binding \`NAME\` uses an unsupported tuple type annotation for an initialized
+  binding`. The rule applies in ordinary functions and every fully traversed impl/
+  generic statement context; a phase that already rejects an outer generic construct
+  may retain that earlier outer diagnostic.
+- Preservation/exclusions: uninitialized tuple annotations; tuple arrays or tuple
+  types nested under arrays/references/generics; parameters/returns; tuple literals/
+  projections and their current diagnostics; all non-tuple excluded annotations;
+  all accepted numeric/Boolean/String/numeric-array binding contracts; generic
+  parameter substitution; and unannotated bindings remain unchanged. No parser,
+  AST, unchecked-IR compatibility API, verifier, codegen, ABI, layout, ownership,
+  coercion, backend, grammar, documentation-authority, workflow, or dependency
+  change is selected.
+- Tests first: change only
+  `src/compiler/tests/binding_type_contract_tests.rs`. Add one aggregate target
+  `initialized_tuple_annotations_fail_closed_before_generation` that requires the
+  ordinary scalar-RHS specimen to fail in direct semantics, direct checked admission,
+  and public `compile_program`; requires a constructed generic-impl binding to fail
+  at both direct boundaries despite the existing generic bypasses; preserves exact
+  child-error precedence for tuple/unsupported RHS forms; and preserves uninitialized
+  outer tuple annotations plus every remaining excluded-annotation quarantine.
+  Remove only the exact outer `tuple` case from the existing acceptance table;
+  retain `tuple array` and all other cases. The unchanged basis must fail exactly
+  the new target with the five false acceptances while all preservation controls pass.
+- Implementation files: only `src/compiler/src/semantic_analyzer.rs`,
+  `src/compiler/src/ir_generator.rs`, the unchanged tests-first file, and these six
+  control records. Use explicit exact-outer-tuple guards after existing RHS
+  validation and before binding insertion. Do not generalize the selected contract
+  mapper or alter inferred/admission type conversion.
+- Acceptance: tests-only public evidence reproduces exactly one failing integration
+  target in each compiler job and every stable/nightly Rust job that reaches it,
+  with fail-fast cancellation recorded exactly and all CodeQL analyses green.
+  Implementation passes the new target, the complete binding-contract target,
+  existing tuple-expression/checked-admission/generic preservation controls, exact
+  `./tools/test.sh`, three exact-snapshot reviews, unchanged publication, and all
+  eight public checks. Every in-scope invalid source must stop in semantics on the
+  trusted pipeline and independently at checked admission for direct-AST callers,
+  before IR generation or backend work.
+- Compatibility decision: previously accepted PARSED_ONLY false-success programs
+  with an initialized exact outer tuple annotation now receive a deterministic
+  compile error. This is fail-closed containment, not tuple semantics or a stability
+  promise. Uninitialized and nested tuple annotations retain their current
+  quarantine for separate decisions.
+- Risks: rejecting before a child error; missing generic-impl traversal; broadening
+  to nested tuple annotations or other excluded types; changing tuple-expression
+  diagnostics; inserting the binding before failure; inconsistent semantic/checked
+  diagnostics; or implying tuple layout/execution capability.
+- Stop conditions: any parser/AST, uninitialized/nested/parameter/return tuple,
+  generic-substitution, reference, ownership, coercion, unchecked API, verifier,
+  codegen, ABI/layout, grammar/docs-authority, backend, workflow/dependency,
+  benchmark, package/release/registry, immutable evidence, history rewrite,
+  destructive-system, or `master` action; more than the semantic and checked-
+  admission phases; or any unsupported source-type fallback.
+- Status: preregistered and full-local-gate green with 139/139 library and 149/149
+  binary tests plus every active integration and doc test. No test or production
+  edit is authorized until this exact six-record snapshot passes three exact reviews,
+  unchanged publication, and all eight public checks.
