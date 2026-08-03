@@ -3601,3 +3601,107 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Status: preregistered and full-local-gate green. Audit work is prohibited until
   this exact contract passes three exact reviews, unchanged publication, and all
   eight public checks.
+
+- Authorization evidence: exact triple-approved commit
+  `0e5cba17abec65b96a9f04ddd3450ef10cd9fa40`, tree
+  `6ac88db4e3c3316886c363e2be4430ad83dd7533`, and diff
+  `161cbee6fcedad0054fcd9931c1d8b8424797f89` pass compiler runs
+  `30845609442` / `30845612610`, stable/nightly Rust run `30845612328`, CodeQL
+  run `30845609103`, and aggregate `91793190047`.
+- Findings: all three auditors completed the required read-only nine-field reports
+  and ranked all eleven residuals. Type/safety ranks R-002/R-012/R-011/R-004/R-005/
+  R-013/R-009/R-006/R-010/R-007/R-016. IR/codegen ranks R-010/R-012/R-002/R-011/
+  R-005/R-004/R-009/R-006/R-013/R-016/R-007. Backend/claim ranks R-009/R-012/
+  R-002/R-005/R-004/R-011/R-006/R-013/R-010/R-007/R-016. R-012 is the common
+  evidence-only runner-up; the three top implementation candidates are distinct.
+- Reconciliation: the lead selects R-002's monomorphic Boolean helper-function
+  semantic contracts. Current semantics omits `bool` when registering function
+  contracts, accepts invalid Boolean calls and returns, and types other declared
+  calls as `Int`, while checked IR already admits exact Boolean function signatures
+  as LLVM `i1`. The slice is deterministic, one compiler phase, and uses already
+  supported exact Boolean equality without defining a new source type or coercion.
+  R-009's parser-column UTF-16 adapter and R-010's grammar-authority notice remain
+  bounded follow-ups. R-011 remains stopped on unfrozen bounds behavior; R-004/
+  R-005/R-006/R-007/R-013/R-016 retain their recorded semantic, architectural,
+  hardware, compatibility, or policy stops.
+- Status: complete, strictly read-only, result commit none. Only the separately
+  frozen `CORE-023` contract below may proceed; no test or implementation was
+  authorized or executed by this audit.
+
+## CORE-023 - Enforce Boolean helper-function contracts in semantics
+
+- Task ID/date/owner: `CORE-023`, 2026-08-03, lead-owned one-phase R-002 semantic
+  vertical slice under DEC-028, with independent type/safety, IR/codegen, and
+  backend/claim review at every publication boundary.
+- Observed behavior: `SemanticAnalyzer::analyze` registers a function contract only
+  when every monomorphic parameter and return passes `numeric_contract_type`, which
+  maps `int`/`i32` and `float`/`f64` but not `bool`. Consequently semantic analysis
+  accepts `identity_bool(1)` and `fn broken() -> bool { return 1; }`, while a valid
+  `let selected: bool = truth();` is rejected because a noncontract function call is
+  inferred as `Int`. Checked IR independently maps Boolean helper-function
+  definitions, calls, returns, and storage to LLVM `i1`, so later admission can mask
+  the earlier fail-open boundary for invalid programs.
+- Hypothesis: extend the existing monomorphic top-level function-contract path to
+  exact Boolean parameter and return types for non-entry helpers. Reuse the current
+  arity, parameter mismatch, return mismatch, all-path return, forward-call,
+  recursion, and direct-module behavior. A valid Boolean call then infers `Ty::Bool`;
+  invalid Boolean calls and returns stop in semantics before checked IR.
+- Frozen semantics: source `bool` maps exactly to `Ty::Bool`; no implicit conversion,
+  truthiness, numeric default, or coercion is introduced. Scope is monomorphic,
+  non-entry, top-level helper functions and their direct calls, including forward,
+  recursive, and direct-module visibility already used by numeric contracts. Exact
+  existing diagnostics apply: arity mismatch; parameter `NAME` type mismatch with
+  expected/actual contract names; function return type mismatch; and must-return-on-
+  all-paths. Existing numeric aliases/contracts, void statements/value rejection,
+  closure shadowing, Boolean binding equality, and checked-IR LLVM `i1` behavior are
+  preservation controls. `main` entry semantics and ABI are unchanged.
+- Tests first: change only `src/compiler/tests/function_contract_tests.rs`. Add one
+  aggregate direct-semantic target using strict lexing, located parsing, and a fresh
+  `SemanticAnalyzer` per specimen. It must require rejection of an `int` passed to a
+  `bool` parameter with function/parameter/expected-bool/actual-int fragments;
+  rejection of an `int` returned from a `bool` helper with function/expected-bool/
+  actual-int fragments; and acceptance of a Boolean helper call assigned to a
+  `bool` binding. The same aggregate must preserve direct-semantic entry behavior:
+  `fn main() -> bool { return 1; }` retains its current analyzer acceptance strictly
+  as quarantined entry behavior, not program-validity evidence, while
+  `fn main() -> i32 { return 1.0; }` retains its existing numeric return-mismatch
+  rejection. The unchanged basis must fail exactly this target with the three helper
+  discrepancies reported together while both entry controls pass. Review and publish
+  this tests-only tree before production work.
+- Implementation files: only `src/compiler/src/semantic_analyzer.rs`, the unchanged
+  tests-first file, and these six control records. Keep the existing contract data
+  and validation flow. Use a function-contract-specific helper mapping that extends
+  the existing numeric mapping with `bool`, and select it only for non-entry
+  monomorphic helpers; retain the existing numeric/void mapping for `main`. Do not
+  add `bool` to shared `numeric_contract_type`, which also feeds binding/array logic,
+  or skip all entry registration. No parser, AST, IR, verifier, codegen, ABI, module-
+  collection, CLI, backend, dependency, or workflow change.
+- Acceptance: tests-only focused public evidence reproduces exactly one failing
+  `function_contract_tests` target in each compiler job and every stable/nightly Rust
+  job that reaches it, with fail-fast cancellation recorded exactly and all CodeQL
+  analyses green. Implementation passes the focused function-contract target,
+  existing Boolean binding and checked-IR `i1` preservation targets, direct-module
+  function controls, both direct-semantic `main` preservation specimens, exact
+  `./tools/test.sh`, three exact-snapshot reviews, unchanged publication, and all
+  eight public checks. Invalid in-scope Boolean helper calls/returns must fail in
+  direct semantics before IR; valid selected helper calls must infer `Ty::Bool`.
+- Compatibility decision: previously fail-open direct semantic consumers now receive
+  the existing exact contract diagnostics for invalid in-scope Boolean helper calls/
+  returns; valid Boolean helper results previously mis-typed as `Int` become
+  `Ty::Bool`. This is an intentional experimental-front-end correction. Syntax,
+  public Rust signatures, entry behavior, numeric/void behavior, and already-checked
+  `i1` lowering remain compatible.
+- Risks: accidentally registering `main`; broadening String/custom/generic/array/
+  tuple/reference/closure/method contracts; changing numeric/void diagnostics;
+  applying coercion; desynchronizing semantic and checked-IR signatures; or letting
+  a new or in-scope invalid Boolean non-entry helper program reach IR/artifact
+  generation.
+- Stop conditions: any entry-point or ABI change; any parser/AST, IR, verifier,
+  codegen, backend, layout, ownership, generic, aggregate, String, custom-name,
+  method, closure, coercion, or defaulting change; more than the semantic compiler
+  phase; unsupported type fallback; any new or in-scope invalid non-entry helper path
+  beyond semantics; new dependency/workflow, benchmark, package/release/registry,
+  immutable claim evidence, history rewrite, destructive-system, or `master` action.
+- Status: preregistered and full-local-gate green. No test or production edit is
+  authorized until this exact six-record snapshot passes three exact reviews,
+  unchanged publication, and all eight public checks.

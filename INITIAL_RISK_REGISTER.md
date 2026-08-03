@@ -230,3 +230,15 @@ rank the complete remaining set R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/
 R-012/R-013/R-016 from a clean head, separating every accepted sub-slice from its
 open residual and prohibiting implementation until separate reconciliation and a
 frozen task contract.
+
+`AUDIT-029` is complete from exact public-green basis `0e5cba1`, tree `6ac88db4`.
+The three full rankings select R-002 Boolean helper contracts, R-010 grammar claim
+containment, and R-009 parser UTF-16 columns respectively; all rank R-012 second.
+The lead selects R-002's distinct Boolean helper boundary: semantics currently omits
+Boolean function contracts, so direct analysis accepts invalid Boolean calls/returns
+and infers valid Boolean calls as `Int`, while checked IR already admits exact
+Boolean/LLVM-`i1` signatures. `CORE-023` preregisters one semantic phase only for
+monomorphic non-entry helpers. R-002 remains PARTIALLY CONTROLLED; custom,
+contextual, structural, generic, aggregate, String, reference, method, closure,
+coercion, entry-point, and ABI behavior remain excluded, as do every other residual's
+recorded stops.

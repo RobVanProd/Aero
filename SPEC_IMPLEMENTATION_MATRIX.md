@@ -201,6 +201,17 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   `30844802332`, Rust `30844802044`, CodeQL `30844799426`, and aggregate
   `91790481511`. Preregistered read-only `AUDIT-029` ranks the complete residual set
   but cannot change or promote any matrix row.
+- `AUDIT-029` completed from all-eight public-green basis `0e5cba1`, tree
+  `6ac88db4`. The independent top selections are R-002 Boolean helper contracts,
+  R-010 grammar-authority containment, and R-009 parser UTF-16 columns; R-012 is the
+  common evidence-only runner-up. Lead reconciliation selects R-002's active one-
+  phase semantic inconsistency. Checked IR already maps Boolean helper definitions,
+  returns, calls, and storage to LLVM `i1`, but semantics registers only numeric/void
+  contracts, accepts invalid Boolean calls/returns, and defaults other declared call
+  results to `Int`. Preregistered `CORE-023` adds no matrix promotion: it freezes
+  only exact `Ty::Bool` contracts for monomorphic non-entry helpers, with parser,
+  AST, IR, verifier, codegen, ABI, generics, composites, coercions, and broader R-002
+  closure excluded until separate evidence.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

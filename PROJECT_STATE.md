@@ -4,17 +4,19 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 26 `AUDIT-029` preregistration — `CORE-022` is complete and exact status
-sync `21153f3` is triple-reviewed, all-eight public green, and clean. The next work is
-a full-set, read-only residual-risk feasibility ranking; no implementation is
-authorized.
+Milestone 27 `CORE-023` preregistration - `AUDIT-029` is complete from exact
+public-green basis `0e5cba1`. The reconciled next slice is one-phase semantic
+enforcement of exact Boolean contracts for monomorphic non-entry helper functions.
+The six-record contract is full-local-gate green; no tests or implementation are
+authorized until it is triple-approved, published unchanged, and all-eight public
+green.
 
 ## Active hypothesis
 
-A delta-aware comparison of all eleven remaining residuals can select one distinct,
-semantically frozen, deterministic tests-first slice within two compiler phases—or
-stop explicitly—without inheriting AUDIT-028 ordering or repeating an accepted
-boundary.
+Extending the established exact function-contract path from numeric/void helpers to
+already-supported `bool` can make invalid Boolean calls/returns stop in semantics and
+valid Boolean call results infer `Ty::Bool`, without changing parser, IR, codegen,
+ABI, generics, aggregates, coercion, or any other source semantics.
 
 ## Founding-framework checkpoint
 
@@ -615,11 +617,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals, publish this full-local-gate-green six-record
-`AUDIT-029` preregistration unchanged, and require all eight public checks before the
-read-only audit. Do not begin tests or implementation; repeat accepted slices; invent
-semantics; expand init preflight claims; alter workflows/dependencies; publish
-benchmarks/packages/releases; modify immutable claim evidence; or touch `master`.
+Obtain three exact approvals for this full-local-gate-green six-record `AUDIT-029`
+reconciliation and `CORE-023` preregistration, publish it unchanged, and require all
+eight public checks. Only then add the one aggregate direct-semantic tests-first
+target. Do not edit production early; broaden beyond Boolean non-entry helpers;
+alter workflows/dependencies; publish benchmarks/packages/releases; modify immutable
+claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

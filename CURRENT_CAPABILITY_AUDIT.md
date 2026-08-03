@@ -863,6 +863,17 @@ upgrading any artifact.
   delta-aware ranking of all eleven remaining OPEN or PARTIALLY CONTROLLED risks. It
   cannot repeat an accepted slice, authorize implementation, or promote any
   capability.
+- Exact triple-approved `AUDIT-029` basis `0e5cba1`, tree `6ac88db4`, is all-eight
+  public green in compiler `30845609442` / `30845612610`, Rust `30845612328`,
+  CodeQL `30845609103`, and aggregate `91793190047`. The three independent full
+  rankings recommend different top slices: R-002 Boolean helper contracts, R-010
+  grammar-authority containment, and R-009 parser UTF-16 columns. R-012 is their
+  common second-place evidence-only slice. Lead reconciliation selects R-002 because
+  semantics currently accepts invalid Boolean helper calls/returns and mis-infers
+  valid Boolean call results as `Int`, while checked IR already has active exact
+  `bool`/LLVM-`i1` function evidence. `CORE-023` freezes only monomorphic non-entry
+  helper contracts in the semantic phase. No current capability is promoted before
+  tests-first, implementation, full-gate, review, and public evidence.
 
 ## Audit completion
 

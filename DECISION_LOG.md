@@ -1306,3 +1306,40 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   PARTIALLY CONTROLLED residual, exclude accepted sub-slices, and return one distinct
   bounded candidate or a stop. Any implementation still requires a separate frozen
   decision/task contract.
+
+## DEC-028 - Boolean helper functions use exact semantic contracts
+
+- Date: 2026-08-03
+- Status: proposed by completed read-only `AUDIT-029`; preregistered and full-local-
+  gate green under `CORE-023`, not yet tests-first or implemented.
+- Decision: for monomorphic non-entry top-level helper functions, source `bool`
+  parameters and returns participate in the existing exact function-contract path as
+  `Ty::Bool`. Calls use exact arity and equality checks, Boolean results infer
+  `Ty::Bool`, and explicit/tail/missing returns use the existing return controls.
+- Basis: public-green audit commit `0e5cba1`, tree `6ac88db4`, passes compiler
+  `30845609442` / `30845612610`, Rust `30845612328`, CodeQL `30845609103`, and
+  aggregate `91793190047`. All three auditors ranked all eleven residuals. Their top
+  selections were R-002 Boolean contracts, R-010 grammar-authority containment, and
+  R-009 parser UTF-16 columns; R-012 was the common second-place evidence slice.
+  The lead selects R-002 because it is the highest-severity active fail-open compiler
+  defect and remains one semantic phase with a deterministic direct-analyzer red.
+- Compatibility decision: invalid Boolean helper calls/returns that direct semantics
+  accepted now fail earlier with established contract diagnostics; valid Boolean
+  helper results formerly mis-inferred as `Int` become `Ty::Bool`. No coercion or new
+  source semantics is introduced because binding equality and checked-IR Boolean
+  function lowering to LLVM `i1` are already active evidence.
+- Preservation: numeric/void contracts and diagnostics; entry-point semantics/ABI;
+  forward/recursive/direct-module visibility; closure shadowing; exact Boolean
+  binding equality; checked IR/codegen `i1`; and every unrelated compiler/tooling/
+  backend result.
+- Test binding: the single aggregate direct-semantic target must preserve both sides
+  of the entry boundary: current analyzer acceptance of
+  `fn main() -> bool { return 1; }` is retained only as quarantined entry behavior,
+  while `fn main() -> i32 { return 1.0; }` retains its current numeric mismatch
+  rejection. Production must use a helper-specific Boolean mapping while preserving
+  the existing numeric/void entry mapping.
+- Excluded: `main`, strings, custom/contextual/structural names, generics, arrays,
+  tuples, references, closures, methods, implicit conversion/defaulting, parser/AST,
+  IR/verifier/codegen/backend/ABI changes, and any claim of general R-002 closure.
+- Revisit excluded types only through separately frozen semantics, compatibility,
+  phase boundaries, deterministic negative evidence, and end-to-end preservation.
