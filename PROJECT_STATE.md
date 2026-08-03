@@ -4,22 +4,20 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 20 implementation candidate — triple-reviewed public tests-only commit
-`6728a39` proves the documented `aero test` execution/pass claim with the exact 9/2
-red contract on both compiler jobs and nightly Rust; stable Rust was cancelled during
-its test step by matrix fail-fast, and all four CodeQL checks passed. The local
-candidate changes only CLI/help/BUILD presentation, passes the focused CLI target
-11/11, and passes exact `./tools/test.sh`. Three-review and public-green acceptance
-remain pending.
+Milestone 20 record-only closure — exact three-review-approved implementation
+`2fe580d`, tree `1e530e65`, makes semantic-only `aero test` presentation truthful,
+passes focused CLI 11/11 and exact `./tools/test.sh`, and passes all eight public
+checks (compiler `30829084150`/`30829086467`, Rust `30829088650`, CodeQL
+`30829082758`, aggregate `91738325685`). The selected implementation boundary is
+accepted; reviewed closure and final-state sync remain.
 
 ## Active hypothesis
 
-The public red checkpoint and local 11/11 candidate support replacing only `aero
-test` execution/pass wording with exact semantic-analysis/no-execution wording. The
-existing scan, strict parse/direct-module/semantic stages, diagnostics, counts, and
-`0/1/2` statuses remain unchanged; no executable-test ABI or runtime behavior is
-introduced. The exact full gate is green; acceptance still depends on exact review
-and public CI.
+The public red checkpoint followed by the reviewed public-green implementation proves
+that exact semantic-analysis/no-execution wording controls this false assurance
+without changing the scan, strict parse/direct-module/semantic stages, diagnostics,
+counts, or `0/1/2` statuses. No executable-test ABI, checked IR, codegen, or runtime
+behavior is introduced.
 
 ## Founding-framework checkpoint
 
@@ -589,9 +587,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze the exact full-gate-green `CORE-019` implementation candidate, obtain three
-independent approvals, and publish it only if all eight public checks become green.
-Then perform a reviewed record-only closure/final sync.
+Freeze, exactly review, and publish the six-record `CORE-019` closure, require all
+eight public checks green, and then perform the final-state sync. After clean-head
+audit, evaluate fail-closed nondefault `CompilerOptions` as the bounded runner-up.
 Do not execute Aero tests, add checked IR/codegen/runtime behavior, change discovery/
 count/status semantics, implement `CompilerOptions`, publish benchmarks or packages,
 or modify `master`.

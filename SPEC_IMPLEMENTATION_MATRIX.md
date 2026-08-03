@@ -135,9 +135,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   separate R-006 runner-up.
 - Triple-reviewed public tests-only `6728a39` proves that boundary with exact 9/2
   compiler/nightly failures, permitted stable fail-fast cancellation during tests,
-  and four green CodeQL checks. The bounded local CLI/help/BUILD candidate is 11/11
-  and exact-full-gate green. No matrix row or capability class is promoted until
-  exact review and public-green implementation/closure evidence exists.
+  and four green CodeQL checks. Exact three-review-approved implementation `2fe580d`
+  is focused 11/11, exact-full-gate green, and all-eight-public-checks green. The
+  selected presentation boundary is accepted without promoting any matrix row or
+  capability class and without adding test execution, IR, codegen, or runtime.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
