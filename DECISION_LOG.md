@@ -939,3 +939,50 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Revisit when: a separately frozen conversion/subtyping policy, definite assignment,
   generic substitution, aggregate execution, or full trait-body type checker is
   ready for an independently tested vertical slice. None is inferred by `CORE-015`.
+
+## DEC-021 — Separate compiler package version from the v1 language design target
+
+- Date: 2026-08-03
+- Status: proposed for `CORE-016`; requires exact preregistration, tests-only red,
+  implementation, and closure review before acceptance
+- Decision: `src/compiler/Cargo.toml` remains the single source for the compiler
+  package/implementation version. The CLI obtains that value at compile time with
+  `env!("CARGO_PKG_VERSION")`. Standalone `-v` and `--version` print exactly
+  `Aero compiler version <package-version>` and exit zero. The no-command banner
+  prints `Aero Programming Language Compiler v<package-version>` before the existing
+  help and exits two. The bare `version` word remains an unknown command with status
+  two; this decision does not add a command or change the package version.
+- Design-version boundary: `v1.0.0` remains a historical/future Aero language design
+  target in the consolidated language document. It is not the current compiler
+  package version, a conformance result, a stable compatibility promise, or release
+  evidence. Current-facing language, type-system, ownership, tutorial, task, and demo
+  documents must visibly distinguish design/reference or historical helper material
+  from supported implementation behavior.
+- Conformance boundary: the existing three example cases, four deterministic
+  repetition checks, their algorithms, counts, exit behavior, and JSON report schema
+  remain unchanged. Compatibility field and Rust symbol names containing
+  `mechanized` remain unchanged in this slice. Console/help/current docs describe the
+  four checks as deterministic regression checks, not mechanized semantics or formal
+  proof. `CONFORMANCE_PLAN.md` remains the evidence authority for that limitation.
+- Current capability boundary: README and build guidance may claim only behavior
+  supported by the accepted capability audit. Generic syntax, trait bounds,
+  ownership/move/borrow parsing or shallow tracking does not establish an enforced
+  generic type system, borrow checker, lifetime safety, or memory-safety guarantee.
+  The repository-facing `CLAUDE.md` status and current getting-started/tutorial
+  guidance are part of this boundary, not exempt internal or aspirational claims.
+- Evidence required: a tests-only red target must bind both version flags, the
+  no-command banner/status, the unchanged unknown `version` command, exact package
+  metadata, static use of `env!("CARGO_PKG_VERSION")` rather than a hard-coded
+  current implementation version, conformance console/help wording and counts, the
+  unchanged JSON compatibility fields, current README/build/CLAUDE/Getting Started
+  claims, visible design-target notices, and visible archive notices on claim-heavy
+  historical task/demo records. The
+  focused target and complete repository gate require three exact independent reviews
+  at preregistration, red, implementation, and closure publication stages.
+- Alternatives rejected: changing Cargo to `1.0.0`; choosing a new language version;
+  adding a `version` subcommand; renaming JSON fields; calling deterministic reruns
+  mechanized semantics; deleting design documents; presenting parsed or dormant
+  ownership/generic helpers as safety enforcement; publishing a release.
+- Revisit when: compatibility policy and release evidence justify a language or
+  package version transition, or a separately reviewed formal-semantics system and
+  conformance corpus justify stronger proof claims.

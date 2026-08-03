@@ -2396,5 +2396,163 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   commit `5d7aae0f5626813249b6de983a229dbbb1e4fef8` passes both compiler-test jobs,
   stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL.
 - Status: complete; accepted at public closure head `5d7aae0`. The four-record
-  final-state sync is awaiting exact review/publication before the next bounded risk
-  audit.
+  final-state sync is public and green at `c612f3b` after exact three-review approval.
+
+## AUDIT-022 — Re-rank public claims and dormant-test risk after CORE-015
+
+- Scope: read-only recheck at clean accepted public head
+  `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`; upstream `master` remains
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`. Draft PR #4 is mergeable and all
+  eight checks pass.
+- Version evidence: Cargo metadata reports package `compiler 0.3.0`; standalone
+  `-v` and `--version` both print `Aero compiler version 1.0.0` with status zero;
+  the no-command path prints `Aero Programming Language Compiler v1.0.0` before
+  help and exits two. Bare `version` remains an unknown command with status two.
+- Conformance evidence: the command passes three example cases and four checks named
+  lexer/parser/IR/lowering determinism. Source inspection confirms deterministic
+  repeated-output comparison, not mechanized formal semantics. Console/help/BUILD
+  call them mechanized/formal, while `CONFORMANCE_PLAN.md` already records the
+  narrower truth.
+- Safety/coverage evidence: README presents generics/trait bounds/where clauses and
+  a borrow checker as current features. The type-system, ownership, and Tutorial 3
+  documents claim compile-time memory-safety enforcement despite absent lifetime
+  provenance and mutable references classified Copy. Four collection/string task or
+  demo records lack the historical notices already present on struct/enum records;
+  `todo.md` presents completed phases and `1.0.0` as current.
+- Additional current-surface evidence: `CLAUDE.md` labels Phase 5, borrow-checker
+  enforcement, generics, and traits complete. Tutorial 1 calls the command a formal
+  suite and its four deterministic repetitions mechanized checks, then presents
+  ownership as an active memory-safety feature. Tutorial 2 repeats that safety claim;
+  Tutorial 4 already carries an explicit implementation boundary.
+- Ignored-test evidence: `cargo test --manifest-path src/compiler/Cargo.toml --test
+  phase5_tests -- --ignored --test-threads=1` runs 38 tests, with 36 pass and 2 fail.
+  `test_semantic_cannot_mutate_through_immutable_ref` relies on recovery parsing that
+  drops an unsupported assignment before semantics; `test_semantic_trait_method_borrows_self`
+  expects accepted struct/method/borrow behavior outside frozen support. Passing
+  ignored tests may share recovery/stub assumptions, so bulk activation would create
+  false coverage rather than controlled behavior.
+- Ranking: R-004 remains conceptually critical but needs unfrozen ownership/
+  provenance across more than two phases. Residual R-002 custom/contextual
+  annotation enforcement is stopped because an arbitrary name can denote a nominal
+  type or in-scope generic and needs a separately frozen resolution/substitution
+  contract. Remaining R-011 aggregate execution needs typed aggregate IR, bounds,
+  layout, and backend work. Full R-012 needs test-by-test recovery/stub classification
+  rather than bulk activation. R-006, R-009, and R-010 are broader architectural or
+  cross-phase work; R-007 requires unavailable device evidence; R-016 is
+  medium/medium. R-008 is the highest bounded active public false claim and can be
+  corrected without inventing language semantics.
+- Selection: `CORE-016` makes Cargo's existing package version the CLI presentation
+  source, distinguishes the language v1 design target, labels repeatability checks
+  accurately, and adds visible status notices to current and historical documents.
+  No package version, parser/type/ownership semantics, conformance algorithm/report
+  schema, backend, benchmark, registry, release, external artifact, or master change
+  is selected.
+- Commands: `git status -sb`; `git rev-parse HEAD`; `gh pr view 4 --json ...`;
+  direct CLI version/no-command/conformance invocations; Cargo metadata; targeted
+  `rg`; ignored Phase 5 test execution; source and documentation inspection.
+- Changes/artifacts: none during the audit. The ignored-test log is local temporary
+  evidence only. No benchmark, registry, release, device, or external artifact was
+  created or published.
+- Status: complete; reproduction, comparison, frozen direction, and stop boundary are
+  recorded before new tests or production changes.
+
+## CORE-016 — Make public version, conformance, and safety claims evidence-based
+
+- Problem: the compiler package is `0.3.0`, but its version routes and banner present
+  `1.0.0`. Three example conformance cases and four deterministic repeatability checks
+  are described as formal/mechanized proof. Current-facing documents present parsed,
+  shallow, or dormant generics/ownership features as an enforced borrow checker and
+  memory-safety guarantee. These are active public false claims under R-008.
+- Priority: P1 public correctness / R-008 HIGH-HIGH. Unlike adjacent ownership,
+  architecture, span, grammar, ignored-test, or backend gaps, this correction needs
+  no unfrozen language semantics and touches only one CLI presentation surface plus
+  documentation.
+- Dependencies: accepted `CORE-015` closure `5d7aae0`, accepted final-state sync
+  `c612f3b`, completed `AUDIT-022`, and proposed `DEC-021`.
+- Frozen version contract: keep `src/compiler/Cargo.toml` and `Cargo.lock` unchanged.
+  At compile time, `env!("CARGO_PKG_VERSION")` supplies the implementation version.
+  `-v` and `--version` print exactly `Aero compiler version <package-version>` and
+  exit zero. No command prints a hard-coded implementation version. With no command,
+  the first line is exactly `Aero Programming Language Compiler v<package-version>`,
+  followed by existing help, with status two. Bare `version` remains unknown/status
+  two. Do not choose or publish a new version.
+- Frozen design contract: preserve the consolidated language `v1.0.0` material as a
+  future/historical design target. Add a prominent notice that it is not current
+  package version, implemented conformance, compatibility promise, or release
+  evidence. Add equivalent design-only notices to the type-system and ownership
+  documents and Tutorial 3. Preserve their content; no specification rule changes.
+  Replace `CLAUDE.md`'s completed Phase 5 claims with a concise evidence-status
+  section aligned to the accepted capability audit.
+- Frozen conformance contract: retain the existing three cases, four checks,
+  algorithms, order, counts, statuses, JSON shape, and Rust/JSON names containing
+  `mechanized`. Console summary uses `Determinism checks: 4/4 passed`; help and BUILD
+  call them deterministic regression checks. Do not call the command formal proof or
+  mechanized semantics. `CONFORMANCE_PLAN.md` is unconditionally frozen.
+- Current/history documentation contract: README's current-surface table must state
+  that generic/trait/where syntax is parsed or quarantined rather than enforced; that
+  ownership/borrow syntax and shallow tracking do not establish a borrow checker,
+  lifetime safety, or memory-safety guarantee; and that conformance is three examples
+  plus four deterministic regression checks. BUILD drops a fixed version header and
+  uses the same conformance classification. Tutorial 1 uses the same conformance
+  language and Tutorial 1/2 mark ownership/safety follow-ons as conceptual design
+  material; Tutorial 4's existing implementation-boundary notice remains a control.
+  `todo.md` becomes a visible historical planning snapshot rather than current
+  completion/version evidence. Add visible
+  historical-helper notices to `docs/demos/builtin_collections_demo.md`,
+  `docs/demos/collection_string_demo.md`,
+  `docs/tasks/TASK_10_3_COLLECTION_STRING_GENERATION_SUMMARY.md`, and
+  `docs/tasks/TASK_11_BUILTIN_COLLECTIONS_LIBRARY_SUMMARY.md`. Existing struct/enum
+  notices remain required controls.
+- Red tests: add `src/compiler/tests/version_claim_contract_tests.rs`. It must derive
+  the expected package version from the compiling package; process-test `-v`,
+  `--version`, no-command, and bare `version` outputs/statuses; prove no hard-coded
+  literal implementation-version presentation by statically binding main's exact
+  `env!("CARGO_PKG_VERSION")` interpolation; bind the conformance console/help labels
+  and unchanged 3/4 counts; serialize a report and preserve the compatibility
+  `mechanized_*` fields; verify README/BUILD/CLAUDE/Tutorial 1/Tutorial 2 current-
+  surface language; require design-target notices on the consolidated/type/ownership/
+  Tutorial 3 documents and retain Tutorial 4's current implementation notice;
+  require archive notices on todo and all eight claim-heavy
+  struct/enum/collection demo/task records; and retain the current experimental/no-
+  stability boundary. Existing `cli_status_contract_tests.rs` version assertions
+  must remain exact but derive their expectation from the package version; their
+  status and extra-operand contracts must not weaken.
+  Before production/docs edits, only the new frozen negative assertions may fail and
+  every prior test must pass.
+- Full acceptance: focused red/green target, exact complete `./tools/test.sh`, and
+  three independent exact diff/tree reviews at preregistration, tests-only red,
+  implementation, and closure. Each published green checkpoint must pass both
+  compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  CodeQL. Public red must reproduce only the intended new target failures.
+- Files allowed: new `src/compiler/tests/version_claim_contract_tests.rs`;
+  only the three existing version-string expectations in
+  `src/compiler/tests/cli_status_contract_tests.rs`; `src/compiler/src/main.rs`;
+  `README.md`; `BUILD.md`; `CLAUDE.md`; `todo.md`;
+  `docs/language/aero_formal_language_specification.md`;
+  `docs/language/aero_type_system.md`; `docs/language/aero_ownership_borrowing.md`;
+  `tutorials/01-getting-started.md`; `tutorials/02-core-features.md`;
+  `tutorials/03-ownership-borrowing.md`; the four collection/string demo/task records
+  named above; and minimal task, decision, risk, capability, matrix, and project
+  control records.
+- Files frozen: Cargo manifest/lock/dependencies; lexer, parser, AST/type system,
+  semantic analyzer, IR, verifier, code generator, module/cache, CLI status taxonomy
+  beyond the frozen presentation strings, conformance cases/check algorithms/report
+  schema, `CONFORMANCE_PLAN.md`, ownership implementation, backend/workflow,
+  examples/scaffold, registry,
+  benchmarks/claims evidence, release/tag/package state, external state, and `master`.
+- Risks: compile-time version interpolation can drift between binary and docs; a
+  documentation correction can accidentally rewrite the design target; compatibility
+  fields can be renamed; accurate qualifications can be buried or contradicted by a
+  table; historical helpers can still read as current support; or changing help text
+  can alter established status/output structure. Tests must bind exact routes,
+  headings/notices, compatibility fields, counts, and experimental status.
+- Stop conditions: any need to choose/change a language or package version, change
+  Cargo metadata, add a command, rename report fields, alter conformance algorithms,
+  change parser/type/ownership semantics, delete design history, claim formal proof,
+  modify a backend/workflow, run or publish a benchmark, release/package/register,
+  touch a third compiler phase, or change `master`. Stop rather than infer policy.
+- Owner: lead-owned bounded CLI/docs truth slice. Independent type, IR/codegen, and
+  backend/claim reviewers must approve the exact preregistration, tests-only red,
+  implementation candidate, and acceptance closure before each publication.
+- Status: preregistered locally; no tests or production/public-claim files may change
+  before exact review of this record set.

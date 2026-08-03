@@ -523,6 +523,47 @@ upgrading any artifact.
   `CORE-015` is accepted at that public closure head without expanding the explicit
   exclusions or any backend capability claim.
 
+### Post-CORE-015 public-claims recheck (`AUDIT-022`)
+
+- The accepted final-state sync is public at clean head `c612f3b`; draft PR #4 is
+  mergeable and all eight checks pass. Upstream `master` remains `8f8c733`.
+- Cargo metadata reports package `compiler 0.3.0`, while standalone `-v` and
+  `--version` print `Aero compiler version 1.0.0` and the no-command help banner
+  prints `Aero Programming Language Compiler v1.0.0`. The unadvertised bare
+  `version` word is already an unknown command with status two.
+- `aero conformance` reports three example cases and four repeatability checks. The
+  four named checks rerun tokenization, parsing, checked IR, and lowering to compare
+  deterministic output; they are regression evidence, not mechanized formal
+  semantics. The current console, help, BUILD, README, and consolidated language
+  document overstate that evidence.
+- README still lists generics/trait bounds/where clauses and a borrow checker as the
+  current language surface. The type-system and ownership documents plus Tutorial 3
+  state compile-time memory-safety enforcement that the audit disproves: lifetimes
+  and provenance are absent and mutable references remain classified Copy.
+- `CLAUDE.md` labels Phase 5, borrow-checker enforcement, generics, and traits
+  complete. Tutorial 1 calls the four repetitions mechanized checks and the command
+  a formal suite; its next-step list also presents ownership as an active memory-
+  safety feature. Tutorial 2 calls the following ownership material an active
+  memory-safety feature rather than design-only. These current-facing surfaces are
+  part of R-008; Tutorial 4 already carries an explicit implementation boundary.
+- Claim-heavy collection/string demo and task summaries have no visible historical
+  status notice. Struct and enum records already carry such notices. `todo.md` still
+  presents completed phases and version `1.0.0` as current project status.
+- An explicit run of all 38 ignored `phase5_tests` passes 36 and fails 2. One failure
+  relies on recovery parsing dropping unsupported assignment before semantics; the
+  other expects accepted struct/method/borrow behavior outside frozen support. The
+  passing set therefore cannot be activated blindly as current capability evidence.
+- R-004 remains stopped on multi-phase ownership/provenance decisions. Residual R-002
+  custom/contextual annotations require a separately frozen nominal-name/generic-
+  substitution contract. Remaining R-011 aggregate execution requires typed IR,
+  bounds, layout, and backend work; R-012 needs test-by-test recovery/stub
+  classification. R-006, R-009, and R-010 are broader than this bounded workflow;
+  R-007 lacks device evidence; R-016 is medium/medium. R-008 is the highest bounded
+  active public false claim.
+  `CORE-016` selects manifest-derived CLI presentation and visible evidence-based
+  documentation classification. No package version, report schema, semantics,
+  backend, benchmark, registry, release, or master behavior is selected.
+
 ## Audit completion
 
 All eight requested read-only areas were completed in bounded waves. The audit

@@ -4,23 +4,22 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 16 closure publication — `CORE-015` is accepted at public closure head
-`5d7aae0` after approved preregistration, red, implementation, and closure snapshots
-plus green local and public gates. The current four-record final-state sync awaits
-exact review/publication before the next bounded risk audit begins. Accepted
-`CORE-014` remains closed at `1535ce2`; benchmark execution remains quarantined.
+Milestone 17 preregistration — `CORE-015` is accepted and its reviewed final-state
+sync is public at `c612f3b`, with all eight checks green. `AUDIT-022` now selects
+`CORE-016` to correct public version, conformance, and safety claims without changing
+language semantics, the package version, report schema, backends, releases, or
+benchmarks. Accepted `CORE-014` remains closed; benchmark execution remains
+quarantined.
 
 ## Active hypothesis
 
-`CORE-015` can close four of the five highest-severity reproduced type-contract false
-successes without inventing conversions. Existing numeric scalar enforcement remains
-unchanged. Outside active semantic generic scopes, the new binding-local predicate
-selects `bool`, canonical `String`, and one-dimensional fixed arrays over the four
-numeric spellings with positive count; numeric arrays infer every element plus an
-integer index before IR. Lowercase `string`, custom/contextual/structural annotations, nonnumeric arrays,
-and all new annotation/array behavior inside generic semantic scopes remains
-quarantined under explicit preservation controls. The slice does not admit a new
-type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
+`CORE-016` can close R-008's active public false-claim boundary in one CLI
+presentation surface plus documentation. Cargo's existing `0.3.0` package value is
+the compiler implementation-version source; `v1.0.0` is explicitly a language design
+target, not current conformance or stability. The existing three conformance cases
+and four repeatability checks remain unchanged and are labeled deterministic
+regression checks. Unsupported generic/ownership/safety material remains preserved
+but visibly design-only or historical. No semantic or release decision is inferred.
 
 ## Founding-framework checkpoint
 
@@ -46,6 +45,12 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-015` final-state sync head:
+  `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`. Three independent reviewers approved
+  exact staged diff `674b1831accef7b714ba21799249f346cc5a7491` and tree
+  `224b9d790115de92d381a956e4487725325140f2` with no P0-P3 findings. Both
+  compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  CodeQL pass; draft PR #4 is mergeable.
 - Accepted public closure head:
   `5d7aae0f5626813249b6de983a229dbbb1e4fef8`. Three independent reviewers approved
   exact closure-record diff `a8e4059e71991c9d7a274234f91dd225bea61c01` and tree
@@ -437,7 +442,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - ROCm: interface/retarget/object-generation plumbing; no link/launch path or
   current-session hardware execution evidence.
 - CUDA: selectable interface; CLI source states run support is not implemented.
-- Public version: inconsistent (`0.3.0` package versus `1.0.0` README/CLI).
+- Public version: inconsistent (`0.3.0` package versus `1.0.0` CLI/banner), selected
+  for evidence-based correction in preregistered `CORE-016`.
 - Library compiler options: accepted but ignored by `compile_program`.
 - Compiler architecture: binary and library declare overlapping modules.
 
@@ -495,15 +501,26 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   fail closed without artifacts, but only after semantic success. R-004 remains
   stopped because the mutable-reference Copy/provenance defect requires unfrozen
   ownership work across more than two phases.
+- Accepted `CORE-015` at `5d7aae0` closes its four selected active false successes;
+  the final records are public and green at `c612f3b`. `AUDIT-022` at that clean head
+  reproduces R-008: package `0.3.0` versus CLI/banner `1.0.0`, deterministic reruns
+  presented as mechanized/formal proof, and current-facing README, CLAUDE, tutorial,
+  generic, and ownership safety claims beyond implementation evidence. Residual
+  R-002 custom/contextual annotation work is stopped on unresolved nominal/generic
+  meaning; remaining R-011 needs typed aggregate execution work. The ignored Phase 5
+  backlog remains open:
+  an explicit 38-test ignored run passes 36 and fails 2 but contains recovery/stub
+  assumptions that prevent bulk activation.
 
 ## Exact next action
 
-Stage and independently review the exact four-record `CORE-015` final-state sync.
-Only after all three reviewers approve the same diff and tree may it be committed and
-published. Then verify its public record-only CI matrix before beginning the next
-read-only risk audit. Do not change compiler code/tests, lexer/parser syntax, type
-representation, conversions, assignment, ownership, aggregate layout/codegen,
-backend behavior, version policy, benchmarks, registry, release state, or `master`.
+Stage and independently review the exact six-record `AUDIT-022` / `CORE-016`
+preregistration. Run the complete gate, then publish it only after all three reviewers
+approve the same diff and tree. After all eight public checks pass, add the frozen
+tests-only red contract. Do not change production code or public claims before that
+red checkpoint; do not change parser/type/ownership semantics, package version,
+conformance algorithms or JSON schema, backend behavior, benchmarks, registry,
+release state, or `master`.
 
 ## Unauthorized actions
 
