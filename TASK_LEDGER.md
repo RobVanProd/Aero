@@ -3515,6 +3515,34 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   inspection; CLI status/helper-exit change; parser/semantics/IR/codegen/backend
   behavior; new dependency/workflow, benchmark, package/release/registry, immutable
   evidence, history rewrite, destructive-system, or `master` action.
-- Status: preregistered and full-local-gate green. Tests and production changes remain
-  prohibited until this exact six-record audit closure/decision/task contract passes
-  three exact reviews, is published unchanged, and passes all eight public checks.
+- Preregistration acceptance: exact tree `60978f638e40bec51f79fcb8010c990025da3baa`
+  and diff `691be8a860657dc02cb137e8bdb9aac66765db91` received three approvals
+  with no P0-P3 findings and were published unchanged as `045339d`. Compiler
+  `30842636280` / `30842636899`, Rust `30842636893`, CodeQL `30842634423`, and
+  aggregate `91783336329` all pass.
+- Tests-first checkpoint: exact one-test-file tree
+  `70abf47c4bb0ddf01554202d2c5ca28d6eb15713` and diff
+  `9e8157369b1f7f7f398e8319aeaecabafe46d5ee` received three approvals and were
+  published unchanged as `7cd8aba`. Both compiler runs `30843119793` /
+  `30843125522` reproduce exactly 10/1: only
+  `pre_publication_and_established_operational_failures_return_one` fails, and its
+  aggregate report contains only the missing source-refusal text and unexpected
+  partial manifest. Nightly in Rust `30843124314` reproduces the same failure;
+  stable reaches `Run tests` and is cancelled by matrix fail-fast. CodeQL
+  `30843121127` passes all three analyses and aggregate `91784962909` passes.
+- Implementation acceptance: exact one-production-file tree
+  `a61f2c5b0665e70ccde2d7346e794fd214c67c8c` and diff
+  `99000b4700e75f6d65409ea947d8234c52b64059` received three approvals with no
+  P0-P3 findings and were published unchanged as `2a42324`. Corrected focused binary
+  unit tests pass 3/3, CLI passes 11/11, and exact `./tools/test.sh` passes locally on
+  Windows; the dangling-symlink case remains compiled out there. Public compiler
+  `30843592298` / `30843592784`, stable/nightly Rust `30843595560`, CodeQL
+  `30843589175`, and aggregate `91786468184` all pass on Linux.
+- Result: `symlink_metadata` now checks manifest then source before any create/write;
+  every existing final entry is occupied, only `NotFound` is available, and other
+  inspection errors fail with the frozen diagnostic. The accepted test binds no
+  partial manifest plus exact symlink-target and blocker-byte preservation. No
+  rollback, atomicity, TOCTOU, ancestor-symlink, language, compiler, backend, safety,
+  stability, package, release, benchmark, or hardware capability is claimed.
+- Status: implementation accepted at `2a42324`; exact record-only closure remains
+  pending three reviews, unchanged publication, and all-eight public green.

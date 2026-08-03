@@ -187,6 +187,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   the only universal top-two residual; DEC-027 and preregistered `CORE-022` select
   only fail-closed `aero init` destination-entry preflight before writes. This
   project-tooling boundary does not change or promote a compiler/backend matrix row.
+- Accepted `CORE-022` implementation `2a42324` makes final-entry `aero init`
+  preflight non-following and fail-closed before writes. Exact tests-only `7cd8aba`
+  reproduces Linux compiler 10/1; implementation passes focused/local gates and all
+  eight public checks in compiler `30843592298` / `30843592784`, Rust `30843595560`,
+  CodeQL `30843589175`, and aggregate `91786468184`. This project-tooling containment
+  promotes no language, IR, codegen, CPU, ROCm, or CUDA matrix row.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

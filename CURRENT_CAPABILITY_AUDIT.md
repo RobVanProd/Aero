@@ -844,6 +844,14 @@ upgrading any artifact.
   preflight before `aero init` writes. R-011 bounds behavior remains unfrozen; R-002
   remains a wider runner-up. This is project-tooling containment and adds no language,
   compiler, backend, filesystem-atomicity, safety, or stability capability.
+- `CORE-022` is implemented and accepted at `2a42324`. Triple-reviewed tests-only
+  `7cd8aba` produces exact Linux compiler 10/1 in `30843119793` / `30843125522` and
+  nightly Rust `30843124314`; stable is fail-fast cancelled during tests, while all
+  CodeQL analyses pass. Triple-reviewed implementation `2a42324` passes focused 3/3
+  and 11/11 plus the exact local gate, compiler `30843592298` / `30843592784`, Rust
+  `30843595560`, CodeQL `30843589175`, and aggregate `91786468184`. This controls only
+  final-entry init preflight; rollback, atomicity, race freedom, ancestor symlinks,
+  and every compiler/backend capability remain outside the result.
 
 ## Audit completion
 

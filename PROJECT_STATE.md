@@ -4,17 +4,16 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 25 `AUDIT-028` closure and `CORE-022` preregistration — public audit basis
-`399e04f` is all-eight green. All three auditors rank R-013 in their top two; the lead
-selects only entry-aware, pre-write `aero init` containment for a dangling destination
-entry.
+Milestone 25 `CORE-022` record-only closure — triple-reviewed implementation
+`2a42324` is all-eight public green and controls the selected dangling-entry
+`aero init` preflight. No next implementation is authorized by this closure.
 
 ## Active hypothesis
 
-Non-following destination inspection can treat every preexisting manifest/source
-directory entry as occupied before any create/write, closing the reproduced partial
-manifest without deleting user entries or promising rollback, atomicity, or race
-freedom.
+The accepted non-following destination inspection treats every preexisting final
+manifest/source entry as occupied before any create/write. Exact Linux red-to-green
+evidence closes the reproduced partial manifest without deleting user entries or
+promising rollback, atomicity, ancestor-symlink containment, or race freedom.
 
 ## Founding-framework checkpoint
 
@@ -553,9 +552,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   preserving exact child status/output/cleanup. `run_aero_program` still calls `exit`
   internally after cleanup, and that separate helper/API architecture boundary
   remains open.
-- `aero init` still follows `Path::exists()` preflight with manifest-first writes; a
-  dangling `src/main.aero` entry can therefore leave a partial manifest. `CORE-022`
-  selects only entry-aware refusal before the first write, not general rollback.
+- Accepted `CORE-022` at `2a42324` uses final-entry, non-following preflight before
+  any `aero init` create/write and prevents the reproduced dangling-source partial
+  manifest. General rollback, atomicity, ancestor-symlink policy, and race freedom
+  remain open.
 - Legacy recovery lexing remains public for compatibility and LSP symbol recovery;
   trusted repository paths no longer feed it into semantics, IR, or artifacts.
 - Numeric and void top-level function contracts are controlled at `8d5d8e7`.
@@ -614,12 +614,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Review and publish this six-record `AUDIT-028` closure, DEC-027, and `CORE-022`
-preregistration, then require all eight public checks green before the tests-only
-checkpoint. Do
-not refactor helper termination, remap delegated statuses, add replacement wording,
-change child output/cleanup, touch init rollback, or alter compiler/backend behavior,
-workflows/dependencies, benchmarks/packages, immutable claim evidence, or `master`.
+Review and publish this exact six-record `CORE-022` closure, then require all eight
+public checks green before any next audit or implementation selection. Do not expand
+init preflight into rollback, atomicity, ancestor-symlink, or race-freedom claims;
+refactor helper termination; remap statuses; alter compiler/backend behavior;
+change workflows/dependencies; publish benchmarks/packages/releases; modify immutable
+claim evidence; or touch `master`.
 
 ## Unauthorized actions
 

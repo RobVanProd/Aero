@@ -1266,8 +1266,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-027 — Init destination entries are occupied even when dangling
 
 - Date: 2026-08-03
-- Status: selected by completed `AUDIT-028`; implementation pending tests-first and
-  exact public acceptance under `CORE-022`.
+- Status: implemented and accepted at `2a42324` under `CORE-022`; exact record-only
+  closure remains pending review and public acceptance.
 - Decision: before `aero init` creates a directory or writes a file, inspect the
   `aero.toml` destination and then `src/main.aero` without following symlinks. Any
   existing directory entry, including a dangling symlink, is occupied. Only an exact
@@ -1291,3 +1291,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   aggregate `91777920315`. R-013 is the only residual all three auditors rank in the
   top two (positions 1/2/2). R-011 is stopped on unfrozen bounds-failure semantics;
   R-002 remains a wider runner-up with phase/scope disagreement.
+- Acceptance: preregistration `045339d` passes all eight public checks. Triple-
+  reviewed tests-only `7cd8aba` reproduces exact compiler 10/1 in `30843119793` /
+  `30843125522` and nightly Rust `30843124314`; stable is fail-fast cancelled during
+  tests, while CodeQL `30843121127` and aggregate `91784962909` pass. Triple-reviewed
+  one-file implementation `2a42324` passes focused binary units 3/3, CLI 11/11, the
+  exact full local gate, compiler `30843592298` / `30843592784`, Rust `30843595560`,
+  CodeQL `30843589175`, and aggregate `91786468184`.
