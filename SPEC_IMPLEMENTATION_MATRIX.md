@@ -92,11 +92,14 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 - Current conformance determinism checks are useful regression evidence, not
   formal-semantics proof.
 - `AUDIT-022` at clean public head `c612f3b` reproduces a compiler package version
-  of `0.3.0` while CLI version routes/banner present `1.0.0`. Its three example
-  cases plus four deterministic repetitions are not a formal or mechanized
-  semantics proof. `CORE-016` preregisters manifest-derived CLI presentation and
-  documentation classification only; language semantics, package version, report
-  schema, conformance algorithms, and release state remain frozen.
+  of `0.3.0` while CLI version routes/banner present `1.0.0`. Reviewed public red
+  `4b94dbd` binds that mismatch and the overstated three-example/four-repetition
+  claims at exactly two preservation passes/five failures. The local `CORE-016`
+  implementation candidate derives CLI presentation from package metadata and
+  classifies those checks and design/history documents without changing capability
+  behavior; its focused claim and CLI targets pass 7/7 and exact full gate passes.
+  Exact review/public green evidence is still required. Language semantics, package
+  version, report schema, conformance algorithms, and release state remain frozen.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

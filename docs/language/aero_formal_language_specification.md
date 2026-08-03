@@ -1,5 +1,7 @@
 # Aero Formal Language Specification (v1.0.0)
 
+> **Design target — not current implementation evidence.** Aero v1.0.0 remains a language design target, not the compiler package version and not a conformance or stability claim. See `CURRENT_CAPABILITY_AUDIT.md` and `SPEC_IMPLEMENTATION_MATRIX.md` for the implemented subset.
+
 This document is the consolidated formal specification for Aero v1.0.0.
 It defines the core syntax, static semantics, ownership model, module rules,
 and execution model used by the reference compiler.

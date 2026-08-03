@@ -482,12 +482,12 @@ fn explicit_help_and_version_are_successful() {
         (
             "version-long",
             args(&["--version"]),
-            "Aero compiler version 1.0.0",
+            concat!("Aero compiler version ", env!("CARGO_PKG_VERSION")),
         ),
         (
             "version-short",
             args(&["-v"]),
-            "Aero compiler version 1.0.0",
+            concat!("Aero compiler version ", env!("CARGO_PKG_VERSION")),
         ),
         (
             "registry-help-word",
@@ -547,7 +547,7 @@ fn invalid_invocations_return_two_with_command_appropriate_streams() {
         (
             "version-extra",
             args(&["--version", "extra"]),
-            &["Aero compiler version 1.0.0"],
+            &[concat!("Aero compiler version ", env!("CARGO_PKG_VERSION"))],
             &[],
         ),
         ("build-missing", args(&["build"]), &[], &["Usage:"]),

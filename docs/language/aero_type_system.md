@@ -1,5 +1,9 @@
 # Aero Language Specification - Type System Rules
 
+> **Design target — not current implementation evidence.** The rules below preserve
+> the intended type system. Generic substitution, trait-bound enforcement, and the
+> full ownership/type interaction are not current supported contracts.
+
 ## Introduction
 
 This document formally specifies the static type system rules for the Aero programming language. It defines the built-in types, rules for type inference, and the syntax and behavior of generic type parameters and trait bounds. A strong static type system is crucial for Aero's goals of performance and reliability.

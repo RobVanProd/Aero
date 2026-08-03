@@ -563,6 +563,14 @@ upgrading any artifact.
   `CORE-016` selects manifest-derived CLI presentation and visible evidence-based
   documentation classification. No package version, report schema, semantics,
   backend, benchmark, registry, release, or master behavior is selected.
+- Reviewed public red commit `4b94dbd` binds this boundary with exactly two
+  preservation passes and five intended failures. The local implementation candidate
+  now reports compiler package `0.3.0` through both version flags and the no-command
+  banner, labels the unchanged three cases/four repetitions as deterministic
+  regression evidence, and visibly classifies unsupported current/design/historical
+  claims. Focused claim and CLI targets each pass 7/7 and exact `./tools/test.sh`
+  passes including doc tests. These are candidate results pending exact review and
+  public green CI; they do not yet close R-008 or elevate any capability class.
 
 ## Audit completion
 

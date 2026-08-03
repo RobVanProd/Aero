@@ -378,4 +378,6 @@ In this tutorial, you've learned about several core features of Aero:
 -   **Functions**: Definition (`fn`), parameters, return types, and calling.
 -   **Comments**: `//` for line comments, `/* ... */` for block comments.
 
-These building blocks are essential for writing more complex Aero programs. In the next tutorial, we'll start looking at Aero's powerful features for memory safety: Ownership and Borrowing.
+These building blocks are essential for writing more complex Aero programs. The next
+tutorial presents Aero's design-only ownership and borrowing model; the current
+compiler does not provide borrow-checker, lifetime, or memory-safety enforcement.

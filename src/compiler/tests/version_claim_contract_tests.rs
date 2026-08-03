@@ -208,6 +208,7 @@ fn historical_completion_records_are_visibly_archived() {
             .lines()
             .take(12)
             .flat_map(str::split_whitespace)
+            .filter(|word| *word != ">")
             .collect::<Vec<_>>()
             .join(" ")
             .to_ascii_lowercase();

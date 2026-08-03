@@ -190,9 +190,10 @@ Live transport remains a future design target; it will not be enabled until pack
 response, authentication, destination, overwrite, and dependency contracts are
 reviewed and tested adversarially.
 
-### 10. Run conformance and mechanized checks
+### 10. Run conformance regression checks
 
-Use `conformance` to validate language behavior against the formal suite:
+Use `conformance` to run 3 example cases and 4 deterministic regression checks;
+this is not a formal semantics proof:
 
 ```bash
 aero conformance -o conformance_report.json
@@ -206,7 +207,7 @@ In the next tutorials, we will explore:
 *   Variables and Data Types
 *   Functions in more detail
 *   Control Flow (if/else, loops)
-*   Ownership and Borrowing (Aero's key memory safety feature)
+*   The conceptual ownership and borrowing design (not current memory-safety enforcement)
 *   Structs and Enums
 *   And much more!
 

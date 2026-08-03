@@ -1,5 +1,8 @@
 # Task 11: Built-in Collections Library - Implementation Summary
 
+> **Historical record — not current capability evidence.** The original task claims
+> below are not evidence of a current executable built-in collections library.
+
 ## Overview
 This document summarizes the comprehensive implementation of the Built-in Collections Library for Task 11 of Phase 4 data structures, including all three subtasks: Vec implementation, array operations, and enhanced string operations.
 

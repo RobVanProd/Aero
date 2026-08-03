@@ -54,7 +54,7 @@ The compiler executable is `src\compiler\target\release\aero.exe`. Before using
 `aero run`, ensure `clang.exe`, `llc.exe`, and either `opt.exe` or `llvm-as.exe`
 from the same LLVM 22 distribution are also on PATH.
 
-## CLI command summary (v1.0.0)
+## CLI command summary
 
 - `aero build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--backend <cpu|rocm|cuda|gpu>] [--gpu <arch>]`: compile Aero source to LLVM IR with optional accelerator target metadata
 - `aero run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--backend <cpu|rocm|cuda|gpu>] [--gpu <arch>]`: compile and run an Aero program (artifacts are emitted under `target/aero-run`; ROCm path currently emits target object for HIP integration)
@@ -66,7 +66,7 @@ from the same LLVM 22 distribution are also on PATH.
 - `aero graph-opt <input.ll> -o <output.ll> [--backend <cpu|cuda|rocm>] [--gpu <arch>] [--annotation-only]`: apply graph compilation with executable fused-kernel lowering
 - `aero quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2> [--backend <cpu|cuda|rocm>] [--gpu <arch>] [--calibration <file>] [--per-channel] [--annotation-only]`: apply hardware-calibrated INT8/FP8 lowering interfaces
 - `aero registry <subcommand>`: search a local index or create credential-free, network-free publish/install previews with `--dry-run`; live transport is quarantined pending a reviewed protocol and trust boundary
-- `aero conformance [-o <report.json>]`: run formal conformance suite and mechanized semantics checks
+- `aero conformance [-o <report.json>]`: run 3 example cases and 4 deterministic regression checks (not a formal semantics proof)
 - `aero init [path]`: create a project scaffold (`aero.toml` + `src/main.aero`)
 - `aero lsp`: run the Aero language server over stdio (diagnostics, completion, hover, go-to-definition, document symbols)
 

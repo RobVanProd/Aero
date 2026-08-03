@@ -2591,6 +2591,33 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   tests remaining ignored, before stopping only on the new 2/5 target. A separate Cargo
   `--no-fail-fast` run reproduces the same sole failing target and proves doc tests
   pass. No production or public-claim file changed.
-- Status: tests-only red staged locally for exact three-review approval. Production
-  and public-claim changes remain prohibited until the reviewed red checkpoint is
-  public and reproduces the same isolated failure matrix.
+- Red review/publication: all three independent reviewers approved exact staged diff
+  `b734773e6f1f4bb9c9561dc089e72b103e3b4e25` and tree
+  `488687b20c882c78c8e801d46cdb0bf817d7f421` with no P0-P3 findings. Public commit
+  `4b94dbd55465d2f94c2e7840f26ce5f73e571f30` reproduces 2 passed / 5 failed in both
+  compiler-test jobs and nightly Rust. The stable matrix job reached its test step
+  before fail-fast cancellation; all three CodeQL analyses and aggregate CodeQL pass.
+  CI runs `30791641180`, `30791643961`, and Rust run `30791643936` preserve the
+  intended red evidence without a production change.
+- Implementation candidate: `main.rs` now derives both version routes and the
+  no-command banner from `env!("CARGO_PKG_VERSION")`; the existing CLI status target
+  derives its three exact expectations from the same package metadata. Console/help/
+  BUILD describe the unchanged four checks as deterministic regression checks.
+  Current README, CLAUDE, and Tutorial 1/2 claims are bounded to audited behavior;
+  language-design and Tutorial 3 notices distinguish the v1.0.0 target; todo and four
+  claim-heavy collection/string records are visibly historical. Cargo metadata,
+  conformance algorithms/count/order/schema, `mechanized_*` compatibility names,
+  language semantics, and backend/release state are unchanged.
+- Green-test correction: the archive-intro normalizer ignores a standalone Markdown
+  blockquote marker (`>`). Public red never reached this pre-existing wrapped Task
+  10.2 notice because the same group failed earlier; the correction preserves the
+  frozen first-12-lines intent without weakening any required text or moving a
+  failure. This is disclosed as an implementation-side preservation correction.
+- Local verification: `version_claim_contract_tests` passes 7/7; the complete
+  `cli_status_contract_tests` target passes 7/7; exact `./tools/test.sh` exits zero
+  after formatting/correctness Clippy, 139 library tests, 148 binary tests, every
+  integration target including the new 7/7 target, and doc tests. The established 38
+  Phase 5 ignored tests remain unchanged.
+- Status: implementation candidate locally green and awaiting exact three-review
+  approval. Publication and acceptance closure remain prohibited until all three
+  reviewers approve this exact staged diff/tree and public CI is fully green.

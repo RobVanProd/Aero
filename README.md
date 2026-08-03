@@ -136,8 +136,8 @@ aero lsp
 
 | Category | Features |
 |----------|----------|
-| **Type System** | Static typing, generics, trait bounds, where clauses |
-| **Memory** | Ownership, move semantics, shared & mutable references, borrow checker |
+| **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
+| **Memory** | Ownership/reference syntax and shallow move tracking only; no borrow checker, lifetime analysis, or memory-safety guarantee. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
@@ -145,7 +145,7 @@ aero lsp
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
-| **Phase 8 Runtime Slice** | Hardware-calibrated INT8/FP8 lowering (CPU/CUDA/ROCm), executable fused-kernel backend generation, local `registry.aero` search and dry-run planning, formal conformance + mechanized checks. Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
+| **Phase 8 Runtime Slice** | Hardware-calibrated INT8/FP8 lowering (CPU/CUDA/ROCm), executable fused-kernel backend generation, local `registry.aero` search and dry-run planning, and 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
 > **Tuple status:** tuple literal, tuple-index, type, and pattern syntax is

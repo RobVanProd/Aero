@@ -274,7 +274,7 @@ fn run_conformance_command_with_report(
     output_json: Option<&Path>,
 ) -> Result<ConformanceCommandResult, String> {
     let mut lines = vec![format!(
-        "Conformance cases: {}/{} passed | Mechanized checks: {}/{} passed",
+        "Conformance cases: {}/{} passed | Determinism checks: {}/{} passed",
         report.passed_cases,
         report.total_cases,
         report.passed_mechanized_checks,
@@ -365,7 +365,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
             };
         }
         "--version" | "-v" => {
-            println!("Aero compiler version 1.0.0");
+            println!("Aero compiler version {}", env!("CARGO_PKG_VERSION"));
             return if args.len() == 2 {
                 CliStatus::Success
             } else {
@@ -2079,7 +2079,10 @@ fn find_llvm_tool(tool: &str) -> Option<String> {
 }
 
 fn print_help(program_name: &str) {
-    println!("Aero Programming Language Compiler v1.0.0");
+    println!(
+        "Aero Programming Language Compiler v{}",
+        env!("CARGO_PKG_VERSION")
+    );
     println!();
     println!("USAGE:");
     println!("    {} <COMMAND> [OPTIONS]", program_name);
@@ -2108,9 +2111,7 @@ fn print_help(program_name: &str) {
     println!(
         "    registry <subcommand>                Search a local index or create network-free publish/install previews"
     );
-    println!(
-        "    conformance [-o <report.json>]       Run formal conformance and mechanized checks"
-    );
+    println!("    conformance [-o <report.json>]       Run deterministic regression checks");
     println!("    init [path]                          Initialize a new Aero project");
     println!("    lsp                                  Run Aero language server (stdio)");
     println!();

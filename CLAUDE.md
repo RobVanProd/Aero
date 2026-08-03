@@ -21,21 +21,12 @@ Aero is a high-performance, ergonomic programming language. The compiler is writ
 3. Correctness clippy lints are blocking — fix them, don't suppress
 4. Keep build artifacts out of git (use .gitignore)
 
-## Current Phase: Phase 5 (Advanced Features) — COMPLETE
-- Ownership and move semantics (DONE)
-- References and borrowing syntax (DONE)
-- Borrow checker enforcement (DONE)
-- Generics: type params, trait bounds, where clauses (DONE)
-- Traits: registry, completeness checking, bound enforcement (DONE)
-- 174 tests passing (63 unit + 52 optimizer + 59 frontend integration)
-- 37/38 Phase 5 spec tests passing (1 needs assignment statements — future work)
-
-## Completed Phases
-- Phase 5: Advanced Features (ownership, borrowing, borrow checker, generics, traits)
-- Phase 4: Data Structures (arrays, structs, enums, pattern matching, tuples, strings)
-- Phase 3: Control flow, functions, semantic analysis
-- Phase 2: Binary operations, type inference
-- Phase 1: Lexer, parser, basic codegen
+## Current Evidence Status
+- **Minimal prototype / correctness recovery.** No language feature is classified stable.
+- Scalar parsing, selected semantic contracts, checked IR, and the qualified CPU LLVM path have active evidence; see `CURRENT_CAPABILITY_AUDIT.md` and `SPEC_IMPLEMENTATION_MATRIX.md`.
+- Ownership, borrowing, generic, trait, struct, enum, tuple, and pattern syntax does not establish complete type checking, a borrow checker, lifetime safety, layout, or execution support.
+- The 38 Phase 5 integration tests remain ignored pending test-by-test recovery/stub classification; they are not current coverage evidence.
+- Use `PROJECT_STATE.md` for current test counts and accepted public checkpoints.
 
 ## Key Design Docs
 - `aero_grammar.md` - Language grammar
