@@ -301,6 +301,185 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
             }
         }
     }
+    for (label, source, forbidden) in [
+        (
+            "inference error precedes later child inference error",
+            "fn main() { let values = [1, missing_function(), missing_later]; }",
+            "missing_later",
+        ),
+        (
+            "inference error precedes later child preflight error",
+            "fn main() { let values = [1, missing_function(), (2, 3)]; }",
+            "Tuple expressions are not supported",
+        ),
+    ] {
+        match semantic_result(source) {
+            Ok(()) => failures.push(format!("{label}: unexpectedly accepted")),
+            Err(error) => {
+                if !error.contains("Function `missing_function` is not defined") {
+                    failures.push(format!(
+                        "{label}: diagnostic {error:?} missed the earlier failing child"
+                    ));
+                }
+                if error.contains(forbidden) {
+                    failures.push(format!(
+                        "{label}: diagnostic {error:?} reported the later child first"
+                    ));
+                }
+            }
+        }
+    }
+    match semantic_result("fn main() { let values = [missing_function(), (2, 3)]; }") {
+        Ok(()) => failures
+            .push("non-numeric-first preflight precedence: unexpectedly accepted".to_string()),
+        Err(error) => {
+            if !error.contains("Tuple expressions are not supported") {
+                failures.push(format!(
+                    "non-numeric-first preflight precedence: diagnostic {error:?} missed the preserved later preflight error"
+                ));
+            }
+            if error.contains("Function `missing_function` is not defined") {
+                failures.push(format!(
+                    "non-numeric-first preflight precedence: diagnostic {error:?} incorrectly activated numeric-first ordering"
+                ));
+            }
+        }
+    }
+    for (label, source, expected, forbidden) in [
+        (
+            "nested numeric array retains element-major ordering",
+            "fn main() { let item = [1, missing_function(), (2, 3)][0]; }",
+            "Function `missing_function` is not defined",
+            "Tuple expressions are not supported",
+        ),
+        (
+            "nested unselected array retains preflight precedence",
+            "fn main() { let item = [missing_function(), (2, 3)][0]; }",
+            "Tuple expressions are not supported",
+            "Function `missing_function` is not defined",
+        ),
+    ] {
+        match semantic_result(source) {
+            Ok(()) => failures.push(format!("{label}: unexpectedly accepted")),
+            Err(error) => {
+                if !error.contains(expected) {
+                    failures.push(format!(
+                        "{label}: diagnostic {error:?} missed expected precedence {expected:?}"
+                    ));
+                }
+                if error.contains(forbidden) {
+                    failures.push(format!(
+                        "{label}: diagnostic {error:?} reported forbidden precedence {forbidden:?}"
+                    ));
+                }
+            }
+        }
+    }
+    match semantic_result("fn main() { let point = 1; let item = [1, (2, 3)][point.field]; }") {
+        Ok(()) => failures
+            .push("nested array precedes later parent sibling: unexpectedly accepted".to_string()),
+        Err(error) => {
+            if !error.contains("Tuple expressions are not supported") {
+                failures.push(format!(
+                    "nested array precedes later parent sibling: diagnostic {error:?} missed the earlier array child"
+                ));
+            }
+            if error.contains("Field access expressions are not supported") {
+                failures.push(format!(
+                    "nested array precedes later parent sibling: diagnostic {error:?} advanced to the later index first"
+                ));
+            }
+        }
+    }
+    expect_acceptance(
+        &mut failures,
+        "stub-only method argument retains pre-task numeric-array quarantine",
+        semantic_result("fn main() { let values = [1, 2]; let item = values.unknown([1, 2.5]); }"),
+    );
+    for (label, source) in [
+        (
+            "closure body retains strict unsupported-child preflight",
+            "fn main() { let callback = |value: int| [1, (2, 3)]; }",
+        ),
+        (
+            "method argument retains strict unsupported-child preflight",
+            "fn main() { let text = \"x\"; let value = text.unknown([1, (2, 3)]); }",
+        ),
+    ] {
+        expect_rejection(
+            &mut failures,
+            label,
+            semantic_result(source),
+            &["Tuple expressions are not supported"],
+        );
+    }
+    match semantic_result("fn main() { println!(\"\", [1, 2.5]); }") {
+        Ok(()) => failures
+            .push("format count precedes argument inference: unexpectedly accepted".to_string()),
+        Err(error) => {
+            if !error.contains("Format string has 0 placeholders but 1 arguments were provided") {
+                failures.push(format!(
+                    "format count precedes argument inference: unexpected diagnostic {error:?}"
+                ));
+            }
+            if error.contains("array element type mismatch") {
+                failures.push(format!(
+                    "format count precedes argument inference: array child incorrectly preempted format validation: {error:?}"
+                ));
+            }
+        }
+    }
+    expect_acceptance(
+        &mut failures,
+        "custom enum payload retains pre-task numeric-array quarantine",
+        semantic_result(
+            "enum Choice { Number(int) } fn main() { let choice = Choice::Number([1, 2.5]); }",
+        ),
+    );
+    let deeply_nested_array = format!(
+        "fn main() {{ let values = {}1{}; }}",
+        "[".repeat(18),
+        "]".repeat(18)
+    );
+    expect_acceptance(
+        &mut failures,
+        "deep first-element array nesting remains accepted without duplicate traversal",
+        semantic_result(&deeply_nested_array),
+    );
+    let alternating_array_index = (0..18).fold("1".to_string(), |expression, _| {
+        format!("[{expression}][0]")
+    });
+    expect_acceptance(
+        &mut failures,
+        "alternating array/index nesting reuses interleaved array inference",
+        semantic_result(&format!(
+            "fn main() {{ let value = {alternating_array_index}; }}"
+        )),
+    );
+    match semantic_result("fn main() { let point = 1; let values = [(1, 2), point.field]; }") {
+        Ok(()) => failures
+            .push("first preflight error remains immediate: unexpectedly accepted".to_string()),
+        Err(error) => {
+            if !error.contains("Tuple expressions are not supported") {
+                failures.push(format!(
+                    "first preflight error remains immediate: diagnostic {error:?} missed the first tuple"
+                ));
+            }
+            if error.contains("Field access expressions are not supported") {
+                failures.push(format!(
+                    "first preflight error remains immediate: diagnostic {error:?} advanced to the later field"
+                ));
+            }
+        }
+    }
+    expect_rejection(
+        &mut failures,
+        "custom enum payload retains strict unsupported-child preflight",
+        semantic_result(
+            "enum Choice { Number(int) } fn main() { let choice = Choice::Number([1, (2, 3)]); }",
+        ),
+        &["Tuple expressions are not supported"],
+    );
     assert!(
         !failures
             .iter()
@@ -795,7 +974,8 @@ fn public_library_rejects_selected_mismatches_without_unwinding() {
             Err(_) => failures.push(format!("{label}: compile_program unwound")),
             Ok(Ok(_)) => failures.push(format!("{label}: compile_program unexpectedly accepted")),
             Ok(Err(error)) => {
-                if !error.contains("Semantic Error:") || !error.contains("type annotation mismatch")
+                if !error.contains("Semantic Analysis Error:")
+                    || !error.contains("type annotation mismatch")
                 {
                     failures.push(format!("{label}: unexpected public error: {error}"));
                 }

@@ -494,11 +494,25 @@ upgrading any artifact.
   arrays, and all new generic-scope annotation/array behavior must retain pre-task
   outcomes under required green controls. No global recursive mapping, conversion, new type,
   assignment, ownership, aggregate lowering, or backend claim is selected.
-- The local tests-only red target now proves that frozen boundary with 8 passing
-  preservation groups and exactly 8 intended failing contract groups. An all-target
-  no-fail-fast run leaves every prior active suite green and identifies only the new
-  target as failing. Root and direct-module check/build still report success, and
-  both builds publish requested LLVM artifacts. Production remains unchanged.
+- The approved tests-only red target proves that frozen boundary with 8 passing
+  preservation groups and exactly 8 intended failing contract groups. Three
+  independent reviewers approved exact diff
+  `e158ad61282617a63dade4976a7c23fe53aa0af8` and tree
+  `db2ac2959f9815fab5d4b649e563b59c83459dfe`; it is public at `b203ea4`. Both
+  compiler-test jobs and Rust nightly reproduce the same intended target failure,
+  stable is matrix-cancelled, and all CodeQL checks pass.
+- The local two-file production candidate now makes the focused matrix pass 16/16.
+  Its test delta also adds implementation-review regression controls for numeric-array
+  child ordering, single-pass deep nesting, nested index traversal, stub-only
+  method/closure/format/custom-enum boundaries, and unsupported-child precedence. Several controls would reject the
+  public red implementation, but they live inside its already-failing semantic group
+  and therefore do not change the published 8/8 group outcome. One green-side
+  public-library assertion was also corrected to the established
+  `Semantic Analysis Error:` prefix. The exact repository gate passes formatting,
+  correctness Clippy, 139 library tests, 148 binary tests, all active integration
+  targets, and doc tests; the 38 established Phase 5 ignores remain unchanged. This
+  is implementation-candidate evidence pending exact reviews and public green CI,
+  not accepted capability closure.
 
 ## Audit completion
 

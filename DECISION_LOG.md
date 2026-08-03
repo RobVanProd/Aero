@@ -813,8 +813,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-020 — Selected initialized binding annotations are exact pre-IR contracts
 
 - Date: 2026-08-02
-- Status: preregistration approved and public at `4f31f0c`; tests-only red snapshot
-  created locally for exact review; no production change exists
+- Status: preregistration approved at public `4f31f0c`; tests-only red checkpoint
+  independently approved and public at `b203ea4`; local production candidate green
+  and awaiting exact implementation review
 - Decision: existing exact scalar annotation behavior for `int`/`i32`/`float`/`f64`
   remains unchanged wherever semantics fully analyzes binding statements; syntax-
   preflighted trait default bodies remain outside that enforcement. `CORE-015` adds
@@ -902,6 +903,23 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   identifies it as the only failing target. Root and direct-module invalid bindings
   both return success from check/build and publish requested LLVM artifacts. This is
   failure evidence only and establishes no production behavior.
+- Red publication and implementation evidence: three independent reviewers approved
+  exact red diff `e158ad61282617a63dade4976a7c23fe53aa0af8` and tree
+  `db2ac2959f9815fab5d4b649e563b59c83459dfe` with no P0-P3 findings. Public commit
+  `b203ea429b5a039705be5a5b11998e6dc59f5a24` reproduces only the frozen 8/8 target
+  failures in both compiler-test jobs and Rust nightly; stable is matrix-cancelled,
+  while all CodeQL checks pass. The local two-phase candidate makes all 16 focused
+  groups green. The focused test delta adds implementation-review regression controls
+  for numeric-array child ordering, single-pass deep nesting, nested index traversal,
+  and stub-only method/closure/format/custom-enum boundaries. Several would reject the public red
+  implementation, but remain within its already-failing semantic group and do not
+  alter the published 8/8 group result. Its public-library assertion also corrects
+  `Semantic Error:` to the frozen `Semantic Analysis Error:` phase prefix; that branch
+  was unreachable in the red false-accept state. The exact complete gate passes 139
+  library tests, 148 binary tests, every active integration target, formatting,
+  correctness Clippy, and doc tests with the existing 38 Phase 5 ignores unchanged.
+  Acceptance still requires three exact implementation reviews, public green CI, and
+  exact closure review.
 - Alternatives rejected: checking annotations only in CLI; keeping nonnumeric
   annotations documentary; relying on LLVM verification; checking only the first
   array element; promoting mixed array values to float; dropping array length from

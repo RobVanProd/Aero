@@ -2365,6 +2365,25 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   root/direct-module CLI layouts. Both invalid CLI builds publish the requested LLVM
   artifact. The exact `./tools/test.sh` passes formatting and correctness Clippy and
   stops on only the intended new target; `cargo test --no-fail-fast` proves all prior
-  active targets pass, with 38 pre-existing Phase 5 tests still ignored.
-- Status: tests-only red snapshot created locally; production unchanged. Exact diff
-  and tree require three independent approvals before commit/publication.
+  active targets pass, with 38 pre-existing Phase 5 tests still ignored. Three
+  independent reviewers approved exact diff
+  `e158ad61282617a63dade4976a7c23fe53aa0af8` and tree
+  `db2ac2959f9815fab5d4b649e563b59c83459dfe` with no P0-P3 findings. Public red
+  commit `b203ea429b5a039705be5a5b11998e6dc59f5a24` reproduces the same 8/8 target in
+  both compiler-test jobs and Rust nightly; stable is matrix-cancelled, while every
+  CodeQL analysis and the aggregate CodeQL check pass.
+- Implementation evidence: the local candidate changes only the two preregistered
+  production phases, plus the focused test and minimal records. The focused test adds
+  implementation-review regression controls for numeric-array child ordering,
+  single-pass deep nesting, nested index traversal, and stub-only
+  method/closure/format/custom-enum boundaries. Several
+  would reject the public red implementation, but remain inside its already-failing
+  semantic group and do not change the published 8/8 group outcome. One public-library
+  assertion also now uses the already frozen `Semantic Analysis Error:` phase prefix
+  instead of the mistaken `Semantic Error:` fragment; it was unreachable under the
+  red false accepts. The focused target passes 16/16, including all preservation
+  controls. The exact `./tools/test.sh` passes formatting, correctness Clippy, 139
+  library tests, 148 binary tests, every integration target, and doc tests; only the
+  established 38 Phase 5 tests remain ignored.
+- Status: local implementation candidate green and awaiting three independent exact
+  diff/tree reviews before commit or publication.

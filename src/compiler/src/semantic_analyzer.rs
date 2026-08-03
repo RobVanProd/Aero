@@ -4,6 +4,8 @@ use crate::ast::{
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::collections::{HashMap, HashSet};
 
+type ArrayInferenceCache = HashMap<*const Expression, Ty>;
+
 #[derive(Debug, Clone)]
 pub struct VariableInfo {
     pub name: String,
@@ -597,6 +599,7 @@ impl SemanticAnalyzer {
         self.closure_binding_scopes.clear();
         self.closure_binding_scopes.push(HashSet::new());
         self.return_contract_stack.clear();
+        self.type_param_scopes.clear();
 
         // Predeclare all top-level names so forward calls and direct recursion see
         // the same program-wide namespace after module linking.
@@ -674,6 +677,82 @@ impl SemanticAnalyzer {
             }
             _ => None,
         }
+    }
+
+    fn binding_contract_type(&self, ty: &crate::ast::Type) -> Option<Ty> {
+        if let Some(numeric) = Self::numeric_contract_type(ty) {
+            return Some(numeric);
+        }
+        if !self.type_param_scopes.is_empty() {
+            return None;
+        }
+
+        match ty {
+            crate::ast::Type::Named(name) if name == "bool" => Some(Ty::Bool),
+            crate::ast::Type::Named(name) if name == "String" => Some(Ty::String),
+            crate::ast::Type::Array(element, count) if *count > 0 => {
+                Self::numeric_contract_type(element)
+                    .map(|element| Ty::Array(Box::new(element), *count))
+            }
+            _ => None,
+        }
+    }
+
+    fn is_numeric_type(ty: &Ty) -> bool {
+        matches!(ty, Ty::Int | Ty::Float)
+    }
+
+    fn require_homogeneous_numeric_array(
+        &self,
+        expected: &Ty,
+        actual_types: impl IntoIterator<Item = Ty>,
+    ) -> Result<(), String> {
+        for actual in actual_types {
+            if actual != *expected {
+                return Err(format!(
+                    "Error: array element type mismatch: expected {}, actual {}.",
+                    expected, actual
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn infer_non_generic_array_literal(
+        &self,
+        elements: &[Expression],
+        array_types: &mut ArrayInferenceCache,
+    ) -> Result<Ty, String> {
+        let Some(first) = elements.first() else {
+            return Ok(Ty::Array(Box::new(Ty::Int), 0));
+        };
+
+        self.preflight_expression_for_inference_with_cache(first, array_types)?;
+        let elem_type = match self.infer_expression_immutable_with_cache(first, array_types) {
+            Ok(elem_type) => elem_type,
+            Err(first_error) => {
+                for element in elements.iter().skip(1) {
+                    self.preflight_expression(element)?;
+                }
+                return Err(first_error);
+            }
+        };
+
+        if Self::is_numeric_type(&elem_type) {
+            let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
+            for element in elements.iter().skip(1) {
+                remaining_types.push(
+                    self.infer_and_validate_expression_immutable_with_cache(element, array_types)?,
+                );
+            }
+            self.require_homogeneous_numeric_array(&elem_type, remaining_types)?;
+        } else {
+            for element in elements.iter().skip(1) {
+                self.preflight_expression(element)?;
+            }
+        }
+
+        Ok(Ty::Array(Box::new(elem_type), elements.len()))
     }
 
     fn require_value(&self, expr: &Expression) -> Result<Ty, String> {
@@ -905,11 +984,18 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::ArrayLiteral(elements) => {
-                let elem_type = if let Some(first) = elements.first() {
-                    self.infer_and_validate_expression(&mut first.clone())?
-                } else {
-                    Ty::Int
+                let Some(first) = elements.first() else {
+                    return Ok(Ty::Array(Box::new(Ty::Int), 0));
                 };
+                let elem_type = self.infer_and_validate_expression(&mut first.clone())?;
+                if self.type_param_scopes.is_empty() && Self::is_numeric_type(&elem_type) {
+                    let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
+                    for element in elements.iter().skip(1) {
+                        remaining_types
+                            .push(self.infer_and_validate_expression(&mut element.clone())?);
+                    }
+                    self.require_homogeneous_numeric_array(&elem_type, remaining_types)?;
+                }
                 Ok(Ty::Array(Box::new(elem_type), elements.len()))
             }
             Expression::ArrayRepeat { value, count } => {
@@ -918,7 +1004,16 @@ impl SemanticAnalyzer {
             }
             Expression::IndexAccess { object, index } => {
                 let obj_type = self.infer_and_validate_expression(object)?;
-                self.infer_and_validate_expression(index)?;
+                let index_type = self.infer_and_validate_expression(index)?;
+                if self.type_param_scopes.is_empty()
+                    && matches!(&obj_type, Ty::Array(element, _) if Self::is_numeric_type(element))
+                    && index_type != Ty::Int
+                {
+                    return Err(format!(
+                        "Error: array index type mismatch: expected int, actual {}.",
+                        index_type
+                    ));
+                }
                 match obj_type {
                     Ty::Array(elem, _) => Ok(*elem),
                     _ => Err("Cannot index into non-array type".to_string()),
@@ -1002,6 +1097,28 @@ impl SemanticAnalyzer {
     }
 
     fn preflight_expression(&self, expr: &Expression) -> Result<(), String> {
+        let mut array_types = ArrayInferenceCache::new();
+        self.preflight_expression_with_array_mode(expr, false, &mut array_types)
+    }
+
+    fn preflight_expression_for_inference_with_cache(
+        &self,
+        expr: &Expression,
+        array_types: &mut ArrayInferenceCache,
+    ) -> Result<(), String> {
+        self.preflight_expression_with_array_mode(
+            expr,
+            self.type_param_scopes.is_empty(),
+            array_types,
+        )
+    }
+
+    fn preflight_expression_with_array_mode(
+        &self,
+        expr: &Expression,
+        interleave_array_inference: bool,
+        array_types: &mut ArrayInferenceCache,
+    ) -> Result<(), String> {
         match expr {
             Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => {
                 return Err("Tuple expressions are not supported.".to_string());
@@ -1019,74 +1136,130 @@ impl SemanticAnalyzer {
                     ));
                 }
                 for argument in arguments {
-                    self.preflight_expression(argument)?;
+                    self.preflight_expression_with_array_mode(
+                        argument,
+                        interleave_array_inference,
+                        array_types,
+                    )?;
                 }
             }
             Expression::Binary { left, right, .. }
             | Expression::Comparison { left, right, .. }
             | Expression::Logical { left, right, .. } => {
-                self.preflight_expression(left)?;
-                self.preflight_expression(right)?;
+                self.preflight_expression_with_array_mode(
+                    left,
+                    interleave_array_inference,
+                    array_types,
+                )?;
+                self.preflight_expression_with_array_mode(
+                    right,
+                    interleave_array_inference,
+                    array_types,
+                )?;
             }
             Expression::MethodCall {
                 object, arguments, ..
             } => {
-                self.preflight_expression(object)?;
+                self.preflight_expression_with_array_mode(
+                    object,
+                    interleave_array_inference,
+                    array_types,
+                )?;
                 for argument in arguments {
-                    self.preflight_expression(argument)?;
+                    self.preflight_expression_with_array_mode(argument, false, array_types)?;
                 }
             }
             Expression::Print { arguments, .. } | Expression::Println { arguments, .. } => {
                 for argument in arguments {
-                    self.preflight_expression(argument)?;
+                    self.preflight_expression_with_array_mode(argument, false, array_types)?;
                 }
             }
             Expression::Unary { operand, .. } => {
-                self.preflight_expression(operand)?;
+                self.preflight_expression_with_array_mode(
+                    operand,
+                    interleave_array_inference,
+                    array_types,
+                )?;
             }
             Expression::ArrayLiteral(elements) => {
-                for element in elements {
-                    self.preflight_expression(element)?;
+                if interleave_array_inference {
+                    let cache_key = expr as *const Expression;
+                    if !array_types.contains_key(&cache_key) {
+                        let ty = self.infer_non_generic_array_literal(elements, array_types)?;
+                        array_types.insert(cache_key, ty);
+                    }
+                } else {
+                    for element in elements {
+                        self.preflight_expression_with_array_mode(element, false, array_types)?;
+                    }
                 }
             }
             Expression::ArrayRepeat { value, .. } => {
-                self.preflight_expression(value)?;
+                self.preflight_expression_with_array_mode(
+                    value,
+                    interleave_array_inference,
+                    array_types,
+                )?;
             }
             Expression::IndexAccess { object, index } => {
-                self.preflight_expression(object)?;
-                self.preflight_expression(index)?;
+                self.preflight_expression_with_array_mode(
+                    object,
+                    interleave_array_inference,
+                    array_types,
+                )?;
+                self.preflight_expression_with_array_mode(
+                    index,
+                    interleave_array_inference,
+                    array_types,
+                )?;
             }
             Expression::FieldAccess { object, .. } => {
-                self.preflight_expression(object)?;
+                self.preflight_expression_with_array_mode(object, false, array_types)?;
                 return Err("Field access expressions are not supported.".to_string());
             }
             Expression::StructLiteral { fields, .. } => {
                 for (_, value) in fields {
-                    self.preflight_expression(value)?;
+                    self.preflight_expression_with_array_mode(value, false, array_types)?;
                 }
                 return Err("Struct construction expressions are not supported.".to_string());
             }
-            Expression::EnumVariant { data, .. } => {
+            Expression::EnumVariant {
+                enum_name,
+                variant,
+                data,
+            } => {
                 if let Some(value) = data {
-                    self.preflight_expression(value)?;
+                    let payload_is_inferred = matches!(
+                        (enum_name.as_str(), variant.as_str()),
+                        ("Option", "Some") | ("Result", "Ok") | ("Result", "Err")
+                    );
+                    self.preflight_expression_with_array_mode(
+                        value,
+                        interleave_array_inference && payload_is_inferred,
+                        array_types,
+                    )?;
                 }
             }
             Expression::Match { expr, arms } => {
-                self.preflight_expression(expr)?;
+                self.preflight_expression_with_array_mode(expr, false, array_types)?;
                 for arm in arms {
-                    self.preflight_expression(&arm.body)?;
+                    self.preflight_expression_with_array_mode(&arm.body, false, array_types)?;
                 }
                 return Err("Match expressions are not supported.".to_string());
             }
             Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
-                self.preflight_expression(expr)?;
+                self.preflight_expression_with_array_mode(
+                    expr,
+                    interleave_array_inference,
+                    array_types,
+                )?;
             }
             Expression::IntegerLiteral(_)
             | Expression::FloatLiteral(_)
             | Expression::StringLiteral(_)
             | Expression::Identifier(_) => {}
             Expression::Closure { body, .. } => {
-                self.preflight_expression(body)?;
+                self.preflight_expression_with_array_mode(body, false, array_types)?;
             }
         }
 
@@ -1156,8 +1329,28 @@ impl SemanticAnalyzer {
     }
 
     fn infer_and_validate_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
-        self.preflight_expression(expr)?;
-        self.infer_expression_immutable(expr)
+        let mut array_types = ArrayInferenceCache::new();
+        self.infer_and_validate_expression_immutable_with_cache(expr, &mut array_types)
+    }
+
+    fn infer_and_validate_expression_immutable_with_cache(
+        &self,
+        expr: &Expression,
+        array_types: &mut ArrayInferenceCache,
+    ) -> Result<Ty, String> {
+        if self.type_param_scopes.is_empty()
+            && let Expression::ArrayLiteral(elements) = expr
+        {
+            let cache_key = expr as *const Expression;
+            if let Some(ty) = array_types.get(&cache_key) {
+                return Ok(ty.clone());
+            }
+            let ty = self.infer_non_generic_array_literal(elements, array_types)?;
+            array_types.insert(cache_key, ty.clone());
+            return Ok(ty);
+        }
+        self.preflight_expression_for_inference_with_cache(expr, array_types)?;
+        self.infer_expression_immutable_with_cache(expr, array_types)
     }
 
     fn infer_discarded_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
@@ -1168,13 +1361,18 @@ impl SemanticAnalyzer {
                 .get_numeric_contract(name)
                 .is_some_and(|contract| contract.return_type == Ty::Void)
         {
-            return self.infer_expression_immutable(expr);
+            let mut array_types = ArrayInferenceCache::new();
+            return self.infer_expression_immutable_with_cache(expr, &mut array_types);
         }
 
         self.infer_and_validate_expression_immutable(expr)
     }
 
-    fn infer_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
+    fn infer_expression_immutable_with_cache(
+        &self,
+        expr: &Expression,
+        array_types: &mut ArrayInferenceCache,
+    ) -> Result<Ty, String> {
         match expr {
             Expression::IntegerLiteral(_) => Ok(Ty::Int),
             Expression::FloatLiteral(_) => Ok(Ty::Float),
@@ -1198,14 +1396,18 @@ impl SemanticAnalyzer {
             Expression::Binary {
                 op, left, right, ..
             } => {
-                let lhs_type = self.infer_and_validate_expression_immutable(left)?;
-                let rhs_type = self.infer_and_validate_expression_immutable(right)?;
+                let lhs_type =
+                    self.infer_and_validate_expression_immutable_with_cache(left, array_types)?;
+                let rhs_type =
+                    self.infer_and_validate_expression_immutable_with_cache(right, array_types)?;
                 infer_binary_type(op.as_str(), &lhs_type, &rhs_type)
             }
             Expression::FunctionCall { name, arguments } => {
                 let mut argument_types = Vec::with_capacity(arguments.len());
                 for arg in arguments {
-                    argument_types.push(self.infer_and_validate_expression_immutable(arg)?);
+                    argument_types.push(
+                        self.infer_and_validate_expression_immutable_with_cache(arg, array_types)?,
+                    );
                 }
 
                 if self.is_closure_callable(name) {
@@ -1234,25 +1436,31 @@ impl SemanticAnalyzer {
                 Ok(Ty::Int)
             }
             Expression::Comparison { op, left, right } => {
-                let left_type = self.infer_and_validate_expression_immutable(left)?;
-                let right_type = self.infer_and_validate_expression_immutable(right)?;
+                let left_type =
+                    self.infer_and_validate_expression_immutable_with_cache(left, array_types)?;
+                let right_type =
+                    self.infer_and_validate_expression_immutable_with_cache(right, array_types)?;
                 self.validate_comparison_operands(op, &left_type, &right_type)?;
                 Ok(Ty::Bool)
             }
             Expression::Logical { op, left, right } => {
-                let left_type = self.infer_and_validate_expression_immutable(left)?;
-                let right_type = self.infer_and_validate_expression_immutable(right)?;
+                let left_type =
+                    self.infer_and_validate_expression_immutable_with_cache(left, array_types)?;
+                let right_type =
+                    self.infer_and_validate_expression_immutable_with_cache(right, array_types)?;
                 self.validate_logical_operands(op, &left_type, &right_type)?;
                 Ok(Ty::Bool)
             }
             Expression::Unary { operand, op } => {
-                let operand_type = self.infer_and_validate_expression_immutable(operand)?;
+                let operand_type =
+                    self.infer_and_validate_expression_immutable_with_cache(operand, array_types)?;
                 self.validate_unary_operation(op, &operand_type)
             }
             // Phase 4 expressions
             Expression::StringLiteral(_) => Ok(Ty::String),
             Expression::MethodCall { object, method, .. } => {
-                let obj_ty = self.infer_and_validate_expression_immutable(object)?;
+                let obj_ty =
+                    self.infer_and_validate_expression_immutable_with_cache(object, array_types)?;
                 // Phase 6: Option, Result, Vec, HashMap methods
                 match &obj_ty {
                     Ty::Option(inner) => match method.as_str() {
@@ -1301,20 +1509,41 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::ArrayLiteral(elements) => {
-                let elem_type = if let Some(first) = elements.first() {
-                    self.infer_and_validate_expression_immutable(first)?
-                } else {
-                    Ty::Int
+                if self.type_param_scopes.is_empty() {
+                    let cache_key = expr as *const Expression;
+                    if let Some(ty) = array_types.get(&cache_key) {
+                        return Ok(ty.clone());
+                    }
+                    let ty = self.infer_non_generic_array_literal(elements, array_types)?;
+                    array_types.insert(cache_key, ty.clone());
+                    return Ok(ty);
+                }
+                let Some(first) = elements.first() else {
+                    return Ok(Ty::Array(Box::new(Ty::Int), 0));
                 };
+                let elem_type =
+                    self.infer_and_validate_expression_immutable_with_cache(first, array_types)?;
                 Ok(Ty::Array(Box::new(elem_type), elements.len()))
             }
             Expression::ArrayRepeat { value, count } => {
-                let elem_type = self.infer_and_validate_expression_immutable(value)?;
+                let elem_type =
+                    self.infer_and_validate_expression_immutable_with_cache(value, array_types)?;
                 Ok(Ty::Array(Box::new(elem_type), *count))
             }
             Expression::IndexAccess { object, index } => {
-                let obj_type = self.infer_and_validate_expression_immutable(object)?;
-                self.infer_and_validate_expression_immutable(index)?;
+                let obj_type =
+                    self.infer_and_validate_expression_immutable_with_cache(object, array_types)?;
+                let index_type =
+                    self.infer_and_validate_expression_immutable_with_cache(index, array_types)?;
+                if self.type_param_scopes.is_empty()
+                    && matches!(&obj_type, Ty::Array(element, _) if Self::is_numeric_type(element))
+                    && index_type != Ty::Int
+                {
+                    return Err(format!(
+                        "Error: array index type mismatch: expected int, actual {}.",
+                        index_type
+                    ));
+                }
                 match obj_type {
                     Ty::Array(elem, _) => Ok(*elem),
                     _ => Err("Cannot index into non-array type".to_string()),
@@ -1333,8 +1562,11 @@ impl SemanticAnalyzer {
                 "Option" => match variant.as_str() {
                     "Some" => {
                         if let Some(inner_expr) = data {
-                            let inner_ty =
-                                self.infer_and_validate_expression_immutable(inner_expr)?;
+                            let inner_ty = self
+                                .infer_and_validate_expression_immutable_with_cache(
+                                    inner_expr,
+                                    array_types,
+                                )?;
                             Ok(Ty::Option(Box::new(inner_ty)))
                         } else {
                             Err("Some variant requires a value".to_string())
@@ -1346,8 +1578,11 @@ impl SemanticAnalyzer {
                 "Result" => match variant.as_str() {
                     "Ok" => {
                         if let Some(inner_expr) = data {
-                            let inner_ty =
-                                self.infer_and_validate_expression_immutable(inner_expr)?;
+                            let inner_ty = self
+                                .infer_and_validate_expression_immutable_with_cache(
+                                    inner_expr,
+                                    array_types,
+                                )?;
                             Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
                         } else {
                             Err("Ok variant requires a value".to_string())
@@ -1355,8 +1590,11 @@ impl SemanticAnalyzer {
                     }
                     "Err" => {
                         if let Some(inner_expr) = data {
-                            let inner_ty =
-                                self.infer_and_validate_expression_immutable(inner_expr)?;
+                            let inner_ty = self
+                                .infer_and_validate_expression_immutable_with_cache(
+                                    inner_expr,
+                                    array_types,
+                                )?;
                             Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
                         } else {
                             Err("Err variant requires a value".to_string())
@@ -1369,11 +1607,13 @@ impl SemanticAnalyzer {
             Expression::Match { .. } => Ok(Ty::Int), // Stub
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
-                let inner_ty = self.infer_and_validate_expression_immutable(expr)?;
+                let inner_ty =
+                    self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
                 Ok(Ty::Reference(Box::new(inner_ty), *mutable))
             }
             Expression::Deref(expr) => {
-                let inner_ty = self.infer_and_validate_expression_immutable(expr)?;
+                let inner_ty =
+                    self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
                 match inner_ty {
                     Ty::Reference(inner, _) => Ok(*inner),
                     _ => Err("Cannot dereference non-reference type".to_string()),
@@ -1545,7 +1785,7 @@ impl SemanticAnalyzer {
                 let binding_type = if value.is_some()
                     && let Some(expected_type) = type_annotation
                         .as_ref()
-                        .and_then(Self::numeric_contract_type)
+                        .and_then(|annotation| self.binding_contract_type(annotation))
                 {
                     if inferred_type != expected_type {
                         return Err(format!(
@@ -1882,46 +2122,46 @@ impl SemanticAnalyzer {
                 if !type_params.is_empty() {
                     self.type_param_scopes.push(type_params.clone());
                 }
-                // Analyze method bodies
-                for method in methods {
-                    self.analyze_statement(method)?;
-                }
-                // Phase 5: Check trait completeness if this is an impl Trait for Type
-                if let Some(trait_name) = trait_name {
-                    // Register that this type implements this trait
-                    self.trait_impls
-                        .entry(type_name.clone())
-                        .or_default()
-                        .push(trait_name.clone());
-                    // Check all required methods are implemented
-                    if let Some(required_methods) = self.trait_registry.get(trait_name) {
-                        let implemented: Vec<String> = methods
-                            .iter()
-                            .filter_map(|m| {
-                                if let Statement::Function { name, .. } = m {
-                                    Some(name.clone())
-                                } else {
-                                    None
+                let impl_result = (|| {
+                    // Analyze method bodies
+                    for method in methods {
+                        self.analyze_statement(method)?;
+                    }
+                    // Phase 5: Check trait completeness if this is an impl Trait for Type
+                    if let Some(trait_name) = trait_name {
+                        // Register that this type implements this trait
+                        self.trait_impls
+                            .entry(type_name.clone())
+                            .or_default()
+                            .push(trait_name.clone());
+                        // Check all required methods are implemented
+                        if let Some(required_methods) = self.trait_registry.get(trait_name) {
+                            let implemented: Vec<String> = methods
+                                .iter()
+                                .filter_map(|m| {
+                                    if let Statement::Function { name, .. } = m {
+                                        Some(name.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+                            for required in required_methods {
+                                if !implemented.contains(required) {
+                                    return Err(format!(
+                                        "Error: Method `{}` is required by trait `{}` but not implemented for `{}`.",
+                                        required, trait_name, type_name
+                                    ));
                                 }
-                            })
-                            .collect();
-                        for required in required_methods {
-                            if !implemented.contains(required) {
-                                if !type_params.is_empty() {
-                                    self.type_param_scopes.pop();
-                                }
-                                return Err(format!(
-                                    "Error: Method `{}` is required by trait `{}` but not implemented for `{}`.",
-                                    required, trait_name, type_name
-                                ));
                             }
                         }
                     }
-                }
+                    Ok(())
+                })();
                 if !type_params.is_empty() {
                     self.type_param_scopes.pop();
                 }
-                Ok(())
+                impl_result
             }
             // Phase 7: Module system
             Statement::ModDecl { .. } | Statement::UseImport { .. } => {

@@ -226,9 +226,13 @@ impl IrGenerator {
         let mut bindings = HashMap::new();
         for node in ast {
             match node {
-                AstNode::Statement(statement) => {
-                    Self::validate_statement(statement, &mut bindings, &top_level_functions, false)?
-                }
+                AstNode::Statement(statement) => Self::validate_statement(
+                    statement,
+                    &mut bindings,
+                    &top_level_functions,
+                    false,
+                    false,
+                )?,
                 AstNode::Expression(_) => {
                     return Err(IrGenerationError::Admission(
                         "top-level expressions are not admitted in checked IR".to_string(),
@@ -244,9 +248,16 @@ impl IrGenerator {
         bindings: &mut HashMap<String, AdmissionBinding>,
         top_level_functions: &HashMap<String, Ty>,
         inside_loop: bool,
+        inside_generic_impl: bool,
     ) -> Result<(), IrGenerationError> {
         for statement in &block.statements {
-            Self::validate_statement(statement, bindings, top_level_functions, inside_loop)?;
+            Self::validate_statement(
+                statement,
+                bindings,
+                top_level_functions,
+                inside_loop,
+                inside_generic_impl,
+            )?;
         }
         if let Some(expression) = &block.expression {
             Self::validate_expression(
@@ -264,13 +275,14 @@ impl IrGenerator {
         bindings: &mut HashMap<String, AdmissionBinding>,
         top_level_functions: &HashMap<String, Ty>,
         inside_loop: bool,
+        inside_generic_impl: bool,
     ) -> Result<(), IrGenerationError> {
         match statement {
             Statement::Let {
                 name,
                 mutable,
+                type_annotation,
                 value,
-                ..
             } => {
                 if let Some(value) = value {
                     let ty = Self::validate_expression(
@@ -283,6 +295,17 @@ impl IrGenerator {
                         return Err(IrGenerationError::Admission(
                             "Void expressions cannot be stored in a binding".to_string(),
                         ));
+                    }
+                    if !inside_generic_impl
+                        && let Some(expected) = type_annotation
+                            .as_ref()
+                            .and_then(Self::binding_contract_type)
+                        && ty != expected
+                    {
+                        return Err(IrGenerationError::Admission(format!(
+                            "checked IR binding `{}` type annotation mismatch: expected {}, actual {}",
+                            name, expected, ty
+                        )));
                     }
                     if *mutable && matches!(ty, Ty::String) {
                         return Err(IrGenerationError::Admission(
@@ -319,11 +342,23 @@ impl IrGenerator {
             }
             Statement::Block(block) => {
                 let mut nested = bindings.clone();
-                Self::validate_block(block, &mut nested, top_level_functions, inside_loop)?;
+                Self::validate_block(
+                    block,
+                    &mut nested,
+                    top_level_functions,
+                    inside_loop,
+                    inside_generic_impl,
+                )?;
             }
             Statement::Loop { body } => {
                 let mut nested = bindings.clone();
-                Self::validate_block(body, &mut nested, top_level_functions, true)?;
+                Self::validate_block(
+                    body,
+                    &mut nested,
+                    top_level_functions,
+                    true,
+                    inside_generic_impl,
+                )?;
             }
             Statement::Function {
                 parameters,
@@ -364,7 +399,13 @@ impl IrGenerator {
                         "function return type is not an admitted scalar or Void type".to_string(),
                     ));
                 }
-                Self::validate_block(body, &mut function_bindings, top_level_functions, false)?;
+                Self::validate_block(
+                    body,
+                    &mut function_bindings,
+                    top_level_functions,
+                    false,
+                    inside_generic_impl,
+                )?;
             }
             Statement::If {
                 condition,
@@ -383,6 +424,7 @@ impl IrGenerator {
                     &mut then_bindings,
                     top_level_functions,
                     inside_loop,
+                    inside_generic_impl,
                 )?;
                 if let Some(else_statement) = else_block {
                     let mut else_bindings = bindings.clone();
@@ -391,6 +433,7 @@ impl IrGenerator {
                         &mut else_bindings,
                         top_level_functions,
                         inside_loop,
+                        inside_generic_impl,
                     )?;
                 }
             }
@@ -402,7 +445,13 @@ impl IrGenerator {
                     ExpressionUse::Value,
                 )?;
                 let mut nested = bindings.clone();
-                Self::validate_block(body, &mut nested, top_level_functions, true)?;
+                Self::validate_block(
+                    body,
+                    &mut nested,
+                    top_level_functions,
+                    true,
+                    inside_generic_impl,
+                )?;
             }
             Statement::For {
                 variable,
@@ -431,11 +480,28 @@ impl IrGenerator {
                         callable: false,
                     },
                 );
-                Self::validate_block(body, &mut nested, top_level_functions, true)?;
+                Self::validate_block(
+                    body,
+                    &mut nested,
+                    top_level_functions,
+                    true,
+                    inside_generic_impl,
+                )?;
             }
-            Statement::ImplBlock { methods, .. } => {
+            Statement::ImplBlock {
+                methods,
+                type_params,
+                ..
+            } => {
+                let methods_are_generic = inside_generic_impl || !type_params.is_empty();
                 for method in methods {
-                    Self::validate_statement(method, bindings, top_level_functions, false)?;
+                    Self::validate_statement(
+                        method,
+                        bindings,
+                        top_level_functions,
+                        false,
+                        methods_are_generic,
+                    )?;
                 }
             }
             // Trait declarations remain syntax-only in this prototype. The semantic
@@ -505,28 +571,33 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                 )?;
+                let derived_ty = if matches!(left_ty, Ty::Float)
+                    && matches!(right_ty, Ty::Int | Ty::Float)
+                    || matches!(right_ty, Ty::Float) && matches!(left_ty, Ty::Int | Ty::Float)
+                {
+                    Ty::Float
+                } else if matches!(left_ty, Ty::Int) && matches!(right_ty, Ty::Int) {
+                    Ty::Int
+                } else {
+                    return Err(admission_error(
+                        "binary expression is not an admitted scalar",
+                    ));
+                };
+                if let Some(actual_ty) = ty
+                    && actual_ty != &derived_ty
+                {
+                    return Err(admission_error(&format!(
+                        "binary result metadata mismatch: expected {}, actual {}",
+                        derived_ty, actual_ty
+                    )));
+                }
                 if matches!(op, crate::ast::BinaryOp::Divide)
-                    && (matches!(ty, Some(Ty::Int))
-                        || (matches!(left_ty, Ty::Int) && matches!(right_ty, Ty::Int)))
+                    && matches!(derived_ty, Ty::Int)
                     && Self::constant_integer_value(right) == Some(0)
                 {
                     return Err(admission_error("constant integer division by zero"));
                 }
-                match ty.clone().or_else(|| {
-                    if matches!(left_ty, Ty::Float) || matches!(right_ty, Ty::Float) {
-                        Some(Ty::Float)
-                    } else if matches!(left_ty, Ty::Int) && matches!(right_ty, Ty::Int) {
-                        Some(Ty::Int)
-                    } else {
-                        None
-                    }
-                }) {
-                    Some(Ty::Int) => Ok(Ty::Int),
-                    Some(Ty::Float) => Ok(Ty::Float),
-                    _ => Err(admission_error(
-                        "binary expression is not an admitted scalar",
-                    )),
-                }
+                Ok(derived_ty)
             }
             Expression::FunctionCall { name, arguments } => {
                 for argument in arguments {
@@ -882,6 +953,25 @@ impl IrGenerator {
                 Ty::Vec(Box::new(Self::admission_type(&arguments[0])))
             }
             Type::Generic(name, _) => Ty::TypeParam(name.clone()),
+        }
+    }
+
+    fn binding_contract_type(ty: &Type) -> Option<Ty> {
+        match ty {
+            Type::Named(name) if matches!(name.as_str(), "i32" | "int") => Some(Ty::Int),
+            Type::Named(name) if matches!(name.as_str(), "f64" | "float") => Some(Ty::Float),
+            Type::Named(name) if name == "bool" => Some(Ty::Bool),
+            Type::Named(name) if name == "String" => Some(Ty::String),
+            Type::Array(element, count) if *count > 0 => match element.as_ref() {
+                Type::Named(name) if matches!(name.as_str(), "i32" | "int") => {
+                    Some(Ty::Array(Box::new(Ty::Int), *count))
+                }
+                Type::Named(name) if matches!(name.as_str(), "f64" | "float") => {
+                    Some(Ty::Array(Box::new(Ty::Float), *count))
+                }
+                _ => None,
+            },
+            _ => None,
         }
     }
 

@@ -1,13 +1,14 @@
 # Aero Project State
 
-Last updated: 2026-08-02 (America/New_York)
+Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 16 tests-only red review — independently verify the exact `CORE-015`
-binding-type contract before publishing its failing tests. The preregistration is
-public and green at `4f31f0c`; no production source has changed. Accepted `CORE-014`
-remains closed at `1535ce2`; benchmark execution remains quarantined.
+Milestone 16 implementation review — independently verify the exact `CORE-015`
+binding-type production candidate after its approved public red checkpoint. The
+focused 16-test target and complete repository gate are green locally; publication
+waits on three exact-snapshot reviews. Accepted `CORE-014` remains closed at
+`1535ce2`; benchmark execution remains quarantined.
 
 ## Active hypothesis
 
@@ -45,7 +46,15 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current public preregistration head:
+- Current public tests-only red head:
+  `b203ea429b5a039705be5a5b11998e6dc59f5a24`. Three independent reviewers approved
+  its exact staged diff `e158ad61282617a63dade4976a7c23fe53aa0af8` and tree
+  `db2ac2959f9815fab5d4b649e563b59c83459dfe` with no P0-P3 findings. Both public
+  compiler-test jobs and Rust nightly reproduce exactly the new target's 8 passing /
+  8 intended failing split; Rust stable is matrix-cancelled after nightly failure.
+  All three CodeQL analyses and aggregate CodeQL pass. This is red evidence, not an
+  accepted implementation.
+- Public preregistration head:
   `4f31f0ca3941389f2cc730136c2540301ee5bfe0`. Three independent reviewers approved
   its exact staged diff `9316f77aed456729624c2d86afaf7110487af84b` and tree
   `bd782da2b5881c1eb50a614400d73b1bb924b033` with no P0-P3 findings. All eight
@@ -200,20 +209,26 @@ type, conversion, assignment, ownership, aggregate-layout, or backend behavior.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `a78dd004aa37c39212711027b777698118d9dc02`.
-- Worktree: the new tests-only `CORE-015` target plus minimal evidence updates; no
-  production source has changed. Its focused result is exactly 8 passing preservation
-  groups and 8 intended failing contract groups. Failures expose all four selected
-  binding false successes, semantic numeric-array element/index/child ordering,
-  checked-IR numeric and selected binding parity, universal binary metadata,
-  non-generic impl behavior, generic-scope cleanup after error, public library
-  no-unwind rejection, and root/direct-module CLI status/diagnostic/artifact behavior.
-  Both CLI layouts exit zero from `check` and `build`; each build publishes its
-  requested LLVM artifact. The exact `./tools/test.sh` gate passes formatting and
-  correctness Clippy, then stops only at this intended red target. A separate
-  `cargo test --no-fail-fast` proves every prior active target passes and reports
-  this target as the sole failure (8 pass / 8 fail); 38 pre-existing Phase 5 tests
-  remain ignored. Production compiler behavior remains the accepted public
-  implementation `a78dd00` because `CORE-014` changed no compiler code.
+- Worktree: the local `CORE-015` production candidate changes only the two
+  preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
+  records. The focused test adds implementation-review regression controls for
+  numeric-array child ordering, single-pass deep nesting, nested index traversal, and
+  stub-only method/closure/format/custom-enum boundaries. Several would reject the public red
+  implementation, but remain inside its already-failing semantic group and do not
+  change the published 8/8 group outcome. It also corrects one green-side assertion
+  from the noncanonical `Semantic Error:` fragment to Aero's frozen public
+  `Semantic Analysis Error:` phase prefix; that assertion was unreachable while the
+  red cases were false accepts. Semantics
+  now balances generic scopes on every
+  exit, enforces the closed binding selector, and validates numeric-array elements
+  and indexes outside generic scopes. Checked admission independently enforces the
+  direct/non-generic selector and binary metadata while preserving generic-impl
+  annotation quarantine. The focused target passes 16/16. The exact
+  `./tools/test.sh` gate passes formatting, correctness Clippy, 139 library tests,
+  148 binary tests, every active integration target, and doc tests; 38 pre-existing
+  Phase 5 tests remain ignored. The candidate is not accepted or public until three
+  exact implementation reviews approve it.
   One earlier full-gate attempt stopped in the unchanged
   `cli_status_contract_tests`; that target immediately passed 7/7 in isolation and
   the unchanged complete gate passed on rerun. The interruption is not reproduced
@@ -465,12 +480,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Stage and independently review the exact `CORE-015` tests-only red snapshot. Only
-after all three reviewers approve that exact diff and tree may it be committed and
-published; production implementation begins only after the public red checkpoint is
-recorded. Do not change lexer/parser syntax, type representation, conversions,
-assignment, ownership, aggregate layout/codegen, backend behavior, version policy,
-benchmarks, registry, release state, or `master`.
+Stage and independently review the exact local `CORE-015` implementation candidate.
+Only after all three reviewers approve the same diff and tree may it be committed and
+published as a green candidate. Then verify the complete public CI matrix before a
+separate exact closure review. Do not change lexer/parser syntax, type representation,
+conversions, assignment, ownership, aggregate layout/codegen, backend behavior,
+version policy, benchmarks, registry, release state, or `master`.
 
 ## Unauthorized actions
 
