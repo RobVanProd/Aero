@@ -2932,3 +2932,124 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   false success and current claim surface are controlled. R-007 remains open because
   no Aero accelerator execution or correctness evidence was produced. This final-
   state sync changes records only.
+- Final-state sync: corrected exact diff
+  `a4034521b5976f4c737871d5be7e93d2a1f34bfb`, tree
+  `21e72079679550b73935b56d87e4e062fc48d88e`, received three independent approvals
+  with no P0-P3 findings and was published as `d0bd54e93ff9fda9e769dd29abcec02a1f550e9a`.
+  Compiler runs `30824106058` and `30824111861`, stable/nightly run `30824110412`,
+  CodeQL run `30824105642`, and aggregate `91721342986` all pass.
+
+## AUDIT-025 — Re-rank remaining compiler-integrity risks after CORE-018
+
+- Task ID/date/basis: `AUDIT-025`, 2026-08-03, accepted clean public head
+  `d0bd54e93ff9fda9e769dd29abcec02a1f550e9a`, tree
+  `21e72079679550b73935b56d87e4e062fc48d88e`; integration branch exactly matches
+  origin, PR #4 is open/draft/mergeable, all eight checks pass, and upstream
+  `master` remains `8f8c733`.
+- Observed behavior: `CORE-018` controls its selected object-only/current-claim
+  boundary, while R-004, R-006, R-007, R-009, and R-010 remain open; R-002, R-005,
+  R-011, and R-012 retain explicit partial boundaries; and R-016 remains lower
+  likelihood/impact. The next implementation slice has not been selected.
+- Hypothesis: independent clean-head reproduction and phase/scope comparison can
+  identify the highest-severity bounded active false success without inventing
+  ownership, aggregate, grammar, span, backend, or compatibility semantics.
+- Frozen semantics: none. This task is read-only evidence collection and ranking.
+  Existing accepted contracts, exclusions, compatibility surfaces, capability
+  classes, and risk states remain unchanged until a separately reviewed task freezes
+  an exact boundary.
+- Allowed files/changes: read-only auditors change no files. Root may later record the
+  completed audit and a separately frozen next-task contract in the six control
+  records; no source, tests, schemas, workflows, dependencies, immutable evidence,
+  benchmarks, artifacts, package/release/registry state, or `master` change is
+  authorized by this audit.
+- Acceptance: reproduce candidate risks at exact clean head; cite file/symbol or line
+  evidence and commands; distinguish parser, semantic, IR, codegen, runtime, tooling,
+  and documentation stages; compare severity, user reach, semantic ambiguity, phase
+  count, and regression-test feasibility; obtain independent type/safety, IR/codegen,
+  and backend/claim reports; recommend one bounded next action or report that every
+  candidate stops on an unfrozen decision.
+- Risks: smoke tests may conceal recovery/stub behavior; public APIs may differ from
+  trusted compiler paths; apparently local fixes may cross more than two phases;
+  current documentation may be mistaken for semantics; CPU evidence may be mistaken
+  for accelerator evidence.
+- Stop conditions: any repository mutation outside this ledger preregistration;
+  language or ownership decision; hardware/device probe; benchmark run or claim;
+  package, registry, release, workflow, dependency, immutable-evidence, external
+  artifact, or `master` change; destructive command; or implementation work before a
+  bounded tests-first contract receives exact review.
+- Findings: `aero test` directly scans `examples`, `tests`, and `.` for the two
+  filename suffixes, then reads, strictly parses with direct modules, and performs
+  semantic analysis only. It does not admit checked IR, generate code, execute, or
+  compare runtime results, but its comment, progress/success/summary output, help,
+  BUILD description, and one CLI control say `run`, `Running`, or `passed`.
+- Ranking: two auditors select that direct user-facing P1 first; the IR/codegen
+  auditor selects silently ignored nondefault public `CompilerOptions` first. The
+  lead selects the documented CLI claim because it has direct user reach and needs
+  presentation/tests only; fail-closed nondefault options are the bounded runner-up.
+  R-002/R-004/R-005/R-007/R-009/R-010/R-011/R-012/R-016 stop or defer for the
+  semantic, compatibility, hardware, architectural, evidence-scope, or policy reasons
+  recorded in the current audit/risk documents.
+- Verification: root confirmed the unused `_options` facade and 62 default-only
+  repository calls; focused checked-IR 6/6, fatal-parse 11/11, and module-pipeline
+  7/7 pass. Independent focused evidence includes binding 16/16, active frontend
+  21/21, CLI 10/10, and backend claims 7/7. No benchmark or hardware ran.
+- Remaining uncertainty: external nondefault-option consumers were not inventoried;
+  ownership/provenance, nominal/generic resolution, aggregate bounds/layout, and
+  executable-test semantics remain unfrozen. One auditor's standalone Windows
+  options probe failed at linking and produced no claimed runtime result.
+- Status: complete, read-only; result commit none. Recommend `CORE-019` below.
+
+## CORE-019 — Make semantic-only `aero test` presentation truthful
+
+- Task ID/owner: `CORE-019`; lead-owned CLI presentation/tests slice with independent
+  type/safety, IR/codegen, and backend/claim review at every publication boundary.
+- Problem/priority: P1 user-facing correctness / R-013 HIGH-HIGH. The command analyzes
+  source but claims files run and pass, so successful analysis can be mistaken for
+  test execution. Accepted DEC-016 already classifies it as a semantic checker.
+- Dependencies: accepted `CORE-018` final sync `d0bd54e`, complete `AUDIT-025`, and
+  proposed `DEC-024`.
+- Frozen behavior: preserve command name and exact arity; direct, nonrecursive scan of
+  `examples`, `tests`, and `.` in current order; `_test.aero`/`_tests.aero` suffixes;
+  read, strict parse, direct-module collection, and semantic analysis; discovered,
+  completed, failure, and total counts; status `0` for no sources/all successful
+  analyses, `1` for any read/parse/module/semantic failure, and `2` for bad invocation.
+- Frozen visible wording: initial `Analyzing Aero test sources (parse, direct modules,
+  semantics only; no execution)...`; per source `Analyzing <path>`; success `<name>
+  analysis completed (not executed)`; failure `<name> analysis failed: <diagnostic>`;
+  summary `analysis result: <completed> completed, <failed> failed, <total> total; no
+  tests were executed`; empty warning `no Aero test source files found
+  (*_test.aero, *_tests.aero); no tests were executed`. Existing ANSI styling may
+  wrap labels/checkmarks. Successful command output may not use `Running`, `passed`,
+  `test result`, `Compiling test suite`, or `Program executed successfully`.
+- Help/docs: exact help description `Discover and semantically analyze *_test.aero
+  files (no execution)`. BUILD describes both suffixes and states no test execution
+  or IR generation. README's command inventory is unchanged because it makes no
+  execution claim.
+- Tests first: change only `src/compiler/tests/cli_status_contract_tests.rs`. Update
+  the existing successful-command control and add one exact semantic-only presentation
+  contract covering success, empty discovery, help/BUILD, forbidden wording, status
+  preservation, and a failure-summary control. With production/docs unchanged, the
+  target must be exactly 9 passing / 2 failing tests; every other target remains at
+  baseline. Exact three-review approval precedes publication of that red checkpoint.
+- Implementation files: `src/compiler/src/main.rs`, `BUILD.md`, the tests file, and
+  current state/capability/decision/risk/matrix/ledger records only. Smallest complete
+  change; no other file is authorized.
+- Acceptance: preregistration passes the exact full gate and all eight public checks.
+  The tests-only target is exactly 9/2 red; both compiler-test checks fail only on
+  those two contracts, Rust CI concludes non-green with each matrix job that reaches
+  `cargo test` failing only there (normal fail-fast cancellation is permitted), and
+  all four CodeQL checks pass. Implementation is 11/11 green with existing status/
+  failure/direct-module contracts and exact `./tools/test.sh` green. Exact review
+  precedes every publication; implementation, closure, and final sync each require
+  all eight public checks green.
+- Risks: scripts may parse old human-readable wording; broad absence assertions could
+  reject unrelated diagnostics; traversal order may vary by filesystem; styling may
+  hide wording changes; claim cleanup could accidentally add checked IR or change
+  status/count behavior.
+- Stop conditions: executable-test ABI/assertions/fixtures/isolation/result semantics;
+  recursive or sorted discovery; checked IR, LLVM, codegen, native tools, runtime,
+  process launch, artifacts; status/count/diagnostic change; language/type/ownership/
+  aggregate/backend/optimizer/`CompilerOptions` behavior; dependency/workflow,
+  benchmark, immutable evidence, external artifact, package/release/registry, or
+  `master` change.
+- Status: preregistered; tests and implementation not started.

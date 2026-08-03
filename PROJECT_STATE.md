@@ -4,25 +4,19 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 19 final-state sync — `CORE-018` is accepted at exact three-review-approved
-public closure `2e0e17f`, with all eight checks green. `run` success is reserved for
-CPU process execution; the ROCm temporary-object route and CUDA unavailable route
-fail closed; ambiguous `gpu` is rejected;
-graph/quant stages disclose non-device scalar helpers; and the nonexistent Aero GGUF
-route is disabled. This selected false-success/claim boundary is controlled. It does
-not implement an accelerator backend or close R-007, which still requires independent
-hardware execution and correctness evidence. This sync is record-only before the next
-clean-head risk re-ranking.
+Milestone 20 preregistration — `AUDIT-025` at clean accepted public head `d0bd54e`
+selects the documented `aero test` false execution/pass claim as the next bounded P1.
+The command performs strict parse, direct-module collection, and semantic analysis
+only, yet current CLI/help/BUILD language says discovered sources run and pass.
+`CORE-019` changes presentation and exact tests only. Discovery, analysis, counts,
+statuses, compiler stages, language semantics, and runtime behavior remain frozen.
 
 ## Active hypothesis
 
-If `run` success is reserved for a process that actually executed, ROCm object-only
-probing returns operational status `1`, an `llc` zero exit must satisfy an object-file
-postcondition, and the heuristic `gpu` alias is rejected in favor of an explicit
-target, then the active false-success boundary can be controlled without inventing
-HIP/CUDA semantics. Exact current-facing wording can simultaneously preserve the
-experimental transforms while denying device execution, real FP8/per-channel
-behavior, numerical proof, and Aero GGUF performance evidence.
+Replacing only `aero test` execution/pass wording with exact semantic-analysis and
+no-execution wording can control the false assurance without designing a test ABI or
+changing behavior. A tests-first contract can preserve the existing scan, strict
+parse/direct-module/semantic stages, counts, and `0/1/2` statuses exactly.
 
 ## Founding-framework checkpoint
 
@@ -48,6 +42,15 @@ behavior, numerical proof, and Aero GGUF performance evidence.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-018` final-state sync head:
+  `d0bd54e93ff9fda9e769dd29abcec02a1f550e9a`. Three independent reviewers approved
+  corrected exact diff `a4034521b5976f4c737871d5be7e93d2a1f34bfb` and tree
+  `21e72079679550b73935b56d87e4e062fc48d88e` with no P0-P3 findings after correction
+  of one CUDA stage-precision defect. Both compiler-test jobs, stable/nightly Rust,
+  all three CodeQL analyses, and aggregate CodeQL pass in runs `30824106058`,
+  `30824111861`, `30824110412`, and `30824105642`, with aggregate check
+  `91721342986`; draft PR #4 remains open and mergeable and upstream `master` remains
+  `8f8c733`.
 - Accepted public `CORE-018` closure head:
   `2e0e17fde6d9b11c2f5705c45b23468e0b04cbf0`. Three independent reviewers approved
   exact record-only diff `3d0a17f75e74446d5db0a132084fb3ca7973c6ed` and tree
@@ -583,11 +586,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze, exactly review, and publish this six-record final-state sync; require all
-eight public checks green. Then begin the next clean-head read-only audit and re-rank
-the remaining risks before preregistering another bounded slice. Do not implement
-HIP/CUDA execution, quantization mathematics, a benchmark, a schema rename, language
-semantics, package/release state, or any change to `master`.
+Freeze, exactly review, and publish this six-record `CORE-019` preregistration;
+require all eight public checks green. Then add only the frozen CLI tests and publish
+the exact reviewed 9/2 red target before implementation. Do not execute Aero tests,
+add checked IR/codegen/runtime behavior, change discovery/count/status semantics,
+implement `CompilerOptions`, publish benchmarks or packages, or modify `master`.
 
 ## Unauthorized actions
 

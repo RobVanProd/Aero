@@ -1101,3 +1101,38 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Revisit when: a separate decision specifies device discovery or a persistent object
   command, or hardware-gated Aero link/launch/transfer/synchronization/result evidence
   satisfies `BACKEND_STATUS.md`. None is inferred from `CORE-018`.
+
+## DEC-024 — `aero test` reports source analysis, not test execution
+
+- Date: 2026-08-03
+- Status: proposed by `AUDIT-025`; implementation has not begun.
+- Decision: retain the `test` command name and its exact direct, nonrecursive scan of
+  `examples`, `tests`, and `.` for names ending `_test.aero` or `_tests.aero`. For
+  each discovered source, retain read, strict parse, direct-module collection, and
+  semantic analysis only. The command must state that scope and that no tests were
+  executed. It may not use `run`, `Running`, `passed`, or `test result` to describe a
+  successfully analyzed source or summary.
+- Exact presentation contract: start with `Analyzing Aero test sources (parse, direct
+  modules, semantics only; no execution)...`; label each source `Analyzing <path>`;
+  report success as `<name> analysis completed (not executed)`; report failure as
+  `<name> analysis failed: <diagnostic>`; summarize discovered sources as `analysis
+  result: <completed> completed, <failed> failed, <total> total; no tests were
+  executed`; and warn on an empty scan with `no Aero test source files found
+  (*_test.aero, *_tests.aero); no tests were executed`. ANSI styling may wrap the
+  existing labels/checkmarks but may not change those visible words.
+- Help/documentation contract: CLI help says `Discover and semantically analyze
+  *_test.aero files (no execution)`. `BUILD.md` says the command discovers and
+  semantically analyzes the two filename suffixes and does not execute tests or
+  generate IR.
+- Compatibility boundary: preserve command spelling, argument arity, scan directories
+  and order, filename suffixes, nonrecursive traversal, direct-module behavior,
+  semantic diagnostics, discovered/completed/failure counts, status `0` for no files
+  or all successful analyses, status `1` when any discovered source fails read/parse/
+  module/semantic analysis, and status `2` for malformed invocation.
+- Excluded: executing Aero tests, selecting a test ABI/assertion convention, checked
+  IR, LLVM, codegen, native tools, runtime result comparison, artifacts, recursive
+  discovery, sorting/deduplication, language/type/ownership/aggregate semantics,
+  backend behavior, optimizer claims, `CompilerOptions`, benchmarks, workflows,
+  dependencies, package/release/registry state, and `master`.
+- Revisit when a separate decision specifies executable test entrypoints, isolation,
+  fixtures, assertions, result protocol, and process/runtime behavior.

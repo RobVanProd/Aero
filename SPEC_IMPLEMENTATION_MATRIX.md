@@ -51,7 +51,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Compiler options | Y | N | Ignored | N | N | P | PARSED_ONLY |
 | CLI build/check | Y | N | P; surfaced compile failures nonzero | Y | P | Y | PARTIAL |
 | CLI run | Y | N | CPU executes; accepted CORE-018 makes ROCm a temporary regular-file probe followed by status 1/no execution; CUDA status 1 | Y | P | Y | PARTIAL |
-| CLI test | Y | N | Analysis-only result; failures nonzero | Y | P | Y | PARTIAL |
+| CLI test | Y | N | Semantic analysis only; current output incorrectly claims running/passed; failures nonzero | Y | P | P | PARTIAL |
 | Formatter | Y | N | Text trimming | N | N | P | EXPERIMENTAL |
 | Diagnostics/source spans | Y | P | Point/one-char ranges | P | P | Y | PARTIAL |
 | LSP | Y | N | P | P | P | Y | EXPERIMENTAL |
@@ -127,6 +127,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   boundary is accepted at exact three-review-approved public record-only closure
   `2e0e17f`, which also passes all eight checks. No backend row is promoted and R-007
   remains open.
+- `AUDIT-025` at clean accepted head `d0bd54e` confirms that `aero test` performs
+  strict parse, direct-module collection, and semantic analysis only while current
+  CLI/help/BUILD wording claims sources run and pass. `CORE-019` selects wording and
+  exact CLI tests only; all stages, statuses, counts, discovery behavior, and
+  capability classes remain frozen. Ignored nondefault `CompilerOptions` remain a
+  separate R-006 runner-up.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

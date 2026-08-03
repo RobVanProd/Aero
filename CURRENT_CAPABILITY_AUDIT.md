@@ -652,6 +652,33 @@ upgrading any artifact.
   boundary is accepted, but R-007 remains open because no accelerator execution or
   correctness evidence was produced.
 
+### Post-CORE-018 clean-head risk re-ranking (`AUDIT-025`)
+
+- The accepted final-state sync is public at clean head `d0bd54e`, tree `21e72079`;
+  draft PR #4 is open/mergeable, all eight checks pass, and upstream `master` remains
+  `8f8c733`.
+- `aero test` discovers direct `*_test.aero`/`*_tests.aero` files and performs strict
+  parsing, direct-module collection, and semantic analysis only. It does not admit
+  checked IR, generate code, execute a process, or compare runtime results, but its
+  comment, progress output, success summary, help, BUILD guide, and an existing CLI
+  contract say `run`, `Running`, or `passed`. Accepted DEC-016 already classifies the
+  command as a semantic checker rather than an execution runner.
+- Two independent auditors rank that direct user-facing false assurance as the next
+  bounded P1; the IR/codegen auditor instead ranks ignored public nondefault
+  `CompilerOptions` first. The lead selects `aero test` claim containment because it
+  is a documented CLI surface with direct user reach and requires presentation/tests
+  only. Fail-closed nondefault `CompilerOptions` is the bounded runner-up.
+- R-002 and R-004 remain more severe conceptually but stop on unresolved nominal/
+  generic and ownership/provenance semantics across multiple phases. R-005 public
+  unchecked API retirement needs a major-boundary compatibility policy; R-007 needs
+  hardware; R-009/R-010 and broad R-006 convergence are architectural; R-011 needs
+  bounds/layout/execution semantics; R-012 remains a per-slice classification backlog;
+  and R-016 needs a toolchain policy.
+- `CORE-019` therefore freezes wording-only CLI truth. Discovery, parsing, module
+  collection, semantic analysis, counts, and statuses remain unchanged; no test
+  execution, checked IR, codegen, runtime, language semantic, or capability work is
+  selected.
+
 ## Audit completion
 
 All eight requested read-only areas were completed in bounded waves. The audit
