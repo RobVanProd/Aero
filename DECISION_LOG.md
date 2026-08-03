@@ -1136,6 +1136,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   exact `./tools/test.sh` and all eight public checks in compiler runs
   `30829963152`/`30829970545`, Rust `30829968789`, CodeQL `30829962982`, and
   aggregate `91741344282`.
+- Final-sync evidence: exact three-review-approved record-only sync `25dec51`, tree
+  `46828e7d`, passes all eight public checks in compiler runs
+  `30830484863`/`30830489796`, Rust `30830490379`, CodeQL `30830483828`, and
+  aggregate `91743120769`. No new semantic decision is made by `AUDIT-026`.
 - Compatibility boundary: preserve command spelling, argument arity, scan directories
   and order, filename suffixes, nonrecursive traversal, direct-module behavior,
   semantic diagnostics, discovered/completed/failure counts, status `0` for no files

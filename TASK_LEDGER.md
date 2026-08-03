@@ -3072,3 +3072,46 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   with no P0-P3 findings and was published as `63b66295544d41634f790face005d0fcfc64b41a`.
   Compiler runs `30829963152`/`30829970545`, Rust `30829968789`, CodeQL `30829962982`,
   and aggregate `91741344282` all pass.
+- Final-state sync: exact diff `a3cd465fab08c4c9b6b238c7aadd4a39a4d06c3d`,
+  tree `46828e7d715c6489eb2c7a661a7ef95b7cb4555b`, received three independent approvals
+  with no P0-P3 findings and was published as `25dec51e7fb24a5dd835712568242d685af649cf`.
+  Compiler runs `30830484863`/`30830489796`, Rust `30830490379`, CodeQL `30830483828`,
+  and aggregate `91743120769` all pass.
+
+## AUDIT-026 — Re-rank remaining compiler-integrity risks after CORE-019
+
+- Task ID/date/basis: `AUDIT-026`, 2026-08-03, accepted clean public head
+  `25dec51e7fb24a5dd835712568242d685af649cf`, tree
+  `46828e7d715c6489eb2c7a661a7ef95b7cb4555b`; integration branch matches origin,
+  PR #4 is open/draft/mergeable, all eight checks pass, and upstream `master` remains
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Observed behavior: `CORE-019` controls its selected presentation boundary. The
+  public `CompilerOptions` facade still exposes `optimize`, `debug_info`, and `target`
+  while `compile_program` names the value `_options` and does not read it. Remaining
+  safety, compatibility, backend, diagnostic, aggregate, and tooling risks retain
+  their current open/partial boundaries.
+- Hypothesis: independently reproducing ignored nondefault options and comparing user
+  reach, severity, phase count, compatibility ambiguity, and regression feasibility
+  can identify the next bounded false success without inventing option semantics.
+- Frozen semantics: none. This is read-only evidence collection and ranking; no field
+  value is defined as valid, invalid, equivalent, optimizing, debug-emitting, or a
+  target selector.
+- Allowed files/changes: auditors make no repository changes. Root may later record
+  the completed audit and a separately frozen next-task contract in the six control
+  records. No source, tests, workflows, dependencies, benchmarks, artifacts,
+  package/release/registry state, or `master` change is authorized.
+- Acceptance: reproduce default/nondefault facade behavior without claiming option
+  semantics; inventory direct callers and current documentation; distinguish library
+  checked compilation from CLI target/backend orchestration; compare remaining risks;
+  obtain independent type/safety, IR/codegen, and backend/claim reports; recommend one
+  bounded next action or stop on an unresolved semantic/compatibility decision.
+- Risks: option names may be mistaken for specified behavior; identical LLVM text may
+  not prove every internal path identical; source callers may not represent external
+  consumers; a fail-closed change may be compatibility-breaking; target strings may
+  be confused with CLI CPU/ROCm/CUDA behavior.
+- Stop conditions: repository mutation outside this preregistration; option semantics,
+  compatibility decision, code/test implementation, language/ownership/aggregate
+  decision, hardware/device probe, benchmark run/claim, workflow/dependency change,
+  immutable evidence, external artifact, package/release/registry action, destructive
+  command, or `master` modification.
+- Status: preregistered; audit not started.

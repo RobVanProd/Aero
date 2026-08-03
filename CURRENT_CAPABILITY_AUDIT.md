@@ -699,6 +699,17 @@ upgrading any artifact.
   aggregate `91741344282`. `CORE-019` is complete at that selected boundary; broader
   R-013 command behavior and executable-test design remain open.
 
+### Post-CORE-019 clean-head audit contract (`AUDIT-026`)
+
+- Accepted public final-state sync `25dec51`, tree `46828e7d`, passes both compiler
+  jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL. PR #4
+  is open/draft/mergeable and upstream `master` remains `8f8c733`.
+- The next task is read-only re-ranking. It must reproduce the public
+  `CompilerOptions { optimize, debug_info, target }` facade being ignored by
+  `compile_program`, compare reach/severity/phase count/compatibility ambiguity with
+  remaining risks, and recommend one bounded next action or stop. It does not define
+  option semantics, authorize code/tests, or change any capability class.
+
 ## Audit completion
 
 All eight requested read-only areas were completed in bounded waves. The audit

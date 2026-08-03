@@ -4,19 +4,19 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 20 final-state sync — exact three-review-approved record-only closure
-`63b6629`, tree `2e886850`, passes exact `./tools/test.sh` and all eight public checks
-(compiler `30829963152`/`30829970545`, Rust `30829968789`, CodeQL `30829962982`,
-aggregate `91741344282`). `CORE-019` is complete and accepted at that closure; this
-sync records its clean final state before a new read-only risk audit.
+Milestone 21 preregistration — accepted public `CORE-019` final-state sync `25dec51`,
+tree `46828e7d`, passes all eight checks and leaves the repository clean. `AUDIT-026`
+will re-rank remaining compiler-integrity risks read-only, with silently ignored
+nondefault public `CompilerOptions` as the bounded runner-up to reproduce and compare,
+not as an implementation already selected.
 
 ## Active hypothesis
 
-The public red checkpoint followed by the reviewed public-green implementation proves
-that exact semantic-analysis/no-execution wording controls this false assurance
-without changing the scan, strict parse/direct-module/semantic stages, diagnostics,
-counts, or `0/1/2` statuses. No executable-test ABI, checked IR, codegen, or runtime
-behavior is introduced.
+An exact clean-head audit can determine whether the public `compile_program(source,
+CompilerOptions)` facade silently ignoring `optimize`, `debug_info`, and `target` is
+the highest-severity bounded active false success. No meaning for those fields is
+assumed; fail-closed rejection, implementation, compatibility, or deprecation must
+wait for a separately frozen decision and tests-first contract.
 
 ## Founding-framework checkpoint
 
@@ -42,6 +42,14 @@ behavior is introduced.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-019` final-state sync head:
+  `25dec51e7fb24a5dd835712568242d685af649cf`. Three independent reviewers approved
+  exact record-only diff `a3cd465fab08c4c9b6b238c7aadd4a39a4d06c3d` and tree
+  `46828e7d715c6489eb2c7a661a7ef95b7cb4555b` with no P0-P3 findings. Both compiler-
+  test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL pass
+  in runs `30830484863`, `30830489796`, `30830490379`, and `30830483828`, with
+  aggregate check `91743120769`; draft PR #4 remains open and mergeable and upstream
+  `master` remains `8f8c733`.
 - Accepted public `CORE-019` closure head:
   `63b66295544d41634f790face005d0fcfc64b41a`. Three independent reviewers approved
   corrected record-only diff `b4fd6bc195f70712fbcd0f022d5dcbbcad7128c9` and tree
@@ -594,9 +602,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze, exactly review, and publish this six-record final-state sync and require all
-eight public checks green. Then perform a new clean-head read-only risk audit before
-selecting fail-closed nondefault `CompilerOptions` or any other implementation slice.
+Freeze, exactly review, and publish this six-record `AUDIT-026` preregistration and
+require all eight public checks green. Then complete the clean-head read-only audit
+before selecting `CompilerOptions` or any other implementation slice.
 Do not execute Aero tests, add checked IR/codegen/runtime behavior, change discovery/
 count/status semantics, implement `CompilerOptions`, publish benchmarks or packages,
 or modify `master`.

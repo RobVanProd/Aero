@@ -142,6 +142,9 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 - Exact three-review-approved corrected record-only closure `63b6629` also passes the
   full gate and all eight public checks. No row/class promotion or execution evidence
   is inferred from closure.
+- Exact three-review-approved final-state sync `25dec51` also passes all eight public
+  checks. `AUDIT-026` is read-only and cannot promote any row or define
+  `CompilerOptions` behavior.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
