@@ -3227,10 +3227,8 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Files changed by implementation candidate: `src/compiler/src/lib.rs` plus the six
   authorized current control records. The public tests file is unchanged.
 - Remaining uncertainty/regression risk: external nondefault consumers now receive an
-  earlier error; public green implementation evidence and closure are pending; real
-  option semantics and broad CLI/library convergence remain undefined.
-- Status: implementation candidate locally green; exact review and public all-eight
-  acceptance pending. No capability or class is promoted.
+  earlier error; real option semantics and broad CLI/library convergence remain
+  undefined.
 - Implementation acceptance: exact staged tree
   `7c8b2ce1e93c82ca5f42100723431688e7505a22` and diff
   `33e5883e84d82c6a2fa105b7fdfad7d7cebc6ad8` received three independent approvals
@@ -3242,6 +3240,60 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   before lexing, including whitespace-only targets; defaults retain the exact parent
   LLVM and parse diagnostic. Public API shape/defaults are unchanged. No option/CLI/
   IR/codegen/backend semantics or capability class is added.
-- Status: selected boundary accepted at implementation `70cb0ad`; this record-only
-  closure is pending exact review and public all-eight verification. Real option
-  semantics and broad R-006 convergence remain open.
+- Closure acceptance: exact staged tree
+  `df4a04a5891139f83ae355aff74bd6726de1057a` and diff
+  `85ef52a4090096042db3339e53fdfd2835302531` received three independent approvals
+  with no P0-P3 findings and were published as
+  `5a8cd06d740f2c3c87843983371cffc9251f8cfe`. Compiler runs
+  `30835593703`/`30835597576`, stable/nightly Rust run `30835597620`, CodeQL run
+  `30835594365`, and aggregate `91759990615` provide all eight green checks.
+- Status: complete for the selected ignored-option boundary at closure `5a8cd06`.
+  Real option semantics and broad R-006 convergence remain open; no capability or
+  class is promoted.
+
+## AUDIT-027 — Clean-head remaining-risk re-ranking
+
+- Task ID/date/owner: `AUDIT-027`, 2026-08-03, lead-owned read-only audit with three
+  independent type/safety, IR/codegen, and backend/claim auditors.
+- Observed behavior: after accepted `CORE-020` closure `5a8cd06`, no next
+  implementation is authorized. R-002/R-004 retain unresolved type/ownership
+  semantics; R-005 needs a major-boundary unchecked-API policy; R-006 retains
+  duplicated orchestration and undefined options; R-007 lacks real hardware evidence;
+  R-009/R-010 are architectural; R-011 needs aggregate bounds/layout/execution;
+  R-012 is an ignored-test backlog requiring slice classification; R-013 retains
+  delegated-exit, rollback, executable-test, command-maturity, and helper-architecture
+  boundaries; and R-016 needs a toolchain policy.
+- Hypothesis: comparing active reproducibility, reach, severity, semantic readiness,
+  phase count, compatibility ambiguity, and tests-first feasibility at one clean
+  public head can identify one bounded next correction without inventing semantics.
+- Frozen audit semantics: use the exact commit publishing this contract as the basis,
+  only after its local full gate, three approvals, and all eight public checks are
+  green. Its only delta from `5a8cd06` is the six current control records. Treat
+  existing risk descriptions and capability labels as hypotheses to verify, not
+  permission to promote or implement them. Recommend one bounded tests-first task or
+  stop explicitly if no candidate satisfies repository constraints.
+- Allowed files/actions: auditors are read-only and may inspect tracked source,
+  history, tests, current control documents, `claim-verification/`, and public GitHub
+  check metadata. They may run existing non-artifact-producing tests only when static
+  evidence is insufficient and must report them exactly. After reconciliation, only
+  the lead may edit the six current control records: `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `DECISION_LOG.md`, `INITIAL_RISK_REGISTER.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `TASK_LEDGER.md`.
+- Acceptance: this preregistration/final-state sync passes exact `./tools/test.sh`,
+  three independent exact-snapshot reviews, and all eight public checks. The later
+  audit reports the required nine evidence fields, ranks the same candidate set, ties
+  each conclusion to file/symbol or line evidence, reconciles disagreements, and
+  makes no code, test, workflow, dependency, package, claim-evidence, or capability
+  change.
+- Risks: stale historical claims can be mistaken for current behavior; broad risks
+  can conceal a bounded slice; repeated tests can create artifacts or alter state;
+  raw severity can pressure unresolved semantics; external consumers/hardware remain
+  unknowable from repository evidence alone.
+- Stop conditions: any new probe/source/executable/artifact, ignored-test activation,
+  code/test/workflow/dependency edit, language/type/ownership/aggregate/option/
+  toolchain/hardware semantic decision, benchmark or performance claim, package/
+  release/registry action, immutable-evidence mutation, destructive system action,
+  branch/history rewrite, or `master` change. Stop rather than select work crossing
+  more than two compiler phases or lacking frozen semantics and a failing-test path.
+- Status: preregistered locally; audit execution is prohibited until this exact
+  six-record sync is reviewed, published, and all eight public checks pass.

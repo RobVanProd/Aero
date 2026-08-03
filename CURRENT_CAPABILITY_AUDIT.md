@@ -766,6 +766,31 @@ upgrading any artifact.
   Compiler options remain `PARSED_ONLY`: unsupported rejection is enforced, but no
   optimization, debug-information, target, CLI, IR, codegen, or backend semantics are
   implemented. Broad R-006 convergence remains open.
+- Exact three-review-approved record-only closure `5a8cd06`, tree `df4a04a`, diff
+  `85ef52a4`, passes compiler runs `30835593703`/`30835597576`, stable/nightly Rust
+  run `30835597620`, all three analyses in CodeQL run `30835594365`, and aggregate
+  `91759990615`. It adds no compiler behavior and makes no capability promotion.
+
+### Next clean-head audit contract (`AUDIT-027`)
+
+- Basis: the exact commit that publishes this six-record contract, but only after its
+  local full gate, three independent approvals, and all eight public checks pass. Its
+  only delta from accepted closure `5a8cd06` is current control-record state.
+- Observed state: R-002 and R-004 retain high raw safety impact but require unresolved
+  type/ownership decisions; R-005 needs an unchecked-API policy; R-006 still includes
+  duplicated orchestration and undefined option meanings; R-007 needs real hardware;
+  R-009/R-010 are architectural; R-011 needs aggregate bounds/layout/execution;
+  R-012 is a per-slice ignored-test backlog; R-013 retains delegated-exit, rollback,
+  executable-test, command-maturity, and helper-architecture boundaries; and R-016
+  needs a toolchain policy.
+- Method: use repository source, tracked evidence, existing tests, and public check
+  records only. Compare active reproducibility, reach, severity, frozen semantics,
+  phase count, compatibility ambiguity, and testability. Three independent auditors
+  must rank the same candidates and report evidence plus remaining uncertainty.
+- Output: recommend one bounded tests-first task or an explicit stop. The audit may
+  update only the six current control records after findings are reconciled; it may
+  not define language/toolchain/hardware semantics, create probes or artifacts, edit
+  code/tests/workflows/dependencies, or promote any matrix row or capability class.
 
 ## Audit completion
 

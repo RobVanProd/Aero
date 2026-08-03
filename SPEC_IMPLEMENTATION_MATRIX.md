@@ -161,6 +161,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   The accepted boundary preserves default LLVM/diagnostics and rejects nondefaults
   before lexing. The row remains `PARSED_ONLY`: no optimizer, debug-information,
   target-selection, CLI mapping, IR, codegen, or backend behavior is implemented.
+- Exact three-review-approved record-only closure `5a8cd06` passes all eight public
+  checks in compiler runs `30835593703`/`30835597576`, Rust `30835597620`, CodeQL
+  `30835594365`, and aggregate `91759990615`. It changes no row or capability class.
+  `AUDIT-027` is preregistered as read-only re-ranking and cannot promote a row.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

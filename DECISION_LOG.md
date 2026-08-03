@@ -1204,3 +1204,15 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `70cb0ad1afe3e3649e14a3faca444d8cd16589cb`. Compiler runs
   `30834445685`/`30834446600`, Rust `30834446605`, CodeQL `30834443841`, and
   aggregate `91756251121` all pass.
+- Closure acceptance: exact record-only tree
+  `df4a04a5891139f83ae355aff74bd6726de1057a` and diff
+  `85ef52a4090096042db3339e53fdfd2835302531` received three independent approvals
+  with no P0-P3 findings and were published as
+  `5a8cd06d740f2c3c87843983371cffc9251f8cfe`. Compiler runs
+  `30835593703`/`30835597576`, Rust `30835597620`, CodeQL `30835594365`, and
+  aggregate `91759990615` all pass. This evidence closes only DEC-025's selected
+  unsupported-options boundary; it does not decide any option meaning or broader
+  R-006 architecture.
+- Next-decision boundary: `AUDIT-027` is read-only re-ranking, not a semantic
+  decision. No new implementation may be selected until its exact preregistration is
+  public-green and its three independent findings are reconciled by the lead.

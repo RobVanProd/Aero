@@ -4,20 +4,20 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 22 acceptance closure — exact three-review-approved implementation
-`70cb0ad`, tree `7c8b2ce1`, passes all eight public checks. `CORE-020` now rejects
-every nondefault public `CompilerOptions` value before lexing while preserving the
-public facade and byte-exact default LLVM/diagnostic behavior. The selected ignored-
-option boundary is accepted; real option semantics and broad R-006 CLI/library
-convergence remain open.
+Milestone 23 clean-head risk re-ranking — exact three-review-approved record-only
+closure `5a8cd06`, tree `df4a04a`, passes all eight public checks and closes
+`CORE-020` without promoting compiler-option capability. Publish this final-state
+sync and `AUDIT-027` contract unchanged, require its own all-eight green evidence,
+then compare the remaining open risks from that clean public head before selecting
+any implementation.
 
 ## Active hypothesis
 
-Rejecting `optimize = true`, `debug_info = true`, or a nonempty `target` before
-lexing prevents a public successful compilation from falsely implying unsupported
-option behavior. The public struct, fields, derives, default, function signature,
-and exact default pipeline/output/diagnostics remain unchanged. No option meaning is
-implemented or inferred.
+After the bounded false-success corrections through `CORE-020`, a new source- and
+evidence-only comparison is required to identify the highest-reach remaining task
+that has frozen semantics, fits at most two compiler phases, and can begin with a
+failing regression test. Raw severity alone does not authorize unresolved type,
+ownership, aggregate, accelerator, option, or toolchain semantics.
 
 ## Founding-framework checkpoint
 
@@ -43,6 +43,11 @@ implemented or inferred.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- `CORE-020` record-only closure `5a8cd06`, tree `df4a04a`, passes compiler runs
+  `30835593703`/`30835597576`, stable/nightly Rust run `30835597620`, all three
+  analyses in CodeQL run `30835594365`, and aggregate `91759990615`. The selected
+  unsupported-options boundary is closed; real option behavior and broad R-006
+  convergence remain open.
 - Accepted public `CORE-019` final-state sync head:
   `25dec51e7fb24a5dd835712568242d685af649cf`. Three independent reviewers approved
   exact record-only diff `a3cd465fab08c4c9b6b238c7aadd4a39a4d06c3d` and tree
@@ -604,12 +609,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Exactly review and publish this six-record `CORE-020` acceptance closure, then require
-all eight public checks green. Resume clean-head read-only risk ranking only after that
-evidence is complete. Preserve the exact default LLVM/diagnostic bytes and pre-lexing
-unsupported-options error.
-Do not implement option meanings, connect CLI targets, change default compilation,
-IR/codegen/runtime behavior, workflows/dependencies, benchmarks/packages, or `master`.
+Exactly review and publish this six-record final-state sync and `AUDIT-027`
+preregistration, then require all eight public checks green. Only then perform the
+frozen read-only comparison; do not create probes, tests, artifacts, implementation,
+or a semantic decision during the audit. Preserve the exact `CORE-020` default bytes
+and pre-lexing unsupported-options error. Do not change workflows/dependencies,
+benchmarks/packages, immutable claim evidence, or `master`.
 
 ## Unauthorized actions
 
