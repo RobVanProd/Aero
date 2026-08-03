@@ -758,9 +758,13 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-019 — The public Quick Start is an executable generated-project contract
 
 - Date: 2026-08-02
-- Status: public independently approved red checkpoint at `fc77e99`; locally green
-  documentation/workflow implementation candidate under exact review; public
-  implementation CI and acceptance closure pending
+- Status: implemented and accepted at public `c56b1d5`; exact implementation diff
+  `687dd5f3d6360dfd7822e7809944f63d4caccfdd` and tree
+  `869fca43edb8b5888bdec01d0bfc7cdecfa451a5` received three independent approvals,
+  focused/full local gates pass, and all eight public checks pass. Stable Linux CI
+  completed the exact documented path with external LLVM 22 verification, status
+  zero, and exactly one `Output: Hello, Aero!` line; closure records remain under
+  exact review before publication
 - Decision: the canonical first-run path begins at the repository root, builds with
   `cargo build --release --manifest-path src/compiler/Cargo.toml`, places
   `src/compiler/target/release` on `PATH`, initializes a fresh project with

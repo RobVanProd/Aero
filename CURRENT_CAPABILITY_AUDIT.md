@@ -65,8 +65,9 @@ correctness gates.
   checks. It does not prove the formal semantics.
 - `AUDIT-020` reproduced that the former documented root-level
   `cargo build --release` command exited 101 because the repository root has no
-  `Cargo.toml`; the locally green `CORE-014` candidate instead selects the compiler
-  manifest under `src/compiler/` explicitly.
+  `Cargo.toml`; accepted public `CORE-014` at `c56b1d5` instead selects the compiler
+  manifest under `src/compiler/` explicitly and passes the exact generated-project
+  path in stable Linux CI.
 
 ## Specification and public-surface audit
 
@@ -76,9 +77,11 @@ correctness gates.
   struct-field delimiters, rebinding, and lifetime maturity.
 - The public `CORE-014` red checkpoint proves the former README flagship used
   grouped imports, named arguments, and absent `aeronum`/`aeronn` packages that the
-  active repository cannot compile. The locally green documentation/workflow
-  candidate replaces it with the exact existing generated CPU project; public CI
-  acceptance remains pending.
+  active repository cannot compile. Accepted public `c56b1d5` replaces it with the
+  exact existing generated CPU project. All eight checks pass; stable Linux CI
+  resolves LLVM 22 tooling and executes build/init/check/run with status zero and
+  exactly one anchored `Output: Hello, Aero!` line. Windows commands are statically
+  contract-tested but are not claimed as Windows end-to-end execution evidence.
 - Several shipped examples use legacy top-level statements outside the normative
   module grammar. `examples/scoping.aero` also conflicts with the documented and
   active same-scope rebinding rule.
@@ -258,13 +261,16 @@ correctness gates.
   CI checks pass at head `db349ef`; this promotes only the selected checked scalar
   IR/publication boundary and does not promote unresolved language/backend rows.
 - At the original audit basis, library/build paths did not invoke an LLVM verifier.
-  CI object/link/runtime coverage remains limited to four scalar CPU examples.
+  Current CI object/link/runtime coverage remains limited to four pre-existing
+  scalar exit-code examples plus the generated-project status/output path accepted
+  by `CORE-014`.
 
 ## Runtime and backend audit
 
 - CPU has a real LLVM-to-object-to-link-to-process path when `llc`/`clang` are
-  available. Four small Linux CI programs check exit codes. The current Windows
-  audit host lacks those tools, so local execution is environment-blocked.
+  available. Linux CI covers four small scalar programs by exit code plus the
+  generated `Hello, Aero!` project by status and anchored output. The current
+  Windows audit host lacks those tools, so local execution is environment-blocked.
 - ROCm retargets LLVM and attempts an AMDGPU object; it has no link or HIP launch
   path. CUDA run/object/link/launch is absent. GPU auto-detection probes tools or
   environment rather than a verified usable device and may silently select CPU.

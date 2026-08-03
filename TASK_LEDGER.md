@@ -2135,5 +2135,14 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `cli_status_contract_tests`; the target immediately passed 7/7 in isolation and
   the unchanged full gate passed on rerun. This is retained as residual pre-existing
   flake uncertainty, not classified as a `CORE-014` regression.
-- Status: locally green implementation candidate; exact independent implementation
-  review and complete public CI acceptance remain pending.
+- Acceptance evidence: the exact implementation diff
+  `687dd5f3d6360dfd7822e7809944f63d4caccfdd` and tree
+  `869fca43edb8b5888bdec01d0bfc7cdecfa451a5` received three independent approvals
+  with no P0-P3 findings. Public implementation commit
+  `c56b1d561930a042eeff214196fd1b4f05a77fb6` passes all eight checks. Its stable
+  Linux job resolved LLVM 22 `clang`, `llc`, and external verifier tooling, then
+  completed the documented build/init/check/run path with status zero and exactly
+  one anchored `Output: Hello, Aero!` line. Nightly Rust, both compiler-test jobs,
+  all three CodeQL language analyses, and aggregate CodeQL also pass.
+- Status: implemented and accepted at public `c56b1d5`; acceptance records are
+  under exact independent review before closure publication.

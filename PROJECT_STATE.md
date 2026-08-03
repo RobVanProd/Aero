@@ -4,19 +4,18 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 15 implementation — validate the bounded `CORE-014` documentation and
-stable-Linux CI candidate against its independently approved public red checkpoint,
-then publish it only after exact implementation review. Accepted `CORE-013` remains
-closed at public documentation head `18526ff`; benchmark execution remains
-quarantined.
+Milestone 15 acceptance closure — record the independently approved `CORE-014`
+implementation and its complete public CI evidence, then publish these closure
+records only after exact review. Accepted `CORE-013` remains closed at public
+documentation head `18526ff`; benchmark execution remains quarantined.
 
 ## Active hypothesis
 
-`CORE-014` can make the first public user path executable by correcting the root
+`CORE-014` makes the first public user path executable by correcting the root
 manifest and binary paths, using the existing generated project as the only flagship
-program, and running that path in CI. This bounded documentation/test/workflow slice
-does not select a release version, admit language syntax, implement accelerator
-execution, or change compiler/CLI behavior.
+program, and running that path in stable Linux CI. This bounded documentation/test/
+workflow slice does not select a release version, admit language syntax, implement
+accelerator execution, or change compiler/CLI behavior.
 
 ## Founding-framework checkpoint
 
@@ -42,10 +41,18 @@ execution, or change compiler/CLI behavior.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current public head and `CORE-014` tests-only red checkpoint:
+- Current public head and accepted `CORE-014` implementation:
+  `c56b1d561930a042eeff214196fd1b4f05a77fb6`. Its exact reviewed staged diff is
+  `687dd5f3d6360dfd7822e7809944f63d4caccfdd` and tree is
+  `869fca43edb8b5888bdec01d0bfc7cdecfa451a5`. Three independent reviewers
+  approved it with no P0-P3 findings, the focused 5/5 target and exact complete
+  local gate pass, and all eight public checks pass. Stable Linux CI resolved the
+  documented LLVM 22 tools, completed build/init/check/run, returned status zero,
+  and observed exactly one anchored `Output: Hello, Aero!` line.
+- Historical `CORE-014` tests-only red checkpoint:
   `fc77e9979f996aaa0110ba48246b24ebca67acbd`. Its three intended Quick Start
-  contracts fail after all earlier public test steps pass; this is red evidence,
-  not an accepted implementation.
+  contracts failed after all earlier public test steps passed; this remains red
+  evidence, not an accepted implementation.
 - Prior clean `CORE-013` acceptance closure:
   `18526ff7a80db222c1348496f24f710d09249dfc`. All eight public checks pass.
 - The `CORE-014` red checkpoint's exact reviewed staged diff is
@@ -178,10 +185,12 @@ execution, or change compiler/CLI behavior.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `a78dd004aa37c39212711027b777698118d9dc02`.
-- Worktree: documentation/workflow-only `CORE-014` implementation candidate. The
-  focused target passes 5/5 and exact complete `./tools/test.sh` passes locally;
-  exact implementation review and public CI remain pending. Production behavior
-  remains accepted public implementation `a78dd00` because no compiler code changed.
+- Worktree: acceptance records for the documentation/workflow-only `CORE-014`
+  implementation. The accepted public implementation is `c56b1d5`; focused and
+  complete local gates, three exact reviews, and all eight public checks pass.
+  Closure-record review and publication remain pending. Production compiler
+  behavior remains accepted public implementation `a78dd00` because no compiler
+  code changed.
   One earlier full-gate attempt stopped in the unchanged
   `cli_status_contract_tests`; that target immediately passed 7/7 in isolation and
   the unchanged complete gate passed on rerun. The interruption is not reproduced
@@ -367,7 +376,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Formal conformance: three example cases plus four deterministic pipeline
   checks; this is not formal semantics proof.
 - CPU source-to-LLVM/object/link/process path: present when external tools are
-  available; current evidence is four small Linux CI programs.
+  available; current evidence is four small Linux CI exit-code programs plus the
+  generated-project status/output path accepted by `CORE-014`.
 - ROCm: interface/retarget/object-generation plumbing; no link/launch path or
   current-session hardware execution evidence.
 - CUDA: selectable interface; CLI source states run support is not implemented.
@@ -424,10 +434,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze and independently review the exact locally green `CORE-014` implementation
-candidate. Publish it only after all three exact reviews approve, then require the
-complete public CI matrix and the stable-only `Verify documented Quick Start` step
-to pass before acceptance closure. Do not change compiler/CLI semantics, version
+Freeze and independently review the exact `CORE-014` acceptance records. Publish
+them only after all three exact reviews approve, then require the complete public CI
+matrix to pass on the closure commit. Do not change compiler/CLI semantics, version
 policy, backend behavior, project scaffolding, benchmark code/results, registry
 transport, or infer language/backend/release/merge authorization.
 
