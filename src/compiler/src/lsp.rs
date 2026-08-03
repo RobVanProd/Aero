@@ -338,7 +338,7 @@ fn syntax_diagnostics(source: &str, filename: Option<String>) -> Vec<LspDiagnost
     };
     match parse_with_locations(tokens) {
         Ok(_) => Vec::new(),
-        Err(err) => diagnostics_from_error(&err),
+        Err(err) => diagnostics_from_error(&err, source),
     }
 }
 
@@ -385,33 +385,36 @@ fn diagnostic_for_lexical_error(error: &CompilerError, source: &str) -> LspDiagn
     }
 }
 
-fn diagnostics_from_error(error: &CompilerError) -> Vec<LspDiagnostic> {
+fn diagnostics_from_error(error: &CompilerError, source: &str) -> Vec<LspDiagnostic> {
     match error {
         CompilerError::MultiError { errors } => errors
             .iter()
-            .flat_map(diagnostics_from_error)
+            .flat_map(|error| diagnostics_from_error(error, source))
             .collect::<Vec<_>>(),
-        single => vec![diagnostic_for_single_error(single)],
+        single => vec![diagnostic_for_single_error(single, source)],
     }
 }
 
-fn diagnostic_for_single_error(error: &CompilerError) -> LspDiagnostic {
+fn diagnostic_for_single_error(error: &CompilerError, source: &str) -> LspDiagnostic {
     let location = error
         .location()
         .cloned()
         .unwrap_or_else(SourceLocation::unknown);
     let line = location.line.saturating_sub(1) as u32;
-    let column = location.column.saturating_sub(1) as u32;
+    let scalar_column = location.column.saturating_sub(1);
+    let source_line = source.split('\n').nth(line as usize).unwrap_or_default();
+    let character = source_line
+        .chars()
+        .take(scalar_column)
+        .map(|ch| ch.len_utf16() as u32)
+        .sum::<u32>();
 
     LspDiagnostic {
         range: LspRange {
-            start: LspPosition {
-                line,
-                character: column,
-            },
+            start: LspPosition { line, character },
             end: LspPosition {
                 line,
-                character: column.saturating_add(1),
+                character: character.saturating_add(1),
             },
         },
         severity: 1,
@@ -840,7 +843,7 @@ mod tests {
             found: "Semicolon".to_string(),
             location: SourceLocation::new(3, 5),
         };
-        let diagnostics = diagnostics_from_error(&error);
+        let diagnostics = diagnostics_from_error(&error, "\n\n0123");
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].range.start.line, 2);
         assert_eq!(diagnostics[0].range.start.character, 4);
@@ -863,7 +866,7 @@ mod tests {
         let error = CompilerError::MultiError {
             errors: vec![first, second],
         };
-        let diagnostics = diagnostics_from_error(&error);
+        let diagnostics = diagnostics_from_error(&error, "\n01");
         assert_eq!(diagnostics.len(), 2);
     }
 
