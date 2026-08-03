@@ -4,20 +4,18 @@ Last updated: 2026-08-02 (America/New_York)
 
 ## Current objective
 
-Milestone 14 acceptance closure — independently review and publish the documentation
-record for accepted public `CORE-013` implementation `a78dd00`. Its local focused and
-full gates, three exact implementation reviews, and all eight public checks pass.
-Benchmark execution remains quarantined.
+Milestone 15 preregistration — independently review and publish the `AUDIT-020`
+risk re-ranking and bounded `CORE-014` public Quick Start contract before adding its
+tests-only red checkpoint. Accepted `CORE-013` is closed at public documentation head
+`18526ff`; benchmark execution remains quarantined.
 
 ## Active hypothesis
 
-Accepted `CORE-013` demonstrates that one typed CLI-owned dispatcher boundary replaces
-broad diagnostic-plus-zero fallthrough with success `0`, operational failure `1`,
-and invocation failure `2` without changing command or compiler semantics.
-Delegated CPU program exits remain arbitrary pass-through values and output rollback
-remains non-atomic. The same unknown-command correction makes the legacy Python
-compilation driver fail closed; its numbers still require explicit
-invalid-measurement classification, not reuse.
+`CORE-014` can make the first public user path executable by correcting the root
+manifest and binary paths, using the existing generated project as the only flagship
+program, and running that path in CI. This bounded documentation/test/workflow slice
+does not select a release version, admit language syntax, implement accelerator
+execution, or change compiler/CLI behavior.
 
 ## Founding-framework checkpoint
 
@@ -43,8 +41,10 @@ invalid-measurement classification, not reuse.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current public head and accepted `CORE-013` implementation:
-  `a78dd004aa37c39212711027b777698118d9dc02`. All eight public checks pass.
+- Current clean public head and `CORE-013` acceptance closure:
+  `18526ff7a80db222c1348496f24f710d09249dfc`. All eight public checks pass.
+- Accepted `CORE-013` implementation code commit:
+  `a78dd004aa37c39212711027b777698118d9dc02`. All eight implementation checks pass.
 - Prior `CORE-012` acceptance-documentation head:
   `b7bb42958e78fb97ea0d991fa3f4cdb40bbcce2f`.
 - Earlier published project-control checkpoint:
@@ -166,8 +166,9 @@ invalid-measurement classification, not reuse.
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
   `a78dd004aa37c39212711027b777698118d9dc02`.
-- Worktree: documentation-only `CORE-013` acceptance closure under exact review;
-  production behavior is accepted public implementation `a78dd00`.
+- Worktree: documentation-only `AUDIT-020`/`CORE-014` preregistration being frozen
+  for exact review; production behavior remains accepted public implementation
+  `a78dd00`.
 
 ## Environment and verification
 
@@ -406,11 +407,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Independently review and publish the exact documentation-only `CORE-013` acceptance
-closure. After closure, re-rank the remaining open risks with a read-only audit before
-preregistering any next production slice. Do not edit or run benchmark drivers,
-generate performance results, change command maturity, refactor `run_aero_program`,
-re-enable registry transport, or infer language/backend/release/merge authorization.
+Independently review and publish the exact `AUDIT-020`/`CORE-014` preregistration.
+Only then add the focused tests-only red checkpoint for the frozen Quick Start
+documentation and CI contract. Do not change compiler/CLI semantics, version policy,
+backend behavior, project scaffolding, benchmark code/results, registry transport,
+or infer language/backend/release/merge authorization.
 
 ## Unauthorized actions
 

@@ -1988,5 +1988,126 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   with no P0-P3 findings. Public implementation commit
   `a78dd004aa37c39212711027b777698118d9dc02` passes both compiler-test workflows,
   Rust stable/nightly, all three CodeQL language analyses, and aggregate CodeQL.
-- Status: complete at accepted public head `a78dd00`; this documentation-only closure
-  record remains subject to its separately required exact review before publication.
+- Acceptance closure: exact documentation diff
+  `38de08f60880cbba9c89b1557aa019b058edc4e6` and tree
+  `41fc99f38b5dfbde0acfa5ac5fbd4be308230a66` received three fresh independent
+  approvals with no P0-P3 findings after correction of one rejected stale-head
+  label. Public closure commit `18526ff7a80db222c1348496f24f710d09249dfc`
+  passes both compiler-test workflows, Rust stable/nightly, all three CodeQL
+  language analyses, and aggregate CodeQL.
+- Status: complete at accepted public closure head `18526ff`.
+
+## AUDIT-020 — Re-rank open risks after truthful CLI acceptance
+
+- Objective: at the clean accepted `CORE-013` closure, reproduce the public first-run
+  workflow, compare every remaining open risk for impact, evidence, phase count, and
+  frozen-policy dependencies, and select one bounded slice before tests or production
+  edits.
+- Audit base: clean public documentation head
+  `18526ff7a80db222c1348496f24f710d09249dfc`; accepted production behavior is
+  `a78dd004aa37c39212711027b777698118d9dc02`; upstream `master` remains
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Reproduction: from the repository root, the README command
+  `cargo build --release` exits `101` because no root `Cargo.toml` exists. Its next
+  PATH entry points to nonexistent root `target/release`. The corrected root command
+  `cargo build --release --manifest-path src/compiler/Cargo.toml` exits `0` and
+  produces `src/compiler/target/release/aero.exe` on this host. The existing release
+  binary initializes an isolated generated project with status `0`, creates both
+  `aero.toml` and `src/main.aero`, and checks that source with status `0`.
+- Flagship evidence: the README presents absent `aeronum`/`aeronn` packages plus
+  grouped imports, named arguments, method calls, and distributed/model behavior as
+  a directly playable flagship. The capability audit already establishes that this
+  snippet cannot compile on the active repository. The existing generated source
+  `fn main() { println!("Hello, Aero!"); }` is the bounded executable replacement.
+- Risk comparison: R-004 ownership, R-006 pipeline convergence, R-009 spans, R-010
+  grammar authority, R-011 typed aggregates, and R-012 coverage restoration require
+  unfrozen semantics or more than two phases. R-007 requires backend/device evidence
+  unavailable on the current host. R-008 requires an explicit release/language
+  version policy. R-016 is medium/medium and its support policy is also unfrozen.
+  R-014 is high/medium, externally visible on the first command, already has a valid
+  generated-project core, and can be controlled within documentation, tests, and CI.
+- Selection: `CORE-014` makes only the minimal generated CPU project the executable
+  Quick Start, corrects root manifest/binary paths, and makes CI execute that path.
+  Experimental commands remain documented outside the minimal first-run contract
+  with their existing qualifications.
+- Audit restrictions: no benchmark driver/result was run or edited; no compiler,
+  language, backend, project scaffold, version, registry, package, release, or master
+  behavior changed. One isolated temporary generated-project directory was left under
+  the host temporary directory after destructive cleanup was denied; it is not part
+  of the repository or admitted evidence beyond the recorded init/check statuses.
+- Status: complete; reproduction, risk ranking, selection, and the bounded contract
+  are recorded before tests or implementation.
+
+## CORE-014 — Make the public generated-project Quick Start executable
+
+- Problem: the first README build command and binary path are invalid from the root,
+  while the advertised flagship depends on unsupported syntax and absent packages.
+  No gate executes the documented generated-project workflow end to end.
+- Priority: P1 public correctness. This affects the first user-visible path but can
+  be contained to documentation, one focused contract test, and stable Linux CI.
+- Dependencies: accepted `CORE-013` closure `18526ff`; complete `AUDIT-020`;
+  `DEC-019` freezes the generated-project contract and its honesty boundary.
+- Canonical POSIX contract: from repository root, build with
+  `cargo build --release --manifest-path src/compiler/Cargo.toml`, export
+  `$PWD/src/compiler/target/release` on `PATH`, run `aero --version`, initialize a
+  fresh `my_app`, enter it, run `aero check src/main.aero`, then run that same source
+  on CPU with documented LLVM 22/Clang tools available. The generated program's
+  observable output is `Hello, Aero!`.
+- Windows contract: `BUILD.md` supplies equivalent PowerShell build/PATH commands
+  and the exact `src\\compiler\\target\\release\\aero.exe` location. The focused
+  static contract must assert the exact Windows manifest, PATH, and executable
+  fragments. The README remains a POSIX block and links to the platform detail rather
+  than mixing shells.
+- Public-surface boundary: replace the unsupported model snippet with the exact
+  existing generated source. Keep accelerator, graph, quantization, registry,
+  benchmark, LSP, and other command examples outside the minimal Quick Start and link
+  their capability limits. Do not relabel ROCm object generation or absent CUDA
+  execution as a successful run.
+- Red tests: add one focused integration target that isolates the README Quick Start
+  section and requires the exact manifest/binary/generated-project commands plus a
+  capability-status link; rejects `aeronum`, `aeronn`, and the conceptual Transformer
+  from that section; parses the Windows section of `BUILD.md` and requires the exact
+  PowerShell manifest-build, PATH, and executable-location fragments; and
+  process-tests `aero init` followed by `aero check` against a fresh workspace.
+  Before documentation edits, both static platform contracts must fail while the
+  generated-project process control passes.
+- CI acceptance: on stable Linux, prepend `/usr/lib/llvm-22/bin` to `PATH` before the
+  Quick Start commands and assert `command -v clang` and `command -v llc` resolve
+  inside that directory plus `clang --version` and `llc --version` report major 22.
+  Keep `AERO_LLVM_OPT=/usr/bin/opt-22` and
+  `AERO_LLVM_AS=/usr/bin/llvm-as-22` authoritative for verification. Then execute the
+  documented root release build, PATH export, version, fresh init, check, and CPU run
+  in an isolated runner directory. Capture only the `aero run` command, require status
+  zero, and require exactly one line matching `^Output: Hello, Aero!$`; a source
+  literal or another compiler message is not acceptable output proof. Nightly and
+  existing example/gate coverage remain unchanged.
+- Full acceptance: focused tests, exact complete `./tools/test.sh`, workflow syntax,
+  three exact independent reviews, and the complete public CI matrix must pass before
+  closure. Documentation text is evidence only for the commands actually executed.
+- Files allowed: new
+  `src/compiler/tests/quick_start_contract_tests.rs`; `README.md`; `BUILD.md`;
+  `tutorials/01-getting-started.md`; `.github/workflows/rust.yml`; and minimal risk,
+  decision, matrix, ledger, capability, and project-control records.
+- Files frozen: all compiler/CLI/project-init/library implementation; lexer, parser,
+  AST, semantics, IR, codegen, module, cache, verifier, backend, registry, benchmark,
+  example source, Cargo dependency/version/lock data, release/package configuration,
+  external state, and `master`.
+- Risks: a string-only test can bless commands CI never runs; shell paths can become
+  invalid after `cd`; output matching can confuse compiler diagnostics with program
+  output; installed versioned tools can leave unversioned discovery absent or bound
+  to another major; a workflow edit can silently cover only one command; Windows
+  instructions can drift behind Linux CI; or removing the model snippet can erase
+  vision rather than label it conceptual. Tests must isolate both platform sections,
+  CI must bind and verify the selected native tools then execute the actual path, and
+  founding AI/ML direction remains in `LANGUAGE_VISION.md`/`FRAMEWORK_ALIGNMENT.md`
+  without a runnable claim.
+- Stop conditions: the generated project requires compiler/CLI/scaffold changes;
+  native execution requires backend behavior changes rather than documented tools;
+  correctness depends on selecting 0.x versus 1.0, admitting new syntax/packages, or
+  repairing unrelated tutorials/examples; more than documentation/tests/workflow is
+  needed; or any benchmark/device/release/registry action becomes necessary. Stop
+  rather than broaden or weaken the contract.
+- Owner: lead-owned tests-first documentation/CI slice. Independent type, IR/codegen,
+  and backend/claim reviewers must approve the exact preregistration, tests-only red
+  checkpoint, implementation candidate, and acceptance closure before publication.
+- Status: preregistered; no tests or implementation edits started.

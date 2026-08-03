@@ -754,3 +754,49 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   terminating within helpers, a command-maturity task implements real test/runtime
   behavior, or a benchmark task supplies correctness gates and protocol-complete
   immutable evidence. None is inferred from `CORE-013`.
+
+## DEC-019 — The public Quick Start is an executable generated-project contract
+
+- Date: 2026-08-02
+- Status: preregistered for `CORE-014`; tests and implementation not started
+- Decision: the canonical first-run path begins at the repository root, builds with
+  `cargo build --release --manifest-path src/compiler/Cargo.toml`, places
+  `src/compiler/target/release` on `PATH`, initializes a fresh project with
+  `aero init`, checks its generated `src/main.aero`, and runs that same source on
+  CPU when the documented LLVM 22/Clang prerequisites are present. The checked-in
+  project scaffold is the only flagship program for this slice.
+- Platform contract: README supplies truthful POSIX commands and points Windows
+  users to exact PowerShell build/PATH/executable commands in `BUILD.md`; focused
+  static tests bind both surfaces. Commands must remain valid after changing into
+  the generated project; examples may not depend on a nonexistent root Cargo
+  manifest or root `target/release` directory.
+- Honesty boundary: unsupported `aeronum`/`aeronn` imports, grouped imports, named
+  arguments, and model/distributed behavior are removed from the executable
+  flagship. Accelerator, graph, quantization, registry, benchmark, LSP, and other
+  experimental surfaces remain outside the minimal Quick Start and retain their
+  separate capability qualifications. ROCm object generation and unavailable CUDA
+  execution may not be described as successful device execution.
+- Evidence required: focused tests must parse the Quick Start and Windows build
+  sections, require the exact POSIX and PowerShell manifest/binary paths plus
+  generated-project commands, reject unsupported flagship dependencies, and
+  process-test `init` plus `check` in an isolated workspace. Stable Linux CI must
+  put `/usr/lib/llvm-22/bin` first on `PATH`, assert that the resolved unversioned
+  `clang` and `llc` paths come from that directory and both report major version 22,
+  while retaining the exact `opt-22`/`llvm-as-22` verifier overrides. It must then
+  execute the documented root build/init/check/CPU-run path, capture only the
+  `aero run` output with status zero, and require exactly one anchored
+  `Output: Hello, Aero!` line. The full repository gate and exact independent
+  reviews remain mandatory.
+- Frozen boundaries: no compiler or CLI behavior, project scaffold, language
+  syntax/semantics, version/stability policy, backend implementation, package or
+  registry protocol, benchmark driver/result, dependency, release, or `master`
+  change is authorized. If the existing scaffold cannot complete the promised path
+  without one of those changes, stop and narrow the documentation rather than
+  expanding implementation scope.
+- Alternatives rejected: adding a root Cargo workspace solely to preserve the bad
+  command; keeping a conceptual model as the flagship; labeling absent packages as
+  runnable; testing only Markdown strings; treating ROCm object emission as a run;
+  repairing every tutorial/example in one slice; or choosing a 0.x/1.0 version.
+- Revisit when: a separately reviewed grammar/version/backend decision supplies the
+  evidence needed to expand beyond the generated CPU project. None is inferred from
+  `CORE-014`.
