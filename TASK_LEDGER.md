@@ -2635,3 +2635,107 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   the selected version/conformance/current-design-history public-claim boundary;
   actual ownership/type/backend capability gaps remain separately open under their
   existing risks. This final-state sync changes records only.
+
+## AUDIT-023 — Classify ignored Phase 5 evidence after CORE-016
+
+- Scope: read-only recheck at clean accepted public head
+  `8869ecab0a7aadb51d9da193bf480a6fa97a9b3e`; upstream `master` remains
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`. Draft PR #4 is open, mergeable, and
+  all eight checks pass.
+- Reproduction: `cargo test --manifest-path src/compiler/Cargo.toml --test
+  phase5_tests -- --ignored --test-threads=1` runs 38 tests and reproduces exactly 36
+  passed / 2 failed. `test_semantic_cannot_mutate_through_immutable_ref` loses an
+  unsupported assignment through compatibility parser recovery and analyzes an empty
+  AST. `test_semantic_trait_method_borrows_self` reaches unsupported struct/method
+  behavior before the claimed receiver-borrow property.
+- Inventory: the target contains 4 lexer, 20 parser-shape, and 14 semantic tests. All
+  38 use recovery `lexer::tokenize`; all 20 parser tests and all semantic tests use
+  compatibility `parser::parse`, which prints a parse error and returns an empty AST
+  on failure. The 14 semantic tests contain broad `is_ok`/`is_err` assertions.
+- Semantic classification: only five passing negatives reach the named current
+  shallow control (use-after-move, call move, mutable/immutable conflict, double
+  mutable conflict, and missing trait method). Two passing positives are at most
+  narrow shallow-state companions. Two other positives do not exercise the named
+  ownership transfer/borrow registration, and three passing negatives are unrelated
+  unsupported-struct false positives. Both failing tests are recovery/unsupported
+  confounded. All 14 remain quarantined; none establishes lifetimes, provenance,
+  borrow release, generic substitution, trait dispatch, or memory safety.
+- Syntax classification: four lexer tests use length or negative-token assertions;
+  18 parser tests can bind exact retained token/AST shape through strict
+  `try_tokenize_with_locations` and fallible `parse_with_locations`. Bound tests must
+  assert exact ordered `trait_bounds`, enum tests exact payload types, and borrow/
+  dereference tests exact operands. Two generic-impl tests remain quarantined because
+  parser/AST currently skip target type arguments and discard impl bounds; one test's
+  comment also names a bound absent from its source.
+- Ranking: R-004 remains highest conceptual severity but stops on an unfrozen CFG/
+  lifetime/provenance model spanning more than two phases. R-012 is the highest
+  bounded action: test/evidence-only strict syntax classification. R-007 is the next
+  audit-only claims/evidence priority but device closure needs unavailable hardware.
+  R-010/R-006/R-009 are broad grammar/architecture/span work; R-011 remains partially
+  controlled; R-016 remains medium/medium and needs a support policy.
+- Selection: `CORE-017` activates exactly 4 strict lexer and 18 strict parser-retention
+  tests, leaves exactly 14 semantic plus 2 generic-impl tests ignored, and updates
+  three current evidence documents. R-012 may become only partially controlled; 299
+  dormant tests and overlapping binary/library test compilation remain excluded.
+- Changes/artifacts: none. No benchmark, registry, release, device, or external
+  artifact was created or published.
+- Status: complete; the reproduction, per-test classification, conservative 22/16
+  split, residual ranking, and stop boundary precede any test or documentation edit.
+
+## CORE-017 — Recover strict Phase 5 syntax evidence without semantic uplift
+
+- Problem: all 38 Phase 5 tests are ignored and enter through recovery helpers. The
+  36/2 ignored result mixes useful syntax shape, genuine shallow controls, positive
+  no-error smoke, unrelated-error false positives, and two confounded failures.
+- Priority: P1 evidence correctness / R-012 HIGH-HIGH. This is the highest bounded
+  remaining correction because it changes one test target and evidence documents
+  without choosing ownership, generic, trait, grammar, IR, or backend semantics.
+- Dependencies: accepted `CORE-016` closure `ea036f2`, accepted final-state sync
+  `8869eca`, completed `AUDIT-023`, and proposed `DEC-022`.
+- Frozen active set: activate exactly 22 existing tests—4 lexer and 18 parser tests.
+  Use strict located lexing and fallible located parsing. Lexer tests assert entire
+  token streams including EOF. Parser tests assert exact retained AST names, types,
+  operands, mutability, payloads, receivers, bodies, ordering, and flattened ordered
+  function `trait_bounds`. Names/comments must say strict token or retained parser
+  shape, not enforcement or execution.
+- Frozen quarantine: exactly 16 tests remain ignored—all 14 semantic tests plus
+  `test_parse_generic_impl_block` and
+  `test_parse_impl_trait_for_generic_struct`. Each ignore reason must state its
+  recovery/unsupported/unfrozen semantic or target-argument/bound-retention blocker.
+  Do not execute or report the 16 as acceptance passes.
+- Exact activatable parser set: immutable/mutable reference parameter; immutable/
+  mutable borrow expression; dereference expression; generic function; multiple-
+  parameter generic function; generic struct; generic enum; generic type annotation;
+  single/multiple-method trait definitions; impl Trait for a non-generic type;
+  single/multiple inline bounds; where-clause bounds; generic struct/reference field;
+  and generic function/bound/reference combination.
+- Documentation contract: update only current evidence lines in `CLAUDE.md`,
+  `FRAMEWORK_ALIGNMENT.md`, and `Roadmap.md` from all-38-ignored wording to exactly 22
+  active strict syntax-retention tests and 16 quarantined tests. State explicitly that
+  this is parsed-only evidence and not ownership, borrow-checker, generic/trait
+  enforcement, execution, conformance, or stability evidence. Preserve historical
+  checkpoint statements elsewhere.
+- Allowed files: `src/compiler/tests/phase5_tests.rs`; `CLAUDE.md`;
+  `FRAMEWORK_ALIGNMENT.md`; `Roadmap.md`; and minimal task, decision, risk, capability,
+  matrix, and project control records.
+- Frozen files/surfaces: every `src/compiler/src/**` production file; Cargo manifest/
+  lock/dependencies; all other tests; tools/test.sh; workflows; grammar/spec rules;
+  lexer/parser/AST behavior; semantic/ownership/borrow/trait/generic implementation;
+  IR/codegen/execution/layout/ABI; backends/devices; README/BUILD; benchmark, registry,
+  release/version/package state; external artifacts; and `master`.
+- Stop conditions: any selected test fails strict lex/parse or needs production
+  changes; any need to retain generic-impl target arguments/bounds; any test count
+  other than exactly 38 total / 22 active / 16 ignored; any weakening/deletion; or any
+  claim that syntax retention establishes semantics or execution. Stop and re-audit
+  rather than implement a parser, AST, semantic, or backend fix.
+- Acceptance: `--list` proves exactly 38 tests; default focused target is exactly 22
+  passed / 0 failed / 16 ignored; `--ignored --list` identifies exactly the frozen 16
+  without running them; exact `./tools/test.sh` passes; three independent exact diff/
+  tree reviews approve preregistration, implementation, and closure; each published
+  green checkpoint passes both compiler-test jobs, stable/nightly Rust, all three
+  CodeQL analyses, and aggregate CodeQL. No artificial red checkpoint is required
+  because this is evidence reclassification with production behavior frozen.
+- Owner: lead-owned test/evidence slice with independent type/safety, IR/parser, and
+  backend/claim review at every publication boundary.
+- Status: preregistration candidate only. Test and current-document edits remain
+  prohibited until this exact six-record contract is reviewed and public green.

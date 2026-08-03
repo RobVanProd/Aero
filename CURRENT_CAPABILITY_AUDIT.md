@@ -578,6 +578,26 @@ upgrading any artifact.
   eight checks green. R-008 is controlled for this selected claim boundary. No
   capability class is elevated, and actual ownership/type/backend gaps remain open.
 
+### Post-CORE-016 ignored-test recheck (`AUDIT-023`)
+
+- Clean accepted public head `8869eca` is mergeable with all eight checks green;
+  upstream `master` remains `8f8c733`.
+- The explicit Phase 5 ignored target reproduces 38 run / 36 pass / 2 fail. Its four
+  lexer, twenty parser, and fourteen semantic tests all use recovery lexing; parser
+  and semantic tests also use a compatibility parser that can convert failure to an
+  empty AST.
+- Only 22 tests are conservative activation candidates: four exact strict-token and
+  eighteen exact strict parser-retention contracts. Two generic-impl tests remain
+  quarantined because target arguments and impl bounds are skipped/discarded. All 14
+  semantic tests remain quarantined because broad outcomes mix five genuine shallow
+  negatives, positive smoke, unrelated unsupported-construct false positives, and
+  two recovery/unsupported failures.
+- R-004 remains the highest conceptual risk but stops on unfrozen multi-phase
+  lifetime/provenance semantics. R-012 is the highest bounded action and may move only
+  to partially controlled under `CORE-017`. No syntax test can elevate a capability
+  class or establish ownership, borrow checking, generic/trait enforcement, or
+  execution.
+
 ## Audit completion
 
 All eight requested read-only areas were completed in bounded waves. The audit

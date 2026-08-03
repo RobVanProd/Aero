@@ -1014,3 +1014,26 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Revisit when: compatibility policy and release evidence justify a language or
   package version transition, or a separately reviewed formal-semantics system and
   conformance corpus justify stronger proof claims.
+
+## DEC-022 — Separate strict syntax retention from quarantined Phase 5 semantics
+
+- Date: 2026-08-03
+- Status: proposed for `CORE-017`; audit complete at clean public head `8869eca`
+- Decision: the existing Phase 5 target remains one 38-test inventory, but only 22
+  existing syntax tests may become active: four exact strict-token tests and 18 exact
+  strict parser-retention tests. Exactly 16 remain ignored: all 14 semantic tests and
+  two generic-impl parser tests whose target arguments/bounds are not retained.
+- Evidence boundary: active tests use `try_tokenize_with_locations` and
+  `parse_with_locations`, assert exact retained output, and are named as syntax shape.
+  Passing them is parsed-only evidence, not ownership, borrow-checker, generic/trait
+  enforcement, layout, execution, conformance, compatibility, or stability evidence.
+- Quarantine boundary: do not execute the 16 ignored tests for acceptance. Their
+  broad results are confounded by recovery, absent checks, unrelated unsupported
+  constructs, unfrozen ownership semantics, or missing generic-impl AST retention.
+- Alternatives rejected: bulk activation of 36 passing tests; counting all 24 syntax
+  tests despite discarded generic-impl target data; activating shallow semantic tests
+  and thereby freezing an incomplete ownership model; changing production to make a
+  selected test pass; deleting or rewriting failures as success.
+- Revisit when: generic-impl target argument/bound retention has a separate AST/parser
+  contract, or ownership/trait semantics have a frozen model and diagnostic-specific
+  trusted-path tests.

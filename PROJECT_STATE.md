@@ -4,22 +4,21 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 17 final-state sync — `CORE-016` is accepted at exact three-review-approved
-public closure `ea036f2`, with all eight checks green. The focused 7/7 claim target,
-full 7/7 CLI status target, and exact repository gate pass. R-008 is controlled for
-the selected public-claim boundary; no underlying ownership/type/backend capability
-or stability/release claim is inferred. This sync is record-only before the next
-clean-head risk re-ranking.
+Milestone 18 preregistration — `AUDIT-023` at clean accepted public head `8869eca`
+classifies all 38 ignored Phase 5 tests. `CORE-017` conservatively selects exactly 22
+strict lexer/parser-retention tests for activation and leaves exactly 16 tests
+quarantined. The slice is test/evidence-only; no production behavior or capability
+class changes. Test and current-document edits remain blocked until the exact
+preregistration is reviewed and public green.
 
 ## Active hypothesis
 
-`CORE-016` closes R-008's selected active public false-claim boundary in one CLI
-presentation surface plus documentation. Cargo's existing `0.3.0` package value is
-the compiler implementation-version source; `v1.0.0` is explicitly a language design
-target, not current conformance or stability. The existing three conformance cases
-and four repeatability checks remain unchanged and are labeled deterministic
-regression checks. Unsupported generic/ownership/safety material remains preserved
-but visibly design-only or historical. No semantic or release decision is inferred.
+`CORE-017` can partially control R-012 without changing compiler behavior: strict
+fallible helpers plus exact token/retained-AST assertions make 22 syntax tests honest
+active `PARSED_ONLY` evidence, while 14 semantic and 2 generic-impl tests remain
+explicitly quarantined. Any strict failure or need for production changes stops the
+slice. Ownership, provenance, generic/trait enforcement, execution, and stability are
+not inferred.
 
 ## Founding-framework checkpoint
 
@@ -70,6 +69,12 @@ but visibly design-only or historical. No semantic or release decision is inferr
   `4c7f526617ecb8e3a0c28622f8eca44dac627981` with no P0-P3 findings. Both
   compiler-test jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
   CodeQL pass; draft PR #4 remains open and mergeable.
+- Accepted public `CORE-016` final-state sync head:
+  `8869ecab0a7aadb51d9da193bf480a6fa97a9b3e`. Three independent reviewers approved
+  corrected exact diff `8379a2c67e4b72c54d92f66480bd836805582589` and tree
+  `4318bd3f0eea4dda7f6264ac5e9ae1694d0d5960` with no P0-P3 findings after two stale
+  state anchors were rejected and fixed. Both compiler-test jobs, stable/nightly Rust,
+  all three CodeQL analyses, and aggregate CodeQL pass; draft PR #4 is mergeable.
 - Accepted public `CORE-015` final-state sync head:
   `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`. Three independent reviewers approved
   exact staged diff `674b1831accef7b714ba21799249f346cc5a7491` and tree
@@ -540,11 +545,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze, exactly review, and publish this record-only final-state sync; require all
-eight public checks green. Then begin the next clean-head read-only audit and re-rank
-the remaining risks before preregistering another bounded slice. Do not infer
-ownership/type/backend semantics, change package version or conformance schema,
-publish benchmarks/releases/registry artifacts, or modify `master`.
+Stage only the six `AUDIT-023`/`CORE-017` preregistration records, compute the exact
+canonical diff/tree, and obtain three independent reviews. Publish only after all
+three approve and require all eight public checks green before editing the test target
+or current evidence documents. Do not change production, semantics, generic-impl AST
+retention, backends, package/release state, benchmarks, registry, or `master`.
 
 ## Unauthorized actions
 

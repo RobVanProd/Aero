@@ -102,6 +102,11 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   `ea036f2` each pass all eight public checks. R-008 is controlled for this selected
   claim boundary. Language semantics, package version, report schema, conformance
   algorithms, underlying capability classes, and release state remain frozen.
+- `AUDIT-023` at clean accepted head `8869eca` classifies the 38 ignored Phase 5
+  tests: 22 exact strict lexer/parser-retention candidates and 16 quarantines (14
+  semantic plus 2 generic-impl retention gaps). `CORE-017` selects only test/evidence
+  classification. Even if active, the 22 remain `PARSED_ONLY` evidence and do not
+  change language semantics, capability classes, IR/backend behavior, or stability.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
