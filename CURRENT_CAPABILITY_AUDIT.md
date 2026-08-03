@@ -741,6 +741,20 @@ upgrading any artifact.
   contains false assurance without defining optimization, debug information, target
   selection, CLI mapping, IR, codegen, or backend semantics. No capability row or
   class is promoted by the audit or preregistration.
+- Exact three-review-approved closure/preregistration `fae1374`, tree `8c807c17`,
+  passes all eight public checks in compiler runs `30833300163`/`30833300408`, Rust
+  `30833301841`, CodeQL `30833296979`, and aggregate `91752384364`.
+- Exact three-review-approved tests-only `037f44d`, tree `edd8d33e`, reproduces the
+  public red boundary: compiler runs `30833844930`/`30833845633` and nightly in Rust
+  run `30833845526` fail only the frozen target at 1/1; stable is cancelled during
+  tests by permitted matrix fail-fast. CodeQL `30833844647` and aggregate
+  `91754222422` provide all four green security checks.
+- The local implementation candidate adds one guard at `compile_program` before the
+  first lexer call and changes no other compiler phase. The new contract is 2/2,
+  binding/checked-IR/fatal-parse/module preservation is 40/40, and exact
+  `./tools/test.sh` passes. Public API/default values and byte-exact default LLVM and
+  parse diagnostics are preserved. No optimizer, debug, target, CLI, IR, codegen, or
+  backend behavior is added; public green acceptance remains pending.
 
 ## Audit completion
 

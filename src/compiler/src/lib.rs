@@ -37,7 +37,9 @@ mod checked_ir_contract_test;
 #[cfg(test)]
 mod error_test;
 
-/// Compiler options for benchmarking
+/// Compiler options for benchmarking.
+///
+/// Only [`CompilerOptions::default`] is currently supported.
 #[derive(Debug, Clone, Default)]
 pub struct CompilerOptions {
     pub optimize: bool,
@@ -45,8 +47,12 @@ pub struct CompilerOptions {
     pub target: String,
 }
 
-/// Main compilation function for benchmarking
-pub fn compile_program(source: &str, _options: CompilerOptions) -> Result<String, String> {
+/// Main compilation function for benchmarking.
+pub fn compile_program(source: &str, options: CompilerOptions) -> Result<String, String> {
+    if options.optimize || options.debug_info || !options.target.is_empty() {
+        return Err("Unsupported CompilerOptions: only CompilerOptions::default() is supported; optimize, debug_info, and target behavior is not implemented".to_string());
+    }
+
     // Lexical analysis
     let tokens =
         try_tokenize_with_locations(source, None).map_err(|err| format!("Lex error: {}", err))?;

@@ -48,7 +48,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Surface | Interface | Shared compiler truth | Artifact/result | Failure tests | Integration evidence | Docs | Class |
 |---|---:|---:|---:|---:|---:|---:|---|
 | Library `compile_program` | Y | P | LLVM text or located parse error | Y | P | P | PARTIAL |
-| Compiler options | Y | N | Ignored | N | N | P | PARSED_ONLY |
+| Compiler options | Y | N | Default path preserved; local candidate rejects nondefaults before lexing | Y | P | P | PARSED_ONLY |
 | CLI build/check | Y | N | P; surfaced compile failures nonzero | Y | P | Y | PARTIAL |
 | CLI run | Y | N | CPU executes; accepted CORE-018 makes ROCm a temporary regular-file probe followed by status 1/no execution; CUDA status 1 | Y | P | Y | PARTIAL |
 | CLI test | Y | N | Semantic analysis only; explicitly reports no execution; failures nonzero | Y | P | Y | PARTIAL |
@@ -149,8 +149,14 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   finding: all 62 in-repository library callers use defaults, while every nondefault
   option is ignored across checked compilation. DEC-025 and preregistered `CORE-020`
   select pre-lexing rejection of nondefaults while preserving the facade and exact
-  default behavior. Until accepted implementation evidence exists, the compiler-
-  options row remains `PARSED_ONLY` with ignored behavior and no promotion.
+  default behavior. At that preregistration checkpoint, the compiler-options row
+  remained `PARSED_ONLY` with ignored behavior and no promotion.
+- Exact three-review-approved preregistration `fae1374` passes all eight checks.
+  Exact tests-only `037f44d` proves the ignored-option boundary publicly at 1/1 while
+  all four CodeQL checks pass. The local one-guard candidate is focused 2/2,
+  preservation 40/40, and full-gate green. The row remains `PARSED_ONLY`: explicit
+  unsupported rejection is claim containment, not implemented option semantics, and
+  public implementation acceptance is pending.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

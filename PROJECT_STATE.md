@@ -4,12 +4,13 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 22 preregistration — public `AUDIT-026` preregistration `2c61ff9`, tree
-`ff20cf43`, passes all eight checks and leaves the repository clean. The completed
-read-only audit ranks silently ignored nondefault public `CompilerOptions` as the
-highest bounded active false-success boundary under R-006. `CORE-020` freezes
-fail-closed validation before lexing while preserving the public facade and exact
-default behavior; implementation has not started.
+Milestone 22 implementation — exact three-review-approved preregistration `fae1374`
+passes all eight public checks, and exact three-review-approved tests-only `037f44d`
+reproduces the frozen 1/1 public red boundary while all four CodeQL checks pass. The
+local `CORE-020` candidate rejects every nondefault public `CompilerOptions` value
+before lexing while preserving the public facade and exact default behavior; focused,
+40-test preservation, and complete repository gates pass. Public green acceptance is
+pending.
 
 ## Active hypothesis
 
@@ -533,8 +534,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Public version: compiler CLI/banner presentation is manifest-derived package
   `0.3.0`; language `v1.0.0` material is a design target, not current conformance,
   stability, compatibility, or release evidence (`CORE-016`, `ea036f2`).
-- Library compiler options: accepted but ignored by `compile_program`; completed
-  `AUDIT-026` selects explicit fail-closed nondefault validation for `CORE-020`.
+- Library compiler options: the local `CORE-020` candidate preserves defaults and
+  rejects nondefaults before lexing; option meanings remain unimplemented.
 - Compiler architecture: binary and library declare overlapping modules.
 
 ## Known blockers and regressions
@@ -604,10 +605,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Exactly review and publish this six-record `AUDIT-026` closure and `CORE-020`
-preregistration, then require all eight public checks green. Add only the frozen
-tests-first `CompilerOptions` contract and publish the exact red checkpoint before
-the smallest pre-lexing validation change.
+Exactly review and publish the `CORE-020` implementation candidate, then require all
+eight public checks green before closure. Preserve the exact default LLVM/diagnostic
+bytes and the pre-lexing unsupported-options error.
 Do not implement option meanings, connect CLI targets, change default compilation,
 IR/codegen/runtime behavior, workflows/dependencies, benchmarks/packages, or `master`.
 

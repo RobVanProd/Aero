@@ -1156,8 +1156,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-025 — Unsupported nondefault `CompilerOptions` fail closed
 
 - Date: 2026-08-03
-- Status: accepted as the compatibility policy for preregistered `CORE-020`;
-  implementation and public acceptance have not started.
+- Status: accepted compatibility policy for `CORE-020`; the tests-only red checkpoint
+  is public and exact, and the local implementation candidate is green. Public
+  implementation acceptance remains pending.
 - Decision: preserve public `CompilerOptions`, its `optimize`, `debug_info`, and
   `target` fields, `Debug`/`Clone`/`Default` derives, default values, and
   `compile_program(&str, CompilerOptions) -> Result<String, String>`. The only
@@ -1186,3 +1187,13 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Revisit only when a separate decision specifies one option's accepted values,
   observable behavior, diagnostics, pipeline phase, platform/toolchain requirements,
   compatibility plan, and positive/negative evidence end to end.
+- Preregistration evidence: exact three-review-approved `fae1374`, tree `8c807c17`,
+  passes all eight public checks in compiler runs `30833300163`/`30833300408`, Rust
+  `30833301841`, CodeQL `30833296979`, and aggregate `91752384364`.
+- Tests-first evidence: exact three-review-approved `037f44d`, tree `edd8d33e`, diff
+  `be3ab875`, produces exact 1/1 failures in compiler runs `30833844930`/
+  `30833845633` and nightly in Rust run `30833845526`; stable is cancelled during
+  tests by fail-fast. CodeQL `30833844647` and aggregate `91754222422` are all green.
+- Local implementation evidence: one pre-lexing guard is focused 2/2, the four frozen
+  preservation targets are 40/40, and exact `./tools/test.sh` passes. These local
+  results do not close the decision before exact review and all-eight public green.

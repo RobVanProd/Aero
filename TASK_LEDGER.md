@@ -3198,4 +3198,32 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   benchmark, immutable-evidence, package/release/registry, external-artifact,
   destructive-system, or `master` change. Stop on any unexpected second compiler
   phase or semantic decision.
-- Status: preregistered; tests-only work has not started.
+- Preregistration publication: exact staged tree
+  `8c807c17d08482994a2ebd16a0208e6394bcfa5b` and diff
+  `a466887f940aa12a71f8ec6f454575a9b4547044` received three independent approvals
+  with no P0-P3 findings after two rejected snapshots were corrected. Published as
+  `fae1374b18a10e229ab01d601d16536154b4c4c6`; compiler runs
+  `30833300163`/`30833300408`, Rust `30833301841`, CodeQL `30833296979`, and
+  aggregate `91752384364` all pass.
+- Tests-only evidence: exact staged tree
+  `edd8d33e73353c63494c734326ebf95042a24192` and diff
+  `be3ab875f662a4306b3b75049762303a1198e0af` received three independent approvals
+  with no P0-P3 findings and were published as
+  `037f44d93ea20c2143f75ed3a3b8bf5d4e840f24`. Locally the target is exact 1/1,
+  exact `./tools/test.sh` fails there, and `--all-targets --no-fail-fast` proves every
+  other target green. Public compiler runs `30833844930`/`30833845633` and nightly in
+  Rust run `30833845526` fail only the exact 1/1 target; stable is cancelled during
+  its test step by permitted fail-fast. CodeQL `30833844647` and aggregate
+  `91754222422` provide all four green checks.
+- Local implementation: `src/compiler/src/lib.rs` renames `_options` to `options`,
+  documents default-only support, and returns the exact frozen error if either Boolean
+  is true or `target` is nonempty before the lexer call. No other compiler phase is
+  changed. Focused contract is 2/2; binding 16/16, checked IR 6/6, fatal parse 11/11,
+  and modules 7/7 total 40/40; exact `./tools/test.sh` passes.
+- Files changed by implementation candidate: `src/compiler/src/lib.rs` plus the six
+  authorized current control records. The public tests file is unchanged.
+- Remaining uncertainty/regression risk: external nondefault consumers now receive an
+  earlier error; public green implementation evidence and closure are pending; real
+  option semantics and broad CLI/library convergence remain undefined.
+- Status: implementation candidate locally green; exact review and public all-eight
+  acceptance pending. No capability or class is promoted.
