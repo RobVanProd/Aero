@@ -157,6 +157,34 @@ fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
+fn strip_ansi(input: &str) -> String {
+    let mut visible = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\u{1b}' && chars.peek() == Some(&'[') {
+            chars.next();
+            for code in chars.by_ref() {
+                if code.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            visible.push(ch);
+        }
+    }
+    visible
+}
+
+fn has_source_analysis_line(output: &str, expected_name: &str) -> bool {
+    output.lines().any(|line| {
+        let Some(path) = line.trim_start().strip_prefix("Analyzing ") else {
+            return false;
+        };
+        let normalized = path.trim_end().replace('\\', "/");
+        normalized == expected_name || normalized.ends_with(&format!("/{expected_name}"))
+    })
+}
+
 fn record_case(
     failures: &mut Vec<String>,
     label: &str,
@@ -1796,7 +1824,7 @@ fn successful_command_families_remain_compatible() {
         (
             "test-success",
             args(&["test"]),
-            "1 passed, 0 failed",
+            "1 completed, 0 failed, 1 total; no tests were executed",
             None,
             false,
         ),
@@ -1928,6 +1956,196 @@ fn successful_command_families_remain_compatible() {
                 artifact.display()
             ));
         }
+    }
+
+    assert_no_failures(failures);
+}
+
+#[test]
+fn semantic_only_test_command_reports_analysis_without_execution_claims() {
+    const BUILD_GUIDE: &str = include_str!("../../../BUILD.md");
+    const FORBIDDEN: &[&str] = &[
+        "Compiling test suite",
+        "run",
+        "Running",
+        "passed",
+        "test result",
+        "Program executed successfully",
+    ];
+
+    let mut failures = Vec::new();
+
+    let successful = TestWorkspace::new("test-analysis-success");
+    successful.write("sample_test.aero", "fn main() { let value: int = 1; }\n");
+    let success_output = run_aero(&successful, &args(&["test"]));
+    let success_stdout = strip_ansi(&stdout(&success_output));
+    if success_output.status.code() != Some(SUCCESS) {
+        failures.push(format!(
+            "analysis success: expected exit {SUCCESS}, received {:?}; stdout={success_stdout:?}; stderr={:?}",
+            success_output.status.code(),
+            stderr(&success_output)
+        ));
+    }
+    for fragment in [
+        "Analyzing Aero test sources (parse, direct modules, semantics only; no execution)...",
+        "sample_test.aero analysis completed (not executed)",
+        "analysis result: 1 completed, 0 failed, 1 total; no tests were executed",
+    ] {
+        if !success_stdout.contains(fragment) {
+            failures.push(format!(
+                "analysis success: omitted {fragment:?}; stdout={success_stdout:?}"
+            ));
+        }
+    }
+    if success_stdout.matches("Analyzing").count() != 2 {
+        failures.push(format!(
+            "analysis success: expected one suite and one source analysis label; stdout={success_stdout:?}"
+        ));
+    }
+    if !has_source_analysis_line(&success_stdout, "sample_test.aero") {
+        failures.push(format!(
+            "analysis success: missing exact source label `Analyzing <path-to-sample_test.aero>`; stdout={success_stdout:?}"
+        ));
+    }
+    for fragment in FORBIDDEN {
+        if success_stdout.contains(fragment) {
+            failures.push(format!(
+                "analysis success: retained execution/pass claim {fragment:?}; stdout={success_stdout:?}"
+            ));
+        }
+    }
+    if !stderr(&success_output).is_empty() {
+        failures.push(format!(
+            "analysis success: expected empty stderr; stderr={:?}",
+            stderr(&success_output)
+        ));
+    }
+
+    let empty = TestWorkspace::new("test-analysis-empty");
+    let empty_output = run_aero(&empty, &args(&["test"]));
+    let empty_stdout = strip_ansi(&stdout(&empty_output));
+    if empty_output.status.code() != Some(SUCCESS) {
+        failures.push(format!(
+            "empty analysis: expected exit {SUCCESS}, received {:?}; stdout={empty_stdout:?}; stderr={:?}",
+            empty_output.status.code(),
+            stderr(&empty_output)
+        ));
+    }
+    for fragment in [
+        "Analyzing Aero test sources (parse, direct modules, semantics only; no execution)...",
+        "no Aero test source files found (*_test.aero, *_tests.aero); no tests were executed",
+    ] {
+        if !empty_stdout.contains(fragment) {
+            failures.push(format!(
+                "empty analysis: omitted {fragment:?}; stdout={empty_stdout:?}"
+            ));
+        }
+    }
+    for fragment in FORBIDDEN {
+        if empty_stdout.contains(fragment) {
+            failures.push(format!(
+                "empty analysis: retained execution/pass claim {fragment:?}; stdout={empty_stdout:?}"
+            ));
+        }
+    }
+    if !stderr(&empty_output).is_empty() {
+        failures.push(format!(
+            "empty analysis: expected empty stderr; stderr={:?}",
+            stderr(&empty_output)
+        ));
+    }
+
+    let failing = TestWorkspace::new("test-analysis-failure");
+    failing.write(
+        "semantic_test.aero",
+        "fn main() { let observed = missing_value; }\n",
+    );
+    let failure_output = run_aero(&failing, &args(&["test"]));
+    let failure_stdout = strip_ansi(&stdout(&failure_output));
+    if failure_output.status.code() != Some(OPERATIONAL_FAILURE) {
+        failures.push(format!(
+            "analysis failure: expected exit {OPERATIONAL_FAILURE}, received {:?}; stdout={failure_stdout:?}; stderr={:?}",
+            failure_output.status.code(),
+            stderr(&failure_output)
+        ));
+    }
+    for fragment in [
+        "semantic_test.aero analysis failed:",
+        "Use of undeclared variable `missing_value`",
+        "analysis result: 0 completed, 1 failed, 1 total; no tests were executed",
+    ] {
+        if !failure_stdout.contains(fragment) {
+            failures.push(format!(
+                "analysis failure: omitted {fragment:?}; stdout={failure_stdout:?}"
+            ));
+        }
+    }
+    if failure_stdout.matches("Analyzing").count() != 2 {
+        failures.push(format!(
+            "analysis failure: expected one suite and one source analysis label; stdout={failure_stdout:?}"
+        ));
+    }
+    if !has_source_analysis_line(&failure_stdout, "semantic_test.aero") {
+        failures.push(format!(
+            "analysis failure: missing exact source label `Analyzing <path-to-semantic_test.aero>`; stdout={failure_stdout:?}"
+        ));
+    }
+    for fragment in FORBIDDEN {
+        if failure_stdout.contains(fragment) {
+            failures.push(format!(
+                "analysis failure: retained execution/pass claim {fragment:?}; stdout={failure_stdout:?}"
+            ));
+        }
+    }
+    if !stderr(&failure_output).is_empty() {
+        failures.push(format!(
+            "analysis failure: expected empty stderr; stderr={:?}",
+            stderr(&failure_output)
+        ));
+    }
+
+    let help_output = run_aero(&empty, &args(&["--help"]));
+    let help_stdout = strip_ansi(&stdout(&help_output));
+    let test_help_line = help_stdout
+        .lines()
+        .find(|line| line.trim_start().starts_with("test "));
+    if help_output.status.code() != Some(SUCCESS)
+        || !test_help_line.is_some_and(|line| {
+            line.contains("Discover and semantically analyze *_test.aero files (no execution)")
+        })
+    {
+        failures.push(format!(
+            "help: missing exact analysis-only description or wrong status; status={:?}; stdout={help_stdout:?}",
+            help_output.status.code()
+        ));
+    }
+    if help_stdout.contains("Discover and run *_test.aero files") {
+        failures.push(format!("help: retained run claim; stdout={help_stdout:?}"));
+    }
+    for fragment in FORBIDDEN {
+        if test_help_line.is_some_and(|line| line.contains(fragment)) {
+            failures.push(format!(
+                "help: test description retained execution/pass claim {fragment:?}; line={test_help_line:?}"
+            ));
+        }
+    }
+    if !stderr(&help_output).is_empty() {
+        failures.push(format!(
+            "help: expected empty stderr; stderr={:?}",
+            stderr(&help_output)
+        ));
+    }
+
+    for fragment in [
+        "`aero test`: discover and semantically analyze `*_test.aero` and `*_tests.aero` files",
+        "does not execute tests or generate IR",
+    ] {
+        if !BUILD_GUIDE.contains(fragment) {
+            failures.push(format!("BUILD.md omitted {fragment:?}"));
+        }
+    }
+    if BUILD_GUIDE.contains("`aero test`: discover and run `*_test.aero` files") {
+        failures.push("BUILD.md retained the discover-and-run claim".to_string());
     }
 
     assert_no_failures(failures);
