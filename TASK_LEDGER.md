@@ -2554,5 +2554,43 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Owner: lead-owned bounded CLI/docs truth slice. Independent type, IR/codegen, and
   backend/claim reviewers must approve the exact preregistration, tests-only red,
   implementation candidate, and acceptance closure before each publication.
-- Status: preregistered locally; no tests or production/public-claim files may change
-  before exact review of this record set.
+- Preregistration review/publication: the first six-record snapshot was rejected by
+  all three reviewers for an impossible existing-test scope, omitted CLAUDE/Tutorial
+  claims, a weak package-source assertion, ambiguous `CONFORMANCE_PLAN.md` handling,
+  and incomplete residual-risk ranking. The corrected snapshot adds the missing
+  surfaces, narrows the existing-test permission, binds static package interpolation,
+  freezes the plan, and records R-002/R-011/R-012 stops. Three reviewers approved
+  exact diff `321fb61c3932cd0663bc5bcbc0aecb02361ab010` and tree
+  `4933dc2e9297cc5d7d0742c28081571e3fc23c5f` with no P0-P3 findings. Public commit
+  `1575914e7ab1f3c70793c77a1d82b7b3a78bb441` passes both compiler-test jobs,
+  stable/nightly Rust, all three CodeQL analyses, and aggregate CodeQL.
+- Tests-only red evidence: new `version_claim_contract_tests.rs` contains seven
+  groups. The conformance-count/schema preservation group and repository-
+  experimental-status group pass. Exactly five groups fail on the frozen gaps: both
+  version flags expose `1.0.0` instead of package `0.3.0`; console/help/BUILD retain
+  formal/mechanized wording; README/CLAUDE/Tutorial 1/2 retain current unsupported
+  claims; four normative/tutorial records lack design-target notices; and todo plus
+  four collection/string task/demo records lack historical notices. The focused
+  target is exactly 2 passed / 5 failed.
+- Red review correction: the first staged red snapshot was rejected because an
+  append-only disclaimer could leave exact README/CLAUDE/Tutorial contradictions,
+  a dead `env!` plus a literal version constant could spoof package sourcing, and a
+  buried footer could satisfy an unbounded notice search. The corrected target
+  explicitly rejects each identified stale claim, rejects the current package
+  version literal anywhere in `main.rs`, and requires design/archive notices within
+  the first 12 lines while normalizing wrapped prose. These additions stay inside
+  the same five failing groups; the focused target remains exactly 2 passed / 5
+  failed.
+- A second exact review found that four additional obsolete CLAUDE ownership/syntax/
+  test-count lines and the completed-phases heading could survive beside a new status
+  section. The current-surface group now rejects that entire stale Phase 5 status
+  block; this remains within the same intended failing group.
+- Red full-gate evidence: after formatting the new test mechanically, exact
+  `./tools/test.sh` passes formatting and correctness Clippy, 139 library tests, 148
+  binary tests, and all prior integration targets, with the established 38 Phase 5
+  tests remaining ignored, before stopping only on the new 2/5 target. A separate Cargo
+  `--no-fail-fast` run reproduces the same sole failing target and proves doc tests
+  pass. No production or public-claim file changed.
+- Status: tests-only red staged locally for exact three-review approval. Production
+  and public-claim changes remain prohibited until the reviewed red checkpoint is
+  public and reproduces the same isolated failure matrix.

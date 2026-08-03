@@ -943,8 +943,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-021 — Separate compiler package version from the v1 language design target
 
 - Date: 2026-08-03
-- Status: proposed for `CORE-016`; requires exact preregistration, tests-only red,
-  implementation, and closure review before acceptance
+- Status: proposed for `CORE-016`; preregistration is public and green at `1575914`;
+  the local tests-only red checkpoint awaits exact review/publication before
+  implementation
 - Decision: `src/compiler/Cargo.toml` remains the single source for the compiler
   package/implementation version. The CLI obtains that value at compile time with
   `env!("CARGO_PKG_VERSION")`. Standalone `-v` and `--version` print exactly
@@ -979,6 +980,14 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   historical task/demo records. The
   focused target and complete repository gate require three exact independent reviews
   at preregistration, red, implementation, and closure publication stages.
+- Tests-only red evidence: the new seven-test target has two passing preservation
+  groups for the unchanged 3/4 conformance counts/compatibility schema and explicit
+  experimental status, plus exactly five intended failures for CLI version sourcing,
+  conformance presentation, current repository claims, design-target notices, and
+  historical notices. Formatting and correctness Clippy pass. The complete gate
+  reaches only that target after 139 library tests, 148 binary tests, and every prior
+  integration target pass; `--no-fail-fast` additionally proves doc tests pass and
+  only this new target fails. The established 38 Phase 5 ignores remain unchanged.
 - Alternatives rejected: changing Cargo to `1.0.0`; choosing a new language version;
   adding a `version` subcommand; renaming JSON fields; calling deterministic reruns
   mechanized semantics; deleting design documents; presenting parsed or dormant

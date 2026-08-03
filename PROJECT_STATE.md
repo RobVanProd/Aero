@@ -4,12 +4,13 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 17 preregistration — `CORE-015` is accepted and its reviewed final-state
-sync is public at `c612f3b`, with all eight checks green. `AUDIT-022` now selects
-`CORE-016` to correct public version, conformance, and safety claims without changing
-language semantics, the package version, report schema, backends, releases, or
-benchmarks. Accepted `CORE-014` remains closed; benchmark execution remains
-quarantined.
+Milestone 17 tests-only red review — `CORE-016` preregistration is public at
+`1575914` with all eight checks green. The local seven-test claim contract now
+reproduces exactly five intended failures and two preservation passes; all prior
+active tests and doc tests pass. Production and public-claim edits remain blocked
+until three reviewers approve the exact red diff/tree and the public red checkpoint
+reproduces it. Language semantics, package version, report schema, backends, releases,
+and benchmarks remain frozen.
 
 ## Active hypothesis
 
@@ -45,6 +46,12 @@ but visibly design-only or historical. No semantic or release decision is inferr
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Public `CORE-016` preregistration head:
+  `1575914e7ab1f3c70793c77a1d82b7b3a78bb441`. Three independent reviewers approved
+  exact staged diff `321fb61c3932cd0663bc5bcbc0aecb02361ab010` and tree
+  `4933dc2e9297cc5d7d0742c28081571e3fc23c5f` with no P0-P3 findings after the first
+  snapshot was rejected and corrected. Both compiler-test jobs, stable/nightly Rust,
+  all three CodeQL analyses, and aggregate CodeQL pass; draft PR #4 is mergeable.
 - Accepted public `CORE-015` final-state sync head:
   `c612f3bea133f308cd71c6f8e5fb9ad708e51e6b`. Three independent reviewers approved
   exact staged diff `674b1831accef7b714ba21799249f346cc5a7491` and tree
@@ -514,13 +521,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Stage and independently review the exact six-record `AUDIT-022` / `CORE-016`
-preregistration. Run the complete gate, then publish it only after all three reviewers
-approve the same diff and tree. After all eight public checks pass, add the frozen
-tests-only red contract. Do not change production code or public claims before that
-red checkpoint; do not change parser/type/ownership semantics, package version,
-conformance algorithms or JSON schema, backend behavior, benchmarks, registry,
-release state, or `master`.
+Stage the new tests-only red target plus its minimal evidence records and independently
+review the exact diff/tree. Publish only after all three reviewers approve. Verify the
+public red matrix reproduces exactly two passing / five failing groups with prior
+targets unaffected before making any production or public-claim edit. Do not change
+parser/type/ownership semantics, package version, conformance algorithms or JSON
+schema, backend behavior, benchmarks, registry, release state, or `master`.
 
 ## Unauthorized actions
 
