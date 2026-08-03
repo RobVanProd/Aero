@@ -59,7 +59,7 @@ from the same LLVM 22 distribution are also on PATH.
 - `aero build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--backend <cpu|rocm|cuda>] [--gpu <arch>]`: compile Aero source to LLVM IR with optional accelerator target metadata
 - `aero run <input.aero> [--target <cpu|rocm|cuda>] [--backend <cpu|rocm|cuda>] [--gpu <arch>]`: compile source and request a target-specific run stage; artifacts are temporary under `target/aero-run`
 - `aero check <input.aero>`: type-check only (no code generation)
-- `aero test`: discover and run `*_test.aero` files
+- `aero test`: discover and semantically analyze `*_test.aero` and `*_tests.aero` files; this does not execute tests or generate IR
 - `aero fmt <input.aero>`: auto-format source
 - `aero doc <input.aero> [-o <output.md>]`: generate Markdown API documentation from declarations
 - `aero profile <input.aero> [-o <trace.json>]`: profile compiler stages and optionally emit Chrome trace JSON

@@ -455,12 +455,14 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                 eprintln!("Usage: {} test", args[0]);
                 return CliStatus::InvocationFailure;
             }
-            // Discover and run *_test.aero files in examples/ and current directory
+            // Discover and semantically analyze Aero test sources without executing them.
             let test_dirs = vec!["examples", "tests", "."];
             let mut test_count = 0;
-            let mut pass_count = 0;
+            let mut completed_count = 0;
 
-            println!("\x1b[1;36m   Compiling\x1b[0m test suite...");
+            println!(
+                "\x1b[1;36mAnalyzing\x1b[0m Aero test sources (parse, direct modules, semantics only; no execution)..."
+            );
             for dir in &test_dirs {
                 if let Ok(entries) = fs::read_dir(dir) {
                     for entry in entries.flatten() {
@@ -468,7 +470,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                             if name.ends_with("_test.aero") || name.ends_with("_tests.aero") {
                                 test_count += 1;
-                                println!("\x1b[1;36m     Running\x1b[0m {}", path.display());
+                                println!("\x1b[1;36mAnalyzing\x1b[0m {}", path.display());
                                 match fs::read_to_string(&path) {
                                     Ok(src) => {
                                         let filename = path.to_string_lossy().to_string();
@@ -477,15 +479,15 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                                                 let mut analyzer = SemanticAnalyzer::new();
                                                 match analyzer.analyze(ast) {
                                                     Ok(_) => {
-                                                        pass_count += 1;
+                                                        completed_count += 1;
                                                         println!(
-                                                            "      \x1b[1;32m✓\x1b[0m {} passed",
+                                                            "      \x1b[1;32m✓\x1b[0m {} analysis completed (not executed)",
                                                             name
                                                         );
                                                     }
                                                     Err(err) => {
                                                         println!(
-                                                            "      \x1b[1;31m✗\x1b[0m {} failed: {}",
+                                                            "      \x1b[1;31m✗\x1b[0m {} analysis failed: {}",
                                                             name, err
                                                         );
                                                     }
@@ -493,7 +495,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                                             }
                                             Err(err) => {
                                                 println!(
-                                                    "      \x1b[1;31m✗\x1b[0m {} failed: {}",
+                                                    "      \x1b[1;31m✗\x1b[0m {} analysis failed: {}",
                                                     name, err
                                                 );
                                             }
@@ -501,7 +503,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                                     }
                                     Err(err) => {
                                         println!(
-                                            "      \x1b[1;31m✗\x1b[0m {} failed: could not read test: {}",
+                                            "      \x1b[1;31m✗\x1b[0m {} analysis failed: could not read test: {}",
                                             name, err
                                         );
                                     }
@@ -514,13 +516,13 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
 
             if test_count == 0 {
                 println!(
-                    "\x1b[1;33mwarning\x1b[0m: no test files found (*_test.aero, *_tests.aero)"
+                    "\x1b[1;33mwarning\x1b[0m: no Aero test source files found (*_test.aero, *_tests.aero); no tests were executed"
                 );
             } else {
-                let failure_count = test_count - pass_count;
+                let failure_count = test_count - completed_count;
                 println!(
-                    "\n\x1b[1mtest result\x1b[0m: {} passed, {} failed, {} total",
-                    pass_count, failure_count, test_count
+                    "\n\x1b[1manalysis result\x1b[0m: {} completed, {} failed, {} total; no tests were executed",
+                    completed_count, failure_count, test_count
                 );
                 if failure_count > 0 {
                     return CliStatus::OperationalFailure;
@@ -2095,7 +2097,9 @@ fn print_help(program_name: &str) {
     println!(
         "    check <input.aero>                   Validate frontend and checked IR (no LLVM emission)"
     );
-    println!("    test                                 Discover and run *_test.aero files");
+    println!(
+        "    test                                 Discover and semantically analyze *_test.aero files (no execution)"
+    );
     println!("    fmt <input.aero>                     Auto-format Aero source");
     println!("    doc <input.aero> [-o <output.md>]    Generate Markdown API docs from source");
     println!("    profile <input.aero> [-o <trace.json>] Profile compilation phases");

@@ -679,6 +679,19 @@ upgrading any artifact.
   execution, checked IR, codegen, runtime, language semantic, or capability work is
   selected.
 
+### CORE-019 public red checkpoint and local candidate
+
+- Triple-reviewed tests-only commit `6728a39`, tree `5337c877`, reproduces the exact
+  public boundary: CI runs `30828281313` and `30828277960` fail only the two frozen
+  CLI contracts at 9/2; Rust run `30828281681` has the same 9/2 nightly failure and
+  a permitted fail-fast cancellation during stable tests; CodeQL run `30828277876`
+  and aggregate check `91735622062` provide all four green CodeQL checks.
+- The local implementation candidate changes only `src/compiler/src/main.rs` and
+  `BUILD.md` presentation plus authorized records. The focused CLI target is 11/11;
+  no checked IR, codegen, process execution, discovery, diagnostic, count, status,
+  language-semantic, or backend capability is added or promoted. Exact
+  `./tools/test.sh` passes; exact review and public-green acceptance remain pending.
+
 ## Audit completion
 
 All eight requested read-only areas were completed in bounded waves. The audit

@@ -3052,4 +3052,14 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   aggregate/backend/optimizer/`CompilerOptions` behavior; dependency/workflow,
   benchmark, immutable evidence, external artifact, package/release/registry, or
   `master` change.
-- Status: preregistered; tests and implementation not started.
+- Status: implementation candidate local. Triple-reviewed preregistration `e6f332f`
+  passed all eight checks (compiler `30826689358`/`30826692656`, Rust `30826691808`,
+  CodeQL `30826689156`, aggregate `91730202225`). Triple-reviewed tests-only commit
+  `6728a39`, tree `5337c877`, diff `f703a4b5`, is public: compiler runs
+  `30828281313`/`30828277960` fail only the two frozen contracts at 9/2; nightly in
+  Rust run `30828281681` fails identically and stable is cancelled during its test
+  step by permitted fail-fast; CodeQL run `30828277876` plus aggregate `91735622062`
+  provide all four green CodeQL checks. The bounded local presentation candidate
+  passes the focused CLI target 11/11 and exact `./tools/test.sh`. Three-review
+  approval, implementation commit/public all-eight green checks, closure, and final
+  sync remain.

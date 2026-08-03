@@ -4,19 +4,22 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 20 preregistration — `AUDIT-025` at clean accepted public head `d0bd54e`
-selects the documented `aero test` false execution/pass claim as the next bounded P1.
-The command performs strict parse, direct-module collection, and semantic analysis
-only, yet current CLI/help/BUILD language says discovered sources run and pass.
-`CORE-019` changes presentation and exact tests only. Discovery, analysis, counts,
-statuses, compiler stages, language semantics, and runtime behavior remain frozen.
+Milestone 20 implementation candidate — triple-reviewed public tests-only commit
+`6728a39` proves the documented `aero test` execution/pass claim with the exact 9/2
+red contract on both compiler jobs and nightly Rust; stable Rust was cancelled during
+its test step by matrix fail-fast, and all four CodeQL checks passed. The local
+candidate changes only CLI/help/BUILD presentation, passes the focused CLI target
+11/11, and passes exact `./tools/test.sh`. Three-review and public-green acceptance
+remain pending.
 
 ## Active hypothesis
 
-Replacing only `aero test` execution/pass wording with exact semantic-analysis and
-no-execution wording can control the false assurance without designing a test ABI or
-changing behavior. A tests-first contract can preserve the existing scan, strict
-parse/direct-module/semantic stages, counts, and `0/1/2` statuses exactly.
+The public red checkpoint and local 11/11 candidate support replacing only `aero
+test` execution/pass wording with exact semantic-analysis/no-execution wording. The
+existing scan, strict parse/direct-module/semantic stages, diagnostics, counts, and
+`0/1/2` statuses remain unchanged; no executable-test ABI or runtime behavior is
+introduced. The exact full gate is green; acceptance still depends on exact review
+and public CI.
 
 ## Founding-framework checkpoint
 
@@ -586,11 +589,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze, exactly review, and publish this six-record `CORE-019` preregistration;
-require all eight public checks green. Then add only the frozen CLI tests and publish
-the exact reviewed 9/2 red target before implementation. Do not execute Aero tests,
-add checked IR/codegen/runtime behavior, change discovery/count/status semantics,
-implement `CompilerOptions`, publish benchmarks or packages, or modify `master`.
+Freeze the exact full-gate-green `CORE-019` implementation candidate, obtain three
+independent approvals, and publish it only if all eight public checks become green.
+Then perform a reviewed record-only closure/final sync.
+Do not execute Aero tests, add checked IR/codegen/runtime behavior, change discovery/
+count/status semantics, implement `CompilerOptions`, publish benchmarks or packages,
+or modify `master`.
 
 ## Unauthorized actions
 
