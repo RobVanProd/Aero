@@ -874,6 +874,18 @@ upgrading any artifact.
   `bool`/LLVM-`i1` function evidence. `CORE-023` freezes only monomorphic non-entry
   helper contracts in the semantic phase. No current capability is promoted before
   tests-first, implementation, full-gate, review, and public evidence.
+- `CORE-023` now supplies that evidence. Corrected preregistration `1c28a7b` is
+  all-eight public green. Triple-reviewed tests-only `c3f6e90` reproduces exact
+  compiler 13/1 in `30848723940` / `30848725388` and nightly Rust `30848725757`,
+  with only the Boolean helper contract target failing on the three frozen
+  discrepancies; stable is fail-fast cancelled and CodeQL remains green. Triple-
+  reviewed one-file implementation `67ccdf2` passes focused 1/1, function contracts
+  14/14, binding controls 16/16, Boolean checked-IR `i1` 1/1, the exact local gate,
+  compiler `30850000615` / `30850005598`, Rust `30850005670`, CodeQL
+  `30850001251`, and aggregate `91807553635`. Non-entry monomorphic Boolean helper
+  contracts are now controlled in semantics. R-002 remains PARTIALLY CONTROLLED;
+  entry/ABI and every excluded type/shape remain open or quarantined, and no general
+  type-safety, execution, stability, or backend capability is inferred.
 
 ## Audit completion
 

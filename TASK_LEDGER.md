@@ -3705,3 +3705,43 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Status: preregistered and full-local-gate green. No test or production edit is
   authorized until this exact six-record snapshot passes three exact reviews,
   unchanged publication, and all eight public checks.
+
+- Preregistration acceptance: corrected exact tree
+  `ce4e0aa117fe25beafeb85b3b6e03d083086155f` and diff
+  `ace3e88d14b2bf90e5f7aad35b317606e72755c9` received three approvals with no
+  P0-P3 findings and were published unchanged as
+  `1c28a7ba05c476be8a128f44895e2649913cba85`. Compiler runs `30848164601` /
+  `30848168070`, stable/nightly Rust run `30848169186`, CodeQL run `30848164733`,
+  and aggregate `91801596136` all pass.
+- Tests-first checkpoint: exact one-test-file tree
+  `3fd13263a6338fed3491c2c869e79f854a3f194f` and diff
+  `bd17adefe08bc9d2039336bfb39b7b15d95e9663` received three approvals and were
+  published unchanged as `c3f6e90ec8fcdf9ae11c3ad0f54d0ef1a8c06f18`. Compiler
+  runs `30848723940` / `30848725388` and nightly in Rust run `30848725757`
+  reproduce exactly 13/1: only
+  `boolean_helper_contracts_stop_in_semantics_without_changing_main` fails, with
+  exactly the frozen invalid-parameter acceptance, invalid-return acceptance, and
+  valid-result `Int` mismatch. Stable is cancelled by matrix fail-fast before
+  completion. CodeQL `30848722802` passes all three analyses and aggregate
+  `91803430236` passes.
+- Implementation acceptance: exact one-production-file tree
+  `c0b538c976b0cbdd3b264b0a106318b71e248de1` and diff
+  `b1ecc6eea0a5da8d9a9d742c2422b5d36268c48c` received three approvals with no
+  P0-P3 findings and were published unchanged as
+  `67ccdf255381f2742217ab6e9f1307aba4ac7077`. Focused CORE-023 passes 1/1,
+  function contracts 14/14, binding preservation 16/16, Boolean checked-IR `i1`
+  preservation 1/1, and exact `./tools/test.sh` passes locally. Public compiler runs
+  `30850000615` / `30850005598`, stable/nightly Rust `30850005670`, CodeQL
+  `30850001251`, and aggregate `91807553635` all pass.
+- Result: non-entry monomorphic helpers use a function-contract-specific mapper that
+  composes the unchanged numeric mapping with exact named `bool`. Parameters and
+  returns share that mapper, so invalid Boolean arguments/returns stop in semantics
+  and valid Boolean calls infer `Ty::Bool`. Exact `main` continues to use the prior
+  numeric/void mapper; the shared binding/array mapper and every generic, String,
+  custom, composite, parser, IR, verifier, codegen, ABI, CLI, and backend boundary
+  remain unchanged. The quarantined Boolean-entry gap remains open and is not
+  program-validity evidence.
+- Status: implementation accepted at `67ccdf2`; R-002 remains PARTIALLY CONTROLLED.
+  This exact six-record closure candidate is full-local-gate green and still requires
+  three exact reviews, unchanged publication, and all eight public checks before
+  final record closure.

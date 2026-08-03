@@ -4,19 +4,17 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 27 `CORE-023` preregistration - `AUDIT-029` is complete from exact
-public-green basis `0e5cba1`. The reconciled next slice is one-phase semantic
-enforcement of exact Boolean contracts for monomorphic non-entry helper functions.
-The six-record contract is full-local-gate green; no tests or implementation are
-authorized until it is triple-approved, published unchanged, and all-eight public
-green.
+Milestone 27 `CORE-023` record closure - exact Boolean contracts for monomorphic
+non-entry helper functions are implemented at triple-reviewed, all-eight public-green
+`67ccdf2`. R-002 remains partially controlled. The next work is exact six-record
+evidence closure; no new implementation is authorized.
 
 ## Active hypothesis
 
-Extending the established exact function-contract path from numeric/void helpers to
-already-supported `bool` can make invalid Boolean calls/returns stop in semantics and
-valid Boolean call results infer `Ty::Bool`, without changing parser, IR, codegen,
-ABI, generics, aggregates, coercion, or any other source semantics.
+The helper-specific mapper now makes invalid in-scope Boolean arguments and returns
+stop in semantics and valid calls infer `Ty::Bool`, while exact `main`, shared
+binding/array mapping, parser, IR, codegen, ABI, generics, composites, and coercion
+retain their prior boundaries. The evidence records must close only that result.
 
 ## Founding-framework checkpoint
 
@@ -617,12 +615,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for this full-local-gate-green six-record `AUDIT-029`
-reconciliation and `CORE-023` preregistration, publish it unchanged, and require all
-eight public checks. Only then add the one aggregate direct-semantic tests-first
-target. Do not edit production early; broaden beyond Boolean non-entry helpers;
-alter workflows/dependencies; publish benchmarks/packages/releases; modify immutable
-claim evidence; or touch `master`.
+Obtain three exact approvals for this full-local-gate-green six-record CORE-023
+closure, publish it unchanged, and require all eight public checks. Do not start a
+new implementation; broaden CORE-023 beyond Boolean non-entry helpers; alter
+workflows/dependencies; publish benchmarks/packages/releases; modify immutable claim
+evidence; or touch `master`.
 
 ## Unauthorized actions
 

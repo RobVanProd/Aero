@@ -212,6 +212,15 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   only exact `Ty::Bool` contracts for monomorphic non-entry helpers, with parser,
   AST, IR, verifier, codegen, ABI, generics, composites, coercions, and broader R-002
   closure excluded until separate evidence.
+- Accepted `CORE-023` implementation `67ccdf2` closes only the semantic contract gap
+  for monomorphic non-entry Boolean helpers. Triple-reviewed tests-only `c3f6e90`
+  publicly reproduces the three semantic discrepancies; the one-file implementation
+  passes focused/preservation/full gates and all eight checks in compiler
+  `30850000615` / `30850005598`, Rust `30850005670`, CodeQL `30850001251`, and
+  aggregate `91807553635`. Boolean helper parameters/returns now use exact `Ty::Bool`
+  and valid calls infer `Ty::Bool`; checked IR/codegen remain unchanged and retain
+  existing LLVM `i1` evidence. This is a PARTIAL function/type-contract improvement,
+  not entry/ABI, generic/composite, execution, backend, or stability closure.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

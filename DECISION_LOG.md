@@ -1310,8 +1310,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-028 - Boolean helper functions use exact semantic contracts
 
 - Date: 2026-08-03
-- Status: proposed by completed read-only `AUDIT-029`; preregistered and full-local-
-  gate green under `CORE-023`, not yet tests-first or implemented.
+- Status: implemented and all-eight public green at `67ccdf2` under `CORE-023`;
+  exact record-only closure pending.
 - Decision: for monomorphic non-entry top-level helper functions, source `bool`
   parameters and returns participate in the existing exact function-contract path as
   `Ty::Bool`. Calls use exact arity and equality checks, Boolean results infer
@@ -1343,3 +1343,16 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   IR/verifier/codegen/backend/ABI changes, and any claim of general R-002 closure.
 - Revisit excluded types only through separately frozen semantics, compatibility,
   phase boundaries, deterministic negative evidence, and end-to-end preservation.
+- Evidence: corrected preregistration `1c28a7b`, tree `ce4e0aa1`, passes compiler
+  `30848164601` / `30848168070`, Rust `30848169186`, CodeQL `30848164733`, and
+  aggregate `91801596136`. Triple-reviewed tests-only `c3f6e90`, tree `3fd13263`,
+  reproduces exact compiler 13/1 in `30848723940` / `30848725388` and nightly Rust
+  `30848725757`; stable is fail-fast cancelled, while CodeQL `30848722802` and
+  aggregate `91803430236` pass. Triple-reviewed implementation `67ccdf2`, tree
+  `c0b538c9`, passes focused and preservation gates, exact `./tools/test.sh`, compiler
+  `30850000615` / `30850005598`, Rust `30850005670`, CodeQL `30850001251`, and
+  aggregate `91807553635`.
+- Residual: DEC-028 accepts only non-entry monomorphic Boolean helper contracts.
+  Boolean `main`, other entry/ABI validation, String/custom/contextual/structural/
+  generic/composite/reference/closure/method contracts, coercion/defaulting, and
+  broader R-002 closure remain undecided or quarantined.
