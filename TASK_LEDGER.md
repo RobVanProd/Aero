@@ -7830,3 +7830,31 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   exit 43 remain mandatory stable-Linux CI evidence after exact review and unchanged
   publication. PR #4 already reflects accepted public CORE-040 and remains deliberately
   unsynchronized to unpublished CORE-041 until that acceptance completes.
+- Candidate review correction history: exact unpublished candidate
+  `36e8964b02d0104d82714da9fc7beba30ca93196`, parent
+  `edd63f3c59de38b19d92aebec1b6915240b5e5a5`, tree
+  `8d93ceefbaef01b165b075390ca9b4e265da7e43`, is rejected and must remain
+  unpublished. Fresh exact reviewers found that the live `PROJECT_STATE.md` handoff
+  still described candidate formation as future work, and the type/safety review
+  found that the frozen empty-receiver/nonempty-needle content quotient was absent
+  from both classifier and end-to-end tests. Add explicit false `contains`,
+  `starts_with`, and `ends_with` cases for that quotient at both boundaries; this is
+  a tests-only completeness correction because the shared classifier already returns
+  the frozen result. Correct the handoff to present-tense successor-candidate review
+  and publication wording. The previously reported diff hash `89a4f178...` was made
+  without the repository's full canonical recipe; Git Bash
+  `git diff --binary --full-index <parent> <candidate> | git hash-object --stdin`
+  yields `a4bcb533b6756705d65c4f5cd2695003c344c585` for the rejected candidate.
+  All successor identities must use that exact Git Bash recipe. No production
+  behavior, eligibility, diagnostic, workflow, claim, or public PR change is
+  authorized by these corrections. After the additions, rerun focused tests and the
+  exact root gate, form an additive immutable successor, and obtain three fresh exact
+  reviews before publication.
+- Correction validation: the classifier and end-to-end content products now include
+  all three explicit empty-receiver/nonempty-needle false results. The exhaustive
+  aggregate passes 1/1, and the classifier unit passes 1/1 in both crate roots. The
+  repository-root `./tools/test.sh` gate then exits 0 with formatting and correctness
+  Clippy clean, 146/146 library tests, 156/156 CLI tests, 7/7 claim, 28/28 binding,
+  every integration suite, and doc tests. This correction changes only two test
+  tables and the chronology records; production classifier behavior is byte-for-byte
+  unchanged from rejected candidate `36e8964`.

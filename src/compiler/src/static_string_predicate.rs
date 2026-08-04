@@ -74,6 +74,7 @@ mod tests {
 
         for (method, receiver, argument, expected) in [
             ("contains", "", "", true),
+            ("contains", "", "a", false),
             ("contains", "abc", "", true),
             ("contains", "abcabc", "bca", true),
             ("contains", "abc", "abcd", false),
@@ -81,10 +82,12 @@ mod tests {
             ("contains", "é", "é", false),
             ("contains", "\n\t\r\\\"\0\\q", "\\q", true),
             ("starts_with", "", "", true),
+            ("starts_with", "", "a", false),
             ("starts_with", "abc", "ab", true),
             ("starts_with", "abc", "bc", false),
             ("starts_with", "é🚀中", "é🚀", true),
             ("ends_with", "", "", true),
+            ("ends_with", "", "a", false),
             ("ends_with", "abc", "bc", true),
             ("ends_with", "abc", "ab", false),
             ("ends_with", "é🚀中", "🚀中", true),

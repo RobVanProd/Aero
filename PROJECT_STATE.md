@@ -1624,13 +1624,17 @@ CLI 12/12, equality 1/1, String length 1/1, and typed admission 13/13 pass. The 
 root gate is formatting and correctness-Clippy clean and passes 146/146 library,
 156/156 CLI, 7/7 claim, 28/28 binding, every integration suite, and doc tests.
 
-Update final evidence wording, rerun that exact root gate, form one intentional
-candidate commit, obtain three fresh exact type/safety, IR/codegen, and backend/claim
-reviews, and publish only an unchanged approved commit. Require all eight public checks
-and stable Linux checked build, pinned LLVM 22 verification, machine verification/
-object lowering, Clang link, and exact native exit 43. After acceptance, synchronize
-PR #4 to the accepted CORE-041 head under the new repository rule. Do not publish
-releases/packages/benchmarks/claims, rewrite history, force-push, or touch `master`.
+Exact unpublished candidate `36e8964` was rejected for stale handoff chronology, a
+noncanonical externally reported diff hash, and the missing frozen empty-receiver/
+nonempty-needle test quotient. The additive successor containing the recorded and
+tests-only corrections is identified externally because a commit cannot identify
+itself. Preserve that successor unchanged during three fresh exact type/safety,
+IR/codegen, and backend/claim reviews, and publish only if all three approve it.
+Require all eight public checks and stable Linux checked build, pinned LLVM 22
+verification, machine verification/object lowering, Clang link, and exact native
+exit 43. After acceptance, synchronize PR #4 to the accepted CORE-041 head under the
+new repository rule. Do not publish releases/packages/benchmarks/claims, rewrite
+history, force-push, or touch `master`.
 
 ## Unauthorized actions
 
