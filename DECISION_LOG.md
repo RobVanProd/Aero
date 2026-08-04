@@ -1525,3 +1525,43 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   green. It carries no implementation or capability-promotion authority.
 - Revisit actual grammar compatibility only through a separately frozen authority,
   migration, parser/AST/semantic, executable-example, and compatibility contract.
+
+## DEC-033 - Unsupported uninitialized outer tuple annotations must fail closed
+
+- Date: 2026-08-03
+- Status: accepted selection; `CORE-028` authorization pending review/public gates.
+- Decision: an exact valueless binding with outer annotation `Type::Tuple(_)` is not
+  supported syntax-to-IR behavior. Semantics must reject it after existing same-scope
+  duplicate detection and before the current default `Ty::Int` or binding insertion.
+  Checked admission must independently reject the exact AST before generation. A
+  test that records current acceptance is quarantine evidence, not compatibility or
+  tuple-support authority.
+- Basis: public-green `AUDIT-034` authorization `45783af`, tree `f1baa457`, passes
+  compiler `30866227485` / `30866229553`, Rust `30866229554`, CodeQL
+  `30866227939`, and aggregate `91858665436`. Three complete independent rankings
+  and targeted reconciliation unanimously select this R-002 public false success:
+  semantics silently maps the unsupported tuple annotation to `Int`, checked
+  admission skips it, and raw generation can fabricate integer zero. This violates
+  both hard unsupported-type-fallback and invalid-before-IR rules.
+- Exact boundary: only
+  `Statement::Let { type_annotation: Some(Type::Tuple(_)), value: None, .. }`.
+  Semantics returns
+  ``Error: Variable `NAME` uses an unsupported tuple type annotation for an uninitialized binding.``
+  Checked admission returns
+  ``checked IR binding `NAME` uses an unsupported tuple type annotation for an uninitialized binding``
+  and public compilation surfaces the exact semantic diagnostic through its existing
+  wrapper. There is no RHS child. Existing duplicate-name semantics remains first;
+  checked admission gains no duplicate-name policy.
+- Runner-up: R-005 zero-argument direct calls through parameterized local closure
+  aliases should eventually stop at admission, but the mandatory verifier already
+  rejects them before LLVM. All calls with supplied arguments remain stopped because
+  a new outer arity rejection could mask incompletely admitted child failures.
+- Excluded: initialized tuple bindings and their CORE-025 diagnostics/child order;
+  nested tuples under another outer annotation; tuple values/projections/patterns/
+  defaults/layout/support; all other valueless annotations; parser/AST; generic type
+  redesign; unchecked APIs; raw generation, verifier, codegen, ABI, ownership,
+  backends, workflows, dependencies, claims, and capability promotion.
+- Consequence: `CORE-028` may preregister one tests-first file and then exactly two
+  compiler phase files. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED even if
+  this slice is accepted. Stop if a compatibility decision, tuple semantics, a third
+  phase, another annotation outcome, or valid generated output would change.

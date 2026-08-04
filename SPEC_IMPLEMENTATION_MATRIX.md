@@ -382,3 +382,21 @@ This file must be tightened as audit items close. A row may become `END_TO_END`
 only with source-to-execution evidence and all applicable positive, negative,
 diagnostic, documentation, and backend gates. `STABLE` additionally requires a
 declared compatibility policy and release-level coverage.
+
+## AUDIT-034 / CORE-028 classification boundary
+
+- Public-green read-only `AUDIT-034` authorization `45783af`, tree `f1baa457`,
+  passes both compiler jobs, stable/nightly Rust, all three CodeQL analyses, and the
+  aggregate check. Three complete independent rankings and unanimous targeted
+  reconciliation select one exact R-002 fail-open declaration form.
+- A binding with `value: None` and outer annotation `Type::Tuple(_)` is not an
+  implemented tuple feature. Current semantics silently selects `Ty::Int`, checked
+  admission skips the statement, and raw generation can create integer zero.
+  Preregistered `CORE-028` therefore selects rejection in semantics and checked
+  admission only, before insertion or generation, with existing duplicate-name
+  semantics first.
+- This containment cannot change a matrix cell: it adds no tuple value, layout,
+  assignment, ownership, ABI, lowering, execution, or backend evidence. Initialized
+  CORE-025 behavior, nested tuple shapes, other valueless annotations, valid IR/LLVM,
+  and every current capability class remain unchanged. R-002 remains HIGH/CRITICAL
+  and PARTIALLY CONTROLLED.

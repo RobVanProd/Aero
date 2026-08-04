@@ -1056,3 +1056,31 @@ language or backend surface.
 See `SPEC_IMPLEMENTATION_MATRIX.md` and `BACKEND_STATUS.md` for stage-level
 classification. These labels describe evidence at the audited commit and do not
 promise future compatibility.
+
+## AUDIT-034 reconciliation and CORE-028 boundary
+
+- Exact `AUDIT-034` authorization snapshot `26c1eda`, tree `f1baa457`, diff
+  `1e8563ae`, received three approvals and was published unchanged as `45783af`.
+  Compiler `30866227485` / `30866229553`, stable/nightly Rust `30866229554`,
+  all three CodeQL analyses in `30866227939`, and aggregate `91858665436` pass.
+- Type/safety ranks R-002/R-009/R-012/R-005/R-011/R-004/R-013/R-010/R-006/
+  R-016/R-007. IR/codegen ranks R-005/R-012/R-002/R-013/R-011/R-004/R-010/
+  R-009/R-006/R-007/R-016. Backend/claim ranks R-005/R-002/R-011/R-016/R-013/
+  R-012/R-006/R-009/R-010/R-004/R-007. The read-only worktree remained clean.
+  R-012's recorded population is confirmed as 16 disconnected files/299 tests.
+- Final targeted reconciliation unanimously selects one exact R-002 public false
+  success: a valueless binding with outer `Type::Tuple(_)` annotation silently
+  becomes `Ty::Int` in semantics, is skipped by checked admission, and can become
+  `(ImmInt(0), Ty::Int)` in raw generation. The existing acceptance assertions are
+  quarantine evidence; the invariant forbidding unsupported-type fallback freezes
+  rejection without defining tuple defaults, layout, ABI, or execution.
+- DEC-033 and preregistered `CORE-028` permit only exact semantic and checked-
+  admission diagnostics for that outer valueless tuple form, with existing semantic
+  duplicate-name precedence first. Initialized tuple behavior, nested tuple shapes,
+  every other valueless annotation, raw generation, verifier, codegen, ABI,
+  ownership, and backends remain unchanged. No matrix row or capability is promoted;
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- The R-005 runner-up is a zero-argument call through a local closure alias whose
+  admitted scalar signature requires parameters. It remains stopped for a later
+  contract: it reaches raw IR but is already rejected by mandatory verification
+  before LLVM, and supplied-argument variants have unresolved child-precedence risk.

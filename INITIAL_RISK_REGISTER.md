@@ -398,3 +398,16 @@ remains HIGH/HIGH and OPEN. `AUDIT-034` is preregistered to rank the complete
 remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
 from this clean closure, excluding every accepted sub-slice including CORE-027
 authority containment and carrying no implementation authority.
+
+Public-green read-only `AUDIT-034` authorization `45783af`, tree `f1baa457`, passes
+compiler `30866227485` / `30866229553`, stable/nightly Rust `30866229554`, CodeQL
+`30866227939`, and aggregate `91858665436` after three exact approvals. Complete
+independent rankings and unanimous targeted reconciliation select a distinct R-002
+public false success above the R-005 verifier-contained runner-up: exact outer tuple
+annotations on valueless bindings silently become `Int`, pass checked admission, and
+can become integer zero in raw generation. DEC-033 and preregistered `CORE-028`
+authorize records only until their own gates pass; the later bounded contract may
+reject that exact AST in semantics and checked admission. Initialized tuple controls,
+nested tuple shapes, other valueless annotations, tuple support, valid output, and
+every backend/capability claim remain unchanged. R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED.

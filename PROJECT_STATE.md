@@ -4,21 +4,22 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 34 `AUDIT-034` authorization. `CORE-027` is complete at public-green
-record closure `d649c2d`: the grammar and core-features tutorial now visibly
-distinguish normative Aero v1.0.0 design from current compiler evidence without
-changing a production, example, compiler phase, or capability class. Immediate work
-is to gate a new clean-head, read-only ranking of all eleven remaining OPEN or
-PARTIALLY CONTROLLED risks. No implementation is authorized. R-010 remains
-HIGH/HIGH and OPEN; containment does not establish grammar conformance.
+Milestone 35 `CORE-028` authorization. Public-green read-only `AUDIT-034` completed
+three independent full residual rankings and unanimous targeted reconciliation. The
+selected R-002 slice is only a valueless binding whose outer annotation is a tuple:
+it currently succeeds by silently becoming `Int` and can reach raw generation as
+integer zero. Immediate work is to gate the exact records-only two-phase fail-closed
+contract. No test or compiler edit is authorized. R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED; rejection will not establish tuple capability.
 
 ## Active hypothesis
 
-A clean-head, delta-aware comparison after `CORE-027` can select the highest-severity
-remaining bounded correctness defect whose semantics are already frozen, whose
-tests-first evidence is deterministic, and whose implementation spans at most two
-compiler phases, or stop explicitly. The audit must not repeat accepted sub-slices,
-inherit a prior ranking, or treat documentation containment as grammar conformance.
+The hard rule against silently converting an unsupported source type freezes a
+bounded rejection contract without inventing tuple semantics. Exact outer
+`Type::Tuple(_)` plus `value: None` must stop after existing duplicate-name semantics
+and before default `Ty::Int`, binding insertion, checked admission, or generation.
+Initialized tuples, nested tuple shapes, and all other valueless annotations retain
+their current outcomes.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -52,6 +53,18 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Public `AUDIT-034` authorization
+  `45783af9b54277b83dd58fc9d6162163c451bbb3`, tree `f1baa457`, diff
+  `1e8563ae`, passes compiler `30866227485` / `30866229553`, stable/nightly Rust
+  `30866229554`, all three analyses in CodeQL `30866227939`, and aggregate
+  `91858665436` after three exact approvals. Three complete read-only rankings and
+  final targeted reconciliation unanimously select exact R-002 uninitialized outer-
+  tuple rejection for preregistered `CORE-028`; the worktree remained clean.
+- First `CORE-028` authorization snapshot `696dcaad`, tree `fa86e465`, diff
+  `b5d8ea46`, was rejected at P2 before publication because the proposed tests did
+  not exercise tuple-specific duplicate precedence or valueless tuple nesting under
+  non-tuple array/reference/generic outer annotations. The corrected records require
+  those exact controls; no test or compiler edit is authorized.
 - Accepted public `CORE-027` record closure
   `d649c2d8a9db1fdf51a5065e90ae79d5240412f4`, tree `b5ad7ee2`, diff `d4281863`,
   passes compiler `30865772404` / `30865775196`, stable/nightly Rust
@@ -743,11 +756,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three fresh exact approvals for the full-local-gate-green six-record
-`AUDIT-034` authorization, publish it unchanged, and require all eight public checks.
-Only then begin the strictly read-only complete residual-risk rankings. Do not edit
-tests or implementation, repeat accepted slices, invent semantics, change workflows
-or dependencies, publish artifacts, modify immutable claim evidence, or touch
-`master`.
+`CORE-028` authorization, publish the approved snapshot unchanged, and require all
+eight public checks. Only then may the one tests-first binding-contract file be
+edited. Do not edit compiler code before reviewed/public red evidence; do not extend
+beyond the exact valueless outer tuple, invent tuple semantics, change workflows/
+dependencies/backends, publish artifacts or claims, or touch `master`.
 
 ## Unauthorized actions
 
