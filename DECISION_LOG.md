@@ -1591,8 +1591,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-034 - Valueless immediate reference-to-tuple annotations must fail closed
 
 - Date: 2026-08-03
-- Status: accepted implementation at public all-eight-green `29bd2e0`; final record
-  closure pending.
+- Status: accepted at public all-eight-green closure `7222b9a`.
 - Decision: an uninitialized binding with outer `Type::Reference(inner, _)` and
   immediate `inner: Type::Tuple(_)` is unsupported syntax-to-IR behavior. Semantics
   must reject it after same-scope duplicate detection and before default `Ty::Int` or
@@ -1640,3 +1639,30 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   output certification, and all broader R-002/R-005 surfaces remain unchanged.
   R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability
   changes.
+- Closure evidence: exact snapshot `6c7358be`, tree `66084b36`, diff `90bf540c`,
+  received three approvals and was published unchanged as `7222b9a`. Compiler
+  `30876033717` / `30876035730`, stable/nightly Rust `30876035761`, CodeQL
+  `30876034500`, and aggregate `91887644623` all pass.
+- Audit handoff: `AUDIT-036` may independently re-rank all eleven remaining OPEN or
+  PARTIALLY CONTROLLED risks only after its separate six-record authorization passes
+  exact local, review, unchanged-publication, and all-eight public gates. It excludes
+  every accepted slice including CORE-029 and carries no implementation or
+  capability-promotion authority.
+
+## DEC-035 - Post-CORE-029 selection requires clean-head full-set reconciliation
+
+- Date: 2026-08-04
+- Status: accepted audit protocol; AUDIT-036 authorization pending gates.
+- Decision: no next implementation is selected from CORE-029's runner-up or any prior
+  ranking. Three independent read-only auditors must rank the complete remaining
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the
+  exact public-green AUDIT-036 authorization head, excluding every accepted slice.
+- Evidence boundary: static repository evidence only during ranking. No test, probe,
+  benchmark, artifact, hardware action, external query, source, workflow, dependency,
+  backend, package/release/registry, immutable claim-evidence, or `master` action is
+  authorized. Passing authorization gates unlocks read-only ranking only and never
+  implementation or capability authority.
+- Selection rule: reconcile one bounded active residual with frozen semantics,
+  deterministic tests-first feasibility, and at most two compiler phases, or record
+  an explicit stop. Any later implementation requires its own reviewed contract and
+  public failing regression evidence first.

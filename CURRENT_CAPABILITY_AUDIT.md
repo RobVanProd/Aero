@@ -1172,3 +1172,21 @@ promise future compatibility.
   implementation. Initialized and deeper forms, other annotations, raw IR,
   verifier, codegen, ABI, and CPU/ROCm/CUDA behavior remain unchanged. No capability
   class or matrix cell changes; R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+## CORE-029 closure and AUDIT-036 boundary
+
+- Exact closure snapshot `6c7358be`, tree `66084b36`, diff `90bf540c`, received
+  three approvals and was published unchanged as `7222b9a`. Compiler
+  `30876033717` / `30876035730`, stable/nightly Rust `30876035761`, all three
+  CodeQL analyses in `30876034500`, and aggregate `91887644623` pass.
+- CORE-029 adds only fail-closed containment for the exact valueless immediate
+  reference-to-tuple annotation. Other uninitialized/nested annotations,
+  tuple/reference/ownership support, valid-output certification, unchecked APIs,
+  ABI, and CPU/ROCm/CUDA behavior remain unchanged. R-002 remains HIGH/CRITICAL and
+  PARTIALLY CONTROLLED; no capability class or matrix cell moves.
+- `AUDIT-036` is preregistered to re-rank the complete remaining R-002/R-004/R-005/
+  R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from its exact clean public
+  authorization head. It excludes every accepted sub-slice including CORE-029, must
+  remain static and read-only, cannot inherit AUDIT-035's ordering, and carries no
+  implementation or capability authority. Ranking cannot begin until the separate
+  exact local/review/public gates pass.

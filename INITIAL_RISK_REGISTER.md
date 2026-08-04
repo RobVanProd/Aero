@@ -471,5 +471,15 @@ Rust `30875102909`, CodeQL `30875100762`, and aggregate `91884963697` pass.
 Initialized and deeper reference forms, scalar references, arrays/generics, other
 unsupported annotations, unchecked APIs, tuple/reference/ownership support, valid-
 output claims, and every backend/capability surface remain unchanged. R-002 stays
-HIGH/CRITICAL and PARTIALLY CONTROLLED; record closure is still required before any
-new residual ranking or implementation authorization.
+HIGH/CRITICAL and PARTIALLY CONTROLLED; at that implementation head, record closure
+was still required before any new residual ranking or implementation authorization.
+
+Exact `CORE-029` record closure `7222b9a`, tree `66084b36`, diff `90bf540c`, passes
+compiler `30876033717` / `30876035730`, stable/nightly Rust `30876035761`, CodeQL
+`30876034500`, and aggregate `91887644623` after three exact approvals. R-002
+remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no tuple/reference/ownership
+capability or other risk status changes. `AUDIT-036` is preregistered to rank the
+complete remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
+R-016 set only after its separate exact local/review/public gates, excluding every
+accepted sub-slice including CORE-029 and carrying no implementation or capability
+authority.

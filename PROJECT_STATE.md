@@ -1,24 +1,23 @@
 # Aero Project State
 
-Last updated: 2026-08-03 (America/New_York)
+Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 37 `CORE-029` record closure. The exact valueless immediate reference-to-
-tuple annotation now fails closed in semantics and checked admission at public all-
-eight-green implementation `29bd2e0`; it no longer silently becomes `Int` or reaches
-raw generation as integer zero on trusted paths. Immediate work is the exact six-
-record review/publication after its fresh full local gate passed. R-002 remains
-HIGH/CRITICAL and PARTIALLY CONTROLLED; rejection does not establish tuple,
-reference, or ownership capability.
+Milestone 38 `AUDIT-036` authorization. `CORE-029` is complete at public all-eight-
+green closure `7222b9a`. The six-record authorization for a clean-head, strictly
+read-only ranking of every remaining OPEN/PARTIALLY CONTROLLED risk passes its fresh
+full local gate; immediate work is exact review and unchanged publication. AUDIT-036
+never authorizes tests, implementation, or capability work. Passing its remaining
+review/public gates unlocks only the three independent read-only rankings.
 
 ## Active hypothesis
 
-The accepted two-guard result exactly enforces the frozen non-recursive rejection
-contract after existing duplicate-name semantics and before default `Ty::Int`,
-binding insertion, or generation. Closure records must preserve the distinction
-between containment and tuple/reference support, record the public red/green
-evidence, and leave any next residual to a separately authorized clean-head audit.
+A full-set, delta-aware comparison from the clean CORE-029 closure can select one
+bounded reproducible residual or an explicit stop without inheriting AUDIT-035's
+ordering or repeating an accepted slice. The audit remains static and read-only;
+semantic ambiguity, more than two compiler phases, hardware needs, or unsupported
+capability claims are stop conditions rather than implementation invitations.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -52,6 +51,19 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-029` record closure
+  `7222b9a02d7bbbcd00fd4c3af54e9169be567298`, tree `66084b36`, diff
+  `90bf540c`, passes compiler `30876033717` / `30876035730`, stable/nightly Rust
+  `30876035761`, all three CodeQL analyses in `30876034500`, and aggregate
+  `91887644623` after three exact approvals. PR #4 remains open/draft; upstream
+  `master` remains `8f8c733`.
+- First `AUDIT-036` authorization snapshot `d6f24b8c`, tree `ac21692e`, diff
+  `898b7869`, passed its fresh exact full local gate but was rejected before
+  publication at P3 for retaining August 3 dates after local midnight and at P2
+  because one sentence made the absence of implementation authority sound
+  conditional on public gate completion. The corrected records use August 4 and
+  state separately that AUDIT-036 never grants implementation/capability authority;
+  passing gates unlocks read-only rankings only.
 - Accepted public `CORE-029` implementation
   `29bd2e0167df5e33fdd49622d32620eac6176979`, tree `53282149`, diff
   `acc1c247`, passes focused 1/1, binding 18/18, formatting, the exact full local
@@ -847,11 +859,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three exact approvals for the fresh-full-local-gate-green six-record
-`CORE-029` closure, publish the approved snapshot unchanged, and require all eight
-public checks. Do not authorize another implementation until that clean closure and
-a separate read-only residual ranking. Do not broaden recursive type rejection,
-imply tuple/reference/ownership capability, change workflows/dependencies/backends,
-publish artifacts or claims, or touch `master`.
+`AUDIT-036` authorization, publish the approved snapshot unchanged, and require all
+eight public checks. Only then may the three independent read-only rankings begin.
+Do not edit tests or source, inherit AUDIT-035's order, promote a capability, change
+workflows/dependencies/backends, publish artifacts or claims, or touch `master`.
 
 ## Unauthorized actions
 

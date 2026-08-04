@@ -442,3 +442,11 @@ declared compatibility policy and release-level coverage.
   at the two trusted boundaries. No tuple/reference value, representation, ownership,
   lowering, execution, or backend evidence was added, so every matrix row, cell, and
   capability class remains unchanged.
+- Exact six-record CORE-029 closure `7222b9a`, tree `66084b36`, diff `90bf540c`, is
+  triple-approved and all-eight public green in compiler `30876033717` /
+  `30876035730`, Rust `30876035761`, CodeQL `30876034500`, and aggregate
+  `91887644623`. No matrix cell changes.
+- Preregistered read-only `AUDIT-036` may re-rank the same complete eleven-risk set
+  only after its separate exact authorization gates. It excludes every accepted
+  slice including CORE-029, cannot inherit AUDIT-035's order, and cannot change a
+  matrix row, capability class, source, test, workflow, dependency, or backend.
