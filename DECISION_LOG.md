@@ -1587,3 +1587,41 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   exact local, review, unchanged-publication, and all-eight public gates. It carries
   no implementation or capability-promotion authority and excludes every accepted
   slice including CORE-028.
+
+## DEC-034 - Valueless immediate reference-to-tuple annotations must fail closed
+
+- Date: 2026-08-03
+- Status: selected by unanimous AUDIT-035 targeted reconciliation; CORE-029
+  authorization pending.
+- Decision: an uninitialized binding with outer `Type::Reference(inner, _)` and
+  immediate `inner: Type::Tuple(_)` is unsupported syntax-to-IR behavior. Semantics
+  must reject it after same-scope duplicate detection and before default `Ty::Int` or
+  insertion. Checked admission must independently reject the exact AST before raw
+  generation. Both reference-mutability flags are included.
+- Basis: public-green AUDIT-035 authorization `f1cd972`, tree `b9c6270b`, passes
+  compiler `30872922468` / `30872923806`, Rust `30872923874`, CodeQL `30872922858`,
+  and aggregate `91878491979`. Independent rankings initially split between this
+  exact R-002 form and R-005 local-closure arity admission. Targeted comparison was
+  unanimous: this form silently becomes verifier-valid integer IR and can reach
+  trusted LLVM/CPU publication, while R-005 is already verifier-contained before
+  LLVM.
+- Exact diagnostics: semantics returns
+  ``Error: Variable `NAME` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.``
+  Checked admission returns
+  ``checked IR binding `NAME` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding``
+  and public compilation retains its existing semantic wrapper.
+- Compatibility: CORE-028's exact `&(tuple)` acceptance control was explicitly
+  quarantine evidence, not support. Rejection defines no tuple/reference value,
+  initialization, assignment, representation, mutability, borrowing, ownership,
+  lifetime, provenance, layout, ABI, or execution semantics.
+- Excluded: outer tuple CORE-028; initialized bindings; scalar references; arrays or
+  generics containing tuples; reference-to-reference-to-tuple; recursive type-tree
+  rejection; all other annotations; parser/AST; raw IR; verifier; codegen; ABI;
+  ownership; backends; workflows; dependencies; claims; matrix/capability promotion.
+- Consequence: CORE-029 may preregister one tests-first file and then exactly two
+  compiler phase files. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED even if
+  accepted. Stop on any compatibility decision, ownership/reference/tuple semantics,
+  third phase, another annotation outcome, or valid-output change.
+- Runner-up: R-005 exact zero-argument calls through parameterized local scalar
+  closure aliases remain the next bounded candidate; mandatory verification already
+  stops them before LLVM, and supplied-argument child precedence remains excluded.

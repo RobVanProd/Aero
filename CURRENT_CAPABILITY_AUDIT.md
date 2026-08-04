@@ -1127,3 +1127,26 @@ promise future compatibility.
   cannot begin until its exact local/review/public gates pass. AUDIT-035 never carries
   implementation or capability authority; any later test or source change requires
   a separately reviewed task contract and tests-first evidence.
+
+## AUDIT-035 reconciliation and CORE-029 boundary
+
+- Corrected AUDIT-035 authorization snapshot `bcb05d52`, tree `b9c6270b`, diff
+  `7f221d2a`, received three approvals and was published unchanged as `f1cd972`.
+  Compiler `30872922468` / `30872923806`, stable/nightly Rust `30872923874`, all
+  three CodeQL analyses in `30872922858`, and aggregate `91878491979` pass.
+- Type/safety ranks R-002/R-009/R-011/R-005/R-012/R-013/R-004/R-010/R-006/R-016/
+  R-007. IR/codegen ranks R-005/R-002/R-011/R-012/R-013/R-009/R-006/R-016/R-010/
+  R-004/R-007. Backend/claim ranks R-005/R-002/R-011/R-013/R-012/R-010/R-009/
+  R-004/R-006/R-016/R-007. The immutable worktree remained clean; no tests, probes,
+  artifacts, hardware actions, or external queries ran.
+- Final targeted reconciliation unanimously selects exact R-002 valueless immediate
+  reference-to-tuple rejection. Unlike the verifier-contained R-005 runner-up, this
+  unsupported source shape becomes `Ty::Int` in semantics, is skipped by checked
+  admission, becomes `ImmInt(0)` in raw generation, and can reach trusted LLVM/CPU
+  publication as valid scalar IR.
+- DEC-034 and preregistered CORE-029 permit only two exact rejection guards for outer
+  `Type::Reference` with immediate tuple referent and `value: None`, after semantic
+  duplicate precedence and before fake integer state or generation. Both mutable and
+  immutable flags are included. No recursive type check, tuple/reference support,
+  ownership meaning, matrix row, or capability is authorized. R-002 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED.

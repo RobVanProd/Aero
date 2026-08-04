@@ -4918,7 +4918,122 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   the already completed local gate. The current corrected authorization's fresh
   exact full local gate passes
   139/139 library and 149/149 binary tests plus every active integration/doc test.
-- Status: corrected preregistered records only. No AUDIT-035 ranking or inspection
-  begins until this exact authorization receives three fresh approvals, unchanged
-  publication, and all eight public checks. Any later test or implementation edit
-  requires a separately reviewed task contract and tests-first evidence.
+- Corrected authorization evidence: exact snapshot
+  `bcb05d52ba48e110981dc3778195d7d2f2c57b1d`, tree
+  `b9c6270b3208ccbf21ca88962610f384bc1c3e09`, diff
+  `7f221d2a89b6fe21158b897cbee4e09f7ba463c1`, received three approvals and was
+  published unchanged as `f1cd972f8d982c40c7c5afa2f270551763c19c2a`.
+  Compiler `30872922468` / `30872923806`, stable/nightly Rust `30872923874`, all
+  three CodeQL analyses in `30872922858`, and aggregate `91878491979` all pass.
+- Independent complete rankings: type/safety ranks R-002/R-009/R-011/R-005/R-012/
+  R-013/R-004/R-010/R-006/R-016/R-007. IR/codegen ranks R-005/R-002/R-011/R-012/
+  R-013/R-009/R-006/R-016/R-010/R-004/R-007. Backend/claim ranks R-005/R-002/
+  R-011/R-013/R-012/R-010/R-009/R-004/R-006/R-016/R-007. All three inspected the
+  complete set independently at immutable `f1cd972`, changed no file, and ran no
+  test, probe, build, benchmark, artifact, hardware action, or external query.
+- Targeted reconciliation: all three select exact R-002 valueless immediate
+  reference-to-tuple containment above R-005. For
+  `Statement::Let { type_annotation: Some(Type::Reference(inner, _)), value: None,
+  .. }` with immediate `inner: Type::Tuple(_)`, semantics currently fabricates
+  `Ty::Int`, checked admission skips the statement, and raw generation can fabricate
+  `ImmInt(0)`. The unsupported annotation can therefore become verifier-valid scalar
+  IR and reach trusted LLVM/CPU publication. CORE-028 explicitly preserved this form
+  as quarantine evidence, not support. The R-005 runner-up is semantically ready and
+  one-phase bounded, but mandatory verification already stops it before LLVM.
+- Selection: DEC-034 permits only the separate CORE-029 two-phase fail-closed
+  contract below. AUDIT-035 itself is complete, read-only, and clean; it grants no
+  test, implementation, or capability authority.
+- Status: complete at authorized public head `f1cd972`. CORE-029 must pass its own
+  exact local gate, three reviews, unchanged publication, and all-eight public checks
+  before any tests-first edit.
+
+## CORE-029 - Reject valueless immediate reference-to-tuple binding annotations
+
+- Task ID/date/owner: `CORE-029`, 2026-08-03, lead-owned two-phase R-002 fail-closed
+  containment under DEC-034.
+- Observed behavior: an uninitialized binding whose outer annotation is a reference
+  and whose immediate referent is a tuple succeeds through trusted source semantics
+  and direct checked admission. Semantics ignores the annotation and inserts an
+  uninitialized `Ty::Int`; checked admission skips every non-outer-tuple valueless
+  binding; raw generation independently creates `(ImmInt(0), Ty::Int)`. Both
+  immutable and mutable reference flags are affected. This violates the hard rules
+  forbidding unsupported-source-type fallback and requiring invalid programs to stop
+  before IR.
+- Hypothesis: two exact guards matching only `value: None` plus outer
+  `Type::Reference(inner, _)` with immediate `inner: Type::Tuple(_)` can reject the
+  unsupported shape at semantics and checked admission before fake integer state,
+  insertion, or generation, without defining tuple/reference behavior or changing
+  any other annotation.
+- Frozen semantics: same-scope duplicate detection remains first. Semantics then
+  returns exactly
+  ``Error: Variable `NAME` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.``
+  before inference or insertion. Checked admission independently returns exactly
+  ``checked IR binding `NAME` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding``
+  before generation and gains no duplicate-name policy. Public compilation preserves
+  its wrapper and surfaces exactly
+  ``Semantic Analysis Error: Error: Variable `NAME` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.``
+  The mutable flag is irrelevant to rejection; no RHS child exists.
+- Compatibility: CORE-028 explicitly classified `let value: &(int, float);`
+  acceptance as quarantine-preservation evidence, not reference/tuple support. This
+  task moves only that immediate nested shape, including `&mut`, out of quarantine.
+  It defines no representation, initialization, assignment, mutability, aliasing,
+  borrow, lifetime, provenance, tuple layout, ABI, or execution semantics.
+- Tests-first boundary: only
+  `src/compiler/tests/binding_type_contract_tests.rs`. Add one aggregate regression
+  proving exactly five current false acceptances: immutable direct semantics,
+  immutable direct checked admission, immutable public compilation, mutable direct
+  semantics, and mutable direct checked admission. Before implementation the focused
+  target must be 0/1 and the complete binding suite exactly 17 passed/1 failed, with
+  only those five messages. The same aggregate must prove exact duplicate-first
+  semantics for both
+  `fn main() { let value = 1; let value: &(int, float); }` and
+  `fn main() { let value = 1; let value: &mut (int, float); }`, each retaining exactly
+  ``Error: Variable `value` is already defined in this scope.`` These controls are
+  already green and do not change the one-test or five-failure counts. All other
+  preservation controls remain green.
+- Required preservation controls: accepted CORE-028 outer-tuple diagnostics;
+  valueless scalar and scalar-reference bindings; tuple nested immediately beneath
+  array or generic outer annotations; tuple beneath a second reference layer;
+  initialized immediate reference-to-tuple bindings; immutable/mutable reference AST
+  parsing; valid programs and valid LLVM. These are quarantine/preservation evidence,
+  not capability claims.
+- Implementation boundary: only `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs`, after separately reviewed/public tests-first
+  evidence. Add the smallest two guards at the existing `Statement::Let` boundaries.
+  Do not recurse through annotation trees or change parser/AST, inference for another
+  declaration, raw generation, verifier, codegen, ABI, ownership, or backends.
+- Acceptance: the focused aggregate becomes 1/1 and binding suite 18/18 after
+  implementation; all five exact diagnostics and every preservation control match.
+  The exact repository-root `./tools/test.sh` gate, three exact-snapshot P0-P3
+  reviews, unchanged publication, and all eight public checks are required for this
+  authorization, tests-first, implementation, and final record closure as applicable.
+- Exclusions: initialized binding behavior; outer tuple CORE-028; scalar references;
+  arrays/generics containing tuples; reference-to-reference-to-tuple; recursive
+  unsupported-type discovery; tuple literals/projections/patterns/defaults/layout/
+  support; all other valueless annotations; later assignment; general reference or
+  ownership semantics; parser/AST; unchecked APIs; raw IR, verifier, codegen, ABI,
+  CPU, ROCm, CUDA, workflow/dependency, package/release/registry, benchmark,
+  immutable claim-evidence, matrix, and capability changes.
+- Risks: accidentally rejecting a scalar reference or deeper non-immediate tuple;
+  changing duplicate precedence or accepted outer-tuple diagnostics; treating
+  containment as reference/tuple/ownership support; recursing into arrays/generics;
+  or extending the change to another annotation or compiler phase.
+- Stop conditions: any unresolved compatibility or diagnostic choice; need for
+  reference/tuple initialization, assignment, representation, ownership, lifetime,
+  layout, ABI, or execution semantics; change beyond the one test file then the two
+  named compiler phases; another annotation outcome changes; valid IR/LLVM changes;
+  red baseline beyond the preregistered aggregate; workflow/dependency/backend/
+  artifact/external-query/benchmark/package/release/registry/immutable-evidence/
+  history/master/destructive-system action.
+- Authorization evidence: first snapshot
+  `535f876db3c65981de73b2abfcbe1d003e5967cd`, tree
+  `763238a5d8dcb2a67f3cdc7f4da6b883a1bf531c`, diff
+  `67c9ddde3a72318f0c587702ad93496039def774`, was rejected at P2 before
+  publication because the test contract lacked exact immutable and mutable target-
+  specific duplicate-precedence specimens. The corrected contract adds both already-
+  green controls without changing the one-test/five-failure arithmetic.
+- Authorization status: corrected records only. This six-record authorization passes
+  the fresh exact full local gate with 139/139 library and 149/149 binary tests plus
+  every active integration/doc test, but no test or compiler edit is authorized until
+  three fresh exact approvals, unchanged publication, and all eight public checks
+  also pass.

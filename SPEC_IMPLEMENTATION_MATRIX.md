@@ -415,3 +415,21 @@ declared compatibility policy and release-level coverage.
   only after its separate exact authorization gates. It must exclude every accepted
   slice including CORE-028, cannot inherit AUDIT-034's order, and cannot change a
   matrix row, capability class, source, test, workflow, dependency, or backend.
+
+## AUDIT-035 / CORE-029 classification boundary
+
+- Triple-approved read-only AUDIT-035 authorization `f1cd972`, tree `b9c6270b`,
+  passes both compiler jobs, stable/nightly Rust, all three CodeQL analyses, and the
+  aggregate check. Three independent complete rankings and unanimous targeted
+  reconciliation select one distinct R-002 fail-open annotation shape.
+- A valueless binding with outer `Type::Reference(inner, _)` and immediate
+  `inner: Type::Tuple(_)` is not implemented reference or tuple behavior. It currently
+  becomes `Ty::Int`, is skipped by checked admission, and can become `ImmInt(0)` in
+  raw generation. CORE-029 therefore preregisters rejection at semantics and checked
+  admission only, before insertion/generation and with duplicate semantics first.
+- This containment cannot change a matrix cell: it adds no tuple/reference value,
+  initialization, assignment, representation, mutability, borrowing, ownership,
+  lifetime, provenance, layout, ABI, lowering, execution, or backend evidence. Outer
+  tuple CORE-028, initialized bindings, non-tuple references, deeper nesting, valid
+  IR/LLVM, and every capability class remain unchanged. R-002 stays HIGH/CRITICAL
+  and PARTIALLY CONTROLLED.

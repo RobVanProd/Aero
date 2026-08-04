@@ -447,3 +447,16 @@ changes. `AUDIT-035` is preregistered to rank the complete remaining R-002/R-004
 R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set only after its separate
 exact local/review/public gates, excluding every accepted sub-slice including
 CORE-028 and carrying no implementation or capability authority.
+
+Corrected read-only `AUDIT-035` authorization `f1cd972`, tree `b9c6270b`, diff
+`7f221d2a`, passes compiler `30872922468` / `30872923806`, stable/nightly Rust
+`30872923874`, CodeQL `30872922858`, and aggregate `91878491979` after three exact
+approvals. Complete independent rankings initially split between exact R-002 and
+R-005 candidates. Unanimous targeted reconciliation selects the distinct R-002
+valueless immediate reference-to-tuple false success: the unsupported annotation
+becomes `Ty::Int`, passes checked admission, and can become verifier-valid integer
+zero in raw generation, while the R-005 runner-up is already verifier-contained
+before LLVM. CORE-029 preregisters only two exact rejection guards. All other
+uninitialized/nested annotations, tuple/reference/ownership semantics, valid output,
+and every backend/capability claim remain unchanged. R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED.

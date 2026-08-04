@@ -4,22 +4,19 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 36 `AUDIT-035` authorization. `CORE-028` is closed at public all-eight-
-green `032d0d0`; its exact valueless outer-tuple rejection is containment, not tuple
-capability. Immediate work is a six-record, strictly read-only authorization to
-re-rank all eleven remaining OPEN/PARTIALLY CONTROLLED risks. No ranking begins until
-that contract passes its own exact local, review, unchanged-publication, and all-eight
-public gates. AUDIT-035 never grants implementation or capability authority; any
-later test or source change requires a separately reviewed task contract and
-tests-first evidence.
+Milestone 37 `CORE-029` authorization. Public all-eight-green read-only AUDIT-035 is
+complete at `f1cd972`; unanimous targeted reconciliation selects only fail-closed
+rejection of a valueless immediate reference-to-tuple annotation. Immediate work is
+the separate six-record tests-first contract. No test or compiler edit is authorized
+until that contract passes its exact local, review, unchanged-publication, and all-
+eight public gates. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
 
 ## Active hypothesis
 
-A new full-set, delta-aware comparison from the clean accepted head can select one
-bounded, reproducible residual—or an explicit stop—without inheriting AUDIT-034's
-ordering or repeating an accepted slice. The audit remains static and read-only;
-semantic ambiguity, more than two compiler phases, hardware needs, or unsupported
-capability claims are stop conditions rather than implementation invitations.
+Two exact guards can prevent the unsupported immediate `Reference(Tuple)` annotation
+from silently becoming integer state and reaching raw IR, without defining reference,
+tuple, ownership, assignment, layout, ABI, or execution semantics. The existing
+CORE-028 nested-shape acceptance was explicitly quarantine evidence, not support.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -53,6 +50,18 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Public read-only `AUDIT-035` authorization
+  `f1cd972f8d982c40c7c5afa2f270551763c19c2a`, tree `b9c6270b`, diff
+  `7f221d2a`, passes compiler `30872922468` / `30872923806`, stable/nightly Rust
+  `30872923874`, all three CodeQL analyses in `30872922858`, and aggregate
+  `91878491979` after three exact approvals. Three independent complete rankings and
+  unanimous targeted reconciliation select CORE-029's exact R-002 boundary; the
+  worktree remained clean and no audit probe/test/artifact/external query ran.
+- First `CORE-029` authorization snapshot `535f876d`, tree `763238a5`, diff
+  `67c9ddde`, was rejected at P2 before publication because its tests-first contract
+  lacked exact immutable and mutable immediate-reference-to-tuple duplicate-
+  precedence specimens. The corrected contract adds both already-green controls and
+  preserves the one-test/five-failure arithmetic.
 - Accepted public `CORE-028` record closure
   `032d0d05f6fa4cfe3ac01e6add2b6fc4443cb338`, tree `443aacdc`, diff
   `93fce8ae`, passes compiler `30872236535` / `30872238993`, stable/nightly Rust
@@ -66,8 +75,8 @@ capability claims are stop conditions rather than implementation invitations.
   ranking only and that AUDIT-035 never grants implementation/capability authority.
   Corrected snapshot `5f8bdd43`, tree `ec2f7791`, diff `4c6defae`, fixed that P2 but
   was rejected at P3 before publication because Exact next action still instructed a
-  future actor to run the already completed local gate. The current handoff starts at
-  three fresh reviews of the full-local-gate-green corrected authorization.
+  future actor to run the already completed local gate. Corrected authorization
+  `f1cd972` was published unchanged and passed all eight checks before ranking began.
 - Accepted public `CORE-028` implementation
   `e051452470cb0f17ee4d9940b989ee3bef10d333`, tree `63985b2d`, diff
   `79830403`, passes focused 1/1, binding 17/17, the exact full local gate at
@@ -804,12 +813,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three fresh exact approvals for the full-local-gate-green corrected six-record
-`AUDIT-035` read-only authorization, publish the approved snapshot unchanged, and
-require all eight public checks. Only then may the three auditors independently rank
-all eleven residual risks. Do not begin ranking early, extend CORE-028, promote tuple
-capability, change workflows/dependencies/backends, publish artifacts or claims, or
-touch `master`.
+Obtain three fresh exact approvals for the full-local-gate-green six-record CORE-029
+authorization, publish the approved snapshot unchanged, and require all eight public
+checks. Only then may the one-file tests-first edit begin. Do not broaden recursive
+type rejection, imply tuple/reference/ownership capability, change workflows/
+dependencies/backends, publish artifacts or claims, or touch `master`.
 
 ## Unauthorized actions
 
