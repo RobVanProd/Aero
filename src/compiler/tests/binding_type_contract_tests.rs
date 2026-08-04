@@ -971,10 +971,6 @@ fn valueless_immediate_array_of_tuple_annotation_fails_closed_before_integer_fal
             "fn main() { let value: Vec<(int, float)>; }",
         ),
         (
-            "deeper array containing tuple",
-            "fn main() { let value: [[(int, float); 1]; 1]; }",
-        ),
-        (
             "reference containing array containing tuple",
             "fn main() { let value: &[(int, float); 1]; }",
         ),
@@ -1019,6 +1015,164 @@ fn valueless_immediate_array_of_tuple_annotation_fails_closed_before_integer_fal
         checked_source("fn main() { let value: &(int, float); }"),
         "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding",
     );
+
+    let valid_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(
+            "fn main() { let values: [int; 1] = [1]; let first = values[0]; println!(\"{}\", first); }",
+            CompilerOptions::default(),
+        )
+    })) {
+        Err(_) => Err("valid compile_program unwound".to_string()),
+        Ok(Ok(llvm)) if llvm.is_empty() => {
+            Err("valid compile_program returned empty LLVM".to_string())
+        }
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_acceptance(&mut failures, "valid numeric-array output", valid_result);
+
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn valueless_immediate_array_of_array_of_tuple_annotation_fails_closed_before_integer_fallback() {
+    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding.";
+    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding";
+    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding.";
+
+    let mut failures = Vec::new();
+    for (label, source) in [
+        (
+            "zero outer and zero inner counts",
+            "fn main() { let value: [[(int, float); 0]; 0]; }",
+        ),
+        (
+            "nonzero outer and zero inner counts",
+            "fn main() { let value: [[(int, float); 0]; 1]; }",
+        ),
+        (
+            "zero outer and nonzero inner counts",
+            "fn main() { let value: [[(int, float); 1]; 0]; }",
+        ),
+        (
+            "nonzero outer and nonzero inner counts",
+            "fn main() { let value: [[(int, float); 1]; 1]; }",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} direct semantics"),
+            semantic_result(source),
+            SEMANTIC_ERROR,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            CHECKED_ERROR,
+        );
+    }
+
+    let public_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(
+            "fn main() { let value: [[(int, float); 1]; 1]; }",
+            CompilerOptions::default(),
+        )
+    })) {
+        Err(_) => Err("compile_program unwound".to_string()),
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "public compilation",
+        public_result,
+        PUBLIC_ERROR,
+    );
+
+    expect_exact_rejection(
+        &mut failures,
+        "duplicate semantic precedence",
+        semantic_result("fn main() { let value = 1; let value: [[(int, float); 1]; 1]; }"),
+        "Error: Variable `value` is already defined in this scope.",
+    );
+
+    for (label, source) in [
+        ("scalar array", "fn main() { let value: [int; 1]; }"),
+        (
+            "nested scalar array",
+            "fn main() { let value: [[int; 1]; 1]; }",
+        ),
+        (
+            "generic containing tuple",
+            "fn main() { let value: Vec<(int, float)>; }",
+        ),
+        (
+            "reference containing array containing tuple",
+            "fn main() { let value: &[(int, float); 1]; }",
+        ),
+        (
+            "reference containing target shape",
+            "fn main() { let value: &[[(int, float); 1]; 1]; }",
+        ),
+        (
+            "array containing reference to tuple",
+            "fn main() { let value: [&(int, float); 1]; }",
+        ),
+        (
+            "initialized target shape",
+            "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
+        ),
+        (
+            "third array layer containing tuple",
+            "fn main() { let value: [[[(int, float); 1]; 1]; 1]; }",
+        ),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+        );
+    }
+
+    for (label, source, semantic_error, checked_error) in [
+        (
+            "outer tuple",
+            "fn main() { let value: (int, float); }",
+            "Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.",
+            "checked IR binding `value` uses an unsupported tuple type annotation for an uninitialized binding",
+        ),
+        (
+            "immediate reference-to-tuple",
+            "fn main() { let value: &(int, float); }",
+            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.",
+            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding",
+        ),
+        (
+            "immediate array-to-tuple",
+            "fn main() { let value: [(int, float); 1]; }",
+            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding.",
+            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("accepted {label} semantic diagnostic"),
+            semantic_result(source),
+            semantic_error,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("accepted {label} checked diagnostic"),
+            checked_source(source),
+            checked_error,
+        );
+    }
 
     let valid_result = match catch_unwind(AssertUnwindSafe(|| {
         compile_program(
