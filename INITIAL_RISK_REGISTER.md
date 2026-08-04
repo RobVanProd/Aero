@@ -517,3 +517,15 @@ matrix cell, or capability class changes. Preregistered AUDIT-037 may re-rank th
 complete remaining eleven-risk set only after its own exact authorization gates,
 must exclude every accepted slice through CORE-030, and carries no test,
 implementation, semantics, or capability authority.
+
+Exact read-only AUDIT-037 authorization `987188fc`, tree `0b685659`, diff
+`d3a9974b`, is triple-approved and public all-eight green in compiler
+`30880025888` / `30880028697`, Rust `30880028653`, CodeQL `30880025866`, and
+aggregate `91899286217`. Three complete independent rankings all place R-002 first.
+After an initial exact-candidate split, targeted static reconciliation unanimously
+selects the explicitly accepted valueless array-array-tuple fallback over the
+reference-array-tuple alternative because it avoids reference mutability/ownership
+associations at equal reach and phase count. CORE-031 preregisters only two exact
+nonrecursive rejection guards after separate contract and public tests-first gates.
+No risk status, matrix cell, or capability changes; R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED.

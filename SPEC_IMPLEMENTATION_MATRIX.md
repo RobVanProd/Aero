@@ -474,3 +474,13 @@ declared compatibility policy and release-level coverage.
   It excludes all accepted slices through CORE-030, inherits no prior order, and
   cannot change a matrix row, cell, capability class, source, test, workflow,
   dependency, backend, semantics, or claim.
+- Triple-approved read-only AUDIT-037 authorization `987188fc`, tree `0b685659`,
+  is public all-eight green. Three complete rankings place R-002 first; targeted
+  static reconciliation unanimously selects only the exact valueless
+  `Array(Array(Tuple))` fallback over the reference-array alternative.
+- Preregistered CORE-031 may turn only that unsupported exact two-array-deep
+  valueless annotation into semantic and checked-admission rejection after separate
+  contract and public tests-first gates. Rejection adds no nested-array/tuple value,
+  default, bounds, layout, mutation, ABI, ownership, lowering, execution, or backend
+  evidence. Every matrix row, cell, and capability class remains unchanged; R-002
+  remains HIGH/CRITICAL and PARTIALLY CONTROLLED.

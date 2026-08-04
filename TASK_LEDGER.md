@@ -5365,3 +5365,102 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   every later active suite. No ranking, regression test, implementation, or
   capability action may begin until three exact reviews, unchanged publication,
   and public all-eight verification also pass.
+
+- Authorization acceptance: exact snapshot
+  `f4de8ef426d0fcc06a394adbcba5f03319b2107a`, tree
+  `0b68565983b61e5891940aec88d4cba72fad2d3a`, diff
+  `d3a9974b59e09d0cb307c76e159844b01cf1c6c5`, passed the fresh exact local gate
+  and received three exact approvals. It was published unchanged as
+  `987188fc265481d0de4c3021bcc5c3161aaeed12`. Compiler
+  `30880025888` / `30880028697`, stable/nightly Rust `30880028653`, all three
+  CodeQL analyses in `30880025866`, and aggregate `91899286217` pass.
+- Independent complete rankings: type/safety ranks R-002/R-005/R-012/R-011/R-004/
+  R-013/R-009/R-010/R-006/R-016/R-007. IR/codegen ranks R-002/R-005/R-011/R-012/
+  R-013/R-006/R-009/R-004/R-010/R-016/R-007. Backend/claim ranks R-002/R-005/
+  R-011/R-013/R-004/R-012/R-006/R-009/R-010/R-016/R-007. All three inspected
+  the same immutable head, ranked every residual, excluded every accepted slice,
+  changed no file, and ran no test, build, probe, artifact, hardware action, or
+  external query.
+- Initial candidate split: type/safety and IR/codegen selected the exact preserved
+  `Type::Array(Type::Array(Type::Tuple(_), _), _)` valueless fallback. Backend/claim
+  selected the separately preserved `Type::Reference(Type::Array(Type::Tuple(_),
+  _), _)` form. Both reach fake semantic `Ty::Int`, skipped admission, verifier-
+  valid raw integer zero, and trusted LLVM publication; R-005 ranks second because
+  mandatory logical-IR verification already contains its wrong-arity closure call.
+- Targeted static reconciliation: all three select the two-array candidate. It has
+  identical trusted reach and two-phase feasibility but avoids reference mutability,
+  universal-`Copy`, ownership, borrowing, and lifetime associations. Its two counts
+  can be ignored mechanically on a valueless pre-IR rejection without deciding
+  defaults, bounds, layout, mutation, or execution. The reference-array candidate
+  and three-or-more array layers remain explicit preservation controls.
+- Status: complete, read-only, and clean at public-green `987188fc`. AUDIT-037 made
+  no risk-status, matrix, capability, test, or implementation change. The separately
+  frozen CORE-031 contract below is the only selected next action.
+
+## CORE-031 - Reject valueless immediate array-of-array-of-tuple annotations
+
+- Task ID/date/owner: `CORE-031`, 2026-08-04, lead-owned two-phase R-002 fail-closed
+  containment under DEC-038.
+- Observed behavior: `fn main() { let value: [[(int, float); 1]; 1]; }` is an
+  explicit accepted preservation control. Semantic analysis checks only outer tuple,
+  immediate reference-to-tuple, and immediate array-to-tuple valueless annotations,
+  then fabricates `Ty::Int` and inserts the binding. Checked admission applies the
+  same three guards and skips every other valueless binding. Raw generation ignores
+  the annotation and can fabricate verifier-valid `(ImmInt(0), Ty::Int)` that can
+  reach trusted LLVM/CPU publication.
+- Hypothesis: two matching nonrecursive guards can reject only a valueless annotation
+  exactly shaped as `Type::Array(Type::Array(Type::Tuple(_), _), _)`, after existing
+  semantic duplicate detection and before integer fallback, insertion, or raw
+  generation, without defining nested-array/tuple defaults, values, bounds, layout,
+  mutation, ABI, ownership, execution, or backend capability.
+- Frozen semantics: the predicate is exactly `value.is_none()` plus outer
+  `Type::Array(first, _)`, immediate `first: Type::Array(second, _)`, and immediate
+  `second: Type::Tuple(_)`; both counts are irrelevant, including every zero/nonzero
+  combination. Semantic duplicate-name diagnosis remains first. Semantics returns
+  `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding.`
+  Checked admission independently returns
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding`.
+  Public compilation returns the semantic error before checked IR/backend work.
+  Rejection is quarantine evidence only, not nested-array or tuple support.
+- Tests-first contract: after this six-record authorization passes exact local,
+  review, unchanged-publication, and public all-eight gates, only
+  `src/compiler/tests/binding_type_contract_tests.rs` may first change. Add exact
+  regression
+  `valueless_immediate_array_of_array_of_tuple_annotation_fails_closed_before_integer_fallback`.
+  It must reclassify only the existing deeper-array acceptance control and prove
+  direct semantic and checked-admission rejection for outer/inner counts 0/0, 0/1,
+  1/0, and 1/1, one public semantic rejection, and same-scope duplicate precedence.
+  The focused test must publicly fail with exactly nine unexpected acceptances
+  before any implementation edit.
+- Preservation controls: exact CORE-028 outer-tuple, CORE-029 immediate reference-
+  to-tuple, and CORE-030 immediate array-to-tuple diagnostics; scalar and nested
+  scalar arrays; the still-accepted reference-array-tuple candidate; generic/Vec,
+  reference-wrapped, and array-of-reference shapes; initialized exact target;
+  three-or-more array layers around a tuple; raw compatibility behavior; and valid
+  numeric-array LLVM output.
+- Allowed implementation after separately reviewed public-red evidence: only
+  `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs`. Add the smallest matching semantic and checked-
+  admission guards. No recursive walker, raw generation, verifier, codegen, parser,
+  AST, ABI, ownership, backend, workflow, dependency, package/release/registry,
+  benchmark, immutable claim-evidence, or `master` change.
+- Acceptance: tests-first yields one intentional binding-test failure containing
+  exactly the nine frozen false acceptances while every preservation control and
+  unrelated suite stays green. Implementation then passes the focused test, full
+  binding aggregate, formatting, exact repository-root `./tools/test.sh`, three
+  exact reviews, unchanged publication, and all eight public checks. R-002 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability class moves.
+- Risks: recursive broadening; changing duplicate precedence or CORE-028/029/030
+  diagnostics; rejecting the reference-array candidate, initialized forms, scalar
+  arrays, wrappers, or third-and-deeper array shapes; treating counts as bounds or
+  layout semantics; touching raw generation; or claiming aggregate support.
+- Stop conditions: need for recursive traversal, parser/type representation changes,
+  count-dependent behavior, another wrapper/depth outcome, initialized policy,
+  array/tuple default/value/bounds/layout/mutation/ABI/ownership semantics, generic
+  behavior, valid-output change, more than the two named compiler phases, backend
+  work, or any unresolved compatibility decision.
+- Status: preregistered records only. This exact six-record contract passes its
+  fresh full local gate with 139/139 library, 149/149 binary, binding 19/19, and
+  every later active suite. No test or implementation edit is authorized until
+  three exact reviews, unchanged publication, and public all-eight verification
+  also pass.

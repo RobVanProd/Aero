@@ -1251,3 +1251,27 @@ promise future compatibility.
   accepted slice through CORE-030 and inheriting no prior order. It may select one
   bounded residual or a stop only after separate authorization gates; it never
   grants test, implementation, semantics, or capability authority.
+
+## AUDIT-037 reconciliation and CORE-031 boundary
+
+- Exact AUDIT-037 authorization snapshot `f4de8ef4`, tree `0b685659`, diff
+  `d3a9974b`, received three approvals and was published unchanged as `987188fc`.
+  Compiler `30880025888` / `30880028697`, stable/nightly Rust `30880028653`, all
+  three CodeQL analyses in `30880025866`, and aggregate `91899286217` pass.
+- Type/safety ranks R-002/R-005/R-012/R-011/R-004/R-013/R-009/R-010/R-006/R-016/
+  R-007. IR/codegen ranks R-002/R-005/R-011/R-012/R-013/R-006/R-009/R-004/R-010/
+  R-016/R-007. Backend/claim ranks R-002/R-005/R-011/R-013/R-004/R-012/R-006/
+  R-009/R-010/R-016/R-007. The audit stayed static, read-only, and clean.
+- Type/safety and IR initially select exact valueless array-array-tuple fallback;
+  backend initially selects reference-array-tuple. Targeted static comparison makes
+  all three select the two-array form: equal trusted reach and two-phase feasibility,
+  with no reference mutability/ownership association. R-005 remains second and is
+  verifier-contained before LLVM.
+- DEC-038 and preregistered CORE-031 permit only nonrecursive semantic and checked-
+  admission rejection for the exact valueless two-array-deep tuple shape, with both
+  counts ignored and semantic duplicate precedence preserved. The reference-array
+  form and three-or-more array layers stay accepted. Tests must be public red first
+  under a separately gated contract.
+- This selection changes no current capability. Nested-array/tuple values, defaults,
+  bounds, layout, mutation, ABI, ownership, raw APIs, verifier, codegen, and all
+  backends remain unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.

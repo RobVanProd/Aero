@@ -1710,7 +1710,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-037 - Post-CORE-030 selection requires clean-head full-set reconciliation
 
 - Date: 2026-08-04
-- Status: accepted selection protocol; AUDIT-037 authorization pending gates.
+- Status: accepted and complete at public-green AUDIT-037 head `987188fc`.
 - Decision: no implementation may be selected from AUDIT-036's R-005 runner-up or
   any earlier order. Three independent read-only auditors must rank the complete
   remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016
@@ -1727,3 +1727,33 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   six-record contract and public failing regression evidence first.
 - Claim boundary: AUDIT-037 cannot change a risk status, matrix row/cell, capability
   class, backend claim, compatibility rule, or language semantics.
+- Result: exact authorization snapshot `f4de8ef4`, tree `0b685659`, diff
+  `d3a9974b`, received three approvals and was published unchanged as `987188fc`.
+  Compiler `30880025888` / `30880028697`, Rust `30880028653`, CodeQL
+  `30880025866`, and aggregate `91899286217` pass. Three complete rankings place
+  R-002 first; after an exact-candidate split, targeted static reconciliation
+  unanimously selects valueless `Array(Array(Tuple))` containment over the
+  reference-array alternative.
+
+## DEC-038 - Exact two-array-deep valueless tuple annotations must fail closed
+
+- Date: 2026-08-04
+- Status: accepted selection protocol; CORE-031 authorization pending gates.
+- Decision: for an uninitialized `let` annotation exactly shaped as
+  `Type::Array(Type::Array(Type::Tuple(_), _), _)`, reject in semantic analysis
+  after same-scope duplicate detection and independently in checked IR admission
+  before raw generation. Both array counts are irrelevant.
+- Rationale: all three AUDIT-037 reviewers rank R-002 first. Initial candidates split
+  between exact two-array and reference-array wrappers; targeted static reconciliation
+  unanimously selects the two-array form because it has the same trusted reach and
+  phase count without freezing reference mutability or ownership associations. Count
+  fields can be wildcarded before IR without selecting array bounds/layout behavior.
+- Boundary: CORE-031 may first add only the named regression in
+  `binding_type_contract_tests.rs` after this contract is public all-eight green.
+  Implementation later may change only `semantic_analyzer.rs` and checked admission
+  in `ir_generator.rs` after reviewed public red evidence. Recursive/deeper matching,
+  initialized, reference-array, scalar, generic/wrapped, raw API, array/tuple value,
+  bounds/layout/mutation/ABI/ownership, valid-output, and backend behavior remain
+  unchanged.
+- Claim boundary: rejection is containment only. R-002 stays HIGH/CRITICAL and
+  PARTIALLY CONTROLLED; no capability or matrix cell can move.
