@@ -4,24 +4,25 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 33 `AUDIT-033` authorization - `CORE-026` is complete at triple-reviewed,
-all-eight-green public record closure `0a940ea`. Its exact checked-admission arity
-guard is accepted, while R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
-Immediate work is to gate a separate clean-head, read-only re-ranking of the complete
-remaining risk set. No test, production, workflow, dependency, backend, benchmark,
-artifact, capability, release, or `master` change is authorized by this audit.
+Milestone 33 `CORE-027` authorization - public-green read-only `AUDIT-033` is
+complete at `544b1ba`. Its three independent full rankings and final targeted
+reconciliation unanimously select R-010 documentation-authority containment: the
+split grammar and core-features tutorial present v1 design-target material without a
+leading current-implementation boundary, and the grammar calls itself the definitive
+compiler guide. Immediate work is to gate the separate tests-first authorization; no
+test or documentation edit is yet authorized. R-010 remains OPEN and no capability
+is promoted.
 Both the initial and chronology-confirming exact authorization gates are green with
 139/139 library and 149/149 binary tests plus every active integration and doc test;
 the final six-record state requires exact review before publication.
 
 ## Active hypothesis
 
-From the clean public CORE-026 closure, three independent delta-aware rankings of all
-remaining OPEN or PARTIALLY CONTROLLED risks can select one highest-severity bounded
-residual with frozen semantics and at most two compiler phases, or stop explicitly.
-Accepted sub-slices remain excluded; semantic ambiguity, compatibility policy,
-hardware requirements, unsupported capability inference, or unavailable deterministic
-tests-first evidence are stop conditions rather than implementation authority.
+Adding an established leading design-target/current-implementation notice to exactly
+`docs/language/aero_grammar.md` and `tutorials/02-core-features.md`, while replacing
+only the grammar introduction's unqualified definitive-compiler-guide sentence, will
+contain the false authority boundary without changing any grammar production, example,
+language behavior, capability class, or compatibility contract.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -55,6 +56,12 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Public `AUDIT-033` authorization
+  `544b1ba3a5080a162425bd206330ed48c69ac16c`, tree `cdc3a085`, diff `8a242e5d`,
+  passes compiler `30863291761` / `30863294642`, stable/nightly Rust `30863294655`,
+  all three analyses in CodeQL `30863292940`, and aggregate `91849762353`. Three
+  complete read-only rankings and targeted reconciliation select exact R-010
+  documentation-authority containment. The worktree remained clean throughout.
 - Accepted public `CORE-026` record closure
   `0a940eadae5974abb11154c0e484f4178bfed144`, tree `6ec4c609`, diff `4e1db178`,
   passes compiler `30862783787` / `30862786131`, stable/nightly Rust `30862786150`,
@@ -715,11 +722,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three fresh exact approvals for the full-local-gate-green six-record
-`AUDIT-033` authorization, publish it unchanged, and require all eight public checks.
-Only then may the three auditors begin static repository inspection. Do not edit
-production/tests, run probes or benchmarks,
-create artifacts, make external queries during the audit, promote capability, alter
-workflows/dependencies, modify immutable claim evidence, or touch `master`.
+`CORE-027` authorization, publish it unchanged, and require all eight public checks.
+Only then add the single tests-first documentation-contract target. Do not edit the
+two documents or test before those
+gates, alter productions/examples/compiler behavior/capability, change workflows or
+dependencies, publish artifacts, modify immutable claim evidence, or touch `master`.
 
 ## Unauthorized actions
 

@@ -366,3 +366,12 @@ stale gate chronology. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
 `AUDIT-033` is preregistered to rank the complete remaining R-002/R-004/R-005/R-006/
 R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the clean public closure,
 excluding every accepted sub-slice and carrying no implementation authority.
+
+`AUDIT-033` authorization `544b1ba`, tree `cdc3a085`, is triple-approved and
+all-eight public green. Independent rankings and final targeted reconciliation select
+R-010 documentation-authority containment above a stopped R-005 argument-type
+admission candidate whose child-type verifier completeness is not yet frozen.
+`CORE-027` preregisters only leading v1-design/current-implementation notices in the
+split grammar and core-features tutorial plus replacement of one unqualified grammar
+authority sentence. Every production, example, compiler behavior, and capability
+classification remains unchanged. R-010 remains HIGH/HIGH and OPEN.

@@ -1481,3 +1481,25 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   PARTIALLY CONTROLLED risks from this clean public head only after its separate exact
   six-record authorization is reviewed, published unchanged, and all-eight green. It
   carries no implementation or capability-promotion authority.
+
+## DEC-032 - Grammar and core tutorial are design targets, not compiler evidence
+
+- Date: 2026-08-03
+- Status: frozen for tests-first evidence; not yet implemented or accepted.
+- Decision: `docs/language/aero_grammar.md` and `tutorials/02-core-features.md` must
+  visibly classify their v1.0.0 material as intended normative design, not evidence of
+  the currently implemented compiler subset, conformance, or stability. Both must
+  point readers to `CURRENT_CAPABILITY_AUDIT.md` and `SPEC_IMPLEMENTATION_MATRIX.md`.
+- Grammar authority: preserve every EBNF production while replacing only the
+  introduction's unqualified definitive-compiler-guide sentence with a normative v1
+  design-target/current-conformance boundary.
+- Basis: public-green `AUDIT-033` authorization `544b1ba`, tree `cdc3a085`, passes
+  compiler `30863291761` / `30863294642`, Rust `30863294655`, CodeQL `30863292940`,
+  and aggregate `91849762353`. Three complete independent rankings and final targeted
+  reconciliation unanimously place this zero-phase R-010 containment above the
+  stopped R-005 argument-type candidate.
+- Excluded: grammar reconciliation; any production/example/language/version/compiler/
+  workflow/dependency/capability/backend/claim-evidence change; and any claim that
+  R-010 is closed or current compiler conformance is established.
+- Revisit actual grammar compatibility only through a separately frozen authority,
+  migration, parser/AST/semantic, executable-example, and compatibility contract.

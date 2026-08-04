@@ -998,6 +998,17 @@ upgrading any artifact.
   R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the clean public closure.
   It excludes every accepted sub-slice, must begin read-only only after its own exact
   review/public gates, and carries no implementation or capability authority.
+- `AUDIT-033` authorization `544b1ba`, tree `cdc3a085`, is triple-approved and
+  all-eight green in compiler `30863291761` / `30863294642`, stable/nightly Rust
+  `30863294655`, CodeQL `30863292940`, and aggregate `91849762353`. Three complete
+  independent rankings and final targeted reconciliation select R-010 authority
+  containment in the split grammar and core-features tutorial.
+- A distinct R-005 argument-type admission defect remains stopped: admission-returned
+  scalar `Ty` is not yet proof that logical/unary/local-callable/unknown child forms
+  satisfy verifier contracts, so an outer guard could mask an earlier child failure.
+  `CORE-027` authorizes tests-first evidence only for visible design-target notices
+  and one grammar introduction authority sentence. No production, example, compiler
+  behavior, matrix cell, or capability classification may change.
 
 ## Audit completion
 

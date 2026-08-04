@@ -4440,3 +4440,103 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   green with 139/139 library and 149/149 binary tests plus every active integration
   and doc test. Audit work is prohibited until this exact six-record contract passes
   three exact reviews, unchanged publication, and all eight public checks.
+
+- Authorization evidence: exact six-record authorization `544b1ba`, tree `cdc3a085`,
+  diff `8a242e5d`, received three approvals and passes compiler runs `30863291761` /
+  `30863294642`, stable/nightly Rust `30863294655`, all three analyses in CodeQL
+  `30863292940`, and aggregate `91849762353`.
+- Independent complete rankings: type/safety ranks R-010/R-012/R-002/R-005/R-011/
+  R-004/R-009/R-013/R-006/R-016/R-007; IR/codegen initially ranks R-005/R-002/
+  R-013/R-011/R-010/R-009/R-012/R-004/R-006/R-016/R-007; backend/claims ranks
+  R-010/R-009/R-012/R-002/R-005/R-013/R-011/R-006/R-004/R-016/R-007. Every
+  accepted sub-slice was excluded. No audit edit, test, probe, artifact, benchmark,
+  or external query occurred.
+- Initial reconciliation: type/safety and backend/claims first placed a distinct
+  one-phase R-005 argument-type admission defect above R-010 after IR/codegen showed
+  that eligible exact-arity direct checked-AST mismatches reach raw IR and fail only
+  in verifier `TypeMismatch`. The proposed guard would retain exact scalar parameter
+  types and compare them after child/local/Void/arity precedence.
+- Final reconciliation blocker: `validate_expression` can return a scalar `Ty` for
+  verifier-dependent logical/unary expressions, unchecked local-callable calls, and
+  unknown nested calls. An outer mismatch guard could therefore mask the child's
+  current verifier diagnostic. A non-arbitrary trusted-type proof would require a
+  broader recursive verifier-completeness contract; literal-only containment is too
+  partial and AST-specific. All three auditors finally rank R-010 above this stopped
+  R-005 candidate. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Selection: `CORE-027` may preregister only classification/authority containment in
+  `docs/language/aero_grammar.md` and `tutorials/02-core-features.md`, plus one
+  tests-first documentation contract. The Aero v1.0.0 grammar remains normative as a
+  design target; current capability remains governed by `CURRENT_CAPABILITY_AUDIT.md`
+  and `SPEC_IMPLEMENTATION_MATRIX.md`. No production, grammar-production, example,
+  language-semantics, compatibility, capability, workflow, dependency, backend,
+  benchmark, artifact, or immutable evidence change is selected.
+- Status: complete, strictly read-only, result commit none. Only the separately
+  frozen `CORE-027` contract below may proceed.
+
+## CORE-027 - Contain grammar and core-tutorial authority as design targets
+
+- Task ID/date/owner: `CORE-027`, 2026-08-03, lead-owned zero-compiler-phase R-010
+  documentation-authority containment under DEC-032, with independent type/safety,
+  IR/codegen, and backend/claim review at every publication boundary.
+- Observed behavior: `docs/language/aero_grammar.md` has no leading design-target
+  boundary and says its grammar is the definitive guide for implementing the compiler
+  lexer/parser. `tutorials/02-core-features.md` has no leading boundary and presents
+  intended strings/references, mutability, inference, Boolean, and other v1 target
+  behavior as current Aero usage. The consolidated formal specification already uses
+  the repository's visible `Design target — not current implementation evidence`
+  convention and points readers to current capability records.
+- Hypothesis: add a leading established design-target notice to exactly the split
+  grammar and core-features tutorial, and replace only the grammar introduction's
+  unqualified definitive-compiler-guide sentence with a normative-v1-design-target
+  boundary. This preserves intended design authority while preventing the documents
+  from serving as current compiler or conformance evidence.
+- Frozen wording: within the first 12 lines, both documents must include the exact
+  bold marker `Design target — not current implementation evidence`, state that the
+  material is the intended Aero v1.0.0 design rather than the currently implemented
+  compiler subset or conformance/stability evidence, and point to
+  `CURRENT_CAPABILITY_AUDIT.md` and `SPEC_IMPLEMENTATION_MATRIX.md`. The grammar
+  introduction must no longer contain `definitive guide for implementing the lexer
+  and parser components of the Aero compiler`; it must instead identify every EBNF
+  production as the normative Aero v1.0.0 design target, not current conformance.
+- Preservation/exclusions: every EBNF code block/production, heading other than line
+  movement caused by the notice, tutorial example, feature explanation, cross-link,
+  consolidated specification, type/ownership document, version string, compiler
+  source/test outside the one contract, parser/lexer/AST/semantics/IR/verifier/
+  codegen/ABI/backend, grammar compatibility, capability matrix cell/classification,
+  and claim-verification artifact remains byte-for-byte or behaviorally unchanged as
+  applicable. This is classification containment, not grammar reconciliation.
+- Tests first: change only
+  `src/compiler/tests/version_claim_contract_tests.rs`. Add one aggregate target
+  `grammar_and_core_tutorial_are_visibly_design_targets` that inspects the first 12
+  lines of both documents, aggregates all missing marker/boundary/current-record
+  requirements, and separately requires the grammar's unqualified definitive-guide
+  phrase to be absent and the normative v1 design-target boundary to be present. The
+  unchanged basis must fail exactly this target while every existing target passes.
+- Implementation files: only `docs/language/aero_grammar.md` and
+  `tutorials/02-core-features.md`; retain the reviewed tests-first target unchanged.
+  Insert notices immediately after each title and edit only the single grammar
+  introduction sentence needed to remove the false current-compiler authority claim.
+- Acceptance: tests-only public evidence reproduces exactly one failing integration
+  target in each compiler job and every stable/nightly Rust job that reaches it, with
+  fail-fast cancellation recorded exactly and all CodeQL analyses green.
+  Implementation passes the new target, the complete version-claim target, exact
+  `./tools/test.sh`, three exact-snapshot reviews, unchanged publication, and all
+  eight public checks. A mechanical diff must prove all EBNF fenced blocks and every
+  tutorial code fence are unchanged.
+- Compatibility decision: Aero v1.0.0 grammar remains the normative intended design
+  target. This change narrows only what the two documents evidence about the current
+  compiler; it does not change syntax, semantics, versioning, conformance, stability,
+  or any accepted/rejected program.
+- Risks: weakening normative design authority; changing a grammar production or
+  tutorial example; using an invisible or late notice; omitting current capability
+  pointers; leaving contradictory definitive-compiler wording; treating containment
+  as R-010 closure or capability; or broadening into general documentation cleanup.
+- Stop conditions: any grammar production/example/compiler source/behavior/capability
+  matrix/claim evidence/workflow/dependency/backend/benchmark/artifact/package/
+  release/registry/master/history/destructive change; more than the one test and two
+  named documents; or an unresolved authority/compatibility choice.
+- Status: preregistered and both initial and chronology-confirming full-local-gate
+  green with 139/139 library and 149/149 binary tests plus every active integration
+  and doc test. Test and document edits are prohibited until this exact six-record
+  contract passes three exact reviews, unchanged publication, and all eight public
+  checks.

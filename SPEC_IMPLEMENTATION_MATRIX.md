@@ -302,6 +302,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   aggregate `91848258218`. No matrix cell changes. Preregistered read-only
   `AUDIT-033` may re-rank all eleven residual risks only after its own exact gates;
   it cannot change a matrix cell, capability class, or implementation.
+- Public-green read-only `AUDIT-033` authorization `544b1ba` selects only R-010
+  documentation-authority containment for `CORE-027`: the split grammar and core-
+  features tutorial must visibly distinguish the normative v1 design target from
+  current compiler capability evidence. Every EBNF production, example, compiler
+  behavior, and existing matrix cell remains unchanged. R-010 remains OPEN and no
+  capability is promoted before separate accepted evidence.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.
