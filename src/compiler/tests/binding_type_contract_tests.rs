@@ -1517,14 +1517,6 @@ fn initialized_positive_count_reference_array_tuple_annotations_fail_closed_afte
     }
 
     for (label, source) in [
-        (
-            "immutable valueless target",
-            "fn main() { let value: &[(int, float); 1]; }",
-        ),
-        (
-            "mutable valueless target",
-            "fn main() { let value: &mut [(int, float); 1]; }",
-        ),
         ("scalar reference", "fn main() { let value: &int = 1; }"),
         (
             "mutable scalar reference",
@@ -1604,6 +1596,348 @@ fn initialized_positive_count_reference_array_tuple_annotations_fail_closed_afte
 }
 
 #[test]
+fn valueless_reference_array_tuple_annotations_fail_closed_before_integer_fallback() {
+    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding.";
+    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding";
+    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding.";
+    const INITIALIZED_SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding.";
+    const INITIALIZED_CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding";
+
+    let mut failures = Vec::new();
+
+    for (label, source) in [
+        (
+            "immutable count-zero direct",
+            "fn main() { let value: &[(int, float); 0]; }",
+        ),
+        (
+            "mutable count-zero direct",
+            "fn main() { let value: &mut [(int, float); 0]; }",
+        ),
+        (
+            "immutable count-one direct",
+            "fn main() { let value: &[(int, float); 1]; }",
+        ),
+        (
+            "mutable count-one direct",
+            "fn main() { let value: &mut [(int, float); 1]; }",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            SEMANTIC_ERROR,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            CHECKED_ERROR,
+        );
+    }
+
+    for (label, source) in [
+        (
+            "immutable public",
+            "fn main() { let value: &[(int, float); 1]; }",
+        ),
+        (
+            "mutable public",
+            "fn main() { let value: &mut [(int, float); 1]; }",
+        ),
+    ] {
+        let result = match catch_unwind(AssertUnwindSafe(|| {
+            compile_program(source, CompilerOptions::default())
+        })) {
+            Err(_) => Err("compile_program unwound".to_string()),
+            Ok(Ok(_)) => Ok(()),
+            Ok(Err(error)) => Err(error),
+        };
+        expect_exact_rejection(&mut failures, label, result, PUBLIC_ERROR);
+    }
+
+    for (label, source) in [
+        ("immutable top-level", "let value: &[(int, float); 1];"),
+        ("mutable top-level", "let value: &mut [(int, float); 1];"),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            SEMANTIC_ERROR,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            CHECKED_ERROR,
+        );
+    }
+
+    for (label, source) in [
+        (
+            "immutable generic impl",
+            "impl<T> Widget { fn probe() { let value: &[(int, float); 1]; } }",
+        ),
+        (
+            "mutable generic impl",
+            "impl<T> Widget { fn probe() { let value: &mut [(int, float); 1]; } }",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            SEMANTIC_ERROR,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            CHECKED_ERROR,
+        );
+    }
+
+    for (label, source) in [
+        (
+            "immutable generic function",
+            "fn probe<T>() { let value: &[(int, float); 1]; }",
+        ),
+        (
+            "mutable generic function",
+            "fn probe<T>() { let value: &mut [(int, float); 1]; }",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            SEMANTIC_ERROR,
+        );
+    }
+
+    for (label, source) in [
+        (
+            "explicit block",
+            "fn main() { { let value: &[(int, float); 1]; } }",
+        ),
+        (
+            "if then",
+            "fn main() { if 1 < 2 { let value: &[(int, float); 1]; } }",
+        ),
+        (
+            "if else",
+            "fn main() { if 1 < 2 { let keep = 1; } else { let value: &[(int, float); 1]; } }",
+        ),
+        (
+            "while",
+            "fn main() { while 1 < 2 { let value: &[(int, float); 1]; break; } }",
+        ),
+        (
+            "for",
+            "fn main() { for item in [1] { let value: &[(int, float); 1]; } }",
+        ),
+        (
+            "loop",
+            "fn main() { loop { let value: &[(int, float); 1]; break; } }",
+        ),
+        (
+            "non-generic impl",
+            "impl Widget { fn probe() { let value: &[(int, float); 1]; } }",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            SEMANTIC_ERROR,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            CHECKED_ERROR,
+        );
+    }
+
+    for source in [
+        "fn main() { let value = 0; let value: &[(int, float); 1]; }",
+        "fn main() { let value = 0; let value: &mut [(int, float); 1]; }",
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            "duplicate semantic precedence",
+            semantic_result(source),
+            "Error: Variable `value` is already defined in this scope.",
+        );
+    }
+
+    for (label, source, semantic_error, checked_error) in [
+        (
+            "valueless outer tuple",
+            "fn main() { let value: (int, float); }",
+            "Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.",
+            "checked IR binding `value` uses an unsupported tuple type annotation for an uninitialized binding",
+        ),
+        (
+            "valueless immediate array-to-tuple",
+            "fn main() { let value: [(int, float); 1]; }",
+            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding.",
+            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding",
+        ),
+        (
+            "valueless two-array-to-tuple",
+            "fn main() { let value: [[(int, float); 1]; 1]; }",
+            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding.",
+            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding",
+        ),
+        (
+            "valueless immediate reference-to-tuple",
+            "fn main() { let value: &(int, float); }",
+            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.",
+            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantic diagnostic"),
+            semantic_result(source),
+            semantic_error,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked diagnostic"),
+            checked_source(source),
+            checked_error,
+        );
+    }
+
+    for (label, source) in [
+        (
+            "immutable initialized positive-count target",
+            "fn main() { let value: &[(int, float); 1] = 1; }",
+        ),
+        (
+            "mutable initialized positive-count target",
+            "fn main() { let value: &mut [(int, float); 1] = 1; }",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            INITIALIZED_SEMANTIC_ERROR,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            INITIALIZED_CHECKED_ERROR,
+        );
+    }
+
+    for (label, source) in [
+        (
+            "immutable initialized count-zero target",
+            "fn main() { let value: &[(int, float); 0] = 1; }",
+        ),
+        (
+            "mutable initialized count-zero target",
+            "fn main() { let value: &mut [(int, float); 0] = 1; }",
+        ),
+        (
+            "immutable scalar reference",
+            "fn main() { let value: &int; }",
+        ),
+        (
+            "mutable scalar reference",
+            "fn main() { let value: &mut int; }",
+        ),
+        (
+            "immutable numeric-array reference",
+            "fn main() { let value: &[int; 1]; }",
+        ),
+        (
+            "mutable numeric-array reference",
+            "fn main() { let value: &mut [int; 1]; }",
+        ),
+        (
+            "double reference",
+            "fn main() { let value: & &[(int, float); 1]; }",
+        ),
+        (
+            "deeper array beneath reference",
+            "fn main() { let value: &[[(int, float); 1]; 1]; }",
+        ),
+        (
+            "array around reference",
+            "fn main() { let value: [&(int, float); 1]; }",
+        ),
+        (
+            "reference around generic wrapper",
+            "fn main() { let value: &Vec<(int, float)>; }",
+        ),
+        (
+            "generic wrapper between reference-array and tuple",
+            "fn main() { let value: &[Vec<(int, float)>; 1]; }",
+        ),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+        );
+    }
+
+    const TRAIT_DEFAULT_SOURCE: &str = "trait Contract<T> { fn probe() { let immutable: &[(int, float); 1]; let mutable: &mut [(int, float); 1]; } }";
+    expect_acceptance(
+        &mut failures,
+        "generic trait default remains syntax-only in semantics",
+        semantic_result(TRAIT_DEFAULT_SOURCE),
+    );
+    expect_acceptance(
+        &mut failures,
+        "generic trait default remains syntax-only in checked admission",
+        checked_source(TRAIT_DEFAULT_SOURCE),
+    );
+
+    expect_rejection(
+        &mut failures,
+        "generic function checked admission retains outer rejection",
+        checked_source("fn probe<T>() { let value: &[(int, float); 1]; }"),
+        &["generic function IR is not admitted"],
+    );
+
+    let valid_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(
+            "fn main() { let values: [int; 1] = [1]; let first = values[0]; println!(\"{}\", first); }",
+            CompilerOptions::default(),
+        )
+    })) {
+        Err(_) => Err("valid compile_program unwound".to_string()),
+        Ok(Ok(llvm)) if llvm.is_empty() => {
+            Err("valid compile_program returned empty LLVM".to_string())
+        }
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_acceptance(&mut failures, "valid numeric-array output", valid_result);
+
+    assert!(
+        failures.is_empty(),
+        "{} binding contract failures:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
+#[test]
 fn valueless_immediate_array_of_tuple_annotation_fails_closed_before_integer_fallback() {
     const NONZERO_SOURCE: &str = "fn main() { let value: [(int, float); 1]; }";
     const ZERO_SOURCE: &str = "fn main() { let value: [(int, float); 0]; }";
@@ -1656,10 +1990,6 @@ fn valueless_immediate_array_of_tuple_annotation_fails_closed_before_integer_fal
         (
             "generic containing tuple",
             "fn main() { let value: Vec<(int, float)>; }",
-        ),
-        (
-            "reference containing array containing tuple",
-            "fn main() { let value: &[(int, float); 1]; }",
         ),
     ] {
         expect_acceptance(
@@ -1858,10 +2188,6 @@ fn initialized_immediate_array_of_tuple_annotation_fails_closed_after_value_vali
         (
             "Candidate T valueless three-array depth",
             "fn main() { let value: [[[(int, float); 1]; 1]; 1]; }",
-        ),
-        (
-            "Candidate B valueless reference-array-tuple",
-            "fn main() { let value: &[(int, float); 1]; }",
         ),
         (
             "initialized generic wrapper",
@@ -2109,10 +2435,6 @@ fn valueless_immediate_array_of_array_of_tuple_annotation_fails_closed_before_in
         (
             "generic containing tuple",
             "fn main() { let value: Vec<(int, float)>; }",
-        ),
-        (
-            "reference containing array containing tuple",
-            "fn main() { let value: &[(int, float); 1]; }",
         ),
         (
             "reference containing target shape",
