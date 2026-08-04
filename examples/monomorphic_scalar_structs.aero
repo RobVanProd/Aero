@@ -1,0 +1,43 @@
+
+struct ScalarAliases {
+    first: int,
+    second: i32,
+    ratio: float,
+    precise: f64,
+    ready: bool
+}
+struct Single { value: int }
+
+fn projected() -> int {
+    let record: ScalarAliases = ScalarAliases {
+        ready: 1 < 2,
+        precise: 4.5,
+        ratio: 3.5,
+        second: 2,
+        first: 40
+    };
+    let mut another = ScalarAliases {
+        first: 1,
+        second: 2,
+        ratio: 3.0,
+        precise: 4.0,
+        ready: 2 > 1
+    };
+    ScalarAliases {
+        first: 0,
+        second: 0,
+        ratio: 0.0,
+        precise: 0.0,
+        ready: 1 < 2
+    };
+    let direct: int = Single { value: 3 }.value;
+    let numeric: float = record.ratio + record.precise;
+    if record.ready && another.ready && numeric > 7.0 {
+        return record.first + record.second + direct + another.first + another.second + 5;
+    }
+    return 1;
+}
+
+fn main() -> int {
+    return projected();
+}

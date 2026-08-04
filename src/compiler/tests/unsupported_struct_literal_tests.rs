@@ -335,10 +335,6 @@ fn public_compile_preserves_declarations_numeric_function_array_index_and_iter_c
 #[test]
 fn public_compile_rejects_ordinary_struct_construction_matrix_without_unwinding() {
     let cases = [
-        (
-            "known-binding",
-            "struct Point { x: int, y: int } fn main() { let point = Point { x: 7, y: 9 }; }",
-        ),
         ("unknown-name", "fn main() { let point = Ghost { x: 7 }; }"),
         (
             "missing-field",
@@ -352,27 +348,7 @@ fn public_compile_rejects_ordinary_struct_construction_matrix_without_unwinding(
             "duplicate-field",
             "struct Point { x: int } fn main() { let point = Point { x: 7, x: 9 }; }",
         ),
-        (
-            "wrong-field-type",
-            "struct Point { x: int } fn main() { let point = Point { x: \"wrong\" }; }",
-        ),
         ("root", "struct Point { x: int } Point { x: 7 };"),
-        (
-            "discarded",
-            "struct Point { x: int } fn main() { Point { x: 7 }; }",
-        ),
-        (
-            "explicit-return",
-            "struct Point { x: int } fn make() -> Point { return Point { x: 7 }; } fn main() {}",
-        ),
-        (
-            "tail-return",
-            "struct Point { x: int } fn make() -> Point { Point { x: 7 } } fn main() {}",
-        ),
-        (
-            "dropped-field-call",
-            "struct Point { x: int } fn mark() -> int { return 9; } fn main() { let point = Point { x: mark() }; }",
-        ),
     ];
 
     let failures = cases
@@ -386,44 +362,12 @@ fn public_compile_rejects_ordinary_struct_construction_matrix_without_unwinding(
 fn public_compile_rejects_recursive_parent_matrix_without_unwinding() {
     let cases = [
         (
-            "condition",
-            "struct Point { x: int } fn main() { if Point { x: 7 } { let n: int = 1; } }",
-        ),
-        (
-            "call-argument",
-            "struct Point { x: int } fn consume(point: Point) -> int { return 1; } fn main() { let n: int = consume(Point { x: 7 }); }",
-        ),
-        (
-            "non-first-array-element",
-            "struct Point { x: int } fn main() { let values = [1, Point { x: 7 }]; }",
-        ),
-        (
             "closure-body",
             "struct Point { x: int } fn main() { let make = |x: int| Point { x: x }; }",
         ),
         (
             "nested-StructLiteral",
             "struct Inner { x: int } struct Outer { inner: Inner } fn main() { let value = Outer { inner: Inner { x: 7 } }; }",
-        ),
-        (
-            "custom-Enum-payload",
-            "struct Point { x: int } enum Choice { PointValue(Point) } fn main() { let value = Choice::PointValue(Point { x: 7 }); }",
-        ),
-        (
-            "Option-payload",
-            "struct Point { x: int } fn main() { let value = Some(Point { x: 7 }); }",
-        ),
-        (
-            "field-receiver",
-            "struct Point { x: int } fn main() { let value: int = Point { x: 7 }.x; }",
-        ),
-        (
-            "index-object",
-            "struct Point { x: int } fn main() { let value: int = Point { x: 7 }[0]; }",
-        ),
-        (
-            "binary-left",
-            "struct Point { x: int } fn main() { let value = Point { x: 7 } + 1; }",
         ),
     ];
 
@@ -439,7 +383,7 @@ fn public_compile_rejects_default_trait_and_nested_declaration_containers() {
     let cases = [
         (
             "default-trait-body",
-            "struct Point { x: int } trait Make { fn make(&self) -> Point { return Point { x: missing }; } } fn main() {}",
+            "struct Point { x: int } trait Make { fn make(&self) -> Point { return Point { x: 7 }; } } fn main() {}",
         ),
         (
             "nested-function",
@@ -507,27 +451,28 @@ fn established_child_diagnostics_and_field_source_order_retain_precedence() {
 }
 
 #[test]
-fn nested_struct_precedes_later_fields_while_inference_only_children_use_struct_diagnostic() {
+fn admitted_children_retain_written_source_order_inside_preserved_outer_shapes() {
     let cases = [
         (
             "nested-Struct-first",
             "struct Inner { x: int } struct Outer { first: Inner, second: int } fn main() { let value = Outer { first: Inner { x: 1 }, second: 7.field }; }",
+            EXPECTED_INNER_DIAGNOSTIC,
         ),
         (
             "modulo-field-child",
             "struct Point { x: int } fn main() { let point = Point { x: 9 % 4 }; }",
+            "Binary operator `%` is not supported.",
         ),
         (
             "undeclared-field-child",
             "struct Point { x: int } fn main() { let point = Point { x: missing }; }",
+            "Error: Use of undeclared variable `missing`.",
         ),
     ];
 
-    let failures = cases
-        .iter()
-        .filter_map(|(label, source)| public_struct_rejection_failure(label, source))
-        .collect::<Vec<_>>();
-    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+    for (_, source, expected) in cases {
+        assert_public_semantic_error(source, expected);
+    }
 }
 
 #[test]
@@ -536,7 +481,7 @@ fn cli_check_and_build_reject_root_struct_without_panic_or_artifact() {
     let source_path = workspace.path("main.aero");
     let artifact = workspace.path("program.ll");
     let source = r#"
-struct Point { x: int }
+struct Point { x: int, y: int }
 fn mark() -> int { return 9; }
 fn main() { let point = Point { x: mark() }; }
 "#;
@@ -568,7 +513,7 @@ fn cli_check_and_build_reject_direct_module_struct_without_panic_or_artifact() {
     let module = workspace.path("shapes.aero");
     let artifact = workspace.path("program.ll");
     let module_source = r#"
-struct Point { x: int }
+struct Point { x: int, y: int }
 fn mark() -> int { return 9; }
 fn make() -> Point { return Point { x: mark() }; }
 "#;

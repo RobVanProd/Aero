@@ -129,6 +129,20 @@ pub enum Inst {
         field_index: u32,    // field index
         struct_type: String, // LLVM struct type name
     },
+    /// Verified storage for a source-admitted monomorphic scalar struct.
+    CheckedStructAlloca {
+        result: Value,
+        struct_name: String,
+        field_types: Vec<LogicalType>,
+    },
+    /// Verified pointer to one field in a `CheckedStructAlloca` place.
+    CheckedStructFieldPtr {
+        result: Value,
+        base: Value,
+        struct_name: String,
+        field_index: u32,
+        field_type: LogicalType,
+    },
 
     // Phase 6: Vec/Collection IR operations
     VecAlloca {
@@ -216,6 +230,10 @@ pub enum LogicalType {
         element: Box<LogicalType>,
         count: usize,
     },
+    Struct {
+        name: String,
+        fields: Vec<LogicalType>,
+    },
 }
 
 impl LogicalType {
@@ -233,6 +251,16 @@ impl fmt::Display for LogicalType {
             Self::Void => write!(f, "Void"),
             Self::String => write!(f, "String"),
             Self::Array { element, count } => write!(f, "Array<{element}; {count}>"),
+            Self::Struct { name, fields } => {
+                write!(f, "Struct<{name}; [")?;
+                for (index, field) in fields.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{field}")?;
+                }
+                write!(f, "]>")
+            }
         }
     }
 }

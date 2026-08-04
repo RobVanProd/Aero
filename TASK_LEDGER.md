@@ -8122,3 +8122,175 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   full-index recipe. Push only if all three reviewers approve the same commit/tree/hash;
   then require all eight public checks and stable Linux LLVM/Clang 22 exact native exit
   47 before acceptance and PR #4 synchronization.
+
+## CORE-043 - Executable monomorphic scalar struct values and named projection
+
+- Task ID/date/owner: `CORE-043`, 2026-08-04, lead-owned tests-first compiler
+  vertical slice. This is one aggregate-value class, not separate per-field,
+  construction, access, layout, or diagnostic tasks. The prior binding-annotation
+  topology class remains closed by CORE-037's shared classifier and must not be
+  reopened or duplicated here.
+- Framework basis and observed behavior: the original Aero framework makes simple
+  structs, named fields, static typing, typed IR aggregate operations, and LLVM
+  lowering core composition mechanisms. The current parser retains top-level and
+  direct-module `StructDef`, `StructLiteral`, and `FieldAccess` shapes, and dormant IR
+  names exist, but trusted semantic preflight rejects every construction and field
+  access before IR. The legacy `AllocaStruct`/`GetFieldPtr` instructions are rejected
+  by the checked verifier and checked code generator and do not carry enough schema
+  evidence to activate safely. The focused containment suites pass 10/10 for struct
+  construction and retain the separate field-access quarantine at exact clean public
+  basis `e77276c8dcd42f6adaca7ac31e60a2d5a6fe0308`.
+- Defect-class enumeration: the parsed named-struct value class varies over definition
+  identity, genericity, field count, field-name uniqueness, field type, construction
+  name, construction field-set equality, construction field order, child-expression
+  type/order, optional binding annotation, binding mutability, value context, field
+  receiver, requested field, compiler route, and physical source file. The complete
+  CORE-043 supported product is: a unique top-level flattened definition with no type
+  parameters and one or more uniquely named fields; every declared field type is
+  exactly `int`/`i32`, `float`/`f64`, or `bool`; construction supplies every field
+  exactly once by name in any source order; every child has the exact collapsed
+  logical field type; an enclosing binding is unannotated or annotated with the exact
+  struct name and may be immutable or mutable; construction, discard, immediate
+  projection, and named projection from a directly constructed local are inside an
+  admitted non-generic top-level function, including a function originating in a
+  flattened direct module. Projection returns the declared logical scalar type.
+- Frozen evaluation and layout semantics: construction child expressions are
+  evaluated exactly once in written source order. Field names map to source
+  declaration indices, independent of construction order. Checked lowering allocates
+  one stack aggregate using a deterministic LLVM named type whose fields remain in
+  declaration order; logical `Int`/`Float` fields use the compiler's existing numeric
+  slot representation and logical `Bool` fields use the existing checked `i1` slot
+  representation. Each field is initialized through its verified declaration index;
+  named projection uses verified GEP plus load. LLVM determines target alignment and
+  padding. This internal compilation-unit layout is not a source ABI, FFI contract,
+  separate-compilation promise, stable layout guarantee, or performance claim.
+- One shared predicate: add one pure struct-contract registry/classifier that is built
+  from the complete flattened top-level AST and owns declaration eligibility,
+  duplicate/ambiguous definition detection, field-name uniqueness and lookup, exact
+  construction field-set mapping, collapsed scalar field typing, exact struct binding
+  annotation compatibility, execution-context eligibility, and projection lookup.
+  Semantic analysis, checked admission, checked lowering, the verifier, and codegen
+  may retain phase-specific state, diagnostics, and representations, but may not
+  restate source struct eligibility or field topology. The classifier must have a
+  finite disposition/unit matrix covering every admitted scalar alias and every
+  explicit preserved/rejected neighbor.
+- Checked-IR boundary: introduce distinct schema-carrying checked struct-allocation and
+  checked field-pointer instructions plus logical struct metadata. The verifier must
+  reject undefined/duplicate/inconsistent schemas, invalid names, empty or unsupported
+  field schemas, mismatched struct names, out-of-range field indices, mismatched field
+  logical types, non-struct bases, use-before-definition, and dominance violations.
+  The checked emitter must collect schemas recursively, emit exact-name-sorted LLVM
+  type definitions, and lower only verified instructions. The existing legacy
+  `AllocaStruct`/`GetFieldPtr` variants and deprecated unchecked generator remain
+  rejected/behaviorally unchanged; no dormant helper or stale test is promoted as
+  evidence.
+- Explicit exclusions: zero-field construction (not represented by the current
+  parser), generic structs, duplicate definitions or declared fields, String/custom/
+  array/tuple/reference/generic/nested fields, nested structs, enums, tuples, methods,
+  field assignment, destructuring, pattern matching, closures, trait/default/impl or
+  generic-function construction, nested declarations/functions, root executable
+  construction, struct arrays, struct comparisons/printing, local struct alias/copy/
+  move, struct parameters/returns/call arguments, recursion through aggregates,
+  heap allocation, destruction/drop, ownership/lifetimes/provenance, visibility/use/
+  namespaces, recursive modules, separate compilation, ABI/FFI, packed/custom layout,
+  CPU performance, ROCm, CUDA, and releases/benchmarks/claims. Unsupported source
+  types may not fall back to `Int`, `Float`, `Bool`, or an invented aggregate.
+- Tests-first completeness contract: before production changes, add one focused
+  aggregate whose supported Cartesian product covers all five scalar spellings, both
+  binding mutabilities, absent/exact annotations, declaration/construction order
+  permutations, one/many fields, local/direct-module functions, direct/immediate
+  projection, discard, and all three projected logical types. It must prove child
+  source-order precedence and enumerate unknown/ambiguous/generic/empty/duplicate/
+  unsupported declarations; unknown/missing/extra/duplicate/wrong-type construction
+  fields; wrong annotations; unknown/non-struct fields; every excluded context and
+  value escape; checked metadata; deterministic LLVM schema/field order; and no
+  artifact on invalid public/CLI builds. Existing struct/field quarantine suites must
+  be amended, never weakened, so only the exact supported product moves from their
+  matrices and every exclusion retains an exact rejection route. Add verifier and
+  codegen corruption controls for the new instructions while preserving the legacy
+  instruction rejection tests.
+- End-to-end acceptance: add one tracked struct integration example exercising all
+  supported scalar field classes, construction order distinct from declaration order,
+  local binding projection, immediate projection, arithmetic/comparison/control flow,
+  and an exact native sentinel. Add one unconditional stable/nightly Rust-CI step that
+  uses checked build, pinned `opt-22`, `llc-22` machine verification and object
+  lowering, `clang-22` linking, native execution, and the exact sentinel. Run focused
+  red/green and adjacent suites, formatting, correctness Clippy, exact root
+  `./tools/test.sh`, exact-candidate review, unchanged push, all eight public checks,
+  stable-job log inspection, and post-acceptance PR synchronization. A rejection-only,
+  record-only, helper-only, unchecked-only, or non-executed result cannot close
+  CORE-043.
+- Allowed files: `TASK_LEDGER.md`; one new `src/compiler/src/struct_contract.rs` and
+  private module declarations in `src/compiler/src/lib.rs` and `main.rs`;
+  `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs`; the existing struct-construction and field-access containment
+  tests; one new focused struct execution integration test; one tracked example;
+  `src/compiler/tests/checked_ir_contract_tests.rs` only if the exact root gate proves
+  its historical semantic-text specimen is now inside the frozen supported class;
+  adjacent existing aggregate-containment tests only if the corrected root gate
+  proves checked admission changed an excluded shape's frozen diagnostic precedence;
+  `.github/workflows/rust.yml`; and only the current capability/state/README records
+  whose struct statements change. No lexer, parser, AST shape, optimizer, module
+  resolver/cache, stdlib/runtime, backend target, dependency, formal/design spec,
+  ownership document, claim-verification, benchmark, registry, release, `master`, or
+  PR merge change is authorized.
+- Risks and stop conditions: stop rather than invent behavior if the current grammar
+  cannot represent the frozen product, exact field identity cannot survive parsing,
+  the shared predicate cannot be consumed by both trust phases, source-order child
+  evaluation cannot be preserved, verifier metadata cannot prove every aggregate and
+  field place, LLVM needs an unresolved public ABI/layout decision, checked changes
+  leak into raw compatibility, an unsupported type falls back, any excluded shape is
+  accepted, a third-party/runtime dependency is needed, or the baseline becomes red.
+  More than two phases is expected and explicitly lead-owned for this coupled source-
+  to-backend vertical slice; any additional semantic family is a stop.
+- Status at authorization: no CORE-043 test, production behavior, tracked example, CI
+  anchor, or capability claim exists. The worktree is clean except for this single
+  authorization record; PR #4 is open/draft and synchronized through CORE-042 at the
+  exact public basis, all eight checks are green, and `master` is untouched. The next
+  allowed action is the single exhaustive failing regression, not production code.
+- Tests-first red evidence: the single new integration aggregate compiles and fails
+  0/1 before any production, example, workflow, or capability-record change. It
+  reports the missing positive alias/mutability/annotation/order/projection product,
+  exact field-type/annotation/field/move/escape diagnostics, checked struct metadata,
+  root/direct-module checked builds, tracked example, and four unique CI anchors.
+  Declaration-only unsupported schemas, unknown/non-struct field quarantine, raw
+  unchecked behavior, and invalid-build no-artifact controls are already green. One
+  intended precedence cell proves the current whole-StructLiteral syntax preflight
+  scans a later tuple child before inferring an earlier undeclared child. For the
+  supported exact construction class only, remove that outer child scan and let the
+  existing per-child validation/inference run once in written order before the shared
+  shape/type classifier; excluded shapes retain their existing recursive quarantine.
+  The red run changes no production file and creates no artifact or public claim.
+- Local implementation evidence: the shared `StructRegistry` now owns the complete
+  frozen source partition and is consumed by semantic analysis and checked admission;
+  distinct schema-carrying allocation/field-place instructions carry the admitted
+  class through checked lowering, verifier metadata, exact-name-sorted LLVM type
+  emission, and scalar loads/stores. The focused CORE-043 aggregate passes 1/1, the
+  amended adjacent struct quarantine passes 10/10, and checked-IR corruption controls
+  reject unsupported schemas and mismatched field identity while the legacy raw
+  variants remain rejected. The tracked example is byte-identical to the aggregate
+  specimen and the stable/nightly workflow contains the pinned verify/machine-verify/
+  lower/link/run exit-53 gate. The first exact root gate then passed 150/150 library
+  and 159/159 CLI units before one adjacent checked-IR integration assertion failed
+  solely because its historical semantic-diagnostic fixture is now the exact admitted
+  `struct Point { x: int }` product. Reclassify only that fixture to the already-
+  enumerated unsupported `String`-field schema while preserving its exact diagnostic-
+  identity assertions; no other assertion in that target may change. Its 8/8 focused
+  rerun passes. The corrected root gate then reaches the static-string-equality
+  containment aggregate and exposes two genuine checked-admission precedence
+  regressions: an undeclared field receiver is traversed before the existing outer
+  aggregate quarantine, and an unregistered struct literal maps shared source text
+  into checked admission instead of the existing aggregate diagnostic. Correct the
+  already-authorized `ir_generator.rs` boundary so only a resolvable construction or
+  a binding already typed as an admitted struct can traverse a field receiver, and
+  map `PreserveExistingBehavior` back to the prior checked aggregate identity after
+  preserving excluded child validation. Do not amend that containment test.
+  Both the unchanged static-string containment aggregate and CORE-043 aggregate pass
+  after the correction. The focused CORE-043 negative matrix additionally proves
+  condition, index, comparison, enum/Option payload, and print exclusions. The exact
+  repository-root `./tools/test.sh` then passes 150/150 library tests, 159/159 CLI
+  tests, every active integration target, formatting, correctness Clippy, and doc
+  tests. Complete local diff review finds no widening beyond the frozen scalar struct
+  class and no new production warning. LLVM 22 native tools are absent locally, so
+  commit/push, all public checks, stable-job native exit-53 log inspection, acceptance
+  record, and PR synchronization remain pending.

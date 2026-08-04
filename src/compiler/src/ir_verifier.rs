@@ -290,6 +290,16 @@ fn valid_symbol(name: &str) -> bool {
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
+fn valid_struct_schema(fields: &[LogicalType]) -> bool {
+    !fields.is_empty()
+        && fields.iter().all(|field| {
+            matches!(
+                field,
+                LogicalType::Int | LogicalType::Float | LogicalType::Bool
+            )
+        })
+}
+
 fn collides_with_generated_local(name: &str) -> bool {
     ["reg", "ptr"].into_iter().any(|prefix| {
         name.strip_prefix(prefix).is_some_and(|suffix| {
@@ -705,7 +715,9 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
     match instruction {
         Inst::Alloca(result, _)
         | Inst::AllocaArray { result, .. }
-        | Inst::GetElementPtr { result, .. } => Some(result),
+        | Inst::GetElementPtr { result, .. }
+        | Inst::CheckedStructAlloca { result, .. }
+        | Inst::CheckedStructFieldPtr { result, .. } => Some(result),
         _ => None,
     }
 }
@@ -924,6 +936,44 @@ impl<'a> FunctionVerifier<'a> {
                     self.place_names.insert(id, None);
                 }
             }
+            for block in &self.blocks {
+                for (_, instruction) in &block.instructions {
+                    let Inst::CheckedStructAlloca {
+                        result,
+                        struct_name,
+                        field_types,
+                    } = instruction
+                    else {
+                        continue;
+                    };
+                    let Some(id) = reg(result).map(PlaceId) else {
+                        return Err(IrVerificationError::new(
+                            &self.body.name,
+                            Some(&block.label),
+                            IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                "checked struct alloca",
+                            ),
+                        ));
+                    };
+                    if !valid_symbol(struct_name) || !valid_struct_schema(field_types) {
+                        return Err(IrVerificationError::new(
+                            &self.body.name,
+                            Some(&block.label),
+                            IrVerificationErrorKind::UnsupportedType(format!(
+                                "checked struct schema `{struct_name}`"
+                            )),
+                        ));
+                    }
+                    self.places.insert(
+                        id,
+                        PlaceType::Known(LogicalType::Struct {
+                            name: struct_name.clone(),
+                            fields: field_types.clone(),
+                        }),
+                    );
+                    self.place_names.insert(id, None);
+                }
+            }
         }
         let mut seen_places = BTreeSet::new();
         let mut claimed_parameters = HashSet::new();
@@ -944,6 +994,10 @@ impl<'a> FunctionVerifier<'a> {
                             IrVerificationErrorKind::ExpectedPlaceIdentifier(match instruction {
                                 Inst::Alloca(..) => "alloca",
                                 Inst::AllocaArray { .. } => "alloca array",
+                                Inst::CheckedStructAlloca { .. } => "checked struct alloca",
+                                Inst::CheckedStructFieldPtr { .. } => {
+                                    "checked struct field pointer"
+                                }
                                 _ => "getelementptr",
                             }),
                         ));
@@ -1093,6 +1147,67 @@ impl<'a> FunctionVerifier<'a> {
                             };
                             self.element_owners.insert(id, PlaceId(base_id));
                             (element_place, None)
+                        }
+                        Inst::CheckedStructAlloca {
+                            struct_name,
+                            field_types,
+                            ..
+                        } => {
+                            if !valid_symbol(struct_name) || !valid_struct_schema(field_types) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::UnsupportedType(format!(
+                                        "checked struct schema `{struct_name}`"
+                                    )),
+                                ));
+                            }
+                            (
+                                PlaceType::Known(LogicalType::Struct {
+                                    name: struct_name.clone(),
+                                    fields: field_types.clone(),
+                                }),
+                                None,
+                            )
+                        }
+                        Inst::CheckedStructFieldPtr {
+                            base,
+                            struct_name,
+                            field_index,
+                            field_type,
+                            ..
+                        } => {
+                            let Some(base_id) = reg(base) else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked struct field base",
+                                    ),
+                                ));
+                            };
+                            let Some(PlaceType::Known(LogicalType::Struct { name, fields })) =
+                                self.places.get(&PlaceId(base_id))
+                            else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked struct field base",
+                                    ),
+                                ));
+                            };
+                            let actual = fields.get(*field_index as usize);
+                            if name != struct_name || actual != Some(field_type) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked struct field pointer schema mismatch for `{struct_name}` field {field_index}"
+                                    )),
+                                ));
+                            }
+                            (PlaceType::Known(field_type.clone()), None)
                         }
                         _ => unreachable!(),
                     };
@@ -1511,7 +1626,10 @@ impl<'a> FunctionVerifier<'a> {
                             position,
                         )?;
                     }
-                    Inst::Alloca(..) | Inst::AllocaArray { .. } | Inst::Label(_) => {}
+                    Inst::Alloca(..)
+                    | Inst::AllocaArray { .. }
+                    | Inst::CheckedStructAlloca { .. }
+                    | Inst::Label(_) => {}
                     Inst::Store(place, value) => {
                         let id = self.require_place(place, "store", block_index, position)?;
                         let Some(place_type) = self.places.get(&id).cloned() else {
@@ -1843,6 +1961,14 @@ impl<'a> FunctionVerifier<'a> {
                             error
                         })?;
                     }
+                    Inst::CheckedStructFieldPtr { base, .. } => {
+                        self.require_place(
+                            base,
+                            "checked struct field base",
+                            block_index,
+                            position,
+                        )?;
+                    }
                     _ if unsupported_name(instruction).is_some() => unreachable!(),
                     _ => {}
                 }
@@ -1933,12 +2059,62 @@ impl<'a> FunctionVerifier<'a> {
     }
 }
 
+fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError> {
+    fn visit(
+        instructions: &[Inst],
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
+    ) -> Result<(), IrVerificationError> {
+        for instruction in instructions {
+            match instruction {
+                Inst::CheckedStructAlloca {
+                    struct_name,
+                    field_types,
+                    ..
+                } => {
+                    if !valid_symbol(struct_name) || !valid_struct_schema(field_types) {
+                        return Err(IrVerificationError::new(
+                            "<module>",
+                            None,
+                            IrVerificationErrorKind::UnsupportedType(format!(
+                                "checked struct schema `{struct_name}`"
+                            )),
+                        ));
+                    }
+                    if let Some(existing) = schemas.get(struct_name) {
+                        if existing != field_types {
+                            return Err(IrVerificationError::new(
+                                "<module>",
+                                None,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "conflicting checked struct schemas for `{struct_name}`"
+                                )),
+                            ));
+                        }
+                    } else {
+                        schemas.insert(struct_name.clone(), field_types.clone());
+                    }
+                }
+                Inst::FunctionDef { body, .. } => visit(body, schemas)?,
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    let mut schemas = BTreeMap::new();
+    for function in ir.values() {
+        visit(&function.body, &mut schemas)?;
+    }
+    Ok(())
+}
+
 fn verify_with_seed(
     ir: &RawIr,
     seed: Option<&IrMetadata>,
     place_hints: Option<&PlaceTypeHints>,
     infer_bool_places: bool,
 ) -> Result<IrMetadata, IrVerificationError> {
+    validate_program_struct_schemas(ir)?;
     let (bodies, signatures) = collect_bodies(ir)?;
     let mut metadata = IrMetadata::default();
     for body in &bodies {

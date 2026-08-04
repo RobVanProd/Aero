@@ -15,6 +15,7 @@ use crate::static_string_method::{StaticStringLenDisposition, classify_static_st
 use crate::static_string_predicate::{
     StaticStringPredicateDisposition, classify_static_string_predicate,
 };
+use crate::struct_contract::{StructContractError, StructExecutionContext, StructRegistry};
 use crate::types::{Ty, needs_promotion};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
@@ -54,6 +55,13 @@ struct AdmissionTopLevelFunction {
     arity: Option<usize>,
 }
 
+struct AdmissionProgram {
+    functions: HashMap<String, AdmissionTopLevelFunction>,
+    structs: StructRegistry,
+}
+
+const STRUCT_ADMISSION_BINDING: &str = "\0aero.checked.struct.context";
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ExpressionUse {
     Value,
@@ -74,6 +82,7 @@ pub struct IrGenerator {
     closure_count: u32,                      // Counter for unique closure names
     checked_mode: bool,
     checked_place_hints: PlaceTypeHints,
+    struct_registry: StructRegistry,
 }
 
 impl IrGenerator {
@@ -89,6 +98,7 @@ impl IrGenerator {
             closure_count: 0,
             checked_mode: false,
             checked_place_hints: BTreeMap::new(),
+            struct_registry: StructRegistry::default(),
         }
     }
 }
@@ -105,6 +115,7 @@ impl IrGenerator {
         ast: Vec<AstNode>,
     ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
         Self::validate_checked_ast(&ast)?;
+        self.struct_registry = StructRegistry::from_top_level_ast(&ast);
         self.functions.clear();
         self.current_function_name.clear();
         self.next_reg = 0;
@@ -225,11 +236,14 @@ impl IrGenerator {
     }
 
     fn stores_value_directly(ty: &Ty) -> bool {
-        matches!(ty, Ty::String | Ty::Array(_, _) | Ty::Vec(_) | Ty::Fn(_))
+        matches!(
+            ty,
+            Ty::String | Ty::Array(_, _) | Ty::Struct(_) | Ty::Vec(_) | Ty::Fn(_)
+        )
     }
 
     fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
-        let mut top_level_functions: HashMap<String, AdmissionTopLevelFunction> = HashMap::new();
+        let mut program: HashMap<String, AdmissionTopLevelFunction> = HashMap::new();
         for node in ast {
             if let AstNode::Statement(Statement::Function {
                 name,
@@ -249,26 +263,30 @@ impl IrGenerator {
                     return_type.as_ref(),
                     type_params,
                 );
-                if let Some(existing) = top_level_functions.get_mut(name) {
+                if let Some(existing) = program.get_mut(name) {
                     existing.result = result;
                     existing.arity = None;
                 } else {
-                    top_level_functions
-                        .insert(name.clone(), AdmissionTopLevelFunction { result, arity });
+                    program.insert(name.clone(), AdmissionTopLevelFunction { result, arity });
                 }
             }
         }
 
+        let program = AdmissionProgram {
+            functions: program,
+            structs: StructRegistry::from_top_level_ast(ast),
+        };
         let mut bindings = HashMap::new();
         for node in ast {
             match node {
                 AstNode::Statement(statement) => Self::validate_statement(
                     statement,
                     &mut bindings,
-                    &top_level_functions,
+                    &program,
                     false,
                     false,
                     false,
+                    true,
                 )?,
                 AstNode::Expression(_) => {
                     return Err(IrGenerationError::Admission(
@@ -325,7 +343,7 @@ impl IrGenerator {
     fn validate_block(
         block: &crate::ast::Block,
         bindings: &mut HashMap<String, AdmissionBinding>,
-        top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
+        program: &AdmissionProgram,
         inside_loop: bool,
         inside_impl: bool,
         inside_generic_impl: bool,
@@ -334,17 +352,18 @@ impl IrGenerator {
             Self::validate_statement(
                 statement,
                 bindings,
-                top_level_functions,
+                program,
                 inside_loop,
                 inside_impl,
                 inside_generic_impl,
+                false,
             )?;
         }
         if let Some(expression) = &block.expression {
             Self::validate_expression(
                 expression,
                 bindings,
-                top_level_functions,
+                program,
                 ExpressionUse::Value,
                 inside_impl,
                 !inside_impl,
@@ -356,10 +375,11 @@ impl IrGenerator {
     fn validate_statement(
         statement: &Statement,
         bindings: &mut HashMap<String, AdmissionBinding>,
-        top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
+        program: &AdmissionProgram,
         inside_loop: bool,
         inside_impl: bool,
         inside_generic_impl: bool,
+        is_top_level: bool,
     ) -> Result<(), IrGenerationError> {
         match statement {
             Statement::Let {
@@ -398,7 +418,7 @@ impl IrGenerator {
                         Self::validate_expression(
                             value,
                             bindings,
-                            top_level_functions,
+                            program,
                             ExpressionUse::Binding,
                             inside_impl,
                             !inside_impl,
@@ -411,7 +431,7 @@ impl IrGenerator {
                         Self::validate_expression(
                             value,
                             bindings,
-                            top_level_functions,
+                            program,
                             ExpressionUse::Binding,
                             inside_impl,
                             !inside_impl,
@@ -421,6 +441,16 @@ impl IrGenerator {
                         return Err(IrGenerationError::Admission(
                             "Void expressions cannot be stored in a binding".to_string(),
                         ));
+                    }
+                    program
+                        .structs
+                        .validate_direct_binding_initializer(value, &ty)
+                        .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                    if let Ty::Struct(struct_name) = &ty {
+                        program
+                            .structs
+                            .validate_binding_annotation(struct_name, type_annotation.as_ref())
+                            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
                     }
                     if let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
                         disposition
@@ -464,7 +494,7 @@ impl IrGenerator {
                     Self::validate_expression(
                         expression,
                         bindings,
-                        top_level_functions,
+                        program,
                         ExpressionUse::Value,
                         inside_impl,
                         !inside_impl,
@@ -475,7 +505,7 @@ impl IrGenerator {
                 Self::validate_expression(
                     expression,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Discarded,
                     inside_impl,
                     !inside_impl,
@@ -486,7 +516,7 @@ impl IrGenerator {
                 Self::validate_block(
                     block,
                     &mut nested,
-                    top_level_functions,
+                    program,
                     inside_loop,
                     inside_impl,
                     inside_generic_impl,
@@ -497,7 +527,7 @@ impl IrGenerator {
                 Self::validate_block(
                     body,
                     &mut nested,
-                    top_level_functions,
+                    program,
                     true,
                     inside_impl,
                     inside_generic_impl,
@@ -516,6 +546,16 @@ impl IrGenerator {
                     ));
                 }
                 let mut function_bindings = HashMap::new();
+                if is_top_level && !inside_impl {
+                    function_bindings.insert(
+                        STRUCT_ADMISSION_BINDING.to_string(),
+                        AdmissionBinding {
+                            ty: Ty::Void,
+                            callable: false,
+                            static_string: None,
+                        },
+                    );
+                }
                 for parameter in parameters {
                     let parameter_ty = Self::admission_type(&parameter.param_type);
                     if !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool) {
@@ -546,7 +586,7 @@ impl IrGenerator {
                 Self::validate_block(
                     body,
                     &mut function_bindings,
-                    top_level_functions,
+                    program,
                     false,
                     inside_impl,
                     inside_generic_impl,
@@ -560,7 +600,7 @@ impl IrGenerator {
                 Self::validate_expression(
                     condition,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     !inside_impl,
@@ -569,7 +609,7 @@ impl IrGenerator {
                 Self::validate_block(
                     then_block,
                     &mut then_bindings,
-                    top_level_functions,
+                    program,
                     inside_loop,
                     inside_impl,
                     inside_generic_impl,
@@ -579,10 +619,11 @@ impl IrGenerator {
                     Self::validate_statement(
                         else_statement,
                         &mut else_bindings,
-                        top_level_functions,
+                        program,
                         inside_loop,
                         inside_impl,
                         inside_generic_impl,
+                        false,
                     )?;
                 }
             }
@@ -590,7 +631,7 @@ impl IrGenerator {
                 Self::validate_expression(
                     condition,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     !inside_impl,
@@ -599,7 +640,7 @@ impl IrGenerator {
                 Self::validate_block(
                     body,
                     &mut nested,
-                    top_level_functions,
+                    program,
                     true,
                     inside_impl,
                     inside_generic_impl,
@@ -613,7 +654,7 @@ impl IrGenerator {
                 let iterable_ty = Self::validate_expression(
                     iterable,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     !inside_impl,
@@ -638,7 +679,7 @@ impl IrGenerator {
                 Self::validate_block(
                     body,
                     &mut nested,
-                    top_level_functions,
+                    program,
                     true,
                     inside_impl,
                     inside_generic_impl,
@@ -654,10 +695,11 @@ impl IrGenerator {
                     Self::validate_statement(
                         method,
                         bindings,
-                        top_level_functions,
+                        program,
                         false,
                         true,
                         methods_are_generic,
+                        false,
                     )?;
                 }
             }
@@ -683,7 +725,7 @@ impl IrGenerator {
     fn validate_expression(
         expression: &Expression,
         bindings: &HashMap<String, AdmissionBinding>,
-        top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
+        program: &AdmissionProgram,
         expression_use: ExpressionUse,
         inside_impl: bool,
         admit_static_string_equality: bool,
@@ -721,7 +763,7 @@ impl IrGenerator {
                 let left_ty = Self::validate_expression(
                     left,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -729,7 +771,7 @@ impl IrGenerator {
                 let right_ty = Self::validate_expression(
                     right,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -767,7 +809,7 @@ impl IrGenerator {
                     Self::validate_expression(
                         argument,
                         bindings,
-                        top_level_functions,
+                        program,
                         ExpressionUse::Value,
                         inside_impl,
                         admit_static_string_equality,
@@ -781,7 +823,7 @@ impl IrGenerator {
                         };
                     }
                 }
-                if let Some(function) = top_level_functions.get(name) {
+                if let Some(function) = program.functions.get(name) {
                     if function.result == Ty::Void && expression_use != ExpressionUse::Discarded {
                         return Err(admission_error(
                             "Void function calls cannot be used as values",
@@ -797,8 +839,7 @@ impl IrGenerator {
                     }
                     return Ok(function.result.clone());
                 }
-                if !top_level_functions.contains_key(name) && matches!(name.as_str(), "Some" | "Ok")
-                {
+                if !program.functions.contains_key(name) && matches!(name.as_str(), "Some" | "Ok") {
                     return Err(admission_error(
                         "enum and Option/Result construction is not admitted in checked IR",
                     ));
@@ -813,7 +854,7 @@ impl IrGenerator {
                 let object_ty = Self::validate_expression(
                     object,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -822,7 +863,7 @@ impl IrGenerator {
                     Self::validate_expression(
                         argument,
                         bindings,
-                        top_level_functions,
+                        program,
                         ExpressionUse::Value,
                         inside_impl,
                         admit_static_string_equality,
@@ -909,7 +950,7 @@ impl IrGenerator {
                     let argument_ty = Self::validate_expression(
                         argument,
                         bindings,
-                        top_level_functions,
+                        program,
                         ExpressionUse::PrintArgument,
                         inside_impl,
                         admit_static_string_equality,
@@ -927,7 +968,7 @@ impl IrGenerator {
                 let left_ty = Self::validate_expression(
                     left,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -935,7 +976,7 @@ impl IrGenerator {
                 let right_ty = Self::validate_expression(
                     right,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -971,7 +1012,7 @@ impl IrGenerator {
                 Self::validate_expression(
                     left,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -979,7 +1020,7 @@ impl IrGenerator {
                 Self::validate_expression(
                     right,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -1001,7 +1042,7 @@ impl IrGenerator {
                 let operand_ty = Self::validate_expression(
                     operand,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -1030,7 +1071,7 @@ impl IrGenerator {
                     let current = Self::validate_expression(
                         element,
                         bindings,
-                        top_level_functions,
+                        program,
                         ExpressionUse::Value,
                         inside_impl,
                         admit_static_string_equality,
@@ -1059,7 +1100,7 @@ impl IrGenerator {
                 let element_ty = Self::validate_expression(
                     value,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -1073,7 +1114,7 @@ impl IrGenerator {
                 let object_ty = Self::validate_expression(
                     object,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -1081,7 +1122,7 @@ impl IrGenerator {
                 let index_ty = Self::validate_expression(
                     index,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -1132,7 +1173,7 @@ impl IrGenerator {
                 let result_ty = Self::validate_expression(
                     body,
                     &closure_bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     false,
@@ -1152,7 +1193,7 @@ impl IrGenerator {
                     let _ = Self::validate_expression(
                         data,
                         bindings,
-                        top_level_functions,
+                        program,
                         ExpressionUse::Value,
                         inside_impl,
                         admit_static_string_equality,
@@ -1166,7 +1207,7 @@ impl IrGenerator {
                 let _ = Self::validate_expression(
                     expr,
                     bindings,
-                    top_level_functions,
+                    program,
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
@@ -1175,10 +1216,92 @@ impl IrGenerator {
                     "borrow and dereference are not admitted in checked IR",
                 ))
             }
-            Expression::FieldAccess { .. }
-            | Expression::TupleLiteral(_)
+            Expression::FieldAccess { object, field } => {
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
+                    StructExecutionContext::AdmittedFunction
+                } else {
+                    StructExecutionContext::PreservedContext
+                };
+                let potential_struct_receiver = match object.as_ref() {
+                    Expression::StructLiteral { name, fields } => program
+                        .structs
+                        .resolve_construction(name, fields, context)
+                        .is_ok(),
+                    Expression::Identifier(name) => bindings
+                        .get(name)
+                        .is_some_and(|binding| matches!(&binding.ty, Ty::Struct(_))),
+                    _ => false,
+                };
+                if !potential_struct_receiver {
+                    return Err(admission_error(
+                        "aggregate expression is not admitted in checked IR",
+                    ));
+                }
+                let receiver = Self::validate_expression(
+                    object,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                let (_, _, field) = program
+                    .structs
+                    .resolve_field(&receiver, field, context)
+                    .map_err(|error| match error {
+                        StructContractError::PreserveExistingBehavior => {
+                            admission_error("aggregate expression is not admitted in checked IR")
+                        }
+                        _ => IrGenerationError::Admission(error.diagnostic()),
+                    })?;
+                Ok(field.kind.ty())
+            }
+            Expression::StructLiteral { name, fields } => {
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
+                    StructExecutionContext::AdmittedFunction
+                } else {
+                    StructExecutionContext::PreservedContext
+                };
+                let resolved = match program.structs.resolve_construction(name, fields, context) {
+                    Ok(resolved) => resolved,
+                    Err(error) => {
+                        for (_, value) in fields {
+                            let _ = Self::validate_expression(
+                                value,
+                                bindings,
+                                program,
+                                ExpressionUse::Value,
+                                inside_impl,
+                                admit_static_string_equality,
+                            )?;
+                        }
+                        return Err(match error {
+                            StructContractError::PreserveExistingBehavior => admission_error(
+                                "aggregate expression is not admitted in checked IR",
+                            ),
+                            _ => IrGenerationError::Admission(error.diagnostic()),
+                        });
+                    }
+                };
+                let mut actual_types = Vec::with_capacity(fields.len());
+                for (_, value) in fields {
+                    actual_types.push(Self::validate_expression(
+                        value,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?);
+                }
+                program
+                    .structs
+                    .validate_construction_types(&resolved, &actual_types)
+                    .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                Ok(Ty::Struct(resolved.contract.name))
+            }
+            Expression::TupleLiteral(_)
             | Expression::TupleIndex { .. }
-            | Expression::StructLiteral { .. }
             | Expression::Match { .. } => Err(admission_error(
                 "aggregate expression is not admitted in checked IR",
             )),
@@ -1373,6 +1496,14 @@ impl IrGenerator {
                 | Inst::GetElementPtr {
                     result: Value::Reg(register),
                     ..
+                }
+                | Inst::CheckedStructAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedStructFieldPtr {
+                    result: Value::Reg(register),
+                    ..
                 } => {
                     places.entry(*register).or_insert_with(|| {
                         let place = next_place;
@@ -1400,6 +1531,11 @@ impl IrGenerator {
                 Inst::Alloca(place, _) => Self::rewrite_place(place, &places),
                 Inst::AllocaArray { result, .. } => Self::rewrite_place(result, &places),
                 Inst::GetElementPtr { result, base, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(base, &places);
+                }
+                Inst::CheckedStructAlloca { result, .. } => Self::rewrite_place(result, &places),
+                Inst::CheckedStructFieldPtr { result, base, .. } => {
                     Self::rewrite_place(result, &places);
                     Self::rewrite_place(base, &places);
                 }
@@ -1904,6 +2040,64 @@ impl IrGenerator {
                 self.next_reg += 1;
                 function.body.push(Inst::Load(result.clone(), elem_ptr));
                 (result, elem_ty)
+            }
+            Expression::FieldAccess { object, field } if self.checked_mode => {
+                let (base, receiver) = self.generate_expression_ir(*object, function);
+                let (contract, field_index, field_contract) = self
+                    .struct_registry
+                    .resolve_field(&receiver, &field, StructExecutionContext::AdmittedFunction)
+                    .expect("checked struct field access was admitted");
+                let field_ptr = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(Inst::CheckedStructFieldPtr {
+                    result: field_ptr.clone(),
+                    base,
+                    struct_name: contract.name,
+                    field_index: field_index as u32,
+                    field_type: field_contract.kind.logical_type(),
+                });
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::Load(result.clone(), field_ptr));
+                (result, field_contract.kind.ty())
+            }
+            Expression::StructLiteral { name, fields } if self.checked_mode => {
+                let resolved = self
+                    .struct_registry
+                    .resolve_construction(&name, &fields, StructExecutionContext::AdmittedFunction)
+                    .expect("checked struct construction was admitted");
+                let mut values = Vec::with_capacity(fields.len());
+                for (_, expression) in fields {
+                    values.push(self.generate_expression_ir(expression, function).0);
+                }
+                let base = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(Inst::CheckedStructAlloca {
+                    result: base.clone(),
+                    struct_name: resolved.contract.name.clone(),
+                    field_types: resolved
+                        .contract
+                        .fields
+                        .iter()
+                        .map(|field| field.kind.logical_type())
+                        .collect(),
+                });
+                for (value, declaration_index) in
+                    values.into_iter().zip(resolved.source_to_declaration)
+                {
+                    let declaration_field = &resolved.contract.fields[declaration_index];
+                    let field_ptr = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    function.body.push(Inst::CheckedStructFieldPtr {
+                        result: field_ptr.clone(),
+                        base: base.clone(),
+                        struct_name: resolved.contract.name.clone(),
+                        field_index: declaration_index as u32,
+                        field_type: declaration_field.kind.logical_type(),
+                    });
+                    function.body.push(Inst::Store(field_ptr, value));
+                }
+                (base, Ty::Struct(resolved.contract.name))
             }
             Expression::FieldAccess { .. }
             | Expression::TupleLiteral(_)

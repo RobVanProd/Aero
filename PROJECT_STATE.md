@@ -4,33 +4,51 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 61 `CORE-042` is locally implemented and awaiting exact review and public
-native evidence. Its one-time class starts from accepted public head `a69b7899` and
-covers `x.aero`, `x/mod.aero`, file-first precedence, mixed direct modules, and unique
-monomorphic scalar/Void call edges root -> module, earlier module -> later module, and
-module -> root. The tracked three-file example combines fixed-array length and all
-accepted compile-time String classes through checked build and the pinned LLVM/Clang
-22 workflow to exact native exit 47. This remains flattened source-composition
-compatibility, not a module system; `use`, `pub`, namespaces, recursion, cycles,
-separate compilation, module ABI, ownership, runtime layout, packages, and GPU
-execution remain unimplemented or excluded.
+Milestone 62 `CORE-043` is locally implemented from accepted public CORE-042 head
+`e77276c8dcd42f6adaca7ac31e60a2d5a6fe0308`. It admits one deliberately bounded but
+architectural aggregate class: unique flattened top-level, non-generic, nonempty
+structs with unique `int`/`i32`, `float`/`f64`, or `bool` fields; exact named
+construction in source evaluation order; local/direct named projection; and
+construction inside admitted top-level functions, including direct-module-origin
+functions. One shared registry owns source topology and is consumed by semantics and
+checked admission. New schema-carrying checked instructions, verifier-owned struct
+places, deterministic named LLVM aggregates, and the tracked exit-53 program carry
+the class through source, logical IR, verification, LLVM, and the native CI route.
 
-The tests-first aggregate exposed nondeterministic checked LLVM definition order.
-Bounded prerequisite `CORE-042A` stabilized only checked/public top-level serialization
-by exact function name. At that intermediate checkpoint, the aggregate remained red
-solely for the three frozen example sources and ten workflow anchors. Those artifacts
-were then added, and the expanded aggregate now passes 1/1 with exact-name controls,
-unreadable/wrong-return/child-precedence rejection, and both direct-module declaration-
-order permutations. Production is unchanged after the checked-emission sort. Exact
-root `./tools/test.sh` is formatting and correctness-Clippy clean and passes 146/146
-library tests, 156/156 CLI tests, every integration target, and doc tests.
+The exhaustive CORE-043 aggregate and adjacent construction quarantine are green.
+Unsupported definitions, fields, annotations, contexts, moves, calls, returns,
+arrays, and non-struct projection remain fail-closed before LLVM; invalid CLI builds
+publish no artifact. The deprecated unchecked AST generator retains its old zero-like
+stub behavior, and legacy raw `AllocaStruct`/`GetFieldPtr` remain rejected. Exact root
+`./tools/test.sh` passes 150/150 library tests, 159/159 CLI tests, every active
+integration target, formatting, correctness Clippy, and doc tests. Local LLVM 22 tools
+are unavailable, so unchanged publication, all public checks, and stable Linux pinned
+LLVM/Clang 22 exit 53 remain required before this local candidate is accepted.
 
-Unpublished `91f96b5` is preserved as the rejected implementation candidate; additive
-`0654137e` closes all substantive review gaps but is rejected solely for contradictory
-handoff wording in this file. The records-only successor that removes that wording is
-identified externally for three fresh exact reviews. PR #4 correctly remains at
-accepted CORE-041, and all-eight public checks plus stable Linux native exit 47 remain
-pending.
+CORE-042 is accepted public at `e77276c8dcd42f6adaca7ac31e60a2d5a6fe0308`.
+Its flattened direct-module composition example passed the exact native exit-47 gate,
+all eight public checks passed, and PR #4 was synchronized. It remains compatibility
+composition rather than a module system.
+
+## Integration scaling controls
+
+- PR #4 is an integration program, not a normal review-sized change. Do not let its
+  review surface grow without bound: keep it draft, keep the front page synchronized
+  to the accepted head, and design a separately authorized checkpoint/merge strategy
+  before normal reviewability is lost. This does not authorize merging to `master`.
+- Milestone selection must not optimize indefinitely for convenient compile-time
+  slices. CORE-043 intentionally takes the first aggregate/layout/IR vertical step;
+  ownership, runtime representation, ABI, module semantics, and real accelerator
+  execution remain mandatory hard classes for later frozen decisions.
+- Evidence remains proportional for current work, while chronology/identity boilerplate
+  is a candidate for generation from a future structured checkpoint manifest. Such a
+  manifest must be separately authorized and must not become a new source of semantic
+  truth.
+- Periodic system gates must compose multiple accepted capabilities through source,
+  semantics, logical checked IR, verification, LLVM, native execution, documentation,
+  and release-eligibility classification. CORE-042 provides one accepted gate and
+  CORE-043 wires the next pending public execution; local slice tests alone never
+  establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
 Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
@@ -1620,30 +1638,18 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-CORE-041 is accepted at exact public head
-`a69b7899a3dc05f663b6a68ea307ea37f5f1f401`: three fresh exact reviews and all eight
-checks pass, stable Linux job `92143515440` executed the complete pinned-LLVM 22 native
-gate with exact exit 43, and PR #4 is synchronized. Do not reopen its closed class.
+Preserve the single CORE-043 authorization and finish its proportional acceptance
+sequence. Formatting, correctness Clippy, repository-root `./tools/test.sh`, and the
+complete diff review against accepted public basis `e77276c8` are green. Make one
+intentional commit and unchanged push to `agent/aero-integration`, require all eight
+public checks, and inspect the stable Linux LLVM/Clang 22 step for build, LLVM
+verification, machine verification, object lowering, link, and exact native exit 53.
+Only then record acceptance and synchronize PR #4's title/body/status to CORE-043.
 
-CORE-042 was preregistered from that immutable basis, and its aggregate preceded the
-tracked example, workflow, and sole production correction. It now closes both physical
-layouts, file-first precedence, mixed declaration order, every frozen cross-file call
-direction, unique scalar/Void functions, exact-name deterministic LLVM, module-aware
-cache controls, diagnostic precedence, and the explicit non-module-system exclusions.
-The tracked example combines accepted arrays and compile-time Strings, and the public
-stable-Linux gate is wired to verify, machine-verify, lower, link, and run exact exit 47.
-
-Unpublished `91f96b5` is rejected for noncanonical identity evidence, stale chronology,
-and incomplete test oracles. Additive `0654137e` corrects every substantive gap and
-passes focused, adjacent, and exact root gates, but is rejected solely for contradictory
-wording in the previous version of this file. The records-only successor containing
-this completed-history handoff is identified externally because it cannot identify
-itself. Preserve that exact successor unchanged during three fresh reviews; push only
-after all three approve, then require all eight public checks and stable Linux
-LLVM/Clang 22 native exit 47 before acceptance and PR #4 synchronization. Stop if any
-parser, semantic, typed-IR, verifier, unchecked compatibility, runtime, backend, ABI,
-or module-system semantic change is required. Do not merge PR #4, publish releases/packages/
-benchmarks/claims, rewrite history, force-push, or touch `master`.
+Stop if any excluded struct shape is accepted, metadata cannot prove struct/field
+places, invalid source reaches LLVM or publishes an artifact, raw compatibility moves,
+the full gate is red, or public native evidence is absent. Do not merge PR #4, publish
+releases/packages/benchmarks/claims, rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

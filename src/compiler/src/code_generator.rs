@@ -2,7 +2,7 @@ use crate::ir::{
     CheckedIr, Function, FunctionMetadata, Inst, IrMetadata, LogicalType, PlaceId, ResultId, Value,
 };
 use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
 type FunctionDef = (Vec<(String, String)>, Option<String>, Vec<Inst>);
@@ -63,8 +63,39 @@ impl CodeGenerator {
             LogicalType::Float => "double",
             LogicalType::Bool => "i1",
             LogicalType::Void => "void",
-            LogicalType::String | LogicalType::Array { .. } => {
+            LogicalType::String | LogicalType::Array { .. } | LogicalType::Struct { .. } => {
                 unreachable!("checked scalar call signatures exclude rich logical types")
+            }
+        }
+    }
+
+    fn struct_field_type_to_llvm(logical_type: &LogicalType) -> &'static str {
+        match logical_type {
+            LogicalType::Int | LogicalType::Float => "double",
+            LogicalType::Bool => "i1",
+            _ => unreachable!("verified struct schemas contain only scalar fields"),
+        }
+    }
+
+    fn collect_struct_schemas(
+        instructions: &[Inst],
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
+    ) {
+        for instruction in instructions {
+            match instruction {
+                Inst::CheckedStructAlloca {
+                    struct_name,
+                    field_types,
+                    ..
+                } => {
+                    if let Some(existing) = schemas.get(struct_name) {
+                        assert_eq!(existing, field_types, "verified struct schema is stable");
+                    } else {
+                        schemas.insert(struct_name.clone(), field_types.clone());
+                    }
+                }
+                Inst::FunctionDef { body, .. } => Self::collect_struct_schemas(body, schemas),
+                _ => {}
             }
         }
     }
@@ -180,10 +211,11 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, base);
                     Self::bump_seed_from_value(&mut seed, index);
                 }
-                Inst::AllocaStruct { result, .. } => {
+                Inst::AllocaStruct { result, .. } | Inst::CheckedStructAlloca { result, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
-                Inst::GetFieldPtr { result, base, .. } => {
+                Inst::GetFieldPtr { result, base, .. }
+                | Inst::CheckedStructFieldPtr { result, base, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, base);
                 }
@@ -453,7 +485,9 @@ impl CodeGenerator {
                 | Inst::Not { .. }
                 | Inst::Neg { .. }
                 | Inst::AllocaArray { .. }
-                | Inst::GetElementPtr { .. } => {}
+                | Inst::GetElementPtr { .. }
+                | Inst::CheckedStructAlloca { .. }
+                | Inst::CheckedStructFieldPtr { .. } => {}
                 Inst::FunctionDef { body, .. } => Self::ensure_instruction_support(body)?,
                 Inst::AllocaStruct { .. } => {
                     return Err(CodeGenerationError::UnsupportedInstruction {
@@ -553,6 +587,22 @@ impl CodeGenerator {
         llvm_ir.push_str("source_filename = \"aero_compiler\"\n");
         llvm_ir.push_str("target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n");
         llvm_ir.push_str("target triple = \"x86_64-pc-linux-gnu\"\n\n");
+        let mut struct_schemas = BTreeMap::new();
+        for function in ir_functions.values() {
+            Self::collect_struct_schemas(&function.body, &mut struct_schemas);
+        }
+        let has_struct_schemas = !struct_schemas.is_empty();
+        for (name, fields) in struct_schemas {
+            let fields = fields
+                .iter()
+                .map(Self::struct_field_type_to_llvm)
+                .collect::<Vec<_>>()
+                .join(", ");
+            llvm_ir.push_str(&format!("%aero.struct.{name} = type {{ {fields} }}\n"));
+        }
+        if has_struct_schemas {
+            llvm_ir.push('\n');
+        }
         self.generate_printf_declaration(&mut llvm_ir);
 
         let mut function_defs: HashMap<String, FunctionDef> = HashMap::new();
@@ -1123,6 +1173,35 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!(
                         "  %{} = getelementptr inbounds %{}, %{}* %{}, i32 0, i32 {}\n",
                         result_str, struct_type, struct_type, base_str, field_index
+                    ));
+                }
+                Inst::CheckedStructAlloca {
+                    result,
+                    struct_name,
+                    ..
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked struct alloca")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = alloca %aero.struct.{struct_name}, align 8\n"
+                    ));
+                }
+                Inst::CheckedStructFieldPtr {
+                    result,
+                    base,
+                    struct_name,
+                    field_index,
+                    ..
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked struct field pointer")
+                    };
+                    let Value::Reg(base) = base else {
+                        panic!("Expected register for checked struct base")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds %aero.struct.{struct_name}, %aero.struct.{struct_name}* %ptr{base}, i32 0, i32 {field_index}\n"
                     ));
                 }
                 Inst::VecAlloca { .. }

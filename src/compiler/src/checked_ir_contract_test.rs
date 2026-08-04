@@ -1,4 +1,4 @@
-use crate::ir::{Function, Inst, Value};
+use crate::ir::{Function, Inst, LogicalType, Value};
 use crate::{CodeGenerationError, CodeGenerator, IrVerificationError, try_generate_code};
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -1044,4 +1044,76 @@ fn checked_codegen_widens_temporary_names_beyond_extreme_raw_ids() {
         "fresh temporary did not widen beyond u32 raw IDs:\n{llvm}"
     );
     assert!(llvm.contains("%reg4294967295 = sitofp i32"), "{llvm}");
+}
+
+#[test]
+fn checked_struct_instructions_verify_schema_field_identity_and_scalar_storage() {
+    let admitted = single_function(
+        "main",
+        vec![
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(0),
+                struct_name: "Value".to_string(),
+                field_types: vec![LogicalType::Int, LogicalType::Bool],
+            },
+            Inst::CheckedStructFieldPtr {
+                result: Value::Reg(1),
+                base: Value::Reg(0),
+                struct_name: "Value".to_string(),
+                field_index: 0,
+                field_type: LogicalType::Int,
+            },
+            Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+            Inst::Load(Value::Reg(2), Value::Reg(1)),
+            Inst::Return(Value::Reg(2)),
+        ],
+    );
+    let llvm = try_generate_code(admitted).expect("schema-carrying struct IR must verify");
+    assert!(
+        llvm.contains("%aero.struct.Value = type { double, i1 }"),
+        "{llvm}"
+    );
+
+    let invalid = [
+        InvalidIrCase {
+            name: "checked struct field index mismatch",
+            expected_fragments: &["metadata", "schema", "mismatch"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "Value".to_string(),
+                        field_types: vec![LogicalType::Int],
+                    },
+                    Inst::CheckedStructFieldPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        struct_name: "Value".to_string(),
+                        field_index: 1,
+                        field_type: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked struct unsupported nested schema",
+            expected_fragments: &["unsupported", "struct", "schema"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "Value".to_string(),
+                        field_types: vec![LogicalType::String],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+    ];
+    for case in invalid {
+        assert_both_checked_codegen_entrypoints_reject(case);
+    }
 }

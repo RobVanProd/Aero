@@ -21,6 +21,7 @@ mod static_string_equality;
 mod static_string_method;
 mod static_string_predicate;
 pub mod stdlib;
+mod struct_contract;
 pub mod types;
 
 pub use code_generator::{CodeGenerationError, CodeGenerator, generate_code, try_generate_code};

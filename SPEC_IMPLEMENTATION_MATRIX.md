@@ -29,9 +29,9 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Fixed arrays | Y | Y | Y | P | P | P | P | P | ? | Y | P | P | Y | PARTIAL |
 | Tuples | Y | Y | Y | P | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
-| Struct declarations | Y | Y | P | N | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
-| Struct construction | Y | Y | Y | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
-| Named field access | Y | Y | Y | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
+| Struct declarations | Y | Y | P | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Struct construction | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Named field access | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Enums and construction | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
 | Pattern matching | Y | Y | P | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
@@ -942,3 +942,15 @@ declared compatibility policy and release-level coverage.
   declaration-order permutations are explicit. Production and native workflow remain
   unchanged; no capability cell moves. Exact successor review and public evidence are
   still required.
+
+## CORE-043 bounded struct-value evidence
+
+- Local CORE-043 evidence promotes only unique top-level, non-generic, nonempty
+  structs whose unique fields collapse to `Int`, `Float`, or `Bool`. Exact named
+  construction, source-order child evaluation, direct/local named projection,
+  logical checked-IR schemas and verified LLVM named aggregates are covered. The
+  tracked exit-53 native gate is wired; public stable-Linux execution remains pending.
+- Struct ownership, moves/copies, parameters/returns, aggregate recursion, methods,
+  assignment, destructuring, Match, generics, visibility, separate compilation,
+  ABI/layout guarantees, heap/drop/lifetimes, and accelerators remain absent or
+  excluded. The three struct rows are `PARTIAL`, never general struct support.

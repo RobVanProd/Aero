@@ -162,19 +162,19 @@ aero lsp
 > trusted compiler paths reject those expressions before IR generation with
 > `Tuple expressions are not supported.`
 
-> **Struct construction status:** named and generic struct declarations and
-> StructLiteral syntax are recognized, but struct value construction is not
-> executable yet. Trusted parsed source bodies inspect field expressions for
-> established child errors, then reject construction before IR with
-> `Struct construction expressions are not supported.` This does not implement
-> struct-name or field validation, layout, initialization, ownership, ABI, or
-> backend lowering.
-
-> **Named field status:** `value.field` syntax is recognized, but named field
-> projection is not executable yet. Trusted compiler paths reject field-access
-> value expressions before IR generation with
-> `Field access expressions are not supported.` Method calls use a distinct AST
-> form and are not part of this field-access boundary.
+> **Struct value status:** one bounded scalar-struct slice is executable. A unique,
+> non-generic, nonempty top-level struct with unique `int`/`i32`, `float`/`f64`, or
+> `bool` fields can be constructed exactly by field name inside an admitted
+> top-level function; construction fields may be reordered and are evaluated once
+> in written order. Direct and local immutable projection use checked aggregate IR
+> and verified LLVM named types. Unsupported definitions, shapes, annotations, and
+> contexts remain rejected before LLVM.
+>
+> This slice does not provide struct parameters/returns, moves/copies, assignment,
+> methods, destructuring, Match, nested/recursive aggregates, generics, visibility,
+> separate compilation, stable layout/ABI, ownership/drop/lifetimes, heap storage,
+> accelerator execution, or performance guarantees. LLVM owns internal padding and
+> alignment. Method calls remain a distinct AST form.
 
 > **Pattern matching status:** `match` syntax, arms, and patterns are recognized,
 > but Match value evaluation is not executable yet. Trusted parsed source bodies,

@@ -269,6 +269,24 @@ jobs:
         fi
         echo "direct_module_integration test passed with exit code $exit_code"
 
+    - name: Test monomorphic scalar struct integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/monomorphic_scalar_structs.aero -o ../../monomorphic_scalar_structs.ll
+        opt-22 -passes=verify -disable-output ../../monomorphic_scalar_structs.ll
+        llc-22 -verify-machineinstrs ../../monomorphic_scalar_structs.ll -o /dev/null
+        llc-22 -filetype=obj ../../monomorphic_scalar_structs.ll -o ../../monomorphic_scalar_structs.o
+        clang-22 ../../monomorphic_scalar_structs.o -o ../../monomorphic_scalar_structs
+        set +e
+        ../../monomorphic_scalar_structs
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 53 ]; then
+          echo "Expected exit code 53, got $exit_code"
+          exit 1
+        fi
+        echo "struct example passed with exit code 53"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

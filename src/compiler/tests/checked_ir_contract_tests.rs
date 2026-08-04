@@ -891,7 +891,7 @@ fn check_preserves_existing_raw_semantic_diagnostic_text() {
     let source_path = workspace.path("semantic.aero");
     fs::write(
         &source_path,
-        "struct Point { x: int } fn main() { let point = Point { x: 1 }; }",
+        "struct Point { x: String } fn main() { let point = Point { x: \"text\" }; }",
     )
     .expect("write semantic check source");
     let missing = workspace.path("missing-opt-22");

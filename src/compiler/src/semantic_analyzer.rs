@@ -5,6 +5,7 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
     typed_empty_numeric_array_contract,
 };
+use crate::struct_contract::{StructExecutionContext, StructRegistry};
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::collections::{HashMap, HashSet};
 
@@ -479,6 +480,8 @@ pub struct SemanticAnalyzer {
     type_param_scopes: Vec<Vec<String>>,
     /// Whether the current statement is nested beneath an impl block.
     inside_impl: bool,
+    struct_registry: StructRegistry,
+    struct_execution_stack: Vec<StructExecutionContext>,
     /// Trait registry: trait name -> list of required method names
     trait_registry: HashMap<String, Vec<String>>,
     /// Trait impl registry: type name -> list of implemented trait names
@@ -502,6 +505,8 @@ impl SemanticAnalyzer {
             scope_manager: ScopeManager::new(),
             type_param_scopes: Vec::new(),
             inside_impl: false,
+            struct_registry: StructRegistry::default(),
+            struct_execution_stack: vec![StructExecutionContext::PreservedContext],
             trait_registry,
             trait_impls: HashMap::new(),
             function_bounds: HashMap::new(),
@@ -513,6 +518,36 @@ impl SemanticAnalyzer {
         self.type_param_scopes
             .iter()
             .any(|scope| scope.iter().any(|p| p == name))
+    }
+
+    fn struct_execution_context(&self) -> StructExecutionContext {
+        self.struct_execution_stack
+            .last()
+            .copied()
+            .unwrap_or(StructExecutionContext::PreservedContext)
+    }
+
+    fn is_potential_struct_receiver(
+        &self,
+        expression: &Expression,
+        context: StructExecutionContext,
+    ) -> bool {
+        match expression {
+            Expression::StructLiteral { name, fields } => self
+                .struct_registry
+                .resolve_construction(name, fields, context)
+                .is_ok(),
+            Expression::Identifier(name) => {
+                self.scope_manager
+                    .get_variable(name)
+                    .is_some_and(|variable| matches!(&variable.var_type, Ty::Struct(_)))
+                    || self
+                        .symbol_table
+                        .get(name)
+                        .is_some_and(|variable| matches!(&variable.ty, Ty::Struct(_)))
+            }
+            _ => false,
+        }
     }
 
     fn infer_into_iterator_item_type(&self, iterable_type: &Ty) -> Option<Ty> {
@@ -608,6 +643,10 @@ impl SemanticAnalyzer {
         self.return_contract_stack.clear();
         self.type_param_scopes.clear();
         self.inside_impl = false;
+        self.struct_registry = StructRegistry::from_top_level_ast(&ast);
+        self.struct_execution_stack.clear();
+        self.struct_execution_stack
+            .push(StructExecutionContext::PreservedContext);
 
         // Predeclare all top-level names so forward calls and direct recursion see
         // the same program-wide namespace after module linking.
@@ -1102,7 +1141,12 @@ impl SemanticAnalyzer {
 
     fn preflight_expression(&self, expr: &Expression) -> Result<(), String> {
         let mut array_types = ArrayInferenceCache::new();
-        self.preflight_expression_with_array_mode(expr, false, &mut array_types)
+        self.preflight_expression_with_array_mode(
+            expr,
+            false,
+            &mut array_types,
+            self.struct_execution_context(),
+        )
     }
 
     fn preflight_expression_for_inference_with_cache(
@@ -1114,6 +1158,7 @@ impl SemanticAnalyzer {
             expr,
             self.type_param_scopes.is_empty(),
             array_types,
+            self.struct_execution_context(),
         )
     }
 
@@ -1122,6 +1167,7 @@ impl SemanticAnalyzer {
         expr: &Expression,
         interleave_array_inference: bool,
         array_types: &mut ArrayInferenceCache,
+        struct_context: StructExecutionContext,
     ) -> Result<(), String> {
         match expr {
             Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => {
@@ -1144,6 +1190,7 @@ impl SemanticAnalyzer {
                         argument,
                         interleave_array_inference,
                         array_types,
+                        struct_context,
                     )?;
                 }
             }
@@ -1154,11 +1201,13 @@ impl SemanticAnalyzer {
                     left,
                     interleave_array_inference,
                     array_types,
+                    struct_context,
                 )?;
                 self.preflight_expression_with_array_mode(
                     right,
                     interleave_array_inference,
                     array_types,
+                    struct_context,
                 )?;
             }
             Expression::MethodCall {
@@ -1168,14 +1217,25 @@ impl SemanticAnalyzer {
                     object,
                     interleave_array_inference,
                     array_types,
+                    struct_context,
                 )?;
                 for argument in arguments {
-                    self.preflight_expression_with_array_mode(argument, false, array_types)?;
+                    self.preflight_expression_with_array_mode(
+                        argument,
+                        false,
+                        array_types,
+                        struct_context,
+                    )?;
                 }
             }
             Expression::Print { arguments, .. } | Expression::Println { arguments, .. } => {
                 for argument in arguments {
-                    self.preflight_expression_with_array_mode(argument, false, array_types)?;
+                    self.preflight_expression_with_array_mode(
+                        argument,
+                        false,
+                        array_types,
+                        struct_context,
+                    )?;
                 }
             }
             Expression::Unary { operand, .. } => {
@@ -1183,6 +1243,7 @@ impl SemanticAnalyzer {
                     operand,
                     interleave_array_inference,
                     array_types,
+                    struct_context,
                 )?;
             }
             Expression::ArrayLiteral(elements) => {
@@ -1194,7 +1255,12 @@ impl SemanticAnalyzer {
                     }
                 } else {
                     for element in elements {
-                        self.preflight_expression_with_array_mode(element, false, array_types)?;
+                        self.preflight_expression_with_array_mode(
+                            element,
+                            false,
+                            array_types,
+                            struct_context,
+                        )?;
                     }
                 }
             }
@@ -1203,6 +1269,7 @@ impl SemanticAnalyzer {
                     value,
                     interleave_array_inference,
                     array_types,
+                    struct_context,
                 )?;
             }
             Expression::IndexAccess { object, index } => {
@@ -1210,20 +1277,43 @@ impl SemanticAnalyzer {
                     object,
                     interleave_array_inference,
                     array_types,
+                    struct_context,
                 )?;
                 self.preflight_expression_with_array_mode(
                     index,
                     interleave_array_inference,
                     array_types,
+                    struct_context,
                 )?;
             }
             Expression::FieldAccess { object, .. } => {
-                self.preflight_expression_with_array_mode(object, false, array_types)?;
-                return Err("Field access expressions are not supported.".to_string());
+                self.preflight_expression_with_array_mode(
+                    object,
+                    false,
+                    array_types,
+                    struct_context,
+                )?;
+                if struct_context != StructExecutionContext::AdmittedFunction
+                    || !self.is_potential_struct_receiver(object, struct_context)
+                {
+                    return Err("Field access expressions are not supported.".to_string());
+                }
             }
-            Expression::StructLiteral { fields, .. } => {
+            Expression::StructLiteral { name, fields } => {
+                if self
+                    .struct_registry
+                    .resolve_construction(name, fields, struct_context)
+                    .is_ok()
+                {
+                    return Ok(());
+                }
                 for (_, value) in fields {
-                    self.preflight_expression_with_array_mode(value, false, array_types)?;
+                    self.preflight_expression_with_array_mode(
+                        value,
+                        false,
+                        array_types,
+                        StructExecutionContext::PreservedContext,
+                    )?;
                 }
                 return Err("Struct construction expressions are not supported.".to_string());
             }
@@ -1241,13 +1331,24 @@ impl SemanticAnalyzer {
                         value,
                         interleave_array_inference && payload_is_inferred,
                         array_types,
+                        struct_context,
                     )?;
                 }
             }
             Expression::Match { expr, arms } => {
-                self.preflight_expression_with_array_mode(expr, false, array_types)?;
+                self.preflight_expression_with_array_mode(
+                    expr,
+                    false,
+                    array_types,
+                    struct_context,
+                )?;
                 for arm in arms {
-                    self.preflight_expression_with_array_mode(&arm.body, false, array_types)?;
+                    self.preflight_expression_with_array_mode(
+                        &arm.body,
+                        false,
+                        array_types,
+                        struct_context,
+                    )?;
                 }
                 return Err("Match expressions are not supported.".to_string());
             }
@@ -1256,6 +1357,7 @@ impl SemanticAnalyzer {
                     expr,
                     interleave_array_inference,
                     array_types,
+                    struct_context,
                 )?;
             }
             Expression::IntegerLiteral(_)
@@ -1263,7 +1365,12 @@ impl SemanticAnalyzer {
             | Expression::StringLiteral(_)
             | Expression::Identifier(_) => {}
             Expression::Closure { body, .. } => {
-                self.preflight_expression_with_array_mode(body, false, array_types)?;
+                self.preflight_expression_with_array_mode(
+                    body,
+                    false,
+                    array_types,
+                    StructExecutionContext::PreservedContext,
+                )?;
             }
         }
 
@@ -1556,10 +1663,44 @@ impl SemanticAnalyzer {
                     _ => Err("Cannot index into non-array type".to_string()),
                 }
             }
-            Expression::FieldAccess { .. }
-            | Expression::TupleLiteral(_)
-            | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
-            Expression::StructLiteral { name, .. } => Ok(Ty::Struct(name.clone())),
+            Expression::FieldAccess { object, field } => {
+                let receiver =
+                    self.infer_and_validate_expression_immutable_with_cache(object, array_types)?;
+                let (_, _, field_contract) = self
+                    .struct_registry
+                    .resolve_field(&receiver, field, self.struct_execution_context())
+                    .map_err(|error| {
+                        if matches!(
+                            error,
+                            crate::struct_contract::StructContractError::PreserveExistingBehavior
+                        ) {
+                            "Field access expressions are not supported.".to_string()
+                        } else {
+                            error.diagnostic()
+                        }
+                    })?;
+                Ok(field_contract.kind.ty())
+            }
+            Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
+            Expression::StructLiteral { name, fields } => {
+                let resolved = self
+                    .struct_registry
+                    .resolve_construction(name, fields, self.struct_execution_context())
+                    .map_err(|error| error.diagnostic())?;
+                let mut actual_types = Vec::with_capacity(fields.len());
+                for (_, value) in fields {
+                    actual_types.push(
+                        self.infer_and_validate_expression_immutable_with_cache(
+                            value,
+                            array_types,
+                        )?,
+                    );
+                }
+                self.struct_registry
+                    .validate_construction_types(&resolved, &actual_types)
+                    .map_err(|error| error.diagnostic())?;
+                Ok(Ty::Struct(resolved.contract.name))
+            }
             // Phase 6: Special handling for Option and Result constructors
             Expression::EnumVariant {
                 enum_name,
@@ -1815,6 +1956,17 @@ impl SemanticAnalyzer {
                     Ty::Int
                 };
 
+                if let Some(initializer) = value {
+                    self.struct_registry
+                        .validate_direct_binding_initializer(initializer, &inferred_type)
+                        .map_err(|error| error.diagnostic())?;
+                    if let Ty::Struct(struct_name) = &inferred_type {
+                        self.struct_registry
+                            .validate_binding_annotation(struct_name, type_annotation.as_ref())
+                            .map_err(|error| error.diagnostic())?;
+                    }
+                }
+
                 if value.is_some()
                     && let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
                         disposition
@@ -1944,6 +2096,13 @@ impl SemanticAnalyzer {
                     None
                 };
                 self.return_contract_stack.push(return_contract.clone());
+                let struct_context = if is_top_level && type_params.is_empty() && !self.inside_impl
+                {
+                    StructExecutionContext::AdmittedFunction
+                } else {
+                    StructExecutionContext::PreservedContext
+                };
+                self.struct_execution_stack.push(struct_context);
 
                 // Enter a new scope for the function body
                 self.enter_function_scope(name.clone());
@@ -1999,6 +2158,7 @@ impl SemanticAnalyzer {
                 // Exit the function scope
                 self.exit_function_scope();
                 self.return_contract_stack.pop();
+                self.struct_execution_stack.pop();
 
                 // Pop generic type parameters
                 if !type_params.is_empty() {
@@ -2145,6 +2305,8 @@ impl SemanticAnalyzer {
                 if !type_params.is_empty() {
                     self.type_param_scopes.push(type_params.clone());
                 }
+                self.struct_execution_stack
+                    .push(StructExecutionContext::PreservedContext);
                 let default_body_result = (|| {
                     for method in methods {
                         if let Some(body) = &method.body {
@@ -2153,6 +2315,7 @@ impl SemanticAnalyzer {
                     }
                     Ok(())
                 })();
+                self.struct_execution_stack.pop();
                 if !type_params.is_empty() {
                     self.type_param_scopes.pop();
                 }
