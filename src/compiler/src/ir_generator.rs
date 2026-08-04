@@ -344,6 +344,7 @@ impl IrGenerator {
                 top_level_functions,
                 ExpressionUse::Value,
                 inside_impl,
+                !inside_impl,
             )?;
         }
         Ok(())
@@ -397,6 +398,7 @@ impl IrGenerator {
                             top_level_functions,
                             ExpressionUse::Binding,
                             inside_impl,
+                            !inside_impl,
                         )?
                     } else if let Some(contract) = type_annotation.as_ref().and_then(|annotation| {
                         typed_empty_numeric_array_contract(annotation, value)
@@ -409,6 +411,7 @@ impl IrGenerator {
                             top_level_functions,
                             ExpressionUse::Binding,
                             inside_impl,
+                            !inside_impl,
                         )?
                     };
                     if matches!(ty, Ty::Void) {
@@ -461,6 +464,7 @@ impl IrGenerator {
                         top_level_functions,
                         ExpressionUse::Value,
                         inside_impl,
+                        !inside_impl,
                     )?;
                 }
             }
@@ -471,6 +475,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Discarded,
                     inside_impl,
+                    !inside_impl,
                 )?;
             }
             Statement::Block(block) => {
@@ -555,6 +560,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    !inside_impl,
                 )?;
                 let mut then_bindings = bindings.clone();
                 Self::validate_block(
@@ -584,6 +590,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    !inside_impl,
                 )?;
                 let mut nested = bindings.clone();
                 Self::validate_block(
@@ -606,6 +613,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    !inside_impl,
                 )?;
                 let mut nested = bindings.clone();
                 let element_ty = match iterable_ty {
@@ -675,6 +683,7 @@ impl IrGenerator {
         top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
         expression_use: ExpressionUse,
         inside_impl: bool,
+        admit_static_string_equality: bool,
     ) -> Result<Ty, IrGenerationError> {
         let admission_error = |message: &str| IrGenerationError::Admission(message.to_string());
         match expression {
@@ -712,6 +721,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 let right_ty = Self::validate_expression(
                     right,
@@ -719,6 +729,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 let derived_ty = if matches!(left_ty, Ty::Float)
                     && matches!(right_ty, Ty::Int | Ty::Float)
@@ -756,6 +767,7 @@ impl IrGenerator {
                         top_level_functions,
                         ExpressionUse::Value,
                         inside_impl,
+                        admit_static_string_equality,
                     )?;
                 }
                 if let Some(binding) = bindings.get(name) {
@@ -801,6 +813,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 for argument in arguments {
                     Self::validate_expression(
@@ -809,6 +822,7 @@ impl IrGenerator {
                         top_level_functions,
                         ExpressionUse::Value,
                         inside_impl,
+                        admit_static_string_equality,
                     )?;
                 }
                 if !inside_impl {
@@ -865,6 +879,7 @@ impl IrGenerator {
                         top_level_functions,
                         ExpressionUse::PrintArgument,
                         inside_impl,
+                        admit_static_string_equality,
                     )?;
                     if !matches!(argument_ty, Ty::Int | Ty::Float | Ty::Bool | Ty::String) {
                         return Err(admission_error("print argument type is not admitted"));
@@ -882,6 +897,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 let right_ty = Self::validate_expression(
                     right,
@@ -889,8 +905,9 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
-                if !inside_impl {
+                if admit_static_string_equality {
                     let left_static = Self::static_string_value(left, bindings);
                     let right_static = Self::static_string_value(right, bindings);
                     if let StaticStringEqualityDisposition::StaticBool(_) =
@@ -924,6 +941,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 Self::validate_expression(
                     right,
@@ -931,6 +949,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 Ok(Ty::Bool)
             }
@@ -952,6 +971,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 match op {
                     crate::ast::UnaryOp::Not => Ok(Ty::Bool),
@@ -980,6 +1000,7 @@ impl IrGenerator {
                         top_level_functions,
                         ExpressionUse::Value,
                         inside_impl,
+                        admit_static_string_equality,
                     )?;
                     if index == 0 {
                         if !matches!(current, Ty::Int | Ty::Float) {
@@ -1008,6 +1029,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 if !matches!(element_ty, Ty::Int | Ty::Float) {
                     return Err(admission_error("only fixed numeric arrays are admitted"));
@@ -1021,6 +1043,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 let index_ty = Self::validate_expression(
                     index,
@@ -1028,6 +1051,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 if !matches!(index_ty, Ty::Int) {
                     return Err(admission_error("array index must be Int"));
@@ -1051,11 +1075,6 @@ impl IrGenerator {
                 if Self::closure_body_needs_aggregate_lowering(body) {
                     return Err(admission_error(
                         "array construction, iteration, and indexing are not admitted in closure bodies",
-                    ));
-                }
-                if Self::closure_body_needs_static_string_equality(body) {
-                    return Err(admission_error(
-                        "comparison operand types are not admitted; expected numeric operands or Bool with Bool",
                     ));
                 }
                 let mut closure_bindings = HashMap::new();
@@ -1083,6 +1102,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    false,
                 )?;
                 if !matches!(result_ty, Ty::Int | Ty::Float | Ty::Bool) {
                     return Err(admission_error(
@@ -1102,6 +1122,7 @@ impl IrGenerator {
                         top_level_functions,
                         ExpressionUse::Value,
                         inside_impl,
+                        admit_static_string_equality,
                     )?;
                 }
                 Err(admission_error(
@@ -1115,6 +1136,7 @@ impl IrGenerator {
                     top_level_functions,
                     ExpressionUse::Value,
                     inside_impl,
+                    admit_static_string_equality,
                 )?;
                 Err(admission_error(
                     "borrow and dereference are not admitted in checked IR",
@@ -1171,74 +1193,6 @@ impl IrGenerator {
                     || arms
                         .iter()
                         .any(|arm| Self::closure_body_needs_aggregate_lowering(&arm.body))
-            }
-            Expression::IntegerLiteral(_)
-            | Expression::FloatLiteral(_)
-            | Expression::StringLiteral(_)
-            | Expression::Identifier(_) => false,
-        }
-    }
-
-    fn closure_body_needs_static_string_equality(expression: &Expression) -> bool {
-        match expression {
-            Expression::Comparison { op, left, right } => {
-                let left_static = match left.as_ref() {
-                    Expression::StringLiteral(value) => Some(value.as_str()),
-                    _ => None,
-                };
-                let right_static = match right.as_ref() {
-                    Expression::StringLiteral(value) => Some(value.as_str()),
-                    _ => None,
-                };
-                matches!(
-                    classify_static_string_equality(left_static, op, right_static),
-                    StaticStringEqualityDisposition::StaticBool(_)
-                ) || Self::closure_body_needs_static_string_equality(left)
-                    || Self::closure_body_needs_static_string_equality(right)
-            }
-            Expression::Binary { left, right, .. } | Expression::Logical { left, right, .. } => {
-                Self::closure_body_needs_static_string_equality(left)
-                    || Self::closure_body_needs_static_string_equality(right)
-            }
-            Expression::FunctionCall { arguments, .. }
-            | Expression::Print { arguments, .. }
-            | Expression::Println { arguments, .. }
-            | Expression::TupleLiteral(arguments)
-            | Expression::ArrayLiteral(arguments) => arguments
-                .iter()
-                .any(Self::closure_body_needs_static_string_equality),
-            Expression::ArrayRepeat { value, .. }
-            | Expression::Unary { operand: value, .. }
-            | Expression::FieldAccess { object: value, .. }
-            | Expression::TupleIndex { object: value, .. }
-            | Expression::Borrow { expr: value, .. }
-            | Expression::Deref(value)
-            | Expression::Closure { body: value, .. } => {
-                Self::closure_body_needs_static_string_equality(value)
-            }
-            Expression::IndexAccess { object, index } => {
-                Self::closure_body_needs_static_string_equality(object)
-                    || Self::closure_body_needs_static_string_equality(index)
-            }
-            Expression::StructLiteral { fields, .. } => fields
-                .iter()
-                .any(|(_, value)| Self::closure_body_needs_static_string_equality(value)),
-            Expression::EnumVariant { data, .. } => data
-                .as_deref()
-                .is_some_and(Self::closure_body_needs_static_string_equality),
-            Expression::Match { expr, arms } => {
-                Self::closure_body_needs_static_string_equality(expr)
-                    || arms
-                        .iter()
-                        .any(|arm| Self::closure_body_needs_static_string_equality(&arm.body))
-            }
-            Expression::MethodCall {
-                object, arguments, ..
-            } => {
-                Self::closure_body_needs_static_string_equality(object)
-                    || arguments
-                        .iter()
-                        .any(Self::closure_body_needs_static_string_equality)
             }
             Expression::IntegerLiteral(_)
             | Expression::FloatLiteral(_)

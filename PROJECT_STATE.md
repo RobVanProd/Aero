@@ -17,7 +17,12 @@ noncanonical annotations, impl/generic/closure/trait/raw/runtime paths, normaliz
 case folding, locale, grapheme, ownership, allocation, ABI, GPU, and general operator
 overloading remain excluded. The exhaustive aggregate, classifier units, adjacent
 contracts, and exact root gate are green. Native pinned-LLVM 22 execution remains a
-public Linux CI acceptance requirement, not a local Windows claim.
+public Linux CI acceptance requirement, not a local Windows claim. The first candidate
+`ec6369d` was rejected unpublished because its closure pre-scan masked earlier
+diagnostics and its handoff chronology was stale. The additive correction removes that
+pre-scan, preserves child-first validation through a closure-context admission flag,
+and has a green expanded aggregate, adjacent focused suites, and exact corrected root
+gate.
 
 `CORE-039` is accepted public at `7709eec6b5eb18249a756225ff7c368ccbed5341`.
 Its exact local gate passed 144/144 library, 154/154 CLI, 7/7 claim, 28/28 binding,
@@ -1606,13 +1611,24 @@ library, 155/155 CLI, every integration suite, and doc tests. Historical literal
 comparison rejection fixtures were exhaustively reclassified before publication;
 their fail-before-backend properties retain array-comparison controls.
 
-Record the final local evidence, rerun the exact verification gate, then form one
-intentional candidate commit on `agent/aero-integration`. Obtain three fresh exact
-type/safety, IR/codegen, and backend/claim approvals, push only the unchanged approved
-commit, and require all eight public checks plus stable Linux checked build, pinned
-LLVM 22 verification, machine verification/object lowering, Clang linking, and exact
-native exit 41. Do not publish releases/packages/benchmarks/claims, rewrite history,
-force-push, or touch `master`.
+The first immutable candidate `ec6369d` was rejected and not pushed: all reviewers
+found stale candidate chronology, and type/safety plus IR/codegen independently found
+the closure equality pre-scan could mask an earlier invalid parameter or child. The
+corrective regression failed with exactly those two findings before source correction.
+The pre-scan is now removed; a propagated admission-context flag lets the normal
+validator check parameters and comparison children before the shared classifier while
+retaining the direct closure quarantine. The expanded aggregate and every adjacent
+focused suite pass.
+
+The exact corrected root gate is formatting and correctness-Clippy clean and passes
+145/145 library, 155/155 CLI, 7/7 claim, 28/28 binding, the expanded equality
+aggregate, every downstream suite, and doc tests. Treat the single commit containing
+the complete corrected tree as the immutable successor candidate and report its
+identity externally. Obtain three fresh exact type/safety, IR/codegen, and backend/
+claim approvals, push only the unchanged approved commit, and require all eight public
+checks plus stable Linux checked build, pinned LLVM 22 verification, machine
+verification/object lowering, Clang linking, and exact native exit 41. Do not publish
+releases/packages/benchmarks/claims, rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

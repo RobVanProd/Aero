@@ -867,3 +867,9 @@ declared compatibility policy and release-level coverage.
   aggregate, all downstream suites, and doc tests. The Strings and comparisons rows
   remain `PARTIAL`; pinned LLVM 22 native exit-41 evidence, exact review, publication,
   and public checks are still pending.
+- First candidate `ec6369d` was rejected unpublished because a closure pre-scan could
+  mask earlier diagnostics. The additive correction removes that scan, retains one
+  shared equality classifier behind child-first context-aware admission, adds both
+  precedence intersections to the exhaustive aggregate, and passes the same exact
+  145/145 library and 155/155 CLI root gate. No matrix cell or class changes; corrected
+  exact review and public native exit-41 evidence remain pending.

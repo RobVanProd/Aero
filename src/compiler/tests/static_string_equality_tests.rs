@@ -297,6 +297,16 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
             EXISTING_COMPARISON_REJECTION,
         ),
         (
+            "closure parameter diagnostic precedes equality quarantine",
+            "fn main() { let probe = |text: String| \"a\" == \"a\"; }",
+            "closure parameters must be admitted scalar types",
+        ),
+        (
+            "closure left child diagnostic precedes nested equality quarantine",
+            "fn main() { let probe = |ignored: int| missing + (\"a\" == \"a\"); let same = probe(0); }",
+            "checked IR has no binding for `missing`",
+        ),
+        (
             "left child precedes classification",
             "fn main() { let same = missing == \"a\"; }",
             "checked IR has no binding for `missing`",

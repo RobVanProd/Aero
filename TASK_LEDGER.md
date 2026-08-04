@@ -7581,4 +7581,45 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   runtime, or backend file changed. Windows has no local LLVM 22 toolchain, so pinned
   LLVM verification, machine verification/object lowering, Clang link, and native
   exit 41 remain mandatory stable-Linux CI evidence after exact review and unchanged
-  publication. No candidate commit, review, push, or public acceptance is yet claimed.
+  publication. Historical boundary: before the first candidate was formed, no commit,
+  review, push, or public acceptance was claimed; the rejected-candidate and additive-
+  correction history follows.
+- Rejected candidate review: exact unpublished `ec6369dc2add49e165171c7a3189207c5d0faaed`,
+  parent `7709eec6b5eb18249a756225ff7c368ccbed5341`, tree
+  `f40ee1168b3e8441b68fa8918b4b233cab2d7bc4`, canonical Git Bash full-index hash
+  `3cae05c2e4551509c17cfba6d66a260a010fa875`, was not pushed. Backend/claim rejected
+  stale candidate chronology. Type/safety and IR/codegen independently rejected P1
+  because `closure_body_needs_static_string_equality` scanned the complete closure
+  body before parameter and normal left-first child validation, allowing a later
+  literal equality to mask an earlier invalid parameter or missing binding. No other
+  compiler, IR, codegen, backend, claim, or test-coverage finding was reported.
+- Additive correction contract: before production correction, extend the existing
+  exhaustive aggregate with (1) an unsupported `String` closure parameter followed by
+  literal equality, which must retain `closure parameters must be admitted scalar
+  types`, and (2) a missing left child followed by a nested literal equality, which
+  must retain the exact `checked IR has no binding for \`missing\`` diagnostic. The current pre-scan must
+  make exactly these new assertions fail. Then remove the pre-scan and carry one
+  closure-context admission flag through the existing recursive validation so
+  parameter validation precedes equality classification and every comparison validates
+  left then right before the shared classifier is either admitted in an ordinary
+  context or preserved in a closure/impl context. Do not add a semantic guard,
+  duplicate equality eligibility,
+  change raw lowering, or broaden any excluded context. Correct live state wording to
+  preserve `ec6369d` as rejected and report the corrected commit identity externally.
+- Corrective tests-first evidence: after adding only those two precedence specimens,
+  the exhaustive aggregate fails 0/1 with exactly two findings. Both currently return
+  the generic comparison diagnostic instead of their frozen parameter/missing-binding
+  diagnostics. Every other supported, excluded, raw, workflow, and provenance shape
+  in the aggregate remains green. No production source changed at this corrective red
+  boundary.
+- Corrective implementation evidence: the complete equality aggregate now passes 1/1.
+  The recursive equality pre-scan is removed; one propagated admission-context flag
+  makes closure comparisons reach the same shared classifier only after normal
+  left/right validation, preserving both new diagnostics while keeping the direct
+  closure equality quarantine exact. Both classifier roots pass 1/1, adjacent String
+  and fixed-array length suites pass 1/1, binding contracts 28/28, typed admission
+  13/13, checked IR 8/8, and verifier CLI 12/12. The exact corrected root gate is
+  formatting and correctness-Clippy clean and exits 0 with 145/145 library, 155/155
+  CLI, 7/7 claim, 28/28 binding, every integration suite, and doc tests. The successor
+  commit identity will be reported externally; fresh exact reviews, unchanged push,
+  public checks, and stable-Linux exit 41 remain pending.
