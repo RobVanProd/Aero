@@ -1779,7 +1779,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-039 - Post-CORE-031 selection requires clean-head full-set reconciliation
 
 - Date: 2026-08-04
-- Status: accepted selection protocol; AUDIT-038 authorization gates pending.
+- Status: accepted and complete at public-green AUDIT-038 head `e4d58e59`.
 - Decision: no next implementation is selected from CORE-031's preserved Candidate
   B or any earlier ranking. Three independent read-only auditors must rank the
   complete remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
@@ -1796,3 +1796,42 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   six-record contract and public failing regression evidence first.
 - Claim boundary: AUDIT-038 cannot change a risk status, matrix row/cell, capability
   class, backend claim, compatibility rule, or language semantics.
+- Result: corrected authorization snapshot `e4d58e59`, tree `f265d8af`, canonical
+  diff `31d09f92`, received three approvals and was published unchanged. Compiler
+  `30883186212` / `30883188223`, Rust `30883188248`, CodeQL `30883186829`, and
+  aggregate `91908783685` pass. All three complete rankings put R-002 first. After
+  a two-candidate preference split, a final compatibility gate unanimously approves
+  initialized immediate array-of-tuple containment; the triple-array candidate is
+  preserved.
+
+## DEC-040 - Initialized immediate array-of-tuple annotations must fail closed
+
+- Date: 2026-08-04
+- Status: accepted selection protocol; CORE-032 authorization gates pending.
+- Decision: for an initialized `let` annotation exactly shaped as
+  `Type::Array(Type::Tuple(_), _)`, validate the initializer first, preserve existing
+  initialized outer-tuple handling, then reject in semantics and independently in
+  checked IR admission before mismatch handling or raw generation. Array count does
+  not affect rejection. Apply the rule in every statement context each phase already
+  traverses, including semantic generic scopes and checked generic impl methods; an
+  earlier outer generic-construct diagnostic remains first.
+- Rationale: the unsupported annotation is currently ignored at both trusted
+  boundaries and raw generation discards it, allowing a scalar initializer to reach
+  verifier-valid LLVM under an invalid aggregate annotation. CORE-025 already freezes
+  child-before-unsupported-annotation ordering. The selected exact guard therefore
+  adds no initializer, mismatch, array, or tuple compatibility meaning. All three
+  AUDIT-038 reviewers approved that boundary after the initial candidate split.
+- Boundary: CORE-032 may first add only the named regression in
+  `binding_type_contract_tests.rs` after this contract is public all-eight green.
+  Implementation later may change only `semantic_analyzer.rs` and checked admission
+  in `ir_generator.rs` after reviewed public red evidence. Valueless, deeper-array,
+  reference-wrapped, scalar/numeric, generic/wrapped, raw API, tuple/array value,
+  bounds/layout/mutation/ABI/ownership, valid-output, and backend behavior remain
+  unchanged.
+- Claim boundary: rejection is containment only. R-002 stays HIGH/CRITICAL and
+  PARTIALLY CONTROLLED; no capability or matrix cell can move.
+- Superseded authorization: snapshot `58e46e34`, tree `b47c7427`, canonical diff
+  `f36748c2`, passed its local gate but was rejected before publication by all three
+  reviewers because its five-acceptance test contract omitted generic-impl and
+  generic-function traversal. The corrected contract explicitly freezes those
+  contexts and an eight-acceptance red surface.

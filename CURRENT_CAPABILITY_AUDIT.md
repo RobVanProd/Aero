@@ -1316,3 +1316,35 @@ promise future compatibility.
   accepted slice through CORE-031 and inheriting no prior candidate or order. It may
   select one bounded residual or a stop only after separate authorization gates; it
   never grants test, implementation, semantics, or capability authority.
+
+## AUDIT-038 reconciliation and CORE-032 boundary
+
+- Corrected AUDIT-038 authorization `e4d58e59`, tree `f265d8af`, canonical diff
+  `31d09f92`, received three approvals and is public all-eight green in compiler
+  `30883186212` / `30883188223`, stable/nightly Rust `30883188248`, all three
+  CodeQL analyses in `30883186829`, and aggregate `91908783685`. Rejected
+  `89bc5709` was never published because its current-state wording lagged the local
+  gate.
+- Type/safety ranks R-002/R-011/R-005/R-012/R-004/R-013/R-009/R-006/R-010/R-016/
+  R-007. IR/codegen ranks R-002/R-005/R-011/R-009/R-006/R-012/R-013/R-004/R-010/
+  R-016/R-007. Backend/claim ranks R-002/R-005/R-011/R-004/R-013/R-012/R-010/
+  R-006/R-009/R-016/R-007. The audit stayed static, read-only, and clean.
+- Initial candidates split between initialized exact `Array(Tuple)` and valueless
+  exact `Array(Array(Array(Tuple)))`. Both have trusted scalar-IR reach and two-phase
+  feasibility. Targeted preference comparison remained split, so the lead selected
+  the initialized form provisionally based on its smaller predicate/test surface and
+  CORE-025's established initializer-child ordering. A final compatibility gate made
+  all three reviewers explicitly approve that exact boundary without a semantic or
+  phase blocker. The triple-array form remains accepted and preserved.
+- DEC-040 and preregistered CORE-032 permit only semantic and checked-admission
+  rejection for initialized immediate `Array(Tuple)`, count ignored, after child
+  validation and existing outer-tuple handling. The rule applies wherever those
+  statement paths are already traversed, including generic impls; semantic generic-
+  function traversal is in scope, while checked admission retains its earlier outer
+  generic-function rejection. Tests must be public red first under a separately
+  gated contract. The first five-acceptance authorization snapshot was rejected
+  before publication because it omitted those contexts; the corrected red surface
+  contains eight acceptances.
+- This selection changes no capability. Tuple/array values, compatibility, defaults,
+  bounds, layout, mutation, ABI, ownership, raw APIs, verifier/codegen, and all
+  backends remain unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.

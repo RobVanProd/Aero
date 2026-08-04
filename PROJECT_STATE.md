@@ -4,20 +4,24 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 43 `AUDIT-038` authorization. CORE-031 is complete at exact triple-approved
-public all-eight-green closure `45696091`. No next implementation is inherited from
-its preserved Candidate B or any earlier ranking. The six-record clean-head
-authorization passes its fresh exact full local gate; immediate work is exact review
-and unchanged publication. No ranking, regression test, source edit, or capability
-change is yet authorized.
+Milestone 44 `CORE-032` authorization. AUDIT-038 is complete at exact public all-
+eight-green `e4d58e59`; all three rankings put R-002 first, and final compatibility
+reconciliation unanimously approves initialized immediate array-of-tuple containment.
+The first authorization snapshot was rejected before publication for omitting
+traversed generic contexts. The corrected six-record contract passes the fresh exact
+full local gate (139/139 library, 149/149 binary, 7/7 doc, and 20/20 binding-contract
+tests). Immediate work is exact review of that final tree; no regression test, source
+edit, or capability change is authorized.
 
 ## Active hypothesis
 
-Three independent, delta-aware static rankings from the exact clean public
-CORE-031 closure can identify one distinct remaining residual with frozen semantics
-and deterministic tests-first feasibility in no more than two compiler phases, or
-record an explicit stop, without inheriting Candidate B, repeating an accepted
-slice, or inventing language, ownership, aggregate, ABI, backend, or claim semantics.
+Two exact nonrecursive guards can reject only an initialized immediate
+`Type::Array(Type::Tuple(_), _)` annotation after existing initializer-child and
+outer-tuple handling but before mismatch logic or raw generation. Count remains
+irrelevant. The guard applies wherever each phase already traverses the statement,
+including generic impls; earlier outer generic-function rejection remains first.
+This defines no tuple/array compatibility, value, bounds, layout, ABI, ownership,
+execution, or backend capability.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -51,6 +55,14 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public read-only `AUDIT-038` authorization
+  `e4d58e59ff831df4d530e6de9c9ff31964af86d7`, tree `f265d8af`, canonical diff
+  `31d09f92`, passes compiler `30883186212` / `30883188223`, stable/nightly Rust
+  `30883188248`, all three CodeQL analyses in `30883186829`, and aggregate
+  `91908783685` after three exact approvals. All complete rankings place R-002
+  first; final compatibility reconciliation unanimously approves initialized exact
+  array-of-tuple containment. No file changed during ranking and no capability/risk
+  status moved.
 - Accepted public `CORE-031` record closure
   `45696091d9ba10f97e1ce42b9372f330c3b4199b`, tree `480c3504`, canonical diff
   `d682b0f6`, passes compiler `30882630407` / `30882632698`, stable/nightly Rust
@@ -914,11 +926,15 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for the fresh-full-gate-green six-record AUDIT-038
-authorization, publish the immutable tree unchanged, and require all eight public
-checks. Only then may the three independent complete rankings begin. Do not inherit
-Candidate B, edit tests/source during ranking, promote a capability, change
-workflows/dependencies/backends, publish artifacts or claims, or touch `master`.
+Obtain three exact approvals for the corrected final-tree CORE-032 authorization,
+publish that immutable tree unchanged, and require all eight public checks. Only then
+may the one-file tests-first regression be written. The corrected authorization's
+fresh exact full local gate already passes 139/139 library, 149/149 binary, 7/7 doc,
+and 20/20 binding-contract tests; do not describe that completed gate as pending.
+Do not edit tests/source early, move rejection before initializer-child handling,
+omit traversed generic contexts, broaden beyond immediate initialized array-to-tuple,
+promote a capability, change workflows/dependencies/backends, publish artifacts or
+claims, or touch `master`.
 
 ## Unauthorized actions
 

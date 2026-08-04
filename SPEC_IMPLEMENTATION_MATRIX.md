@@ -504,3 +504,18 @@ declared compatibility policy and release-level coverage.
   accepted slice through CORE-031, inherit neither Candidate B nor any prior order,
   and cannot change a matrix row, cell, capability class, source, test, workflow,
   dependency, backend, semantics, or claim.
+- Corrected read-only AUDIT-038 authorization `e4d58e59`, tree `f265d8af`, canonical
+  diff `31d09f92`, is triple-approved and public all-eight green. Three complete
+  rankings put R-002 first; after an exact-candidate split, final compatibility
+  reconciliation unanimously approves only initialized immediate `Array(Tuple)`
+  containment. The valueless triple-array candidate remains preserved.
+- Preregistered CORE-032 may turn only that unsupported initialized immediate
+  array-of-tuple annotation into semantic and checked-admission rejection after
+  separate contract and public tests-first gates, in every generic/impl statement
+  context those phases already traverse while preserving earlier outer-generic
+  rejection. The initial five-acceptance authorization snapshot was rejected before
+  publication for omitting that context; the corrected contract freezes eight
+  accepts. Rejection adds no tuple/array
+  compatibility, value, default, bounds, layout, mutation, ABI, ownership, lowering,
+  execution, or backend evidence. Every matrix row, cell, and capability class
+  remains unchanged; R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.

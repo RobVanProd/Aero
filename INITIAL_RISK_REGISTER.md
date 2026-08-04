@@ -552,3 +552,18 @@ AUDIT-038 may re-rank the complete remaining eleven-risk set only after its own 
 authorization gates, must exclude every accepted slice through CORE-031, must not
 inherit Candidate B or another prior order, and carries no test, implementation,
 semantics, or capability authority.
+
+Corrected read-only AUDIT-038 authorization `e4d58e59`, tree `f265d8af`, canonical
+diff `31d09f92`, passes compiler `30883186212` / `30883188223`, stable/nightly Rust
+`30883188248`, CodeQL `30883186829`, and aggregate `91908783685` after three exact
+approvals. All complete rankings put R-002 first. Initial candidates split between
+initialized immediate array-of-tuple and valueless triple-array tuple containment;
+final compatibility reconciliation unanimously approves the initialized form because
+CORE-025 already freezes initializer-child ordering and the exact surface is smaller
+at equal trusted reach/two-phase cost. CORE-032 preregisters only two exact rejection
+guards after separate contract and public tests-first gates, wherever those statement
+paths are already traversed. Its first five-acceptance authorization snapshot was
+rejected before publication because it omitted generic impl/function traversal; the
+corrected contract freezes eight acceptances and preserves earlier outer-generic
+diagnostics. No risk status, matrix cell, or capability changes; R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED.
