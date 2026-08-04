@@ -783,10 +783,6 @@ fn tuple_annotations_fail_closed_before_binding_insertion_or_generation() {
             "fn main() { let value: [(int, float); 1]; }",
         ),
         (
-            "reference containing tuple",
-            "fn main() { let value: &(int, float); }",
-        ),
-        (
             "generic containing tuple",
             "fn main() { let value: Vec<(int, float)>; }",
         ),
@@ -800,6 +796,127 @@ fn tuple_annotations_fail_closed_before_binding_insertion_or_generation() {
         expect_acceptance(
             &mut failures,
             &format!("uninitialized {label} checked admission"),
+            checked_source(source),
+        );
+    }
+
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn immediate_reference_to_tuple_annotations_fail_closed_before_integer_fallback() {
+    const IMMUTABLE_SOURCE: &str = "fn main() { let value: &(int, float); }";
+    const MUTABLE_SOURCE: &str = "fn main() { let value: &mut (int, float); }";
+    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.";
+    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding";
+    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.";
+    const DUPLICATE_ERROR: &str = "Error: Variable `value` is already defined in this scope.";
+
+    let mut failures = Vec::new();
+    expect_exact_rejection(
+        &mut failures,
+        "immutable immediate reference-to-tuple direct semantics",
+        semantic_result(IMMUTABLE_SOURCE),
+        SEMANTIC_ERROR,
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "immutable immediate reference-to-tuple checked admission",
+        checked_source(IMMUTABLE_SOURCE),
+        CHECKED_ERROR,
+    );
+    let public_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(IMMUTABLE_SOURCE, CompilerOptions::default())
+    })) {
+        Err(_) => Err("compile_program unwound".to_string()),
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "immutable immediate reference-to-tuple public compilation",
+        public_result,
+        PUBLIC_ERROR,
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "mutable immediate reference-to-tuple direct semantics",
+        semantic_result(MUTABLE_SOURCE),
+        SEMANTIC_ERROR,
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "mutable immediate reference-to-tuple checked admission",
+        checked_source(MUTABLE_SOURCE),
+        CHECKED_ERROR,
+    );
+
+    for source in [
+        "fn main() { let value = 1; let value: &(int, float); }",
+        "fn main() { let value = 1; let value: &mut (int, float); }",
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            "immediate reference-to-tuple duplicate semantic precedence",
+            semantic_result(source),
+            DUPLICATE_ERROR,
+        );
+    }
+
+    expect_exact_rejection(
+        &mut failures,
+        "accepted outer-tuple semantic diagnostic",
+        semantic_result("fn main() { let value: (int, float); }"),
+        "Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "accepted outer-tuple checked diagnostic",
+        checked_source("fn main() { let value: (int, float); }"),
+        "checked IR binding `value` uses an unsupported tuple type annotation for an uninitialized binding",
+    );
+
+    let preservation_cases = [
+        ("scalar", "fn main() { let value: int; }"),
+        ("scalar reference", "fn main() { let value: &int; }"),
+        (
+            "mutable scalar reference",
+            "fn main() { let value: &mut int; }",
+        ),
+        (
+            "array containing tuple",
+            "fn main() { let value: [(int, float); 1]; }",
+        ),
+        (
+            "generic containing tuple",
+            "fn main() { let value: Vec<(int, float)>; }",
+        ),
+        (
+            "second reference layer containing tuple",
+            "fn main() { let value: & &(int, float); }",
+        ),
+        (
+            "mutable second reference layer containing tuple",
+            "fn main() { let value: &mut &(int, float); }",
+        ),
+        (
+            "initialized immutable immediate reference-to-tuple",
+            "fn main() { let value: &(int, float) = 1; }",
+        ),
+        (
+            "initialized mutable immediate reference-to-tuple",
+            "fn main() { let value: &mut (int, float) = 1; }",
+        ),
+    ];
+    for (label, source) in preservation_cases {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked admission"),
             checked_source(source),
         );
     }
