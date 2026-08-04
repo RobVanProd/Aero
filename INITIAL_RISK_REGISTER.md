@@ -829,3 +829,9 @@ checks before ranking begins.
 
 The prepared AUDIT-042 authorization's fresh exact full gate exits 0 with 139/139
 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. No risk status changes.
+
+First authorization snapshot `4ce0de0d`, tree `350984b8`, canonical diff
+`347278c3`, passed that gate but was rejected before any independent push or branch-
+head publication because PROJECT_STATE retained completed CORE-035 semantics as the
+active hypothesis and DEC-046 retained pending-closure status. The snapshot remains
+in corrected authorization ancestry; no ranking began and no risk status changed.

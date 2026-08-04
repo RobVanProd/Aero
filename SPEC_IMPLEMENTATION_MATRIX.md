@@ -722,3 +722,7 @@ declared compatibility policy and release-level coverage.
   unchanged, and public all-eight green.
 - The prepared AUDIT-042 authorization's fresh exact full gate exits 0 with 139/139
   library, 149/149 binary, 7/7 claim, and 24/24 binding tests. No matrix cell moves.
+- First authorization snapshot `4ce0de0d`, tree `350984b8`, canonical diff
+  `347278c3`, passed that gate but was rejected before independent push or branch-
+  head publication for stale active-hypothesis and closure-status wording. It remains
+  in corrected ancestry; ranking did not begin and no matrix cell moves.

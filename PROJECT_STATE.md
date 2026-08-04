@@ -12,12 +12,14 @@ contract's acceptance.
 
 ## Active hypothesis
 
-After initializer validation and existing initialized tuple-shape diagnostics, two
-exact nonrecursive guards can reject only an initialized annotation shaped as
-`Type::Reference(Type::Array(Type::Tuple(_), count), _)` when `count > 0`, before
-mismatch, the checked generic-impl bypass, binding insertion, or raw generation.
-Both reference mutability flags are covered; this defines no reference, array, or
-tuple value, ownership, bounds, layout, ABI, lowering, or execution semantics.
+Three complete, independent, delta-aware static rankings from exact clean public
+CORE-035 closure `60ad91f7` can select at most one next bounded high-severity
+containment with frozen semantics and deterministic tests-first feasibility within
+two compiler phases, or an explicit stop. Every accepted slice through CORE-035 is
+excluded; no historical candidate, label, preservation row, or rank order is
+privileged. The audit remains read-only, and semantic ambiguity, unsupported-type
+fallback, hardware dependence, or valid-output uncertainty is a stop rather than
+implementation authority.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1336,6 +1338,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   backend, artifact, claim, history, or `master` authority.
 - The prepared six-record authorization's fresh exact repository-root full gate exits
   0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests.
+- First authorization snapshot `4ce0de0d`, tree `350984b8`, canonical diff
+  `347278c3`, passed that exact gate but was rejected before any independent push or
+  branch-head publication. Type/safety found a P1 stale active hypothesis; IR/codegen
+  found the same issue at P2 plus P1 stale DEC-046 closure status; backend/claim
+  independently found the stale closure status at P1. The snapshot is retained in
+  corrected authorization ancestry; ranking never began.
 
 ## Exact next action
 

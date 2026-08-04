@@ -6481,3 +6481,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. Three
   exact reviews, unchanged publication, and public all-eight checks remain required
   before the read-only rankings begin.
+- Correction history: first authorization snapshot `4ce0de0d5c1b66daff53d828d8d32b035d63b80d`,
+  tree `350984b8bfcbec46a9c1f3208c541aff20ee47f6`, canonical diff
+  `347278c32239df2276cd3d21f9cc8daa41c4ef72`, passed the exact authorization gate
+  but was rejected before any independent push or branch-head publication. Type/
+  safety found P1 stale active-hypothesis wording; IR/codegen found that issue at P2
+  plus P1 stale DEC-046 closure status; backend/claim independently found the stale
+  closure status at P1. The snapshot is retained in corrected authorization ancestry;
+  no ranking, source/test edit, build, probe, artifact, or external query began.

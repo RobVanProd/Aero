@@ -1645,3 +1645,8 @@ promise future compatibility.
   the audit remains read-only and can select at most one bounded candidate or stop.
 - The prepared authorization's fresh exact full gate exits 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 24/24 binding tests. No capability class moves.
+- First authorization snapshot `4ce0de0d`, tree `350984b8`, canonical diff
+  `347278c3`, passed that gate but was rejected before independent push or branch-
+  head publication because PROJECT_STATE retained the completed CORE-035 hypothesis
+  as active and DEC-046 retained pending-closure status. The corrected authorization
+  ancestry preserves that snapshot; ranking never began and no capability moves.

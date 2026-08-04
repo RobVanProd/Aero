@@ -2105,8 +2105,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-046 - Initialized positive-count reference-array-tuple annotations fail closed
 
 - Date: 2026-08-04
-- Status: implementation accepted at exact triple-approved public all-eight-green
-  `b8fd5a17`; separate six-record closure acceptance remains pending.
+- Status: closed at exact triple-approved public all-eight-green closure `60ad91f7`.
 - Decision: for an initialized binding whose annotation is exactly nonrecursive
   `Type::Reference(Type::Array(Type::Tuple(_), count), _)` with `count > 0`, validate
   the initializer, preserve checked Void and all existing initialized tuple-shape
@@ -2188,3 +2187,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   workflow, dependency, backend, artifact, claim, history, or `master` authority.
 - Gate evidence: the prepared authorization's fresh exact full gate exits 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests.
+- Correction history: first snapshot `4ce0de0d`, tree `350984b8`, canonical diff
+  `347278c3`, passed that gate but was rejected before any independent push or
+  branch-head publication. Type/safety reported P1 stale active-hypothesis wording;
+  IR/codegen reported that issue at P2 and stale DEC-046 closure status at P1;
+  backend/claim independently reported the closure status at P1. The rejected
+  snapshot remains in corrected ancestry, ranking did not begin, and the correction
+  changes no authority or classification boundary.
