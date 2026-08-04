@@ -4,19 +4,21 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 37 `CORE-029` authorization. Public all-eight-green read-only AUDIT-035 is
-complete at `f1cd972`; unanimous targeted reconciliation selects only fail-closed
-rejection of a valueless immediate reference-to-tuple annotation. Immediate work is
-the separate six-record tests-first contract. No test or compiler edit is authorized
-until that contract passes its exact local, review, unchanged-publication, and all-
-eight public gates. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+Milestone 37 `CORE-029` record closure. The exact valueless immediate reference-to-
+tuple annotation now fails closed in semantics and checked admission at public all-
+eight-green implementation `29bd2e0`; it no longer silently becomes `Int` or reaches
+raw generation as integer zero on trusted paths. Immediate work is the exact six-
+record review/publication after its fresh full local gate passed. R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED; rejection does not establish tuple,
+reference, or ownership capability.
 
 ## Active hypothesis
 
-Two exact guards can prevent the unsupported immediate `Reference(Tuple)` annotation
-from silently becoming integer state and reaching raw IR, without defining reference,
-tuple, ownership, assignment, layout, ABI, or execution semantics. The existing
-CORE-028 nested-shape acceptance was explicitly quarantine evidence, not support.
+The accepted two-guard result exactly enforces the frozen non-recursive rejection
+contract after existing duplicate-name semantics and before default `Ty::Int`,
+binding insertion, or generation. Closure records must preserve the distinction
+between containment and tuple/reference support, record the public red/green
+evidence, and leave any next residual to a separately authorized clean-head audit.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -50,6 +52,37 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-029` implementation
+  `29bd2e0167df5e33fdd49622d32620eac6176979`, tree `53282149`, diff
+  `acc1c247`, passes focused 1/1, binding 18/18, formatting, the exact full local
+  gate, compiler `30875100237` / `30875102914`, stable/nightly Rust
+  `30875102909`, all three CodeQL analyses in `30875100762`, and aggregate
+  `91884963697` after three exact approvals. Only semantics and checked admission
+  changed; no capability is promoted.
+- Triple-reviewed public tests-first
+  `d12ba66ae015070399d7783e82ff7ca60e60dc42`, tree `056a9d52`, diff
+  `61c19e70`, reproduces exactly one 17/18 aggregate failure with the five frozen
+  false acceptances in compiler `30874817273` / `30874819174` and nightly Rust
+  `30874819175`; stable is fail-fast cancelled. CodeQL `30874817566` and aggregate
+  `91884136725` pass. Superseded snapshot `d824c1ca` was rejected at P2 before
+  publication for missing two mutable preservation controls.
+- Corrected public `CORE-029` authorization
+  `c0e1a90ce8c57373fb7ee5d0210107566866519d`, tree `3960cc07`, diff
+  `b8df373a`, passes compiler `30874315655` / `30874317720`, stable/nightly Rust
+  `30874317762`, CodeQL `30874316881`, and aggregate `91882644806` after three
+  exact approvals. Superseded snapshot `535f876d` was rejected at P2 before
+  publication for missing exact immutable/mutable duplicate specimens.
+- First `CORE-029` closure snapshot `bb56132a`, tree `3cef5fa5`, diff `5dac576d`,
+  passed its fresh exact full local gate but was unanimously rejected at P3 before
+  publication because the ledger and Exact next action treated that completed gate
+  as future work. Second snapshot `8a15bb03`, tree `43c8b5d5`, diff `325314be`,
+  corrected that tense and passed a fresh gate rerun but was rejected at P3 before
+  publication because it omitted the first rejected closure from the chronology.
+  Third snapshot `be7dfda8`, tree `39080f71`, diff `d1b7f5ba`, recorded the first
+  rejection and passed another fresh gate rerun but was rejected at P3 before
+  publication because it omitted the second rejected snapshot. The current records
+  preserve all three stages, state the gate is complete, begin the handoff with
+  reviews/publication, and pass a fresh exact full-gate rerun.
 - Public read-only `AUDIT-035` authorization
   `f1cd972f8d982c40c7c5afa2f270551763c19c2a`, tree `b9c6270b`, diff
   `7f221d2a`, passes compiler `30872922468` / `30872923806`, stable/nightly Rust
@@ -813,11 +846,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three fresh exact approvals for the full-local-gate-green six-record CORE-029
-authorization, publish the approved snapshot unchanged, and require all eight public
-checks. Only then may the one-file tests-first edit begin. Do not broaden recursive
-type rejection, imply tuple/reference/ownership capability, change workflows/
-dependencies/backends, publish artifacts or claims, or touch `master`.
+Obtain three exact approvals for the fresh-full-local-gate-green six-record
+`CORE-029` closure, publish the approved snapshot unchanged, and require all eight
+public checks. Do not authorize another implementation until that clean closure and
+a separate read-only residual ranking. Do not broaden recursive type rejection,
+imply tuple/reference/ownership capability, change workflows/dependencies/backends,
+publish artifacts or claims, or touch `master`.
 
 ## Unauthorized actions
 

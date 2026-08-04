@@ -5032,8 +5032,66 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   publication because the test contract lacked exact immutable and mutable target-
   specific duplicate-precedence specimens. The corrected contract adds both already-
   green controls without changing the one-test/five-failure arithmetic.
-- Authorization status: corrected records only. This six-record authorization passes
-  the fresh exact full local gate with 139/139 library and 149/149 binary tests plus
-  every active integration/doc test, but no test or compiler edit is authorized until
-  three fresh exact approvals, unchanged publication, and all eight public checks
-  also pass.
+- Authorization evidence: corrected snapshot
+  `ad602a19ded0e8bf39e8ef1bdfea17c3ff1b2753`, tree
+  `3960cc07a29ded97e9d62dcff2dfcde6cdc090f2`, diff
+  `b8df373a944f768c0f2a5e8757f1da1511c03202`, received three fresh approvals and
+  was published unchanged as `c0e1a90ce8c57373fb7ee5d0210107566866519d`.
+  Compiler `30874315655` / `30874317720`, stable/nightly Rust `30874317762`, all
+  three CodeQL analyses in `30874316881`, and aggregate `91882644806` pass.
+- Tests-first evidence: first snapshot
+  `d824c1ca528db47d3db547cf48ca8d156f61a608`, tree
+  `666c34279a434724e6ee18213d31989f4a44fd80`, diff
+  `020a3f520f0792e9c3536309f592ecadcbf0fb0d`, was rejected at P2 before
+  publication because mutable valueless scalar-reference and mutable outer second-
+  reference-layer controls were missing. Corrected one-file snapshot
+  `1b42833fceb6f194d3516013e200b2f6fadc96da`, tree
+  `056a9d522ca0da0393363d8e087914490eb0155c`, diff
+  `61c19e702fa15a3c540ac5082cd17f0fc89d1009`, added both controls, received three
+  approvals, and was published unchanged as
+  `d12ba66ae015070399d7783e82ff7ca60e60dc42`. Locally, the focused target was 0/1,
+  the binding suite was exactly 17/18, and the repository gate passed 139/139,
+  149/149, and 7/7 before only the aggregate failed with the five frozen messages.
+  Public compiler `30874817273` / `30874819174` and nightly in Rust
+  `30874819175` reproduced only that aggregate; stable was cancelled by matrix
+  fail-fast after nightly failed. CodeQL `30874817566` and aggregate
+  `91884136725` passed.
+- Implementation evidence: exact two-file snapshot
+  `07889020b3d1280ece0f9a79387e06237150fab0`, tree
+  `53282149d4b3f0a9f454ce51815bf021d8db52fa`, diff
+  `acc1c2473657afad81cf73e851821a5966895160`, received three approvals and was
+  published unchanged as `29bd2e0167df5e33fdd49622d32620eac6176979`.
+  Focused 1/1, binding 18/18, formatting, and the exact repository gate pass locally.
+  Public compiler `30875100237` / `30875102914`, stable/nightly Rust
+  `30875102909`, all three CodeQL analyses in `30875100762`, and aggregate
+  `91884963697` all pass.
+- Result: the exact valueless immediate reference-to-tuple annotation now stops
+  after same-scope duplicate detection and before fake `Int`, binding insertion, or
+  raw generation at both trusted boundaries. Both mutability flags are covered.
+  Initialized forms, scalar references, arrays/generics containing tuples, second-
+  layer references, valid IR/LLVM, raw IR, verifier, codegen, ABI, ownership, and all
+  backends remain unchanged.
+- Closure chronology: first six-record snapshot
+  `bb56132a42f1e2c4d9202bcb1b4e46332a50cdfc`, tree
+  `3cef5fa5e6c3471eeabd3694ed3efa9696334eae`, diff
+  `5dac576d70e6e4b9a6c261a6ae4f069e0bb8f48f`, passed its fresh exact full local
+  gate but was unanimously rejected at P3 before publication because the ledger and
+  project state treated that completed gate as future work. Second snapshot
+  `8a15bb036eeb7b9dfdb89b5336c7c9d45f1d2c06`, tree
+  `43c8b5d5b47b4af9d6785be7fbdd0ecf7527e9bf`, diff
+  `325314be4b2851c0cbd19fbfb6b0da618647eb96`, corrected that tense and passed a
+  fresh exact gate rerun but was rejected at P3 before publication because it omitted
+  the first rejected closure from the chronology. Third snapshot
+  `be7dfda82c0c53057f1655a09299b7f56d45c264`, tree
+  `39080f716f4081482af70e68113c04f735ddc94d`, diff
+  `d1b7f5ba965c7bbc4bd99886514d09c81a2ce82b`, recorded the first rejection and
+  passed another fresh gate rerun but was rejected at P3 before publication because
+  it omitted the second rejected snapshot. The current records preserve all three
+  review stages, state that the gate is complete, begin the handoff with reviews/
+  publication, and pass a fresh exact full-gate rerun after the final correction.
+- Status: implementation accepted and public all-eight green. This exact six-record
+  closure passes its fresh full local gate with 139/139 library, 149/149 binary,
+  7/7 backend-claim, and 18/18 binding tests plus every later active suite. It is
+  pending three exact reviews, unchanged publication, and all-eight verification.
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED. No tuple, reference,
+  ownership, backend, matrix, or capability promotion is authorized.

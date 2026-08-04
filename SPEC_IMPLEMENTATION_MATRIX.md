@@ -423,13 +423,22 @@ declared compatibility policy and release-level coverage.
   aggregate check. Three independent complete rankings and unanimous targeted
   reconciliation select one distinct R-002 fail-open annotation shape.
 - A valueless binding with outer `Type::Reference(inner, _)` and immediate
-  `inner: Type::Tuple(_)` is not implemented reference or tuple behavior. It currently
-  becomes `Ty::Int`, is skipped by checked admission, and can become `ImmInt(0)` in
-  raw generation. CORE-029 therefore preregisters rejection at semantics and checked
-  admission only, before insertion/generation and with duplicate semantics first.
+  `inner: Type::Tuple(_)` is not implemented reference or tuple behavior. At the
+  pre-CORE-029 audit basis it became `Ty::Int`, was skipped by checked admission,
+  and could become `ImmInt(0)` in raw generation. CORE-029 therefore selected
+  rejection at semantics and checked admission only, before insertion/generation
+  and with duplicate semantics first.
 - This containment cannot change a matrix cell: it adds no tuple/reference value,
   initialization, assignment, representation, mutability, borrowing, ownership,
   lifetime, provenance, layout, ABI, lowering, execution, or backend evidence. Outer
   tuple CORE-028, initialized bindings, non-tuple references, deeper nesting, valid
   IR/LLVM, and every capability class remain unchanged. R-002 stays HIGH/CRITICAL
   and PARTIALLY CONTROLLED.
+- Accepted public `CORE-029` implementation `29bd2e0`, tree `53282149`, supplies
+  only that exact non-recursive rejection after triple-reviewed public red evidence.
+  Focused 1/1, binding 18/18, formatting, the exact full local gate, both compiler
+  jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate pass.
+  Valueless immediate reference-to-tuple annotations no longer fall back to `Int`
+  at the two trusted boundaries. No tuple/reference value, representation, ownership,
+  lowering, execution, or backend evidence was added, so every matrix row, cell, and
+  capability class remains unchanged.

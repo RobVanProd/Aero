@@ -1591,8 +1591,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-034 - Valueless immediate reference-to-tuple annotations must fail closed
 
 - Date: 2026-08-03
-- Status: selected by unanimous AUDIT-035 targeted reconciliation; CORE-029
-  authorization pending.
+- Status: accepted implementation at public all-eight-green `29bd2e0`; final record
+  closure pending.
 - Decision: an uninitialized binding with outer `Type::Reference(inner, _)` and
   immediate `inner: Type::Tuple(_)` is unsupported syntax-to-IR behavior. Semantics
   must reject it after same-scope duplicate detection and before default `Ty::Int` or
@@ -1618,10 +1618,25 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   generics containing tuples; reference-to-reference-to-tuple; recursive type-tree
   rejection; all other annotations; parser/AST; raw IR; verifier; codegen; ABI;
   ownership; backends; workflows; dependencies; claims; matrix/capability promotion.
-- Consequence: CORE-029 may preregister one tests-first file and then exactly two
-  compiler phase files. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED even if
-  accepted. Stop on any compatibility decision, ownership/reference/tuple semantics,
-  third phase, another annotation outcome, or valid-output change.
+- Consequence at selection time: CORE-029 could preregister one tests-first file and
+  then exactly two compiler phase files. R-002 would remain HIGH/CRITICAL and
+  PARTIALLY CONTROLLED even if accepted. Stop on any compatibility decision,
+  ownership/reference/tuple semantics, third phase, another annotation outcome, or
+  valid-output change.
 - Runner-up: R-005 exact zero-argument calls through parameterized local scalar
   closure aliases remain the next bounded candidate; mandatory verification already
   stops them before LLVM, and supplied-argument child precedence remains excluded.
+- Evidence: corrected authorization `c0e1a90` is triple-approved and all-eight green.
+  Corrected triple-approved tests-first `d12ba66`, tree `056a9d52`, publicly isolates
+  exactly one 17/18 aggregate failure with five frozen false acceptances in compiler
+  `30874817273` / `30874819174` and nightly Rust `30874819175`; stable is fail-fast
+  cancelled, while CodeQL `30874817566` and aggregate `91884136725` pass. Exact
+  implementation `29bd2e0`, tree `53282149`, diff `acc1c247`, passes focused 1/1,
+  binding 18/18, the exact full local gate, compiler `30875100237` / `30875102914`,
+  Rust `30875102909`, CodeQL `30875100762`, and aggregate `91884963697` after three
+  exact approvals.
+- Residual: this accepts fail-closed containment only. Tuple/reference/ownership
+  support, initialized or deeper annotation enforcement, unchecked APIs, valid-
+  output certification, and all broader R-002/R-005 surfaces remain unchanged.
+  R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability
+  changes.

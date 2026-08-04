@@ -1150,3 +1150,25 @@ promise future compatibility.
   immutable flags are included. No recursive type check, tuple/reference support,
   ownership meaning, matrix row, or capability is authorized. R-002 remains
   HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+## CORE-029 accepted implementation
+
+- Corrected authorization `c0e1a90`, tree `3960cc07`, is triple-approved and all-
+  eight public green. The first authorization snapshot was rejected at P2 before
+  publication for missing exact immutable/mutable duplicate-precedence specimens.
+- Corrected triple-reviewed tests-first `d12ba66`, tree `056a9d52`, publicly
+  reproduces one exact 17/18 aggregate failure containing only the five frozen false
+  acceptances. Both duplicate controls and immutable/mutable scalar, nested,
+  initialized, and second-reference-layer controls remain green. The first test
+  snapshot was rejected at P2 before publication for missing two mutable controls;
+  CodeQL and its aggregate pass on the corrected red commit.
+- Triple-reviewed implementation `29bd2e0`, tree `53282149`, diff `acc1c247`, adds
+  only the two exact non-recursive guards in semantics and checked admission.
+  Focused 1/1, binding 18/18, formatting, the exact full local gate, both compiler
+  jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate pass.
+- Valueless immediate reference-to-tuple annotations now stop after semantic
+  duplicate detection and before fake `Int`, insertion, or raw generation at both
+  trusted boundaries. This is rejection evidence, not tuple/reference/ownership
+  implementation. Initialized and deeper forms, other annotations, raw IR,
+  verifier, codegen, ABI, and CPU/ROCm/CUDA behavior remain unchanged. No capability
+  class or matrix cell changes; R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
