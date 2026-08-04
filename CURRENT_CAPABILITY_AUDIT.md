@@ -1575,19 +1575,48 @@ promise future compatibility.
 - AUDIT-041 is complete, read-only, and classification-neutral. Bounds remains
   stopped pending policy; V and I remain residuals rather than authority.
 
-## CORE-035 authorization boundary
+## CORE-035 authorization history
 
 - Only initialized exact nonrecursive positive-count
   `Type::Reference(Type::Array(Type::Tuple(_), count), _)` may be rejected, after
   child and existing initialized diagnostics, at semantic and checked-admission
   boundaries. This is containment before IR, not reference, array, or tuple support.
-- Tests-first must reclassify existing immutable acceptance evidence and expose
-  exactly 34 false acceptances while four count-zero semantic/checked controls stay
-  green. Later implementation remains limited to two exact guards in two phases.
+- Tests-first was required to reclassify existing immutable acceptance evidence and
+  expose exactly 34 false acceptances while four count-zero semantic/checked controls
+  stayed green. Later implementation was limited to two exact guards in two phases.
 - No capability class moves: tuples remain parsed-only, references and fixed arrays
   remain partial, R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 remains
   open without bounds policy, and backend/hardware/claim classes remain unchanged.
-- Fresh local gate, three exact reviews, unchanged publication, and all eight public
-  checks are required before the tests-only change.
+- A fresh local gate, three exact reviews, unchanged publication, and all eight
+  public checks were required before the tests-only change and are satisfied by the
+  acceptance evidence below.
 - The prepared six-record authorization's fresh exact full gate exits 0 with 139/139
   library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No capability moves.
+
+## CORE-035 accepted implementation
+
+- Authorization `b74b1d29`, tree `3fc2d78f`, canonical diff `64fbd1fe`, received
+  three exact approvals and is public all-eight green in compiler `30921372203` /
+  `30921374216`, Rust `30921376655`, CodeQL `30921371268`, and aggregate
+  `92032740349`.
+- Triple-approved tests-only `f04e80c9`, tree `03a9f274`, canonical diff
+  `9e04b6ad`, reclassified both prior immutable acceptance rows. Focused 0/1,
+  binding 23/24, local full-gate, public compiler `30922180824` / `30922181281`,
+  and nightly job `92035312036` in Rust `30922181764` all isolate exactly 34 false
+  acceptances after 139/139 library, 149/149 binary, and 7/7 claim passes. Stable
+  job `92035312020` was fail-fast cancelled; CodeQL `30922176056` and aggregate
+  `92035461619` pass. Three public-red reviews approved the two-phase boundary.
+- Exact implementation `b8fd5a17`, tree `77bd2536`, canonical diff `2f1e9920`, adds
+  only 21 semantic-analyzer and 15 checked-admission lines. It received three exact
+  approvals; formatting, focused 1/1, binding 24/24, the full local gate at 139/139
+  library, 149/149 binary, 7/7 claim, and 24/24 binding tests, compiler
+  `30922853658` / `30922859177`, stable/nightly Rust `30922863203`, all three
+  CodeQL analyses in `30922853619`, and aggregate `92037794056` pass.
+- Classification is unchanged. The exact rejection is containment before IR, not
+  reference, array, or tuple value/lowering/execution evidence. Tuples remain
+  parsed-only; references and fixed arrays remain partial; R-002 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open without a bounds
+  policy; and no backend, matrix, capability, artifact, or stability class moves.
+- The prepared six-record closure snapshot's fresh exact full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. Three exact
+  reviews, unchanged publication, and all-eight public checks remain required.

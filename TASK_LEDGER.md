@@ -6283,13 +6283,14 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   records only non-blocking P3 compatibility reclassification risk.
 - Status: complete, read-only, and clean at public-green `a31342e8`. AUDIT-041 made
   no source, test, semantics, risk-status, matrix, capability, backend, artifact, or
-  claim change. The separately frozen CORE-035 contract below is the only next action.
+  claim change. The separately frozen CORE-035 contract below was the only next
+  action at audit completion.
 
 ## CORE-035 - Reject initialized positive-count reference-array-tuple annotations
 
 - Task ID/date/owner: `CORE-035`, 2026-08-04, lead-owned two-phase R-002 fail-closed
   containment selected by AUDIT-041 final compatibility reconciliation.
-- Observed behavior: current acceptance rows in
+- Observed behavior at the pre-CORE-035 audit head: acceptance rows in
   `src/compiler/tests/binding_type_contract_tests.rs:1178-1208` and `:1508-1525`
   admit immutable count-one `&[(int, float); 1] = 1` at semantics and checked
   admission. Parser topology and current guards also admit mutable count one and
@@ -6317,9 +6318,9 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   and semantic generic-function bodies. Checked generic functions retain their
   earlier outer rejection. Generic trait default bodies remain syntax-only; this task
   must not activate semantic or checked traversal for them.
-- Tests-first contract: after this authorization is triple-approved and public
-  all-eight green, only `src/compiler/tests/binding_type_contract_tests.rs` may
-  change. Remove the existing exact immutable count-one rows from preservation loops
+- Frozen tests-first contract, now satisfied: after authorization became public
+  all-eight green, only `src/compiler/tests/binding_type_contract_tests.rs` could
+  change. The existing exact immutable count-one rows could leave preservation loops
   only by reclassifying them in one new aggregate test. Before implementation that
   aggregate must report exactly 34 unexpected acceptances: counts one and two x both
   flags at direct semantic and checked boundaries (8); count one both flags at public
@@ -6337,12 +6338,14 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   scalar references; numeric-array references; array-around-reference, double/deeper
   reference, deeper array, generic, and wrapped forms; checked generic-function outer
   rejection; syntax-only generic trait defaults; and valid numeric-array LLVM output.
-- Later implementation boundary: only after separately reviewed, public expected-red
-  evidence may implementation change `src/compiler/src/semantic_analyzer.rs` and
+- Frozen implementation boundary, now satisfied: only after separately reviewed,
+  public expected-red evidence could implementation change
+  `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, adding only the two exact guards. Parser, raw
   IR, verifier, codegen, LLVM verification, CLI orchestration, runtime, and backends
   must not change.
-- Allowed authorization files/actions: before tests-first acceptance, only
+- Frozen authorization-file boundary, now satisfied: before tests-first acceptance,
+  only
   `TASK_LEDGER.md`, `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`,
   `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`
   may change. A fresh exact repository-root `./tools/test.sh` gate, three exact
@@ -6364,7 +6367,43 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   valid-output, or compatibility semantics; recursive classification; more than the
   two named compiler phases; raw/verifier/codegen/backend change; workflow/dependency/
   artifact/claim/history/`master` action.
-- Status: authorization prepared and its fresh exact repository-root full local gate
-  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
-  Three exact reviews, unchanged publication, and all eight public checks remain
-  required. No test or source change has begun.
+- Authorization acceptance: exact `b74b1d299f1cef15cc38d22e29fe1a6f16cb8ec0`,
+  parent `a31342e8`, tree `3fc2d78f0a9d9cd7637343a9ef551a2dbd549758`,
+  canonical diff `64fbd1fe82d59a52163578787fce084df7847858`, changed exactly
+  the six control records, passed two fresh exact full local gates, received three
+  exact approvals, and was published unchanged. Compiler `30921372203` /
+  `30921374216`, stable/nightly Rust `30921376655`, all three CodeQL analyses in
+  `30921371268`, and aggregate `92032740349` pass.
+- Tests-first acceptance: exact `f04e80c92db723de432b2502a055afea13fffed7`,
+  parent `b74b1d29`, tree `03a9f27452498d84a063546d207f1c5781326d4f`,
+  canonical diff `9e04b6adaf6e436d90d8f2e50a138a3cfad2251c`, changed only
+  `src/compiler/tests/binding_type_contract_tests.rs`, reclassified both prior
+  acceptance rows, and received three exact approvals. Focused 0/1, binding 23/24,
+  and the full local gate isolate exactly 34 unexpected acceptances after 139/139
+  library, 149/149 binary, and 7/7 claim passes. Public compiler `30922180824` /
+  `30922181281` and nightly job `92035312036` in Rust `30922181764` reproduce the
+  same sole failure; stable job `92035312020` was cancelled by matrix fail-fast.
+  All three CodeQL analyses in `30922176056` and aggregate `92035461619` pass.
+  Three separate public-red reviews approved the two-file implementation boundary.
+- Implementation acceptance: exact `b8fd5a177d4916baf9a850f0857a83d57d71db66`,
+  parent `f04e80c9`, tree `77bd2536989e72dfd695b670ebf11f1d50177ea2`,
+  canonical diff `2f1e992029ff2a12f64ab450012803971e68fc4f`, adds only the
+  two frozen guards: 21 semantic-analyzer and 15 checked-admission lines, with no
+  deletion or third phase. Formatting, focused 1/1, binding 24/24, and the exact
+  full local gate pass with 139/139 library, 149/149 binary, 7/7 claim, and 24/24
+  binding tests. Three exact reviews approved it; compiler `30922853658` /
+  `30922859177`, stable/nightly Rust `30922863203`, all three CodeQL analyses in
+  `30922853619`, and aggregate `92037794056` pass.
+- Result: only the frozen initialized positive-count exact reference-array-tuple
+  false-success surface now rejects before mismatch, generic-impl bypass, insertion,
+  or raw generation. All frozen precedence, count-zero, residual-topology, traversal,
+  and valid-output controls pass. This is fail-closed containment, not reference,
+  array, or tuple support. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED;
+  R-011 remains stopped pending bounds policy; no matrix, capability, backend,
+  artifact, claim, history, or `master` state moved.
+- Status: implementation is triple-approved and public all-eight green at
+  `b8fd5a17`. The separate six-record CORE-035 closure is now the only active action;
+  it changes only the six control records. This prepared closure snapshot's fresh
+  exact repository-root full gate exits 0 with 139/139 library, 149/149 binary,
+  7/7 claim, and 24/24 binding tests. Three exact reviews, unchanged publication,
+  and all-eight public green remain required.

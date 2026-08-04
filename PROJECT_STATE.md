@@ -4,12 +4,11 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 49 `CORE-035` authorization. `AUDIT-041` is complete, read-only, and clean
-at exact public authorization head `a31342e8`; three final compatibility reviews
-select only initialized positive-count reference-around-array-of-tuple containment.
-Immediate work is the six-record CORE-035 contract. No regression, implementation,
-capability, matrix, or risk-status change is authorized before that contract's
-acceptance.
+Milestone 49 `CORE-035` closure. The authorization, tests-first red checkpoint, and
+two-guard implementation are triple-approved and public at exact head `b8fd5a17`;
+all eight implementation checks pass. The separate six-record closure snapshot is
+locally green and awaiting exact review/publication. No capability, matrix, risk,
+backend, artifact, or claim promotion follows from the narrow fail-closed containment.
 
 ## Active hypothesis
 
@@ -52,6 +51,13 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Current public implementation head:
+  `b8fd5a177d4916baf9a850f0857a83d57d71db66`, parent `f04e80c9`, tree
+  `77bd2536989e72dfd695b670ebf11f1d50177ea2`, canonical diff
+  `2f1e992029ff2a12f64ab450012803971e68fc4f`. The exact two-file CORE-035
+  implementation is triple-approved; compiler `30922853658` / `30922859177`,
+  stable/nightly Rust `30922863203`, all three CodeQL analyses in `30922853619`,
+  and aggregate `92037794056` pass.
 - Accepted public `CORE-033` closure
   `1ee9c71b555bec8066277cb9c64a7a7a2a3ff498`, parent `19f688a`, tree
   `d081988164fba75fcfe7af8788fbd010bb5a158d`, established PowerShell full-index
@@ -1210,7 +1216,7 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   valueless and initialized exact three-array shapes remain bounded residuals rather
   than implementation authority.
 
-## CORE-035 authorization
+## CORE-035 authorization history
 
 - Exact behavior: reject only initialized `Statement::Let` annotations exactly
   shaped as `Type::Reference(Type::Array(Type::Tuple(_), count), _)` when
@@ -1226,9 +1232,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   loop, non-generic impl, generic impl, and semantic generic-function bodies are
   covered. Checked generic functions retain their outer rejection; generic trait
   default bodies remain syntax-only.
-- Tests-first: after authorization acceptance, only
-  `src/compiler/tests/binding_type_contract_tests.rs` may change. Reclassify, never
-  silently delete, the existing immutable count-one acceptance rows into one new
+- Tests-first was permitted after authorization acceptance only in
+  `src/compiler/tests/binding_type_contract_tests.rs`. The existing immutable
+  count-one acceptance rows had to be reclassified, never silently deleted, into one
+  new
   aggregate. It must report exactly 34 unexpected acceptances before implementation:
   direct counts one/two x both flags x both phases 8; public count one both flags 2;
   top-level count one both flags at both phases 4; generic impl count one both flags
@@ -1244,13 +1251,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   reference, double/deeper reference, deeper array, generic, and wrapped forms;
   checked generic-function outer rejection; syntax-only trait defaults; and valid
   numeric-array LLVM output.
-- Later implementation may change only `src/compiler/src/semantic_analyzer.rs` and
+- Later implementation was limited to `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, adding two exact guards after separately
   reviewed public-red evidence. Parser, raw IR, verifier, codegen, LLVM verification,
-  CLI, runtime, and backends cannot change.
-- Authorization changes are limited to the six control records. The exact full local
-  gate, three exact reviews, unchanged publication, and all eight public checks are
-  required before tests-first. No reference/array/tuple value, mutability, ownership,
+  CLI, runtime, and backends could not change.
+- Authorization changes were limited to the six control records. The exact full
+  local gate, three exact reviews, unchanged publication, and all eight public checks
+  were required before tests-first and were satisfied. No reference/array/tuple
+  value, mutability, ownership,
   lifetime, layout, ABI, coercion, bounds, lowering, execution, backend, matrix,
   capability, risk, artifact, claim, history, or `master` meaning follows.
 - The prepared six-record authorization's fresh exact repository-root full gate
@@ -1260,13 +1268,45 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   new traversal, third compiler phase, valid-output effect, workflow/dependency,
   artifact/claim, history, or `master` action.
 
+## CORE-035 accepted implementation
+
+- Authorization `b74b1d299f1cef15cc38d22e29fe1a6f16cb8ec0`, parent `a31342e8`,
+  tree `3fc2d78f0a9d9cd7637343a9ef551a2dbd549758`, canonical diff
+  `64fbd1fe82d59a52163578787fce084df7847858`, changed only the six control
+  records, passed two exact local gates, received three approvals, and was published
+  unchanged. Compiler `30921372203` / `30921374216`, Rust `30921376655`, CodeQL
+  `30921371268`, and aggregate `92032740349` pass.
+- Tests-only `f04e80c92db723de432b2502a055afea13fffed7`, parent `b74b1d29`, tree
+  `03a9f27452498d84a063546d207f1c5781326d4f`, canonical diff
+  `9e04b6adaf6e436d90d8f2e50a138a3cfad2251c`, changed one test file and received
+  three approvals. Focused 0/1 and binding 23/24 exposed exactly 34 false successes;
+  the local, push `30922180824`, PR `30922181281`, and nightly job `92035312036`
+  runs passed 139/139 library, 149/149 binary, and 7/7 claim before that sole
+  failure. Stable job `92035312020` was fail-fast cancelled. CodeQL `30922176056`
+  and aggregate `92035461619` pass; three public-red reviews authorized implementation.
+- Implementation `b8fd5a177d4916baf9a850f0857a83d57d71db66` adds only the two
+  frozen guards: 21 lines in semantic analysis and 15 in checked admission. It is
+  triple-approved; formatting, focused 1/1, binding 24/24, the exact full local gate,
+  both compiler jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  pass at the run IDs above.
+- Result: initialized positive-count exact `Reference(Array(Tuple))` bindings now
+  fail closed after child and prior diagnostics and before trusted IR publication.
+  Count zero, valueless, deeper/wrapped/mixed, scalar/numeric, generic, traversal,
+  and valid-output controls remain unchanged. This defines no reference/array/tuple
+  value, ownership, lifetime, layout, ABI, bounds, lowering, execution, or backend
+  capability. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Closure is not yet accepted. Only the six control records changed; this prepared
+  snapshot's fresh exact repository-root full gate exits 0 with 139/139 library,
+  149/149 binary, 7/7 claim, and 24/24 binding tests. Three exact reviews, unchanged
+  publication, and all-eight public green remain required.
+
 ## Exact next action
 
-Obtain three exact approvals for the locally green six-record CORE-035 authorization,
-publish its immutable tree unchanged, and require all eight public checks before
-tests-first. Do not edit source/tests, broaden the predicate, resolve bounds policy
-implicitly, promote a capability, change workflows/dependencies/backends, publish
-artifacts or claims, rewrite history, force-push, or touch `master`.
+Obtain three exact reviews for the locally green six-record CORE-035 closure,
+publish the immutable closure unchanged, and require all eight public checks. Do
+not reopen source/tests, broaden the predicate, resolve bounds policy implicitly,
+promote a capability, change workflows/dependencies/backends, publish artifacts or
+claims, rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

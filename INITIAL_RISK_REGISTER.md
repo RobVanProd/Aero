@@ -774,14 +774,38 @@ split, targeted comparison preferred R two to one, and all final compatibility
 reviews approved only initialized positive-count immediate reference-array-tuple
 containment. AUDIT-041 changed no risk status.
 
-Preregistered CORE-035 may reject exactly nonrecursive initialized
+Accepted CORE-035 authorization preregistered exact nonrecursive initialized
 `Type::Reference(Type::Array(Type::Tuple(_), count), _)` when `count > 0`, for both
 reference mutability flags, after child and existing diagnostics at semantic and
-checked-admission boundaries. Its future tests-first gate is exactly 34 red
-observations with four count-zero controls green; implementation remains limited to
-two exact guards after separately reviewed public-red evidence. This narrows a false-
+checked-admission boundaries. Its tests-first gate was frozen at exactly 34 red
+observations with four count-zero controls green; implementation was limited to two
+exact guards after separately reviewed public-red evidence. This narrows a false-
 success subset but does not resolve broader R-002 or R-011, define reference/array/
 tuple values, ownership, layout, ABI, bounds, lowering, execution, or backend
 capability, or change any risk status, matrix cell, artifact boundary, or claim.
 The prepared six-record authorization's fresh exact full gate exits 0 with 139/139
 library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.
+
+Exact CORE-035 authorization `b74b1d29`, tree `3fc2d78f`, canonical diff
+`64fbd1fe`, received three exact approvals and is public all-eight green in compiler
+`30921372203` / `30921374216`, Rust `30921376655`, CodeQL `30921371268`, and
+aggregate `92032740349`. Triple-approved tests-only `f04e80c9`, tree `03a9f274`,
+canonical diff `9e04b6ad`, publicly reproduces exactly 34 false acceptances as the
+sole 23/24 binding failure in compiler `30922180824` / `30922181281` and nightly
+job `92035312036` in Rust `30922181764`. Stable job `92035312020` was cancelled by
+matrix fail-fast; CodeQL `30922176056` and aggregate `92035461619` pass. Three
+separate public-red reviews approved implementation authority.
+
+Exact implementation `b8fd5a17`, tree `77bd2536`, canonical diff `2f1e9920`, adds
+only the two frozen nonrecursive positive-count guards. It received three exact
+approvals; formatting, focused 1/1, binding 24/24, the exact full local gate,
+compiler `30922853658` / `30922859177`, stable/nightly Rust `30922863203`, all
+three CodeQL analyses in `30922853619`, and aggregate `92037794056` pass.
+
+CORE-035 narrows one false-success subset but does not resolve R-002's broader
+unsupported type/ownership/memory surface or R-011's bounds policy. R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED; every other risk status, matrix cell,
+capability class, backend distinction, artifact boundary, and claim remains
+unchanged. The prepared six-record closure snapshot's fresh exact full gate exits 0
+with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. Three
+exact reviews, unchanged publication, and all-eight public green remain required.

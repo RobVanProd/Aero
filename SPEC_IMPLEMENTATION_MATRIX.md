@@ -678,12 +678,32 @@ declared compatibility policy and release-level coverage.
   put R-002 first; initial V/I/R candidates split, targeted comparison prefers R two
   to one, and all final compatibility reviews approve only initialized exact
   nonrecursive positive-count `Reference(Array(Tuple))` containment.
-- Preregistered CORE-035 may reject that exact shape for both reference mutability
-  flags at semantic and checked-admission boundaries only after child and existing
-  initialized diagnostics. Its tests-first evidence must expose exactly 34 false
+- Accepted CORE-035 authorization preregistered rejection of that exact shape for
+  both reference mutability flags at semantic and checked-admission boundaries only
+  after child and existing initialized diagnostics. Its tests-first evidence was
+  required to expose exactly 34 false
   acceptances and preserve four count-zero observations. Rejection defines no
   reference/array/tuple value, ownership, layout, ABI, bounds, lowering, execution,
   backend, or stability evidence. Every matrix row and cell remains unchanged;
   R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
 - The prepared CORE-035 authorization's fresh exact full gate exits 0 with 139/139
   library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No matrix cell moves.
+- Exact authorization `b74b1d29`, tree `3fc2d78f`, canonical diff `64fbd1fe`, is
+  triple-approved and public all-eight green. Triple-approved tests-only `f04e80c9`,
+  tree `03a9f274`, canonical diff `9e04b6ad`, publicly proves exactly 34 false
+  acceptances as the sole 23/24 binding failure in compiler `30922180824` /
+  `30922181281` and nightly job `92035312036` in Rust `30922181764`; stable was
+  fail-fast cancelled, while CodeQL `30922176056` and aggregate `92035461619` pass.
+  Three public-red reviews approved implementation authority.
+- Exact implementation `b8fd5a17`, tree `77bd2536`, canonical diff `2f1e9920`, adds
+  only nonrecursive semantic and checked-admission rejection. It is triple-approved;
+  focused 1/1, binding 24/24, the exact full local gate, compiler `30922853658` /
+  `30922859177`, stable/nightly Rust `30922863203`, all three CodeQL analyses in
+  `30922853619`, and aggregate `92037794056` pass.
+- Rejection supplies no reference/array/tuple value, compatibility, ownership,
+  lifetime, bounds, layout, ABI, lowering, execution, or backend evidence. Count
+  zero and every deeper/wrapped residual remain unimplemented controls. Therefore
+  every matrix row, cell, and capability class remains unchanged; R-002 stays
+  HIGH/CRITICAL and PARTIALLY CONTROLLED. The prepared six-record closure snapshot's
+  fresh exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
+  and 24/24 binding tests; exact review and public acceptance are still required.

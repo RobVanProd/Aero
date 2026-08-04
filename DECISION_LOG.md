@@ -2105,9 +2105,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-046 - Initialized positive-count reference-array-tuple annotations fail closed
 
 - Date: 2026-08-04
-- Status: authorization fresh-local-gate green; three exact reviews, unchanged
-  publication, and all eight public checks pending. Tests and implementation have
-  not begun.
+- Status: implementation accepted at exact triple-approved public all-eight-green
+  `b8fd5a17`; separate six-record closure acceptance remains pending.
 - Decision: for an initialized binding whose annotation is exactly nonrecursive
   `Type::Reference(Type::Array(Type::Tuple(_), count), _)` with `count > 0`, validate
   the initializer, preserve checked Void and all existing initialized tuple-shape
@@ -2129,3 +2128,28 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   is authorized.
 - Gate evidence: the prepared six-record authorization's fresh exact full gate exits
   0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
+- Acceptance evidence: authorization `b74b1d29`, tree `3fc2d78f`, canonical diff
+  `64fbd1fe`, received three exact approvals and is public all-eight green in
+  compiler `30921372203` / `30921374216`, Rust `30921376655`, CodeQL
+  `30921371268`, and aggregate `92032740349`. Triple-approved tests-only
+  `f04e80c9`, tree `03a9f274`, canonical diff `9e04b6ad`, publicly reproduces
+  exactly 34 false acceptances as the sole 23/24 binding failure in compiler
+  `30922180824` / `30922181281` and nightly job `92035312036` in Rust
+  `30922181764`; stable job `92035312020` was fail-fast cancelled, while CodeQL
+  `30922176056` and aggregate `92035461619` pass. Three public-red reviews approved
+  implementation authority.
+- Implementation evidence: exact `b8fd5a17`, tree `77bd2536`, canonical diff
+  `2f1e9920`, adds only the two nonrecursive positive-count guards and received three
+  exact approvals. Formatting, focused 1/1, binding 24/24, and the exact full local
+  gate pass with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests.
+  Compiler `30922853658` / `30922859177`, stable/nightly Rust `30922863203`, all
+  three CodeQL analyses in `30922853619`, and aggregate `92037794056` pass.
+- Result: only the frozen false-success surface now rejects. Count zero and every
+  other frozen residual remain controls, not supported semantics. R-002 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011, matrix, capability, backend,
+  artifact, and claim boundaries are unchanged.
+- Closure boundary: the separate six-record closure may record this evidence only.
+  This prepared closure snapshot's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 24/24 binding tests. Three exact reviews,
+  unchanged publication, and all-eight public checks remain required before
+  CORE-035 is closed.
