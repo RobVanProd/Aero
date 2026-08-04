@@ -1788,6 +1788,19 @@ impl SemanticAnalyzer {
                 }
 
                 if value.is_none()
+                    && matches!(
+                        type_annotation.as_ref(),
+                        Some(crate::ast::Type::Reference(inner, _))
+                            if matches!(inner.as_ref(), crate::ast::Type::Tuple(_))
+                    )
+                {
+                    return Err(format!(
+                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.",
+                        name
+                    ));
+                }
+
+                if value.is_none()
                     && matches!(type_annotation.as_ref(), Some(crate::ast::Type::Tuple(_)))
                 {
                     return Err(format!(
