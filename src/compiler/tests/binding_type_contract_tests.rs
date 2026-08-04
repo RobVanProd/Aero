@@ -89,6 +89,15 @@ fn binding(name: &str, annotation: Option<Type>, value: Expression) -> Statement
     }
 }
 
+fn uninitialized_binding(name: &str, annotation: Type) -> Statement {
+    Statement::Let {
+        name: name.to_string(),
+        mutable: false,
+        type_annotation: Some(annotation),
+        value: None,
+    }
+}
+
 fn binary_with_metadata(ty: Option<Ty>) -> Expression {
     Expression::Binary {
         op: BinaryOp::Add,
@@ -634,28 +643,32 @@ fn exact_selected_and_unannotated_controls_pass_semantics_and_checked_ir() {
 }
 
 #[test]
-fn initialized_tuple_annotations_fail_closed_before_generation() {
-    const SOURCE: &str = "fn main() { let value: (int, float) = 1; }";
-    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.";
-    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation for an initialized binding";
-    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.";
+fn tuple_annotations_fail_closed_before_binding_insertion_or_generation() {
+    const INITIALIZED_SOURCE: &str = "fn main() { let value: (int, float) = 1; }";
+    const INITIALIZED_SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.";
+    const INITIALIZED_CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation for an initialized binding";
+    const INITIALIZED_PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.";
+    const UNINITIALIZED_SOURCE: &str = "fn main() { let value: (int, float); }";
+    const UNINITIALIZED_SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.";
+    const UNINITIALIZED_CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation for an uninitialized binding";
+    const UNINITIALIZED_PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.";
 
     let mut failures = Vec::new();
     expect_exact_rejection(
         &mut failures,
-        "ordinary direct semantics",
-        semantic_result(SOURCE),
-        SEMANTIC_ERROR,
+        "initialized ordinary direct semantics",
+        semantic_result(INITIALIZED_SOURCE),
+        INITIALIZED_SEMANTIC_ERROR,
     );
     expect_exact_rejection(
         &mut failures,
-        "ordinary checked admission",
-        checked_source(SOURCE),
-        CHECKED_ERROR,
+        "initialized ordinary checked admission",
+        checked_source(INITIALIZED_SOURCE),
+        INITIALIZED_CHECKED_ERROR,
     );
 
     let public_result = match catch_unwind(AssertUnwindSafe(|| {
-        compile_program(SOURCE, CompilerOptions::default())
+        compile_program(INITIALIZED_SOURCE, CompilerOptions::default())
     })) {
         Err(_) => Err("compile_program unwound".to_string()),
         Ok(Ok(_)) => Ok(()),
@@ -663,9 +676,9 @@ fn initialized_tuple_annotations_fail_closed_before_generation() {
     };
     expect_exact_rejection(
         &mut failures,
-        "public compile_program",
+        "initialized public compile_program",
         public_result,
-        PUBLIC_ERROR,
+        INITIALIZED_PUBLIC_ERROR,
     );
 
     let generic_impl = generic_impl_with(binding(
@@ -684,13 +697,13 @@ fn initialized_tuple_annotations_fail_closed_before_generation() {
         &mut failures,
         "generic impl direct semantics",
         generic_semantics,
-        SEMANTIC_ERROR,
+        INITIALIZED_SEMANTIC_ERROR,
     );
     expect_exact_rejection(
         &mut failures,
         "generic impl checked admission",
         checked_ast(generic_impl),
-        CHECKED_ERROR,
+        INITIALIZED_CHECKED_ERROR,
     );
 
     expect_exact_rejection(
@@ -705,16 +718,91 @@ fn initialized_tuple_annotations_fail_closed_before_generation() {
         checked_source("fn main() { let value: (int, float) = (1, 2); }"),
         "aggregate expression is not admitted in checked IR",
     );
-    expect_acceptance(
+    expect_exact_rejection(
         &mut failures,
         "uninitialized tuple annotation semantics",
-        semantic_result("fn main() { let value: (int, float); }"),
+        semantic_result(UNINITIALIZED_SOURCE),
+        UNINITIALIZED_SEMANTIC_ERROR,
     );
-    expect_acceptance(
+    expect_exact_rejection(
         &mut failures,
         "uninitialized tuple annotation checked admission",
-        checked_source("fn main() { let value: (int, float); }"),
+        checked_source(UNINITIALIZED_SOURCE),
+        UNINITIALIZED_CHECKED_ERROR,
     );
+
+    let public_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(UNINITIALIZED_SOURCE, CompilerOptions::default())
+    })) {
+        Err(_) => Err("compile_program unwound".to_string()),
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "uninitialized public compile_program",
+        public_result,
+        UNINITIALIZED_PUBLIC_ERROR,
+    );
+
+    let generic_impl = generic_impl_with(uninitialized_binding(
+        "value",
+        Type::Tuple(vec![
+            Type::Named("int".to_string()),
+            Type::Named("float".to_string()),
+        ]),
+    ));
+    let generic_semantics = {
+        let mut analyzer = SemanticAnalyzer::new();
+        analyzer.analyze(generic_impl.clone()).map(|_| ())
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "uninitialized generic impl direct semantics",
+        generic_semantics,
+        UNINITIALIZED_SEMANTIC_ERROR,
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "uninitialized generic impl checked admission",
+        checked_ast(generic_impl),
+        UNINITIALIZED_CHECKED_ERROR,
+    );
+
+    expect_exact_rejection(
+        &mut failures,
+        "uninitialized tuple duplicate semantic precedence",
+        semantic_result("fn main() { let value = 1; let value: (int, float); }"),
+        "Error: Variable `value` is already defined in this scope.",
+    );
+
+    let outer_shape_controls = [
+        ("scalar", "fn main() { let value: int; }"),
+        (
+            "array containing tuple",
+            "fn main() { let value: [(int, float); 1]; }",
+        ),
+        (
+            "reference containing tuple",
+            "fn main() { let value: &(int, float); }",
+        ),
+        (
+            "generic containing tuple",
+            "fn main() { let value: Vec<(int, float)>; }",
+        ),
+    ];
+    for (label, source) in outer_shape_controls {
+        expect_acceptance(
+            &mut failures,
+            &format!("uninitialized {label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("uninitialized {label} checked admission"),
+            checked_source(source),
+        );
+    }
 
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
