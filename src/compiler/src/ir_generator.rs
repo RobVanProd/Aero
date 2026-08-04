@@ -350,6 +350,18 @@ impl IrGenerator {
                 if value.is_none()
                     && matches!(
                         type_annotation.as_ref(),
+                        Some(Type::Array(inner, _))
+                            if matches!(inner.as_ref(), Type::Tuple(_))
+                    )
+                {
+                    return Err(IrGenerationError::Admission(format!(
+                        "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding",
+                        name
+                    )));
+                }
+                if value.is_none()
+                    && matches!(
+                        type_annotation.as_ref(),
                         Some(Type::Reference(inner, _))
                             if matches!(inner.as_ref(), Type::Tuple(_))
                     )
