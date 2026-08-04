@@ -1348,3 +1348,39 @@ promise future compatibility.
 - This selection changes no capability. Tuple/array values, compatibility, defaults,
   bounds, layout, mutation, ABI, ownership, raw APIs, verifier/codegen, and all
   backends remain unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+## CORE-032 accepted implementation
+
+- Corrected authorization `449f3536`, tree `24edc1fe`, canonical diff `d65f6b75`,
+  is triple-approved and public all-eight green in compiler `30885443132` /
+  `30885447315`, Rust `30885447416`, CodeQL `30885443837`, and aggregate
+  `91915624793`.
+- The first tests-only snapshot `1afe11d3`, tree `aa4154b0`, canonical diff
+  `9600c937`, was rejected before publication because it silently removed the
+  child-valid array-literal target specimen. Corrected `35eac8c4`, tree `b54a848b`,
+  canonical diff `e600c2bc`, received three approvals and publicly reproduces only
+  the named 20/21 failure with exactly eight acceptances in compiler `30886282169` /
+  `30886283814` and nightly Rust `30886284165`; stable is fail-fast cancelled,
+  while CodeQL `30886281888` and aggregate `91918210639` pass.
+- Exact implementation `30d0d730`, tree `653346ce`, canonical diff `01e87768`, adds
+  22 lines only in semantic analysis and checked admission. Focused 1/1, binding
+  21/21, formatting, and two consecutive exact full gates pass after an earlier
+  unexplained truncated exit-1 attempt. Three reviewers approved with no P0-P3.
+  Compiler `30886856260` / `30886858878`, stable/nightly Rust `30886858960`, all
+  three CodeQL analyses in `30886856518`, and aggregate `91919998289` pass.
+- Initialized immediate `Array(Tuple)` annotations now fail after initializer
+  validation at both trusted boundaries, including traversed generic contexts.
+  Candidate T/B, valueless and deeper/wrapped annotations, tuple/array values and
+  compatibility, raw APIs, verifier/codegen, ABI/ownership, valid-output behavior,
+  and CPU/ROCm/CUDA remain unchanged. This adds no capability evidence or matrix
+  movement; R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- First closure snapshot `7d7fe3d6` passed its exact gate but was rejected
+  unpublished by all three reviewers because the state record still called that
+  gate future work; the type review also required the known exit 1 above instead of
+  generic nonzero. Second snapshot `48f2fd60`, tree `86175cc1`, canonical diff
+  `9f0ab102`, resolved those findings and received two approvals but was rejected
+  unpublished at P3 by the type reviewer because the successful closure gate lacked
+  literal `exit 0`. The twice-corrected six-record tree records both review rounds;
+  its fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7 doc, and
+  21/21 binding tests. It awaits only three exact approvals, unchanged publication,
+  and all eight public checks.

@@ -519,3 +519,24 @@ declared compatibility policy and release-level coverage.
   compatibility, value, default, bounds, layout, mutation, ABI, ownership, lowering,
   execution, or backend evidence. Every matrix row, cell, and capability class
   remains unchanged; R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Corrected CORE-032 authorization `449f3536` is triple-approved and public all-eight
+  green. Corrected tests-first `35eac8c4` publicly proves exactly eight acceptances
+  and only the named 20/21 regression after rejected unpublished `1afe11d3` omitted
+  explicit array-literal target coverage.
+- Accepted public implementation `30d0d730`, tree `653346ce`, canonical diff
+  `01e87768`, adds only exact semantic and checked-admission rejection. Focused 1/1,
+  binding 21/21, formatting, two consecutive exact full gates, all three reviews,
+  compiler `30886856260` / `30886858878`, Rust `30886858960`, CodeQL
+  `30886856518`, and aggregate `91919998289` pass. The first full-gate attempt is
+  retained as an unexplained truncated exit-1 result. No tuple/array value,
+  compatibility, layout, lowering, execution, backend, matrix-cell, or capability-
+  class evidence was added; R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- First closure snapshot `7d7fe3d6` passed its exact gate but was rejected
+  unpublished because its state record treated that gate as future work and generic
+  nonzero wording lost the known exit 1 above. Second snapshot `48f2fd60`, tree
+  `86175cc1`, canonical diff `9f0ab102`, resolved those findings and received two
+  approvals but was rejected unpublished at P3 by the type reviewer because the
+  successful closure gate lacked literal `exit 0`. The twice-corrected records
+  preserve both rounds; their fresh exact gate exits 0 with 139/139 library, 149/149
+  binary, 7/7 doc, and 21/21 binding tests. Exact review, unchanged publication, and
+  all eight checks remain pending.

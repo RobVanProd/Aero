@@ -1807,7 +1807,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-040 - Initialized immediate array-of-tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: accepted selection protocol; CORE-032 authorization gates pending.
+- Status: implemented public all-eight green at `30d0d730`; record closure pending.
 - Decision: for an initialized `let` annotation exactly shaped as
   `Type::Array(Type::Tuple(_), _)`, validate the initializer first, preserve existing
   initialized outer-tuple handling, then reject in semantics and independently in
@@ -1835,3 +1835,31 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   reviewers because its five-acceptance test contract omitted generic-impl and
   generic-function traversal. The corrected contract explicitly freezes those
   contexts and an eight-acceptance red surface.
+- Evidence: corrected authorization `449f3536` is triple-approved and all-eight
+  green. Rejected tests snapshot `1afe11d3` was never published because it omitted
+  explicit child-valid array-literal coverage. Corrected tests-only `35eac8c4`, tree
+  `b54a848b`, canonical diff `e600c2bc`, received three approvals and publicly
+  reproduces only the exact eight-acceptance failure in compiler `30886282169` /
+  `30886283814` and nightly Rust `30886284165`; CodeQL and aggregate pass.
+- Accepted implementation `30d0d730`, tree `653346ce`, canonical diff `01e87768`,
+  adds one exact nonrecursive guard in each authorized phase. Focused 1/1, binding
+  21/21, formatting, two consecutive full gates, three exact reviews, compiler
+  `30886856260` / `30886858878`, Rust `30886858960`, CodeQL `30886856518`, and
+  aggregate `91919998289` pass. A preceding full-gate attempt returned exit 1 with
+  output truncated before attribution; it remains recorded as unexplained and is not
+  called a proven flake.
+- Closure evidence: first closure snapshot `7d7fe3d6`, tree `18c904fd`, canonical
+  diff `407c3c86`, passed its exact full gate but was rejected unpublished by all
+  three reviewers because its state record left that completed gate as future work;
+  one reviewer additionally required the known transient status to remain exact as
+  exit 1. Second closure snapshot `48f2fd60`, tree `86175cc1`, canonical diff
+  `9f0ab102`, resolved those findings and received two approvals but was rejected
+  unpublished at P3 by the type reviewer because it omitted the successful closure
+  gate's literal `exit 0`. The twice-corrected records preserve both rounds, and the
+  fresh exact gate exits 0 (139/139 library, 149/149 binary, 7/7 doc, 21/21 binding).
+  Approval, unchanged publication, and all eight public checks are the only next
+  actions.
+- Result: rejection is containment only. No tuple/array value, compatibility,
+  default, bounds, layout, mutation, ABI, ownership, lowering, execution, backend,
+  matrix, or capability decision follows. R-002 remains HIGH/CRITICAL and PARTIALLY
+  CONTROLLED.

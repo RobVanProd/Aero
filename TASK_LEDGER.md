@@ -5669,11 +5669,54 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   mutation/ABI/ownership semantics, valid-output change, more
   than the two named compiler phases, backend work, or any unresolved compatibility
   decision.
-- Status: corrected preregistration passes its fresh exact full local gate at 139/139
-  library, 149/149 binary, 7/7 doc, and 20/20 binding-contract tests; exact final-tree
-  review, unchanged publication, and public checks remain pending. Snapshot `58e46e34`, tree
+- Status: selected implementation is accepted public all-eight green; corrected
+  six-record closure remains pending exact review and publication. Snapshot
+  `58e46e34`, tree
   `b47c7427`, canonical diff `f36748c2`, passed its local gate but received three
   blocking reviews and was rejected before publication because its five-acceptance
-  contract omitted traversed generic contexts. No test or implementation edit is
-  authorized until the corrected exact six-record contract receives three exact
-  reviews, unchanged publication, and all eight public checks.
+  contract omitted traversed generic contexts. Corrected authorization `449f3536`,
+  tree `24edc1fe`, canonical diff `d65f6b75`, passed 139/139 library, 149/149
+  binary, 7/7 doc, and 20/20 binding tests, received three exact approvals, and is
+  public all-eight green in compiler `30885443132` / `30885447315`, Rust
+  `30885447416`, CodeQL `30885443837`, and aggregate `91915624793`.
+- Tests-first: snapshot `1afe11d3`, tree `aa4154b0`, canonical diff `9600c937`, was
+  rejected before publication at P1 because it removed the accepted child-valid
+  array-literal initializer without explicitly reclassifying it. Corrected exact
+  tests-only `35eac8c4`, tree `b54a848b`, canonical diff `e600c2bc`, uses the
+  array-literal initializer for the nonzero ordinary specimen while retaining scalar
+  public and generic specimens. It received three approvals and publicly reproduces
+  only the frozen failure: compiler `30886282169` / `30886283814` and nightly in
+  Rust `30886284165` fail 20/21 with exactly eight acceptances after 139/139,
+  149/149, and 7/7; stable is fail-fast cancelled during tests. CodeQL
+  `30886281888` and aggregate `91918210639` pass.
+- Implementation: exact `30d0d73024a1dd865961215b1cb803e63631679f`, tree
+  `653346ceb02d80a07fb5e3ba3c4e79ab4a258b9f`, canonical diff
+  `01e877685039fe749b1482e0eefb8373dac5a305`, adds only 22 lines across the two
+  authorized files. Focused is 1/1, binding is 21/21, and formatting passes. The
+  first full-gate attempt returned exit 1 but its output truncated before any
+  attributable failure; it is recorded as unexplained, not a proven flake. Two
+  consecutive unchanged-tree exact full gates then passed every suite. Three exact
+  reviewers approved with no P0-P3 findings. Compiler `30886856260` /
+  `30886858878`, stable/nightly Rust `30886858960`, all three CodeQL analyses in
+  `30886856518`, and aggregate `91919998289` pass.
+- Closure records: first closure snapshot `7d7fe3d6`, tree `18c904fd`, canonical
+  diff `407c3c86`, passed the exact full gate but was rejected unpublished by all
+  three reviewers because `PROJECT_STATE.md` still described that completed gate
+  as future work; the type reviewer also required the known first implementation-
+  gate status to remain exact as exit 1 rather than generic nonzero. Second closure
+  snapshot `48f2fd60`, tree `86175cc1`, canonical diff `9f0ab102`, resolved those
+  findings and received two approvals, but the type reviewer rejected it at P3
+  because its successful closure gate omitted the literal status `exit 0`; it also
+  remained unpublished. The twice-corrected six-record working tree records both
+  review rounds, and its fresh exact full gate exits 0 with 139/139 library, 149/149
+  binary, 7/7 doc, and 21/21 binding tests. Its exact next action is three approvals,
+  unchanged publication, and all eight public checks.
+- Result boundary: initialized exact immediate `Array(Tuple)` annotations now stop
+  after initializer validation at semantic analysis and independently at checked
+  admission, including traversed generic contexts, before raw generation. Candidate
+  T/B, valueless and deeper/wrapped forms, tuple/array compatibility and values,
+  raw APIs, verifier/codegen, ABI/ownership, valid-output behavior, and all backends
+  remain unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix
+  cell or capability class moves. No further audit or implementation is authorized
+  until the corrected exact six-record closure is reviewed, published unchanged,
+  and all eight public checks pass.

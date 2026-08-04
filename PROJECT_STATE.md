@@ -4,18 +4,16 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 44 `CORE-032` authorization. AUDIT-038 is complete at exact public all-
-eight-green `e4d58e59`; all three rankings put R-002 first, and final compatibility
-reconciliation unanimously approves initialized immediate array-of-tuple containment.
-The first authorization snapshot was rejected before publication for omitting
-traversed generic contexts. The corrected six-record contract passes the fresh exact
-full local gate (139/139 library, 149/149 binary, 7/7 doc, and 20/20 binding-contract
-tests). Immediate work is exact review of that final tree; no regression test, source
-edit, or capability change is authorized.
+Milestone 44 `CORE-032` record closure. Exact implementation `30d0d730` rejects only
+initialized immediate array-of-tuple annotations at semantic analysis and checked
+admission after initializer validation. Focused 1/1, binding 21/21, two consecutive
+exact full gates, three exact reviews, and all eight public checks pass. Immediate
+work is the six-record closure only; no new audit, regression, implementation, or
+capability change is authorized.
 
 ## Active hypothesis
 
-Two exact nonrecursive guards can reject only an initialized immediate
+Two exact nonrecursive guards reject only an initialized immediate
 `Type::Array(Type::Tuple(_), _)` annotation after existing initializer-child and
 outer-tuple handling but before mismatch logic or raw generation. Count remains
 irrelevant. The guard applies wherever each phase already traverses the statement,
@@ -924,17 +922,44 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   an explicit 38-test ignored run passes 36 and fails 2 but contains recovery/stub
   assumptions that prevent bulk activation.
 
+## CORE-032 accepted implementation
+
+- Corrected authorization `449f3536` is triple-approved and public all-eight green
+  in compiler `30885443132` / `30885447315`, Rust `30885447416`, CodeQL
+  `30885443837`, and aggregate `91915624793`.
+- Corrected tests-first `35eac8c4` is triple-approved and publicly fails only the
+  named 20/21 binding regression with exactly eight acceptances in compiler
+  `30886282169` / `30886283814` and nightly Rust `30886284165`; stable is fail-fast
+  cancelled. CodeQL `30886281888` and aggregate `91918210639` pass. Rejected
+  `1afe11d3` was never published because it omitted explicit array-literal target
+  coverage.
+- Implementation `30d0d730`, tree `653346ce`, canonical diff `01e87768`, is
+  triple-approved and public all-eight green in compiler `30886856260` /
+  `30886858878`, Rust `30886858960`, CodeQL `30886856518`, and aggregate
+  `91919998289`. The first local full-gate attempt is preserved as an unexplained
+  truncated exit-1 result; two consecutive unchanged-tree full reruns passed.
+- This is fail-closed containment only. R-002 remains HIGH/CRITICAL and PARTIALLY
+  CONTROLLED; tuple/array values, compatibility, layout, ABI, ownership, raw APIs,
+  valid-output certification, backends, matrix cells, and capability classes do not
+  move.
+- First closure snapshot `7d7fe3d6`, tree `18c904fd`, canonical diff `407c3c86`,
+  passed its exact full gate but was rejected unpublished by all three reviewers:
+  it incorrectly left the completed closure gate as future work, and the type review
+  also required the known implementation-gate status to remain exact as exit 1.
+  Second snapshot `48f2fd60`, tree `86175cc1`, canonical diff `9f0ab102`, resolved
+  those findings and received two approvals but was rejected unpublished at P3 by
+  the type reviewer because the successful closure gate omitted literal `exit 0`.
+  The twice-corrected six-record tree records both rounds, and its fresh exact gate
+  exits 0 with 139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests.
+
 ## Exact next action
 
-Obtain three exact approvals for the corrected final-tree CORE-032 authorization,
-publish that immutable tree unchanged, and require all eight public checks. Only then
-may the one-file tests-first regression be written. The corrected authorization's
-fresh exact full local gate already passes 139/139 library, 149/149 binary, 7/7 doc,
-and 20/20 binding-contract tests; do not describe that completed gate as pending.
-Do not edit tests/source early, move rejection before initializer-child handling,
-omit traversed generic contexts, broaden beyond immediate initialized array-to-tuple,
-promote a capability, change workflows/dependencies/backends, publish artifacts or
-claims, or touch `master`.
+Obtain three exact approvals for this corrected six-record-only closure, publish the
+immutable closure tree unchanged, and require all eight public checks.
+Do not begin another residual audit or implementation before that acceptance. Do not
+edit tests/source, omit the unexplained first implementation-gate attempt, broaden
+beyond immediate initialized array-to-tuple, promote a capability, change workflows/
+dependencies/backends, publish artifacts or claims, or touch `master`.
 
 ## Unauthorized actions
 

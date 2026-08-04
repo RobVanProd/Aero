@@ -8,7 +8,7 @@ open until a regression test and the applicable full gate prove closure.
 | ID | Risk | Likelihood | Impact | Evidence | Required control | Status |
 |---|---|---|---|---|---|---|
 | R-001 | Invalid characters/numbers/strings are silently changed into valid tokens | HIGH | CRITICAL | Trusted paths use strict lexing at `b988318`; legacy recovery remains public for compatibility and LSP symbol indexing only | Keep recovery output ineligible for semantics/artifacts; add fuzz/property coverage and eventual diagnostic-accumulating migration | CONTROLLED — trusted paths closed |
-| R-002 | Calls, annotations, and returns violate declared type contracts | HIGH | CRITICAL | Monomorphic numeric/void function calls and returns are controlled at `8d5d8e7`; initialized exact numeric annotations are controlled at `bc9a148`; accepted `CORE-015` at `5d7aae0` closes selected binding/array false successes; accepted `CORE-023` at `67ccdf2` closes exact Boolean contracts for monomorphic non-entry helpers; accepted `CORE-025` at `1ec8beb` rejects initialized exact outer tuple binding annotations in semantics and checked admission before generation; accepted `CORE-028` at `e051452` rejects exact valueless outer tuple binding annotations at those same trusted boundaries; accepted `CORE-029` at `29bd2e0` rejects exact valueless immediate reference-to-tuple annotations there; accepted `CORE-030` at `97c0f04` rejects exact valueless immediate array-of-tuple annotations there; accepted `CORE-031` at `4bc7a345` rejects exact valueless immediate array-of-array-of-tuple annotations there | Preserve accepted exact controls and quarantine Boolean entry/ABI, lowercase string, custom/contextual/structural annotations, empty/nonnumeric arrays, other uninitialized annotations, other unsupported nested tuple shapes, tuple type/value support, and remaining generic-scope behavior until separately specified | PARTIALLY CONTROLLED — selected active false successes, including the exact two-array-deep valueless tuple fallback, closed; entry, excluded-type, tuple-support, and generic-scope gaps remain open |
+| R-002 | Calls, annotations, and returns violate declared type contracts | HIGH | CRITICAL | Monomorphic numeric/void function calls and returns are controlled at `8d5d8e7`; initialized exact numeric annotations are controlled at `bc9a148`; accepted `CORE-015` at `5d7aae0` closes selected binding/array false successes; accepted `CORE-023` at `67ccdf2` closes exact Boolean contracts for monomorphic non-entry helpers; accepted `CORE-025` at `1ec8beb` rejects initialized exact outer tuple binding annotations in semantics and checked admission before generation; accepted `CORE-028` at `e051452` rejects exact valueless outer tuple binding annotations at those same trusted boundaries; accepted `CORE-029` at `29bd2e0` rejects exact valueless immediate reference-to-tuple annotations there; accepted `CORE-030` at `97c0f04` rejects exact valueless immediate array-of-tuple annotations there; accepted `CORE-031` at `4bc7a345` rejects exact valueless immediate array-of-array-of-tuple annotations there; accepted `CORE-032` at `30d0d730` rejects exact initialized immediate array-of-tuple annotations after initializer validation | Preserve accepted exact controls and quarantine Boolean entry/ABI, lowercase string, custom/contextual/structural annotations, empty/nonnumeric arrays, other uninitialized annotations, other unsupported nested tuple shapes, tuple type/value support, and remaining generic-scope behavior until separately specified | PARTIALLY CONTROLLED — selected active false successes, including the exact initialized immediate array-of-tuple fallback, closed; entry, excluded-type, tuple-support, and generic-scope gaps remain open |
 | R-003 | Unsupported expressions are accepted with invented integer/zero semantics | HIGH | CRITICAL | `%`, tuple values, named fields, Match, and StructLiteral fail closed at their reviewed boundaries; accepted `CORE-010` at `db349ef` adds generic checked-IR rejection for every unadmitted trusted-path fallback, including ordinary MethodCall, enum construction, and Deref/Borrow | Retain checked admission on every trusted caller; keep non-deprecated raw `generate_ir` and deprecated `generate_code` ineligible as trusted public boundaries, while permitting only checked-wrapper reuse followed by verification; define aggregate/ownership/method semantics before implementation | CONTROLLED — trusted checked compiler paths no longer fabricate scalar values; direct public unchecked compatibility use remains uncertified |
 | R-004 | Ownership claims exceed enforcement and permit dangling/aliased/moved values | HIGH | CRITICAL | Shallow move tracking, no lifetime provenance, mutable references considered `Copy` | Freeze ownership model; CFG/provenance checking; permanent compile-fail suite | OPEN |
 | R-005 | Invalid programs pass semantics then panic, miscompile, or produce invalid LLVM | HIGH | CRITICAL | Accepted `CORE-010` at `db349ef` provides checked logical IR admission, mandatory in-process verification, exhaustive checked codegen errors, and qualified final LLVM 22 verification across trusted callers; focused contracts, full gate, and public CI pass | Preserve mandatory checked APIs/verifiers, deprecate/restrict then retire public unchecked compatibility APIs at a major boundary, and extend typed negative evidence as language forms become admitted | PARTIALLY CONTROLLED — trusted checked scalar IR and externally verified publication routes are controlled; CLI `InternalOnly` and library-returned LLVM without external verification, broader language semantics, and public unchecked APIs remain uncertified |
@@ -567,3 +567,33 @@ rejected before publication because it omitted generic impl/function traversal; 
 corrected contract freezes eight acceptances and preserves earlier outer-generic
 diagnostics. No risk status, matrix cell, or capability changes; R-002 remains
 HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+Corrected CORE-032 authorization `449f3536`, tree `24edc1fe`, canonical diff
+`d65f6b75`, is triple-approved and public all-eight green. Rejected tests-only
+`1afe11d3` was never published because it omitted explicit array-literal target
+coverage. Corrected `35eac8c4`, tree `b54a848b`, canonical diff `e600c2bc`, is
+triple-approved and publicly reproduces exactly eight false acceptances as the sole
+20/21 failure in compiler `30886282169` / `30886283814` and nightly Rust
+`30886284165`; CodeQL `30886281888` and aggregate `91918210639` pass.
+
+Accepted public CORE-032 implementation `30d0d730`, tree `653346ce`, canonical diff
+`01e87768`, adds only exact semantic and checked-admission guards after initializer
+validation and existing outer-tuple handling. Focused 1/1, binding 21/21, formatting,
+two consecutive exact full gates, compiler `30886856260` / `30886858878`, Rust
+`30886858960`, CodeQL `30886856518`, and aggregate `91919998289` pass after three
+exact approvals. An earlier full-gate attempt returned exit 1 with output truncated
+before attribution and remains recorded as unexplained. Candidate T/B, valueless and
+deeper/wrapped forms, tuple/array value and compatibility, raw APIs, verifier/codegen,
+ABI/ownership, valid output, and every backend remain unchanged. R-002 stays
+HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability class moves.
+
+First closure snapshot `7d7fe3d6`, tree `18c904fd`, canonical diff `407c3c86`,
+passed its exact gate but was rejected unpublished by all three reviewers because
+its state record left that completed gate as future work; one review also required
+the known exit 1 above instead of generic nonzero. Second snapshot `48f2fd60`, tree
+`86175cc1`, canonical diff `9f0ab102`, resolved those findings and received two
+approvals but was rejected unpublished at P3 by the type reviewer because the
+successful closure gate omitted literal `exit 0`. The twice-corrected records preserve
+both rounds; their fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
+doc, and 21/21 binding tests. R-002 and every other risk status remain unchanged while
+exact review, unchanged publication, and all eight public checks remain pending.
