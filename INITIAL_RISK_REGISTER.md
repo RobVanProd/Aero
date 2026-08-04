@@ -765,3 +765,23 @@ or claim. Its six-record authorization must pass a fresh local gate, three exact
 reviews, unchanged publication, and all eight public checks before ranking begins.
 The prepared authorization's fresh exact full gate exits 0 with 139/139 library,
 149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.
+
+Exact AUDIT-041 authorization `a31342e8`, tree `fbcd78b6`, canonical diff
+`313a1f6b`, is triple-approved and public all-eight green in compiler `30919164807`
+/ `30919167478`, Rust `30919168162`, CodeQL `30919164869`, and aggregate
+`92025101785`. Three complete rankings put R-002 first; initial exact V/I/R candidates
+split, targeted comparison preferred R two to one, and all final compatibility
+reviews approved only initialized positive-count immediate reference-array-tuple
+containment. AUDIT-041 changed no risk status.
+
+Preregistered CORE-035 may reject exactly nonrecursive initialized
+`Type::Reference(Type::Array(Type::Tuple(_), count), _)` when `count > 0`, for both
+reference mutability flags, after child and existing diagnostics at semantic and
+checked-admission boundaries. Its future tests-first gate is exactly 34 red
+observations with four count-zero controls green; implementation remains limited to
+two exact guards after separately reviewed public-red evidence. This narrows a false-
+success subset but does not resolve broader R-002 or R-011, define reference/array/
+tuple values, ownership, layout, ABI, bounds, lowering, execution, or backend
+capability, or change any risk status, matrix cell, artifact boundary, or claim.
+The prepared six-record authorization's fresh exact full gate exits 0 with 139/139
+library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.

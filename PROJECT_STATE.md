@@ -4,19 +4,21 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 49 `AUDIT-041` authorization. `CORE-034` is closed at exact public commit
-`d3811b00`; its implementation and six-record closure are triple-approved and public
-all-eight green. Immediate work is only the new read-only audit authorization. No
-ranking, source, test, semantics, capability, matrix, or risk-status change is
-authorized before that record set is accepted.
+Milestone 49 `CORE-035` authorization. `AUDIT-041` is complete, read-only, and clean
+at exact public authorization head `a31342e8`; three final compatibility reviews
+select only initialized positive-count reference-around-array-of-tuple containment.
+Immediate work is the six-record CORE-035 contract. No regression, implementation,
+capability, matrix, or risk-status change is authorized before that contract's
+acceptance.
 
 ## Active hypothesis
 
-Three complete, independent, delta-aware static rankings from exact clean public
-closure `d3811b00` can identify at most one distinct bounded residual within two
-compiler phases, or an explicit stop, without repeating an accepted slice or
-inventing language, ownership, aggregate, ABI, backend, or claim semantics. The
-ranking itself must remain read-only and inherit no earlier candidate or order.
+After initializer validation and existing initialized tuple-shape diagnostics, two
+exact nonrecursive guards can reject only an initialized annotation shaped as
+`Type::Reference(Type::Array(Type::Tuple(_), count), _)` when `count > 0`, before
+mismatch, the checked generic-impl bypass, binding insertion, or raw generation.
+Both reference mutability flags are covered; this defines no reference, array, or
+tuple value, ownership, bounds, layout, ABI, lowering, or execution semantics.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1183,22 +1185,88 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   unanimously bounded residual or record a stop. An unresolved semantic or
   compatibility choice, more than two compiler phases, hardware requirement,
   unsupported-source-type fallback, or valid-output uncertainty is a stop.
-- Authorization files are limited to the six control records. A fresh exact full
+- Authorization files were limited to the six control records. A fresh exact full
   local gate, three exact reviews, unchanged publication, and all eight public checks
-  are required before any ranking begins. AUDIT-041 grants no regression,
+  were required before ranking began. AUDIT-041 grants no regression,
   implementation, semantics, capability, matrix, risk, workflow, dependency,
   backend, artifact, claim, history, or `master` authority.
 - The prepared six-record authorization's fresh exact repository-root full gate
   exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
+- Authorization `a31342e88a84d919098c64eac416979786a7957c`, parent `d3811b00`,
+  tree `fbcd78b6ee139c4ab14bf0c7c5c6e86ab3a87dce`, canonical diff
+  `313a1f6bd43c22593faa652921f90a2907a5622d`, received three exact approvals and
+  was published unchanged. Compiler `30919164807` / `30919167478`, stable/nightly
+  Rust `30919168162`, all three CodeQL analyses in `30919164869`, and aggregate
+  `92025101785` pass.
+- Independent rankings all placed R-002 first but selected valueless exact three-
+  array tuple containment (type/safety), initialized exact three-array tuple
+  containment (IR/codegen), and initialized positive-count immediate reference-
+  around-array-of-tuple containment (backend/claim). Targeted comparison ranked
+  V/I/R once and R/I/V twice. The lead provisionally selected R on readiness and
+  smaller, shallower topology; all three final compatibility reviews approved the
+  exact R predicate, diagnostics, ordering, 34-red/4-green matrix, two-phase boundary,
+  context behavior, and preservation set.
+- AUDIT-041 changed no file or classification. Bounds remains stopped pending policy;
+  valueless and initialized exact three-array shapes remain bounded residuals rather
+  than implementation authority.
+
+## CORE-035 authorization
+
+- Exact behavior: reject only initialized `Statement::Let` annotations exactly
+  shaped as `Type::Reference(Type::Array(Type::Tuple(_), count), _)` when
+  `count > 0`, for both reference mutability flags and without recursive descent.
+- Ordering/diagnostics: semantic duplicate detection and RHS validation remain
+  first; checked RHS validation and Void rejection remain first; all existing
+  initialized outer-, one-array-, two-array-, and immediate-reference-to-tuple
+  diagnostics stay first. Then semantic emits `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding.` and checked admission emits
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding` before mismatch, the checked generic-impl bypass, insertion, or raw generation. The public
+  semantic prefix is unchanged.
+- Context: apply only wherever semantic analysis and checked admission already
+  traverse bindings. Direct/top-level, explicit block, if branches, while, for,
+  loop, non-generic impl, generic impl, and semantic generic-function bodies are
+  covered. Checked generic functions retain their outer rejection; generic trait
+  default bodies remain syntax-only.
+- Tests-first: after authorization acceptance, only
+  `src/compiler/tests/binding_type_contract_tests.rs` may change. Reclassify, never
+  silently delete, the existing immutable count-one acceptance rows into one new
+  aggregate. It must report exactly 34 unexpected acceptances before implementation:
+  direct counts one/two x both flags x both phases 8; public count one both flags 2;
+  top-level count one both flags at both phases 4; generic impl count one both flags
+  at both phases 4; semantic generic functions count one both flags 2; and seven
+  immutable count-one block/control-flow/loop/non-generic-impl contexts at both
+  phases 14. Count zero for both flags at both phases is an exact four-observation
+  green preservation matrix. Expected focused result is 0/1 and binding aggregate
+  23/24 with only the new test failing after 139/139 library, 149/149 binary, and
+  7/7 claim tests pass.
+- Required green evidence: duplicate/RHS/Void precedence; every accepted
+  CORE-025/028/029/030/031/032/033/034 diagnostic and ordering rule; count-zero and
+  valueless target shapes; scalar and numeric-array references; array-around-
+  reference, double/deeper reference, deeper array, generic, and wrapped forms;
+  checked generic-function outer rejection; syntax-only trait defaults; and valid
+  numeric-array LLVM output.
+- Later implementation may change only `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs`, adding two exact guards after separately
+  reviewed public-red evidence. Parser, raw IR, verifier, codegen, LLVM verification,
+  CLI, runtime, and backends cannot change.
+- Authorization changes are limited to the six control records. The exact full local
+  gate, three exact reviews, unchanged publication, and all eight public checks are
+  required before tests-first. No reference/array/tuple value, mutability, ownership,
+  lifetime, layout, ABI, coercion, bounds, lowering, execution, backend, matrix,
+  capability, risk, artifact, claim, history, or `master` meaning follows.
+- The prepared six-record authorization's fresh exact repository-root full gate
+  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
+- Stop on any predicate broader than the exact positive-count immediate topology,
+  different red/green count, diagnostic or precedence drift, recursive matching,
+  new traversal, third compiler phase, valid-output effect, workflow/dependency,
+  artifact/claim, history, or `master` action.
 
 ## Exact next action
 
-Obtain three exact approvals for the locally green six-record AUDIT-041
-authorization, publish its immutable tree unchanged, and require all eight public
-checks before the read-only rankings begin. Do not edit source/tests, privilege a
-prior candidate, resolve bounds policy implicitly, promote a capability, change
-workflows/dependencies/backends, publish artifacts or claims, rewrite history,
-force-push, or touch `master`.
+Obtain three exact approvals for the locally green six-record CORE-035 authorization,
+publish its immutable tree unchanged, and require all eight public checks before
+tests-first. Do not edit source/tests, broaden the predicate, resolve bounds policy
+implicitly, promote a capability, change workflows/dependencies/backends, publish
+artifacts or claims, rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

@@ -2070,8 +2070,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-045 - Re-rank the complete residual set after CORE-034
 
 - Date: 2026-08-04
-- Status: authorization fresh-local-gate green; three exact reviews, unchanged
-  publication, and all eight public checks are pending. Ranking has not begun.
+- Status: complete, read-only, and clean at public-green authorization `a31342e8`;
+  exact R selected unanimously by final compatibility review.
 - Decision: authorize `AUDIT-041` only as a static, read-only, independent re-ranking
   of R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 from exact
   clean public closure `d3811b00`. Exclude every accepted slice through CORE-034 and
@@ -2092,3 +2092,40 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   workflow, dependency, backend, artifact, claim, history, or `master` authority.
 - Gate evidence: the prepared authorization's fresh exact full gate exits 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
+- Authorization acceptance: exact `a31342e8`, tree `fbcd78b6`, canonical diff
+  `313a1f6b`, received three exact approvals and passes compiler `30919164807` /
+  `30919167478`, Rust `30919168162`, CodeQL `30919164869`, and aggregate
+  `92025101785`.
+- Result: all rankings placed R-002 first. Initial exact candidates split V/I/R;
+  targeted comparison ranked V/I/R once and R/I/V twice. All three final
+  compatibility reviews approved only initialized exact nonrecursive positive-count
+  `Reference(Array(Tuple))` rejection at semantic and checked-admission boundaries,
+  with both mutability flags, the 34-red/4-green matrix, and no classification move.
+
+## DEC-046 - Initialized positive-count reference-array-tuple annotations fail closed
+
+- Date: 2026-08-04
+- Status: authorization fresh-local-gate green; three exact reviews, unchanged
+  publication, and all eight public checks pending. Tests and implementation have
+  not begun.
+- Decision: for an initialized binding whose annotation is exactly nonrecursive
+  `Type::Reference(Type::Array(Type::Tuple(_), count), _)` with `count > 0`, validate
+  the initializer, preserve checked Void and all existing initialized tuple-shape
+  diagnostics, then reject in semantics and checked admission before mismatch, the
+  checked generic-impl bypass, binding insertion, or raw generation. Match both
+  reference mutability flags without assigning mutability meaning.
+- Diagnostics: semantic `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding.`; checked `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding`; public keeps the existing semantic prefix.
+- Context: use only existing semantic/checked binding traversal. Checked generic-
+  function outer rejection and syntax-only generic trait defaults remain unchanged.
+- Tests-first boundary: after authorization acceptance, one binding-contract aggregate
+  must reclassify the existing immutable rows and expose exactly 34 false acceptances;
+  direct count one/two proves `count > 0`, the context matrix proves existing
+  traversal, and four count-zero semantic/checked observations remain green. Any
+  different count or diagnostic is a stop.
+- Implementation boundary: after separately reviewed public-red evidence, only the
+  semantic analyzer and checked IR admission may add exact guards. No parser, raw IR,
+  verifier, codegen, CLI, runtime, backend, reference/array/tuple value, ownership,
+  layout, ABI, bounds, lowering, execution, matrix, capability, risk, or claim change
+  is authorized.
+- Gate evidence: the prepared six-record authorization's fresh exact full gate exits
+  0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.

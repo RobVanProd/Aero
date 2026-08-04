@@ -673,3 +673,17 @@ declared compatibility policy and release-level coverage.
   and public all-eight green.
 - The prepared AUDIT-041 authorization's fresh exact full gate exits 0 with 139/139
   library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No matrix cell moves.
+- Exact AUDIT-041 authorization `a31342e8`, tree `fbcd78b6`, canonical diff
+  `313a1f6b`, is triple-approved and public all-eight green. Three complete rankings
+  put R-002 first; initial V/I/R candidates split, targeted comparison prefers R two
+  to one, and all final compatibility reviews approve only initialized exact
+  nonrecursive positive-count `Reference(Array(Tuple))` containment.
+- Preregistered CORE-035 may reject that exact shape for both reference mutability
+  flags at semantic and checked-admission boundaries only after child and existing
+  initialized diagnostics. Its tests-first evidence must expose exactly 34 false
+  acceptances and preserve four count-zero observations. Rejection defines no
+  reference/array/tuple value, ownership, layout, ABI, bounds, lowering, execution,
+  backend, or stability evidence. Every matrix row and cell remains unchanged;
+  R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- The prepared CORE-035 authorization's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No matrix cell moves.

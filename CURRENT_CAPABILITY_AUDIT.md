@@ -1563,3 +1563,31 @@ promise future compatibility.
   gate, three exact reviews, unchanged publication, and all eight public checks.
 - The prepared authorization's fresh exact full gate exits 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 23/23 binding tests. No capability class moves.
+- Exact authorization `a31342e8`, tree `fbcd78b6`, canonical diff `313a1f6b`, is
+  triple-approved and public all-eight green in compiler `30919164807` /
+  `30919167478`, Rust `30919168162`, CodeQL `30919164869`, and aggregate
+  `92025101785`.
+- Three complete rankings all place R-002 first but initially select V valueless
+  three-array, I initialized three-array, and R initialized positive-count immediate
+  reference-array-tuple containment. Targeted comparison prefers R two to one; all
+  three final compatibility reviews approve exact R with both mutability flags,
+  34 red observations, four count-zero green observations, and a two-phase ceiling.
+- AUDIT-041 is complete, read-only, and classification-neutral. Bounds remains
+  stopped pending policy; V and I remain residuals rather than authority.
+
+## CORE-035 authorization boundary
+
+- Only initialized exact nonrecursive positive-count
+  `Type::Reference(Type::Array(Type::Tuple(_), count), _)` may be rejected, after
+  child and existing initialized diagnostics, at semantic and checked-admission
+  boundaries. This is containment before IR, not reference, array, or tuple support.
+- Tests-first must reclassify existing immutable acceptance evidence and expose
+  exactly 34 false acceptances while four count-zero semantic/checked controls stay
+  green. Later implementation remains limited to two exact guards in two phases.
+- No capability class moves: tuples remain parsed-only, references and fixed arrays
+  remain partial, R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 remains
+  open without bounds policy, and backend/hardware/claim classes remain unchanged.
+- Fresh local gate, three exact reviews, unchanged publication, and all eight public
+  checks are required before the tests-only change.
+- The prepared six-record authorization's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No capability moves.
