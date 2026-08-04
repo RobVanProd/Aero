@@ -407,3 +407,11 @@ declared compatibility policy and release-level coverage.
   on valueless bindings no longer fall back to `Int` at the two trusted boundaries.
   No tuple value/layout/lowering/execution evidence was added, so every matrix row,
   cell, and capability class remains unchanged.
+- Exact six-record CORE-028 closure `032d0d0`, tree `443aacdc`, diff `93fce8ae`, is
+  triple-approved and all-eight public green in compiler `30872236535` /
+  `30872238993`, Rust `30872239003`, CodeQL `30872237025`, and aggregate
+  `91876507154`. No matrix cell changes.
+- Preregistered read-only `AUDIT-035` may re-rank the same complete eleven-risk set
+  only after its separate exact authorization gates. It must exclude every accepted
+  slice including CORE-028, cannot inherit AUDIT-034's order, and cannot change a
+  matrix row, capability class, source, test, workflow, dependency, or backend.

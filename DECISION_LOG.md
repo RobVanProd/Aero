@@ -1529,8 +1529,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-033 - Unsupported uninitialized outer tuple annotations must fail closed
 
 - Date: 2026-08-03
-- Status: accepted implementation at public all-eight-green `e051452`; final record
-  closure pending.
+- Status: accepted and closed at public all-eight-green `032d0d0`.
 - Decision: an exact valueless binding with outer annotation `Type::Tuple(_)` is not
   supported syntax-to-IR behavior. Semantics must reject it after existing same-scope
   duplicate detection and before the current default `Ty::Int` or binding insertion.
@@ -1579,3 +1578,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   unsupported annotation enforcement, unchecked APIs, valid-output certification,
   and all broader R-002/R-005 surfaces remain unchanged. R-002 stays HIGH/CRITICAL
   and PARTIALLY CONTROLLED; no matrix cell or capability changes.
+- Closure evidence: exact snapshot `f6305e18`, tree `443aacdc`, diff `93fce8ae`,
+  received three approvals and was published unchanged as `032d0d0`. Compiler
+  `30872236535` / `30872238993`, stable/nightly Rust `30872239003`, CodeQL
+  `30872237025`, and aggregate `91876507154` all pass.
+- Audit handoff: `AUDIT-035` may independently re-rank all eleven remaining OPEN or
+  PARTIALLY CONTROLLED risks only after its separate six-record authorization passes
+  exact local, review, unchanged-publication, and all-eight public gates. It carries
+  no implementation or capability-promotion authority and excludes every accepted
+  slice including CORE-028.

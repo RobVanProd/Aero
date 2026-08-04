@@ -422,8 +422,8 @@ compiler `30871337443` / `30871335738`, stable/nightly Rust `30871337440`, CodeQ
 `30871336117`, and aggregate `91873866339` pass. Initialized and nested tuples,
 other unsupported/valueless annotations, unchecked APIs, tuple support, valid-output
 claims, and every backend/capability surface remain unchanged. R-002 stays
-HIGH/CRITICAL and PARTIALLY CONTROLLED; record closure and a later separate
-`AUDIT-035` authorization are still required.
+HIGH/CRITICAL and PARTIALLY CONTROLLED; a later separate `AUDIT-035` authorization
+is still required before any new residual ranking.
 
 The first `CORE-028` closure snapshot `a20548ec`, tree `8250ce11`, diff
 `f0f181f9`, was rejected at P2 before publication for contradictory present-tense
@@ -438,3 +438,12 @@ PARTIALLY CONTROLLED status remain unchanged. A third snapshot `782bc8fb`, tree
 before publication because the ledger described its fresh final-tree gate as both
 passed and pending. The current closure records one unambiguous fresh exact-gate
 result; this chronology correction changes no risk or capability classification.
+
+Exact `CORE-028` record closure `032d0d0`, tree `443aacdc`, diff `93fce8ae`, passes
+compiler `30872236535` / `30872238993`, stable/nightly Rust `30872239003`, CodeQL
+`30872237025`, and aggregate `91876507154` after three exact approvals. R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED; no tuple capability or other risk status
+changes. `AUDIT-035` is preregistered to rank the complete remaining R-002/R-004/
+R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set only after its separate
+exact local/review/public gates, excluding every accepted sub-slice including
+CORE-028 and carrying no implementation or capability authority.

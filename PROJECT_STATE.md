@@ -4,20 +4,22 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 35 `CORE-028` record closure. The exact valueless outer-tuple annotation
-now fails closed in semantics and checked admission at public all-eight-green
-implementation `e051452`; it no longer silently becomes `Int` or reaches generation
-as integer zero on trusted paths. Immediate work is the exact six-record closure
-gate/review/publication. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED;
-rejection does not establish tuple capability.
+Milestone 36 `AUDIT-035` authorization. `CORE-028` is closed at public all-eight-
+green `032d0d0`; its exact valueless outer-tuple rejection is containment, not tuple
+capability. Immediate work is a six-record, strictly read-only authorization to
+re-rank all eleven remaining OPEN/PARTIALLY CONTROLLED risks. No ranking begins until
+that contract passes its own exact local, review, unchanged-publication, and all-eight
+public gates. AUDIT-035 never grants implementation or capability authority; any
+later test or source change requires a separately reviewed task contract and
+tests-first evidence.
 
 ## Active hypothesis
 
-The accepted two-guard result exactly enforces the frozen rejection contract after
-existing duplicate-name semantics and before default `Ty::Int`, binding insertion,
-or generation. Closure records must preserve the distinction between this containment
-and tuple support, record the public red/green evidence, and hand the remaining risks
-to a separately authorized clean-head audit.
+A new full-set, delta-aware comparison from the clean accepted head can select one
+bounded, reproducible residual—or an explicit stop—without inheriting AUDIT-034's
+ordering or repeating an accepted slice. The audit remains static and read-only;
+semantic ambiguity, more than two compiler phases, hardware needs, or unsupported
+capability claims are stop conditions rather than implementation invitations.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -51,6 +53,21 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-028` record closure
+  `032d0d05f6fa4cfe3ac01e6add2b6fc4443cb338`, tree `443aacdc`, diff
+  `93fce8ae`, passes compiler `30872236535` / `30872238993`, stable/nightly Rust
+  `30872239003`, all three analyses in CodeQL `30872237025`, and aggregate
+  `91876507154` after three exact approvals. PR #4 remains open and draft; upstream
+  `master` remains `8f8c733`.
+- First `AUDIT-035` authorization snapshot `b07adf20`, tree `fc524b74`, diff
+  `4c64dc65`, was rejected at P2 before publication because two records made the
+  absence of implementation/capability authority sound conditional on gate
+  completion. The corrected contract states separately that gates unlock read-only
+  ranking only and that AUDIT-035 never grants implementation/capability authority.
+  Corrected snapshot `5f8bdd43`, tree `ec2f7791`, diff `4c6defae`, fixed that P2 but
+  was rejected at P3 before publication because Exact next action still instructed a
+  future actor to run the already completed local gate. The current handoff starts at
+  three fresh reviews of the full-local-gate-green corrected authorization.
 - Accepted public `CORE-028` implementation
   `e051452470cb0f17ee4d9940b989ee3bef10d333`, tree `63985b2d`, diff
   `79830403`, passes focused 1/1, binding 17/17, the exact full local gate at
@@ -82,8 +99,8 @@ capability claims are stop conditions rather than implementation invitations.
   without changing likelihood, impact, or PARTIALLY CONTROLLED status. Third
   snapshot `782bc8fb`, tree `1914aaf7`, diff `e1962dbb`, contained that correction
   but was rejected at P2 before publication because the ledger described its fresh
-  final-tree gate as both passed and pending. The current closure records one
-  unambiguous fresh exact-gate result.
+  final-tree gate as both passed and pending. Accepted closure `032d0d0` records one
+  unambiguous fresh exact-gate result and the complete public evidence above.
 - Public `AUDIT-034` authorization
   `45783af9b54277b83dd58fc9d6162163c451bbb3`, tree `f1baa457`, diff
   `1e8563ae`, passes compiler `30866227485` / `30866229553`, stable/nightly Rust
@@ -787,11 +804,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three fresh exact approvals for the full-local-gate-green six-record
-`CORE-028` closure, publish the approved snapshot unchanged, and require all eight
-public checks. Only after that clean closure may `AUDIT-035` receive a separate
-read-only authorization. Do not extend CORE-028, promote tuple capability, change
-workflows/dependencies/backends, publish artifacts or claims, or touch `master`.
+Obtain three fresh exact approvals for the full-local-gate-green corrected six-record
+`AUDIT-035` read-only authorization, publish the approved snapshot unchanged, and
+require all eight public checks. Only then may the three auditors independently rank
+all eleven residual risks. Do not begin ranking early, extend CORE-028, promote tuple
+capability, change workflows/dependencies/backends, publish artifacts or claims, or
+touch `master`.
 
 ## Unauthorized actions
 

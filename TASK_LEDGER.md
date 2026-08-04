@@ -4823,10 +4823,102 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   narrows the unresolved surface to other uninitialized annotations and tuple
   annotations nested beneath non-tuple outer shapes, and passes one unambiguous
   fresh exact full local gate with 139/139 library and 149/149 binary tests plus
-  every active integration/doc test. It is pending three fresh reviews, unchanged
-  publication, and all-eight verification. R-002 remains HIGH/CRITICAL and
-  PARTIALLY CONTROLLED. No tuple capability or matrix cell is promoted.
-- Audit handoff: only after accepted record closure may a separately authorized
-  read-only `AUDIT-035` re-rank the complete remaining OPEN/PARTIALLY CONTROLLED set,
-  excluding every accepted slice including CORE-028. It carries no implementation or
+  every active integration/doc test. Exact snapshot
+  `f6305e18cd697e40d1262a7e0c1b1dc0a41fab4f`, tree
+  `443aacdc1ac20eec7fc2c2d401f24c562568ce9c`, diff
+  `93fce8ae5771f456f1943780952a831e1b8fc92b`, received three approvals and was
+  published unchanged as `032d0d05f6fa4cfe3ac01e6add2b6fc4443cb338`.
+  Compiler `30872236535` / `30872238993`, stable/nightly Rust `30872239003`, all
+  three CodeQL analyses in `30872237025`, and aggregate `91876507154` all pass.
+  CORE-028 is complete. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED. No
+  tuple capability or matrix cell is promoted.
+- Audit handoff: `AUDIT-035` below may re-rank the complete remaining OPEN/PARTIALLY
+  CONTROLLED set only after its separate exact six-record authorization is reviewed,
+  published unchanged, and all-eight green. It carries no implementation or
   capability authority.
+
+## AUDIT-035 - Clean-head residual-risk re-ranking after CORE-028
+
+- Task ID/date/owner: `AUDIT-035`, 2026-08-03, lead-owned read-only reconciliation
+  with independent type/safety, IR/codegen, and backend/claim auditors.
+- Observed behavior: `CORE-028` is complete at public closure `032d0d0`. The exact
+  valueless outer `Type::Tuple(_)` binding now fails before fake `Int`, insertion, or
+  generation at the two trusted boundaries, but this is containment rather than
+  tuple support. The complete remaining OPEN or PARTIALLY CONTROLLED set is R-002,
+  R-004, R-005, R-006, R-007, R-009, R-010, R-011, R-012, R-013, and R-016. No next
+  implementation is authorized.
+- Hypothesis: a clean-head, delta-aware full-set ranking can identify the highest-
+  severity bounded residual with frozen semantics, deterministic tests-first
+  evidence, and at most two compiler phases, or stop explicitly, without repeating
+  an accepted slice, inheriting a prior ordering, or treating rejection, records,
+  annotations, flags, simulation, object emission, editor projection, or authority
+  containment as broader capability.
+- Frozen audit semantics: the basis is the exact commit publishing this contract,
+  only after its full local gate, three exact approvals, unchanged publication, and
+  all eight public checks pass. Each auditor independently ranks all eleven residuals
+  by current reproducibility, severity, reach, semantic readiness, phase count,
+  compatibility ambiguity, and tests-first feasibility. Every accepted sub-slice,
+  including CORE-028, remains excluded. Any next task requires complete evidence,
+  explicit exclusions, one separately reviewed frozen contract, and failing
+  regression evidence first.
+- Candidate boundaries and stops: R-002 excludes accepted numeric, selected binding/
+  array, non-entry Boolean helper, initialized exact outer-tuple, and valueless exact
+  outer-tuple rejection contracts; entry/ABI, lowercase string, custom/contextual/
+  structural types, other uninitialized annotations, tuple annotations beneath non-
+  tuple outer shapes, tuple support, and generic behavior remain. R-004 needs frozen
+  ownership/provenance semantics. R-005 excludes accepted checked-arity containment;
+  its known zero-argument parameterized-local-closure case remains verifier-contained
+  before LLVM, while supplied-argument precedence, unchecked-API policy, other
+  callable signatures, and trusted phase order remain unresolved. R-006 excludes
+  direct-module/options controls but retains duplicated orchestration. R-007 requires
+  real hardware execution/correctness evidence. R-009 excludes the parser-start
+  adapter but retains spans/recovery. R-010 excludes authority notices but retains
+  grammar compatibility, executable examples, and migration. R-011 needs aggregate
+  bounds/layout/execution semantics. R-012 retains the confirmed 16-file/299-test
+  disconnected population and needs truthful quality/activation classification.
+  R-013 excludes accepted status/wording/init controls but retains rollback, helper,
+  maturity, and execution boundaries. R-016 needs a supported-toolchain policy.
+- Allowed files/actions: during the audit, root and auditors are strictly read-only.
+  After all findings are reconciled, only `TASK_LEDGER.md`, `DECISION_LOG.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  and `INITIAL_RISK_REGISTER.md` may record the result and separately freeze a next
+  task. No test, probe, benchmark, artifact, source, workflow, dependency, package/
+  release/registry, immutable claim-evidence, backend, external-query, or `master`
+  action is authorized.
+- Acceptance: this authorization passes exact `./tools/test.sh`, three exact-snapshot
+  reviews, unchanged publication, and all eight public checks before audit work
+  begins. Then three complete independent reports rank every residual and state
+  findings, evidence, files changed, commands, test results, uncertainty, regression
+  risks, commit SHA, and recommended next action. The lead reconciles one bounded
+  selection or an explicit stop. Any test or implementation edit requires a later
+  reviewed task contract and tests-first publication.
+- Risks: stale residual accounting; inheriting an AUDIT-034 order; ranking labels
+  instead of active behavior; reselecting an accepted slice; inventing language,
+  ownership, aggregate, entry, grammar, toolchain, or backend semantics; mistaking
+  rejection, test, annotation, editor, object-emission, authority containment, or
+  simulation evidence for capability; or allowing an invalid program to IR/backend.
+- Stop conditions: omitted residual; edit/test/probe/artifact/external query during
+  the audit; implementation before reconciliation and a separate reviewed task
+  contract; unsupported source-type fallback; more than two compiler phases;
+  unresolved semantic or compatibility choice; workflow/dependency, benchmark,
+  package/release/registry, immutable evidence, history rewrite, destructive-system,
+  or `master` action.
+- Authorization evidence: first snapshot
+  `b07adf20fc4eca192acf8ae3abff88674fb19a5c`, tree
+  `fc524b74bb1a0ce0e29302a733af7710ea22deb7`, diff
+  `4c64dc65237f5b68f8c634089e18eb1268c735ed`, was rejected at P2 before
+  publication because two records made the absence of implementation/capability
+  authority sound conditional on gate completion. The corrected contract states
+  separately that gates unlock read-only ranking only and AUDIT-035 never grants
+  implementation/capability authority. Corrected snapshot
+  `5f8bdd4326882688c949decb897d4d68f1ff9dc9`, tree
+  `ec2f779186037e74113a226040f85c7dc52fafd2`, diff
+  `4c6defaec6f590e854f90e83a3be78e5b9f3d474`, fixed that P2 but was rejected at
+  P3 before publication because Project State still instructed a future actor to run
+  the already completed local gate. The current corrected authorization's fresh
+  exact full local gate passes
+  139/139 library and 149/149 binary tests plus every active integration/doc test.
+- Status: corrected preregistered records only. No AUDIT-035 ranking or inspection
+  begins until this exact authorization receives three fresh approvals, unchanged
+  publication, and all eight public checks. Any later test or implementation edit
+  requires a separately reviewed task contract and tests-first evidence.
