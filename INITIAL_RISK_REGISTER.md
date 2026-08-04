@@ -507,3 +507,13 @@ scalar arrays, generic/Vec and reference wrappers, other unsupported annotations
 unchecked APIs, tuple/array support, valid-output claims, and every backend remain
 unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED; record closure is
 required before another residual audit or implementation authorization.
+
+Exact CORE-030 record closure `cd8add28`, tree `8ab06d62`, passes compiler
+`30879329940` / `30879332975`, stable/nightly Rust `30879332995` attempt 2,
+CodeQL `30879330627`, and aggregate `91897195358` after three exact approvals.
+The initial Rust attempt's unchanged fake-verifier `ETXTBSY` fixture failure passed
+on the focused failed-job rerun without a file or ref change. No risk status,
+matrix cell, or capability class changes. Preregistered AUDIT-037 may re-rank the
+complete remaining eleven-risk set only after its own exact authorization gates,
+must exclude every accepted slice through CORE-030, and carries no test,
+implementation, semantics, or capability authority.

@@ -1233,3 +1233,21 @@ promise future compatibility.
   backend remain unchanged. This is containment, not array/tuple support; R-002
   remains HIGH/CRITICAL and PARTIALLY CONTROLLED, with no capability or matrix-cell
   change.
+
+## CORE-030 closure and AUDIT-037 boundary
+
+- Exact closure snapshot `9b872297`, tree `8ab06d62`, diff `18ffa30d`, received
+  three approvals and was published unchanged as `cd8add28`. Compiler
+  `30879329940` / `30879332975`, stable/nightly Rust `30879332995` attempt 2,
+  all three CodeQL analyses in `30879330627`, and aggregate `91897195358` pass.
+  Rust attempt 1 hit transient Linux `ETXTBSY` in the unchanged fake-verifier test;
+  both focused rerun jobs passed without a source, test, workflow, or ref change.
+- CORE-030 remains exact fail-closed containment only. All excluded annotation
+  shapes, tuple/array behavior, raw APIs, verifier/codegen, ABI/ownership, valid-
+  output certification, and CPU/ROCm/CUDA capability remain unchanged. R-002 stays
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability class moves.
+- Preregistered read-only AUDIT-037 must independently re-rank the complete remaining
+  eleven-risk set from exact clean public closure `cd8add28`, excluding every
+  accepted slice through CORE-030 and inheriting no prior order. It may select one
+  bounded residual or a stop only after separate authorization gates; it never
+  grants test, implementation, semantics, or capability authority.

@@ -4,19 +4,20 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 40 `CORE-030` record closure. The exact authorization, expected-red
-tests-first regression, and two-guard implementation are complete; implementation
-`97c0f04` is public all-eight green. The record closure passes its fresh exact full
-local gate; immediate work is three exact reviews, unchanged publication, and
-all-eight public verification. No later audit or implementation may begin first.
+Milestone 41 `AUDIT-037` authorization. CORE-030 is fully closed at exact public
+all-eight-green `cd8add28`. Immediate work is to gate and exactly review the
+six-record clean-head, read-only full-risk audit contract. Its fresh exact full local
+gate passes; immediate work is exact review and unchanged publication. AUDIT-037
+cannot rank until authorization is public all-eight green and never grants test,
+implementation, semantics, or capability authority.
 
 ## Active hypothesis
 
-The accepted two-guard implementation and its tests can be reconciled into the six
-control records without broadening the exact valueless immediate
-`Type::Array(Type::Tuple(_), count)` rejection, changing any matrix cell or risk
-classification, or implying array/tuple defaults, layout, ABI, ownership, execution,
-or backend capability.
+Three complete independent static rankings from exact clean public CORE-030 closure
+`cd8add28` can identify one distinct active residual with deterministic tests-first
+feasibility in at most two compiler phases, or an explicit stop, without inheriting
+AUDIT-036's runner-up or inventing language, ownership, aggregate, ABI, backend, or
+claim semantics.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -50,6 +51,14 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-030` record closure
+  `cd8add28d1a6533b9955dbb4fcb86670c61eba88`, tree `8ab06d62`, diff
+  `18ffa30d`, passes compiler `30879329940` / `30879332975`, stable/nightly Rust
+  `30879332995` attempt 2, all three CodeQL analyses in `30879330627`, and
+  aggregate `91897195358` after three exact approvals. Rust attempt 1 failed on
+  transient Linux `ETXTBSY` while executing the unchanged fake-verifier fixture;
+  the focused rerun passed both jobs without a file or ref change. The closure was
+  published from a clean worktree; `master` and `origin/master` remain `8f8c733`.
 - Accepted public `CORE-030` implementation
   `97c0f04f32c28a8a541fec51ec2bef175aaa6032`, tree `aa3a9e3f`, diff
   `06a104df`, passes focused 1/1, binding 19/19, formatting, the exact full local
@@ -878,12 +887,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for the fresh-full-gate-green six-record CORE-030
-closure, publish that immutable tree unchanged, and require all eight public checks.
-Only after closure may a separate clean-head read-only audit be authorized; do not
-inherit a runner-up, start another implementation, broaden the exact guard, promote
-a capability, change workflows/dependencies/backends, publish artifacts or claims,
-or touch `master`.
+Obtain three exact approvals for the fresh-full-gate-green six-record AUDIT-037
+authorization, publish that immutable tree unchanged, and require all eight public
+checks. Only then may three independent complete read-only rankings begin. Do not
+inherit a prior runner-up, edit tests/source, start an implementation, promote a
+capability, change workflows/dependencies/backends, publish artifacts or claims, or
+touch `master`.
 
 ## Unauthorized actions
 

@@ -464,3 +464,13 @@ declared compatibility policy and release-level coverage.
   ABI, ownership, lowering, execution, or backend evidence. Therefore every matrix
   row, cell, and capability class remains unchanged, and R-002 remains
   HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Exact six-record CORE-030 closure `cd8add28`, tree `8ab06d62`, diff `18ffa30d`,
+  is triple-approved and public all-eight green in compiler `30879329940` /
+  `30879332975`, Rust `30879332995` attempt 2, CodeQL `30879330627`, and
+  aggregate `91897195358`. The initial Rust fixture race passed on focused rerun
+  without a file or ref change. No matrix cell changes.
+- Preregistered read-only AUDIT-037 may re-rank the complete remaining eleven-risk
+  set from that exact clean public head only after its separate authorization gates.
+  It excludes all accepted slices through CORE-030, inherits no prior order, and
+  cannot change a matrix row, cell, capability class, source, test, workflow,
+  dependency, backend, semantics, or claim.

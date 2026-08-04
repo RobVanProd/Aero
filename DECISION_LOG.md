@@ -1676,8 +1676,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-036 - Valueless immediate array-of-tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: accepted implementation at public all-eight-green `97c0f04`; final
-  six-record closure pending.
+- Status: accepted and complete at public all-eight-green record closure `cd8add28`.
 - Decision: for an uninitialized `let` annotation exactly shaped as
   `Type::Array(inner, _)` with immediate `inner: Type::Tuple(_)`, reject in semantic
   analysis after same-scope duplicate detection and independently in checked IR
@@ -1702,3 +1701,29 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   semantic and checked-admission guards; focused 1/1, binding 19/19, the exact full
   local gate, both compiler jobs, stable/nightly Rust, all three CodeQL analyses,
   and aggregate pass.
+- Closure evidence: exact snapshot `9b872297`, tree `8ab06d62`, diff `18ffa30d`,
+  received three approvals and was published unchanged as `cd8add28`. Compiler
+  `30879329940` / `30879332975`, Rust `30879332995` attempt 2, CodeQL
+  `30879330627`, and aggregate `91897195358` pass. The initial transient Linux
+  `ETXTBSY` test-fixture attempt passed on focused rerun without a file or ref change.
+
+## DEC-037 - Post-CORE-030 selection requires clean-head full-set reconciliation
+
+- Date: 2026-08-04
+- Status: accepted selection protocol; AUDIT-037 authorization pending gates.
+- Decision: no implementation may be selected from AUDIT-036's R-005 runner-up or
+  any earlier order. Three independent read-only auditors must rank the complete
+  remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016
+  set from exact public-green CORE-030 closure `cd8add28`, excluding every accepted
+  sub-slice through CORE-030.
+- Evidence boundary: static immutable repository evidence only during ranking. No
+  edit, test, build, formatter, probe, benchmark, artifact, hardware action,
+  external query, workflow, dependency, backend, package/release/registry,
+  immutable claim-evidence, history, or `master` action is authorized. Passing the
+  authorization gates unlocks read-only ranking only.
+- Selection rule: reconcile one distinct residual with frozen semantics,
+  deterministic tests-first feasibility, and no more than two compiler phases, or
+  record an explicit stop. Any test or implementation requires a separate reviewed
+  six-record contract and public failing regression evidence first.
+- Claim boundary: AUDIT-037 cannot change a risk status, matrix row/cell, capability
+  class, backend claim, compatibility rule, or language semantics.
