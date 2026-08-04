@@ -4,20 +4,38 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 55 `ARCH-001` characterization authorization. Exact classifier authorization
-`1dcfd869` is triple-approved, public, and all-eight green. Only a green behavior-
-preserving characterization aggregate in `binding_type_contract_tests.rs` may be
-prepared after this six-record acceptance sync closes. No classifier source edit,
-R-002 behavior change, capability movement, backend action, or claim is authorized.
+Milestone 56 `CORE-037`: close the exact typed empty fixed numeric array class as an
+executable CPU capability while implementing the nonrecursive ARCH-001 classifier.
+The local tests-first slice admits only `[int|i32|float|f64; 0] = []` in existing
+ordinary non-generic binding contexts, keeps typed-empty construction out of impl/trait
+and generic executable capability, preserves every neighboring zero-repeat/topology
+binding route, and adds a pinned-LLVM CI example that exits 37. The first unpublished
+review found a zero-length indexing escape and two overclaims; the amended focused
+tests now reject every statically empty fixed-array index before IR wherever existing
+semantic/checked traversal reaches it, including impl methods and semantic generic-
+function traversal, while preserving checked generic outer-gate precedence and
+positive-length bounds behavior. The corrected exact root gate passes 142/142 library,
+152/152 CLI, 7/7 claim, and 28/28 binding tests plus every downstream suite. A later
+read-only review found that semantic float-alias retyping still leaked into non-generic
+impl methods; its tests-first context correction now passes the focused capability test,
+and the fresh exact root rerun again passes 142/152/7/28 plus every downstream suite.
+Review, publication, and public CI execution evidence remain pending. No accepted
+capability claim has moved yet.
 
 ## Active hypothesis
 
-A single green aggregate can characterize the frozen structural equivalence classes,
-boundary parity, precedence, context exclusions, raw-boundary preservation, exact
-diagnostics, selected R-002 triple-array acceptance, and valid LLVM without changing
-production behavior. Only after that evidence is separately reviewed and public green
-may a nonrecursive shared classifier in `ast.rs` replace duplicated semantic/checked
-matching. The later R-002 behavior still requires a separate public-red contract.
+One shared, exact predicate can classify all ten existing binding-annotation reject
+topologies and the existing contract shapes without recursive broadening. A second
+exact predicate can recognize the finite typed-empty numeric class and let the declared
+element type reuse the already-admitted zero-length allocation/hint path. The class is
+closed only if all aliases, mutability states, admitted traversal, logical metadata,
+byte-deterministic single-function example LLVM, and native CI execution pass while
+unannotated, nested, generic, positive-count, zero-repeat, and nonnumeric neighbors
+retain their previous binding behavior. One shared element-agnostic predicate rejects
+all `Ty::Array(_, 0)` indexing before IR; it does not freeze positive-length bounds.
+This safety containment is global across already-traversed generic/impl contexts;
+typed-empty construction there, multi-function serialization order, and impl/trait
+lowering are not capability claims.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -51,14 +69,14 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current accepted public ARCH-001 authorization head:
-  `1dcfd869167bd0d83fe800b376fb0a2249091a28`, parent `63d8d599`, tree
-  `b537023cf5c80a35e75bc8aaf4b61c05f25388e2`, correction canonical binary diff
-  `e5ee8aa78b20a77bafe03d52210e5fcad5b515a3`, cumulative diff from AUDIT-043
-  `5208cb6ef0a46cf1577fb4821a8f137675d8b051`. The additive chronology correction
-  is triple-approved and public all-eight green in push CI `30934518525`, PR CI
-  `30934523152`, stable/nightly Rust `30934523078`, all three CodeQL analyses in
-  `30934519513`, and aggregate `92077350363`.
+- Current accepted public ARCH-001 eligibility head:
+  `241e39e5426f3edcbd47d72150b7dd1bcefda31e`, parent `4c18450a`, tree
+  `de8b5cdef10d11aba29ed2e0186c086ca04c0c44`, correction canonical binary diff
+  `07e29dd01bd4848541d62bf49cc5600c328cb1b9`, cumulative sync diff from
+  `1dcfd869` `7c6e746f5c38ff30038903cab256ca7665a43bbf`. The corrected sync is
+  triple-approved and public all-eight green in push CI `30935499915`, PR CI
+  `30935511275`, stable/nightly Rust `30935508627`, all three CodeQL analyses in
+  `30935500629`, and aggregate `92080638204`.
 - Current accepted public AUDIT-043 authorization head:
   `5276df5b6f3369bd2b6fc78a7a39289e8609ed00`, parent `cb43d1bb`, tree
   `c3eaf3cf244f6f6e7e97423e2bcc6a1a8b44dc58`, correction canonical binary diff
@@ -1508,6 +1526,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## ARCH-001 authorization boundary
 
+- Historical scope: this section records the earlier isolated, behavior-neutral
+  ARCH-001 authorization. CORE-037 separately supersedes only its sequencing/file
+  restriction under the user's current executable-milestone mandate; the exact
+  nonrecursive disposition table, diagnostics, precedence, generic gates, and raw
+  compatibility constraints remain binding.
 - Classifier: `BindingAnnotationDisposition` with only
   `ExistingExplicitRejection(RejectKind)`,
   `MatchesExistingContractShape(ContractKind)`, and `PreserveExistingBehavior`.
@@ -1550,16 +1573,18 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-The additive six-record acceptance-sync eligibility correction's fresh and
-verification exact repository-root full gates each exit 0 with 139/139 library,
-149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
-Review target: the exact committed correction HEAD. Obtain three fresh exact reviews,
-publish unchanged, and require public all-eight acceptance before changing the
-characterization test. Do not edit classifier source, combine the classifier with
-R-002 behavior, resolve
-bounds policy implicitly, promote a capability, change
-workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
-push, or touch `master`.
+Review the amended CORE-037 snapshot whose parent is accepted public
+`241e39e5426f3edcbd47d72150b7dd1bcefda31e`; its exact root gate passes formatting,
+correctness Clippy, 142/142 library, 152/152 CLI, 7/7 claim, 28/28 binding, and every
+downstream suite. Obtain three fresh exact approvals, then push that unchanged commit
+to `agent/aero-integration` and require the typed-empty example to pass pinned LLVM 22
+verification, `llc`/Clang lowering/linking, native exit 37, and all public PR checks.
+Only after that evidence may CORE-037 and the exact typed-empty CPU capability be
+marked accepted. Do not admit
+impl/trait bodies or broaden typed-empty construction to zero repeats, nonnumeric/
+nested/generic annotations, positive-length bounds, ABI, GPU, or other aggregate
+semantics; do not claim multi-function determinism, publish releases/packages/
+benchmarks/claims, rewrite published history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

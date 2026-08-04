@@ -6913,3 +6913,138 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding
   tests, plus all downstream suites. Fresh exact review, unchanged publication, and
   public all-eight acceptance remain pending.
+
+## CORE-037 - Executable typed empty fixed numeric arrays with shared binding classification
+
+- Task ID/date/owner: `CORE-037`, 2026-08-04, lead-owned tests-first compiler
+  vertical slice. The user's updated mandate requires every milestone to close an
+  executable capability and forbids another per-shape guard pair; this separately
+  authorizes the ARCH-001 neutral classifier implementation only when coupled to the
+  capability below.
+- Observed behavior: checked IR already admits and verifies zero-length fixed numeric
+  arrays produced by `[value; 0]`, including a logical element hint for an allocation
+  with no stores. Semantic analysis also accepts an explicitly typed empty literal,
+  but infers its element as `Int`; checked admission rejects every `[]` before the
+  binding annotation can supply the otherwise absent element type. Semantic analysis
+  and checked admission still duplicate the ten exact annotation-topology guards
+  characterized by ARCH-001.
+- Hypothesis: the declared exact numeric zero-length array type can supply the missing
+  element type for an exact empty literal and reuse the existing zero-length array IR,
+  verifier, LLVM layout, and CPU execution path. A single pure binding classifier can
+  simultaneously replace the duplicated topology/contract predicates without
+  recursively recognizing or promoting any preserved annotation topology.
+- Frozen supported class: an initialized binding on an existing admitted path—legacy
+  top level, an admitted non-generic function, or a nested admitted block—mutable or
+  immutable, whose annotation is exactly one-level `[E; 0]`, where
+  `E` is exactly `int`, `i32`, `float`, or `f64`, and whose initializer is exactly
+  `Expression::ArrayLiteral([])`. The four aliases, both mutability states, admitted
+  ordinary/nested/control-flow traversal, semantic type, checked logical place
+  metadata, byte-deterministic LLVM for the single-function runtime example, and
+  native CPU execution are one finite class. The runtime example declares all four
+  aliases and exits with a sentinel; it does not observe an element. General
+  multi-function serialization order is existing uncertified behavior, not a
+  CORE-037 determinism claim.
+- Frozen exclusions: unannotated `[]`; positive-count annotations; zero repeats;
+  nonempty literals; bool/String/custom, nested-array, tuple, reference, generic, and
+  wrapped annotations; typed-empty construction in every impl/trait method body and
+  generic function; parameters, returns, assignment, moves/borrows, positive-length
+  bounds behavior, function ABI, aggregate nesting, GPU targets, and all other
+  aggregate semantics remain unchanged. Existing generic array consumers receive no
+  new accepted semantics. Because a statically
+  zero-length fixed array has no possible valid index, all direct indexing of every
+  `Ty::Array(_, 0)` form—including preserved zero repeats, all index expressions, and
+  all element types—must now stop before IR/lowering under one shared predicate;
+  index-type diagnostics retain precedence. This containment does not select a policy
+  for positive-length constant or runtime bounds. Its rejection is intentionally
+  global wherever existing semantic/checked traversal already reaches an index,
+  including generic/non-generic impl methods and semantic generic-function bodies;
+  checked generic functions retain their earlier outer rejection, and trait bodies
+  remain on their existing syntax-only route. This safety containment does not admit
+  typed-empty construction or executable lowering in any excluded context. The
+  currently accepted zero-repeat binding/mismatch routes otherwise remain preserved,
+  and no unsupported source type may become `Int`, `Float`, or a fixed numeric array
+  by fallback.
+- Shared predicate: add one private compiler module owning the exact nonrecursive
+  `BindingAnnotationDisposition`/reject-kind/contract-kind table frozen by ARCH-001
+  plus one exact typed-empty numeric-array predicate and one element-agnostic
+  statically-empty `Ty` predicate. Semantic analysis, checked admission, and checked
+  lowering must consume those shared results; they may retain phase-specific ordering,
+  context gates, and diagnostics but may not restate a topology, typed-empty shape, or
+  zero-length classification match. Raw `generate_ir` compatibility remains
+  behaviorally unchanged.
+- Tests first and completeness proof: amend the single binding characterization
+  aggregate and the existing empty/zero-repeat aggregate so the supported Cartesian
+  product accepts, all frozen exclusions retain their exact route, all ten existing
+  reject categories and precedence remain byte-exact, raw annotated generation equals
+  its unannotated compatibility input, preserved zero-repeat/nonempty metadata remains
+  initializer-derived, and the single-function example LLVM is nonempty and byte-
+  deterministic. Exhaustively reject zero-length indexing for typed numeric aliases,
+  mutable/immutable and literal/variable/negative indices, inferred int/float zero
+  repeats, immediate indexing, generic/non-generic impl methods, semantic generic-
+  function traversal, and all shared-predicate element classes while retaining checked
+  generic outer-gate/index-type precedence and positive-length controls. Run each
+  focused regression before its source correction. A float-alias non-generic impl
+  specimen must preserve the parent semantic diagnostic's legacy `[int; 0]` inference
+  while checked admission retains its empty-literal quarantine; the impl context gate
+  may suppress only typed-empty retyping, never global zero-index containment.
+- End-to-end acceptance: add one `examples/typed_empty_numeric_arrays.aero` program
+  and a gating Rust-CI example step that builds it, verifies LLVM with pinned LLVM 22,
+  lowers/links it, executes it, and checks the exact sentinel exit. Focused tests,
+  `cargo fmt --check`, the exact repository-root `./tools/test.sh` gate, three
+  read-only reviews, intentional commit/push, and all public PR checks must pass.
+- Allowed files: `TASK_LEDGER.md`, `src/compiler/src/binding_annotation.rs`,
+  `src/compiler/src/lib.rs`, `src/compiler/src/main.rs` (private module declaration
+  only), `src/compiler/src/semantic_analyzer.rs`,
+  `src/compiler/src/ir_generator.rs`,
+  `src/compiler/tests/binding_type_contract_tests.rs`,
+  `examples/typed_empty_numeric_arrays.aero`, `.github/workflows/rust.yml`, and one
+  existing capability/state document if its executable-surface statement changes.
+  No lexer, parser, AST shape, verifier, code generator, dependency, backend, release,
+  benchmark, registry, claim-evidence, published-history, or `master` action is
+  authorized.
+- Risks and stop conditions: stop on an ambiguous zero-length representation, a need
+  for positive-length bounds/runtime or ABI policy, any changed preserved-shape result,
+  diagnostic/precedence drift, generic-context capability broadening, raw API drift,
+  verifier or codegen changes, more than the enumerated compiler phases, a red
+  baseline, or a requirement to invent semantics. No rejection-only outcome closes
+  CORE-037.
+- Status/evidence: implemented locally but not accepted. The initial tests-first
+  focused run failed only on the checked empty-literal diagnostic and absent CI step
+  (16 aggregate findings) before compiler source edits. Initial unpublished snapshot
+  `04a1803c` passed its exact gate but all three read-only reviews rejected publication:
+  zero-length indexing escaped to GEP/load, impl methods were claimed despite being
+  discarded by lowering, multi-function determinism was overclaimed, and the active
+  state record was stale. Before correcting compiler source, the new exhaustive zero-
+  length-index test failed with 21 intended findings across semantics, checked
+  admission, and public compilation. The amended focused zero-index and complete
+  capability tests now each pass 1/1; typed-empty impl construction is quarantined,
+  and stronger raw/metadata controls pass. The fresh exact repository-root
+  `./tools/test.sh` gate exits
+  0 with formatting and correctness Clippy clean, 142/142 library tests, 152/152 CLI
+  tests, 7/7 claim tests, 28/28 binding tests, and every downstream suite. Second
+  unpublished snapshot `e776cf80`, tree `7692e3d7`, reproducible established
+  PowerShell full-index diff `904028d3`, retained the same clean gate but was rejected
+  before publication because the record ambiguously scoped generic/impl containment,
+  omitted those context specimens, used a noncanonical review-request hash, and told
+  the next actor to amend an already-amended snapshot. This correction explicitly
+  freezes global safety containment separately from the narrower executable capability
+  and fixes that handoff. The candidate commit identity is reported externally after
+  commit creation rather than described as pending inside its own tree.
+  Third unpublished snapshot `884ff43a`, tree `d58ed240`, established PowerShell
+  full-index diff `3afb83a2`, passed the same exact gate and received unchanged
+  type/safety and backend/claim approval, but IR/codegen rejected publication because
+  semantic typed-empty retyping still changed float-alias diagnostics inside a non-
+  generic impl. The new preservation regression failed first with the two intended
+  semantic/public `[float; 0]` findings; the narrow semantic impl-context gate now
+  restores legacy `[int; 0]` there while leaving global zero-index containment active,
+  and the focused capability aggregate passes 1/1. The fresh exact repository-root gate
+  again exits 0 with formatting and correctness Clippy clean, 142/142 library, 152/152
+  CLI, 7/7 claim, 28/28 binding, and every downstream suite. Fourth unpublished
+  snapshot `e2276cbe`, tree `87c7cb9c`, established PowerShell full-index diff
+  `1c7e4b8c`, retained that clean gate and received unchanged type/safety and IR/codegen
+  approval, but backend/claims rejected publication solely because the preceding
+  correction-history transition ended in the dangling words `Three fresh`. This
+  record-only correction removes that fragment and preserves the complete chronology.
+  The candidate identity is reported externally after commit creation. Three fresh
+  approvals, push, native Linux CI execution, and all public checks remain pending.
+  CORE-037 and its capability claim are not yet closed.

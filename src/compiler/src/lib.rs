@@ -1,5 +1,6 @@
 pub mod accelerator;
 pub mod ast;
+mod binding_annotation;
 mod code_generator;
 pub mod conformance;
 pub mod errors;

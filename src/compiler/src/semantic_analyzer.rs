@@ -1,6 +1,10 @@
 use crate::ast::{
     AstNode, Block, ComparisonOp, Expression, LogicalOp, Parameter, Statement, UnaryOp,
 };
+use crate::binding_annotation::{
+    BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
+    typed_empty_numeric_array_contract,
+};
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::collections::{HashMap, HashSet};
 
@@ -473,6 +477,8 @@ pub struct SemanticAnalyzer {
     scope_manager: ScopeManager,
     /// Stack of active generic type parameter sets (e.g., ["T", "U"] for fn<T, U>)
     type_param_scopes: Vec<Vec<String>>,
+    /// Whether the current statement is nested beneath an impl block.
+    inside_impl: bool,
     /// Trait registry: trait name -> list of required method names
     trait_registry: HashMap<String, Vec<String>>,
     /// Trait impl registry: type name -> list of implemented trait names
@@ -495,6 +501,7 @@ impl SemanticAnalyzer {
             return_contract_stack: Vec::new(),
             scope_manager: ScopeManager::new(),
             type_param_scopes: Vec::new(),
+            inside_impl: false,
             trait_registry,
             trait_impls: HashMap::new(),
             function_bounds: HashMap::new(),
@@ -600,6 +607,7 @@ impl SemanticAnalyzer {
         self.closure_binding_scopes.push(HashSet::new());
         self.return_contract_stack.clear();
         self.type_param_scopes.clear();
+        self.inside_impl = false;
 
         // Predeclare all top-level names so forward calls and direct recursion see
         // the same program-wide namespace after module linking.
@@ -689,25 +697,6 @@ impl SemanticAnalyzer {
             crate::ast::Type::Named(name) if name == "bool" => Some(Ty::Bool),
             _ => None,
         })
-    }
-
-    fn binding_contract_type(&self, ty: &crate::ast::Type) -> Option<Ty> {
-        if let Some(numeric) = Self::numeric_contract_type(ty) {
-            return Some(numeric);
-        }
-        if !self.type_param_scopes.is_empty() {
-            return None;
-        }
-
-        match ty {
-            crate::ast::Type::Named(name) if name == "bool" => Some(Ty::Bool),
-            crate::ast::Type::Named(name) if name == "String" => Some(Ty::String),
-            crate::ast::Type::Array(element, count) if *count > 0 => {
-                Self::numeric_contract_type(element)
-                    .map(|element| Ty::Array(Box::new(element), *count))
-            }
-            _ => None,
-        }
     }
 
     fn is_numeric_type(ty: &Ty) -> bool {
@@ -1025,6 +1014,9 @@ impl SemanticAnalyzer {
                         "Error: array index type mismatch: expected int, actual {}.",
                         index_type
                     ));
+                }
+                if is_statically_empty_fixed_array(&obj_type) {
+                    return Err("Error: cannot index a zero-length fixed array.".to_string());
                 }
                 match obj_type {
                     Ty::Array(elem, _) => Ok(*elem),
@@ -1556,6 +1548,9 @@ impl SemanticAnalyzer {
                         index_type
                     ));
                 }
+                if is_statically_empty_fixed_array(&obj_type) {
+                    return Err("Error: cannot index a zero-length fixed array.".to_string());
+                }
                 match obj_type {
                     Ty::Array(elem, _) => Ok(*elem),
                     _ => Err("Cannot index into non-array type".to_string()),
@@ -1787,160 +1782,56 @@ impl SemanticAnalyzer {
                     ));
                 }
 
-                if value.is_none()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(crate::ast::Type::Array(inner, _))
-                            if matches!(inner.as_ref(), crate::ast::Type::Tuple(_))
-                    )
-                {
-                    return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding.",
-                        name
-                    ));
-                }
+                let disposition = type_annotation.as_ref().map_or(
+                    BindingAnnotationDisposition::PreserveExistingBehavior,
+                    |annotation| classify_binding_annotation(annotation, value.is_some()),
+                );
 
                 if value.is_none()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(crate::ast::Type::Array(first, _))
-                            if matches!(
-                                first.as_ref(),
-                                crate::ast::Type::Array(second, _)
-                                    if matches!(second.as_ref(), crate::ast::Type::Tuple(_))
-                            )
-                    )
+                    && let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
+                        disposition
                 {
                     return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding.",
-                        name
-                    ));
-                }
-
-                if value.is_none()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(crate::ast::Type::Reference(inner, _))
-                            if matches!(inner.as_ref(), crate::ast::Type::Tuple(_))
-                    )
-                {
-                    return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.",
-                        name
-                    ));
-                }
-
-                if value.is_none()
-                    && matches!(type_annotation.as_ref(), Some(crate::ast::Type::Tuple(_)))
-                {
-                    return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation for an uninitialized binding.",
-                        name
-                    ));
-                }
-
-                if value.is_none()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(crate::ast::Type::Reference(inner, _))
-                            if matches!(
-                                inner.as_ref(),
-                                crate::ast::Type::Array(element, _)
-                                    if matches!(element.as_ref(), crate::ast::Type::Tuple(_))
-                            )
-                    )
-                {
-                    return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding.",
-                        name
+                        "Error: Variable `{}` uses an unsupported {} for an uninitialized binding.",
+                        name,
+                        kind.topology()
                     ));
                 }
 
                 let inferred_type = if let Some(val) = value {
                     self.check_expression_initialization(val)?;
-                    self.require_value(val)?
+                    let inferred = self.require_value(val)?;
+                    if self.type_param_scopes.is_empty() && !self.inside_impl {
+                        type_annotation
+                            .as_ref()
+                            .and_then(|annotation| {
+                                typed_empty_numeric_array_contract(annotation, val)
+                            })
+                            .map_or(inferred, |contract| contract.ty())
+                    } else {
+                        inferred
+                    }
                 } else {
                     Ty::Int
                 };
 
                 if value.is_some()
-                    && matches!(type_annotation.as_ref(), Some(crate::ast::Type::Tuple(_)))
+                    && let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
+                        disposition
                 {
                     return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation for an initialized binding.",
-                        name
-                    ));
-                }
-
-                if value.is_some()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(crate::ast::Type::Array(inner, _))
-                            if matches!(inner.as_ref(), crate::ast::Type::Tuple(_))
-                    )
-                {
-                    return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath an array for an initialized binding.",
-                        name
-                    ));
-                }
-
-                if value.is_some()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(crate::ast::Type::Array(first, _))
-                            if matches!(
-                                first.as_ref(),
-                                crate::ast::Type::Array(second, _)
-                                    if matches!(second.as_ref(), crate::ast::Type::Tuple(_))
-                            )
-                    )
-                {
-                    return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.",
-                        name
-                    ));
-                }
-
-                if value.is_some()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(crate::ast::Type::Reference(inner, _))
-                            if matches!(inner.as_ref(), crate::ast::Type::Tuple(_))
-                    )
-                {
-                    return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding.",
-                        name
-                    ));
-                }
-
-                if value.is_some()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(crate::ast::Type::Reference(inner, _))
-                            if matches!(
-                                inner.as_ref(),
-                                crate::ast::Type::Array(element, count)
-                                    if *count > 0
-                                        && matches!(
-                                            element.as_ref(),
-                                            crate::ast::Type::Tuple(_)
-                                        )
-                            )
-                    )
-                {
-                    return Err(format!(
-                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding.",
-                        name
+                        "Error: Variable `{}` uses an unsupported {} for an initialized binding.",
+                        name,
+                        kind.topology()
                     ));
                 }
 
                 let binding_type = if value.is_some()
-                    && let Some(expected_type) = type_annotation
-                        .as_ref()
-                        .and_then(|annotation| self.binding_contract_type(annotation))
+                    && let BindingAnnotationDisposition::MatchesExistingContractShape(contract) =
+                        disposition
+                    && (self.type_param_scopes.is_empty() || contract.is_numeric_scalar())
                 {
+                    let expected_type = contract.ty();
                     if inferred_type != expected_type {
                         return Err(format!(
                             "Error: Variable `{}` type annotation mismatch: expected {}, actual {}.",
@@ -2276,6 +2167,8 @@ impl SemanticAnalyzer {
                 if !type_params.is_empty() {
                     self.type_param_scopes.push(type_params.clone());
                 }
+                let previous_inside_impl = self.inside_impl;
+                self.inside_impl = true;
                 let impl_result = (|| {
                     // Analyze method bodies
                     for method in methods {
@@ -2312,6 +2205,7 @@ impl SemanticAnalyzer {
                     }
                     Ok(())
                 })();
+                self.inside_impl = previous_inside_impl;
                 if !type_params.is_empty() {
                     self.type_param_scopes.pop();
                 }

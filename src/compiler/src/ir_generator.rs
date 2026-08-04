@@ -1,4 +1,8 @@
 use crate::ast::{AstNode, Expression, Statement, Type};
+use crate::binding_annotation::{
+    BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
+    typed_empty_numeric_array_contract,
+};
 use crate::ir::{Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::types::{Ty, needs_promotion};
@@ -253,6 +257,7 @@ impl IrGenerator {
                     &top_level_functions,
                     false,
                     false,
+                    false,
                 )?,
                 AstNode::Expression(_) => {
                     return Err(IrGenerationError::Admission(
@@ -311,6 +316,7 @@ impl IrGenerator {
         bindings: &mut HashMap<String, AdmissionBinding>,
         top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
         inside_loop: bool,
+        inside_impl: bool,
         inside_generic_impl: bool,
     ) -> Result<(), IrGenerationError> {
         for statement in &block.statements {
@@ -319,6 +325,7 @@ impl IrGenerator {
                 bindings,
                 top_level_functions,
                 inside_loop,
+                inside_impl,
                 inside_generic_impl,
             )?;
         }
@@ -338,6 +345,7 @@ impl IrGenerator {
         bindings: &mut HashMap<String, AdmissionBinding>,
         top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
         inside_loop: bool,
+        inside_impl: bool,
         inside_generic_impl: bool,
     ) -> Result<(), IrGenerationError> {
         match statement {
@@ -347,144 +355,65 @@ impl IrGenerator {
                 type_annotation,
                 value,
             } => {
+                let disposition = type_annotation.as_ref().map_or(
+                    BindingAnnotationDisposition::PreserveExistingBehavior,
+                    |annotation| classify_binding_annotation(annotation, value.is_some()),
+                );
                 if value.is_none()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(Type::Array(inner, _))
-                            if matches!(inner.as_ref(), Type::Tuple(_))
-                    )
+                    && let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
+                        disposition
                 {
                     return Err(IrGenerationError::Admission(format!(
-                        "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding",
-                        name
-                    )));
-                }
-                if value.is_none()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(Type::Array(first, _))
-                            if matches!(
-                                first.as_ref(),
-                                Type::Array(second, _)
-                                    if matches!(second.as_ref(), Type::Tuple(_))
-                            )
-                    )
-                {
-                    return Err(IrGenerationError::Admission(format!(
-                        "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding",
-                        name
-                    )));
-                }
-                if value.is_none()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(Type::Reference(inner, _))
-                            if matches!(inner.as_ref(), Type::Tuple(_))
-                    )
-                {
-                    return Err(IrGenerationError::Admission(format!(
-                        "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding",
-                        name
-                    )));
-                }
-                if value.is_none() && matches!(type_annotation.as_ref(), Some(Type::Tuple(_))) {
-                    return Err(IrGenerationError::Admission(format!(
-                        "checked IR binding `{}` uses an unsupported tuple type annotation for an uninitialized binding",
-                        name
-                    )));
-                }
-                if value.is_none()
-                    && matches!(
-                        type_annotation.as_ref(),
-                        Some(Type::Reference(inner, _))
-                            if matches!(
-                                inner.as_ref(),
-                                Type::Array(element, _)
-                                    if matches!(element.as_ref(), Type::Tuple(_))
-                            )
-                    )
-                {
-                    return Err(IrGenerationError::Admission(format!(
-                        "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding",
-                        name
+                        "checked IR binding `{}` uses an unsupported {} for an uninitialized binding",
+                        name,
+                        kind.topology()
                     )));
                 }
                 if let Some(value) = value {
-                    let ty = Self::validate_expression(
-                        value,
-                        bindings,
-                        top_level_functions,
-                        ExpressionUse::Binding,
-                    )?;
+                    let ty = if inside_impl || inside_generic_impl {
+                        Self::validate_expression(
+                            value,
+                            bindings,
+                            top_level_functions,
+                            ExpressionUse::Binding,
+                        )?
+                    } else if let Some(contract) = type_annotation.as_ref().and_then(|annotation| {
+                        typed_empty_numeric_array_contract(annotation, value)
+                    }) {
+                        contract.ty()
+                    } else {
+                        Self::validate_expression(
+                            value,
+                            bindings,
+                            top_level_functions,
+                            ExpressionUse::Binding,
+                        )?
+                    };
                     if matches!(ty, Ty::Void) {
                         return Err(IrGenerationError::Admission(
                             "Void expressions cannot be stored in a binding".to_string(),
                         ));
                     }
-                    if matches!(type_annotation.as_ref(), Some(Type::Tuple(_))) {
+                    if let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
+                        disposition
+                    {
                         return Err(IrGenerationError::Admission(format!(
-                            "checked IR binding `{}` uses an unsupported tuple type annotation for an initialized binding",
-                            name
-                        )));
-                    }
-                    if matches!(
-                        type_annotation.as_ref(),
-                        Some(Type::Array(inner, _)) if matches!(inner.as_ref(), Type::Tuple(_))
-                    ) {
-                        return Err(IrGenerationError::Admission(format!(
-                            "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath an array for an initialized binding",
-                            name
-                        )));
-                    }
-                    if matches!(
-                        type_annotation.as_ref(),
-                        Some(Type::Array(first, _))
-                            if matches!(
-                                first.as_ref(),
-                                Type::Array(second, _)
-                                    if matches!(second.as_ref(), Type::Tuple(_))
-                            )
-                    ) {
-                        return Err(IrGenerationError::Admission(format!(
-                            "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding",
-                            name
-                        )));
-                    }
-                    if matches!(
-                        type_annotation.as_ref(),
-                        Some(Type::Reference(inner, _))
-                            if matches!(inner.as_ref(), Type::Tuple(_))
-                    ) {
-                        return Err(IrGenerationError::Admission(format!(
-                            "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding",
-                            name
-                        )));
-                    }
-                    if matches!(
-                        type_annotation.as_ref(),
-                        Some(Type::Reference(inner, _))
-                            if matches!(
-                                inner.as_ref(),
-                                Type::Array(element, count)
-                                    if *count > 0
-                                        && matches!(element.as_ref(), Type::Tuple(_))
-                            )
-                    ) {
-                        return Err(IrGenerationError::Admission(format!(
-                            "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding",
-                            name
+                            "checked IR binding `{}` uses an unsupported {} for an initialized binding",
+                            name,
+                            kind.topology()
                         )));
                     }
                     if !inside_generic_impl
-                        && let Some(expected) = type_annotation
-                            .as_ref()
-                            .and_then(Self::binding_contract_type)
-                        && ty != expected
+                        && let BindingAnnotationDisposition::MatchesExistingContractShape(contract) =
+                            disposition
                     {
-                        return Err(IrGenerationError::Admission(format!(
-                            "checked IR binding `{}` type annotation mismatch: expected {}, actual {}",
-                            name, expected, ty
-                        )));
+                        let expected = contract.ty();
+                        if ty != expected {
+                            return Err(IrGenerationError::Admission(format!(
+                                "checked IR binding `{}` type annotation mismatch: expected {}, actual {}",
+                                name, expected, ty
+                            )));
+                        }
                     }
                     if *mutable && matches!(ty, Ty::String) {
                         return Err(IrGenerationError::Admission(
@@ -526,6 +455,7 @@ impl IrGenerator {
                     &mut nested,
                     top_level_functions,
                     inside_loop,
+                    inside_impl,
                     inside_generic_impl,
                 )?;
             }
@@ -536,6 +466,7 @@ impl IrGenerator {
                     &mut nested,
                     top_level_functions,
                     true,
+                    inside_impl,
                     inside_generic_impl,
                 )?;
             }
@@ -583,6 +514,7 @@ impl IrGenerator {
                     &mut function_bindings,
                     top_level_functions,
                     false,
+                    inside_impl,
                     inside_generic_impl,
                 )?;
             }
@@ -603,6 +535,7 @@ impl IrGenerator {
                     &mut then_bindings,
                     top_level_functions,
                     inside_loop,
+                    inside_impl,
                     inside_generic_impl,
                 )?;
                 if let Some(else_statement) = else_block {
@@ -612,6 +545,7 @@ impl IrGenerator {
                         &mut else_bindings,
                         top_level_functions,
                         inside_loop,
+                        inside_impl,
                         inside_generic_impl,
                     )?;
                 }
@@ -629,6 +563,7 @@ impl IrGenerator {
                     &mut nested,
                     top_level_functions,
                     true,
+                    inside_impl,
                     inside_generic_impl,
                 )?;
             }
@@ -664,6 +599,7 @@ impl IrGenerator {
                     &mut nested,
                     top_level_functions,
                     true,
+                    inside_impl,
                     inside_generic_impl,
                 )?;
             }
@@ -679,6 +615,7 @@ impl IrGenerator {
                         bindings,
                         top_level_functions,
                         false,
+                        true,
                         methods_are_generic,
                     )?;
                 }
@@ -989,6 +926,11 @@ impl IrGenerator {
                 if !matches!(index_ty, Ty::Int) {
                     return Err(admission_error("array index must be Int"));
                 }
+                if is_statically_empty_fixed_array(&object_ty) {
+                    return Err(admission_error(
+                        "zero-length fixed arrays cannot be indexed in checked IR",
+                    ));
+                }
                 match object_ty {
                     Ty::Array(element, _) => Ok(*element),
                     _ => Err(admission_error("indexing requires an admitted fixed array")),
@@ -1140,25 +1082,6 @@ impl IrGenerator {
                 Ty::Vec(Box::new(Self::admission_type(&arguments[0])))
             }
             Type::Generic(name, _) => Ty::TypeParam(name.clone()),
-        }
-    }
-
-    fn binding_contract_type(ty: &Type) -> Option<Ty> {
-        match ty {
-            Type::Named(name) if matches!(name.as_str(), "i32" | "int") => Some(Ty::Int),
-            Type::Named(name) if matches!(name.as_str(), "f64" | "float") => Some(Ty::Float),
-            Type::Named(name) if name == "bool" => Some(Ty::Bool),
-            Type::Named(name) if name == "String" => Some(Ty::String),
-            Type::Array(element, count) if *count > 0 => match element.as_ref() {
-                Type::Named(name) if matches!(name.as_str(), "i32" | "int") => {
-                    Some(Ty::Array(Box::new(Ty::Int), *count))
-                }
-                Type::Named(name) if matches!(name.as_str(), "f64" | "float") => {
-                    Some(Ty::Array(Box::new(Ty::Float), *count))
-                }
-                _ => None,
-            },
-            _ => None,
         }
     }
 
@@ -1359,16 +1282,53 @@ impl IrGenerator {
         self.symbol_table.clone_from(before_scope);
     }
 
+    fn generate_binding_expression_ir(
+        &mut self,
+        expression: Expression,
+        type_annotation: Option<&Type>,
+        current_function: &mut Function,
+    ) -> (Value, Ty) {
+        let typed_empty_contract = if self.checked_mode {
+            type_annotation
+                .and_then(|annotation| typed_empty_numeric_array_contract(annotation, &expression))
+        } else {
+            None
+        };
+        let (value, inferred) = self.generate_expression_ir(expression, current_function);
+        let Some(contract) = typed_empty_contract else {
+            return (value, inferred);
+        };
+
+        let expected = contract.ty();
+        let logical_element = match &expected {
+            Ty::Array(element, 0) if matches!(element.as_ref(), Ty::Int) => LogicalType::Int,
+            Ty::Array(element, 0) if matches!(element.as_ref(), Ty::Float) => LogicalType::Float,
+            _ => unreachable!("typed empty predicate returns only zero-length numeric arrays"),
+        };
+        let Value::Reg(place) = &value else {
+            unreachable!("empty array lowering must produce an allocation place");
+        };
+        self.checked_place_hints
+            .entry(current_function.name.clone())
+            .or_default()
+            .insert(PlaceId(*place), logical_element);
+        (value, expected)
+    }
+
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
         match stmt {
             Statement::Let {
                 name,
                 mutable: _,
-                type_annotation: _,
+                type_annotation,
                 value,
             } => {
                 let (expr_value, expr_type) = if let Some(val) = value {
-                    self.generate_expression_ir(val, current_function)
+                    self.generate_binding_expression_ir(
+                        val,
+                        type_annotation.as_ref(),
+                        current_function,
+                    )
                 } else {
                     (Value::ImmInt(0), Ty::Int)
                 };

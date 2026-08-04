@@ -1,8 +1,8 @@
 use compiler::ast::{AstNode, BinaryOp, Block, Expression, Statement, Type};
 use compiler::types::Ty;
 use compiler::{
-    CompilerOptions, IrGenerator, SemanticAnalyzer, compile_program, parse_with_locations,
-    try_tokenize_with_locations,
+    CompilerOptions, IrGenerator, LogicalType, SemanticAnalyzer, compile_program,
+    parse_with_locations, try_tokenize_with_locations,
 };
 use std::fs;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -2706,16 +2706,23 @@ fn nonnumeric_array_semantic_behavior_remains_quarantined() {
 }
 
 #[test]
-fn empty_literals_and_typed_zero_repeats_keep_phase_specific_behavior() {
-    let empty_cases = [
-        ("unannotated empty", "fn main() { let values = []; }"),
+fn typed_empty_numeric_arrays_and_zero_repeats_keep_exact_distinct_routes() {
+    let typed_empty_cases = [
         (
             "int-annotated empty",
             "fn main() { let values: [int; 0] = []; }",
         ),
         (
+            "i32-annotated empty",
+            "fn main() { let values: [i32; 0] = []; }",
+        ),
+        (
             "float-annotated empty",
             "fn main() { let values: [float; 0] = []; }",
+        ),
+        (
+            "f64-annotated empty",
+            "fn main() { let values: [f64; 0] = []; }",
         ),
     ];
     let repeat_cases = [
@@ -2729,17 +2736,27 @@ fn empty_literals_and_typed_zero_repeats_keep_phase_specific_behavior() {
         ),
     ];
     let mut failures = Vec::new();
-    for (label, source) in empty_cases {
+    expect_acceptance(
+        &mut failures,
+        "unannotated empty semantics",
+        semantic_result("fn main() { let values = []; }"),
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "unannotated empty checked IR",
+        checked_source("fn main() { let values = []; }"),
+        "empty array literals have no admitted logical element type",
+    );
+    for (label, source) in typed_empty_cases {
         expect_acceptance(
             &mut failures,
             &format!("{label} semantics"),
             semantic_result(source),
         );
-        expect_rejection(
+        expect_acceptance(
             &mut failures,
             &format!("{label} checked IR"),
             checked_source(source),
-            &["empty array literals have no admitted logical element type"],
         );
     }
     for (label, source) in repeat_cases {
@@ -2755,6 +2772,482 @@ fn empty_literals_and_typed_zero_repeats_keep_phase_specific_behavior() {
         );
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn typed_empty_numeric_array_capability_class_is_complete_and_ci_executable() {
+    const COMPLETE_PRODUCT: &str = r#"
+        fn main() -> int {
+            let int_immutable: [int; 0] = [];
+            let mut int_mutable: [int; 0] = [];
+            let i32_immutable: [i32; 0] = [];
+            let mut i32_mutable: [i32; 0] = [];
+            let float_immutable: [float; 0] = [];
+            let mut float_mutable: [float; 0] = [];
+            let f64_immutable: [f64; 0] = [];
+            let mut f64_mutable: [f64; 0] = [];
+            return 37;
+        }
+    "#;
+    const TRAVERSAL_PRODUCT: &str = r#"
+        fn helper() { let helper_value: [int; 0] = []; }
+        fn main() -> int {
+            { let nested: [i32; 0] = []; }
+            if 1 < 2 { let conditional: [float; 0] = []; }
+            while 1 > 2 { let while_value: [f64; 0] = []; break; }
+            for item in [1] { let for_value: [int; 0] = []; }
+            loop { let loop_value: [float; 0] = []; break; }
+            helper();
+            return 37;
+        }
+    "#;
+    const TOP_LEVEL_COMPATIBILITY: &str = "let top_level: [f64; 0] = []; return 37;";
+    const NON_GENERIC_IMPL: &str = r#"
+        impl Widget { fn probe() { let method_value: [i32; 0] = []; } }
+        fn main() -> int { return 37; }
+    "#;
+    const NON_GENERIC_IMPL_FLOAT_PRESERVATION: &str = r#"
+        impl Widget {
+            fn probe() {
+                let values: [float; 0] = [];
+                let copy: [int; 1] = values;
+            }
+        }
+        fn main() -> int { return 37; }
+    "#;
+    const EXAMPLE: &str = include_str!("../../../examples/typed_empty_numeric_arrays.aero");
+
+    let mut failures = Vec::new();
+    for (label, source) in [
+        ("alias/mutability product", COMPLETE_PRODUCT),
+        ("admitted traversal product", TRAVERSAL_PRODUCT),
+        ("top-level compatibility path", TOP_LEVEL_COMPATIBILITY),
+        ("CI example source", EXAMPLE),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked IR"),
+            checked_source(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} public compile"),
+            compile_program(source, CompilerOptions::default()).map(|_| ()),
+        );
+    }
+    expect_acceptance(
+        &mut failures,
+        "non-generic impl semantics remain syntax-only",
+        semantic_result(NON_GENERIC_IMPL),
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "non-generic impl checked route remains quarantined",
+        checked_source(NON_GENERIC_IMPL),
+        "empty array literals have no admitted logical element type",
+    );
+    expect_rejection(
+        &mut failures,
+        "non-generic impl public route remains quarantined",
+        compile_program(NON_GENERIC_IMPL, CompilerOptions::default()).map(|_| ()),
+        &["IR Generation Error: empty array literals have no admitted logical element type"],
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "non-generic impl float annotation preserves semantic inference",
+        semantic_result(NON_GENERIC_IMPL_FLOAT_PRESERVATION),
+        "Error: Variable `copy` type annotation mismatch: expected [int; 1], actual [int; 0].",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "non-generic impl float annotation remains checked-quarantined",
+        checked_source(NON_GENERIC_IMPL_FLOAT_PRESERVATION),
+        "empty array literals have no admitted logical element type",
+    );
+    expect_rejection(
+        &mut failures,
+        "non-generic impl float annotation preserves public semantic diagnostic",
+        compile_program(
+            NON_GENERIC_IMPL_FLOAT_PRESERVATION,
+            CompilerOptions::default(),
+        )
+        .map(|_| ()),
+        &[
+            "Semantic Analysis Error: Error: Variable `copy` type annotation mismatch: expected [int; 1], actual [int; 0].",
+        ],
+    );
+
+    match semantic(COMPLETE_PRODUCT)
+        .map_err(|error| format!("semantic analysis failed before metadata check: {error}"))
+        .and_then(|ast| {
+            IrGenerator::new()
+                .try_generate_ir(ast)
+                .map_err(|error| error.to_string())
+        }) {
+        Err(error) => failures.push(format!("checked metadata generation failed: {error}")),
+        Ok(ir) => {
+            let Some(main) = ir.metadata().functions.get("main") else {
+                failures.push("checked metadata omitted main".to_string());
+                assert!(failures.is_empty(), "{}", failures.join("\n"));
+                return;
+            };
+            let mut int_arrays = 0;
+            let mut float_arrays = 0;
+            for place in main.places.values() {
+                match &place.pointee {
+                    LogicalType::Array { element, count }
+                        if *count == 0 && matches!(element.as_ref(), LogicalType::Int) =>
+                    {
+                        int_arrays += 1;
+                    }
+                    LogicalType::Array { element, count }
+                        if *count == 0 && matches!(element.as_ref(), LogicalType::Float) =>
+                    {
+                        float_arrays += 1;
+                    }
+                    _ => {}
+                }
+            }
+            if (int_arrays, float_arrays) != (4, 4) {
+                failures.push(format!(
+                    "checked metadata did not preserve the complete aliases/mutability product: int={int_arrays}, float={float_arrays}"
+                ));
+            }
+        }
+    }
+
+    for (label, source) in [
+        ("bool element", "fn main() { let value: [bool; 0] = []; }"),
+        (
+            "String element",
+            "fn main() { let value: [String; 0] = []; }",
+        ),
+        (
+            "custom element",
+            "fn main() { let value: [Widget; 0] = []; }",
+        ),
+        (
+            "nested numeric",
+            "fn main() { let value: [[int; 0]; 0] = []; }",
+        ),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} preserved semantics"),
+            semantic_result(source),
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} preserved checked route"),
+            checked_source(source),
+            "empty array literals have no admitted logical element type",
+        );
+    }
+
+    expect_rejection(
+        &mut failures,
+        "positive annotation semantic mismatch",
+        semantic_result("fn main() { let value: [int; 1] = []; }"),
+        &["expected [int; 1]", "actual [int; 0]"],
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "positive annotation checked route",
+        checked_source("fn main() { let value: [int; 1] = []; }"),
+        "empty array literals have no admitted logical element type",
+    );
+    for (label, source) in [
+        (
+            "matching zero repeat",
+            "fn main() { let value: [int; 0] = [1; 0]; }",
+        ),
+        (
+            "preserved zero-repeat mismatch",
+            "fn main() { let value: [float; 0] = [1; 0]; }",
+        ),
+        (
+            "preserved nonempty mismatch",
+            "fn main() { let value: [int; 0] = [1]; }",
+        ),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked route"),
+            checked_source(source),
+        );
+    }
+    expect_acceptance(
+        &mut failures,
+        "generic function semantics remain preserved",
+        semantic_result("fn probe<T>() { let value: [float; 0] = []; }"),
+    );
+    expect_rejection(
+        &mut failures,
+        "generic function checked outer route",
+        checked_source("fn probe<T>() { let value: [float; 0] = []; }"),
+        &["generic function IR is not admitted"],
+    );
+    const GENERIC_IMPL: &str = "impl<T> Widget { fn probe() { let value: [float; 0] = []; } }";
+    expect_acceptance(
+        &mut failures,
+        "generic impl semantics remain preserved",
+        semantic_result(GENERIC_IMPL),
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "generic impl checked route",
+        checked_source(GENERIC_IMPL),
+        "empty array literals have no admitted logical element type",
+    );
+
+    let raw_annotated =
+        IrGenerator::new().generate_ir(parsed("fn main() { let values: [float; 0] = []; }"));
+    let raw_unannotated = IrGenerator::new().generate_ir(parsed("fn main() { let values = []; }"));
+    if raw_annotated != raw_unannotated {
+        failures.push(
+            "raw generation stopped ignoring the typed-empty annotation compatibility input"
+                .to_string(),
+        );
+    }
+
+    for (label, source, expected_element, expected_count) in [
+        (
+            "preserved zero-repeat mismatch metadata",
+            "fn main() { let value: [float; 0] = [1; 0]; }",
+            LogicalType::Int,
+            0,
+        ),
+        (
+            "preserved nonempty mismatch metadata",
+            "fn main() { let value: [int; 0] = [1]; }",
+            LogicalType::Int,
+            1,
+        ),
+    ] {
+        match semantic(source)
+            .map_err(|error| format!("semantic analysis failed: {error}"))
+            .and_then(|ast| {
+                IrGenerator::new()
+                    .try_generate_ir(ast)
+                    .map_err(|error| error.to_string())
+            }) {
+            Err(error) => failures.push(format!("{label}: checked metadata failed: {error}")),
+            Ok(ir) => {
+                let observed = ir
+                    .metadata()
+                    .functions
+                    .values()
+                    .flat_map(|function| function.places.values())
+                    .find_map(|place| match &place.pointee {
+                        LogicalType::Array { element, count } => {
+                            Some((element.as_ref().clone(), *count))
+                        }
+                        _ => None,
+                    });
+                if observed != Some((expected_element, expected_count)) {
+                    failures.push(format!("{label}: logical metadata changed to {observed:?}"));
+                }
+            }
+        }
+    }
+
+    let first = compile_program(EXAMPLE, CompilerOptions::default());
+    let second = compile_program(EXAMPLE, CompilerOptions::default());
+    match (first, second) {
+        (Ok(first), Ok(_second)) if first.is_empty() => {
+            failures.push("CI example produced empty LLVM".to_string())
+        }
+        (Ok(first), Ok(second)) if first != second => {
+            failures.push("CI example LLVM was not byte-deterministic".to_string())
+        }
+        (Ok(first), Ok(_)) => {
+            if first.matches("alloca [0 x double]").count() != 4 {
+                failures.push(format!(
+                    "CI example did not lower exactly four zero-length arrays:\n{first}"
+                ));
+            }
+            if !first.contains("ret i32 37") {
+                failures.push(format!(
+                    "CI example did not lower the native sentinel return:\n{first}"
+                ));
+            }
+        }
+        (Err(error), _) => failures.push(format!("first CI example compile failed: {error}")),
+        (_, Err(error)) => failures.push(format!("second CI example compile failed: {error}")),
+    }
+
+    let workflow = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.github/workflows/rust.yml"),
+    )
+    .expect("read Rust CI workflow");
+    for required in [
+        "- name: Test typed empty numeric arrays example",
+        "cargo run -- build ../../examples/typed_empty_numeric_arrays.aero -o ../../typed_empty_numeric_arrays.ll",
+        "opt-22 -passes=verify -disable-output ../../typed_empty_numeric_arrays.ll",
+        "llc-22 -verify-machineinstrs ../../typed_empty_numeric_arrays.ll -o /dev/null",
+        "llc-22 -filetype=obj ../../typed_empty_numeric_arrays.ll -o ../../typed_empty_numeric_arrays.o",
+        "clang-22 ../../typed_empty_numeric_arrays.o -o ../../typed_empty_numeric_arrays",
+        "../../typed_empty_numeric_arrays",
+        "Expected exit code 37",
+    ] {
+        if !workflow.contains(required) {
+            failures.push(format!(
+                "Rust CI executable example gate omitted {required:?}"
+            ));
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "{} capability-class failures:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn statically_empty_fixed_array_indexing_is_exhaustively_rejected_before_lowering() {
+    let rejection_cases = [
+        (
+            "typed int zero",
+            "fn main() { let values: [int; 0] = []; let observed = values[0]; }",
+        ),
+        (
+            "typed mutable i32 zero with negative index",
+            "fn main() { let mut values: [i32; 0] = []; let observed = values[-1]; }",
+        ),
+        (
+            "typed float zero with variable index",
+            "fn main() { let values: [float; 0] = []; let index = 0; let observed = values[index]; }",
+        ),
+        (
+            "typed f64 zero",
+            "fn main() { let values: [f64; 0] = []; let observed = values[1]; }",
+        ),
+        (
+            "inferred int zero repeat",
+            "fn main() { let values = [1; 0]; let observed = values[0]; }",
+        ),
+        (
+            "inferred float zero repeat",
+            "fn main() { let values = [1.0; 0]; let observed = values[0]; }",
+        ),
+        (
+            "immediate zero repeat",
+            "fn main() { let observed = [1; 0][0]; }",
+        ),
+        (
+            "zero repeat in non-generic impl method",
+            "impl Widget { fn probe() { let values = [1; 0]; let observed = values[0]; } } fn main() {}",
+        ),
+        (
+            "zero repeat in generic impl method",
+            "impl<T> Widget { fn probe() { let values = [1; 0]; let observed = values[0]; } } fn main() {}",
+        ),
+    ];
+    let mut failures = Vec::new();
+    for (label, source) in rejection_cases {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            "Error: cannot index a zero-length fixed array.",
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            "zero-length fixed arrays cannot be indexed in checked IR",
+        );
+        expect_rejection(
+            &mut failures,
+            &format!("{label} public route"),
+            compile_program(source, CompilerOptions::default()).map(|_| ()),
+            &["Semantic Analysis Error: Error: cannot index a zero-length fixed array."],
+        );
+    }
+
+    const FLOAT_INDEX: &str =
+        "fn main() { let values: [int; 0] = []; let observed = values[1.5]; }";
+    expect_exact_rejection(
+        &mut failures,
+        "zero-length float-index semantic precedence",
+        semantic_result(FLOAT_INDEX),
+        "Error: array index type mismatch: expected int, actual float.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "zero-length float-index checked precedence",
+        checked_source(FLOAT_INDEX),
+        "array index must be Int",
+    );
+
+    for (label, source) in [
+        (
+            "positive out-of-range constant remains outside frozen policy",
+            "fn main() { let values = [1]; let observed = values[1]; }",
+        ),
+        (
+            "positive negative constant remains outside frozen policy",
+            "fn main() { let values = [1]; let observed = values[-1]; }",
+        ),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+        );
+    }
+
+    expect_exact_rejection(
+        &mut failures,
+        "unannotated empty checked precedence",
+        checked_source("fn main() { let observed = [][0]; }"),
+        "empty array literals have no admitted logical element type",
+    );
+
+    const GENERIC_FUNCTION: &str =
+        "fn probe<T>() { let values = [1; 0]; let observed = values[0]; } fn main() {}";
+    expect_exact_rejection(
+        &mut failures,
+        "zero repeat in generic function semantics",
+        semantic_result(GENERIC_FUNCTION),
+        "Error: cannot index a zero-length fixed array.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "generic function checked outer-gate precedence",
+        checked_source(GENERIC_FUNCTION),
+        "generic function IR is not admitted in CORE-010",
+    );
+    expect_rejection(
+        &mut failures,
+        "zero repeat in generic function public route",
+        compile_program(GENERIC_FUNCTION, CompilerOptions::default()).map(|_| ()),
+        &["Semantic Analysis Error: Error: cannot index a zero-length fixed array."],
+    );
+
+    assert!(
+        failures.is_empty(),
+        "{} zero-length-index failures:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }
 
 #[test]
@@ -2873,6 +3366,517 @@ fn public_library_rejects_selected_mismatches_without_unwinding() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn binding_annotation_disposition_characterization_is_exhaustive_and_behavior_neutral() {
+    struct RejectCase {
+        label: &'static str,
+        annotation: Type,
+        value: Option<Expression>,
+        semantic_error: &'static str,
+        checked_error: &'static str,
+    }
+
+    let tuple = |arity: usize| {
+        Type::Tuple(
+            (0..arity)
+                .map(|index| Type::Named(if index % 2 == 0 { "int" } else { "float" }.to_string()))
+                .collect(),
+        )
+    };
+    let reject_cases = vec![
+        RejectCase {
+            label: "valueless direct empty tuple",
+            annotation: tuple(0),
+            value: None,
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation for an uninitialized binding",
+        },
+        RejectCase {
+            label: "initialized direct three-element tuple",
+            annotation: tuple(3),
+            value: Some(Expression::IntegerLiteral(1)),
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation for an initialized binding",
+        },
+        RejectCase {
+            label: "valueless zero-count array tuple",
+            annotation: Type::Array(Box::new(tuple(1)), 0),
+            value: None,
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding",
+        },
+        RejectCase {
+            label: "initialized zero-count array tuple",
+            annotation: Type::Array(Box::new(tuple(2)), 0),
+            value: Some(Expression::IntegerLiteral(1)),
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding",
+        },
+        RejectCase {
+            label: "valueless mixed-count two-array tuple",
+            annotation: Type::Array(Box::new(Type::Array(Box::new(tuple(0)), 1)), 0),
+            value: None,
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding",
+        },
+        RejectCase {
+            label: "initialized mixed-count two-array tuple",
+            annotation: Type::Array(Box::new(Type::Array(Box::new(tuple(3)), 0)), 1),
+            value: Some(Expression::IntegerLiteral(1)),
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding",
+        },
+        RejectCase {
+            label: "valueless immutable reference tuple",
+            annotation: Type::Reference(Box::new(tuple(0)), false),
+            value: None,
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding",
+        },
+        RejectCase {
+            label: "valueless mutable reference tuple",
+            annotation: Type::Reference(Box::new(tuple(2)), true),
+            value: None,
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding",
+        },
+        RejectCase {
+            label: "initialized immutable reference tuple",
+            annotation: Type::Reference(Box::new(tuple(1)), false),
+            value: Some(Expression::IntegerLiteral(1)),
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding",
+        },
+        RejectCase {
+            label: "initialized mutable reference tuple",
+            annotation: Type::Reference(Box::new(tuple(3)), true),
+            value: Some(Expression::IntegerLiteral(1)),
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding",
+        },
+        RejectCase {
+            label: "valueless immutable zero-count reference array tuple",
+            annotation: Type::Reference(Box::new(Type::Array(Box::new(tuple(1)), 0)), false),
+            value: None,
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding",
+        },
+        RejectCase {
+            label: "valueless mutable positive reference array tuple",
+            annotation: Type::Reference(Box::new(Type::Array(Box::new(tuple(3)), 2)), true),
+            value: None,
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding",
+        },
+        RejectCase {
+            label: "initialized immutable positive reference array tuple",
+            annotation: Type::Reference(Box::new(Type::Array(Box::new(tuple(0)), 1)), false),
+            value: Some(Expression::IntegerLiteral(1)),
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding",
+        },
+        RejectCase {
+            label: "initialized mutable positive reference array tuple",
+            annotation: Type::Reference(Box::new(Type::Array(Box::new(tuple(2)), 2)), true),
+            value: Some(Expression::IntegerLiteral(1)),
+            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding.",
+            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding",
+        },
+    ];
+
+    let mut failures = Vec::new();
+    for case in reject_cases {
+        let ast = vec![AstNode::Statement(Statement::Let {
+            name: "value".to_string(),
+            mutable: false,
+            type_annotation: Some(case.annotation),
+            value: case.value,
+        })];
+        let semantic_observed = {
+            let mut analyzer = SemanticAnalyzer::new();
+            analyzer.analyze(ast.clone()).map(|_| ())
+        };
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{} semantics", case.label),
+            semantic_observed,
+            case.semantic_error,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{} checked admission", case.label),
+            checked_ast(ast),
+            case.checked_error,
+        );
+    }
+
+    for (label, source) in [
+        ("int contract", "fn main() { let value: int = 1; }"),
+        ("i32 contract", "fn main() { let value: i32 = 1; }"),
+        ("float contract", "fn main() { let value: float = 1.0; }"),
+        ("f64 contract", "fn main() { let value: f64 = 1.0; }"),
+        ("bool contract", "fn main() { let value: bool = 1 < 2; }"),
+        (
+            "String contract",
+            "fn main() { let value: String = \"aero\"; }",
+        ),
+        (
+            "positive int-array contract",
+            "fn main() { let value: [int; 2] = [1, 2]; }",
+        ),
+        (
+            "positive float-array contract",
+            "fn main() { let value: [float; 2] = [1.0, 2.0]; }",
+        ),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+        );
+    }
+    for (label, source, expected, actual) in [
+        (
+            "int contract routing",
+            "fn main() { let value: int = 1.5; }",
+            "int",
+            "float",
+        ),
+        (
+            "float contract routing",
+            "fn main() { let value: float = 1; }",
+            "float",
+            "int",
+        ),
+        (
+            "bool contract routing",
+            "fn main() { let value: bool = 1; }",
+            "bool",
+            "int",
+        ),
+        (
+            "String contract routing",
+            "fn main() { let value: String = 1; }",
+            "String",
+            "int",
+        ),
+        (
+            "array contract routing",
+            "fn main() { let value: [int; 2] = [1.0, 2.0]; }",
+            "[int; 2]",
+            "[float; 2]",
+        ),
+    ] {
+        expect_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            &[
+                "Variable `value` type annotation mismatch",
+                &format!("expected {expected}"),
+                &format!("actual {actual}"),
+            ],
+        );
+        expect_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            &[
+                "binding `value`",
+                &format!("expected {expected}"),
+                &format!("actual {actual}"),
+            ],
+        );
+    }
+
+    let preserved_ast_cases = vec![
+        (
+            "lowercase string",
+            Type::Named("string".to_string()),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "custom named",
+            Type::Named("Widget".to_string()),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "zero-count numeric array",
+            Type::Array(Box::new(Type::Named("int".to_string())), 0),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "nested numeric array",
+            Type::Array(
+                Box::new(Type::Array(Box::new(Type::Named("int".to_string())), 1)),
+                1,
+            ),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "reference scalar",
+            Type::Reference(Box::new(Type::Named("int".to_string())), true),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "generic wrapper",
+            Type::Generic("Vec".to_string(), vec![tuple(2)]),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "initialized immutable zero-count reference array tuple",
+            Type::Reference(Box::new(Type::Array(Box::new(tuple(1)), 0)), false),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "initialized mutable zero-count reference array tuple",
+            Type::Reference(Box::new(Type::Array(Box::new(tuple(2)), 0)), true),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "valueless array around reference tuple",
+            Type::Array(Box::new(Type::Reference(Box::new(tuple(2)), false)), 1),
+            None,
+        ),
+        (
+            "valueless reference around two-array tuple",
+            Type::Reference(
+                Box::new(Type::Array(Box::new(Type::Array(Box::new(tuple(2)), 1)), 1)),
+                false,
+            ),
+            None,
+        ),
+        (
+            "selected valueless positive triple-array tuple",
+            Type::Array(
+                Box::new(Type::Array(Box::new(Type::Array(Box::new(tuple(2)), 1)), 1)),
+                1,
+            ),
+            None,
+        ),
+        (
+            "selected valueless zero-count triple-array tuple",
+            Type::Array(
+                Box::new(Type::Array(Box::new(Type::Array(Box::new(tuple(0)), 0)), 0)),
+                0,
+            ),
+            None,
+        ),
+        (
+            "initialized triple-array tuple",
+            Type::Array(
+                Box::new(Type::Array(Box::new(Type::Array(Box::new(tuple(3)), 1)), 1)),
+                1,
+            ),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "valueless four-array tuple",
+            Type::Array(
+                Box::new(Type::Array(
+                    Box::new(Type::Array(Box::new(Type::Array(Box::new(tuple(2)), 1)), 1)),
+                    1,
+                )),
+                1,
+            ),
+            None,
+        ),
+    ];
+    for (label, annotation, value) in preserved_ast_cases {
+        let ast = vec![AstNode::Statement(Statement::Let {
+            name: "value".to_string(),
+            mutable: false,
+            type_annotation: Some(annotation),
+            value,
+        })];
+        let semantic_observed = {
+            let mut analyzer = SemanticAnalyzer::new();
+            analyzer.analyze(ast.clone()).map(|_| ())
+        };
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_observed,
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_ast(ast),
+        );
+    }
+
+    expect_exact_rejection(
+        &mut failures,
+        "duplicate semantic precedence",
+        semantic_result("fn main() { let value = 1; let value: (int, float); }"),
+        "Error: Variable `value` is already defined in this scope.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "tuple RHS semantic precedence",
+        semantic_result("fn main() { let value: (int, float) = (1, 2); }"),
+        "Tuple expressions are not supported.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "tuple RHS checked precedence",
+        checked_source("fn main() { let value: (int, float) = (1, 2); }"),
+        "aggregate expression is not admitted in checked IR",
+    );
+    const VOID_SOURCE: &str = "fn notify() {} fn main() { let value: (int, float) = notify(); }";
+    expect_rejection(
+        &mut failures,
+        "Void RHS semantic precedence",
+        semantic_result(VOID_SOURCE),
+        &["void function `notify` cannot be used as a value"],
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "Void RHS checked precedence",
+        checked_source(VOID_SOURCE),
+        "Void function calls cannot be used as values",
+    );
+
+    let generic_impl = generic_impl_with(binding(
+        "value",
+        Some(tuple(2)),
+        Expression::IntegerLiteral(1),
+    ));
+    let generic_impl_semantic = {
+        let mut analyzer = SemanticAnalyzer::new();
+        analyzer.analyze(generic_impl.clone()).map(|_| ())
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "generic impl semantic rejection",
+        generic_impl_semantic,
+        "Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "generic impl checked rejection",
+        checked_ast(generic_impl),
+        "checked IR binding `value` uses an unsupported tuple type annotation for an initialized binding",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "generic function semantic traversal",
+        semantic_result("fn probe<T>() { let value: (int, float) = 1; }"),
+        "Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.",
+    );
+    expect_rejection(
+        &mut failures,
+        "generic function checked outer rejection",
+        checked_source("fn probe<T>() { let value: (int, float) = 1; }"),
+        &["generic function IR is not admitted"],
+    );
+    for (label, source) in [(
+        "trait default stays syntax-only",
+        "trait Contract<T> { fn probe() { let value: (int, float) = 1; } }",
+    )] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+        );
+    }
+    for (label, source) in [
+        ("nested block", "fn main() { { let value: (int, float); } }"),
+        (
+            "if block",
+            "fn main() { if 1 < 2 { let value: (int, float); } }",
+        ),
+        (
+            "while block",
+            "fn main() { while 1 < 2 { let value: (int, float); break; } }",
+        ),
+        (
+            "for block",
+            "fn main() { for item in [1] { let value: (int, float); } }",
+        ),
+        (
+            "loop block",
+            "fn main() { loop { let value: (int, float); break; } }",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} semantic traversal"),
+            semantic_result(source),
+            "Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.",
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked traversal"),
+            checked_source(source),
+            "checked IR binding `value` uses an unsupported tuple type annotation for an uninitialized binding",
+        );
+    }
+
+    let public_error = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(
+            "fn main() { let value: (int, float); }",
+            CompilerOptions::default(),
+        )
+    })) {
+        Err(_) => Err("compile_program unwound".to_string()),
+        Ok(Ok(_)) => Err("compile_program unexpectedly accepted".to_string()),
+        Ok(Err(error)) => {
+            let expected = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.";
+            if error == expected {
+                Ok(())
+            } else {
+                Err(format!("public error {error:?} did not equal {expected:?}"))
+            }
+        }
+    };
+    expect_acceptance(&mut failures, "exact public diagnostic", public_error);
+
+    let raw_result = catch_unwind(AssertUnwindSafe(|| {
+        IrGenerator::new().generate_ir(parsed(
+            "fn main() { let value: [[[(int, float); 1]; 1]; 1]; }",
+        ))
+    }));
+    match raw_result {
+        Err(_) => failures.push("raw compatibility generation unwound".to_string()),
+        Ok(functions) if !functions.contains_key("main") => failures
+            .push("raw compatibility generation did not preserve the main function".to_string()),
+        Ok(_) => {}
+    }
+
+    const VALID_SOURCE: &str = "fn main() { let values: [int; 2] = [1, 2]; let first = values[0]; println!(\"{}\", first); }";
+    let first_llvm = compile_program(VALID_SOURCE, CompilerOptions::default());
+    let second_llvm = compile_program(VALID_SOURCE, CompilerOptions::default());
+    match (first_llvm, second_llvm) {
+        (Ok(first), Ok(_second)) if first.is_empty() => {
+            failures.push("valid compile_program returned empty LLVM".to_string())
+        }
+        (Ok(first), Ok(second)) if first != second => {
+            failures.push("valid compile_program LLVM was not byte-deterministic".to_string())
+        }
+        (Ok(_), Ok(_)) => {}
+        (Err(error), _) => failures.push(format!("first valid compile failed: {error}")),
+        (_, Err(error)) => failures.push(format!("second valid compile failed: {error}")),
+    }
+
+    assert!(
+        failures.is_empty(),
+        "{} characterization failures:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }
 
 struct TestWorkspace {

@@ -161,6 +161,24 @@ jobs:
         fi
         echo "float_ops test passed with exit code $exit_code"
 
+    - name: Test typed empty numeric arrays example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/typed_empty_numeric_arrays.aero -o ../../typed_empty_numeric_arrays.ll
+        opt-22 -passes=verify -disable-output ../../typed_empty_numeric_arrays.ll
+        llc-22 -verify-machineinstrs ../../typed_empty_numeric_arrays.ll -o /dev/null
+        llc-22 -filetype=obj ../../typed_empty_numeric_arrays.ll -o ../../typed_empty_numeric_arrays.o
+        clang-22 ../../typed_empty_numeric_arrays.o -o ../../typed_empty_numeric_arrays
+        set +e
+        ../../typed_empty_numeric_arrays
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 37 ]; then
+          echo "Expected exit code 37, got $exit_code"
+          exit 1
+        fi
+        echo "typed_empty_numeric_arrays test passed with exit code $exit_code"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
