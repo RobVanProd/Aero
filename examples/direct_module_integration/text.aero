@@ -1,0 +1,10 @@
+fn string_capabilities() -> bool {
+    let language: String = "Aero 🚀";
+    let alias = language;
+    return alias.len() == 6
+        && alias == "Aero 🚀"
+        && !alias.is_empty()
+        && alias.contains("ero")
+        && alias.starts_with("Aero")
+        && alias.ends_with("🚀");
+}

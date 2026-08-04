@@ -251,6 +251,24 @@ jobs:
         fi
         echo "static_string_predicates test passed with exit code $exit_code"
 
+    - name: Test direct module integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/direct_module_integration/main.aero -o ../../direct_module_integration.ll
+        opt-22 -passes=verify -disable-output ../../direct_module_integration.ll
+        llc-22 -verify-machineinstrs ../../direct_module_integration.ll -o /dev/null
+        llc-22 -filetype=obj ../../direct_module_integration.ll -o ../../direct_module_integration.o
+        clang-22 ../../direct_module_integration.o -o ../../direct_module_integration
+        set +e
+        ../../direct_module_integration
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 47 ]; then
+          echo "Expected exit code 47, got $exit_code"
+          exit 1
+        fi
+        echo "direct_module_integration test passed with exit code $exit_code"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

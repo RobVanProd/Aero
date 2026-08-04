@@ -4,25 +4,40 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 60 `CORE-041`: close the complete Boolean-predicate class for compile-time
-strings as an executable CPU capability. The one-time enumeration starts from exact
-accepted public head `edd63f3` and includes all four already-specified String methods:
-`is_empty()`, `contains(needle)`, `starts_with(needle)`, and `ends_with(needle)`.
-Eligible receivers and one-argument needles must independently resolve through
-CORE-039's decoded literal or finite immutable literal-alias provenance. One pure
-classifier owns all four exact method names, arities, trust requirements, and decoded
-UTF-8 sequence predicates. Checked admission and active checked lowering consume it
-only after ordered child validation/evaluation; lowering materializes the existing
-logical `Bool` with a constant `ICmp`, without runtime String layout. The exhaustive
-aggregate, both classifier roots, every adjacent focused suite, and the exact root
-gate are locally green. Pinned LLVM 22 verification/link/native exit 43 remains a
-public stable-Linux acceptance requirement, not a local Windows claim.
-Dynamic strings/needles, noncanonical annotations, collections, method chaining,
-impl/generic/closure/trait/raw/runtime paths, other String methods, normalization,
-case folding, locale, grapheme, regex, ownership, allocation, ABI, GPU, and general
-method support remain excluded. The separately discussed annotation-topology
-classification is explicitly not part of this task; CORE-041 may consume existing
-provenance but may not add topology-specific annotation guards.
+Milestone 61 `CORE-042`: establish a periodic system-level execution gate for the
+already-frozen flattened direct-module source-composition boundary. The one-time
+enumeration starts from exact accepted public head `a69b7899` and covers `x.aero`,
+`x/mod.aero`, file-first precedence, mixed multiple direct modules, and unqualified
+unique monomorphic scalar/Void call edges root -> module, earlier module -> later
+module, and module -> root. One tracked three-file program must combine fixed-array
+length and the accepted compile-time String length/equality/predicate classes through
+checked build, pinned LLVM 22 verification, object/link, and exact native exit 47.
+This certifies only the existing source-order flattened compatibility unit. `use`,
+`pub`, namespace-qualified access, recursive modules, cycle graphs, separate
+compilation, module ABI, ownership, runtime layout, packages, and GPU execution remain
+unimplemented or excluded. Its tests-first aggregate exposed nondeterministic checked
+LLVM function order across identical CLI builds. CORE-042 is paused while separately
+authorized prerequisite `CORE-042A` makes only the checked/public top-level function
+serialization order stable by exact function name. No parser, AST, semantic, IR,
+verifier, unchecked compatibility, runtime, backend, ABI, or module-semantic change is
+authorized. That correction now passes the complete unnormalized deterministic-build
+product; the aggregate remains red only for the exact three frozen example files and
+ten pinned-CI anchors authorized by CORE-042. Those artifacts are now present and the
+aggregate passes 1/1. Codegen units and every adjacent module/cache/function/verifier/
+type/binding/String/array suite pass; exact root `./tools/test.sh` is formatting and
+correctness-Clippy clean and passes 146/146 library tests, 156/156 CLI tests, every
+integration target, and doc tests. Exact candidate review and public native evidence
+remain pending.
+
+`CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
+Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
+the exhaustive four-predicate aggregate and both classifier roots, every downstream
+suite, and doc tests. Three fresh exact reviewers approved. Push CI `30954270043`,
+PR CI `30954273804`, stable/nightly Rust `30954274208`, CodeQL `30954270620`, and
+aggregate `92143624037` pass all eight checks; stable Linux job `92143515440` used
+LLVM/Clang 22.1.8 and built, LLVM-verified, machine-verified, object-lowered, linked,
+and executed the exact String-predicate example with exit 43. PR #4 is synchronized
+to this accepted head and remains draft.
 
 `CORE-040` is accepted public at `edd63f3c59de38b19d92aebec1b6915240b5e5a5`.
 Its exact local gate passed 145/145 library, 155/155 CLI, 7/7 claim, 28/28 binding,
@@ -50,16 +65,15 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-Both semantic inference paths already type all four selected String methods as
-`Bool`, the tracked built-in contract defines their exact zero-length/substring/
-prefix/suffix meanings, CORE-039 preserves exact decoded literals as `ImmString`, and
-CORE-040 establishes constant logical-Bool lowering. The implemented single classifier
-over an optional trusted receiver, exact method name, and ordered optional trusted
-arguments locally closes the complete class in checked admission and active lowering
-without lexer, parser, semantic, annotation-classifier, IR-enum, verifier,
-code-generator, stdlib, runtime-layout, ABI, or backend changes. Ordered child
-diagnostics/evaluation, Bool metadata, annotation quarantine, `.len()`, equality,
-collections, and raw compatibility remain unchanged under the exhaustive aggregate.
+The shared direct-module collector already resolves and strictly parses both physical
+layouts before trusted analysis, and the compiler's existing flattened top-level
+signature collection should make unique scalar/Void functions visible across all
+three call-edge directions independent of source order. A single mixed-layout example
+can therefore expose whether the current checked pipeline is architecturally coherent
+across module collection, accepted arrays and compile-time Strings, logical functions,
+verified LLVM, and native execution. The class remains deliberately below normative
+module semantics: a failure requiring namespaces, `use`, `pub`, recursion, a module
+graph, or a changed ABI disproves this bounded hypothesis and stops the task.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1603,38 +1617,28 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-CORE-040 is accepted at exact public head
-`edd63f3c59de38b19d92aebec1b6915240b5e5a5`: three fresh exact reviews and all eight
-checks pass, and stable Linux job `92134492264` executed the complete pinned-LLVM 22
-native gate with exact exit 41. Do not reopen its closed class audit.
+CORE-041 is accepted at exact public head
+`a69b7899a3dc05f663b6a68ea307ea37f5f1f401`: three fresh exact reviews and all eight
+checks pass, stable Linux job `92143515440` executed the complete pinned-LLVM 22 native
+gate with exact exit 43, and PR #4 is synchronized. Do not reopen its closed class.
 
-CORE-041 is preregistered from that immutable basis as one complete four-method class:
-compile-time String `is_empty`, `contains`, `starts_with`, and `ends_with`. Its single
-exhaustive aggregate preceded production changes and failed 0/1 with exactly 27
-intended findings: one absent example, eight checked/public positive-product
-rejections, one checked Bool-IR rejection, eight method-specific arity diagnostics,
-and nine absent native-CI anchors. One private classifier now owns method/arity/trust/
-content classification; checked admission and active checked lowering consume it,
-and the all-four-method exit-43 example plus pinned native CI step are present. The
-expanded aggregate covers public arity prefixes, independent receiver/needle
-provenance and annotation quarantine, every child before arity, Bool placements,
-raw/closure preservation, and deterministic Bool IR; it passes 1/1. Classifier units
-pass 1/1 in both roots; binding 28/28, checked IR 8/8, fixed-array length 1/1, verifier
-CLI 12/12, equality 1/1, String length 1/1, and typed admission 13/13 pass. The exact
-root gate is formatting and correctness-Clippy clean and passes 146/146 library,
-156/156 CLI, 7/7 claim, 28/28 binding, every integration suite, and doc tests.
-
-Exact unpublished candidate `36e8964` was rejected for stale handoff chronology, a
-noncanonical externally reported diff hash, and the missing frozen empty-receiver/
-nonempty-needle test quotient. The additive successor containing the recorded and
-tests-only corrections is identified externally because a commit cannot identify
-itself. Preserve that successor unchanged during three fresh exact type/safety,
-IR/codegen, and backend/claim reviews, and publish only if all three approve it.
-Require all eight public checks and stable Linux checked build, pinned LLVM 22
-verification, machine verification/object lowering, Clang link, and exact native
-exit 43. After acceptance, synchronize PR #4 to the accepted CORE-041 head under the
-new repository rule. Do not publish releases/packages/benchmarks/claims, rewrite
-history, force-push, or touch `master`.
+CORE-042 is preregistered from that immutable basis as the complete executable
+flattened direct-module composition class. Add the single exhaustive aggregate before
+the tracked three-file example or workflow step. It must close both physical layouts,
+file-first precedence, mixed declaration order, all three cross-file call directions,
+unique accepted scalar/Void functions, deterministic LLVM, cache and diagnostic
+preservation, and the exclusions that keep namespaces/imports/visibility/recursion/
+ABI outside the claim. The example must combine arrays and all accepted compile-time
+String classes and the public stable-Linux gate must verify/lower/link/run exact exit
+47. Its red aggregate reproduced checked LLVM definition-order nondeterminism caused
+by `generate_checked_code` consuming a `HashMap`; CORE-042A's one-phase exact-name
+ordering closes that defect. The frozen example/workflow then makes the aggregate and
+exact root gate green. Form one candidate, obtain three fresh exact approvals, push it
+unchanged, require all eight public checks and stable Linux LLVM/Clang 22 native exit
+47, and synchronize PR #4 only after acceptance. Stop if any parser, semantic,
+typed-IR, verifier, unchecked compatibility, runtime, backend, ABI, or module-system
+semantic change is required. Do not merge PR #4, publish releases/packages/
+benchmarks/claims, rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

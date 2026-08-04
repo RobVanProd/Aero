@@ -573,7 +573,10 @@ impl CodeGenerator {
             }
         }
 
-        for (function_name, function) in ir_functions {
+        let mut ordered_functions = ir_functions.into_iter().collect::<Vec<_>>();
+        ordered_functions.sort_by(|(left, _), (right, _)| left.cmp(right));
+
+        for (function_name, function) in ordered_functions {
             self.current_function = Some(function_name.clone());
             if let Some((parameters, return_type, body)) = function_defs.get(&function_name) {
                 self.generate_function_definition(

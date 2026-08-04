@@ -904,3 +904,32 @@ declared compatibility policy and release-level coverage.
   layout, ABI, ownership, accelerator, stability, or performance cell moves. Exact
   review, unchanged publication, all-eight checks, and native Linux evidence remain
   pending.
+- Exact `a69b7899`, tree `e3722300`, is the accepted public CORE-041 successor. Three
+  fresh exact reviews and all eight public checks pass; stable Linux job `92143515440`
+  used LLVM/Clang 22.1.8 for checked build, LLVM and machine verification, object
+  lowering, link, and native exit 43. This closes only the four enumerated predicates
+  on trusted compile-time Strings. Strings remain `PARTIAL`; runtime/dynamic String,
+  normalization, layout, ABI, ownership, accelerator, stability, and performance
+  claims remain unchanged.
+- Preregistered CORE-042 may certify one complete executable composition class for the
+  existing flattened direct-module source collector: both physical layouts, file-first
+  precedence, mixed direct modules, and unqualified unique accepted monomorphic
+  scalar/Void calls across root -> module, module -> module, and module -> root. Its
+  system-level example must combine accepted arrays and compile-time String classes
+  through checked IR, pinned LLVM 22, link, and native exit 47. This does not implement
+  `use`, `pub`, namespaces, recursive paths, cycles, packages, separate compilation,
+  module ABI, ownership, runtime layout, or GPU execution. The Modules/imports/
+  visibility row remains `PARSED_ONLY` and the module-resolver surface remains
+  `EXPERIMENTAL` at authorization; no cell moves before exhaustive and public evidence.
+- CORE-042's first red aggregate exposed nondeterministic checked LLVM definition
+  serialization across identical multi-function CLI builds. Separately authorized
+  prerequisite CORE-042A permits only exact-name ordering at the checked/public code-
+  generation emission boundary, preserving unchecked compatibility and all language,
+  IR, ABI, runtime, backend, and module semantics. This compiler-integrity correction
+  moves no capability cell and makes no general reproducible-build claim.
+- The resulting local CORE-042 aggregate passes the complete frozen direct-module
+  composition product 1/1; exact root formatting, correctness Clippy, 146 library,
+  156 CLI, all integration, and doc gates pass. The tracked three-file example and
+  pinned LLVM/Clang 22 exit-47 workflow are present. Modules/imports/visibility remains
+  `PARSED_ONLY` and the resolver remains `EXPERIMENTAL` until exact review, unchanged
+  publication, all-eight public checks, and stable Linux native evidence complete.

@@ -7858,3 +7858,212 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   every integration suite, and doc tests. This correction changes only two test
   tables and the chronology records; production classifier behavior is byte-for-byte
   unchanged from rejected candidate `36e8964`.
+- Final acceptance: exact additive successor
+  `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`, tree
+  `e3722300572e44193d8b963cd160c27cb2da3647`, correction full-index hash
+  `51f900d4af192370e5bc37d2ce505ae547d29524`, and accepted-base cumulative
+  full-index hash `22e3ca7d945e728385bbb8bb48fd396ab2ce0eb7` received three fresh exact
+  approvals with no P0-P3 findings and was pushed unchanged. Push CI
+  `30954270043`, PR CI `30954273804`, stable/nightly Rust `30954274208`,
+  CodeQL `30954270620`, and aggregate check `92143624037` pass all eight public
+  checks. Stable Linux job `92143515440` records LLVM/Clang 22.1.8, checked build,
+  `opt-22` verification, `llc-22` machine verification and object lowering,
+  `clang-22` linking, and `static_string_predicates test passed with exit code 43`.
+  CORE-041 is accepted and its one-time four-method enumeration is closed. Draft
+  PR #4 was then verified open/draft at exact public head `a69b7899` and synchronized
+  to CORE-041, 220 commits, 47,018 additions, the exact evidence, remaining limits,
+  and the four user-identified integration-scale risks.
+
+## CORE-042 - Executable direct-module composition integration gate
+
+- Task ID/date/owner: `CORE-042`, 2026-08-04, lead-owned tests-first integration
+  vertical slice under the active autonomous mandate. This is the sole authorization
+  record for the complete direct-module composition class below. Its one-time
+  enumeration starts at exact accepted public CORE-041 head
+  `a69b7899a3dc05f663b6a68ea307ea37f5f1f401` and does not reopen when a later
+  candidate is formed.
+- Framework and specification basis: the original Aero framework requires a staged
+  Design -> Minimal Prototype -> Self-Host -> Stabilize -> Optimize path, front-end
+  name/type/borrow analysis, typed IR, and LLVM execution. The companion execution-
+  quality framework requires multidimensional compiler evidence rather than isolated
+  local proof. The normative module specification separately requires namespaces,
+  `use`, `pub`, recursive resolution, and cycle rejection; DEC-016 deliberately
+  leaves those semantics unfrozen. CORE-042 therefore certifies only the already-
+  frozen flattened direct-source compatibility boundary and must not describe it as
+  a module system.
+- Observed behavior: one shared `collect_direct_modules` boundary already resolves,
+  strictly parses, and appends root-level `mod x;` sources before trusted analysis;
+  positive tests prove both physical layouts through `check`, and function-contract
+  tests prove selected flattened cross-file signatures. No retained example or native
+  gate traces multiple direct modules and accepted capabilities through checked build,
+  LLVM verification, object/link, and execution. Consequently direct-module source
+  collection is guarded but its executable composition surface is not accepted
+  system-level evidence.
+- Hypothesis and frozen result: the existing flattened compilation unit can execute
+  one complete, bounded composition class without adding language semantics. A root
+  entry file may declare direct modules; unique, nonreserved, nongeneric top-level
+  functions in the root and those direct sources use the already-accepted monomorphic
+  scalar/Void contracts and remain visible by unqualified name only because the
+  sources are flattened. Calls must work root -> module, earlier module -> later
+  module, and module -> root independent of declaration order. This is source
+  composition compatibility, not namespace, import, visibility, module ABI, or
+  separate-compilation semantics.
+- Complete physical/topology product: zero-module behavior remains the control; one
+  `x.aero`; one `x/mod.aero`; both candidates present with the existing file-first
+  precedence; multiple declarations in root source order; and a mixed-layout
+  multi-module program. The executable representative must include all three call-
+  edge directions and unique functions defined before and after their callers. Exact
+  source bytes, module name, chosen candidate, and ordered module set retain the
+  existing cache-identity contract.
+- Complete capability product: exercise existing `Int`, `Float`, logical `Bool`, and
+  Void call/return contracts without changing their ABI; fixed numeric-array literal
+  and static length; trusted compile-time String Unicode-scalar length, exact equality,
+  and all four CORE-041 predicates; lexical bindings, comparisons, logical control
+  flow, and an exact integer entry sentinel. Each constituent remains bounded by its
+  accepted class; no runtime String, array indexing/mutation, reference, ownership,
+  aggregate, generic, trait, collection, or accelerator support is implied.
+- Preserved rejection and precedence product: missing, unreadable, malformed, nested,
+  and duplicate direct-module sources; duplicate/colliding functions or entrypoints;
+  undefined calls; wrong scalar arity/type/return; child diagnostics; requested-
+  artifact suppression; verifier-before-publication; run cleanup; source-only library
+  rejection; module-aware cache invalidation; and all existing zero-module behavior
+  remain unchanged. Existing adjacent module, function, strict-lexing, checked-IR,
+  cache, and capability suites are part of the acceptance gate and may not be weakened
+  or reclassified.
+- Explicit exclusions: `use`, `pub`, namespace-qualified access, visibility,
+  re-exports, inline modules, nested/recursive paths, cycle graphs, symlink policy,
+  package resolution, file-aware public library APIs, separate compilation, module
+  initialization/destruction, module ABI, cross-package linking, runtime layout,
+  ownership, CPU performance, ROCm, CUDA, release eligibility, and general module-
+  system claims. Qualified or imported syntax must not be made executable here.
+- Tests-first contract: add one aggregate before example/workflow or production
+  changes. It must instantiate the normalized topology and call-edge product, prove
+  deterministic checked build output, inspect cross-file LLVM calls and constituent
+  capability anchors, exercise the preserved rejection/precedence controls, and fail
+  only for absent tracked integration files and absent exact CI anchors if current
+  compiler behavior already satisfies the frozen compatibility class. Any compiler
+  defect must remain red until a separately recorded bounded correction inside the
+  authorized module-entry orchestration is made.
+- End-to-end acceptance: add a tracked root example plus one direct `x.aero` and one
+  direct `x/mod.aero`. The mixed-layout program must trace root -> module -> module and
+  module -> root while combining the accepted array and compile-time String classes,
+  and return exact sentinel 47. Add one unconditional stable/nightly Rust-CI step that
+  uses the root entry path, checked build, pinned `opt-22`, `llc-22` machine verification
+  and object lowering, `clang-22` link, native execution, and exact exit 47. Run focused
+  red/green, adjacent suites, formatting, correctness Clippy, exact root
+  `./tools/test.sh`, three fresh exact reviews, unchanged push, all eight public checks,
+  stable-job log inspection, and post-acceptance PR synchronization.
+- Allowed files: `TASK_LEDGER.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, one new focused direct-module execution integration
+  test, one three-file example directory, and `.github/workflows/rust.yml`. Only if the
+  red aggregate exposes a defect inside the frozen direct-entry compatibility boundary
+  may `src/compiler/src/module_resolver.rs` or the direct-module orchestration in
+  `src/compiler/src/main.rs` change, after the exact correction is amended here.
+  No lexer, parser, AST, semantic analyzer, types, binding classifier, IR enum,
+  verifier, code generator, stdlib, runtime, backend, dependency, README/spec/RFC,
+  claim-verification, release, benchmark, registry, published-history, PR merge, or
+  `master` change is authorized.
+- Risks and stop conditions: stop if positive execution requires namespace/import/
+  visibility semantics, a module-system RFC, any excluded compiler phase, more than
+  the existing flattened source composition, a changed function ABI, a new runtime
+  representation, a weakened diagnostic/test, a red baseline, or a backend claim.
+  Stop rather than promote accidental `use`/`pub` behavior. A rejection-only result,
+  documentation-only result, or local check without native execution cannot close
+  CORE-042.
+- Status at authorization: exact public base `a69b7899` is clean, triple-approved,
+  all-eight green, and native exit-43 accepted. PR #4 is synchronized and remains
+  draft; `master` is untouched. No CORE-042 test, example, workflow anchor, compiler
+  behavior, artifact, or capability claim exists yet.
+- First red evidence and correction boundary: the single aggregate compiles and fails
+  0/1 with 17 findings. Thirteen are intended: three absent tracked example sources
+  and ten absent pinned native-CI anchors. Two are test-oracle defects: LLVM correctly
+  renders `3.5` as its exact hexadecimal `double` constant, and exit 47 remains a
+  runtime result of the cross-file `root_bias(45)` call rather than a literal
+  `ret i32 47`. Correct only those textual expectations before evaluating the
+  capability. The remaining two findings expose real cross-process nondeterministic
+  LLVM for the single-file and mixed-layout multi-function builds. No production file
+  changed before this red boundary. Enhance the failing diagnostic to report emitted
+  function order and the first differing line, then reproduce. Do not normalize,
+  sort, or waive the output in the test. If the defect requires a file outside the
+  authorized direct-entry orchestration, CORE-042 remains paused at its stop condition
+  until one separately authorized minimal deterministic-emission prerequisite is
+  frozen; the composition class and its deterministic acceptance requirement may not
+  be weakened.
+
+### CORE-042A - Deterministic checked whole-program function emission prerequisite
+
+- Task ID/date/owner: `CORE-042A`, 2026-08-04, lead-owned bounded prerequisite to
+  resume CORE-042. This is a correction task, not a new language-capability milestone,
+  and it may be integrated only with the still-unpublished CORE-042 candidate.
+- Observed behavior and reproduced evidence: the CORE-042 regression builds an
+  identical mixed six-function flattened compilation unit twice in separate Aero CLI
+  processes. Both builds pass checked-IR verification, but their LLVM function
+  definitions occur in different orders (for example `float_gate`, `main`, `consume`,
+  `module_score`, `string_capabilities`, `root_bias` versus `main`, `float_gate`,
+  `module_score`, `string_capabilities`, `consume`, `root_bias`), with the first
+  differing definition at LLVM line 13. Source inspection identifies
+  `CodeGenerator::generate_checked_code` iterating the input `HashMap` by value after
+  verification. No module resolver, parser, semantic, IR, verifier, ABI, function
+  body, runtime, or backend defect is implicated.
+- Frozen correction: checked/public whole-program LLVM emission must order the
+  already-verified top-level function map by exact function-name bytes before emitting
+  definitions. This changes only definition serialization order; it must not sort or
+  rewrite instructions inside a function, change metadata lookup, declaration text,
+  target headers, symbol spelling, call resolution, verification admission, ABI, or
+  language semantics. LLVM forward references remain valid. The deprecated unchecked
+  compatibility API is explicitly preserved byte-for-byte and remains outside this
+  correction.
+- Tests-first and acceptance evidence: the already-created CORE-042 mixed-layout
+  aggregate is the failing regression and must compare unnormalized complete LLVM
+  bytes from distinct CLI processes. After the correction, its deterministic
+  assertions must pass while it remains red only for the three absent frozen example
+  sources and ten absent CI anchors. Add a focused in-module checked-code unit only if
+  the public regression cannot localize the correction; do not create a second
+  ordering implementation. Final acceptance is folded into CORE-042's focused,
+  adjacent, exact-root, exact-review, and pinned-native gates.
+- Allowed files: `src/compiler/src/code_generator.rs`, the already-authorized
+  `src/compiler/tests/direct_module_execution_tests.rs`, `TASK_LEDGER.md`,
+  `PROJECT_STATE.md`, and `SPEC_IMPLEMENTATION_MATRIX.md`. The implementation is one
+  stable ordering boundary in `generate_checked_code`; no other production file or
+  compiler phase is authorized.
+- Risks and stop conditions: stable serialization changes checked LLVM text order and
+  therefore artifact/cache bytes, but not accepted program meaning. Stop if the fix
+  requires changing `CheckedIr`, verifier behavior, function metadata, internal
+  instruction order, ABI, raw compatibility output, more than the single code-
+  generation phase, or any module semantic. Do not normalize the regression, seed a
+  hash implementation, special-case the example, or claim general reproducible builds
+  beyond the exact checked LLVM surface tested here.
+- Status at authorization: CORE-042 is deliberately paused at its recorded stop
+  condition; CORE-042A is now the only production-code authorization. The failing
+  cross-process regression predates this authorization, and no production file has
+  changed. Resume the example/workflow portion of CORE-042 only after the corrected
+  regression proves the remaining findings are exactly the thirteen intended absent
+  integration artifacts.
+- Corrected prerequisite evidence: the implementation adds one exact-name sort of the
+  consumed function entries at `CodeGenerator::generate_checked_code` and does not
+  change the deprecated unchecked emitter. After formatting, the same unnormalized
+  cross-process aggregate fails 0/1 with exactly the thirteen intended findings:
+  three unavailable frozen example sources and ten missing workflow anchors. Every
+  single-file, directory-layout, precedence, mixed-call-graph, diagnostic, capability,
+  and complete-byte determinism assertion passes. This closes CORE-042A's red defect
+  and resumes the still-red artifact portion of CORE-042; broader gates remain pending.
+- Green implementation evidence: the exact frozen three-file example and ten pinned
+  workflow anchors were then added without another production change. The exhaustive
+  CORE-042 aggregate passes 1/1 and reads each tracked source byte-for-byte before
+  rebuilding its mixed physical layout. Code-generator units pass 23/23. Adjacent
+  module-aware verified-cache 7/7, module pipeline 7/7, function 14/14,
+  LLVM-verifier CLI 12/12, typed admission 13/13,
+  binding 28/28, strict lexing 12/12, checked IR 8/8, fixed-array length 1/1,
+  String length 1/1, String equality 1/1, and String predicates 1/1 all pass. Exact
+  root `./tools/test.sh` is formatting and correctness-Clippy clean and passes
+  146/146 library tests, 156/156 CLI tests, every integration target, and doc tests.
+- Files changed for the candidate: `src/compiler/src/code_generator.rs`,
+  `src/compiler/tests/direct_module_execution_tests.rs`,
+  `examples/direct_module_integration/main.aero`,
+  `examples/direct_module_integration/numeric/mod.aero`,
+  `examples/direct_module_integration/text.aero`, `.github/workflows/rust.yml`,
+  `TASK_LEDGER.md`, `PROJECT_STATE.md`, and `SPEC_IMPLEMENTATION_MATRIX.md`.
+  No other compiler phase, dependency, claim, release, benchmark, `master`, or PR
+  state changed. Exact candidate identity, three reviews, unchanged push, all-eight
+  checks, stable Linux LLVM/Clang 22 native exit 47, and PR synchronization remain
+  pending.
