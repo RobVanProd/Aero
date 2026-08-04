@@ -4,33 +4,33 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 61 `CORE-042`: establish a periodic system-level execution gate for the
-already-frozen flattened direct-module source-composition boundary. The one-time
-enumeration starts from exact accepted public head `a69b7899` and covers `x.aero`,
-`x/mod.aero`, file-first precedence, mixed multiple direct modules, and unqualified
-unique monomorphic scalar/Void call edges root -> module, earlier module -> later
-module, and module -> root. One tracked three-file program must combine fixed-array
-length and the accepted compile-time String length/equality/predicate classes through
-checked build, pinned LLVM 22 verification, object/link, and exact native exit 47.
-This certifies only the existing source-order flattened compatibility unit. `use`,
-`pub`, namespace-qualified access, recursive modules, cycle graphs, separate
-compilation, module ABI, ownership, runtime layout, packages, and GPU execution remain
-unimplemented or excluded. Its tests-first aggregate exposed nondeterministic checked
-LLVM function order across identical CLI builds. Separately authorized prerequisite
-`CORE-042A` makes only the checked/public top-level function serialization order stable
-by exact function name. No parser, AST, semantic, IR,
-verifier, unchecked compatibility, runtime, backend, ABI, or module-semantic change is
-authorized. That correction now passes the complete unnormalized deterministic-build
-product; the aggregate remains red only for the exact three frozen example files and
-ten pinned-CI anchors authorized by CORE-042. Those artifacts are now present and the
-aggregate passes 1/1. Codegen units and every adjacent module/cache/function/verifier/
-type/binding/String/array suite pass; exact root `./tools/test.sh` is formatting and
-correctness-Clippy clean and passes 146/146 library tests, 156/156 CLI tests, every
-integration target, and doc tests. The rejected-candidate correction additionally
-locks exact-name order, unreadable/wrong-return/child-precedence rejection, and both
-direct-module declaration-order permutations without changing production. The
-additive successor is identified externally for exact review; public native evidence
-remains pending.
+Milestone 61 `CORE-042` is locally implemented and awaiting exact review and public
+native evidence. Its one-time class starts from accepted public head `a69b7899` and
+covers `x.aero`, `x/mod.aero`, file-first precedence, mixed direct modules, and unique
+monomorphic scalar/Void call edges root -> module, earlier module -> later module, and
+module -> root. The tracked three-file example combines fixed-array length and all
+accepted compile-time String classes through checked build and the pinned LLVM/Clang
+22 workflow to exact native exit 47. This remains flattened source-composition
+compatibility, not a module system; `use`, `pub`, namespaces, recursion, cycles,
+separate compilation, module ABI, ownership, runtime layout, packages, and GPU
+execution remain unimplemented or excluded.
+
+The tests-first aggregate exposed nondeterministic checked LLVM definition order.
+Bounded prerequisite `CORE-042A` stabilized only checked/public top-level serialization
+by exact function name. At that intermediate checkpoint, the aggregate remained red
+solely for the three frozen example sources and ten workflow anchors. Those artifacts
+were then added, and the expanded aggregate now passes 1/1 with exact-name controls,
+unreadable/wrong-return/child-precedence rejection, and both direct-module declaration-
+order permutations. Production is unchanged after the checked-emission sort. Exact
+root `./tools/test.sh` is formatting and correctness-Clippy clean and passes 146/146
+library tests, 156/156 CLI tests, every integration target, and doc tests.
+
+Unpublished `91f96b5` is preserved as the rejected implementation candidate; additive
+`0654137e` closes all substantive review gaps but is rejected solely for contradictory
+handoff wording in this file. The records-only successor that removes that wording is
+identified externally for three fresh exact reviews. PR #4 correctly remains at
+accepted CORE-041, and all-eight public checks plus stable Linux native exit 47 remain
+pending.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
 Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
@@ -1625,28 +1625,24 @@ CORE-041 is accepted at exact public head
 checks pass, stable Linux job `92143515440` executed the complete pinned-LLVM 22 native
 gate with exact exit 43, and PR #4 is synchronized. Do not reopen its closed class.
 
-CORE-042 is preregistered from that immutable basis as the complete executable
-flattened direct-module composition class. Add the single exhaustive aggregate before
-the tracked three-file example or workflow step. It must close both physical layouts,
-file-first precedence, mixed declaration order, all three cross-file call directions,
-unique accepted scalar/Void functions, deterministic LLVM, cache and diagnostic
-preservation, and the exclusions that keep namespaces/imports/visibility/recursion/
-ABI outside the claim. The example must combine arrays and all accepted compile-time
-String classes and the public stable-Linux gate must verify/lower/link/run exact exit
-47. Its red aggregate reproduced checked LLVM definition-order nondeterminism caused
-by `generate_checked_code` consuming a `HashMap`; CORE-042A's one-phase exact-name
-ordering closes that defect. The frozen example/workflow then makes the aggregate and
-exact root gate green. Exact unpublished candidate `91f96b5` is rejected and preserved:
-its handoff used a noncanonical hash and stale future tense, its repeatability oracle
-did not assert exact-name ordering, and its claimed complete product omitted unreadable,
-wrong-return, child-precedence, and observable ordered-multi-module cells. Add only the
-frozen tests/records corrections now pass focused, adjacent, and exact root gates.
-The additive successor containing those corrections is identified externally because
-it cannot identify itself. Preserve that successor unchanged during three fresh exact
-reviews; push only after all three approve, then require all eight public checks and stable Linux
-LLVM/Clang 22 native exit 47, and synchronize PR #4 only after acceptance. Stop if any parser, semantic,
-typed-IR, verifier, unchecked compatibility, runtime, backend, ABI, or module-system
-semantic change is required. Do not merge PR #4, publish releases/packages/
+CORE-042 was preregistered from that immutable basis, and its aggregate preceded the
+tracked example, workflow, and sole production correction. It now closes both physical
+layouts, file-first precedence, mixed declaration order, every frozen cross-file call
+direction, unique scalar/Void functions, exact-name deterministic LLVM, module-aware
+cache controls, diagnostic precedence, and the explicit non-module-system exclusions.
+The tracked example combines accepted arrays and compile-time Strings, and the public
+stable-Linux gate is wired to verify, machine-verify, lower, link, and run exact exit 47.
+
+Unpublished `91f96b5` is rejected for noncanonical identity evidence, stale chronology,
+and incomplete test oracles. Additive `0654137e` corrects every substantive gap and
+passes focused, adjacent, and exact root gates, but is rejected solely for contradictory
+wording in the previous version of this file. The records-only successor containing
+this completed-history handoff is identified externally because it cannot identify
+itself. Preserve that exact successor unchanged during three fresh reviews; push only
+after all three approve, then require all eight public checks and stable Linux
+LLVM/Clang 22 native exit 47 before acceptance and PR #4 synchronization. Stop if any
+parser, semantic, typed-IR, verifier, unchecked compatibility, runtime, backend, ABI,
+or module-system semantic change is required. Do not merge PR #4, publish releases/packages/
 benchmarks/claims, rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
