@@ -5924,11 +5924,15 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   defaults, bounds, layout, mutation, ABI, ownership, raw APIs, verifier/codegen,
   valid-output scope, and CPU/ROCm/CUDA behavior remain unchanged. R-002 stays
   HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability class moves.
-- Closure preparation: exactly the six control records changed. Their fresh exact
-  repository-root gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
-  and 22/22 binding tests. No compiler, test, workflow, dependency, backend, or
-  claim-evidence file changed.
-- Status: implementation complete and public all-eight green at `76a6e802`; exact
-  six-record closure is prepared and its fresh gate exits 0. Three exact reviews,
-  unchanged publication, and all eight public checks remain required before another
-  audit or implementation authorization.
+- First closure snapshot `fe90f583c1cdb39eaf05b7fd9c2e3a9a39ef41e3`, tree
+  `90ac8ae66e80a90be8f635001e65da79b7ebb758`, canonical diff
+  `89fe6824a90ff1ad3b967d27ebb5670456070102`, changed exactly the six control
+  records and passed its exact gate with 139/139 library, 149/149 binary, 7/7 claim,
+  and 22/22 binding tests. Type/safety and backend/claim approved, but IR/codegen
+  rejected at P1 because a late PROJECT_STATE subsection still said tests-first
+  must occur and tests/implementation had not begun. It was never published.
+- Status: implementation remains complete and public all-eight green at `76a6e802`.
+  Corrected six-record closure preparation fixes only that stale state chronology;
+  its fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  22/22 binding tests. Three reviews, unchanged publication, and all eight public
+  checks remain required before another audit or implementation authorization.

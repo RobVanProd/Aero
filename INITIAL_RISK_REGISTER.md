@@ -620,12 +620,12 @@ already-frozen initializer-child ordering; all three then explicitly approve exa
 with no semantic, compatibility, or phase blocker. AUDIT-039 remains read-only and
 changes no risk status.
 
-Preregistered CORE-033 may reject only initialized exact nonrecursive
+Preregistered CORE-033 permitted only initialized exact nonrecursive
 `Array(Array(Tuple))` after initializer and existing initialized diagnostics in
-semantic analysis and checked admission. Tests-first must explicitly reclassify both
-current A acceptance rows and reproduce exactly 12 false acceptances: eight count/
-phase, one public, two generic-impl, and one semantic generic-function; checked
-generic-function outer rejection remains green. Candidate T, reference-array
+semantic analysis and checked admission. Tests-first was required to reclassify both
+then-current A acceptance rows and reproduce exactly 12 false acceptances: eight
+count/phase, one public, two generic-impl, and one semantic generic-function; checked
+generic-function outer rejection remained green. Candidate T, reference-array
 Candidate B, other initialized/valueless three-plus depth, wrappers, raw APIs,
 verifier/codegen, valid output, tuple/array meaning, bounds/layout, ownership/ABI,
 and all backends remain unchanged. R-002 stays
@@ -662,7 +662,10 @@ Candidate B, other deeper/wrapped or valueless forms, tuple/nested-array meaning
 raw APIs, verifier/codegen, ABI/ownership, valid output, and all backends remain
 unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
 
-Exact CORE-033 six-record closure preparation changes only the control records and
-its fresh repository-root gate exits 0 with 139/139 library, 149/149 binary, 7/7
-claim, and 22/22 binding tests. Three exact reviews, unchanged publication, and all
-eight public checks remain; no risk status changes.
+First CORE-033 six-record closure snapshot `fe90f583`, tree `90ac8ae6`, canonical
+diff `89fe6824`, changed only the control records and passed its exact gate with
+139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received two
+approvals but was rejected unpublished at P1 because stale PROJECT_STATE wording
+could reopen tests-first and implementation. Corrected records make that chronology
+historical; their fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
+claim, and 22/22 binding tests. Review/public gates remain; no risk status changes.

@@ -8,8 +8,10 @@ Milestone 46 `CORE-033` record closure. Authorization, corrected tests-first
 evidence, and the exact two-phase implementation are complete. Accepted
 implementation `76a6e802` is public all-eight green; immediate work is limited to
 the prepared six closure/control records, their exact reviews, and unchanged
-publication. Their fresh exact gate exits 0 with 139/139 library, 149/149 binary,
-7/7 claim, and 22/22 binding tests. No next residual or implementation is authorized.
+publication. The corrected record tree requires a fresh exact gate after the first
+snapshot was rejected unpublished for stale state wording; that corrected gate
+exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
+No next residual or implementation is authorized.
 
 ## Active hypothesis
 
@@ -1006,17 +1008,24 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   checked generic function retains its outer rejection. Candidate T, the reference-
   array form historically labeled Candidate B, other three-plus depth, wrappers,
   raw/verifier/codegen, ABI/ownership, valid output, and backends are preserved.
-- Tests-first must reclassify the two existing Candidate A acceptance rows and add
-  one aggregate with exactly 12 false acceptances: 8 count/phase, 1 public, 2 generic
-  impl, 1 semantic generic function. The checked generic-function result stays green.
-- The prepared six-record CORE-033 authorization's fresh exact full gate exits 0
-  with 139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Tests and
-  implementation have not begun.
+- Tests-first reclassified both existing Candidate A acceptance rows and added one
+  aggregate with exactly 12 false acceptances: 8 count/phase, 1 public, 2 generic
+  impl, and 1 semantic generic function. The checked generic-function result stayed
+  green. Corrected tests `ac4cb2a5` reproduced that exact public-red surface.
+- Corrected authorization `66207215`, tests-first `ac4cb2a5`, and implementation
+  `76a6e802` are complete at their recorded review and public gates. Implementation
+  is limited to the exact semantic and checked-admission guards; closure-only work
+  remains.
 - First authorization snapshot `d0500865`, tree `d2378320`, canonical diff
   `97a15c9f`, passed its local gate but received one approval and two blocking reviews
   because one ledger sentence mislabeled Candidate T's valueless form as Candidate B.
   It remained unpublished; the corrected records keep both historical identities
   unambiguous.
+- First closure snapshot `fe90f583`, tree `90ac8ae6`, canonical diff `89fe6824`,
+  passed its exact gate and received two approvals but was rejected unpublished at
+  P1 because this section still described tests-first as mandatory future work and
+  said tests/implementation had not begun. The corrected section above records the
+  accepted chronology and cannot reopen source or test work.
 
 ## Exact next action
 

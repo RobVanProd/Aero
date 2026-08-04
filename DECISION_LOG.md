@@ -1903,9 +1903,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-042 - Initialized exact two-array-deep tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: accepted implementation public all-eight green at `76a6e802`; exact
-  six-record closure prepared with fresh full-gate exit 0, awaiting review and
-  publication gates.
+- Status: accepted implementation public all-eight green at `76a6e802`; corrected
+  six-record closure prepared after an unpublished record rejection, awaiting its
+  exact reviews and publication gates. Its fresh full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
 - Decision: for an initialized binding whose annotation is exactly nonrecursive
   `Type::Array(Type::Array(Type::Tuple(_), _), _)`, validate the initializer and
   preserve existing initialized outer/immediate tuple diagnostics, then reject in
@@ -1953,6 +1954,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   default, bounds, layout, mutation, ABI, ownership, lowering, execution, backend,
   matrix, capability, or stability evidence. R-002 remains HIGH/CRITICAL and
   PARTIALLY CONTROLLED. Record closure is required before selecting another slice.
-- Closure preparation: only the six control records changed. The fresh exact gate
-  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
-  Three exact reviews, unchanged publication, and all eight checks remain required.
+- Closure review history: first snapshot `fe90f583`, tree `90ac8ae6`, canonical diff
+  `89fe6824`, changed only the six control records and passed its exact gate with
+  139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received
+  two approvals but was rejected unpublished at P1 because a late PROJECT_STATE
+  subsection still treated tests-first and implementation as future work. Corrected
+  records make that chronology historical; their fresh exact gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. Exact review
+  and public gates remain required.

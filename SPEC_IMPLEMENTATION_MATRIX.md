@@ -586,6 +586,10 @@ declared compatibility policy and release-level coverage.
   reference-array Candidate B, all other deeper/wrapped forms, every matrix row,
   cell, and capability class remain unchanged; R-002 stays HIGH/CRITICAL and
   PARTIALLY CONTROLLED.
-- Exact six-record closure preparation changes only the control records. Its fresh
-  repository-root gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
-  and 22/22 binding tests. No matrix cell moves; exact review and public gates remain.
+- First six-record closure snapshot `fe90f583`, tree `90ac8ae6`, canonical diff
+  `89fe6824`, changed only the control records and passed its exact gate with
+  139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received
+  two approvals but was rejected unpublished because stale PROJECT_STATE wording
+  could reopen tests-first and implementation. Corrected records change no matrix
+  cell; their fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests. Exact review and public gates remain.

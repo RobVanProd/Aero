@@ -1453,7 +1453,11 @@ promise future compatibility.
   certification, and CPU/ROCm/CUDA remain unchanged. This is containment, not a
   capability promotion; R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED and no
   matrix cell moves.
-- Exact six-record closure preparation changes only the control records and its
-  fresh repository-root gate exits 0 with 139/139 library, 149/149 binary, 7/7
-  claim, and 22/22 binding tests. Review, unchanged publication, and all eight
+- First six-record closure snapshot `fe90f583`, tree `90ac8ae6`, canonical diff
+  `89fe6824`, changed only the control records and passed its exact gate with
+  139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received
+  two approvals but was rejected unpublished at P1 because PROJECT_STATE retained
+  stale future tests/implementation wording. Corrected records make that chronology
+  historical; their fresh exact gate exits 0 with 139/139 library, 149/149 binary,
+  7/7 claim, and 22/22 binding tests. Review, unchanged publication, and all eight
   public checks remain before closure acceptance.
