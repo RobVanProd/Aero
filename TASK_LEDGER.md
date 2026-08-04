@@ -5882,6 +5882,53 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   called Candidate T's valueless population “B,” colliding with the historical
   reference-array Candidate B. It was never published. The corrected records use
   Candidate T unambiguously and preserve reference-array Candidate B separately.
-- Status: exact behavior authorization prepared; fresh gate exit 0 recorded above.
-  Three exact reviews, unchanged publication, and all eight checks remain required;
-  no test or implementation change has begun.
+- Accepted authorization: corrected `6620721574ea864d49609ef38089b29725f8cb2d`,
+  tree `357c2731749baa5031d46d995986450a5432a4b0`, canonical diff
+  `96b5f4035f8a784910b40e65f7d4e735a7db3abe`, received three exact approvals,
+  was published unchanged, and passes compiler `30890569245` / `30890571370`,
+  stable/nightly Rust `30890571249`, all three CodeQL analyses in `30890569479`,
+  and aggregate `91931557818`.
+- Tests-first evidence: first snapshot
+  `7608b42cc95c607b49b2cdc1fdb9078106adab59`, tree
+  `5a2100eef95b81c58e77924fca2bf5efd7f05dee`, canonical diff
+  `d68b42ed521415ebd4425570f80f353f4f8d9511`, was never published because the
+  IR/codegen review found no explicit initialized three-array-deep green control.
+  Corrected tests-only `ac4cb2a56e0747b1992358455a245fe10d502217`, tree
+  `852bff0bfd272190529f7ef7a473837657fdf422`, canonical diff
+  `4ca50572fb680441af287fcde328e2cb314ab032`, added only that semantic/checked
+  preservation pair, received three approvals, and was published unchanged. Push
+  CI `30891243037`, PR CI `30891246443`, and nightly Rust in `30891247469`
+  reproduce 139/139 library, 149/149 binary, 7/7 claim tests, then the sole 21/22
+  binding failure with exactly the frozen 12 unexpected acceptances. Stable was
+  fail-fast cancelled after prerequisites passed; CodeQL `30891241566` and
+  aggregate `91933672071` pass.
+- Accepted implementation: `76a6e80233a1854602fb134e3c4367d80a7b0e81`, tree
+  `d839134887decd32c0e8af9d381e9739eb84b872`, established PowerShell full-index
+  canonical diff `a75b59b2a49e12fdf655bd65c5a56d7f6cdfbe79`, adds only one exact
+  nonrecursive guard in each authorized phase: 17 semantic-analyzer insertions and
+  14 checked-admission insertions. Formatting, focused 1/1, binding 22/22, and the
+  exact repository-root gate exit 0 with 139/139 library, 149/149 binary, 7/7
+  claim tests, and 22/22 binding tests. The first immutable review request supplied
+  erroneous plain-diff identity `c17b1b6a`; two reviewers rejected that evidence
+  at P1 while finding no source defect, and one approved. The unchanged commit/tree
+  was resubmitted with the reproducible full-index identity and received three
+  approvals with no P0-P3 findings.
+- Public implementation evidence: compiler `30891890629` / `30891898590`,
+  stable/nightly Rust `30891897083`, all three CodeQL analyses in `30891892219`,
+  and aggregate `91935804190` pass at the exact accepted implementation SHA.
+  Initialized exact `Array(Array(Tuple))` now fails after child validation at both
+  trusted boundaries, including generic-impl traversal and semantic generic-
+  function traversal, before raw generation.
+- Residual: Candidate T, reference-array Candidate B, all other three-plus-depth or
+  wrapped forms, valueless behavior, tuple/nested-array values and compatibility,
+  defaults, bounds, layout, mutation, ABI, ownership, raw APIs, verifier/codegen,
+  valid-output scope, and CPU/ROCm/CUDA behavior remain unchanged. R-002 stays
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability class moves.
+- Closure preparation: exactly the six control records changed. Their fresh exact
+  repository-root gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
+  and 22/22 binding tests. No compiler, test, workflow, dependency, backend, or
+  claim-evidence file changed.
+- Status: implementation complete and public all-eight green at `76a6e802`; exact
+  six-record closure is prepared and its fresh gate exits 0. Three exact reviews,
+  unchanged publication, and all eight public checks remain required before another
+  audit or implementation authorization.

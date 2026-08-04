@@ -560,10 +560,32 @@ declared compatibility policy and release-level coverage.
   tuple/array value, layout, bounds, ownership, ABI, lowering, execution, backend,
   matrix, risk, and capability state remain unchanged.
 - The prepared CORE-033 six-record authorization's fresh exact full gate exits 0
-  with 139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. No test or
-  source change is permitted before three exact reviews, unchanged publication, and
-  all eight public checks.
+  with 139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. At that
+  authorization stage, no test or source change was permitted before three exact
+  reviews, unchanged publication, and all eight public checks.
 - First authorization snapshot `d0500865`, tree `d2378320`, canonical diff
   `97a15c9f`, passed its local gate but was rejected unpublished by two reviewers
   because one ledger sentence mislabeled Candidate T as Candidate B. The correction
   changes no matrix, capability, risk, or behavior boundary.
+- Corrected CORE-033 authorization `66207215`, tree `357c2731`, canonical diff
+  `96b5f403`, is triple-approved and public all-eight green. First tests snapshot
+  `7608b42c` was rejected unpublished for omitting the initialized three-array-deep
+  green control. Corrected tests-only `ac4cb2a5`, tree `852bff0b`, canonical diff
+  `4ca50572`, publicly proves exactly 12 acceptances as the sole 21/22 failure in
+  compiler `30891243037` / `30891246443` and nightly Rust `30891247469`; CodeQL
+  `30891241566` and aggregate `91933672071` pass.
+- Accepted implementation `76a6e802`, tree `d8391348`, established PowerShell
+  full-index canonical diff `a75b59b2`, adds only the exact semantic and checked-
+  admission rejection. Formatting, focused 1/1, binding 22/22, the exact full local
+  gate exit 0, three corrected-identity approvals, compiler `30891890629` /
+  `30891898590`, Rust `30891897083`, CodeQL `30891892219`, and aggregate
+  `91935804190` pass. The initial review request's erroneous plain-diff `c17b1b6a`
+  changed no commit or tree.
+- Rejection supplies no tuple/nested-array value, compatibility, bounds, layout,
+  mutation, ABI, ownership, lowering, execution, or backend evidence. Candidate T,
+  reference-array Candidate B, all other deeper/wrapped forms, every matrix row,
+  cell, and capability class remain unchanged; R-002 stays HIGH/CRITICAL and
+  PARTIALLY CONTROLLED.
+- Exact six-record closure preparation changes only the control records. Its fresh
+  repository-root gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
+  and 22/22 binding tests. No matrix cell moves; exact review and public gates remain.

@@ -1417,9 +1417,43 @@ promise future compatibility.
   wrapped shapes, raw APIs, valid output, backends, risk status, matrix cells, and
   capability classes remain unchanged.
 - The prepared CORE-033 authorization's fresh exact full gate exits 0 with 139/139
-  library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Tests-first remains
-  forbidden until three exact reviews, unchanged publication, and all eight checks.
+  library, 149/149 binary, 7/7 doc, and 21/21 binding tests. At that stage,
+  tests-first remained forbidden until three exact reviews, unchanged publication,
+  and all eight checks.
 - First authorization snapshot `d0500865`, tree `d2378320`, canonical diff
   `97a15c9f`, passed its local gate but was rejected unpublished by two reviewers
   after one ledger sentence called Candidate T's valueless form Candidate B. The
   corrected records keep Candidate T and reference-array Candidate B distinct.
+
+## CORE-033 accepted implementation
+
+- Corrected authorization `66207215`, tree `357c2731`, canonical diff `96b5f403`,
+  received three approvals and is public all-eight green in compiler `30890569245`
+  / `30890571370`, Rust `30890571249`, CodeQL `30890569479`, and aggregate
+  `91931557818`.
+- First tests-only `7608b42c`, tree `5a2100ee`, canonical diff `d68b42ed`, was
+  rejected unpublished because it omitted an explicit initialized three-array-deep
+  semantic/checked green control. Corrected `ac4cb2a5`, tree `852bff0b`, canonical
+  diff `4ca50572`, received three approvals and publicly isolates exactly 12 false
+  acceptances as the sole 21/22 binding failure in compiler `30891243037` /
+  `30891246443` and nightly Rust `30891247469`; stable was fail-fast cancelled,
+  while CodeQL `30891241566` and aggregate `91933672071` pass.
+- Accepted implementation `76a6e802`, tree `d8391348`, established PowerShell
+  full-index canonical diff `a75b59b2`, adds exactly 31 lines in semantic analysis
+  and checked admission. Formatting, focused 1/1, binding 22/22, and the exact full
+  local gate exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22
+  binding tests. An initial review request used erroneous plain-diff `c17b1b6a`;
+  corrected identity review of the unchanged commit received three approvals.
+  Compiler `30891890629` / `30891898590`, stable/nightly Rust `30891897083`, all
+  three CodeQL analyses in `30891892219`, and aggregate `91935804190` pass.
+- Initialized exact nonrecursive `Array(Array(Tuple))` annotations now reject after
+  initializer validation and existing diagnostics at both trusted boundaries.
+  Candidate T, reference-array Candidate B, all deeper/wrapped or valueless forms,
+  tuple/nested-array meaning, raw APIs, verifier/codegen, ABI/ownership, valid-output
+  certification, and CPU/ROCm/CUDA remain unchanged. This is containment, not a
+  capability promotion; R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED and no
+  matrix cell moves.
+- Exact six-record closure preparation changes only the control records and its
+  fresh repository-root gate exits 0 with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests. Review, unchanged publication, and all eight
+  public checks remain before closure acceptance.

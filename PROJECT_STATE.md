@@ -4,10 +4,12 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 46 `CORE-033` behavior authorization. AUDIT-039 is complete, read-only,
-and clean at public-green `fa522b2c`; all three final compatibility reviews approve
-only initialized exact two-array-deep tuple containment. Immediate work is the
-six-record behavior contract only. No regression or implementation has begun.
+Milestone 46 `CORE-033` record closure. Authorization, corrected tests-first
+evidence, and the exact two-phase implementation are complete. Accepted
+implementation `76a6e802` is public all-eight green; immediate work is limited to
+the prepared six closure/control records, their exact reviews, and unchanged
+publication. Their fresh exact gate exits 0 with 139/139 library, 149/149 binary,
+7/7 claim, and 22/22 binding tests. No next residual or implementation is authorized.
 
 ## Active hypothesis
 
@@ -49,6 +51,24 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-033` implementation
+  `76a6e80233a1854602fb134e3c4367d80a7b0e81`, tree `d8391348`, established
+  PowerShell full-index canonical diff `a75b59b2`, passes formatting, focused 1/1,
+  binding 22/22, the exact full local gate exit 0, compiler `30891890629` /
+  `30891898590`, stable/nightly Rust `30891897083`, all three CodeQL analyses in
+  `30891892219`, and aggregate `91935804190` after corrected-identity triple
+  approval. Only semantic analysis and checked admission changed; R-002 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED, and no capability/matrix class moves.
+- Triple-reviewed public CORE-033 tests-first `ac4cb2a5`, tree `852bff0b`, canonical
+  diff `4ca50572`, reproduces the sole 21/22 binding failure with exactly 12 frozen
+  acceptances in compiler `30891243037` / `30891246443` and nightly Rust
+  `30891247469`; stable was fail-fast cancelled, while CodeQL `30891241566` and
+  aggregate `91933672071` pass. Rejected unpublished `7608b42c` omitted the
+  initialized three-array-deep semantic/checked preservation control.
+- Corrected CORE-033 authorization `66207215`, tree `357c2731`, canonical diff
+  `96b5f403`, passes compiler `30890569245` / `30890571370`, Rust `30890571249`,
+  CodeQL `30890569479`, and aggregate `91931557818` after three exact approvals.
+  Rejected unpublished `d0500865` mislabeled Candidate T as Candidate B.
 - Accepted public read-only `AUDIT-038` authorization
   `e4d58e59ff831df4d530e6de9c9ff31964af86d7`, tree `f265d8af`, canonical diff
   `31d09f92`, passes compiler `30883186212` / `30883188223`, stable/nightly Rust
@@ -1000,12 +1020,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for the CORE-033 behavior authorization, publish its
-immutable six-record tree unchanged, require all eight public checks, and only then
-make the tests-only Candidate A reclassification. Do not edit compiler source yet,
-broaden beyond initialized exact two-array depth, change diagnostic precedence,
-promote a capability, change workflows/dependencies/backends, publish artifacts or
-claims, or touch `master`.
+Freeze the exact six-record CORE-033 closure, obtain three exact reviews, publish
+that immutable record tree unchanged, and require all eight public checks. Do not
+select another residual, edit compiler or test source, broaden beyond initialized
+exact two-array depth, change diagnostic precedence, promote a capability, change
+workflows/dependencies/backends, publish artifacts or claims, or touch `master`.
 
 ## Unauthorized actions
 

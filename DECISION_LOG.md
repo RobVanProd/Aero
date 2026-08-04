@@ -1903,8 +1903,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-042 - Initialized exact two-array-deep tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: behavior authorization pending exact review and public checks; tests and
-  implementation not begun.
+- Status: accepted implementation public all-eight green at `76a6e802`; exact
+  six-record closure prepared with fresh full-gate exit 0, awaiting review and
+  publication gates.
 - Decision: for an initialized binding whose annotation is exactly nonrecursive
   `Type::Array(Type::Array(Type::Tuple(_), _), _)`, validate the initializer and
   preserve existing initialized outer/immediate tuple diagnostics, then reject in
@@ -1921,10 +1922,37 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   Candidate B, other three-plus-depth, wrappers, tuple/array meaning, raw APIs,
   verifier/codegen, layout/bounds, ABI/
   ownership, valid output, backends, risk status, matrix cells, and capability
-  classes remain unchanged. The prepared six-record gate exits 0 with 139/139,
-  149/149, 7/7, and 21/21; exact review, unchanged publication, and all eight checks
-  are required before tests-first work.
+  classes remain unchanged. At authorization, the prepared six-record gate exited 0
+  with 139/139, 149/149, 7/7, and 21/21; exact review, unchanged publication, and
+  all eight checks were required before tests-first work.
 - Authorization history: first snapshot `d0500865`, tree `d2378320`, canonical diff
   `97a15c9f`, passed its local gate but received one approval and two blocking reviews
   because one ledger sentence mislabeled Candidate T's valueless form as Candidate B.
   It remained unpublished; corrected records preserve both historical names exactly.
+- Authorization result: corrected `66207215`, tree `357c2731`, canonical diff
+  `96b5f403`, received three approvals and passes compiler `30890569245` /
+  `30890571370`, Rust `30890571249`, CodeQL `30890569479`, and aggregate
+  `91931557818`.
+- Tests-first result: unpublished `7608b42c`, tree `5a2100ee`, canonical diff
+  `d68b42ed`, was rejected because it omitted the initialized three-array-deep
+  semantic/checked preservation control. Corrected `ac4cb2a5`, tree `852bff0b`,
+  canonical diff `4ca50572`, received three approvals and publicly reproduces only
+  the exact 12-acceptance 21/22 failure in compiler `30891243037` /
+  `30891246443` and nightly Rust `30891247469`; stable was fail-fast cancelled,
+  while CodeQL `30891241566` and aggregate `91933672071` pass.
+- Implementation result: `76a6e802`, tree `d8391348`, established PowerShell
+  full-index canonical diff `a75b59b2`, changes only the two authorized guards.
+  Formatting, focused 1/1, binding 22/22, and the exact full local gate exit 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. The initial
+  immutable review request supplied erroneous plain-diff `c17b1b6a`; two reviewers
+  rejected only that evidence, not the source. Corrected identity review of the
+  unchanged commit received three approvals. Compiler `30891890629` /
+  `30891898590`, Rust `30891897083`, CodeQL `30891892219`, and aggregate
+  `91935804190` pass.
+- Result boundary: exact rejection adds no tuple/nested-array value, compatibility,
+  default, bounds, layout, mutation, ABI, ownership, lowering, execution, backend,
+  matrix, capability, or stability evidence. R-002 remains HIGH/CRITICAL and
+  PARTIALLY CONTROLLED. Record closure is required before selecting another slice.
+- Closure preparation: only the six control records changed. The fresh exact gate
+  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
+  Three exact reviews, unchanged publication, and all eight checks remain required.

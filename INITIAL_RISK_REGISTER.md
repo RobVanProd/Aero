@@ -8,7 +8,7 @@ open until a regression test and the applicable full gate prove closure.
 | ID | Risk | Likelihood | Impact | Evidence | Required control | Status |
 |---|---|---|---|---|---|---|
 | R-001 | Invalid characters/numbers/strings are silently changed into valid tokens | HIGH | CRITICAL | Trusted paths use strict lexing at `b988318`; legacy recovery remains public for compatibility and LSP symbol indexing only | Keep recovery output ineligible for semantics/artifacts; add fuzz/property coverage and eventual diagnostic-accumulating migration | CONTROLLED — trusted paths closed |
-| R-002 | Calls, annotations, and returns violate declared type contracts | HIGH | CRITICAL | Monomorphic numeric/void function calls and returns are controlled at `8d5d8e7`; initialized exact numeric annotations are controlled at `bc9a148`; accepted `CORE-015` at `5d7aae0` closes selected binding/array false successes; accepted `CORE-023` at `67ccdf2` closes exact Boolean contracts for monomorphic non-entry helpers; accepted `CORE-025` at `1ec8beb` rejects initialized exact outer tuple binding annotations in semantics and checked admission before generation; accepted `CORE-028` at `e051452` rejects exact valueless outer tuple binding annotations at those same trusted boundaries; accepted `CORE-029` at `29bd2e0` rejects exact valueless immediate reference-to-tuple annotations there; accepted `CORE-030` at `97c0f04` rejects exact valueless immediate array-of-tuple annotations there; accepted `CORE-031` at `4bc7a345` rejects exact valueless immediate array-of-array-of-tuple annotations there; accepted `CORE-032` at `30d0d730` rejects exact initialized immediate array-of-tuple annotations after initializer validation | Preserve accepted exact controls and quarantine Boolean entry/ABI, lowercase string, custom/contextual/structural annotations, empty/nonnumeric arrays, other uninitialized annotations, other unsupported nested tuple shapes, tuple type/value support, and remaining generic-scope behavior until separately specified | PARTIALLY CONTROLLED — selected active false successes, including the exact initialized immediate array-of-tuple fallback, closed; entry, excluded-type, tuple-support, and generic-scope gaps remain open |
+| R-002 | Calls, annotations, and returns violate declared type contracts | HIGH | CRITICAL | Monomorphic numeric/void function calls and returns are controlled at `8d5d8e7`; initialized exact numeric annotations are controlled at `bc9a148`; accepted `CORE-015` at `5d7aae0` closes selected binding/array false successes; accepted `CORE-023` at `67ccdf2` closes exact Boolean contracts for monomorphic non-entry helpers; accepted `CORE-025` at `1ec8beb` rejects initialized exact outer tuple binding annotations in semantics and checked admission before generation; accepted `CORE-028` at `e051452` rejects exact valueless outer tuple binding annotations at those same trusted boundaries; accepted `CORE-029` at `29bd2e0` rejects exact valueless immediate reference-to-tuple annotations there; accepted `CORE-030` at `97c0f04` rejects exact valueless immediate array-of-tuple annotations there; accepted `CORE-031` at `4bc7a345` rejects exact valueless immediate array-of-array-of-tuple annotations there; accepted `CORE-032` at `30d0d730` rejects exact initialized immediate array-of-tuple annotations after initializer validation; accepted `CORE-033` at `76a6e802` rejects exact initialized immediate array-of-array-of-tuple annotations after initializer validation | Preserve accepted exact controls and quarantine Boolean entry/ABI, lowercase string, custom/contextual/structural annotations, empty/nonnumeric arrays, other uninitialized annotations, other unsupported nested tuple shapes, tuple type/value support, and remaining generic-scope behavior until separately specified | PARTIALLY CONTROLLED — selected active false successes, including the exact initialized two-array-deep tuple fallback, closed; entry, excluded-type, tuple-support, and generic-scope gaps remain open |
 | R-003 | Unsupported expressions are accepted with invented integer/zero semantics | HIGH | CRITICAL | `%`, tuple values, named fields, Match, and StructLiteral fail closed at their reviewed boundaries; accepted `CORE-010` at `db349ef` adds generic checked-IR rejection for every unadmitted trusted-path fallback, including ordinary MethodCall, enum construction, and Deref/Borrow | Retain checked admission on every trusted caller; keep non-deprecated raw `generate_ir` and deprecated `generate_code` ineligible as trusted public boundaries, while permitting only checked-wrapper reuse followed by verification; define aggregate/ownership/method semantics before implementation | CONTROLLED — trusted checked compiler paths no longer fabricate scalar values; direct public unchecked compatibility use remains uncertified |
 | R-004 | Ownership claims exceed enforcement and permit dangling/aliased/moved values | HIGH | CRITICAL | Shallow move tracking, no lifetime provenance, mutable references considered `Copy` | Freeze ownership model; CFG/provenance checking; permanent compile-fail suite | OPEN |
 | R-005 | Invalid programs pass semantics then panic, miscompile, or produce invalid LLVM | HIGH | CRITICAL | Accepted `CORE-010` at `db349ef` provides checked logical IR admission, mandatory in-process verification, exhaustive checked codegen errors, and qualified final LLVM 22 verification across trusted callers; focused contracts, full gate, and public CI pass | Preserve mandatory checked APIs/verifiers, deprecate/restrict then retire public unchecked compatibility APIs at a major boundary, and extend typed negative evidence as language forms become admitted | PARTIALLY CONTROLLED — trusted checked scalar IR and externally verified publication routes are controlled; CLI `InternalOnly` and library-returned LLVM without external verification, broader language semantics, and public unchecked APIs remain uncertified |
@@ -631,13 +631,38 @@ verifier/codegen, valid output, tuple/array meaning, bounds/layout, ownership/AB
 and all backends remain unchanged. R-002 stays
 HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix or capability class moves.
 
-The prepared CORE-033 authorization's fresh exact full gate exits 0 with 139/139
-library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Exact reviews, unchanged
-publication, and all eight checks are required before tests-first; implementation
-requires separate reviewed public-red evidence and remains limited to two phases.
+The prepared CORE-033 authorization's fresh exact full gate exited 0 with 139/139
+library, 149/149 binary, 7/7 doc, and 21/21 binding tests. At that stage, exact
+reviews, unchanged publication, and all eight checks were required before tests-
+first; implementation required separate reviewed public-red evidence and remained
+limited to two phases.
 
 First CORE-033 authorization snapshot `d0500865`, tree `d2378320`, canonical diff
 `97a15c9f`, passed its local gate but received one approval and two blocking reviews
 because one ledger sentence mislabeled Candidate T's valueless population as
 Candidate B. It remained unpublished. Corrected records keep Candidate T and the
 reference-array Candidate B distinct; no risk status changes.
+
+Corrected CORE-033 authorization `66207215`, tree `357c2731`, canonical diff
+`96b5f403`, is triple-approved and public all-eight green. Unpublished tests snapshot
+`7608b42c` was rejected for omitting an initialized three-array-deep preservation
+control. Corrected tests-only `ac4cb2a5`, tree `852bff0b`, canonical diff `4ca50572`,
+is triple-approved and publicly reproduces exactly 12 false acceptances as the sole
+21/22 binding failure in compiler `30891243037` / `30891246443` and nightly Rust
+`30891247469`; CodeQL `30891241566` and aggregate `91933672071` pass.
+
+Accepted implementation `76a6e802`, tree `d8391348`, established PowerShell
+full-index canonical diff `a75b59b2`, adds only exact semantic and checked-admission
+guards. Formatting, focused 1/1, binding 22/22, the exact full local gate exit 0,
+compiler `30891890629` / `30891898590`, stable/nightly Rust `30891897083`, CodeQL
+`30891892219`, and aggregate `91935804190` pass after corrected-identity triple
+approval. The initial review request's erroneous plain-diff `c17b1b6a` changed no
+source, commit, tree, risk, or capability state. Candidate T, reference-array
+Candidate B, other deeper/wrapped or valueless forms, tuple/nested-array meaning,
+raw APIs, verifier/codegen, ABI/ownership, valid output, and all backends remain
+unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+Exact CORE-033 six-record closure preparation changes only the control records and
+its fresh repository-root gate exits 0 with 139/139 library, 149/149 binary, 7/7
+claim, and 22/22 binding tests. Three exact reviews, unchanged publication, and all
+eight public checks remain; no risk status changes.
