@@ -6180,10 +6180,84 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   binary, 7/7 claim, and 23/23 binding tests pass. Three exact reviews approved it.
   Compiler `30917539648` / `30917544307`, stable/nightly Rust `30917537292`, all
   three CodeQL analyses in `30917534448`, and aggregate `92019545168` pass.
-- Status: implementation accepted and public all-eight green. The six-record closure's
-  fresh exact full local gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
-  and 23/23 binding tests. Three exact closure reviews, unchanged publication, and
-  all eight public checks remain. No further source or test change is authorized.
-  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 bounds policy remains
-  stopped, and no matrix, capability, backend, artifact, claim, or `master` state
-  moves.
+- Closure acceptance: exact `d3811b00b15a594b9f3094f23cf61469db1133c8`, parent
+  `a1ffeaec`, tree `c01088c482ee798202a71b4fe7dec859628ecf3e`, canonical diff
+  `2799eb326c2e9097c53bad793b043293078a891a`, changed only the six control
+  records with 153 insertions/19 deletions. Its fresh exact full local gate exits 0
+  with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests. Three
+  exact reviews approved it, it was published unchanged, and compiler `30918433816`
+  / `30918438945`, stable/nightly Rust `30918439169`, all three CodeQL analyses in
+  `30918434204`, and aggregate `92022619964` pass.
+- Status: CORE-034 is closed at exact public `d3811b00`. R-002 remains HIGH/CRITICAL
+  and PARTIALLY CONTROLLED, R-011 bounds policy remains stopped, and no matrix,
+  capability, backend, artifact, claim, history, or `master` state moved.
+
+## AUDIT-041 - Clean-head full-risk reconciliation after CORE-034
+
+- Task ID/date/owner: `AUDIT-041`, 2026-08-04, lead-owned read-only selection audit
+  with three independent type/safety, IR/codegen, and backend/claim reviewers.
+- Audit basis: exact clean public CORE-034 closure
+  `d3811b00b15a594b9f3094f23cf61469db1133c8`, tree
+  `c01088c482ee798202a71b4fe7dec859628ecf3e`, canonical diff
+  `2799eb326c2e9097c53bad793b043293078a891a`. It passed the exact local gate with
+  139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests, received three
+  exact approvals, and passes compiler `30918433816` / `30918438945`, stable/nightly
+  Rust `30918439169`, all three CodeQL analyses in `30918434204`, and aggregate
+  `92022619964`.
+- Observed behavior: CORE-034 closes only initialized exact nonrecursive immediate
+  reference-to-tuple fallback after initializer validation and existing tuple-shape
+  diagnostics. R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016
+  remain OPEN or PARTIALLY CONTROLLED with broader residuals. The prior three-array
+  and bounds candidates and every earlier ranking are stale selection inputs rather
+  than authority for another implementation.
+- Hypothesis: three complete, independent, delta-aware static rankings from this
+  exact clean public head can identify at most one distinct active residual with
+  frozen semantics and deterministic tests-first feasibility within two compiler
+  phases, or an explicit stop, without repeating an accepted slice or inventing
+  language, ownership, aggregate, ABI, backend, or claim semantics.
+- Frozen audit method: each reviewer must independently inspect and rank the complete
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the
+  exact basis. Each must exclude every accepted sub-slice through CORE-034, cite
+  file/symbol or line evidence for every rank, name one exact top candidate or stop,
+  explain trusted reachability and containment, state unresolved semantic choices
+  and phase count, propose one deterministic failing specimen plus preservation
+  controls, and distinguish rejection, helper simulation, annotations, LLVM text,
+  object emission, and hardware execution. The lead may reconcile statically to at
+  most one unanimously bounded candidate or record a stop; no historical candidate,
+  label, preservation row, or order is privileged.
+- Frozen semantics: AUDIT-041 defines no language, type, ownership, aggregate,
+  generic, ABI, verifier, lowering, runtime, tooling, backend, accelerator, or claim
+  semantics. An unresolved semantic or compatibility choice is a stop, not
+  implementation authority.
+- Allowed files/actions: this authorization may change only `TASK_LEDGER.md`,
+  `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`. Once its exact
+  authorization gates pass, the ranking itself is read-only: no file edit, commit,
+  test, build, formatter, probe, benchmark, artifact, hardware action, or external
+  query. No workflow, dependency, backend, package/release/registry, immutable
+  claim-evidence, history, or `master` action is authorized.
+- Acceptance tests: the prepared authorization's fresh exact repository-root
+  `./tools/test.sh` gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
+  and 23/23 binding tests. It requires three exact reviews, unchanged publication,
+  and all eight public checks before ranking begins. All three complete rankings
+  must inspect the same immutable public head and report the nine evidence fields.
+  Reconciliation may select at most one bounded residual or an explicit stop.
+  AUDIT-041 never authorizes a regression test, implementation edit, capability
+  promotion, risk-status change, or matrix movement; any later change requires its
+  own reviewed six-record contract and public failing regression evidence first.
+- Risks: omitting a residual or accepted-slice exclusion; inheriting the three-array,
+  bounds, or another earlier order; conflating verifier-contained or raw-API behavior
+  with trusted publication; inventing annotation, ownership, aggregate, generic,
+  ABI, or backend semantics; mistaking rejection, tests, LLVM text, helper simulation,
+  annotations, flags, or object emission for implemented hardware execution; or
+  allowing an invalid program to reach IR/backend generation.
+- Stop conditions: incomplete ranking; edit/test/probe/artifact/external query during
+  the audit; more than two compiler phases; unresolved semantic or compatibility
+  choice; hardware requirement; unsupported-source-type fallback; valid-output
+  uncertainty; workflow/dependency, benchmark, package/release/registry, immutable
+  evidence, destructive-system, history-rewrite, or `master` action.
+- Status: authorization prepared and its fresh exact repository-root full local gate
+  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
+  Three exact reviews, unchanged publication, and all eight public checks remain
+  required before the read-only ranking begins. No source or test change is
+  authorized.

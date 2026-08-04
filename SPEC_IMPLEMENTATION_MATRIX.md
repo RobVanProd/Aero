@@ -658,3 +658,18 @@ declared compatibility policy and release-level coverage.
   retain their prior classifications.
 - The prepared six-record closure's fresh exact full gate exits 0 with 139/139
   library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No matrix cell moves.
+- Exact six-record closure `d3811b00`, tree `c01088c4`, canonical diff `2799eb32`,
+  is triple-approved and public all-eight green in compiler `30918433816` /
+  `30918438945`, stable/nightly Rust `30918439169`, all three CodeQL analyses in
+  `30918434204`, and aggregate `92022619964`. CORE-034 is closed; no matrix cell
+  moves.
+- Preregistered read-only AUDIT-041 must independently re-rank the complete remaining
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+  clean public closure `d3811b00`, exclude every accepted slice through CORE-034,
+  inherit no prior candidate/label/order, and distinguish rejection, helper
+  simulation, annotations, LLVM text, object emission, and hardware execution.
+  It cannot move a matrix row or cell; ranking begins only after its separate
+  six-record authorization is locally green, triple-approved, published unchanged,
+  and public all-eight green.
+- The prepared AUDIT-041 authorization's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No matrix cell moves.

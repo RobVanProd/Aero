@@ -2015,8 +2015,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-044 - Initialized immediate reference-to-tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: implementation accepted, triple-approved, and public all-eight green;
-  six-record closure fresh-local-gate green, with reviews/publication/checks pending.
+- Status: closed at exact triple-approved public all-eight-green closure `d3811b00`.
 - Decision: for an initialized binding whose annotation is exactly nonrecursive
   `Type::Reference(Type::Tuple(_), _)`, validate the initializer, preserve checked
   Void and all existing initialized tuple-shape diagnostics, then reject in semantics
@@ -2061,3 +2060,35 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   R-002/R-011/matrix/capability state are unchanged.
 - Closure evidence: the prepared six-record closure's fresh exact full gate exits 0
   with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
+- Closure acceptance: exact `d3811b00`, tree `c01088c4`, canonical diff `2799eb32`,
+  received three exact approvals and was published unchanged. Compiler
+  `30918433816` / `30918438945`, stable/nightly Rust `30918439169`, all three
+  CodeQL analyses in `30918434204`, and aggregate `92022619964` pass. CORE-034 is
+  closed without moving a semantic, capability, matrix, risk, backend, artifact,
+  claim, history, or `master` boundary.
+
+## DEC-045 - Re-rank the complete residual set after CORE-034
+
+- Date: 2026-08-04
+- Status: authorization fresh-local-gate green; three exact reviews, unchanged
+  publication, and all eight public checks are pending. Ranking has not begun.
+- Decision: authorize `AUDIT-041` only as a static, read-only, independent re-ranking
+  of R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 from exact
+  clean public closure `d3811b00`. Exclude every accepted slice through CORE-034 and
+  inherit no prior candidate, label, preservation row, or order.
+- Method: each of the type/safety, IR/codegen, and backend/claim reviewers must rank
+  all eleven residuals with file/symbol evidence, name one exact bounded candidate
+  or stop, describe trusted reachability and containment, state semantic decisions
+  and phase count, give one deterministic failing specimen and preservation controls,
+  and distinguish rejection, helper simulation, annotations, LLVM text, object
+  emission, and hardware execution.
+- Selection boundary: the lead may reconcile to at most one unanimously bounded
+  residual or an explicit stop. More than two compiler phases, unresolved semantics
+  or compatibility, hardware dependence, unsupported-type fallback, or valid-output
+  uncertainty requires a stop.
+- Authority boundary: after this six-record authorization is locally green,
+  triple-approved, published unchanged, and public all-eight green, the audit remains
+  read-only. It grants no test, implementation, semantics, capability, matrix, risk,
+  workflow, dependency, backend, artifact, claim, history, or `master` authority.
+- Gate evidence: the prepared authorization's fresh exact full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.

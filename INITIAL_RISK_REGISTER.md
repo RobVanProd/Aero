@@ -748,3 +748,20 @@ remains unchanged.
 
 The prepared six-record CORE-034 closure's fresh exact full gate exits 0 with 139/139
 library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.
+
+Exact six-record closure `d3811b00`, tree `c01088c4`, canonical diff `2799eb32`,
+received three exact approvals and is public all-eight green in compiler
+`30918433816` / `30918438945`, stable/nightly Rust `30918439169`, all three CodeQL
+analyses in `30918434204`, and aggregate `92022619964`. CORE-034 is closed without
+changing any risk status.
+
+Preregistered read-only AUDIT-041 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `d3811b00`, excluding every accepted slice through CORE-034 and
+inheriting no earlier candidate or order. The audit may select at most one unanimously
+bounded residual or stop, remains read-only after authorization, and cannot change a
+risk status, matrix cell, capability class, backend distinction, artifact boundary,
+or claim. Its six-record authorization must pass a fresh local gate, three exact
+reviews, unchanged publication, and all eight public checks before ranking begins.
+The prepared authorization's fresh exact full gate exits 0 with 139/139 library,
+149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.

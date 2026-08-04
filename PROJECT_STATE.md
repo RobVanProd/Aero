@@ -4,19 +4,19 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 48 `CORE-034` closure. Exact two-phase implementation `a1ffeaec` is
-triple-approved and public all-eight green after the separately accepted authorization
-and expected-red gates. Immediate work is only the six-record closure. No additional
-source, test, semantics, capability, matrix, or risk-status change is authorized.
+Milestone 49 `AUDIT-041` authorization. `CORE-034` is closed at exact public commit
+`d3811b00`; its implementation and six-record closure are triple-approved and public
+all-eight green. Immediate work is only the new read-only audit authorization. No
+ranking, source, test, semantics, capability, matrix, or risk-status change is
+authorized before that record set is accepted.
 
 ## Active hypothesis
 
-After initializer validation and existing initialized tuple-shape diagnostics, two
-exact nonrecursive guards reject only an initialized annotation shaped as
-`Type::Reference(Type::Tuple(_), _)` before mismatch, binding insertion, the checked
-generic-impl bypass, or raw generation. Both reference mutability flags are covered;
-this defines no reference or tuple value, ownership, layout, ABI, or execution
-semantics.
+Three complete, independent, delta-aware static rankings from exact clean public
+closure `d3811b00` can identify at most one distinct bounded residual within two
+compiler phases, or an explicit stop, without repeating an accepted slice or
+inventing language, ownership, aggregate, ABI, backend, or claim semantics. The
+ranking itself must remain read-only and inherit no earlier candidate or order.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1154,13 +1154,49 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Closure gate: the prepared six-record closure's fresh exact repository-root full
   gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding
   tests.
+- Exact closure `d3811b00b15a594b9f3094f23cf61469db1133c8`, parent `a1ffeaec`,
+  tree `c01088c482ee798202a71b4fe7dec859628ecf3e`, canonical diff
+  `2799eb326c2e9097c53bad793b043293078a891a`, changed only the six control
+  records with 153 insertions/19 deletions, received three exact approvals, and was
+  published unchanged. Compiler `30918433816` / `30918438945`, stable/nightly Rust
+  `30918439169`, all three CodeQL analyses in `30918434204`, and aggregate
+  `92022619964` pass. CORE-034 is closed without a capability, matrix, risk, backend,
+  artifact, claim, history, or `master` movement.
+
+## AUDIT-041 authorization
+
+- Basis: exact clean public CORE-034 closure `d3811b00b15a594b9f3094f23cf61469db1133c8`,
+  tree `c01088c482ee798202a71b4fe7dec859628ecf3e`, canonical diff
+  `2799eb326c2e9097c53bad793b043293078a891a`, with the all-eight public evidence
+  above and a clean worktree. All accepted slices through CORE-034 are excluded.
+- Scope: independently rank the complete remaining R-002/R-004/R-005/R-006/R-007/
+  R-009/R-010/R-011/R-012/R-013/R-016 set. Each reviewer must cite every rank,
+  identify one exact bounded candidate or stop, explain trusted reachability and
+  containment, state semantic choices and phase count, propose one deterministic
+  failing specimen plus preservation controls, and distinguish rejection, helper
+  simulation, annotations, LLVM text, object emission, and hardware execution.
+- Boundary: after authorization acceptance, the audit is static and read-only: no
+  edit, test, build, formatter, probe, benchmark, artifact, hardware action, or
+  external query. Candidate V three-array containment, Candidate L bounds, every
+  other historical label, and every prior order are non-authoritative inputs.
+- Selection: the lead may reconcile the three complete rankings to at most one
+  unanimously bounded residual or record a stop. An unresolved semantic or
+  compatibility choice, more than two compiler phases, hardware requirement,
+  unsupported-source-type fallback, or valid-output uncertainty is a stop.
+- Authorization files are limited to the six control records. A fresh exact full
+  local gate, three exact reviews, unchanged publication, and all eight public checks
+  are required before any ranking begins. AUDIT-041 grants no regression,
+  implementation, semantics, capability, matrix, risk, workflow, dependency,
+  backend, artifact, claim, history, or `master` authority.
+- The prepared six-record authorization's fresh exact repository-root full gate
+  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
 
 ## Exact next action
 
-Obtain three exact approvals for the locally green six-record CORE-034 closure,
-publish its immutable tree unchanged, and require all eight public checks.
-Do not edit source/tests, reopen implementation, change another reference/tuple/
-array shape, resolve bounds policy implicitly, promote a capability, change
+Obtain three exact approvals for the locally green six-record AUDIT-041
+authorization, publish its immutable tree unchanged, and require all eight public
+checks before the read-only rankings begin. Do not edit source/tests, privilege a
+prior candidate, resolve bounds policy implicitly, promote a capability, change
 workflows/dependencies/backends, publish artifacts or claims, rewrite history,
 force-push, or touch `master`.
 

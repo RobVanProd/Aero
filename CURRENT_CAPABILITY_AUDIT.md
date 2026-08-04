@@ -1541,3 +1541,25 @@ promise future compatibility.
   class moves.
 - The prepared six-record closure's fresh exact full gate exits 0 with 139/139
   library, 149/149 binary, 7/7 claim, and 23/23 binding tests.
+- Exact closure `d3811b00`, tree `c01088c4`, canonical diff `2799eb32`, received
+  three exact approvals and is public all-eight green in compiler `30918433816` /
+  `30918438945`, Rust `30918439169`, CodeQL `30918434204`, and aggregate
+  `92022619964`. CORE-034 is closed without changing a capability classification.
+
+## AUDIT-041 authorization boundary
+
+- The audit basis is exact clean public closure `d3811b00`; every accepted slice
+  through CORE-034 is excluded. The complete remaining set remains R-002/R-004/
+  R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016.
+- Three independent reviewers must rank all eleven residuals from that immutable
+  head, inherit no earlier candidate or order, and identify at most one exact bounded
+  candidate or stop with evidence, reachability, containment, semantic decisions,
+  phase count, deterministic failing specimen, and preservation controls.
+- The authorization and audit cannot change implementation or classification.
+  Tuples remain parsed-only, references remain partial, R-002 remains HIGH/CRITICAL
+  and PARTIALLY CONTROLLED, R-011 remains open without a bounds policy, and every
+  other capability, backend, artifact, and claim boundary remains unchanged.
+- No ranking begins before the six-record authorization passes a fresh full local
+  gate, three exact reviews, unchanged publication, and all eight public checks.
+- The prepared authorization's fresh exact full gate exits 0 with 139/139 library,
+  149/149 binary, 7/7 claim, and 23/23 binding tests. No capability class moves.
