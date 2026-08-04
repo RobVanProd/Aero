@@ -876,5 +876,33 @@ bounds policy; every other risk status and claim boundary remains unchanged.
 
 The prepared six-record CORE-036 authorization's fresh exact repository-root full
 gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding
-tests. A verification gate, three exact approvals, unchanged publication, and public
-all-eight checks remain required before the tests-only change; no risk status moves.
+tests. The verification gate, three exact approvals, unchanged publication, and
+public all-eight checks required before the tests-only change are satisfied by
+`697bb3b4` below; no risk status moves.
+
+Exact CORE-036 authorization `697bb3b4`, tree `b0cfd37b`, canonical binary diff
+`0a92ad7a`, received three approvals and is public all-eight green in compiler
+`30927281281` / `30927293459`, Rust `30927289178`, CodeQL `30927280707`, and
+aggregate `92052974430`.
+
+Triple-approved tests-only `d52b117e`, tree `76a3b2e9`, canonical binary diff
+`c2d5e46a`, reclassified all four occurrence blocks/five rows and publicly
+reproduces exactly 34 false acceptances as the sole binding 24/25 failure in push
+`30927952017`, PR `30927956714`, nightly `92055067840`, and stable `92055068009`
+test logs. CodeQL `30927952240` and aggregate `92055178151` pass; three public-red
+reviews approved exact two-phase implementation authority.
+
+Exact implementation `26d18924`, tree `8aec746c`, canonical binary diff `543f8a1c`,
+adds only the two nonrecursive guards. It is triple-approved; formatting, focused
+1/1, binding 25/25, the exact full local gate, compiler `30928759703` /
+`30928760789`, stable/nightly Rust `30928758562`, all three CodeQL analyses in
+`30928754859`, and aggregate `92057919831` pass.
+
+CORE-036 narrows one false-success subset but does not resolve the broader unsupported
+type/ownership/memory surface or bounds policy. R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED; R-011 remains open. Every other risk status, matrix cell,
+capability class, backend distinction, artifact boundary, and claim remains
+unchanged. The six-record closure is prepared and requires its own full gate, three
+reviews, unchanged publication, and all-eight public checks before closure. Its fresh
+exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+binding tests; a verification gate remains before review. No risk status moves.

@@ -749,7 +749,30 @@ declared compatibility policy and release-level coverage.
   ownership, lifetime, layout, ABI, bounds, lowering, execution, or backend support.
   Initialized count-zero behavior remains unchanged. Every matrix row and cell,
   including tuples parsed-only, references/fixed arrays partial, bounds unresolved,
-  and CPU/ROCm/CUDA separated, remains exactly unchanged. Authorization must be
+  and CPU/ROCm/CUDA separated, remains exactly unchanged. Authorization had to be
   triple-approved, published unchanged, and public all-eight green before tests-first
-  work. Its fresh exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7
-  claim, and 24/24 binding tests; a verification gate remains before review.
+  work. Its fresh and verification gates passed with 139/139 library, 149/149 binary,
+  7/7 claim, and 24/24 binding tests; `697bb3b4` satisfies the review/publication
+  prerequisites below.
+- CORE-036 authorization `697bb3b4`, tree `b0cfd37b`, canonical binary diff
+  `0a92ad7a`, is triple-approved and public all-eight green in compiler
+  `30927281281` / `30927293459`, Rust `30927289178`, CodeQL `30927280707`, and
+  aggregate `92052974430`.
+- Triple-approved tests-only `d52b117e`, tree `76a3b2e9`, canonical binary diff
+  `c2d5e46a`, publicly proves exactly 34 false acceptances as the sole binding 24/25
+  failure in push `30927952017`, PR `30927956714`, nightly `92055067840`, and the
+  stable `92055068009` test step. CodeQL `30927952240` and aggregate `92055178151`
+  pass; three public-red reviews approved implementation.
+- Exact implementation `26d18924`, tree `8aec746c`, canonical binary diff
+  `543f8a1c`, adds only nonrecursive semantic and checked-admission rejection. It is
+  triple-approved; focused 1/1, binding 25/25, the full local gate, compiler
+  `30928759703` / `30928760789`, stable/nightly Rust `30928758562`, CodeQL
+  `30928754859`, and aggregate `92057919831` pass.
+- Rejection supplies no reference/array/tuple/default/compatibility/ownership/
+  lifetime/layout/ABI/bounds/lowering/execution/backend evidence. Every matrix row
+  and cell remains unchanged: tuples parsed-only, references/fixed arrays partial,
+  bounds unresolved, and CPU/ROCm/CUDA separated. R-002 stays HIGH/CRITICAL and
+  PARTIALLY CONTROLLED; R-011 stays open. The prepared six-record closure requires
+  its own reviews, unchanged publication, and public checks before closure. Its fresh
+  exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+  binding tests; a verification gate remains before review.

@@ -1696,6 +1696,33 @@ promise future compatibility.
   ABI/bounds/execution/backend semantics. Every capability and claim classification
   remains unchanged; R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED and R-011
   remains open. The prepared authorization's fresh full gate exits 0 with 139/139
-  library, 149/149 binary, 7/7 claim, and 24/24 binding tests. A verification gate,
-  three exact approvals, unchanged publication, and all eight public checks remain
-  required before tests-first work.
+  library, 149/149 binary, 7/7 claim, and 24/24 binding tests. The verification gate,
+  three exact approvals, unchanged publication, and all eight public checks required
+  before tests-first work are satisfied by `697bb3b4` below.
+
+## CORE-036 accepted implementation
+
+- Authorization `697bb3b4`, tree `b0cfd37b`, canonical binary diff `0a92ad7a`, is
+  triple-approved and public all-eight green in compiler `30927281281` /
+  `30927293459`, Rust `30927289178`, CodeQL `30927280707`, and aggregate
+  `92052974430`.
+- Triple-approved tests-only `d52b117e`, tree `76a3b2e9`, canonical binary diff
+  `c2d5e46a`, reclassified all five exact-U rows. Local, push `30927952017`, PR
+  `30927956714`, nightly `92055067840`, and stable `92055068009` test logs all pass
+  139/149/7 then isolate exactly 34 acceptances as the sole binding 24/25 failure.
+  CodeQL `30927952240` and aggregate `92055178151` pass; three public-red reviews
+  approved implementation authority.
+- Exact implementation `26d18924`, tree `8aec746c`, canonical binary diff
+  `543f8a1c`, adds 17 semantic and 16 checked-admission lines only. It is triple-
+  approved; formatting, focused 1/1, binding 25/25, the full local gate, compiler
+  `30928759703` / `30928760789`, stable/nightly Rust `30928758562`, CodeQL
+  `30928754859`, and aggregate `92057919831` pass.
+- Classification is unchanged. The exact rejection is containment before IR, not
+  reference/array/tuple/default/ownership/layout/ABI/bounds/lowering/execution
+  evidence. Tuples remain parsed-only; references and fixed arrays remain partial;
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open; no
+  backend, hardware-execution, artifact, matrix, capability, or claim class moves.
+- A six-record closure is prepared from clean public all-eight-green implementation
+  `26d18924`. Its fresh exact full gate exits 0 with 139/139 library, 149/149 binary,
+  7/7 claim, and 25/25 binding tests. A verification gate, three approvals, unchanged
+  publication, and all-eight checks remain required before CORE-036 is closed.

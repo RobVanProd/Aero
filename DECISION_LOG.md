@@ -2222,8 +2222,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-048 - Reject valueless exact reference-array-tuple annotations before IR
 
 - Date: 2026-08-04
-- Status: six-record authorization fresh-local-gate green; verification gate, three
-  exact reviews, unchanged publication, and public all-eight checks pending.
+- Status: implementation triple-approved and public all-eight green at `26d18924`;
+  six-record classification-neutral closure fresh-local-gate green, with verification,
+  exact review, unchanged publication, and public checks pending.
 - Decision: for a valueless binding whose annotation is exactly nonrecursive
   `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)`, preserve semantic
   duplicate precedence and all four existing valueless tuple-shape diagnostics, then
@@ -2261,3 +2262,24 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `30924951134`, CodeQL `30924945035`, and aggregate `92044919183` green.
 - Gate evidence: the prepared authorization's fresh exact repository-root full gate
   exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests.
+- Authorization acceptance: exact `697bb3b4`, tree `b0cfd37b`, canonical binary diff
+  `0a92ad7a`, changed only six records, passed two exact gates, received three exact
+  approvals, and is public all-eight green in compiler `30927281281` / `30927293459`,
+  Rust `30927289178`, CodeQL `30927280707`, and aggregate `92052974430`.
+- Tests-first evidence: exact one-file `d52b117e`, tree `76a3b2e9`, canonical binary
+  diff `c2d5e46a`, received three exact approvals and exposes precisely 34 unexpected
+  acceptances as the sole focused 0/1 and binding 24/25 failure after 139/149/7
+  passes. Push `30927952017`, PR `30927956714`, nightly `92055067840`, and stable
+  `92055068009` test logs reproduce it; CodeQL `30927952240` and aggregate
+  `92055178151` pass. Three public-red reviews approved two-phase implementation.
+- Implementation evidence: exact `26d18924`, tree `8aec746c`, canonical binary diff
+  `543f8a1c`, adds only the two guards with 33 insertions and no deletions. It is
+  triple-approved; formatting, focused 1/1, binding 25/25, the exact full local gate,
+  compiler `30928759703` / `30928760789`, stable/nightly Rust `30928758562`, all
+  three CodeQL analyses in `30928754859`, and aggregate `92057919831` pass.
+- Result: the exact valueless U surface now fails closed before IR. This decision
+  defines no reference, array, tuple, default, ownership, lifetime, layout, ABI,
+  bounds, lowering, execution, backend, matrix, capability, risk, or stability
+  meaning. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 stays open.
+- Closure gate: the prepared six-record closure's fresh exact full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests.

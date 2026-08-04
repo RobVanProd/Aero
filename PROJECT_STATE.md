@@ -4,23 +4,21 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 51 `CORE-036` authorization. AUDIT-042 is complete, read-only, and
-classification-neutral on exact corrected public all-eight-green head `2d8a0c54`.
-Its two-to-one reconciliation and three final compatibility approvals select only
-valueless exact nonrecursive `Reference(Array(Tuple))` fail-closed containment for a
-separate reviewed contract. No source/test change, capability/matrix/risk movement,
-backend action, or claim is authorized before CORE-036 authorization acceptance.
+Milestone 52 `CORE-036` closure. Exact implementation `26d18924` is triple-approved,
+locally green, and public all-eight green. Only the six classification-neutral
+control records may now change to close the slice. No new source/test work, residual
+selection, capability/matrix/risk movement, backend action, or claim is authorized
+before closure acceptance.
 
 ## Active hypothesis
 
-For a valueless binding only, exact nonrecursive semantic and checked-admission
-guards can reject `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)`
-for both flags and every count before fallback insertion or raw generation, while
-preserving duplicate and existing tuple-shape diagnostic precedence and every
-initialized/deeper/wrapped/scalar/numeric-array control. The tests-first evidence
-must reclassify every existing exact-U acceptance occurrence and prove exactly 34
-false acceptances plus 40 green preservation observations. Any different count,
-diagnostic, phase boundary, semantic choice, or valid-output result is a stop.
+The exact CORE-036 evidence can be closed without changing a semantic or
+classification boundary: the tests-first snapshot proves precisely 34 false
+acceptances while 40 controls stay green; the two exact guards make focused 1/1,
+binding 25/25, and the full gate green; public all-eight evidence matches. R-002 must
+remain HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 remains open, and rejection must
+not be promoted into reference/array/tuple/default/ownership/layout/ABI/bounds/
+lowering/execution/backend support.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1397,16 +1395,44 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   lowering, execution, backend, or compatibility meaning. R-002 remains HIGH/
   CRITICAL and PARTIALLY CONTROLLED; R-011 remains open; no classification moves.
 
+## CORE-036 implementation and closure
+
+- Authorization `697bb3b4`, parent `2d8a0c54`, tree `b0cfd37b`, canonical binary
+  diff `0a92ad7a`, changed only the six control records, passed two exact local gates,
+  received three exact approvals, and is public all-eight green in compiler
+  `30927281281` / `30927293459`, Rust `30927289178`, CodeQL `30927280707`, and
+  aggregate `92052974430`.
+- Tests-only `d52b117e`, parent `697bb3b4`, tree `76a3b2e9`, canonical binary diff
+  `c2d5e46a`, changed one file, reclassified all four occurrence blocks/five rows,
+  passed formatting, and received three approvals. Focused 0/1 and binding 24/25
+  isolate exactly 34 unexpected acceptances after 139/139 library, 149/149 binary,
+  and 7/7 claim passes locally and in push `30927952017`, PR `30927956714`, nightly
+  `92055067840`, and stable `92055068009` test logs. CodeQL `30927952240` and
+  aggregate `92055178151` pass; three public-red reviews approved implementation.
+- Implementation `26d18924`, parent `d52b117e`, tree `8aec746c`, canonical binary
+  diff `543f8a1c`, adds 17 semantic and 16 checked-admission lines only. It is triple-
+  approved; formatting, focused 1/1, binding 25/25, the exact full local gate,
+  compiler `30928759703` / `30928760789`, stable/nightly Rust `30928758562`, all
+  three CodeQL analyses in `30928754859`, and aggregate `92057919831` pass.
+- Result: the frozen valueless exact nonrecursive reference-array-tuple surface now
+  fails closed after existing diagnostics and before fallback/raw generation. Every
+  initialized/deeper/wrapped/mixed/scalar/numeric/traversal/valid-output control is
+  preserved. This is containment, not supported value/lowering/execution evidence.
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open; no
+  capability, matrix, risk, backend, artifact, or claim class moves.
+- Closure boundary: only the six control records may change. A fresh exact full gate,
+  three exact reviews, unchanged publication, and all eight public checks are
+  required before CORE-036 is closed.
+
 ## Exact next action
 
-The prepared six-record CORE-036 authorization's fresh exact repository-root full
-gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding
-tests. Rerun the exact gate as verification, commit only the six control records,
-obtain three exact reviews, publish the immutable authorization unchanged, and
-require all eight public checks before the tests-only edit. Do not edit source/tests
-yet, resolve bounds policy implicitly, promote a capability, change workflows/
-dependencies/backends, publish artifacts or claims, rewrite history, force-push, or
-touch `master`.
+The prepared six-record CORE-036 closure's fresh exact repository-root full gate
+exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests.
+Rerun the exact gate as verification, commit only the six control records, obtain
+three exact reviews, publish unchanged, and require all eight public checks before
+declaring CORE-036 closed. Do not edit source/tests, start another residual, resolve
+bounds policy implicitly, promote a capability, change workflows/dependencies/
+backends, publish artifacts or claims, rewrite history, force-push, or touch master.
 
 ## Unauthorized actions
 

@@ -6596,7 +6596,8 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`,
   `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`. A fresh exact
   repository-root full gate, three exact reviews, unchanged publication, and all
-  eight public checks are required before the tests-only edit.
+  eight public checks were required before the tests-only edit and are satisfied by
+  authorization `697bb3b4` below.
 - Risks: incomplete acceptance-row reclassification; recursive matching; consuming
   initialized, deeper/wrapped/mixed, scalar, numeric-array, or array-around-reference
   forms; changing count-zero initialized behavior; diagnostic-order regression;
@@ -6607,8 +6608,43 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   semantic, compatibility, valid-output, ownership, layout, ABI, bounds, lowering,
   execution, backend, workflow, dependency, artifact, claim, history, or `master`
   decision is required.
-- Status: six-record authorization prepared from exact public all-eight-green
-  AUDIT-042 head `2d8a0c54`. Its fresh exact repository-root full gate exits 0 with
-  139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. A verification
-  gate, three exact reviews, unchanged publication, and all eight public checks
-  remain required before tests-first work.
+- Authorization acceptance: exact `697bb3b4d539ca7daeec2839fbf163c80b2f2ed2`,
+  parent `2d8a0c54`, tree `b0cfd37be655d88519fec1d69283f7d536ad499a`, canonical
+  binary diff `0a92ad7a6bfc51a9296b287ee64f90f42c03d57d`, changed only the six
+  control records. Two exact local gates passed with 139/139 library, 149/149 binary,
+  7/7 claim, and 24/24 binding tests. Three exact reviews approved it; it was
+  published unchanged. Compiler `30927281281` / `30927293459`, stable/nightly Rust
+  `30927289178`, all three CodeQL analyses in `30927280707`, and aggregate
+  `92052974430` pass.
+- Tests-first acceptance: exact `d52b117e05f5579ecfbdaae482de91c2c6bc9b74`,
+  parent `697bb3b4`, tree `76a3b2e913ab89b8ef650a6481ef83924cd8ff16`, canonical
+  binary diff `c2d5e46ae6e914c70a5b3425648d3753e5f83aac`, changed only the binding-
+  contract test file with 342 additions and 20 deletions. It reclassified all four
+  occurrence blocks/five rows, received three exact approvals, and passed formatting.
+  Focused 0/1, binding 24/25, and the exact local full gate isolated exactly 34
+  unexpected acceptances after 139/139 library, 149/149 binary, and 7/7 claim passes.
+  Push `30927952017` / PR `30927956714`, nightly job `92055067840`, and stable job
+  `92055068009` reproduce the identical failure; stable's final job label is cancelled
+  after its completed failing test step. All three CodeQL jobs in `30927952240` and
+  aggregate `92055178151` pass. Three public-red reviews approved implementation.
+- Implementation acceptance: exact `26d18924a7fe59eb99a6ed40de2f435b30093c7b`,
+  parent `d52b117e`, tree `8aec746cd3786eb839b7df705c26726d8341e9fa`, canonical
+  binary diff `543f8a1ccb8d737587877d0886614d48fe747881`, adds only 17 semantic-
+  analyzer and 16 checked-admission lines, with no deletion or third file. Formatting,
+  focused 1/1, binding 25/25, and the exact full local gate pass with 139/139 library,
+  149/149 binary, 7/7 claim, and all downstream suites. Three exact reviews approved
+  it; compiler `30928759703` / `30928760789`, stable/nightly Rust `30928758562`, all
+  three CodeQL analyses in `30928754859`, and aggregate `92057919831` pass.
+- Result: only the frozen valueless exact nonrecursive `Reference(Array(Tuple))`
+  false-success surface now rejects after the four prior diagnostics and before
+  fallback/raw generation. Both flags, all counts, and all tuple arities are covered;
+  initialized and every deeper/wrapped/mixed/scalar/numeric control remain unchanged.
+  This is fail-closed containment, not reference/array/tuple/default/ownership/layout/
+  ABI/bounds/lowering/execution/backend support. R-002 remains HIGH/CRITICAL and
+  PARTIALLY CONTROLLED; R-011 remains open; no matrix, capability, backend, artifact,
+  claim, history, or `master` state moves.
+- Status: implementation is triple-approved and public all-eight green at
+  `26d18924`; the six-record closure is prepared from that clean head. Its fresh exact
+  full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+  binding tests. A verification gate, three exact reviews, unchanged publication,
+  and public all-eight checks remain before CORE-036 is closed.
