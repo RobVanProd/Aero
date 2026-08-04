@@ -1213,3 +1213,23 @@ promise future compatibility.
   scalar arrays, generic/Vec and reference wrappers, tuple/array support, bounds,
   layout, mutation, ABI, ownership, raw APIs, verifier, codegen, and every backend
   remain unchanged. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+## CORE-030 accepted implementation
+
+- Triple-approved authorization `1f13084` is public all-eight green. Triple-reviewed
+  tests-first `bd28f6a` publicly reproduces only the exact five frozen acceptances:
+  semantic and checked admission at zero and nonzero counts plus the public route.
+  Duplicate precedence and every initialized, scalar, wrapped, deeper, prior-
+  diagnostic, and valid-output preservation control stay green.
+- Triple-reviewed implementation `97c0f04`, tree `aa3a9e3f`, diff `06a104df`, adds
+  only the two exact non-recursive guards in semantic analysis and checked IR
+  admission. Focused 1/1, binding 19/19, formatting, the exact full local gate,
+  compiler `30878810762` / `30878812430`, stable/nightly Rust `30878812406`, all
+  three CodeQL analyses in `30878811198`, and aggregate `91895661773` pass.
+- A valueless immediate array-of-tuple annotation now stops after semantic duplicate
+  detection and before fake `Int`, insertion, or raw generation at both trusted
+  boundaries. Initialized and deeper forms, scalar arrays, generic/Vec and reference
+  wrappers, other annotations, raw IR, verifier, codegen, ABI, ownership, and every
+  backend remain unchanged. This is containment, not array/tuple support; R-002
+  remains HIGH/CRITICAL and PARTIALLY CONTROLLED, with no capability or matrix-cell
+  change.

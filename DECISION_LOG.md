@@ -1676,7 +1676,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-036 - Valueless immediate array-of-tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: accepted selection protocol; CORE-030 authorization pending gates.
+- Status: accepted implementation at public all-eight-green `97c0f04`; final
+  six-record closure pending.
 - Decision: for an uninitialized `let` annotation exactly shaped as
   `Type::Array(inner, _)` with immediate `inner: Type::Tuple(_)`, reject in semantic
   analysis after same-scope duplicate detection and independently in checked IR
@@ -1694,3 +1695,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   bounds/layout/mutation/ABI/ownership, and backend behavior remain unchanged.
 - Claim boundary: rejection is containment only. R-002 stays HIGH/CRITICAL and
   PARTIALLY CONTROLLED; no capability or matrix cell can move.
+- Evidence: triple-approved authorization `1f13084` is public all-eight green.
+  Triple-approved tests-first `bd28f6a` publicly reproduces exactly the five
+  frozen false acceptances and otherwise preserves the suite. Triple-approved
+  implementation `97c0f04`, tree `aa3a9e3f`, diff `06a104df`, changes only the
+  semantic and checked-admission guards; focused 1/1, binding 19/19, the exact full
+  local gate, both compiler jobs, stable/nightly Rust, all three CodeQL analyses,
+  and aggregate pass.

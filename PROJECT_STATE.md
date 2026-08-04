@@ -4,20 +4,19 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 39 `CORE-030` authorization. Read-only `AUDIT-036` is complete at public
-all-eight-green `f4ac505`; three independent full-set rankings unanimously select
-the exact R-002 valueless immediate array-of-tuple fallback over verifier-contained
-R-005. Immediate work is the six-record CORE-030 contract gate and exact review.
-The fresh full local gate passes; immediate work is exact review and unchanged
-publication. No test or source edit is authorized until all eight public checks pass.
+Milestone 40 `CORE-030` record closure. The exact authorization, expected-red
+tests-first regression, and two-guard implementation are complete; implementation
+`97c0f04` is public all-eight green. The record closure passes its fresh exact full
+local gate; immediate work is three exact reviews, unchanged publication, and
+all-eight public verification. No later audit or implementation may begin first.
 
 ## Active hypothesis
 
-Two matching non-recursive guards can make only a valueless immediate
-`Type::Array(Type::Tuple(_), count)` annotation fail closed after semantic duplicate
-checking and before fake `Int`, insertion, or raw generation. This can enforce the
-hard unsupported-source-type rule without defining array/tuple defaults, layout,
-ABI, ownership, execution, or backend capability.
+The accepted two-guard implementation and its tests can be reconciled into the six
+control records without broadening the exact valueless immediate
+`Type::Array(Type::Tuple(_), count)` rejection, changing any matrix cell or risk
+classification, or implying array/tuple defaults, layout, ABI, ownership, execution,
+or backend capability.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -51,6 +50,20 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-030` implementation
+  `97c0f04f32c28a8a541fec51ec2bef175aaa6032`, tree `aa3a9e3f`, diff
+  `06a104df`, passes focused 1/1, binding 19/19, formatting, the exact full local
+  gate, compiler `30878810762` / `30878812430`, stable/nightly Rust
+  `30878812406`, all three CodeQL analyses in `30878811198`, and aggregate
+  `91895661773` after three exact approvals. Only semantics and checked admission
+  changed; R-002 and every capability/matrix classification remain unchanged.
+- Triple-reviewed public CORE-030 tests-first `bd28f6a`, tree `f12d7fd8`, diff
+  `88e2cc0b`, reproduces the exact five frozen false acceptances in compiler
+  `30878470029` / `30878471826` and nightly Rust in `30878471848`; stable was
+  fail-fast cancelled. CodeQL `30878470495` and aggregate `91894672603` pass.
+  Triple-reviewed authorization `1f13084`, tree `5b43f60d`, diff `869c39bb`, passes
+  all eight public checks in compiler `30878148019` / `30878151278`, Rust
+  `30878151307`, CodeQL `30878148144`, and aggregate `91893736780`.
 - Accepted public read-only `AUDIT-036` authorization
   `f4ac505040f866126f2de3ccdcc1ed202711cd46`, tree `3cdf89e6`, diff
   `40896f51`, passes compiler `30876975678` / `30876977928`, stable/nightly Rust
@@ -865,10 +878,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for the fresh-full-local-gate-green six-record CORE-030
-contract, publish the approved snapshot unchanged, and require all eight public
-checks. Only then may the one-file tests-first regression be written and reviewed.
-Do not edit tests/source early, broaden beyond the immediate array element, promote
+Obtain three exact approvals for the fresh-full-gate-green six-record CORE-030
+closure, publish that immutable tree unchanged, and require all eight public checks.
+Only after closure may a separate clean-head read-only audit be authorized; do not
+inherit a runner-up, start another implementation, broaden the exact guard, promote
 a capability, change workflows/dependencies/backends, publish artifacts or claims,
 or touch `master`.
 

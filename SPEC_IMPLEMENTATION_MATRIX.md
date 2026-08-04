@@ -455,9 +455,12 @@ declared compatibility policy and release-level coverage.
   `30876975678` / `30876977928`, Rust `30876977905`, CodeQL `30876976155`, and
   aggregate `91890402326`. All three complete rankings select exact R-002 valueless
   immediate array-of-tuple fallback over verifier-contained R-005.
-- Preregistered CORE-030 may only turn that one unsupported valueless annotation
-  into semantic and checked-admission rejection after separate contract and public
-  tests-first gates. Rejection supplies no array/tuple value, default, bounds,
-  layout, mutation, ABI, ownership, lowering, execution, or backend evidence.
-  Therefore every matrix row, cell, and capability class remains unchanged, and
-  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Accepted public CORE-030 implementation `97c0f04`, tree `aa3a9e3f`, diff
+  `06a104df`, turns only that one unsupported valueless annotation into semantic and
+  checked-admission rejection after triple-reviewed authorization and public
+  tests-first red evidence. Focused 1/1, binding 19/19, the exact full local gate,
+  both compiler jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate
+  pass. Rejection supplies no array/tuple value, default, bounds, layout, mutation,
+  ABI, ownership, lowering, execution, or backend evidence. Therefore every matrix
+  row, cell, and capability class remains unchanged, and R-002 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED.

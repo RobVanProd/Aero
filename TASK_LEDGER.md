@@ -5263,8 +5263,41 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   behavior, initialized-value policy, more than the two named compiler phases,
   another annotation outcome, valid-output change, backend work, or any unresolved
   compatibility decision.
-- Status: preregistered records only. This exact six-record contract passes its
-  fresh full local gate with 139/139 library, 149/149 binary, 7/7 backend-claim,
-  and 18/18 binding tests plus every later active suite. No test or implementation
-  edit is authorized until three exact reviews, unchanged publication, and all-eight
-  public verification also pass.
+- Authorization evidence: exact snapshot `58a8c6f0cfef218ac55f1c8d6b6d3b5bb36c334c`,
+  tree `5b43f60dfddd79ad8142770a7f69c9a67290bc8b`, diff
+  `869c39bbae36f3fa789dac03f8e0d5c3a1a97d10`, passed its fresh exact full local
+  gate and received three exact approvals. It was published unchanged as
+  `1f130848a2d4bb3ceb248e73f0f01b727d356210`. Compiler
+  `30878148019` / `30878151278`, stable/nightly Rust `30878151307`, all three
+  CodeQL analyses in `30878148144`, and aggregate `91893736780` pass.
+- Tests-first evidence: exact snapshot
+  `1a3807f12f0b84d7fe5dc938f0b5a650cb620767`, tree
+  `f12d7fd8a841f043444fac098cc7c606586aec44`, diff
+  `88e2cc0beb283c04d24c0ce4a074226edf12edd4`, received three exact approvals and
+  was published unchanged as `bd28f6ac5dea211663dc0cbec6e89f741576a59b`.
+  The focused regression failed 0/1 and the binding aggregate failed exactly 18/19
+  on the five frozen false acceptances; the full local gate otherwise reached
+  139/139 library and 149/149 binary tests. Compiler `30878470029` /
+  `30878471826` and nightly Rust in `30878471848` reproduce that exact expected
+  red; stable was fail-fast cancelled. All three CodeQL analyses in `30878470495`
+  and aggregate `91894672603` pass.
+- Implementation evidence: exact snapshot
+  `427781c4cb1195a8c5ba9f3ee4e1872c8b8732d1`, tree
+  `aa3a9e3ff36a0f4df0cff9187e9bcbbadc568a08`, diff
+  `06a104df08e4006694927aaf430a7c6a16374d85`, received three exact approvals and
+  was published unchanged as `97c0f04f32c28a8a541fec51ec2bef175aaa6032`.
+  Only the two authorized non-recursive guards changed. Formatting, focused 1/1,
+  binding 19/19, the exact full local gate with 139/139 library and 149/149 binary
+  tests, compiler `30878810762` / `30878812430`, stable/nightly Rust
+  `30878812406`, all three CodeQL analyses in `30878811198`, and aggregate
+  `91895661773` pass.
+- Residual: initialized, deeper-nested, reference-wrapped, generic/Vec, scalar-array,
+  and every other annotation shape remain unchanged, as do raw generation,
+  verifier, codegen, ABI, ownership, and CPU/ROCm/CUDA behavior. Rejection adds no
+  array or tuple support. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no
+  matrix cell or capability class changes.
+- Status: implementation accepted at public all-eight-green `97c0f04`; the final
+  six-record closure passes its fresh exact local gate with 139/139 library,
+  149/149 binary, binding 19/19, and every later active suite. Three exact reviews,
+  unchanged publication, and all-eight public verification remain. No later audit
+  or implementation may start before that closure.
