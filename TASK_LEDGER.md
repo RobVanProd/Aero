@@ -5459,8 +5459,41 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   array/tuple default/value/bounds/layout/mutation/ABI/ownership semantics, generic
   behavior, valid-output change, more than the two named compiler phases, backend
   work, or any unresolved compatibility decision.
-- Status: preregistered records only. This exact six-record contract passes its
-  fresh full local gate with 139/139 library, 149/149 binary, binding 19/19, and
-  every later active suite. No test or implementation edit is authorized until
-  three exact reviews, unchanged publication, and public all-eight verification
-  also pass.
+- Authorization evidence: exact snapshot
+  `8d6abd56963dbb87c4714cd8b73c113e443eb286`, tree
+  `c01bebe98b4dc8b6bde0615e067f51f0349d66a0`, diff
+  `1fb56631a7c5294401fe2f32d029609e9e2570f1`, passed the fresh exact local gate
+  and received three exact approvals. It was published unchanged as
+  `ba57efec617fc813b00941bc5370c866016aa1bf`. Compiler `30881170087` /
+  `30881172516`, stable/nightly Rust `30881172590`, all three CodeQL analyses in
+  `30881170763`, and aggregate `91902778624` pass.
+- Tests-first evidence: exact one-file snapshot and public commit
+  `6899cb1b4d5e8fd54aa226aa5f7042f6cef99fcb`, tree
+  `b7007735c0a739d8c18b983a589c82329f81942f`, canonical full-index patch
+  fingerprint `43063551a84e62c87687df0306e9f164f303047d`, received three exact
+  approvals. An initially supplied noncanonical `diff-tree` metadata hash was
+  rejected before publication; all three reviews were repeated against the
+  corrected fingerprint without a content change. Focused local execution failed
+  0/1 and binding failed only 19/20 with exactly the nine frozen accepts; the full
+  gate first passed 139/139 library, 149/149 binary, and 7/7 claim tests. Compiler
+  `30881792006` / `30881794177` and nightly Rust in `30881794186` reproduce that
+  exact expected red; stable was fail-fast cancelled. All three CodeQL analyses in
+  `30881792351` and aggregate `91904645414` pass.
+- Implementation evidence: exact snapshot and public commit
+  `4bc7a3453f0829fca11929e0826abd4ed06fb962`, tree
+  `6136162156b7fa0b4da3534517d068242c48055b`, canonical full-index patch
+  fingerprint `349e34eef0e56a460258f010c0371806ea8c40ed`, received three exact
+  approvals. It adds only 33 lines across the two authorized nonrecursive guards.
+  Formatting, focused 1/1, binding 20/20, and the exact repository-root full gate
+  pass locally. Compiler `30882153355` / `30882155935`, stable/nightly Rust
+  `30882155921`, all three CodeQL analyses in `30882154595`, and aggregate
+  `91905705897` all pass.
+- Residual: Candidate B reference-array-tuple, initialized and third-plus-depth
+  forms, scalar/nested-scalar arrays, generic/reference wrappers, array-of-reference,
+  raw generation, verifier, codegen, ABI, ownership, and CPU/ROCm/CUDA behavior are
+  unchanged. Rejection adds no nested-array or tuple support. R-002 remains
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability class moves.
+- Status: implementation accepted at exact public all-eight-green `4bc7a345`; this
+  six-record update is the pending record-closure snapshot. No further residual
+  selection or implementation is authorized before exact closure review,
+  unchanged publication, and public all-eight verification.

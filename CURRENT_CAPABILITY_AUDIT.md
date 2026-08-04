@@ -1275,3 +1275,27 @@ promise future compatibility.
 - This selection changes no current capability. Nested-array/tuple values, defaults,
   bounds, layout, mutation, ABI, ownership, raw APIs, verifier, codegen, and all
   backends remain unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+## CORE-031 accepted implementation
+
+- Exact authorization `ba57efec`, tree `c01bebe9`, is triple-approved and public
+  all-eight green. Exact tests-first `6899cb1b`, tree `b7007735`, canonical diff
+  `43063551`, publicly reproduces exactly nine false acceptances: four count
+  combinations at semantic and checked boundaries plus public compilation. Both
+  compiler runs and nightly Rust fail only the new 19/20 binding aggregate after
+  139/139 library, 149/149 binary, and 7/7 claim tests; stable is fail-fast
+  cancelled, while all CodeQL checks pass.
+- Triple-approved implementation `4bc7a345`, tree `61361621`, canonical diff
+  `349e34ee`, adds only two nonrecursive guards. Both require a valueless outer
+  `Array` whose immediate child is `Array` and whose immediate grandchild is
+  `Tuple`; counts are wildcarded. Semantic duplicate precedence and prior exact
+  tuple diagnostics are unchanged.
+- Focused 1/1, binding 20/20, formatting, the exact full local gate, compiler
+  `30882153355` / `30882155935`, stable/nightly Rust `30882155921`, all three
+  CodeQL analyses in `30882154595`, and aggregate `91905705897` pass.
+- Candidate B, initialized forms, scalar/nested-scalar arrays, generic/reference
+  wrappers, array-of-reference, reference-wrapped target, and third-plus array depth
+  remain preserved. Raw IR, verifier, codegen, ABI, ownership, valid-output scope,
+  and CPU/ROCm/CUDA behavior are unchanged. This is exact fail-closed containment,
+  not nested-array or tuple support; no capability class or matrix cell moves, and
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.

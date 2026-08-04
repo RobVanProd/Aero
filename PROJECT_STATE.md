@@ -4,12 +4,12 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 42 `CORE-031` authorization. AUDIT-037 is complete at exact public all-
-eight-green `987188fc`; three full rankings place R-002 first, and targeted static
-reconciliation unanimously selects the exact valueless two-array-deep tuple fallback.
-The six-record CORE-031 contract passes its fresh exact full local gate; immediate
-work is exact review and unchanged publication. No test or source edit is authorized
-until that contract is public all-eight green.
+Milestone 42 `CORE-031` record closure. Authorization `ba57efec`, public tests-first
+`6899cb1b`, and the exact two-boundary implementation `4bc7a345` are each
+triple-approved. The implementation passes focused 1/1, binding 20/20, the exact
+full local gate, and all eight public checks. Immediate work is exact review and
+unchanged publication of this six-record closure; no next residual or implementation
+is selected yet.
 
 ## Active hypothesis
 
@@ -51,6 +51,20 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-031` implementation
+  `4bc7a3453f0829fca11929e0826abd4ed06fb962`, tree `61361621`, canonical diff
+  `349e34ee`, passes focused 1/1, binding 20/20, formatting, the exact full local
+  gate, compiler `30882153355` / `30882155935`, stable/nightly Rust
+  `30882155921`, all three CodeQL analyses in `30882154595`, and aggregate
+  `91905705897` after three exact approvals. Only semantics and checked admission
+  changed; R-002 and every capability/matrix classification remain unchanged.
+- Triple-reviewed public CORE-031 tests-first `6899cb1b`, tree `b7007735`,
+  canonical diff `43063551`, reproduces exactly nine frozen false acceptances in
+  compiler `30881792006` / `30881794177` and nightly Rust `30881794186`; stable
+  was fail-fast cancelled. CodeQL `30881792351` and aggregate `91904645414` pass.
+  Triple-reviewed authorization `ba57efec`, tree `c01bebe9`, diff `1fb56631`,
+  passes all eight public checks in compiler `30881170087` / `30881172516`, Rust
+  `30881172590`, CodeQL `30881170763`, and aggregate `91902778624`.
 - Accepted public read-only `AUDIT-037` authorization
   `987188fc265481d0de4c3021bcc5c3161aaeed12`, tree `0b685659`, diff
   `d3a9974b`, passes compiler `30880025888` / `30880028697`, stable/nightly Rust
@@ -894,12 +908,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for the fresh-full-gate-green six-record CORE-031
-authorization, publish that immutable tree unchanged, and require all eight public
-checks. Only then may the one-file tests-first regression be written and reviewed.
-Do not edit tests/source early, broaden beyond exactly two immediate array layers,
-promote a capability, change workflows/dependencies/backends, publish artifacts or
-claims, or touch `master`.
+Obtain three exact approvals for this six-record CORE-031 closure, publish the
+immutable tree unchanged, and require all eight public checks. Only after clean
+closure may a separately preregistered full-risk audit select another bounded
+residual. Do not broaden beyond exactly two immediate array layers, promote a
+capability, change workflows/dependencies/backends, publish artifacts or claims, or
+touch `master`.
 
 ## Unauthorized actions
 

@@ -484,3 +484,14 @@ declared compatibility policy and release-level coverage.
   default, bounds, layout, mutation, ABI, ownership, lowering, execution, or backend
   evidence. Every matrix row, cell, and capability class remains unchanged; R-002
   remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Accepted public CORE-031 implementation `4bc7a345`, tree `61361621`, canonical
+  diff `349e34ee`, turns only that exact unsupported form into semantic and checked-
+  admission rejection after triple-reviewed authorization and public expected-red
+  evidence. Focused 1/1, binding 20/20, the exact full local gate, both compiler
+  jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate pass.
+  Candidate B, initialized and third-plus-depth forms, scalar arrays, generic and
+  reference wrappers, raw IR, verifier/codegen, ABI/ownership, valid-output scope,
+  and every backend remain unchanged. Rejection supplies no nested-array/tuple
+  value, default, bounds, layout, mutation, lowering, execution, or backend evidence;
+  therefore every matrix row, cell, and capability class remains unchanged, and
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.

@@ -1738,7 +1738,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-038 - Exact two-array-deep valueless tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: accepted selection protocol; CORE-031 authorization pending gates.
+- Status: accepted implementation at public all-eight-green `4bc7a345`; exact
+  six-record closure gates pending.
 - Decision: for an uninitialized `let` annotation exactly shaped as
   `Type::Array(Type::Array(Type::Tuple(_), _), _)`, reject in semantic analysis
   after same-scope duplicate detection and independently in checked IR admission
@@ -1757,3 +1758,17 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   unchanged.
 - Claim boundary: rejection is containment only. R-002 stays HIGH/CRITICAL and
   PARTIALLY CONTROLLED; no capability or matrix cell can move.
+- Evidence: triple-approved authorization `ba57efec`, tree `c01bebe9`, passed all
+  eight public checks. Triple-approved tests-first `6899cb1b`, tree `b7007735`,
+  canonical diff `43063551`, publicly isolates exactly nine false acceptances in
+  compiler `30881792006` / `30881794177` and nightly Rust `30881794186`; stable was
+  fail-fast cancelled, while CodeQL `30881792351` and aggregate `91904645414` pass.
+  Triple-approved implementation `4bc7a345`, tree `61361621`, canonical diff
+  `349e34ee`, changes only the semantic and checked-admission guards; focused 1/1,
+  binding 20/20, formatting, the exact full local gate, compiler `30882153355` /
+  `30882155935`, stable/nightly Rust `30882155921`, CodeQL `30882154595`, and
+  aggregate `91905705897` pass.
+- Residual: exact rejection does not define nested-array/tuple values, defaults,
+  bounds, layout, mutation, ABI, ownership, lowering, execution, or backend support.
+  Candidate B and every named preservation boundary remain unchanged. No matrix
+  cell, capability class, or R-002 likelihood/impact/status changes.
