@@ -6153,7 +6153,37 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   7/7 claim, and 22/22 binding tests. IR/codegen and backend/claim approved, but
   type/safety rejected it at P1 because this final status called that completed gate
   future work. It remained unpublished; no test or source change began.
-- Status: corrected authorization records on exact public AUDIT-040 head `7b9ed83`
-  pass a fresh exact local gate at exit 0 with 139/139 library, 149/149 binary, 7/7
-  claim, and 22/22 binding tests. Three fresh exact reviews, unchanged publication,
-  and all eight public checks remain required. Tests-first has not begun.
+- Corrected authorization acceptance: `91d2686943ec601877db5ac658a20e590b86f0fb`,
+  parent `7b9ed83`, tree `bd9116b20cf75e84e5bc228757bd41f98e2f609e`,
+  canonical diff `19458d5799c6c37cfe9543e8dc8e897d86e3e655`, received three
+  fresh exact approvals and was published unchanged. Compiler `30915838213` /
+  `30915838191`, stable/nightly Rust `30915839059`, all three CodeQL analyses in
+  `30915834128`, and aggregate `92013770932` pass.
+- Tests-first acceptance: exact one-file `296276f6d0c4d733f28cd82c8245bf805f34d634`,
+  tree `9b1ad9d1dd075984adf32cdf8ba5e17e6cdda7a4`, canonical diff
+  `79b7ef9d695bdfd616442469519ca6d4fd18525e`, 335 insertions/7 deletions,
+  reclassified the two old acceptance rows and received three exact approvals.
+  Focused 0/1 and binding 22/23 showed exactly 30 `unexpectedly accepted` entries;
+  the exact full local gate exited 1 only at that test after 139/139 library,
+  149/149 binary, and 7/7 claim tests. Push CI `30916807388`, PR CI `30916811627`,
+  and nightly Rust `30916810937` reproduce the exact sole failure; stable was
+  cancelled after the matrix failure. CodeQL actions/python/rust in `30916806193`
+  pass and aggregate `92017066864` is skipped. Three separate public-red reviews
+  approved implementation authority.
+- Implementation acceptance: exact `a1ffeaecbe46f04611c818ce5d59d2be26128191`,
+  parent `296276f`, tree `f0088e650336d7705701ad8351dfbe2405f4ff21`,
+  canonical diff `7a3fdb11a4f0c4645adcbb35174607f6f327b366`, changes only
+  `semantic_analyzer.rs` and `ir_generator.rs` with 23 additions. The guards are
+  exact, nonrecursive, after RHS/Void/existing diagnostics, and before mismatch,
+  generic-impl bypass, insertion, or raw generation. Formatting, focused 1/1,
+  binding 23/23, and the exact full local gate exit 0 with 139/139 library, 149/149
+  binary, 7/7 claim, and 23/23 binding tests pass. Three exact reviews approved it.
+  Compiler `30917539648` / `30917544307`, stable/nightly Rust `30917537292`, all
+  three CodeQL analyses in `30917534448`, and aggregate `92019545168` pass.
+- Status: implementation accepted and public all-eight green. The six-record closure's
+  fresh exact full local gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
+  and 23/23 binding tests. Three exact closure reviews, unchanged publication, and
+  all eight public checks remain. No further source or test change is authorized.
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 bounds policy remains
+  stopped, and no matrix, capability, backend, artifact, claim, or `master` state
+  moves.

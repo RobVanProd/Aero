@@ -729,3 +729,22 @@ supplies no reference or tuple value, mutability,
 ownership, lifetime, layout, ABI, coercion, lowering, execution, bounds, backend, or
 stability evidence. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 stays
 open without a frozen policy, and every other risk status remains unchanged.
+
+Corrected CORE-034 authorization `91d2686` is triple-approved and public all-eight
+green. Triple-approved tests-only `296276f` publicly reproduces exactly 30 false
+acceptances as the sole 22/23 binding failure in compiler `30916807388` /
+`30916811627` and nightly Rust `30916810937`; CodeQL `30916806193` passes. Three
+separate public-red reviews approved implementation authority. Exact implementation
+`a1ffeaec`, tree `f0088e65`, canonical diff `7a3fdb11`, adds only the two frozen
+nonrecursive guards, received three exact approvals, and passes the full local gate,
+compiler `30917539648` / `30917544307`, stable/nightly Rust `30917537292`, all three
+CodeQL analyses in `30917534448`, and aggregate `92019545168`.
+
+CORE-034 narrows one false-success subset but does not resolve R-002's broader
+unsupported type/ownership/memory surface. R-002 remains HIGH/CRITICAL and PARTIALLY
+CONTROLLED; R-011 remains open pending a bounds policy; every other risk status,
+matrix cell, capability class, backend distinction, artifact boundary, and claim
+remains unchanged.
+
+The prepared six-record CORE-034 closure's fresh exact full gate exits 0 with 139/139
+library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.

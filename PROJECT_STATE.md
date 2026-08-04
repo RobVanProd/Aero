@@ -4,16 +4,15 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 48 `CORE-034` authorization. AUDIT-040 is complete, read-only, and clean
-at exact public head `7b9ed83`; three final compatibility approvals select only
-initialized exact immediate reference-to-tuple containment. Immediate work is the
-six-record CORE-034 contract. No regression, implementation, capability, matrix, or
-risk-status change is authorized before that contract's acceptance.
+Milestone 48 `CORE-034` closure. Exact two-phase implementation `a1ffeaec` is
+triple-approved and public all-eight green after the separately accepted authorization
+and expected-red gates. Immediate work is only the six-record closure. No additional
+source, test, semantics, capability, matrix, or risk-status change is authorized.
 
 ## Active hypothesis
 
 After initializer validation and existing initialized tuple-shape diagnostics, two
-exact nonrecursive guards can reject only an initialized annotation shaped as
+exact nonrecursive guards reject only an initialized annotation shaped as
 `Type::Reference(Type::Tuple(_), _)` before mismatch, binding insertion, the checked
 generic-impl bypass, or raw generation. Both reference mutability flags are covered;
 this defines no reference or tuple value, ownership, layout, ABI, or execution
@@ -1081,7 +1080,7 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   larger topology/count burden. All three final compatibility reviews approve the
   exact reference candidate below. The audit changed no file or classification.
 
-## CORE-034 authorization
+## CORE-034 accepted implementation
 
 - Exact behavior: reject only initialized `Statement::Let` annotations exactly
   shaped as `Type::Reference(Type::Tuple(_), _)`, for both reference mutability
@@ -1122,15 +1121,48 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   future work. It remained unpublished. The corrected authorization's fresh exact
   full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22
   binding tests.
+- Corrected authorization `91d2686943ec601877db5ac658a20e590b86f0fb`, tree
+  `bd9116b20cf75e84e5bc228757bd41f98e2f609e`, canonical diff
+  `19458d5799c6c37cfe9543e8dc8e897d86e3e655`, received three fresh exact
+  approvals and was published unchanged. Compiler `30915838213` / `30915838191`,
+  stable/nightly Rust `30915839059`, all three CodeQL analyses in `30915834128`,
+  and aggregate `92013770932` pass.
+- Tests-only `296276f6d0c4d733f28cd82c8245bf805f34d634`, tree
+  `9b1ad9d1dd075984adf32cdf8ba5e17e6cdda7a4`, canonical diff
+  `79b7ef9d695bdfd616442469519ca6d4fd18525e`, reclassified the two existing
+  rows and received three exact approvals. Focused 0/1 and binding 22/23 reproduced
+  exactly 30 unexpected acceptances; the full local gate exited 1 only there after
+  139/139 library, 149/149 binary, and 7/7 claim tests. Public compiler
+  `30916807388` / `30916811627` and nightly Rust `30916810937` reproduce the same
+  sole 30-observation failure; stable was cancelled after the matrix failure. All
+  three CodeQL analyses in `30916806193` pass; aggregate `92017066864` is skipped.
+  Three separate public-red reviews approved implementation authority.
+- Accepted implementation `a1ffeaecbe46f04611c818ce5d59d2be26128191`, tree
+  `f0088e650336d7705701ad8351dfbe2405f4ff21`, canonical diff
+  `7a3fdb11a4f0c4645adcbb35174607f6f327b366`, adds only the two exact guards:
+  13 semantic and 10 checked-admission lines. Formatting, focused 1/1, binding
+  23/23, and the exact full local gate exit 0 with 139/139 library, 149/149 binary,
+  7/7 claim, and 23/23 binding tests pass. Three exact reviews approved it; compiler
+  `30917539648` / `30917544307`, stable/nightly Rust `30917537292`, all three
+  CodeQL analyses in `30917534448`, and aggregate `92019545168` pass.
+- Result: the initialized exact immediate reference-to-tuple false-success surface
+  now fails closed before mismatch, insertion, generic-impl bypass, or raw generation.
+  Every frozen child/diagnostic/exclusion/valid-output control passes. This adds no
+  reference/tuple value, mutability, ownership, lifetime, layout, ABI, coercion,
+  lowering, execution, bounds, backend, matrix, capability, or stability meaning;
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Closure gate: the prepared six-record closure's fresh exact repository-root full
+  gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding
+  tests.
 
 ## Exact next action
 
-Obtain three exact approvals for the corrected, locally green CORE-034 authorization,
+Obtain three exact approvals for the locally green six-record CORE-034 closure,
 publish its immutable tree unchanged, and require all eight public checks.
-Do not edit source/tests, begin the 30-observation regression, change another
-reference/tuple/array shape, resolve bounds policy implicitly, promote a capability,
-change workflows/dependencies/backends, publish artifacts or claims, rewrite
-history, force-push, or touch `master`.
+Do not edit source/tests, reopen implementation, change another reference/tuple/
+array shape, resolve bounds policy implicitly, promote a capability, change
+workflows/dependencies/backends, publish artifacts or claims, rewrite history,
+force-push, or touch `master`.
 
 ## Unauthorized actions
 

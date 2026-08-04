@@ -2015,9 +2015,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-044 - Initialized immediate reference-to-tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: first authorization snapshot rejected before publication; corrected
-  authorization fresh-local-gate green, with exact reviews, publication, and public
-  checks pending. Tests and implementation have not begun.
+- Status: implementation accepted, triple-approved, and public all-eight green;
+  six-record closure fresh-local-gate green, with reviews/publication/checks pending.
 - Decision: for an initialized binding whose annotation is exactly nonrecursive
   `Type::Reference(Type::Tuple(_), _)`, validate the initializer, preserve checked
   Void and all existing initialized tuple-shape diagnostics, then reject in semantics
@@ -2047,3 +2046,18 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   completed gate future work. It remained unpublished. The corrected six-record
   tree's fresh exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7
   claim, and 22/22 binding tests.
+- Acceptance evidence: corrected authorization `91d2686` is triple-approved and
+  public green in compiler `30915838213` / `30915838191`, Rust `30915839059`,
+  CodeQL `30915834128`, and aggregate `92013770932`. Triple-approved tests-only
+  `296276f` publicly reproduces exactly 30 false acceptances as the sole 22/23
+  binding failure in compiler `30916807388` / `30916811627` and nightly Rust
+  `30916810937`; CodeQL `30916806193` passes. After three public-red approvals,
+  exact two-file implementation `a1ffeaec`, tree `f0088e65`, canonical diff
+  `7a3fdb11`, received three exact approvals and passes formatting, focused 1/1,
+  binding 23/23, the exact full local gate, compiler `30917539648` / `30917544307`,
+  stable/nightly Rust `30917537292`, CodeQL `30917534448`, and aggregate
+  `92019545168`.
+- Result: only the frozen false-success surface now rejects. The claim boundary and
+  R-002/R-011/matrix/capability state are unchanged.
+- Closure evidence: the prepared six-record closure's fresh exact full gate exits 0
+  with 139/139 library, 149/149 binary, 7/7 claim, and 23/23 binding tests.

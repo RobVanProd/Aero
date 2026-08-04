@@ -1516,3 +1516,28 @@ promise future compatibility.
   TASK_LEDGER's final status still called the completed gate future work. It remained
   unpublished. The corrected authorization's fresh exact full gate exits 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
+
+## CORE-034 accepted implementation
+
+- Corrected authorization `91d2686`, tree `bd9116b2`, canonical diff `19458d57`,
+  received three exact approvals and passes compiler `30915838213` / `30915838191`,
+  Rust `30915839059`, CodeQL `30915834128`, and aggregate `92013770932`.
+- Triple-approved tests-only `296276f`, tree `9b1ad9d1`, canonical diff `79b7ef9d`,
+  reclassified both prior acceptance rows. Focused 0/1, binding 22/23, local full-
+  gate and compiler `30916807388` / `30916811627` plus nightly Rust `30916810937`
+  all isolate exactly 30 false acceptances after 139/139 library, 149/149 binary,
+  and 7/7 claim passes. CodeQL `30916806193` passes. Three public-red reviews
+  approved the two-phase implementation boundary.
+- Exact implementation `a1ffeaec`, tree `f0088e65`, canonical diff `7a3fdb11`, adds
+  only the semantic and checked-admission guards. It received three exact approvals;
+  formatting, focused 1/1, binding 23/23, the full local gate at 139/139 library,
+  149/149 binary, 7/7 claim, and 23/23 binding tests, compiler `30917539648` /
+  `30917544307`, stable/nightly Rust `30917537292`, all three CodeQL analyses in
+  `30917534448`, and aggregate `92019545168` pass.
+- Classification is unchanged. This is exact fail-closed containment, not reference
+  or tuple value/lowering/execution evidence. Tuples remain parsed-only, references
+  remain partial, R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 remains
+  open without a bounds policy, and no backend, matrix, capability, or stability
+  class moves.
+- The prepared six-record closure's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 23/23 binding tests.

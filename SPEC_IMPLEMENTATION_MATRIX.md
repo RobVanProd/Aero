@@ -644,3 +644,17 @@ declared compatibility policy and release-level coverage.
   ownership, lifetime, layout, ABI, coercion, lowering, execution,
   bounds, backend, or stability evidence. Every matrix row and cell remains exactly
   unchanged; R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Corrected authorization `91d2686` is triple-approved and public all-eight green.
+  Triple-approved tests-only `296276f` publicly proves exactly 30 false acceptances
+  as the sole 22/23 binding failure in compiler `30916807388` / `30916811627` and
+  nightly Rust `30916810937`; CodeQL `30916806193` passes. Three public-red reviews
+  approved implementation authority.
+- Exact two-phase implementation `a1ffeaec`, tree `f0088e65`, canonical diff
+  `7a3fdb11`, adds only nonrecursive semantic and checked-admission rejection. It is
+  triple-approved and passes the exact full local gate, compiler `30917539648` /
+  `30917544307`, stable/nightly Rust `30917537292`, all three CodeQL analyses in
+  `30917534448`, and aggregate `92019545168`. No matrix row or cell moves: tuple,
+  reference, ownership, layout, ABI, lowering, execution, bounds, and backend cells
+  retain their prior classifications.
+- The prepared six-record closure's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No matrix cell moves.
