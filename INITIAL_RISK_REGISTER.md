@@ -375,3 +375,18 @@ admission candidate whose child-type verifier completeness is not yet frozen.
 split grammar and core-features tutorial plus replacement of one unqualified grammar
 authority sentence. Every production, example, compiler behavior, and capability
 classification remains unchanged. R-010 remains HIGH/HIGH and OPEN.
+
+Accepted `CORE-027` controls only that selected documentation-authority boundary.
+Triple-reviewed authorization `3574704` is all-eight green. Triple-reviewed
+tests-first `f57cf2e`, tree `8a99d994`, publicly reproduces exactly 7 passed/1
+failed with only the new authority contract red; stable is fail-fast cancelled,
+while CodeQL and aggregate pass. The first implementation snapshot `01615da` was
+rejected at P2 before publication for normalizing the grammar's final newline.
+Corrected triple-reviewed implementation `b3e7910`, tree `2728bbc6`, diff
+`90e1c4b6`, preserves the original EOF representation and passes focused 1/1,
+version-claim 8/8, the exact full gate, compiler `30865344667` / `30865346597`,
+stable/nightly Rust `30865346602`, CodeQL `30865345043`, and aggregate
+`91855955012`. Every production, example, compiler behavior, and capability
+classification remains unchanged. R-010 remains HIGH/HIGH and OPEN: actual grammar
+compatibility, executable examples, migration, and implementation convergence are
+not established by this containment.

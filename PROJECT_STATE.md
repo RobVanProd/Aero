@@ -4,17 +4,13 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 33 `CORE-027` authorization - public-green read-only `AUDIT-033` is
-complete at `544b1ba`. Its three independent full rankings and final targeted
-reconciliation unanimously select R-010 documentation-authority containment: the
-split grammar and core-features tutorial present v1 design-target material without a
-leading current-implementation boundary, and the grammar calls itself the definitive
-compiler guide. Immediate work is to gate the separate tests-first authorization; no
-test or documentation edit is yet authorized. R-010 remains OPEN and no capability
-is promoted.
-Both the initial and chronology-confirming exact authorization gates are green with
-139/139 library and 149/149 binary tests plus every active integration and doc test;
-the final six-record state requires exact review before publication.
+Milestone 33 `CORE-027` record closure. Triple-reviewed authorization `3574704` and
+tests-first commit `f57cf2e` are public, and exact corrected implementation
+`b3e7910` is all-eight public green. The grammar and core-features tutorial now
+visibly distinguish normative Aero v1.0.0 design from current compiler evidence
+without changing a production, example, compiler phase, or capability class.
+Immediate work is to gate the exact six-record closure. R-010 remains HIGH/HIGH and
+OPEN; this containment does not establish grammar conformance.
 
 ## Active hypothesis
 
@@ -56,6 +52,25 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-027` implementation
+  `b3e79103ec4238abb3c4e07beddc0ef9cf07f1b8`, tree `2728bbc6`, diff `90e1c4b6`,
+  passes focused 1/1, version-claim 8/8, exact `./tools/test.sh` at 139/139 library
+  and 149/149 binary tests plus every active integration and doc test, compiler
+  `30865344667` / `30865346597`, stable/nightly Rust `30865346602`, all three
+  analyses in CodeQL `30865345043`, and aggregate `91855955012`. The first
+  implementation snapshot `01615da` was rejected at P2 before publication for an
+  incidental final-newline change; corrected exact snapshot `7d3322a`, tree
+  `2728bbc6`, received three approvals and was published unchanged.
+- Triple-reviewed tests-first `f57cf2ee5656769c1ee62c16c426dd5818138bc8`, tree
+  `8a99d994`, diff `1018ee35`, publicly reproduces exactly 7 passed/1 failed in
+  compiler `30864786831` / `30864789388` and nightly Rust in run `30864789399`:
+  only `grammar_and_core_tutorial_are_visibly_design_targets` fails. Stable is
+  fail-fast cancelled; all three CodeQL analyses in `30864787921` and aggregate
+  `91854279316` pass.
+- Public `CORE-027` authorization `35747046f4018707bad716f1ca6266c3f2af2cfb`,
+  tree `a3aa2dc2`, diff `f07e82d5`, passes compiler `30864498927` /
+  `30864501308`, stable/nightly Rust `30864501289`, CodeQL `30864499437`, and
+  aggregate `91853381216` after three exact approvals.
 - Public `AUDIT-033` authorization
   `544b1ba3a5080a162425bd206330ed48c69ac16c`, tree `cdc3a085`, diff `8a242e5d`,
   passes compiler `30863291761` / `30863294642`, stable/nightly Rust `30863294655`,
@@ -722,11 +737,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three fresh exact approvals for the full-local-gate-green six-record
-`CORE-027` authorization, publish it unchanged, and require all eight public checks.
-Only then add the single tests-first documentation-contract target. Do not edit the
-two documents or test before those
-gates, alter productions/examples/compiler behavior/capability, change workflows or
-dependencies, publish artifacts, modify immutable claim evidence, or touch `master`.
+`CORE-027` closure, publish that exact tree unchanged, and require all eight public
+checks. Do not treat containment as R-010 closure, alter productions/examples/
+compiler behavior/capability, change workflows or dependencies, publish artifacts,
+modify immutable claim evidence, or touch `master`.
 
 ## Unauthorized actions
 

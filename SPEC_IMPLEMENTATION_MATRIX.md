@@ -308,6 +308,14 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   current compiler capability evidence. Every EBNF production, example, compiler
   behavior, and existing matrix cell remains unchanged. R-010 remains OPEN and no
   capability is promoted before separate accepted evidence.
+- Accepted `CORE-027` implementation `b3e7910`, tree `2728bbc6`, supplies only that
+  classification boundary. Tests-first `f57cf2e` publicly isolates the one expected
+  authority-contract failure; the corrected two-document implementation passes the
+  focused and full version-claim contracts, exact full local gate, both compiler
+  jobs, stable/nightly Rust, all three CodeQL analyses, and aggregate. Every EBNF
+  production and tutorial code example is unchanged, the grammar remains normative
+  intended v1 design, and no parser, semantic, IR, verifier, codegen, ABI, backend,
+  row, cell, or capability class changes. R-010 remains HIGH/HIGH and OPEN.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

@@ -1009,6 +1009,20 @@ upgrading any artifact.
   `CORE-027` authorizes tests-first evidence only for visible design-target notices
   and one grammar introduction authority sentence. No production, example, compiler
   behavior, matrix cell, or capability classification may change.
+- Triple-reviewed `CORE-027` authorization `3574704` is all-eight public green.
+  Triple-reviewed tests-first `f57cf2e`, tree `8a99d994`, then publicly reproduces
+  exactly 7 passed/1 failed in compiler `30864786831` / `30864789388` and nightly
+  Rust `30864789399`: only the new authority contract fails; stable is fail-fast
+  cancelled, while CodeQL `30864787921` and aggregate `91854279316` pass.
+- Corrected exact implementation `b3e7910`, tree `2728bbc6`, diff `90e1c4b6`,
+  passes focused 1/1, version-claim 8/8, the exact full gate, compiler
+  `30865344667` / `30865346597`, stable/nightly Rust `30865346602`, CodeQL
+  `30865345043`, and aggregate `91855955012`. The first snapshot was rejected
+  before publication for an extra final-newline mutation; the corrected snapshot
+  preserves the grammar's original EOF representation and received three approvals.
+  Both documents now carry the visible boundary and current-record pointers, while
+  every production, example, compiler behavior, and capability classification is
+  unchanged. R-010 remains HIGH/HIGH and OPEN.
 
 ## Audit completion
 

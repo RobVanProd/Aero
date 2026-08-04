@@ -4535,8 +4535,46 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   matrix/claim evidence/workflow/dependency/backend/benchmark/artifact/package/
   release/registry/master/history/destructive change; more than the one test and two
   named documents; or an unresolved authority/compatibility choice.
-- Status: preregistered and both initial and chronology-confirming full-local-gate
-  green with 139/139 library and 149/149 binary tests plus every active integration
-  and doc test. Test and document edits are prohibited until this exact six-record
-  contract passes three exact reviews, unchanged publication, and all eight public
-  checks.
+- Authorization acceptance: exact six-record snapshot
+  `0511d21426b9347aaca564f7eeb6053c8855854c`, tree
+  `a3aa2dc22d49d47e311741fee6816f845d1d5d95`, and diff
+  `f07e82d52e1e58ac423f73956ef062c7d30d4f09` received three approvals and was
+  published unchanged as `35747046f4018707bad716f1ca6266c3f2af2cfb`.
+  Compiler `30864498927` / `30864501308`, stable/nightly Rust `30864501289`,
+  CodeQL `30864499437`, and aggregate `91853381216` all pass.
+- Tests-first checkpoint: exact one-file snapshot
+  `446bf32bf0066d53079956aaad900027e7b2e688`, tree
+  `8a99d9940ce257c7ebe6cb81766bdebfa216bed3`, and diff
+  `1018ee3534df98744dea4a2ab1ce7cdf08102848` received three approvals and was
+  published unchanged as `f57cf2ee5656769c1ee62c16c426dd5818138bc8`. Compiler
+  runs `30864786831` / `30864789388` reproduce exactly 7 passed/1 failed: only
+  `grammar_and_core_tutorial_are_visibly_design_targets` fails, with all fourteen
+  required boundary observations aggregated. Nightly in Rust `30864789399` reaches
+  the same exact 7/1 failure; stable is fail-fast cancelled. All three CodeQL
+  analyses in `30864787921` and aggregate `91854279316` pass. This is intentional
+  red evidence, not accepted documentation behavior.
+- Implementation acceptance: first exact snapshot `01615da`, tree `bf8e2891`, was
+  rejected at P2 before publication because it added a final newline outside the
+  frozen byte-level scope. Corrected exact two-file snapshot
+  `7d3322aedbb78993cd8983ee2a820aa0bf160ca2`, tree
+  `2728bbc612ae661cb01d596eacbc422f10d3197d`, and diff
+  `90e1c4b655ee892bccc51982be1f437328e3138a` preserves the original EOF state,
+  received three approvals with no P0-P3 findings, and was published unchanged as
+  `b3e79103ec4238abb3c4e07beddc0ef9cf07f1b8`. The focused regression passes 1/1,
+  the complete version-claim file passes 8/8, and exact `./tools/test.sh` passes
+  locally with 139/139 library and 149/149 binary tests plus every active integration
+  and doc test. Public compiler `30865344667` / `30865346597`, stable/nightly Rust
+  `30865346602`, all three analyses in CodeQL `30865345043`, and aggregate
+  `91855955012` all pass.
+- Result: both documents now begin with the frozen visible design-target/current-
+  implementation boundary and point to the two current capability records. The
+  grammar introduction preserves normative Aero v1.0.0 design authority without
+  claiming current compiler conformance. Mechanical and exact-object review prove
+  all EBNF productions/fences and tutorial code examples/fences unchanged. No
+  compiler phase, accepted/rejected program, version, workflow, dependency, backend,
+  capability cell/class, benchmark, artifact, or immutable evidence changed.
+- Status: implementation accepted at public `b3e7910`; the chronology-confirming
+  exact full local closure gate passes with 139/139 library and 149/149 binary tests
+  plus every active integration and doc test. This six-record state requires three
+  exact reviews, unchanged publication, and public all-eight verification. R-010
+  remains HIGH/HIGH and OPEN; no capability class or matrix cell is promoted.

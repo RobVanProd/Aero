@@ -1485,7 +1485,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-032 - Grammar and core tutorial are design targets, not compiler evidence
 
 - Date: 2026-08-03
-- Status: frozen for tests-first evidence; not yet implemented or accepted.
+- Status: accepted at public implementation `b3e7910`; exact record closure pending.
 - Decision: `docs/language/aero_grammar.md` and `tutorials/02-core-features.md` must
   visibly classify their v1.0.0 material as intended normative design, not evidence of
   the currently implemented compiler subset, conformance, or stability. Both must
@@ -1501,5 +1501,19 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Excluded: grammar reconciliation; any production/example/language/version/compiler/
   workflow/dependency/capability/backend/claim-evidence change; and any claim that
   R-010 is closed or current compiler conformance is established.
+- Evidence: triple-reviewed authorization `3574704` is all-eight public green.
+  Triple-reviewed tests-first `f57cf2e`, tree `8a99d994`, reproduces exactly 7
+  passed/1 failed in compiler `30864786831` / `30864789388` and nightly Rust
+  `30864789399`, with only the selected authority contract red; stable is fail-fast
+  cancelled, while CodeQL `30864787921` and aggregate `91854279316` pass. Corrected
+  triple-reviewed implementation `b3e7910`, tree `2728bbc6`, diff `90e1c4b6`,
+  passes focused 1/1, version-claim 8/8, the exact full local gate, compiler
+  `30865344667` / `30865346597`, stable/nightly Rust `30865346602`, CodeQL
+  `30865345043`, and aggregate `91855955012`. Superseded snapshot `01615da` was
+  rejected before publication for an extra final-newline mutation.
+- Residual: this accepts only visible authority containment. R-010 remains HIGH/HIGH
+  and OPEN; grammar compatibility, current conformance, executable examples,
+  migration, parser/AST/semantic convergence, stability, and every capability claim
+  remain unproved or unchanged.
 - Revisit actual grammar compatibility only through a separately frozen authority,
   migration, parser/AST/semantic, executable-example, and compatibility contract.
