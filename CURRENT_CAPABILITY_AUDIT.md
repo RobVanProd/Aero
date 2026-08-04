@@ -1074,9 +1074,10 @@ promise future compatibility.
   `(ImmInt(0), Ty::Int)` in raw generation. The existing acceptance assertions are
   quarantine evidence; the invariant forbidding unsupported-type fallback freezes
   rejection without defining tuple defaults, layout, ABI, or execution.
-- DEC-033 and preregistered `CORE-028` permit only exact semantic and checked-
-  admission diagnostics for that outer valueless tuple form, with existing semantic
-  duplicate-name precedence first. Initialized tuple behavior, nested tuple shapes,
+- At selection time, DEC-033 and preregistered `CORE-028` permitted only exact
+  semantic and checked-admission diagnostics for that outer valueless tuple form,
+  with existing semantic duplicate-name precedence first. Initialized tuple
+  behavior, nested tuple shapes,
   every other valueless annotation, raw generation, verifier, codegen, ABI,
   ownership, and backends remain unchanged. No matrix row or capability is promoted;
   R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
@@ -1084,3 +1085,26 @@ promise future compatibility.
   admitted scalar signature requires parameters. It remains stopped for a later
   contract: it reaches raw IR but is already rejected by mandatory verification
   before LLVM, and supplied-argument variants have unresolved child-precedence risk.
+
+## CORE-028 accepted implementation
+
+- Corrected authorization snapshot `ba78f713`, tree `be2987d0`, diff `7a658443`,
+  received three approvals and was published unchanged as `4cc682f`; all eight
+  public checks pass. Superseded snapshot `696dcaad` was rejected at P2 before
+  publication for insufficient tuple-specific precedence and outer-shape controls.
+- Triple-reviewed tests-first `3fb5f7a`, tree `f12a6c6b`, publicly reproduces one
+  exact 16/1 aggregate failure across both compiler jobs and stable/nightly Rust:
+  ordinary semantics, checked admission, public compilation, generic-impl semantics,
+  and generic-impl admission all falsely accept the valueless outer tuple. Duplicate
+  precedence and scalar/array/reference/generic outer-shape controls remain green;
+  CodeQL and its aggregate pass.
+- Triple-reviewed implementation `e051452`, tree `63985b2d`, diff `79830403`, adds
+  only two exact guards in semantics and checked admission. Focused 1/1, binding
+  17/17, the full local gate, both compiler jobs, stable/nightly Rust, all three
+  CodeQL analyses, and aggregate pass.
+- Exact outer `Type::Tuple(_)` valueless bindings now fail before fake `Int`,
+  insertion, or generation. This is rejection evidence, not tuple implementation.
+  Initialized tuple behavior, nested tuple shapes, other valueless annotations, raw
+  generation, verifier, codegen, ABI, ownership, and CPU/ROCm/CUDA behavior remain
+  unchanged. No capability class or matrix cell changes; R-002 remains HIGH/CRITICAL
+  and PARTIALLY CONTROLLED.

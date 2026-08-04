@@ -1529,7 +1529,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-033 - Unsupported uninitialized outer tuple annotations must fail closed
 
 - Date: 2026-08-03
-- Status: accepted selection; `CORE-028` authorization pending review/public gates.
+- Status: accepted implementation at public all-eight-green `e051452`; final record
+  closure pending.
 - Decision: an exact valueless binding with outer annotation `Type::Tuple(_)` is not
   supported syntax-to-IR behavior. Semantics must reject it after existing same-scope
   duplicate detection and before the current default `Ty::Int` or binding insertion.
@@ -1561,7 +1562,20 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   defaults/layout/support; all other valueless annotations; parser/AST; generic type
   redesign; unchecked APIs; raw generation, verifier, codegen, ABI, ownership,
   backends, workflows, dependencies, claims, and capability promotion.
-- Consequence: `CORE-028` may preregister one tests-first file and then exactly two
-  compiler phase files. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED even if
-  this slice is accepted. Stop if a compatibility decision, tuple semantics, a third
-  phase, another annotation outcome, or valid generated output would change.
+- Consequence at selection time: `CORE-028` could preregister one tests-first file
+  and then exactly two compiler phase files. R-002 would remain HIGH/CRITICAL and
+  PARTIALLY CONTROLLED even if this slice were accepted. Stop if a compatibility
+  decision, tuple semantics, a third phase, another annotation outcome, or valid
+  generated output would change.
+- Evidence: corrected authorization `4cc682f` is triple-approved and all-eight green.
+  Triple-approved tests-first `3fb5f7a`, tree `f12a6c6b`, publicly isolates one
+  16/1 aggregate failure with exactly the five frozen false acceptances in compiler
+  `30871003009` / `30871004997` and stable/nightly Rust `30871005020`; CodeQL
+  `30871003987` and aggregate `91872902124` pass. Triple-approved implementation
+  `e051452`, tree `63985b2d`, diff `79830403`, passes focused 1/1, binding 17/17,
+  the exact full local gate, compiler `30871337443` / `30871335738`, Rust
+  `30871337440`, CodeQL `30871336117`, and aggregate `91873866339`.
+- Residual: this accepts fail-closed containment only. Tuple support, nested or other
+  unsupported annotation enforcement, unchecked APIs, valid-output certification,
+  and all broader R-002/R-005 surfaces remain unchanged. R-002 stays HIGH/CRITICAL
+  and PARTIALLY CONTROLLED; no matrix cell or capability changes.

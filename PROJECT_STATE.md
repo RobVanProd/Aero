@@ -4,22 +4,20 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 35 `CORE-028` authorization. Public-green read-only `AUDIT-034` completed
-three independent full residual rankings and unanimous targeted reconciliation. The
-selected R-002 slice is only a valueless binding whose outer annotation is a tuple:
-it currently succeeds by silently becoming `Int` and can reach raw generation as
-integer zero. Immediate work is to gate the exact records-only two-phase fail-closed
-contract. No test or compiler edit is authorized. R-002 remains HIGH/CRITICAL and
-PARTIALLY CONTROLLED; rejection will not establish tuple capability.
+Milestone 35 `CORE-028` record closure. The exact valueless outer-tuple annotation
+now fails closed in semantics and checked admission at public all-eight-green
+implementation `e051452`; it no longer silently becomes `Int` or reaches generation
+as integer zero on trusted paths. Immediate work is the exact six-record closure
+gate/review/publication. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED;
+rejection does not establish tuple capability.
 
 ## Active hypothesis
 
-The hard rule against silently converting an unsupported source type freezes a
-bounded rejection contract without inventing tuple semantics. Exact outer
-`Type::Tuple(_)` plus `value: None` must stop after existing duplicate-name semantics
-and before default `Ty::Int`, binding insertion, checked admission, or generation.
-Initialized tuples, nested tuple shapes, and all other valueless annotations retain
-their current outcomes.
+The accepted two-guard result exactly enforces the frozen rejection contract after
+existing duplicate-name semantics and before default `Ty::Int`, binding insertion,
+or generation. Closure records must preserve the distinction between this containment
+and tuple support, record the public red/green evidence, and hand the remaining risks
+to a separately authorized clean-head audit.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -53,6 +51,39 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-028` implementation
+  `e051452470cb0f17ee4d9940b989ee3bef10d333`, tree `63985b2d`, diff
+  `79830403`, passes focused 1/1, binding 17/17, the exact full local gate at
+  139/139 library and 149/149 binary tests plus every active integration/doc test,
+  compiler `30871337443` / `30871335738`, stable/nightly Rust `30871337440`, all
+  three CodeQL analyses in `30871336117`, and aggregate `91873866339` after three
+  exact approvals. Only semantics and checked admission changed; no capability is
+  promoted.
+- Triple-reviewed public tests-first
+  `3fb5f7a687bd22f3f7002e112da1fabb2ec2e791`, tree `f12a6c6b`, diff
+  `77320dc5`, reproduces exactly 16 passed/1 failed in both compiler runs
+  `30871003009` / `30871004997` and stable/nightly Rust `30871005020`, with the
+  one aggregate test reporting exactly five frozen false acceptances. CodeQL
+  `30871003987` and aggregate `91872902124` pass.
+- Public corrected `CORE-028` authorization
+  `4cc682fc7f2deb1e2b47fd3f5548990ac44794e8`, tree `be2987d0`, diff
+  `7a658443`, passes compiler `30867953738` / `30867951091`, stable/nightly Rust
+  `30867953730`, CodeQL `30867951533`, and aggregate `91863823065` after three
+  exact approvals. Superseded snapshot `696dcaad` was rejected at P2 before
+  publication; the corrected contract adds tuple-specific duplicate and valueless
+  nested-shape preservation controls.
+- First `CORE-028` closure snapshot `a20548ec`, tree `8250ce11`, diff `f0f181f9`,
+  was rejected at P2 before publication because historical authorization text in the
+  matrix and project state remained in contradictory present tense. Corrected
+  snapshot `5cc3ccb8`, tree `2f935a66`, diff `f11da400`, qualified those statements
+  but was also rejected at P2 before publication because the canonical R-002 row
+  still ended at CORE-025 and listed the now-closed exact valueless outer-tuple case
+  as residual. The current closure adds CORE-028 to that row and narrows the residual
+  without changing likelihood, impact, or PARTIALLY CONTROLLED status. Third
+  snapshot `782bc8fb`, tree `1914aaf7`, diff `e1962dbb`, contained that correction
+  but was rejected at P2 before publication because the ledger described its fresh
+  final-tree gate as both passed and pending. The current closure records one
+  unambiguous fresh exact-gate result.
 - Public `AUDIT-034` authorization
   `45783af9b54277b83dd58fc9d6162163c451bbb3`, tree `f1baa457`, diff
   `1e8563ae`, passes compiler `30866227485` / `30866229553`, stable/nightly Rust
@@ -64,7 +95,8 @@ capability claims are stop conditions rather than implementation invitations.
   `b5d8ea46`, was rejected at P2 before publication because the proposed tests did
   not exercise tuple-specific duplicate precedence or valueless tuple nesting under
   non-tuple array/reference/generic outer annotations. The corrected records require
-  those exact controls; no test or compiler edit is authorized.
+  those exact controls; at that rejected snapshot, no test or compiler edit was
+  authorized.
 - Accepted public `CORE-027` record closure
   `d649c2d8a9db1fdf51a5065e90ae79d5240412f4`, tree `b5ad7ee2`, diff `d4281863`,
   passes compiler `30865772404` / `30865775196`, stable/nightly Rust
@@ -756,11 +788,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three fresh exact approvals for the full-local-gate-green six-record
-`CORE-028` authorization, publish the approved snapshot unchanged, and require all
-eight public checks. Only then may the one tests-first binding-contract file be
-edited. Do not edit compiler code before reviewed/public red evidence; do not extend
-beyond the exact valueless outer tuple, invent tuple semantics, change workflows/
-dependencies/backends, publish artifacts or claims, or touch `master`.
+`CORE-028` closure, publish the approved snapshot unchanged, and require all eight
+public checks. Only after that clean closure may `AUDIT-035` receive a separate
+read-only authorization. Do not extend CORE-028, promote tuple capability, change
+workflows/dependencies/backends, publish artifacts or claims, or touch `master`.
 
 ## Unauthorized actions
 

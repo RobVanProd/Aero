@@ -8,7 +8,7 @@ open until a regression test and the applicable full gate prove closure.
 | ID | Risk | Likelihood | Impact | Evidence | Required control | Status |
 |---|---|---|---|---|---|---|
 | R-001 | Invalid characters/numbers/strings are silently changed into valid tokens | HIGH | CRITICAL | Trusted paths use strict lexing at `b988318`; legacy recovery remains public for compatibility and LSP symbol indexing only | Keep recovery output ineligible for semantics/artifacts; add fuzz/property coverage and eventual diagnostic-accumulating migration | CONTROLLED — trusted paths closed |
-| R-002 | Calls, annotations, and returns violate declared type contracts | HIGH | CRITICAL | Monomorphic numeric/void function calls and returns are controlled at `8d5d8e7`; initialized exact numeric annotations are controlled at `bc9a148`; accepted `CORE-015` at `5d7aae0` closes selected binding/array false successes; accepted `CORE-023` at `67ccdf2` closes exact Boolean contracts for monomorphic non-entry helpers; accepted `CORE-025` at `1ec8beb` rejects initialized exact outer tuple binding annotations in semantics and checked admission before generation | Preserve accepted exact controls and quarantine Boolean entry/ABI, lowercase string, custom/contextual/structural annotations, empty/nonnumeric arrays, uninitialized/nested tuple annotations, tuple type/value support, and remaining generic-scope behavior until separately specified | PARTIALLY CONTROLLED — selected active false successes closed; entry, excluded-type, tuple-support, and generic-scope gaps remain open |
+| R-002 | Calls, annotations, and returns violate declared type contracts | HIGH | CRITICAL | Monomorphic numeric/void function calls and returns are controlled at `8d5d8e7`; initialized exact numeric annotations are controlled at `bc9a148`; accepted `CORE-015` at `5d7aae0` closes selected binding/array false successes; accepted `CORE-023` at `67ccdf2` closes exact Boolean contracts for monomorphic non-entry helpers; accepted `CORE-025` at `1ec8beb` rejects initialized exact outer tuple binding annotations in semantics and checked admission before generation; accepted `CORE-028` at `e051452` rejects exact valueless outer tuple binding annotations at those same trusted boundaries | Preserve accepted exact controls and quarantine Boolean entry/ABI, lowercase string, custom/contextual/structural annotations, empty/nonnumeric arrays, other uninitialized annotations, tuple annotations nested beneath non-tuple outer shapes, tuple type/value support, and remaining generic-scope behavior until separately specified | PARTIALLY CONTROLLED — selected active false successes closed; entry, excluded-type, tuple-support, and generic-scope gaps remain open |
 | R-003 | Unsupported expressions are accepted with invented integer/zero semantics | HIGH | CRITICAL | `%`, tuple values, named fields, Match, and StructLiteral fail closed at their reviewed boundaries; accepted `CORE-010` at `db349ef` adds generic checked-IR rejection for every unadmitted trusted-path fallback, including ordinary MethodCall, enum construction, and Deref/Borrow | Retain checked admission on every trusted caller; keep non-deprecated raw `generate_ir` and deprecated `generate_code` ineligible as trusted public boundaries, while permitting only checked-wrapper reuse followed by verification; define aggregate/ownership/method semantics before implementation | CONTROLLED — trusted checked compiler paths no longer fabricate scalar values; direct public unchecked compatibility use remains uncertified |
 | R-004 | Ownership claims exceed enforcement and permit dangling/aliased/moved values | HIGH | CRITICAL | Shallow move tracking, no lifetime provenance, mutable references considered `Copy` | Freeze ownership model; CFG/provenance checking; permanent compile-fail suite | OPEN |
 | R-005 | Invalid programs pass semantics then panic, miscompile, or produce invalid LLVM | HIGH | CRITICAL | Accepted `CORE-010` at `db349ef` provides checked logical IR admission, mandatory in-process verification, exhaustive checked codegen errors, and qualified final LLVM 22 verification across trusted callers; focused contracts, full gate, and public CI pass | Preserve mandatory checked APIs/verifiers, deprecate/restrict then retire public unchecked compatibility APIs at a major boundary, and extend typed negative evidence as language forms become admitted | PARTIALLY CONTROLLED — trusted checked scalar IR and externally verified publication routes are controlled; CLI `InternalOnly` and library-returned LLVM without external verification, broader language semantics, and public unchecked APIs remain uncertified |
@@ -405,9 +405,36 @@ compiler `30866227485` / `30866229553`, stable/nightly Rust `30866229554`, CodeQ
 independent rankings and unanimous targeted reconciliation select a distinct R-002
 public false success above the R-005 verifier-contained runner-up: exact outer tuple
 annotations on valueless bindings silently become `Int`, pass checked admission, and
-can become integer zero in raw generation. DEC-033 and preregistered `CORE-028`
-authorize records only until their own gates pass; the later bounded contract may
-reject that exact AST in semantics and checked admission. Initialized tuple controls,
+can become integer zero in raw generation. At selection time, DEC-033 and
+preregistered `CORE-028` authorized records only until their own gates passed; the
+later bounded contract selected rejection of that exact AST in semantics and checked
+admission. Initialized tuple controls,
 nested tuple shapes, other valueless annotations, tuple support, valid output, and
 every backend/capability claim remain unchanged. R-002 remains HIGH/CRITICAL and
 PARTIALLY CONTROLLED.
+
+Accepted public `CORE-028` implementation `e051452`, tree `63985b2d`, diff
+`79830403`, closes only the selected valueless exact outer-tuple fallback after
+triple-reviewed public 16/1 red evidence. Semantics now rejects after same-scope
+duplicate detection and before fake `Int`/insertion; checked admission independently
+rejects before generation. Focused 1/1, binding 17/17, the exact full local gate,
+compiler `30871337443` / `30871335738`, stable/nightly Rust `30871337440`, CodeQL
+`30871336117`, and aggregate `91873866339` pass. Initialized and nested tuples,
+other unsupported/valueless annotations, unchecked APIs, tuple support, valid-output
+claims, and every backend/capability surface remain unchanged. R-002 stays
+HIGH/CRITICAL and PARTIALLY CONTROLLED; record closure and a later separate
+`AUDIT-035` authorization are still required.
+
+The first `CORE-028` closure snapshot `a20548ec`, tree `8250ce11`, diff
+`f0f181f9`, was rejected at P2 before publication for contradictory present-tense
+authorization wording. Corrected snapshot `5cc3ccb8`, tree `2f935a66`, diff
+`f11da400`, fixed that language but was also rejected at P2 before publication:
+the canonical R-002 summary row still ended at CORE-025 and treated the now-closed
+exact valueless outer-tuple case as residual. The current closure records CORE-028 in
+that row and narrows the unresolved surface to other uninitialized annotations and
+tuple annotations nested beneath non-tuple outer shapes. Likelihood, impact, and
+PARTIALLY CONTROLLED status remain unchanged. A third snapshot `782bc8fb`, tree
+`1914aaf7`, diff `e1962dbb`, contained the corrected row but was rejected at P2
+before publication because the ledger described its fresh final-tree gate as both
+passed and pending. The current closure records one unambiguous fresh exact-gate
+result; this chronology correction changes no risk or capability classification.

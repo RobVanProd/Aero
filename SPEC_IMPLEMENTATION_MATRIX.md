@@ -390,13 +390,20 @@ declared compatibility policy and release-level coverage.
   aggregate check. Three complete independent rankings and unanimous targeted
   reconciliation select one exact R-002 fail-open declaration form.
 - A binding with `value: None` and outer annotation `Type::Tuple(_)` is not an
-  implemented tuple feature. Current semantics silently selects `Ty::Int`, checked
-  admission skips the statement, and raw generation can create integer zero.
-  Preregistered `CORE-028` therefore selects rejection in semantics and checked
-  admission only, before insertion or generation, with existing duplicate-name
-  semantics first.
+  implemented tuple feature. At the pre-CORE-028 audit basis, semantics silently
+  selected `Ty::Int`, checked admission skipped the statement, and raw generation
+  could create integer zero. `CORE-028` therefore selected rejection in semantics
+  and checked admission only, before insertion or generation, with existing
+  duplicate-name semantics first.
 - This containment cannot change a matrix cell: it adds no tuple value, layout,
   assignment, ownership, ABI, lowering, execution, or backend evidence. Initialized
   CORE-025 behavior, nested tuple shapes, other valueless annotations, valid IR/LLVM,
   and every current capability class remain unchanged. R-002 remains HIGH/CRITICAL
   and PARTIALLY CONTROLLED.
+- Accepted public `CORE-028` implementation `e051452`, tree `63985b2d`, supplies
+  only that rejection boundary after triple-reviewed public red evidence. Focused
+  1/1, binding 17/17, the exact full local gate, both compiler jobs, stable/nightly
+  Rust, all three CodeQL analyses, and aggregate pass. Exact outer tuple annotations
+  on valueless bindings no longer fall back to `Int` at the two trusted boundaries.
+  No tuple value/layout/lowering/execution evidence was added, so every matrix row,
+  cell, and capability class remains unchanged.

@@ -4765,11 +4765,68 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   class changes outcome; valid IR/LLVM changes; red baseline beyond the preregistered
   tests-first failure; workflow/dependency/backend/artifact/external-query/benchmark/
   package/release/registry/immutable-evidence/history/master/destructive-system action.
-- Status: preregistered records only; the exact repository-root full local gate is
-  green with 139/139 library and 149/149 binary tests plus every active integration
-  and doc test. Superseded snapshot `696dcaad`, tree `fa86e465`, diff `b5d8ea46`,
-  was rejected before publication by two reviewers at P2 because its named tests did
-  not prove tuple-specific duplicate precedence or outer-only valueless containment.
-  The corrected contract adds those exact controls. No test or compiler edit is
-  authorized until a corrected exact snapshot receives three fresh reviews,
-  unchanged publication, and all-eight public verification.
+- Authorization evidence: the exact repository-root local gate passed twice with
+  139/139 library and 149/149 binary tests plus every active integration/doc test.
+  Superseded snapshot `696dcaad`, tree `fa86e465`, diff `b5d8ea46`, was rejected
+  before publication by two reviewers at P2 because its named tests did not prove
+  tuple-specific duplicate precedence or outer-only valueless containment. Corrected
+  snapshot `ba78f7135dc32bf445403701c3501f4b6d89c3ae`, tree
+  `be2987d099ba9cacbfaa93b4d8ea6de0ad3ce13e`, diff
+  `7a658443d1bdc84dc6f135030f76a51f930925e3`, added those exact controls, received
+  three fresh approvals, and was published unchanged as
+  `4cc682fc7f2deb1e2b47fd3f5548990ac44794e8`. Compiler `30867953738` /
+  `30867951091`, stable/nightly Rust `30867953730`, all three CodeQL analyses in
+  `30867951533`, and aggregate `91863823065` all pass.
+- Tests-first evidence: exact one-file snapshot
+  `c15d4c48e1d6efce1ae4123faccb813bd8a2498e`, tree
+  `f12a6c6b7d531780e326caf901eb904c890e4422`, diff
+  `77320dc54bf69287aacc5215a8f6be83f8841801`, received three approvals and was
+  published unchanged as `3fb5f7a687bd22f3f7002e112da1fabb2ec2e791`. Locally, the
+  focused target is 0/1 and the complete binding suite is exactly 16/1; the one red
+  aggregate reports only the five frozen ordinary/public/generic false acceptances,
+  while duplicate and outer-shape controls remain green. The exact full gate passes
+  139/139 library and 149/149 binary tests before the same intentional integration
+  failure. Public compiler `30871003009` / `30871004997` and both stable/nightly
+  jobs in `30871005020` reproduce exactly 16/1 with the same five messages. All
+  three CodeQL analyses in `30871003987` and aggregate `91872902124` pass.
+- Implementation evidence: exact two-file snapshot
+  `489ea4be08807c9799f30030a6abbe1d45557c36`, tree
+  `63985b2d232d97510df4df2fed78069b8057fce2`, diff
+  `79830403c49d22b16d65f10b9315d04b0f4fd883`, adds only the two frozen guards
+  and received three approvals. It was published unchanged as
+  `e051452470cb0f17ee4d9940b989ee3bef10d333`. Focused 1/1, binding 17/17, and
+  exact full local gate 139/139 library plus 149/149 binary and every integration/
+  doc test pass. Compiler `30871337443` / `30871335738`, stable/nightly Rust
+  `30871337440`, all three CodeQL analyses in `30871336117`, and aggregate
+  `91873866339` all pass.
+- Result: the exact outer valueless tuple annotation now fails before fake `Int`,
+  binding insertion, or generation at both trusted boundaries. Duplicate-name
+  semantics remains first; initialized tuples, non-tuple outer shapes including the
+  three tuple-nesting quarantines, every other valueless annotation, raw generation,
+  verifier, valid IR/LLVM, ABI, ownership, and backends are unchanged.
+- Status: implementation accepted and public all-eight green. Superseded closure snapshot
+  `a20548ecd8b637b55c70a64acc6ddcf0a9eb9459`, tree
+  `8250ce11aad7be16432d7a47c05434db6551f70a`, diff
+  `f0f181f91c5088fc6f8d19d2971a6fd7592b911a`, was rejected at P2 before
+  publication because historical authorization text remained in contradictory
+  present tense. Corrected snapshot
+  `5cc3ccb8b9bcc1cbcb122080729ca649016efd20`, tree
+  `2f935a6648ac5195fef82903269cae3437507acf`, diff
+  `f11da4001fc2d99d4a108cf9806ed8ba46eb8282`, fixed that wording but was also
+  rejected at P2 before publication because the canonical R-002 row still ended at
+  CORE-025 and listed the now-closed exact valueless outer-tuple case as residual.
+  Third snapshot `782bc8fba5ae2780919ed7abc23d834f850150f4`, tree
+  `1914aaf7bbea7f0d3ad30b9a9d19acd18adad862`, diff
+  `e1962dbb16f81b4c501a9f0dda5ba5cf35c14e57`, contained the corrected row but was
+  rejected at P2 before publication because the record described its fresh
+  final-tree gate as both passed and pending. The current closure retains that row,
+  narrows the unresolved surface to other uninitialized annotations and tuple
+  annotations nested beneath non-tuple outer shapes, and passes one unambiguous
+  fresh exact full local gate with 139/139 library and 149/149 binary tests plus
+  every active integration/doc test. It is pending three fresh reviews, unchanged
+  publication, and all-eight verification. R-002 remains HIGH/CRITICAL and
+  PARTIALLY CONTROLLED. No tuple capability or matrix cell is promoted.
+- Audit handoff: only after accepted record closure may a separately authorized
+  read-only `AUDIT-035` re-rank the complete remaining OPEN/PARTIALLY CONTROLLED set,
+  excluding every accepted slice including CORE-028. It carries no implementation or
+  capability authority.
