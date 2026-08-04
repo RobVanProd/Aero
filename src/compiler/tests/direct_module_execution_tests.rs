@@ -110,6 +110,60 @@ fn expect_failure(
     }
 }
 
+fn expect_failure_without(
+    failures: &mut Vec<String>,
+    label: &str,
+    workspace: &TestWorkspace,
+    args: &[&Path],
+    required: &[&str],
+    forbidden: &[&str],
+    forbidden_artifact: Option<&Path>,
+) {
+    let output = run_aero(workspace, args);
+    let text = diagnostics(&output);
+    if output.status.success() {
+        failures.push(format!("{label}: unexpectedly succeeded:\n{text}"));
+    }
+    for marker in required {
+        if !text.contains(marker) {
+            failures.push(format!(
+                "{label}: diagnostic omitted required marker {marker:?}:\n{text}"
+            ));
+        }
+    }
+    for marker in forbidden {
+        if text.contains(marker) {
+            failures.push(format!(
+                "{label}: diagnostic included forbidden later marker {marker:?}:\n{text}"
+            ));
+        }
+    }
+    if forbidden_artifact.is_some_and(Path::exists) {
+        failures.push(format!(
+            "{label}: failure published requested artifact {}",
+            forbidden_artifact.expect("checked above").display()
+        ));
+    }
+}
+
+fn expect_definition_order(failures: &mut Vec<String>, label: &str, llvm: &str, expected: &[&str]) {
+    let actual = llvm
+        .lines()
+        .filter_map(|line| {
+            line.strip_prefix("define ")?
+                .split_once('@')?
+                .1
+                .split_once('(')
+                .map(|(name, _)| name)
+        })
+        .collect::<Vec<_>>();
+    if actual != expected {
+        failures.push(format!(
+            "{label}: emitted definition order {actual:?} did not equal exact-name order {expected:?}"
+        ));
+    }
+}
+
 fn build_twice(
     failures: &mut Vec<String>,
     label: &str,
@@ -288,6 +342,27 @@ fn flattened_direct_module_composition_is_complete_and_ci_executable() {
         )),
     }
 
+    {
+        let workspace = TestWorkspace::new("zero-module-definition-order");
+        let root = workspace.write(
+            "main.aero",
+            "fn zebra() -> int { return 2; } fn main() -> int { return alpha() + zebra(); } fn alpha() -> int { return 1; }",
+        );
+        if let Some(llvm) = build_twice(
+            &mut failures,
+            "zero-module checked definition order",
+            &workspace,
+            &root,
+        ) {
+            expect_definition_order(
+                &mut failures,
+                "zero-module checked definition order",
+                &llvm,
+                &["alpha", "main", "zebra"],
+            );
+        }
+    }
+
     for (label, module_path) in [
         ("single file layout", "helper.aero"),
         ("single directory layout", "helper/mod.aero"),
@@ -347,6 +422,19 @@ fn flattened_direct_module_composition_is_complete_and_ci_executable() {
         if let Some(llvm) = build_twice(&mut failures, "mixed-layout call graph", &workspace, &root)
         {
             inspect_mixed_llvm(&mut failures, "mixed-layout call graph", &llvm);
+            expect_definition_order(
+                &mut failures,
+                "mixed-layout call graph",
+                &llvm,
+                &[
+                    "consume",
+                    "float_gate",
+                    "main",
+                    "module_score",
+                    "root_bias",
+                    "string_capabilities",
+                ],
+            );
         }
     }
 
@@ -378,6 +466,26 @@ fn flattened_direct_module_composition_is_complete_and_ci_executable() {
             &workspace,
             &[Path::new("build"), &root, Path::new("-o"), &artifact],
             &["Lex error", "Unexpected character '@'"],
+            Some(&artifact),
+        );
+    }
+
+    {
+        let workspace = TestWorkspace::new("unreadable-file-candidate");
+        let root = workspace.write("main.aero", "mod helper; fn main() -> int { return 1; }");
+        fs::create_dir_all(workspace.path("helper.aero"))
+            .expect("create unreadable direct-module file candidate");
+        let artifact = workspace.path("unreadable.ll");
+        expect_failure(
+            &mut failures,
+            "unreadable direct-module candidate",
+            &workspace,
+            &[Path::new("build"), &root, Path::new("-o"), &artifact],
+            &[
+                "Module resolution failed for `helper`",
+                "Could not read module file",
+                "helper.aero",
+            ],
             Some(&artifact),
         );
     }
@@ -438,6 +546,12 @@ fn flattened_direct_module_composition_is_complete_and_ci_executable() {
             "fn helper(value: int) -> int { return value; }",
             vec!["helper", "int", "float"],
         ),
+        (
+            "cross-file wrong return",
+            "mod helper; fn main() -> int { return helper(); }",
+            "fn helper() -> int { return 1 < 2; }",
+            vec!["helper", "expected int", "actual bool"],
+        ),
     ] {
         let workspace = TestWorkspace::new(label);
         let root = workspace.write("main.aero", root_source);
@@ -449,6 +563,58 @@ fn flattened_direct_module_composition_is_complete_and_ci_executable() {
             &workspace,
             &[Path::new("build"), &root, Path::new("-o"), &artifact],
             &required,
+            Some(&artifact),
+        );
+    }
+
+    {
+        let workspace = TestWorkspace::new("cross-file-child-precedence");
+        let root = workspace.write(
+            "main.aero",
+            "mod helper; fn main() -> int { return helper(missing_value, 2); }",
+        );
+        workspace.write(
+            "helper.aero",
+            "fn helper(value: int) -> int { return value; }",
+        );
+        let artifact = workspace.path("child-precedence.ll");
+        expect_failure_without(
+            &mut failures,
+            "cross-file child diagnostic precedes call arity",
+            &workspace,
+            &[Path::new("build"), &root, Path::new("-o"), &artifact],
+            &["missing_value"],
+            &["expected 1", "actual 2"],
+            Some(&artifact),
+        );
+    }
+
+    for (label, declarations, required, forbidden) in [
+        (
+            "alpha-first direct-module diagnostic order",
+            "mod alpha; mod beta; fn main() -> int { return 1; }",
+            "Unexpected character '@'",
+            "Unexpected character '$'",
+        ),
+        (
+            "beta-first direct-module diagnostic order",
+            "mod beta; mod alpha; fn main() -> int { return 1; }",
+            "Unexpected character '$'",
+            "Unexpected character '@'",
+        ),
+    ] {
+        let workspace = TestWorkspace::new(label);
+        let root = workspace.write("main.aero", declarations);
+        workspace.write("alpha.aero", "fn alpha() { @ }");
+        workspace.write("beta.aero", "fn beta() { $ }");
+        let artifact = workspace.path("ordered-module-diagnostic.ll");
+        expect_failure_without(
+            &mut failures,
+            label,
+            &workspace,
+            &[Path::new("build"), &root, Path::new("-o"), &artifact],
+            &[required],
+            &[forbidden],
             Some(&artifact),
         );
     }

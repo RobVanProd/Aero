@@ -933,3 +933,12 @@ declared compatibility policy and release-level coverage.
   pinned LLVM/Clang 22 exit-47 workflow are present. Modules/imports/visibility remains
   `PARSED_ONLY` and the resolver remains `EXPERIMENTAL` until exact review, unchanged
   publication, all-eight public checks, and stable Linux native evidence complete.
+- Exact unpublished candidate `91f96b5` is rejected: its production boundary remains
+  substantively bounded, but exact-name order was not asserted, unreadable/wrong-return/
+  child-precedence cells were absent, and sorted LLVM did not observe ordered multi-
+  module collection. Its evidence also used a noncanonical hash and stale chronology.
+  The additive tests/records correction now passes: exact-name order, unreadable and
+  wrong-return rejection, child-before-arity precedence, and both direct-module
+  declaration-order permutations are explicit. Production and native workflow remain
+  unchanged; no capability cell moves. Exact successor review and public evidence are
+  still required.

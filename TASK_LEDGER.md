@@ -8067,3 +8067,58 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   state changed. Exact candidate identity, three reviews, unchanged push, all-eight
   checks, stable Linux LLVM/Clang 22 native exit 47, and PR synchronization remain
   pending.
+- Rejected unpublished candidate: exact `91f96b5c6b439576ddf62b23c2ec1990bb046613`,
+  parent `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`, tree
+  `3367d77af694d9b58d01ce27f7d7b5d31b29b4d2`, and canonical Git-Bash full-index
+  patch hash `9c4a8bde88e8f70a2d20b92113e5f5b6624a08ec` is preserved and must not be
+  published. All three fresh exact reviewers rejected it. The initially supplied
+  `a4eb47e711e7be6386d39380423f9936ad8a7f98` came from a noncanonical PowerShell
+  non-full-index stream and is invalid evidence. Two records still described candidate
+  formation/identity as future work. The repeatability regression did not assert the
+  frozen exact-name definition order. The purported complete rejection product omitted
+  an unreadable direct candidate, a cross-file wrong return, and child-before-call
+  diagnostic precedence. Finally, sorted LLVM made the mixed program insensitive to
+  accidental reversal of the ordered direct-module set, while existing cache tests
+  covered only one module.
+- Frozen additive correction: do not change production, examples, workflow, accepted
+  semantics, or exclusions. Strengthen only the existing aggregate to (1) assert exact
+  lexicographically sorted emitted symbols for a zero-module checked/public control and
+  the six-function mixed unit; (2) make an existing file candidate unreadable in a
+  cross-platform way by placing a directory at `helper.aero` and require the shared
+  read failure before output; (3) reject a module function whose declared `Int` return
+  produces `Bool`; (4) prove an invalid argument child diagnostic wins before a
+  competing wrong-arity call diagnostic; and (5) reverse two malformed module
+  declarations and require the first reported located diagnostic to follow root
+  declaration order. The fifth case directly observes ordered multi-module collection
+  independent of sorted LLVM and complements the unchanged seven module-aware cache
+  tests for exact source/candidate identity. First run the new assertions against the
+  rejected candidate where practical; no production permission is created if an
+  assertion exposes a defect. Update present-tense records, use only Git Bash
+  `git diff --binary --full-index <base> <candidate> | git hash-object --stdin`, rerun
+  focused/adjacent/root gates, and form an additive successor whose identity is
+  reported externally because a commit cannot identify itself.
+- Additive test-first evidence: with production unchanged from rejected `91f96b5`, the
+  strengthened aggregate fails 0/1 with exactly two textual findings in the new wrong-
+  return cell. The test wrote `return true`, but this compiler treats `true` as an
+  undeclared identifier rather than an accepted Boolean literal, so the diagnostic
+  correctly precedes return checking. Every exact-name-order, unreadable-candidate,
+  child-before-arity, and both declaration-order assertions passed. Correct only the
+  wrong-return fixture to the already-supported logical `1 < 2`; do not change
+  production or relax any expected diagnostic.
+- Corrected green evidence: after that fixture-only correction, the expanded aggregate
+  passes 1/1. It now asserts exact-name definition order for a zero-module checked
+  program and the mixed six-function unit; rejects the cross-platform unreadable file
+  candidate, cross-file wrong return, and competing child/arity case before artifact
+  publication; and proves both permutations of first-failing direct-module declaration
+  order. Production, example sources, and native workflow are byte-for-byte unchanged
+  from rejected `91f96b5`. Code-generator units pass 23/23, module-aware cache 7/7,
+  module pipeline 7/7, function contracts 14/14, and verifier CLI 12/12. Exact root
+  `./tools/test.sh` is formatting and correctness-Clippy clean and passes 146/146
+  library tests, 156/156 CLI tests, every integration target, and doc tests.
+- Successor handoff: the additive successor containing only the strengthened aggregate
+  and present-tense rejection/state/matrix records is identified externally because a
+  commit cannot identify itself. Preserve that exact successor unchanged during three
+  fresh reviews. Compute its review identity only in Git Bash with the frozen binary
+  full-index recipe. Push only if all three reviewers approve the same commit/tree/hash;
+  then require all eight public checks and stable Linux LLVM/Clang 22 exact native exit
+  47 before acceptance and PR #4 synchronization.
