@@ -998,9 +998,19 @@ Exact `1dcfd869`, tree `b537023c`, correction diff `e5ee8aa7`, cumulative diff
 `5208cb6e`, received three fresh approvals and is public all-eight green in compiler
 CI `30934518525` / `30934523152`, Rust `30934523078`, CodeQL `30934519513`, and
 aggregate `92077350363`. Authorization acceptance changes no risk status; only the
-separate green characterization boundary is now eligible.
+separate green characterization boundary becomes eligible after the six-record
+acceptance sync below is accepted public all-eight green.
 
 The six-record acceptance sync's fresh and verification exact full gates each exit 0
 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
 downstream suites. Exact review and public sync acceptance remain pending; no risk
 status changes.
+
+First acceptance-sync snapshot `4c18450a`, tree `ea7b91c9`, diff `7be565db`, was not
+published after type/safety found one P1: three records prematurely said
+characterization was already eligible while the sync remained pending. The additive
+six-record correction restores the exact gate and changes no risk status.
+
+Its fresh and verification exact full gates each exit 0 with 139/139 library, 149/149
+binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. Fresh review
+and public acceptance remain pending; no risk status changes.

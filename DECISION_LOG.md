@@ -2405,3 +2405,13 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `./tools/test.sh` each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
   25/25 binding tests, plus all downstream suites. Exact review and public acceptance
   of the committed sync remain pending.
+- Acceptance-sync review correction: first snapshot `4c18450a`, parent `1dcfd869`,
+  tree `ea7b91c9`, canonical binary diff `7be565db`, received backend/claim and IR/
+  codegen approvals but a type/safety P1 rejection because three records prematurely
+  declared characterization eligible before sync acceptance. It was not published.
+  The additive six-record correction restores the gate without changing DEC-050,
+  behavior, capability, or claim state.
+- Eligibility-correction gates: fresh and verification exact repository-root
+  `./tools/test.sh` each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  25/25 binding tests, plus all downstream suites. Fresh review and public acceptance
+  remain pending.

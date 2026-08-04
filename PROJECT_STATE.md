@@ -1541,15 +1541,22 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   CI `30934523152`, Rust `30934523078`, CodeQL `30934519513`, and aggregate
   `92077350363` pass all eight checks on the exact PR/remote head. No source/test edit
   or classification/capability movement occurred.
+- Acceptance-sync review history: first snapshot `4c18450a`, parent `1dcfd869`, tree
+  `ea7b91c9`, canonical binary diff `7be565db`, received backend/claim and IR/codegen
+  approvals but type/safety rejected P1 because three records declared
+  characterization already eligible while the sync remained pending. It was not
+  published and no test/source edit began. This additive six-record correction changes
+  only those eligibility statements and review chronology.
 
 ## Exact next action
 
-This six-record ARCH-001 authorization-acceptance sync's fresh and verification exact
-repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
-claim, and 25/25 binding tests, plus all downstream suites. Review target: the exact
-committed six-record sync HEAD. Obtain three exact reviews, publish unchanged, and
-require all-eight public acceptance before changing the characterization test. Do not
-edit classifier source, combine the classifier with R-002 behavior, resolve
+The additive six-record acceptance-sync eligibility correction's fresh and
+verification exact repository-root full gates each exit 0 with 139/139 library,
+149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
+Review target: the exact committed correction HEAD. Obtain three fresh exact reviews,
+publish unchanged, and require public all-eight acceptance before changing the
+characterization test. Do not edit classifier source, combine the classifier with
+R-002 behavior, resolve
 bounds policy implicitly, promote a capability, change
 workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
 push, or touch `master`.

@@ -6893,10 +6893,23 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   records. Three fresh exact reviews approved it and it was published unchanged. Push
   CI `30934518525`, PR CI `30934523152`, stable/nightly Rust `30934523078`, all three
   CodeQL analyses in `30934519513`, and aggregate `92077350363` pass. ARCH-001
-  characterization is now eligible only after this six-record acceptance sync closes;
+  characterization becomes eligible only after this six-record acceptance sync closes;
   implementation and R-002 behavior remain unauthorized.
 - Authorization-acceptance sync gates: the fresh and verification exact repository-
   root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
   25/25 binding tests, plus all downstream suites. Exact review of the committed sync,
   unchanged publication, and public all-eight acceptance remain pending before
   characterization.
+- Acceptance-sync review history: first snapshot
+  `4c18450ad5df0e2509dc3d94e4193b7d011e9702`, parent `1dcfd869`, tree
+  `ea7b91c9331ed633773588a3724201812f16656a`, canonical binary diff
+  `7be565db9bcb6cb5f1adb74d67445925933fb1f3`, changed exactly six records.
+  Backend/claim and IR/codegen approved; type/safety rejected P1 because capability,
+  matrix, and risk records prematurely declared characterization eligible before the
+  sync closed. It was not published and no test/source edit began. The additive six-
+  record correction changes only those three statements and review chronology; every
+  ARCH-001 semantic, file, test, implementation, capability, and claim gate remains.
+- Eligibility-correction gates: the fresh and verification exact repository-root full
+  gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding
+  tests, plus all downstream suites. Fresh exact review, unchanged publication, and
+  public all-eight acceptance remain pending.
