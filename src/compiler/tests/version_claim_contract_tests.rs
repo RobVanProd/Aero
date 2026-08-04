@@ -191,6 +191,57 @@ fn normative_safety_documents_are_visibly_design_targets() {
 }
 
 #[test]
+fn grammar_and_core_tutorial_are_visibly_design_targets() {
+    let mut missing = Vec::new();
+    for path in [
+        "docs/language/aero_grammar.md",
+        "tutorials/02-core-features.md",
+    ] {
+        let document = repository_file(path);
+        let introduction = document.lines().take(12).collect::<Vec<_>>().join("\n");
+        for (requirement, expected) in [
+            (
+                "leading design-target marker",
+                "**Design target — not current implementation evidence.**",
+            ),
+            ("v1 design authority", "Aero v1.0.0 design target"),
+            (
+                "current compiler boundary",
+                "not the currently implemented compiler subset",
+            ),
+            (
+                "conformance and stability boundary",
+                "not conformance or stability evidence",
+            ),
+            ("current capability audit", "CURRENT_CAPABILITY_AUDIT.md"),
+            ("implementation matrix", "SPEC_IMPLEMENTATION_MATRIX.md"),
+        ] {
+            if !introduction.contains(expected) {
+                missing.push(format!("{path}: missing {requirement}"));
+            }
+        }
+    }
+
+    let grammar = repository_file("docs/language/aero_grammar.md");
+    let unqualified_authority =
+        "definitive guide for implementing the lexer and parser components of the Aero compiler";
+    if grammar.contains(unqualified_authority) {
+        missing
+            .push("docs/language/aero_grammar.md: unqualified compiler authority remains".into());
+    }
+    let normative_boundary = "Every EBNF production below is part of the normative Aero v1.0.0 design target, not a statement of current compiler conformance.";
+    if !grammar.contains(normative_boundary) {
+        missing.push("docs/language/aero_grammar.md: missing normative v1 boundary".into());
+    }
+
+    assert!(
+        missing.is_empty(),
+        "missing grammar/tutorial authority boundaries:\n{}",
+        missing.join("\n")
+    );
+}
+
+#[test]
 fn historical_completion_records_are_visibly_archived() {
     for path in [
         "todo.md",
