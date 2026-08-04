@@ -444,6 +444,21 @@ impl IrGenerator {
                             name
                         )));
                     }
+                    if matches!(
+                        type_annotation.as_ref(),
+                        Some(Type::Reference(inner, _))
+                            if matches!(
+                                inner.as_ref(),
+                                Type::Array(element, count)
+                                    if *count > 0
+                                        && matches!(element.as_ref(), Type::Tuple(_))
+                            )
+                    ) {
+                        return Err(IrGenerationError::Admission(format!(
+                            "checked IR binding `{}` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an initialized binding",
+                            name
+                        )));
+                    }
                     if !inside_generic_impl
                         && let Some(expected) = type_annotation
                             .as_ref()
