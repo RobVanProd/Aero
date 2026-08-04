@@ -598,4 +598,24 @@ declared compatibility policy and release-level coverage.
   parent `fe90f583` publicly reachable as an ancestor, invalidating the stronger
   never-published wording. Final additive correction changes no matrix cell; exact
   gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding
-  tests. Exact review and public gates remain.
+  tests. Exact correction `1ee9c71`, tree `d0819881`, canonical diff `7303da47`,
+  received three approvals, was published unchanged, and passes compiler
+  `30893527220` / `30893529999`, stable/nightly Rust `30893529992`, all three
+  CodeQL analyses in `30893527445`, and aggregate `91941079083`. No matrix cell
+  moves.
+- Preregistered read-only AUDIT-040 may re-rank only the complete remaining
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+  clean public closure `1ee9c71`. It must exclude all accepted slices through
+  CORE-033, inherit no prior candidate/label/order, and distinguish rejection,
+  simulation, annotation, LLVM text, object emission, and hardware execution.
+- First authorization snapshot `c83ec3a`, tree `bb25e528`, canonical diff
+  `c02f71e5`, passed its exact full gate with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests. Type/safety and backend/claim approved, but IR/
+  codegen rejected at P1 because a late PROJECT_STATE subsection still treated
+  accepted CORE-033 closure as future work. It was rejected before publication. The
+  corrected authorization's fresh exact gate exits 0 with 139/139 library, 149/149
+  binary, 7/7 claim, and 22/22 binding tests. Ranking remains forbidden until three
+  exact reviews, unchanged publication, and all eight checks pass. AUDIT-040 cannot
+  edit source/tests, run builds/probes/
+  external queries, or change a matrix row/cell, capability class, risk status,
+  semantics, workflow, dependency, backend, artifact, claim, history, or `master`.

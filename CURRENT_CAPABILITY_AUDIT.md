@@ -1464,6 +1464,32 @@ promise future compatibility.
   `30893006634`, CodeQL `30893002479`, and aggregate `91939375982` pass. That push
   also made rejected parent `fe90f583` publicly reachable as an ancestor, so its
   never-published wording was inaccurate and closure was withheld. Additive record
-  correction has fresh exact gate exit 0 with 139/139 library, 149/149 binary, 7/7
-  claim, and 22/22 binding tests; exact review, unchanged publication, and all eight
-  checks remain.
+  correction `1ee9c71`, tree `d0819881`, canonical diff `7303da47`, passed its
+  fresh exact gate with 139/139 library, 149/149 binary, 7/7 claim, and 22/22
+  binding tests, received three exact approvals, and was published unchanged.
+  Compiler `30893527220` / `30893529999`, stable/nightly Rust `30893529992`, all
+  three CodeQL analyses in `30893527445`, and aggregate `91941079083` pass.
+
+## AUDIT-040 authorization boundary
+
+- The complete remaining set is still R-002/R-004/R-005/R-006/R-007/R-009/R-010/
+  R-011/R-012/R-013/R-016. AUDIT-040 must rank all eleven independently from exact
+  clean public closure `1ee9c71`, exclude every accepted slice through CORE-033,
+  and inherit neither Candidate T/B/A nor any earlier ordering.
+- Each reviewer must provide evidence for every rank, one bounded candidate or stop,
+  trusted reachability and exact containment, unresolved semantic choices, phase
+  count, one exact deterministic failing specimen, and preservation controls.
+  Rejection, annotation, simulation, LLVM text, object emission, and hardware
+  execution remain distinct.
+- First authorization snapshot `c83ec3a`, tree `bb25e528`, canonical diff
+  `c02f71e5`, passed its exact repository-root full gate with 139/139 library,
+  149/149 binary, 7/7 claim, and 22/22 binding tests. Type/safety and backend/claim
+  approved, but IR/codegen rejected at P1 because a late PROJECT_STATE subsection
+  still treated accepted CORE-033 closure as future work. It was rejected before
+  publication. The corrected authorization's fresh exact gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 22/22 binding tests. Ranking remains
+  forbidden until three exact reviews, unchanged publication, and all eight checks
+  pass.
+- AUDIT-040 is read-only and cannot move any capability, matrix cell, or risk status,
+  authorize tests/implementation, invent semantics, or change workflows,
+  dependencies, backends, artifacts, claims, history, or `master`.

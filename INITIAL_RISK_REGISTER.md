@@ -674,4 +674,31 @@ public all-eight green in compiler `30893002336` / `30893005706`, Rust
 also made `fe90f583` publicly reachable as an ancestor, so never-published wording
 was inaccurate and closure was withheld. Final additive record correction and its
 fresh exact gate exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22
-binding tests are recorded; review/public checks remain and no risk status changes.
+binding tests are recorded. Exact correction `1ee9c71`, tree `d0819881`, canonical
+diff `7303da47`, received three approvals, was published unchanged, and passes
+compiler `30893527220` / `30893529999`, stable/nightly Rust `30893529992`, all
+three CodeQL analyses in `30893527445`, and aggregate `91941079083`. CORE-033 is
+closed without changing any risk status.
+
+Preregistered read-only AUDIT-040 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `1ee9c71`, excluding every accepted slice through CORE-033 and
+inheriting no earlier candidate, label, or order. Every ranking must be complete and
+evidence-cited, identify one bounded candidate or stop, and state trusted
+reachability, exact containment, unresolved semantic choices, phase count, an exact
+deterministic failing specimen, and preservation controls. Rejection, simulation,
+annotations, LLVM text, object emission, and hardware execution remain distinct.
+
+First AUDIT-040 authorization snapshot `c83ec3a`, tree `bb25e528`, canonical diff
+`c02f71e5`, passed its exact repository-root full gate with 139/139 library, 149/149
+binary, 7/7 claim, and 22/22 binding tests. Type/safety and backend/claim approved,
+but IR/codegen rejected at P1 because a late PROJECT_STATE subsection still treated
+accepted CORE-033 closure as future work. It was rejected before publication. The
+corrected authorization's fresh exact gate exits 0 with 139/139 library, 149/149
+binary, 7/7 claim, and 22/22 binding tests. Ranking has not begun and remains
+forbidden until three exact reviews, unchanged publication, and all eight checks
+pass. The audit is read-only and cannot
+change source/tests, risks, matrix/capability state, semantics, workflows,
+dependencies, backends, artifacts, claims, history, or `master`; any later behavior
+change needs a separate reviewed contract and public failing regression evidence
+first.

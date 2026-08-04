@@ -1903,11 +1903,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-042 - Initialized exact two-array-deep tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: accepted implementation public all-eight green at `76a6e802`; corrected
-  closure is not yet accepted because the first rejected snapshot became publicly
-  reachable through the later correction's linear ancestry. Final record correction
-  has fresh exact gate exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
-  22/22 binding tests; reviews and publication gates remain.
+- Status: complete at public all-eight-green closure `1ee9c71`.
 - Decision: for an initialized binding whose annotation is exactly nonrecursive
   `Type::Array(Type::Array(Type::Tuple(_), _), _)`, validate the initializer and
   preserve existing initialized outer/immediate tuple diagnostics, then reject in
@@ -1968,5 +1964,40 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   made the rejected snapshot reachable as an ancestor, contradicting `19f688a`'s
   stronger never-published wording. The lead withheld closure acceptance and chose
   additive record correction rather than force-push or history rewrite. The final
-  correction's fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
-  claim, and 22/22 binding tests; exact review and public checks remain.
+  correction `1ee9c71`, tree `d0819881`, canonical diff `7303da47`, passed its
+  fresh exact gate with 139/139 library, 149/149 binary, 7/7 claim, and 22/22
+  binding tests, received three exact approvals, and was published unchanged.
+  Compiler `30893527220` / `30893529999`, Rust `30893529992`, CodeQL
+  `30893527445`, and aggregate `91941079083` pass. Public ancestry remains intact;
+  no force-push or rewrite occurred.
+
+## DEC-043 - AUDIT-040 resets residual ordering after CORE-033
+
+- Date: 2026-08-04
+- Status: first authorization snapshot rejected before publication; corrected
+  authorization local gate green, with exact reviews, publication, and public checks
+  pending; ranking not begun.
+- Decision: only after this six-record authorization passes its exact local gate, is
+  triple-approved, published unchanged, and all eight public checks pass may three
+  independent read-only reviewers re-rank the complete R-002/R-004/R-005/R-006/
+  R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact clean public closure
+  `1ee9c71`. Every accepted slice through CORE-033 is excluded and no earlier
+  runner-up, historical label, or preservation candidate is privileged.
+- Method: every reviewer must supply a complete evidence-cited ranking, one exact
+  candidate or stop, trusted reachability/containment, unresolved semantic choices,
+  phase count, deterministic failing specimen, and preservation controls.
+  Reconciliation may select at most one unanimously bounded residual or record a
+  stop.
+- Authorization evidence: first snapshot `c83ec3a`, tree `bb25e528`, canonical diff
+  `c02f71e5`, changed exactly the six records and passed its exact gate with 139/139
+  library, 149/149 binary, 7/7 claim, and 22/22 binding tests. Type/safety and
+  backend/claim approved, but IR/codegen rejected at P1 because a late PROJECT_STATE
+  subsection still treated accepted CORE-033 closure as future work. It was rejected
+  before publication. The corrected tree's fresh exact gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 22/22 binding tests; three exact reviews,
+  unchanged publication, and all eight checks remain.
+- Boundary: ranking is static and read-only. It authorizes no source/test edit,
+  build/probe/external query, semantics, workflow/dependency/backend action,
+  capability/matrix/risk movement, artifact/claim publication, history action, or
+  `master` change. Any later test or implementation requires a separately reviewed
+  six-record contract and public failing regression evidence first.

@@ -4,23 +4,20 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 46 `CORE-033` record closure. Authorization, corrected tests-first
-evidence, and the exact two-phase implementation are complete. Accepted
-implementation `76a6e802` is public all-eight green; immediate work is limited to
-the final six-record ancestry correction, its exact gate and reviews, and unchanged
-publication. Closure commit `19f688a` is public all-eight green but not accepted:
-its linear push made rejected parent `fe90f583` publicly reachable while its records
-said that parent was never published. The final correction's fresh exact gate exits
-0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. No next
-residual or implementation is authorized.
+Milestone 47 `AUDIT-040` authorization. CORE-033 is complete at exact public closure
+`1ee9c71`, with three exact approvals and all eight checks green. Immediate work is
+only the six-record authorization for a clean-head, read-only ranking of all eleven
+remaining risks. No ranking begins before authorization acceptance, and no
+regression, implementation, semantics, capability, matrix, or risk-status change is
+authorized.
 
 ## Active hypothesis
 
-Two exact nonrecursive guards can reject only initialized
-`Type::Array(Type::Array(Type::Tuple(_), _), _)` after initializer validation and
-existing initialized outer/immediate tuple diagnostics but before mismatch,
-insertion, the generic-impl bypass, or raw generation. Counts are irrelevant. This
-is rejection-only containment and defines no tuple/nested-array capability.
+Three complete independent static rankings from exact clean public closure
+`1ee9c71` can identify at most one distinct residual with frozen semantics,
+deterministic tests-first feasibility, and no more than two compiler phases, or an
+explicit stop. All eleven residuals must be ranked, every accepted slice through
+CORE-033 excluded, and no prior candidate or ordering inherited.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -54,6 +51,16 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-033` closure
+  `1ee9c71b555bec8066277cb9c64a7a7a2a3ff498`, parent `19f688a`, tree
+  `d081988164fba75fcfe7af8788fbd010bb5a158d`, established PowerShell full-index
+  canonical diff `7303da4793f01fd7d532f24030849761536835d0`, passed its exact
+  full local gate with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding
+  tests, received three exact approvals, and was published unchanged. Compiler
+  `30893527220` / `30893529999`, stable/nightly Rust `30893529992`, all three
+  CodeQL analyses in `30893527445`, and aggregate `91941079083` pass. The additive
+  correction preserves the public ancestry of rejected `fe90f583` without rewrite;
+  R-002 and every capability/matrix classification remain unchanged.
 - Accepted public `CORE-033` implementation
   `76a6e80233a1854602fb134e3c4367d80a7b0e81`, tree `d8391348`, established
   PowerShell full-index canonical diff `a75b59b2`, passes formatting, focused 1/1,
@@ -1015,8 +1022,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   green. Corrected tests `ac4cb2a5` reproduced that exact public-red surface.
 - Corrected authorization `66207215`, tests-first `ac4cb2a5`, and implementation
   `76a6e802` are complete at their recorded review and public gates. Implementation
-  is limited to the exact semantic and checked-admission guards; closure-only work
-  remains.
+  is limited to the exact semantic and checked-admission guards. Final closure
+  `1ee9c71` is triple-approved and public all-eight green in compiler `30893527220`
+  / `30893529999`, Rust `30893529992`, CodeQL `30893527445`, and aggregate
+  `91941079083`; CORE-033 is complete.
 - First authorization snapshot `d0500865`, tree `d2378320`, canonical diff
   `97a15c9f`, passed its local gate but received one approval and two blocking reviews
   because one ledger sentence mislabeled Candidate T's valueless form as Candidate B.
@@ -1033,15 +1042,38 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Because `19f688a` was committed linearly atop `fe90f583`, its push also made the
   rejected snapshot publicly reachable as an ancestor. The lead identified that
   `19f688a`'s never-published wording was therefore inaccurate, withheld closure
-  acceptance, and retained published history. Final additive record correction must
-  state this ancestry exactly; it cannot reopen source or test work.
+  acceptance, and retained published history. Final additive correction `1ee9c71`,
+  tree `d0819881`, canonical diff `7303da47`, stated that ancestry exactly, passed
+  its gate, received three approvals, was published unchanged, and passed all eight
+  public checks without reopening source or test work.
+
+## AUDIT-040 authorization
+
+- Basis: exact clean public CORE-033 closure `1ee9c71`; complete residual set
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016.
+- Method: three independent complete evidence-cited rankings; exclude every accepted
+  slice through CORE-033; name one bounded candidate or stop with reachability,
+  containment, semantic choices, phase count, deterministic failing specimen, and
+  preservation controls; inherit no earlier candidate or order.
+- Boundary: after authorization acceptance, ranking is read-only: no edits, tests,
+  builds, formatters, probes, artifacts, hardware action, or external query. It
+  grants no test, implementation, semantics, capability, matrix, risk, workflow,
+  dependency, backend, claim, history, or `master` authority.
+- Gate/review history: first snapshot `c83ec3a`, tree `bb25e528`, canonical diff
+  `c02f71e5`, changed exactly the six control documents and passed its exact gate
+  with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. Type/
+  safety and backend/claim approved, but IR/codegen rejected at P1 because the late
+  CORE-033 subsection at lines 1023-1044 still called closure future work. It was
+  rejected before publication. The corrected authorization's fresh exact gate exits
+  0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
 
 ## Exact next action
 
-Freeze the final six-record CORE-033 ancestry correction, obtain three exact reviews,
-publish that immutable record tree unchanged, and require all eight public checks.
-Do not select another residual, edit compiler or test source, broaden beyond
-initialized exact two-array depth, change diagnostic precedence, promote a
+Obtain three exact approvals for the corrected AUDIT-040 authorization, publish its
+immutable six-record tree unchanged, require all eight
+public checks, and only then dispatch the three independent read-only rankings on
+that same public head. Do not edit source or tests, run ranking probes/builds/
+external queries, inherit Candidate T/B/A or another earlier candidate, promote a
 capability, change workflows/dependencies/backends, publish artifacts or claims,
 rewrite history, force-push, or touch `master`.
 
