@@ -1787,6 +1787,15 @@ impl SemanticAnalyzer {
                     ));
                 }
 
+                if value.is_none()
+                    && matches!(type_annotation.as_ref(), Some(crate::ast::Type::Tuple(_)))
+                {
+                    return Err(format!(
+                        "Error: Variable `{}` uses an unsupported tuple type annotation for an uninitialized binding.",
+                        name
+                    ));
+                }
+
                 let inferred_type = if let Some(val) = value {
                     self.check_expression_initialization(val)?;
                     self.require_value(val)?
