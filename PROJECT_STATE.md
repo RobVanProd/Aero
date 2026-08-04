@@ -4,20 +4,20 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 38 `AUDIT-036` authorization. `CORE-029` is complete at public all-eight-
-green closure `7222b9a`. The six-record authorization for a clean-head, strictly
-read-only ranking of every remaining OPEN/PARTIALLY CONTROLLED risk passes its fresh
-full local gate; immediate work is exact review and unchanged publication. AUDIT-036
-never authorizes tests, implementation, or capability work. Passing its remaining
-review/public gates unlocks only the three independent read-only rankings.
+Milestone 39 `CORE-030` authorization. Read-only `AUDIT-036` is complete at public
+all-eight-green `f4ac505`; three independent full-set rankings unanimously select
+the exact R-002 valueless immediate array-of-tuple fallback over verifier-contained
+R-005. Immediate work is the six-record CORE-030 contract gate and exact review.
+The fresh full local gate passes; immediate work is exact review and unchanged
+publication. No test or source edit is authorized until all eight public checks pass.
 
 ## Active hypothesis
 
-A full-set, delta-aware comparison from the clean CORE-029 closure can select one
-bounded reproducible residual or an explicit stop without inheriting AUDIT-035's
-ordering or repeating an accepted slice. The audit remains static and read-only;
-semantic ambiguity, more than two compiler phases, hardware needs, or unsupported
-capability claims are stop conditions rather than implementation invitations.
+Two matching non-recursive guards can make only a valueless immediate
+`Type::Array(Type::Tuple(_), count)` annotation fail closed after semantic duplicate
+checking and before fake `Int`, insertion, or raw generation. This can enforce the
+hard unsupported-source-type rule without defining array/tuple defaults, layout,
+ABI, ownership, execution, or backend capability.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -51,6 +51,13 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public read-only `AUDIT-036` authorization
+  `f4ac505040f866126f2de3ccdcc1ed202711cd46`, tree `3cdf89e6`, diff
+  `40896f51`, passes compiler `30876975678` / `30876977928`, stable/nightly Rust
+  `30876977905`, all three CodeQL analyses in `30876976155`, and aggregate
+  `91890402326` after three exact approvals. The worktree stayed clean; all three
+  complete rankings select exact R-002 valueless immediate array-of-tuple
+  containment. No capability or risk status changes.
 - Accepted public `CORE-029` record closure
   `7222b9a02d7bbbcd00fd4c3af54e9169be567298`, tree `66084b36`, diff
   `90bf540c`, passes compiler `30876033717` / `30876035730`, stable/nightly Rust
@@ -858,11 +865,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for the fresh-full-local-gate-green six-record
-`AUDIT-036` authorization, publish the approved snapshot unchanged, and require all
-eight public checks. Only then may the three independent read-only rankings begin.
-Do not edit tests or source, inherit AUDIT-035's order, promote a capability, change
-workflows/dependencies/backends, publish artifacts or claims, or touch `master`.
+Obtain three exact approvals for the fresh-full-local-gate-green six-record CORE-030
+contract, publish the approved snapshot unchanged, and require all eight public
+checks. Only then may the one-file tests-first regression be written and reviewed.
+Do not edit tests/source early, broaden beyond the immediate array element, promote
+a capability, change workflows/dependencies/backends, publish artifacts or claims,
+or touch `master`.
 
 ## Unauthorized actions
 

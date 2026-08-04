@@ -5177,9 +5177,94 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   The corrected records use August 4 and state unconditionally that AUDIT-036 never
   grants test, implementation, or capability authority; gates unlock read-only
   ranking only.
-- Status: preregistered records only. This exact six-record authorization passes its
+- Authorization acceptance: corrected exact snapshot
+  `a805d1c94b789bc408d25a4d4a930b7166945633`, tree
+  `3cdf89e6194cec0d087c400d72a49cd632fb21a8`, diff
+  `40896f51b1540e1696005510a9a8dbdae7b5f3d6`, passed the fresh full local gate
+  and received three exact approvals. It was published unchanged as
+  `f4ac505040f866126f2de3ccdcc1ed202711cd46`. Compiler
+  `30876975678` / `30876977928`, stable/nightly Rust `30876977905`, all three
+  CodeQL analyses in `30876976155`, and aggregate `91890402326` pass.
+- Independent complete rankings: type/safety ranks R-002/R-005/R-012/R-009/R-011/
+  R-004/R-013/R-010/R-006/R-016/R-007. IR/codegen ranks R-002/R-005/R-011/R-012/
+  R-013/R-006/R-009/R-004/R-010/R-016/R-007. Backend/claim ranks R-002/R-005/
+  R-011/R-004/R-006/R-012/R-013/R-010/R-009/R-016/R-007. All three inspected the
+  exact public head independently, changed no file, and ran no test, build, probe,
+  benchmark, artifact, hardware action, or external query.
+- Reconciliation: all three select the same distinct R-002 false success. A
+  valueless binding whose annotation is exactly `Type::Array(inner, _)` with
+  immediate `inner: Type::Tuple(_)` bypasses the accepted outer-tuple and immediate
+  reference-to-tuple guards, becomes semantic `Ty::Int`, is skipped by checked
+  admission, and can become verifier-valid `(ImmInt(0), Ty::Int)` in raw generation.
+  Existing CORE-028/CORE-029 tests explicitly preserve the exact form as accepted.
+  This is unsupported-source-type fallback on a trusted route; R-005 ranks second
+  because mandatory verification already rejects its wrong-arity closure call
+  before LLVM.
+- Status: complete, read-only, and clean at public-green `f4ac505`. AUDIT-036 made
+  no capability or risk-status change and never authorized a test or implementation
+  edit. The separately frozen CORE-030 contract below is the only selected next
+  action.
+
+## CORE-030 - Reject valueless immediate array-of-tuple binding annotations
+
+- Task ID/date/owner: `CORE-030`, 2026-08-04, lead-owned two-phase R-002 fail-closed
+  containment under DEC-036.
+- Observed behavior: `fn main() { let value: [(int, float); 1]; }` is explicitly
+  accepted by current preservation controls. Semantic analysis checks only immediate
+  reference-to-tuple and outer-tuple valueless annotations, then fabricates
+  `Ty::Int` and inserts the binding. Checked admission applies the same two guards
+  and skips every other valueless binding. Raw generation ignores the annotation
+  and can fabricate `(ImmInt(0), Ty::Int)`, which is verifier-valid scalar IR and
+  can reach trusted LLVM/CPU publication.
+- Hypothesis: two matching, non-recursive guards can reject only a valueless
+  `Type::Array(immediate, _)` whose immediate element is `Type::Tuple(_)`, after
+  existing semantic duplicate detection and before integer fallback, insertion, or
+  raw generation, without defining array/tuple values, defaults, layout, ABI,
+  ownership, execution, or backend capability.
+- Frozen semantics: the predicate is exactly `value.is_none()` plus
+  `Some(Type::Array(inner, _))` with immediate `inner.as_ref(): Type::Tuple(_)`;
+  array count is irrelevant, including zero. Semantic duplicate-name diagnosis
+  remains first. Semantics must return
+  `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding.`
+  Checked admission independently returns
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding`.
+  Public compilation returns the semantic error before checked IR/backend work.
+  Rejection is quarantine evidence only and must not be described as array or tuple
+  support.
+- Tests-first contract: after this six-record authorization passes its exact local,
+  review, unchanged-publication, and public all-eight gates, only
+  `src/compiler/tests/binding_type_contract_tests.rs` may first change. Add exact
+  regression
+  `valueless_immediate_array_of_tuple_annotation_fails_closed_before_integer_fallback`.
+  It must reclassify only the two existing exact acceptance controls, prove direct
+  semantic and checked-admission rejection for zero and nonzero counts, public
+  semantic rejection, duplicate-name precedence, and preservation of scalar arrays,
+  generic/deeper wrappers, initialized immediate array-of-tuple, accepted outer-
+  tuple/reference-to-tuple diagnostics, and valid output. The focused regression
+  and binding aggregate must be publicly red only on the new contract before any
+  implementation edit.
+- Allowed implementation after separately reviewed public red evidence: only
+  `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs`. Make the smallest two matching guards. No raw
+  generation, verifier, codegen, parser, AST, ABI, backend, workflow, dependency,
+  package/release/registry, benchmark, immutable claim-evidence, or `master` change.
+- Acceptance: tests-first yields one intentional binding-test failure with every
+  preservation control and unrelated suite green. Implementation then passes the
+  focused test, the full binding aggregate, formatting, exact repository-root
+  `./tools/test.sh`, three exact reviews, unchanged publication, and all eight
+  public checks. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix
+  cell or capability class changes.
+- Risks: broadening the predicate recursively; changing same-scope duplicate
+  precedence; rejecting initialized, scalar-array, generic/Vec, reference-wrapped,
+  or deeper array shapes; changing an accepted CORE-028/CORE-029 diagnostic;
+  touching raw generation; or presenting fail-closed rejection as aggregate support.
+- Stop conditions: need for parser/type representation changes, recursive traversal,
+  tuple/array default/value/bounds/layout/mutation/ABI/ownership semantics, generic
+  behavior, initialized-value policy, more than the two named compiler phases,
+  another annotation outcome, valid-output change, backend work, or any unresolved
+  compatibility decision.
+- Status: preregistered records only. This exact six-record contract passes its
   fresh full local gate with 139/139 library, 149/149 binary, 7/7 backend-claim,
-  and 18/18 binding tests plus every later active suite. AUDIT-036 itself never
-  grants test, implementation, or capability authority. Ranking may begin only
-  after three exact reviews, unchanged publication, and all-eight public
-  verification.
+  and 18/18 binding tests plus every later active suite. No test or implementation
+  edit is authorized until three exact reviews, unchanged publication, and all-eight
+  public verification also pass.

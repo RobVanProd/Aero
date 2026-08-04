@@ -1190,3 +1190,26 @@ promise future compatibility.
   remain static and read-only, cannot inherit AUDIT-035's ordering, and carries no
   implementation or capability authority. Ranking cannot begin until the separate
   exact local/review/public gates pass.
+
+## AUDIT-036 reconciliation and CORE-030 boundary
+
+- Corrected exact authorization snapshot `a805d1c9`, tree `3cdf89e6`, diff
+  `40896f51`, received three approvals and was published unchanged as `f4ac505`.
+  Compiler `30876975678` / `30876977928`, stable/nightly Rust `30876977905`, all
+  three CodeQL analyses in `30876976155`, and aggregate `91890402326` pass.
+- Type/safety ranks R-002/R-005/R-012/R-009/R-011/R-004/R-013/R-010/R-006/R-016/
+  R-007. IR/codegen ranks R-002/R-005/R-011/R-012/R-013/R-006/R-009/R-004/R-010/
+  R-016/R-007. Backend/claim ranks R-002/R-005/R-011/R-004/R-006/R-012/R-013/
+  R-010/R-009/R-016/R-007. The audit remained static, read-only, and clean.
+- All three select the exact valueless immediate array-of-tuple annotation over the
+  R-005 runner-up. Current semantics replaces this unsupported annotation with
+  `Ty::Int`, checked admission skips it, and raw generation can emit verifier-valid
+  integer zero. R-005 already fails mandatory verification before LLVM.
+- DEC-036 and preregistered CORE-030 permit only non-recursive semantic and checked-
+  admission rejection for `Type::Array(Type::Tuple(_), count)` on a valueless
+  binding, with semantic duplicate precedence preserved. Tests must be public red
+  first under a separately gated contract.
+- This selection changes no current capability. Initialized and deeper forms,
+  scalar arrays, generic/Vec and reference wrappers, tuple/array support, bounds,
+  layout, mutation, ABI, ownership, raw APIs, verifier, codegen, and every backend
+  remain unchanged. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.

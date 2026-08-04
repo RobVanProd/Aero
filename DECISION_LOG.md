@@ -1652,7 +1652,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-035 - Post-CORE-029 selection requires clean-head full-set reconciliation
 
 - Date: 2026-08-04
-- Status: accepted audit protocol; AUDIT-036 authorization pending gates.
+- Status: accepted and complete at public-green AUDIT-036 head `f4ac505`.
 - Decision: no next implementation is selected from CORE-029's runner-up or any prior
   ranking. Three independent read-only auditors must rank the complete remaining
   R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the
@@ -1666,3 +1666,31 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   deterministic tests-first feasibility, and at most two compiler phases, or record
   an explicit stop. Any later implementation requires its own reviewed contract and
   public failing regression evidence first.
+- Result: corrected authorization snapshot `a805d1c9`, tree `3cdf89e6`, diff
+  `40896f51`, received three approvals and was published unchanged as `f4ac505`.
+  Compiler `30876975678` / `30876977928`, Rust `30876977905`, CodeQL
+  `30876976155`, and aggregate `91890402326` pass. Three complete independent
+  rankings unanimously select the exact R-002 valueless immediate array-of-tuple
+  fallback over verifier-contained R-005.
+
+## DEC-036 - Valueless immediate array-of-tuple annotations must fail closed
+
+- Date: 2026-08-04
+- Status: accepted selection protocol; CORE-030 authorization pending gates.
+- Decision: for an uninitialized `let` annotation exactly shaped as
+  `Type::Array(inner, _)` with immediate `inner: Type::Tuple(_)`, reject in semantic
+  analysis after same-scope duplicate detection and independently in checked IR
+  admission before raw generation. Array count does not affect the rejection.
+- Rationale: current preservation tests prove the unsupported form is accepted;
+  semantics silently substitutes `Ty::Int`, checked admission skips it, and raw
+  generation can emit integer zero. This violates the repository's hard unsupported-
+  source-type fallback rule and reaches farther than R-005, which mandatory
+  verification already contains before LLVM.
+- Boundary: CORE-030 may first add only the named regression in
+  `binding_type_contract_tests.rs`, and only after this contract is public all-eight
+  green. Implementation later may change only `semantic_analyzer.rs` and
+  `ir_generator.rs` after reviewed public red evidence. Initialized, scalar-array,
+  generic/Vec, reference-wrapped, deeper-nested, raw API, tuple/array support,
+  bounds/layout/mutation/ABI/ownership, and backend behavior remain unchanged.
+- Claim boundary: rejection is containment only. R-002 stays HIGH/CRITICAL and
+  PARTIALLY CONTROLLED; no capability or matrix cell can move.

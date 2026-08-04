@@ -483,3 +483,14 @@ complete remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
 R-016 set only after its separate exact local/review/public gates, excluding every
 accepted sub-slice including CORE-029 and carrying no implementation or capability
 authority.
+
+Corrected read-only `AUDIT-036` authorization `f4ac505`, tree `3cdf89e6`, diff
+`40896f51`, passes compiler `30876975678` / `30876977928`, stable/nightly Rust
+`30876977905`, CodeQL `30876976155`, and aggregate `91890402326` after three exact
+approvals. Three independent complete rankings unanimously select one distinct
+R-002 residual: a valueless immediate array-of-tuple annotation is explicitly
+accepted, silently becomes `Int`, and can reach verifier-valid scalar raw IR. The
+R-005 runner-up is already contained before LLVM. CORE-030 is preregistered only to
+reject the exact R-002 form at semantics and checked admission after its separate
+contract gates and public tests-first red evidence. No risk status or capability
+changes; R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.

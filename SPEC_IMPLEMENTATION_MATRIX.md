@@ -450,3 +450,14 @@ declared compatibility policy and release-level coverage.
   only after its separate exact authorization gates. It excludes every accepted
   slice including CORE-029, cannot inherit AUDIT-035's order, and cannot change a
   matrix row, capability class, source, test, workflow, dependency, or backend.
+- Corrected read-only `AUDIT-036` authorization `f4ac505`, tree `3cdf89e6`, diff
+  `40896f51`, is triple-approved and all-eight public green in compiler
+  `30876975678` / `30876977928`, Rust `30876977905`, CodeQL `30876976155`, and
+  aggregate `91890402326`. All three complete rankings select exact R-002 valueless
+  immediate array-of-tuple fallback over verifier-contained R-005.
+- Preregistered CORE-030 may only turn that one unsupported valueless annotation
+  into semantic and checked-admission rejection after separate contract and public
+  tests-first gates. Rejection supplies no array/tuple value, default, bounds,
+  layout, mutation, ABI, ownership, lowering, execution, or backend evidence.
+  Therefore every matrix row, cell, and capability class remains unchanged, and
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
