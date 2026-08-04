@@ -215,6 +215,24 @@ jobs:
         fi
         echo "static_string_len test passed with exit code $exit_code"
 
+    - name: Test static string equality example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/static_string_equality.aero -o ../../static_string_equality.ll
+        opt-22 -passes=verify -disable-output ../../static_string_equality.ll
+        llc-22 -verify-machineinstrs ../../static_string_equality.ll -o /dev/null
+        llc-22 -filetype=obj ../../static_string_equality.ll -o ../../static_string_equality.o
+        clang-22 ../../static_string_equality.o -o ../../static_string_equality
+        set +e
+        ../../static_string_equality
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 41 ]; then
+          echo "Expected exit code 41, got $exit_code"
+          exit 1
+        fi
+        echo "static_string_equality test passed with exit code $exit_code"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

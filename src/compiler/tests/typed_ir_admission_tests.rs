@@ -356,12 +356,6 @@ fn obvious_bool_type_mismatches(llvm: &str) -> Vec<String> {
 fn checked_admission_reports_panicking_scalar_sources_without_unwind() {
     let cases = [
         RejectionCase {
-            name: "string comparison",
-            source: r#"fn main() { let equal = "left" == "right"; }"#,
-            expected_prefix: "IR Generation Error:",
-            check_cli: true,
-        },
-        RejectionCase {
             name: "array comparison",
             source: "fn main() { let equal = [1] == [1]; }",
             expected_prefix: "IR Generation Error:",
@@ -407,6 +401,20 @@ fn checked_admission_reports_panicking_scalar_sources_without_unwind() {
 
     let failures = rejection_failures("scalar-errors", &cases);
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn checked_admission_accepts_static_string_equality_without_unwind() {
+    let llvm = compile_program(
+        r#"fn main() { let equal = "left" == "right"; }"#,
+        CompilerOptions::default(),
+    )
+    .expect("static literal String equality should pass checked admission");
+
+    assert!(
+        llvm.contains("icmp ne i32 0, 0"),
+        "false static equality must retain executable Bool IR:\n{llvm}"
+    );
 }
 
 #[test]

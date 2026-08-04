@@ -7410,3 +7410,175 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   before publication: the inventory now names CORE-038 `25805f5`, and the objective
   says candidate identity is reported externally while approvals and public evidence
   remain. No compiler, test, example, workflow, capability, or claim boundary changes.
+- Final acceptance: exact `7709eec6b5eb18249a756225ff7c368ccbed5341`, parent
+  `25805f561fa32d2f89463cb32ff5d0c5adff7acb`, tree
+  `6c38330a3f7f399ae603d276eddd4594ff7c857d`, canonical Git Bash full-index hash
+  `1bd8e90697e46a758507f3021c1f02028d464717`, received three fresh exact approvals
+  with no P0-P3 findings and was published unchanged. Push CI `30948007054`, PR CI
+  `30948009660`, stable/nightly Rust `30948009897`, all three CodeQL analyses in
+  `30948007588`, and aggregate `92122867238` pass. Stable job `92122711179` ran the
+  checked build, pinned `opt-22`, `llc-22` machine verification and object lowering,
+  `clang-22` link, and native process; its immutable log reports
+  `static_string_len test passed with exit code 33`. CORE-039 is accepted and its
+  one-time class enumeration remains closed.
+
+## CORE-040 - Executable exact equality for compile-time strings
+
+- Task ID/date/owner: `CORE-040`, 2026-08-04, lead-owned tests-first compiler
+  vertical slice under the active autonomous mandate. This is the sole authorization
+  record for the class. Its one-time enumeration begins at accepted public CORE-039
+  head `7709eec6b5eb18249a756225ff7c368ccbed5341` and closes when the normalized
+  equality product below is exhausted; candidate heads do not reopen it.
+- Observed behavior and authority: `aero_grammar.md` defines equality expressions
+  (`==`/`!=`) separately from ordering expressions. Both active semantic inference
+  paths already accept same-type String comparisons and return `Ty::Bool`. The
+  tracked built-in collections contract names String equality, the string helper's
+  untrusted placeholder describes byte-by-byte equality, the type-system document
+  defines UTF-8 strings and Unicode scalars, and strict lexing decodes supported
+  escapes before constructing `Expression::StringLiteral`. For valid UTF-8 strings,
+  byte equality and decoded Unicode-scalar-sequence equality are equivalent. CORE-039
+  already retains exact decoded literal provenance through bounded immutable aliases.
+  Checked admission currently rejects every String comparison with its existing
+  generic operand diagnostic, so public build cannot reach the active lowerer's
+  unsupported String comparison panic. Ordering policy remains unspecified beyond a
+  broad design mention and is not authority for this task.
+- Hypothesis: one pure classifier over optional trusted left/right decoded values and
+  `ComparisonOp` can return exact equality/inequality as a logical Bool. Checked
+  admission can consume it after existing left-then-right child validation, and only
+  the active primary checked lowerer can consume it after evaluating each operand
+  once. A constant integer comparison can materialize the Bool-typed IR result without
+  a String IR value, layout, allocation, runtime call, verifier change, code-generator
+  change, or backend change.
+- Frozen supported class: exact binary `left == right` and `left != right` in an
+  ordinary executable checked context, where each operand independently resolves to
+  a decoded `Expression::StringLiteral` or finite immutable binding/alias chain rooted
+  in one under CORE-039's provenance policy. Unannotated bindings and exact uppercase
+  `String` annotations retain provenance; every other annotation topology quarantines
+  it. Parser-normalized f-strings participate only as their existing raw literal text;
+  interpolation is not activated. Equality compares the exact decoded string content:
+  no Unicode normalization, case folding, locale, grapheme, collation, or canonical-
+  equivalence rule. `!=` is exact negation of `==`. Result type is existing logical
+  `Bool`; left then right is validated and evaluated exactly once.
+- Complete normalized product: operator is equality or inequality. Each operand uses
+  the same provenance quotient: direct literal, normalized f-string literal,
+  unannotated immutable binding, finite immutable alias, exact-`String` annotated
+  literal/alias, nested lexical alias, and shadowed alias. Pair symmetry is closed by
+  same-root, distinct-root-equal, left/right swapped unequal, and independently mixed
+  direct/alias specimens. Content relations are empty/empty, empty/nonempty, same and
+  unequal ASCII, prefix/length/internal-position differences, every supported escape
+  (`n`, `t`, `r`, backslash, quote, NUL), preserved unknown-escape text, same/different
+  non-ASCII scalars, combining-sequence versus precomposed scalar, joined emoji, and
+  mixed ASCII/multibyte content. Result placements are direct `if` and `while`
+  conditions, inferred and exact-bool bindings, identifier reuse, `!`, both sides of
+  `&&`/`||`, Bool-to-Bool equality, known Bool function argument/return, print
+  argument, discarded expression, nested block/tail, and branch traversal. These are
+  syntax/traversal quotients over one predicate, not separate semantics or guards.
+- Shared classifier and order: add one private pure module with disposition
+  `StaticBool(bool)` or `PreserveExistingBehavior`. It alone owns exact operator
+  eligibility and decoded-content equality. Checked admission first validates the
+  left child then the right child, resolves both trusted values, then classifies.
+  Active checked lowering evaluates left then right once, classifies their preserved
+  `ImmString` values, and emits a constant integer `ICmp` result so existing logical
+  Bool metadata remains explicit. No operator/value check may be copied into semantic
+  analysis, verification, codegen, stdlib, or another lowering path.
+- Frozen exclusions and preservation: all four ordering operators; concatenation;
+  mixed/non-String operands and their existing semantic diagnostics; mutable or
+  dynamic strings; String parameters/returns and function-produced values; field,
+  index, borrow/deref, aggregate, collection, method-produced, and chained receivers;
+  lowercase/custom/reference/generic/array/other preserved annotations; impl,
+  generic-function, generic/non-generic impl, trait-default, closure, and top-level
+  expression contexts; Bool arrays; both raw lowering routes; and all runtime String
+  operations remain unchanged. Existing child-first diagnostics, generic checked
+  rejection text, semantic acceptance boundaries, raw panic/output behavior, valid
+  numeric/Bool comparisons, logical/unary behavior, and generated LLVM stay exact.
+  No ordering, normalization, interpolation, ownership, memory, layout, allocation,
+  ABI, GPU, performance, release, benchmark, or general operator capability is
+  claimed.
+- Tests first and completeness proof: one aggregate must enumerate every supported
+  provenance/content/result-placement quotient and each excluded neighbor; require
+  exact checked/public rejections and child-first diagnostics; prove all ten preserved
+  annotation topologies remain semantically preserved but checked/public quarantined;
+  prove both raw routes retain their prior String-comparison behavior; require checked
+  IR to contain a Bool-producing constant `ICmp`, no String comparison/runtime helper,
+  and deterministic output; and inspect CI for every pinned build/verify/lower/link/run
+  anchor. Classifier unit tables in both crate roots must close two admitted and four
+  preserved operators plus missing-side/value relations. No existing assertion may be
+  removed, weakened, or reclassified except a historical static-literal equality
+  rejection that directly contradicts this frozen executable capability; each such
+  occurrence must become positive coverage or use an unchanged rejected control for
+  the original fail-closed pipeline property.
+- End-to-end acceptance: add `examples/static_string_equality.aero` and an
+  unconditional Rust-CI step immediately after the static-string-length example. It
+  must run checked `build`, pinned `opt-22` verification, `llc-22` machine verification
+  and object lowering, `clang-22` linking, native execution, and exact sentinel exit
+  41. Run the focused red regression before production source changes, then focused
+  green, formatting, correctness Clippy, the exact repository-root `./tools/test.sh`
+  gate, three fresh exact read-only conformance reviews, one intentional commit,
+  unchanged push, and all eight public checks.
+- Allowed files: `TASK_LEDGER.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, one new private static-string equality classifier
+  module, private module declarations in `src/compiler/src/lib.rs` and
+  `src/compiler/src/main.rs`, `src/compiler/src/ir_generator.rs`, one focused
+  static-string-equality integration test, the existing
+  `src/compiler/tests/typed_ir_admission_tests.rs` only to replace its obsolete
+  literal-string-comparison rejection with an exact checked-admission acceptance,
+  the existing `src/compiler/tests/checked_ir_contract_tests.rs` only to reclassify
+  the same historical static-literal comparison and substitute array comparison for
+  its invalid-build ordering control,
+  the existing `src/compiler/tests/llvm_verifier_cli_tests.rs` only to make the same
+  array-comparison substitution in its source-failure-before-verifier control,
+  `examples/static_string_equality.aero`, and `.github/workflows/rust.yml`. No lexer,
+  parser, AST, semantic analyzer, types, IR
+  enum, verifier, code generator, stdlib, dependency, runtime, backend, claim-evidence,
+  release, benchmark, registry, published-history, or `master` action is authorized.
+- Risks and stop conditions: stop if exact equality cannot be distinguished without
+  an ordering/normalization policy; if static provenance or Bool metadata is lost; if
+  any lexer/parser/semantic/IR-enum/verifier/codegen/stdlib/runtime/backend change is
+  required; if child order, raw behavior, excluded contexts, or valid LLVM changes;
+  if implementation crosses a second compiler phase; if the baseline is red; or if
+  any test/spec must be weakened. A rejection-only outcome cannot close CORE-040.
+- Status/evidence: preregistered from exact accepted public CORE-039. No regression
+  test, production source, example, workflow, probe, artifact, or new capability had
+  been created at authorization. The first aggregate run exposed the intended class
+  plus one test-fixture move error from reusing a moved String root; that fixture was
+  corrected without production source changes. The corrected tests-first run fails
+  0/1 with exactly 20 intended findings: checked/public rejection for each of four
+  positive products (eight), example compilation, checked Bool IR, the Bool-array
+  parent diagnostic that remains unreachable until its equality element is admitted,
+  and nine missing CI anchors. Both semantic paths, both equality operators, every
+  content/provenance quotient, all four ordering exclusions, ten noncanonical
+  annotation quarantines, dynamic/context/child exclusions, trait syntax preservation,
+  and all three exact raw String-comparison panic routes are already green. No
+  production compiler source has changed at this corrected red boundary. After the
+  focused aggregate became green, the adjacent typed-IR admission suite failed 11/12
+  solely because its historical `"left" == "right"` specimen still required the
+  pre-CORE-040 rejection. This exact assertion is now authorized for reclassification
+  to positive checked admission; all seven remaining scalar-error cases and every
+  other assertion in that file remain frozen. This correction is recorded before
+  publication and does not broaden the enumerated class. The first exact root gate
+  then passed 145/145 library tests and stopped at 4/7 checked-IR contracts. All three
+  failures were the same historical static-literal equality specimen: its no-partial-
+  IR matrix expected rejection, its external-tool-independent `check` matrix expected
+  failure, and its invalid-build ordering fixture expected to stop before verification.
+  The first two occurrences are authorized to become positive completeness/tool-
+  independence coverage. The third retains its exact fail-before-backend purpose with
+  the already-rejected array comparison. No production correction or broader test
+  reclassification is authorized. After those corrections, the focused checked-IR
+  suite passes 8/8 and the exhaustive equality aggregate passes 1/1. The second exact
+  gate again passed 145/145 library and all intervening suites, then stopped 11/12 in
+  `llvm_verifier_cli_tests` at the sole remaining historical literal-comparison
+  invalid-source fixture. A repository-wide test/source search found no other stale
+  rejection assertion. That verifier-ordering fixture is authorized for the same
+  array-comparison substitution; its phase precedence, no-publication, and verifier-
+  not-invoked assertions remain exact. The corrected focused suites pass: classifier
+  units 1/1 in each crate root, exhaustive equality 1/1, static String length 1/1,
+  fixed-array length 1/1, binding contracts 28/28, typed admission 13/13, checked IR
+  8/8, and verifier CLI 12/12. The exact repository-root gate exits 0 with formatting
+  and correctness Clippy clean, 145/145 library tests, 155/155 CLI tests, 7/7 claim,
+  28/28 binding, every integration suite, and doc tests. Implementation remains one
+  compiler phase: one pure classifier is consumed by checked admission and active
+  checked lowering; no semantic analyzer, IR enum, verifier, code generator, stdlib,
+  runtime, or backend file changed. Windows has no local LLVM 22 toolchain, so pinned
+  LLVM verification, machine verification/object lowering, Clang link, and native
+  exit 41 remain mandatory stable-Linux CI evidence after exact review and unchanged
+  publication. No candidate commit, review, push, or public acceptance is yet claimed.

@@ -559,10 +559,6 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
 fn checked_ir_generation_returns_errors_instead_of_unwinding_or_partial_ir() {
     let cases = [
         (
-            "string comparison",
-            "fn main() { let compared = \"left\" == \"right\"; }",
-        ),
-        (
             "array comparison",
             "fn main() { let compared = [1] == [1]; }",
         ),
@@ -600,6 +596,32 @@ fn checked_ir_generation_returns_errors_instead_of_unwinding_or_partial_ir() {
             "{label}: expected exact IR Generation phase identity: {error}"
         );
     }
+}
+
+#[test]
+fn checked_static_string_equality_returns_complete_ir_without_unwinding() {
+    let source = "fn main() { let compared = \"left\" == \"right\"; }";
+    let ast = analyzed_ast(source);
+    let checked = catch_unwind(AssertUnwindSafe(|| {
+        let mut generator = IrGenerator::new();
+        generator.try_generate_ir(ast)
+    }))
+    .expect("static String equality checked IR generation unwound")
+    .expect("static String equality should return a complete checked IR map");
+    assert!(
+        !checked.metadata().functions.is_empty(),
+        "static String equality returned no checked IR"
+    );
+
+    let llvm = catch_unwind(AssertUnwindSafe(|| {
+        compile_program(source, CompilerOptions::default())
+    }))
+    .expect("static String equality compile_program unwound")
+    .expect("static String equality compile_program rejected checked source");
+    assert!(
+        llvm.contains("icmp ne i32 0, 0"),
+        "false static String equality omitted complete Bool IR:\n{llvm}"
+    );
 }
 
 #[derive(Clone, Copy)]
@@ -743,7 +765,7 @@ fn check_is_identical_with_missing_accepting_or_rejecting_llvm_tools() {
         (
             "string-comparison",
             "fn main() { let compared = \"left\" == \"right\"; }",
-            false,
+            true,
         ),
         (
             "integer-divide-by-zero",
@@ -822,11 +844,8 @@ fn invalid_ir_generation_stops_build_before_backend_or_publication() {
     let workspace = TestWorkspace::new("build-ir-ordering");
     let source_path = workspace.path("invalid.aero");
     let artifact = workspace.path("must-not-exist.ll");
-    fs::write(
-        &source_path,
-        "fn main() { let compared = \"left\" == \"right\"; }",
-    )
-    .expect("write invalid build source");
+    fs::write(&source_path, "fn main() { let compared = [1] == [1]; }")
+        .expect("write invalid build source");
     let rejecting = write_fake_llvm_tool(&workspace, "rejecting-opt", FakeVerifierBehavior::Reject);
     let invocation_log = workspace.path("build-verifier-invocations.log");
     let before = workspace_snapshot(&workspace);

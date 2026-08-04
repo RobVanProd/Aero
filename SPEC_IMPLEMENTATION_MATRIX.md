@@ -856,3 +856,14 @@ declared compatibility policy and release-level coverage.
 - Its fresh and verification exact full gates each exit 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no matrix row or cell moves.
+- Local pre-publication CORE-040 evidence adds only exact `==` and `!=` for two
+  compile-time decoded String values retained through bounded immutable provenance.
+  One classifier owns operator eligibility and exact content equality; checked
+  admission and lowering produce logical Bool IR without String layout or a runtime
+  helper. Ordering, concatenation, dynamic/mutable/signature strings, noncanonical
+  annotations, impl/generic/closure/trait/raw paths, normalization, ownership, ABI,
+  GPU, and general operator overloading remain excluded. The exact root gate passes
+  145/145 library, 155/155 CLI, 7/7 claim, 28/28 binding, the exhaustive equality
+  aggregate, all downstream suites, and doc tests. The Strings and comparisons rows
+  remain `PARTIAL`; pinned LLVM 22 native exit-41 evidence, exact review, publication,
+  and public checks are still pending.

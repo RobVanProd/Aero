@@ -469,10 +469,7 @@ fn build_external_failure_matrix_is_fail_closed() {
 #[test]
 fn source_ir_failure_precedes_external_verification_and_publication() {
     let workspace = TestWorkspace::new("source-ir-before-external");
-    let source = workspace.write(
-        "invalid.aero",
-        "fn main() { let compared = \"left\" == \"right\"; }\n",
-    );
+    let source = workspace.write("invalid.aero", "fn main() { let compared = [1] == [1]; }\n");
     let artifact = workspace.path("invalid.ll");
     let verifier = write_fake_tool(
         &workspace,

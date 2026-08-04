@@ -8,6 +8,9 @@ use crate::fixed_array_method::{
 };
 use crate::ir::{Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
+use crate::static_string_equality::{
+    StaticStringEqualityDisposition, classify_static_string_equality,
+};
 use crate::static_string_method::{StaticStringLenDisposition, classify_static_string_len};
 use crate::types::{Ty, needs_promotion};
 use std::collections::{BTreeMap, HashMap};
@@ -872,7 +875,7 @@ impl IrGenerator {
                 }
                 Ok(Ty::Void)
             }
-            Expression::Comparison { left, right, .. } => {
+            Expression::Comparison { op, left, right } => {
                 let left_ty = Self::validate_expression(
                     left,
                     bindings,
@@ -887,6 +890,19 @@ impl IrGenerator {
                     ExpressionUse::Value,
                     inside_impl,
                 )?;
+                if !inside_impl {
+                    let left_static = Self::static_string_value(left, bindings);
+                    let right_static = Self::static_string_value(right, bindings);
+                    if let StaticStringEqualityDisposition::StaticBool(_) =
+                        classify_static_string_equality(
+                            left_static.as_deref(),
+                            op,
+                            right_static.as_deref(),
+                        )
+                    {
+                        return Ok(Ty::Bool);
+                    }
+                }
                 if !matches!(
                     (&left_ty, &right_ty),
                     (&Ty::Int, &Ty::Int)
@@ -1037,6 +1053,11 @@ impl IrGenerator {
                         "array construction, iteration, and indexing are not admitted in closure bodies",
                     ));
                 }
+                if Self::closure_body_needs_static_string_equality(body) {
+                    return Err(admission_error(
+                        "comparison operand types are not admitted; expected numeric operands or Bool with Bool",
+                    ));
+                }
                 let mut closure_bindings = HashMap::new();
                 let mut parameter_types = Vec::new();
                 for parameter in params {
@@ -1150,6 +1171,74 @@ impl IrGenerator {
                     || arms
                         .iter()
                         .any(|arm| Self::closure_body_needs_aggregate_lowering(&arm.body))
+            }
+            Expression::IntegerLiteral(_)
+            | Expression::FloatLiteral(_)
+            | Expression::StringLiteral(_)
+            | Expression::Identifier(_) => false,
+        }
+    }
+
+    fn closure_body_needs_static_string_equality(expression: &Expression) -> bool {
+        match expression {
+            Expression::Comparison { op, left, right } => {
+                let left_static = match left.as_ref() {
+                    Expression::StringLiteral(value) => Some(value.as_str()),
+                    _ => None,
+                };
+                let right_static = match right.as_ref() {
+                    Expression::StringLiteral(value) => Some(value.as_str()),
+                    _ => None,
+                };
+                matches!(
+                    classify_static_string_equality(left_static, op, right_static),
+                    StaticStringEqualityDisposition::StaticBool(_)
+                ) || Self::closure_body_needs_static_string_equality(left)
+                    || Self::closure_body_needs_static_string_equality(right)
+            }
+            Expression::Binary { left, right, .. } | Expression::Logical { left, right, .. } => {
+                Self::closure_body_needs_static_string_equality(left)
+                    || Self::closure_body_needs_static_string_equality(right)
+            }
+            Expression::FunctionCall { arguments, .. }
+            | Expression::Print { arguments, .. }
+            | Expression::Println { arguments, .. }
+            | Expression::TupleLiteral(arguments)
+            | Expression::ArrayLiteral(arguments) => arguments
+                .iter()
+                .any(Self::closure_body_needs_static_string_equality),
+            Expression::ArrayRepeat { value, .. }
+            | Expression::Unary { operand: value, .. }
+            | Expression::FieldAccess { object: value, .. }
+            | Expression::TupleIndex { object: value, .. }
+            | Expression::Borrow { expr: value, .. }
+            | Expression::Deref(value)
+            | Expression::Closure { body: value, .. } => {
+                Self::closure_body_needs_static_string_equality(value)
+            }
+            Expression::IndexAccess { object, index } => {
+                Self::closure_body_needs_static_string_equality(object)
+                    || Self::closure_body_needs_static_string_equality(index)
+            }
+            Expression::StructLiteral { fields, .. } => fields
+                .iter()
+                .any(|(_, value)| Self::closure_body_needs_static_string_equality(value)),
+            Expression::EnumVariant { data, .. } => data
+                .as_deref()
+                .is_some_and(Self::closure_body_needs_static_string_equality),
+            Expression::Match { expr, arms } => {
+                Self::closure_body_needs_static_string_equality(expr)
+                    || arms
+                        .iter()
+                        .any(|arm| Self::closure_body_needs_static_string_equality(&arm.body))
+            }
+            Expression::MethodCall {
+                object, arguments, ..
+            } => {
+                Self::closure_body_needs_static_string_equality(object)
+                    || arguments
+                        .iter()
+                        .any(Self::closure_body_needs_static_string_equality)
             }
             Expression::IntegerLiteral(_)
             | Expression::FloatLiteral(_)
@@ -2865,6 +2954,30 @@ impl IrGenerator {
     ) -> (Value, Ty) {
         let (left_val, left_type) = self.generate_expression_ir(left, function);
         let (right_val, right_type) = self.generate_expression_ir(right, function);
+
+        if self.checked_mode {
+            let left_static = match (&left_val, &left_type) {
+                (Value::ImmString(value), Ty::String) => Some(value.as_str()),
+                _ => None,
+            };
+            let right_static = match (&right_val, &right_type) {
+                (Value::ImmString(value), Ty::String) => Some(value.as_str()),
+                _ => None,
+            };
+            if let StaticStringEqualityDisposition::StaticBool(value) =
+                classify_static_string_equality(left_static, &op, right_static)
+            {
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::ICmp {
+                    op: if value { "eq" } else { "ne" }.to_string(),
+                    result: result_reg.clone(),
+                    left: Value::ImmInt(0),
+                    right: Value::ImmInt(0),
+                });
+                return (result_reg, Ty::Bool);
+            }
+        }
 
         let result_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;

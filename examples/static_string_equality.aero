@@ -1,0 +1,12 @@
+fn main() -> int {
+    let language: String = "Aero";
+    let alias = language;
+
+    if alias == "Aero" && "é" != "é" {
+        if f"raw {name}" == "raw {name}" {
+            return 41;
+        }
+    }
+
+    return 1;
+}
