@@ -1177,10 +1177,6 @@ fn initialized_immediate_array_of_tuple_annotation_fails_closed_after_value_vali
             "fn main() { let value: &[(int, float); 1]; }",
         ),
         (
-            "initialized deeper array",
-            "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
-        ),
-        (
             "initialized reference-wrapped target",
             "fn main() { let value: &[(int, float); 1] = 1; }",
         ),
@@ -1215,6 +1211,145 @@ fn initialized_immediate_array_of_tuple_annotation_fails_closed_after_value_vali
         Ok(Err(error)) => Err(error),
     };
     expect_acceptance(&mut failures, "valid numeric-array output", valid_result);
+
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn initialized_immediate_array_of_array_of_tuple_annotation_fails_closed_after_value_validation() {
+    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.";
+    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding";
+    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.";
+
+    let mut failures = Vec::new();
+    for (label, source) in [
+        (
+            "zero outer and zero inner counts",
+            "fn main() { let value: [[(int, float); 0]; 0] = 1; }",
+        ),
+        (
+            "nonzero outer and zero inner counts",
+            "fn main() { let value: [[(int, float); 0]; 1] = 1; }",
+        ),
+        (
+            "zero outer and nonzero inner counts",
+            "fn main() { let value: [[(int, float); 1]; 0] = 1; }",
+        ),
+        (
+            "nonzero outer and nonzero inner counts",
+            "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} direct semantics"),
+            semantic_result(source),
+            SEMANTIC_ERROR,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            CHECKED_ERROR,
+        );
+    }
+
+    let public_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(
+            "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
+            CompilerOptions::default(),
+        )
+    })) {
+        Err(_) => Err("compile_program unwound".to_string()),
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "public compilation",
+        public_result,
+        PUBLIC_ERROR,
+    );
+
+    let target_annotation = || {
+        Type::Array(
+            Box::new(Type::Array(
+                Box::new(Type::Tuple(vec![
+                    Type::Named("int".to_string()),
+                    Type::Named("float".to_string()),
+                ])),
+                1,
+            )),
+            1,
+        )
+    };
+    let generic_impl = generic_impl_with(binding(
+        "value",
+        Some(target_annotation()),
+        Expression::IntegerLiteral(1),
+    ));
+    let generic_semantics = {
+        let mut analyzer = SemanticAnalyzer::new();
+        analyzer.analyze(generic_impl.clone()).map(|_| ())
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "generic impl direct semantics",
+        generic_semantics,
+        SEMANTIC_ERROR,
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "generic impl checked admission",
+        checked_ast(generic_impl),
+        CHECKED_ERROR,
+    );
+
+    const GENERIC_FUNCTION_SOURCE: &str =
+        "fn probe<T>() { let value: [[(int, float); 1]; 1] = 1; }";
+    expect_exact_rejection(
+        &mut failures,
+        "generic function direct semantics",
+        semantic_result(GENERIC_FUNCTION_SOURCE),
+        SEMANTIC_ERROR,
+    );
+    expect_rejection(
+        &mut failures,
+        "generic function checked admission retains outer rejection",
+        checked_source(GENERIC_FUNCTION_SOURCE),
+        &["generic function IR is not admitted"],
+    );
+
+    expect_exact_rejection(
+        &mut failures,
+        "duplicate semantic precedence",
+        semantic_result("fn main() { let value = 1; let value: [[(int, float); 1]; 1] = 1; }"),
+        "Error: Variable `value` is already defined in this scope.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "tuple RHS semantic child precedence",
+        semantic_result("fn main() { let value: [[(int, float); 1]; 1] = (1, 2); }"),
+        "Tuple expressions are not supported.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "tuple RHS checked child precedence",
+        checked_source("fn main() { let value: [[(int, float); 1]; 1] = (1, 2); }"),
+        "aggregate expression is not admitted in checked IR",
+    );
+    const INITIALIZED_THREE_ARRAY_SOURCE: &str =
+        "fn main() { let value: [[[(int, float); 1]; 1]; 1] = 1; }";
+    expect_acceptance(
+        &mut failures,
+        "initialized three-array-depth semantics",
+        semantic_result(INITIALIZED_THREE_ARRAY_SOURCE),
+    );
+    expect_acceptance(
+        &mut failures,
+        "initialized three-array-depth checked admission",
+        checked_source(INITIALIZED_THREE_ARRAY_SOURCE),
+    );
 
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
@@ -1303,10 +1438,6 @@ fn valueless_immediate_array_of_array_of_tuple_annotation_fails_closed_before_in
         (
             "array containing reference to tuple",
             "fn main() { let value: [&(int, float); 1]; }",
-        ),
-        (
-            "initialized target shape",
-            "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
         ),
         (
             "third array layer containing tuple",
