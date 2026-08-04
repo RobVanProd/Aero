@@ -948,8 +948,10 @@ declared compatibility policy and release-level coverage.
 - Local CORE-043 evidence promotes only unique top-level, non-generic, nonempty
   structs whose unique fields collapse to `Int`, `Float`, or `Bool`. Exact named
   construction, source-order child evaluation, direct/local named projection,
-  logical checked-IR schemas and verified LLVM named aggregates are covered. The
-  tracked exit-53 native gate is wired; public stable-Linux execution remains pending.
+  logical checked-IR schemas and verified LLVM named aggregates are covered. Exact
+  implementation commit `92b19cf729daa4e3e90d4591495e493573c89e51` passes all eight
+  public checks; stable Linux job `92163717297` verifies, lowers, links, and executes
+  the tracked program with native exit 53 under LLVM/Clang 22.1.8.
 - Struct ownership, moves/copies, parameters/returns, aggregate recursion, methods,
   assignment, destructuring, Match, generics, visibility, separate compilation,
   ABI/layout guarantees, heap/drop/lifetimes, and accelerators remain absent or

@@ -4,7 +4,8 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 62 `CORE-043` is locally implemented from accepted public CORE-042 head
+Milestone 62 `CORE-043` is accepted through exact public implementation commit
+`92b19cf729daa4e3e90d4591495e493573c89e51`, based on accepted CORE-042 head
 `e77276c8dcd42f6adaca7ac31e60a2d5a6fe0308`. It admits one deliberately bounded but
 architectural aggregate class: unique flattened top-level, non-generic, nonempty
 structs with unique `int`/`i32`, `float`/`f64`, or `bool` fields; exact named
@@ -21,9 +22,13 @@ arrays, and non-struct projection remain fail-closed before LLVM; invalid CLI bu
 publish no artifact. The deprecated unchecked AST generator retains its old zero-like
 stub behavior, and legacy raw `AllocaStruct`/`GetFieldPtr` remain rejected. Exact root
 `./tools/test.sh` passes 150/150 library tests, 159/159 CLI tests, every active
-integration target, formatting, correctness Clippy, and doc tests. Local LLVM 22 tools
-are unavailable, so unchanged publication, all public checks, and stable Linux pinned
-LLVM/Clang 22 exit 53 remain required before this local candidate is accepted.
+integration target, formatting, correctness Clippy, and doc tests. Push CI
+`30960678710`, PR CI `30960681935`, Rust CI `30960681967`, CodeQL analysis
+`30960679155`, and aggregate CodeQL check `92163799952` pass all eight public checks.
+Stable Linux job `92163717297` used LLVM/Clang 22.1.8 to checked-build, externally
+LLVM-verify, machine-verify, object-lower, link, and execute the tracked program with
+exact native exit 53. This records-only acceptance successor changes no compiler,
+test, example, or workflow behavior.
 
 CORE-042 is accepted public at `e77276c8dcd42f6adaca7ac31e60a2d5a6fe0308`.
 Its flattened direct-module composition example passed the exact native exit-47 gate,
@@ -46,9 +51,8 @@ composition rather than a module system.
   truth.
 - Periodic system gates must compose multiple accepted capabilities through source,
   semantics, logical checked IR, verification, LLVM, native execution, documentation,
-  and release-eligibility classification. CORE-042 provides one accepted gate and
-  CORE-043 wires the next pending public execution; local slice tests alone never
-  establish whole-language coherence.
+  and release-eligibility classification. CORE-042 and CORE-043 now provide accepted
+  composed gates; local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
 Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
@@ -1638,18 +1642,17 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve the single CORE-043 authorization and finish its proportional acceptance
-sequence. Formatting, correctness Clippy, repository-root `./tools/test.sh`, and the
-complete diff review against accepted public basis `e77276c8` are green. Make one
-intentional commit and unchanged push to `agent/aero-integration`, require all eight
-public checks, and inspect the stable Linux LLVM/Clang 22 step for build, LLVM
-verification, machine verification, object lowering, link, and exact native exit 53.
-Only then record acceptance and synchronize PR #4's title/body/status to CORE-043.
+CORE-043 is closed at exact public implementation commit `92b19cf729daa4e3e90d4591495e493573c89e51`:
+the local gate, all eight public checks, and stable Linux LLVM/Clang 22 native exit 53
+are accepted. Keep PR #4 draft and keep its mutable front page synchronized to this
+checkpoint; do not reopen or broaden the frozen struct class.
 
-Stop if any excluded struct shape is accepted, metadata cannot prove struct/field
-places, invalid source reaches LLVM or publishes an artifact, raw compatibility moves,
-the full gate is red, or public native evidence is absent. Do not merge PR #4, publish
-releases/packages/benchmarks/claims, rewrite history, force-push, or touch `master`.
+Before another implementation slice, separately authorize the next semantic class.
+Milestone selection must now weigh a harder ownership/runtime-layout/ABI/module/GPU
+boundary or another cross-capability integration gate, not only convenient compile-time
+work. The controlled mega-PR checkpoint strategy and structured evidence-manifest
+generator also require separate authorization. Do not merge PR #4, publish releases/
+packages/benchmarks/claims, rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

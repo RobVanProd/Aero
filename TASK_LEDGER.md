@@ -8294,3 +8294,16 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   class and no new production warning. LLVM 22 native tools are absent locally, so
   commit/push, all public checks, stable-job native exit-53 log inspection, acceptance
   record, and PR synchronization remain pending.
+- Public acceptance: exact implementation commit
+  `92b19cf729daa4e3e90d4591495e493573c89e51`, tree
+  `b301b2e90b2c6b85d8240e456411caa5a4f417a8`, and binary diff hash
+  `43366aa3f2011385104ca22306f3b557197aa023` were published unchanged on
+  `agent/aero-integration`. Push CI `30960678710`, PR CI `30960681935`, Rust CI
+  `30960681967`, CodeQL analysis `30960679155`, and aggregate CodeQL check
+  `92163799952` pass all eight public checks. Stable Linux job `92163717297` records
+  Ubuntu LLVM/Clang 22.1.8, checked build with external `opt-22` verification,
+  `llc-22` machine verification and object lowering, `clang-22` linking, and exact
+  native exit 53. CORE-043 is accepted without a layout/ABI, ownership, accelerator,
+  performance, or release claim. This records-only successor changes no compiler,
+  test, example, workflow, or capability boundary; PR #4 remains draft and its mutable
+  front page must identify CORE-043 as the latest accepted checkpoint.
