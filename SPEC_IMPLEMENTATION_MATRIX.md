@@ -704,6 +704,21 @@ declared compatibility policy and release-level coverage.
   lifetime, bounds, layout, ABI, lowering, execution, or backend evidence. Count
   zero and every deeper/wrapped residual remain unimplemented controls. Therefore
   every matrix row, cell, and capability class remains unchanged; R-002 stays
-  HIGH/CRITICAL and PARTIALLY CONTROLLED. The prepared six-record closure snapshot's
-  fresh exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
-  and 24/24 binding tests; exact review and public acceptance are still required.
+  HIGH/CRITICAL and PARTIALLY CONTROLLED. The six-record closure's exact full local
+  gate passes with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding
+  tests.
+- Exact CORE-035 closure `60ad91f7`, tree `978aa98f`, canonical diff `818a8112`, is
+  triple-approved and public all-eight green in compiler `30923835957` /
+  `30923837627`, stable/nightly Rust `30923838264`, all three CodeQL analyses in
+  `30923834264`, and aggregate `92041128413`. CORE-035 is closed; no matrix row,
+  cell, capability, risk, backend, artifact, or claim classification moves.
+- Preregistered read-only AUDIT-042 must independently re-rank only the complete
+  remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016
+  set from exact clean public closure `60ad91f7`. It must exclude all accepted slices
+  through CORE-035, inherit no prior candidate, label, or order, and distinguish
+  rejection, helper simulation, annotations, LLVM text, object emission, and
+  hardware execution. It cannot change a matrix row or cell; ranking begins only
+  after its six-record authorization is locally green, triple-approved, published
+  unchanged, and public all-eight green.
+- The prepared AUDIT-042 authorization's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 24/24 binding tests. No matrix cell moves.

@@ -4,11 +4,11 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 49 `CORE-035` closure. The authorization, tests-first red checkpoint, and
-two-guard implementation are triple-approved and public at exact head `b8fd5a17`;
-all eight implementation checks pass. The separate six-record closure snapshot is
-locally green and awaiting exact review/publication. No capability, matrix, risk,
-backend, artifact, or claim promotion follows from the narrow fail-closed containment.
+Milestone 50 `AUDIT-042` authorization. CORE-035 is closed at exact public all-eight-
+green `60ad91f7`. The six-record authorization snapshot is locally green and awaiting
+exact review/publication. No source/test change, inherited candidate order,
+capability/matrix/risk movement, backend action, or claim is authorized before that
+contract's acceptance.
 
 ## Active hypothesis
 
@@ -58,6 +58,14 @@ capability claims are stop conditions rather than implementation invitations.
   implementation is triple-approved; compiler `30922853658` / `30922859177`,
   stable/nightly Rust `30922863203`, all three CodeQL analyses in `30922853619`,
   and aggregate `92037794056` pass.
+- Accepted public CORE-035 closure:
+  `60ad91f7d6ab3d9881346ab5b98f1d0e161d6629`, parent `b8fd5a17`, tree
+  `978aa98fbab94ebc1a949a3e4f7eb023ee922281`, canonical diff
+  `818a811299fc57d185f12eafe6e422569a0eea4f`. The six-record snapshot passed its
+  exact full local gate at 139/139 library, 149/149 binary, 7/7 claim, and 24/24
+  binding tests, received three approvals, and was published unchanged. Compiler
+  `30923835957` / `30923837627`, stable/nightly Rust `30923838264`, all three
+  CodeQL analyses in `30923834264`, and aggregate `92041128413` pass.
 - Accepted public `CORE-033` closure
   `1ee9c71b555bec8066277cb9c64a7a7a2a3ff498`, parent `19f688a`, tree
   `d081988164fba75fcfe7af8788fbd010bb5a158d`, established PowerShell full-index
@@ -1295,18 +1303,48 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   and valid-output controls remain unchanged. This defines no reference/array/tuple
   value, ownership, lifetime, layout, ABI, bounds, lowering, execution, or backend
   capability. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
-- Closure is not yet accepted. Only the six control records changed; this prepared
-  snapshot's fresh exact repository-root full gate exits 0 with 139/139 library,
-  149/149 binary, 7/7 claim, and 24/24 binding tests. Three exact reviews, unchanged
-  publication, and all-eight public green remain required.
+- Closure `60ad91f7`, tree `978aa98f`, canonical diff `818a8112`, changed only the
+  six control records, passed the exact local gate above, received three approvals,
+  and is public all-eight green in compiler `30923835957` / `30923837627`, Rust
+  `30923838264`, CodeQL `30923834264`, and aggregate `92041128413`. CORE-035 is
+  closed without a capability, matrix, risk, backend, artifact, claim, history, or
+  `master` movement.
+
+## AUDIT-042 authorization
+
+- Basis: exact clean public CORE-035 closure `60ad91f7`, tree `978aa98f`, canonical
+  diff `818a8112`, with the all-eight evidence above and a clean worktree. Every
+  accepted slice through CORE-035 is excluded.
+- Scope: independently rank the complete remaining R-002/R-004/R-005/R-006/R-007/
+  R-009/R-010/R-011/R-012/R-013/R-016 set. Each reviewer must cite every rank,
+  identify one exact bounded candidate or stop, explain trusted reachability and
+  containment, state semantic choices and phase count, propose one deterministic
+  failing specimen plus preservation controls, and distinguish rejection, helper
+  simulation, annotations, LLVM text, object emission, and hardware execution.
+- Boundary: after authorization acceptance, the audit is static and read-only: no
+  edit, test, build, formatter, probe, benchmark, artifact, hardware action, or
+  external query. V/I three-array containment, literal bounds, every historical
+  label, and every prior order are non-authoritative inputs.
+- Selection: the lead may reconcile the three complete rankings to at most one
+  unanimously bounded residual or record a stop. An unresolved semantic or
+  compatibility choice, more than two compiler phases, hardware requirement,
+  unsupported-source-type fallback, or valid-output uncertainty is a stop.
+- Authorization files are limited to the six control records. A fresh exact full
+  local gate, three exact reviews, unchanged publication, and all eight public checks
+  are required before ranking begins. AUDIT-042 grants no regression,
+  implementation, semantics, capability, matrix, risk, workflow, dependency,
+  backend, artifact, claim, history, or `master` authority.
+- The prepared six-record authorization's fresh exact repository-root full gate exits
+  0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests.
 
 ## Exact next action
 
-Obtain three exact reviews for the locally green six-record CORE-035 closure,
-publish the immutable closure unchanged, and require all eight public checks. Do
-not reopen source/tests, broaden the predicate, resolve bounds policy implicitly,
-promote a capability, change workflows/dependencies/backends, publish artifacts or
-claims, rewrite history, force-push, or touch `master`.
+Obtain three exact reviews for the locally green six-record AUDIT-042 authorization,
+publish the immutable authorization unchanged, and require all eight public checks
+before read-only ranking. Do not edit source/tests, inherit a prior candidate order,
+resolve bounds policy implicitly, promote a capability, change workflows/
+dependencies/backends, publish artifacts or claims, rewrite history, force-push, or
+touch `master`.
 
 ## Unauthorized actions
 

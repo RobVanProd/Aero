@@ -2148,8 +2148,43 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   other frozen residual remain controls, not supported semantics. R-002 remains
   HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011, matrix, capability, backend,
   artifact, and claim boundaries are unchanged.
-- Closure boundary: the separate six-record closure may record this evidence only.
-  This prepared closure snapshot's fresh exact full gate exits 0 with 139/139
-  library, 149/149 binary, 7/7 claim, and 24/24 binding tests. Three exact reviews,
-  unchanged publication, and all-eight public checks remain required before
-  CORE-035 is closed.
+- Closure acceptance: exact `60ad91f7`, tree `978aa98f`, canonical diff `818a8112`,
+  changed only the six control records, received three exact approvals, and was
+  published unchanged. Compiler `30923835957` / `30923837627`, stable/nightly Rust
+  `30923838264`, all three CodeQL analyses in `30923834264`, and aggregate
+  `92041128413` pass. CORE-035 is closed without moving a semantic, capability,
+  matrix, risk, backend, artifact, claim, history, or `master` boundary.
+
+## DEC-047 - Re-rank the complete residual set after CORE-035
+
+- Date: 2026-08-04
+- Status: authorization fresh-local-gate green from exact public CORE-035 closure;
+  exact reviews, unchanged publication, and public checks pending.
+- Closure acceptance: exact `60ad91f7`, parent `b8fd5a17`, tree `978aa98f`, canonical
+  diff `818a8112`, changed only the six control records, passed the exact full local
+  gate with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests,
+  received three exact approvals, and was published unchanged. Compiler
+  `30923835957` / `30923837627`, stable/nightly Rust `30923838264`, CodeQL
+  `30923834264`, and aggregate `92041128413` pass. CORE-035 is closed without a
+  semantic, capability, matrix, risk, backend, artifact, claim, history, or `master`
+  movement.
+- Decision: authorize `AUDIT-042` only as a static, read-only, independent re-ranking
+  of R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 from exact
+  clean public closure `60ad91f7`. Exclude every accepted slice through CORE-035 and
+  inherit no prior candidate, label, preservation row, or order.
+- Method: each type/safety, IR/codegen, and backend/claim reviewer must rank all
+  eleven residuals with file/symbol evidence, name one exact bounded candidate or
+  stop, describe trusted reachability and containment, state semantic decisions and
+  phase count, give one deterministic failing specimen and preservation controls,
+  and distinguish rejection, helper simulation, annotations, LLVM text, object
+  emission, and hardware execution.
+- Selection boundary: the lead may reconcile to at most one unanimously bounded
+  residual or an explicit stop. More than two compiler phases, unresolved semantics
+  or compatibility, hardware dependence, unsupported-type fallback, or valid-output
+  uncertainty requires a stop.
+- Authority boundary: after this six-record authorization is locally green,
+  triple-approved, published unchanged, and public all-eight green, the audit remains
+  read-only. It grants no test, implementation, semantics, capability, matrix, risk,
+  workflow, dependency, backend, artifact, claim, history, or `master` authority.
+- Gate evidence: the prepared authorization's fresh exact full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests.

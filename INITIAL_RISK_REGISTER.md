@@ -806,6 +806,26 @@ CORE-035 narrows one false-success subset but does not resolve R-002's broader
 unsupported type/ownership/memory surface or R-011's bounds policy. R-002 remains
 HIGH/CRITICAL and PARTIALLY CONTROLLED; every other risk status, matrix cell,
 capability class, backend distinction, artifact boundary, and claim remains
-unchanged. The prepared six-record closure snapshot's fresh exact full gate exits 0
-with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. Three
-exact reviews, unchanged publication, and all-eight public green remain required.
+unchanged. The six-record closure's exact full local gate passes with 139/139
+library, 149/149 binary, 7/7 claim, and 24/24 binding tests.
+
+Exact six-record CORE-035 closure `60ad91f7`, tree `978aa98f`, canonical diff
+`818a8112`, received three exact approvals and is public all-eight green in compiler
+`30923835957` / `30923837627`, stable/nightly Rust `30923838264`, all three CodeQL
+analyses in `30923834264`, and aggregate `92041128413`. CORE-035 is closed without
+changing any risk status.
+
+Preregistered read-only AUDIT-042 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `60ad91f7`, excluding every accepted slice through CORE-035 and
+inheriting no earlier candidate, label, or order. Each ranking must be complete and
+evidence-cited, identify one bounded candidate or stop, and state trusted
+reachability, exact containment, unresolved semantic choices, phase count, a
+deterministic failing specimen, and preservation controls. The audit remains
+read-only and cannot change a risk status, matrix cell, capability class, backend
+distinction, artifact boundary, or claim. Its six-record authorization must pass a
+fresh local gate, three exact reviews, unchanged publication, and all eight public
+checks before ranking begins.
+
+The prepared AUDIT-042 authorization's fresh exact full gate exits 0 with 139/139
+library, 149/149 binary, 7/7 claim, and 24/24 binding tests. No risk status changes.

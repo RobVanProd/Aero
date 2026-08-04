@@ -1617,6 +1617,31 @@ promise future compatibility.
   parsed-only; references and fixed arrays remain partial; R-002 remains
   HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open without a bounds
   policy; and no backend, matrix, capability, artifact, or stability class moves.
-- The prepared six-record closure snapshot's fresh exact full gate exits 0 with
-  139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. Three exact
-  reviews, unchanged publication, and all-eight public checks remain required.
+- Exact closure `60ad91f7`, tree `978aa98f`, canonical diff `818a8112`, received
+  three exact approvals and is public all-eight green in compiler `30923835957` /
+  `30923837627`, Rust `30923838264`, CodeQL `30923834264`, and aggregate
+  `92041128413`. CORE-035 is closed without changing a capability classification.
+
+## AUDIT-042 authorization boundary
+
+- Exact CORE-035 closure `60ad91f7`, tree `978aa98f`, canonical diff `818a8112`,
+  received three exact approvals and is public all-eight green in compiler
+  `30923835957` / `30923837627`, Rust `30923838264`, CodeQL `30923834264`, and
+  aggregate `92041128413`. CORE-035 is closed without a capability classification
+  change.
+- The AUDIT-042 basis is that exact clean public closure. Every accepted slice
+  through CORE-035 is excluded; the complete remaining set is R-002/R-004/R-005/
+  R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016.
+- Three independent reviewers must rank all eleven residuals from the immutable
+  head, inherit no earlier candidate or order, and identify at most one exact bounded
+  candidate or stop with evidence, reachability, containment, semantic decisions,
+  phase count, a deterministic failing specimen, and preservation controls.
+- The authorization and audit cannot change implementation or classification.
+  Tuples remain parsed-only; references and fixed arrays remain partial; R-002 stays
+  HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open without bounds policy;
+  and every backend, artifact, hardware-execution, and claim boundary is unchanged.
+- No ranking may begin before the authorization passes a fresh exact full local gate,
+  three exact reviews, unchanged publication, and all eight public checks. Afterward
+  the audit remains read-only and can select at most one bounded candidate or stop.
+- The prepared authorization's fresh exact full gate exits 0 with 139/139 library,
+  149/149 binary, 7/7 claim, and 24/24 binding tests. No capability class moves.
