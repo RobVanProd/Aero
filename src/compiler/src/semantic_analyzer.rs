@@ -1868,6 +1868,23 @@ impl SemanticAnalyzer {
                     ));
                 }
 
+                if value.is_some()
+                    && matches!(
+                        type_annotation.as_ref(),
+                        Some(crate::ast::Type::Array(first, _))
+                            if matches!(
+                                first.as_ref(),
+                                crate::ast::Type::Array(second, _)
+                                    if matches!(second.as_ref(), crate::ast::Type::Tuple(_))
+                            )
+                    )
+                {
+                    return Err(format!(
+                        "Error: Variable `{}` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.",
+                        name
+                    ));
+                }
+
                 let binding_type = if value.is_some()
                     && let Some(expected_type) = type_annotation
                         .as_ref()
