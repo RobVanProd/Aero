@@ -2359,9 +2359,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-050 - Authorize behavior-neutral binding-annotation classifier prerequisite
 
 - Date: 2026-08-04
-- Status: prepared authorization only. Fresh and verification exact full gates are
-  green; exact review of the committed six-record snapshot, unchanged publication,
-  and public all-eight acceptance remain required before tests/source.
+- Status: exact additive correction `1dcfd869` is triple-approved, published
+  unchanged, and public all-eight green. Characterization remains a separate green
+  test-only boundary; implementation remains unauthorized.
 - Decision: classify only exact existing binding-annotation structure as
   `ExistingExplicitRejection(RejectKind)`,
   `MatchesExistingContractShape(ContractKind)`, or `PreserveExistingBehavior` from
@@ -2379,17 +2379,29 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   separate three-source-file behavior-neutral refactor. Combining behavior or adding
   another copied guard is prohibited. Any behavior delta, third phase, or claim move
   is a stop.
-- Fresh authorization gate: exact repository-root `./tools/test.sh` exits 0 with
+- Pre-acceptance authorization-gate evidence (historical; superseded by acceptance
+  below): exact repository-root `./tools/test.sh` exited 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
-  downstream suites. The verification exact gate independently exits 0 at the same
-  counts with all downstream suites. Exact review and later boundaries remain pending.
+  downstream suites. The verification exact gate independently exited 0 at the same
+  counts with all downstream suites. At that point exact review and later boundaries
+  remained pending.
 - Review correction: first ARCH-001 snapshot `63d8d599`, parent `5276df5b`, tree
   `28cd120c`, canonical binary diff `9fef5adf`, received type/safety and IR/codegen
   approvals but a backend/claim P1 rejection because pre-acceptance AUDIT-043 pending/
   no-ranking evidence remained in present tense in five records beside the completed
   result. It was not published. The additive six-record correction makes only that
   chronology historical; DEC-050 and every behavior/capability boundary remain exact.
-- Additive chronology-correction gates: fresh and verification exact repository-root
+- Pre-acceptance additive chronology-correction gates (historical; superseded below):
+  fresh and verification exact repository-root
+  `./tools/test.sh` each exited 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  25/25 binding tests, plus all downstream suites. At that point fresh exact review,
+  unchanged publication, and public acceptance remained pending.
+- Authorization acceptance: exact `1dcfd869`, parent `63d8d599`, tree `b537023c`,
+  correction diff `e5ee8aa7`, cumulative diff `5208cb6e`, received three fresh exact
+  approvals and is public all-eight green in push CI `30934518525`, PR CI
+  `30934523152`, Rust `30934523078`, CodeQL `30934519513`, and aggregate
+  `92077350363`. No characterization, source, behavior, or capability change occurred.
+- Authorization-acceptance sync gates: fresh and verification exact repository-root
   `./tools/test.sh` each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
-  25/25 binding tests, plus all downstream suites. Fresh exact review, unchanged
-  publication, and public acceptance remain pending.
+  25/25 binding tests, plus all downstream suites. Exact review and public acceptance
+  of the committed sync remain pending.

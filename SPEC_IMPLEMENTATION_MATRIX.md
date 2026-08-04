@@ -826,15 +826,25 @@ declared compatibility policy and release-level coverage.
   trait gates, raw compatibility, valid LLVM, and the later R-002 shape unchanged.
   Tuples remain parsed-only, references/fixed arrays partial, bounds unresolved, and
   CPU/ROCm/CUDA separate. The refactor is not capability or support evidence.
-- Its fresh exact authorization gate exits 0 with 139/139 library, 149/149 binary,
-  7/7 claim, and 25/25 binding tests, plus all downstream suites. Its verification
-  exact gate independently exits 0 at the same counts with all downstream suites.
-  Review and later acceptance remain pending; no matrix row or cell moves.
+- Its pre-acceptance fresh and verification exact authorization gates (historical;
+  superseded below) each exited 0 with 139/139 library, 149/149 binary, 7/7 claim,
+  and 25/25 binding tests, plus all downstream suites. At that point review and later
+  acceptance remained pending; no matrix row or cell moved.
 - First ARCH-001 snapshot `63d8d599`, tree `28cd120c`, diff `9fef5adf`, was not
   published after a valid P1 chronology rejection. This additive six-record correction
   labels superseded AUDIT-043 pending/no-ranking evidence historical; no matrix row or
   cell moves.
-- The additive correction's fresh and verification exact full gates each exit 0 with
+- The additive correction's pre-acceptance fresh and verification exact full gates
+  (historical; superseded below) each exited 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
-  downstream suites. Fresh review and public acceptance remain pending; no matrix row
-  or cell moves.
+  downstream suites. At that point fresh review and public acceptance remained
+  pending; no matrix row or cell moved.
+- Exact `1dcfd869`, tree `b537023c`, correction diff `e5ee8aa7`, cumulative diff
+  `5208cb6e`, is triple-approved and public all-eight green in compiler CI
+  `30934518525` / `30934523152`, Rust `30934523078`, CodeQL `30934519513`, and
+  aggregate `92077350363`. No matrix row or cell moves; only separate green
+  characterization evidence is eligible.
+- The six-record acceptance sync's fresh and verification exact full gates each exit 0
+  with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. Exact review and public sync acceptance remain pending; no matrix
+  row or cell moves.

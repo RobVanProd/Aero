@@ -977,18 +977,30 @@ R-002 shape remains accepted. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLL
 R-011 remains open, and every risk, matrix, capability, backend, artifact, and claim
 classification remains unchanged. Separate authorization gates must pass before work.
 
-The fresh exact ARCH-001 authorization gate exits 0 with 139/139 library, 149/149
-binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. Its
-verification exact gate independently exits 0 at the same counts with all downstream
-suites. Review, unchanged publication, and public all-eight acceptance remain
-pending; no risk status changes.
+The pre-acceptance fresh and verification exact ARCH-001 authorization gates
+(historical; superseded below) each exited 0 with 139/139 library, 149/149 binary,
+7/7 claim, and 25/25 binding tests, plus all downstream suites. At that point review,
+unchanged publication, and public all-eight acceptance remained pending; no risk
+status had changed.
 
 First ARCH-001 snapshot `63d8d599`, tree `28cd120c`, diff `9fef5adf`, was not
 published after backend/claim found a valid P1 chronology contradiction in superseded
 AUDIT-043 pending/no-ranking evidence. The additive six-record correction makes that
 evidence historical and changes no risk, backend, artifact, claim, or task boundary.
 
-The additive correction's fresh and verification exact full gates each exit 0 with
+The additive correction's pre-acceptance fresh and verification exact full gates
+(historical; superseded below) each exited 0 with
 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream
-suites. Fresh review, unchanged publication, and public all-eight acceptance remain
-pending; no risk status changes.
+suites. At that point fresh review, unchanged publication, and public all-eight
+acceptance remained pending; no risk status had changed.
+
+Exact `1dcfd869`, tree `b537023c`, correction diff `e5ee8aa7`, cumulative diff
+`5208cb6e`, received three fresh approvals and is public all-eight green in compiler
+CI `30934518525` / `30934523152`, Rust `30934523078`, CodeQL `30934519513`, and
+aggregate `92077350363`. Authorization acceptance changes no risk status; only the
+separate green characterization boundary is now eligible.
+
+The six-record acceptance sync's fresh and verification exact full gates each exit 0
+with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+downstream suites. Exact review and public sync acceptance remain pending; no risk
+status changes.

@@ -6865,12 +6865,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 - Authorization files/actions: before acceptance only the six control records may
   change. No characterization, source edit, ranking, build artifact, hardware action,
   external query, workflow/dependency change, history rewrite, force-push, or `master`
-  action is authorized. Status: authorization prepared only. Its fresh exact full gate
-  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests,
-  plus all downstream suites. Its verification exact full gate independently exits 0
-  at the same counts with all downstream suites. Exact review of the committed six-
-  record snapshot, unchanged publication, and public all-eight acceptance remain
-  required.
+  action was authorized. Status: exact additive correction `1dcfd869` is accepted
+  public all-eight green. Its fresh and verification exact full gates each exited 0
+  with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites; three fresh exact reviews approved it and it was published
+  unchanged.
 - Authorization review history: first ARCH-001 snapshot
   `63d8d599fc1d9e0b02acc03f79246d0a98aa1811`, parent `5276df5b`, tree
   `28cd120c0164968b9159e4478bf0264f46938155`, canonical binary diff
@@ -6881,7 +6880,23 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   additive six-record correction makes that chronology explicitly historical and
   changes no ARCH-001 contract, semantics, classification, implementation, risk,
   matrix, capability, backend, artifact, or claim boundary.
-- Additive chronology-correction gates: the fresh and verification exact repository-
+- Pre-acceptance additive chronology-correction gates (historical; superseded by the
+  acceptance below): the fresh and verification exact repository-root full gates each
+  exited 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests,
+  plus all downstream suites. At that point fresh exact review of the committed
+  correction, unchanged publication, and public all-eight acceptance remained pending.
+- Authorization acceptance: exact
+  `1dcfd869167bd0d83fe800b376fb0a2249091a28`, parent `63d8d599`, tree
+  `b537023cf5c80a35e75bc8aaf4b61c05f25388e2`, correction canonical binary diff
+  `e5ee8aa78b20a77bafe03d52210e5fcad5b515a3`, cumulative canonical binary diff
+  from AUDIT-043 `5208cb6ef0a46cf1577fb4821a8f137675d8b051`, changed exactly six
+  records. Three fresh exact reviews approved it and it was published unchanged. Push
+  CI `30934518525`, PR CI `30934523152`, stable/nightly Rust `30934523078`, all three
+  CodeQL analyses in `30934519513`, and aggregate `92077350363` pass. ARCH-001
+  characterization is now eligible only after this six-record acceptance sync closes;
+  implementation and R-002 behavior remain unauthorized.
+- Authorization-acceptance sync gates: the fresh and verification exact repository-
   root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
-  25/25 binding tests, plus all downstream suites. Fresh exact review of the committed
-  correction, unchanged publication, and public all-eight acceptance remain pending.
+  25/25 binding tests, plus all downstream suites. Exact review of the committed sync,
+  unchanged publication, and public all-eight acceptance remain pending before
+  characterization.

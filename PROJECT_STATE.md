@@ -4,22 +4,20 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 54 `ARCH-001` authorization. AUDIT-043 is complete and unanimously selects
-exact valueless nonrecursive three-array-tuple containment under R-002, conditional
-on a separately accepted behavior-neutral binding-annotation classifier. Only the six
-control records may now authorize that refactor. No test/source edit, classifier
-implementation, R-002 behavior change, capability movement, backend action, or claim
-is authorized before the separate architecture authorization is accepted.
+Milestone 55 `ARCH-001` characterization authorization. Exact classifier authorization
+`1dcfd869` is triple-approved, public, and all-eight green. Only a green behavior-
+preserving characterization aggregate in `binding_type_contract_tests.rs` may be
+prepared after this six-record acceptance sync closes. No classifier source edit,
+R-002 behavior change, capability movement, backend action, or claim is authorized.
 
 ## Active hypothesis
 
-A nonrecursive shared classifier in `ast.rs` can encode only the exact existing
-binding-annotation truth table and replace duplicated structural matching in semantic
-analysis and checked admission without changing any acceptance, rejection,
-diagnostic, precedence, traversal, type inference, raw API, IR, LLVM, backend, or
-claim behavior. Neutral routing labels and exhaustive characterization/parity
-evidence are mandatory. The selected R-002 behavior must remain accepted throughout
-ARCH-001 and requires a separate later public-red contract.
+A single green aggregate can characterize the frozen structural equivalence classes,
+boundary parity, precedence, context exclusions, raw-boundary preservation, exact
+diagnostics, selected R-002 triple-array acceptance, and valid LLVM without changing
+production behavior. Only after that evidence is separately reviewed and public green
+may a nonrecursive shared classifier in `ast.rs` replace duplicated semantic/checked
+matching. The later R-002 behavior still requires a separate public-red contract.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -53,6 +51,14 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Current accepted public ARCH-001 authorization head:
+  `1dcfd869167bd0d83fe800b376fb0a2249091a28`, parent `63d8d599`, tree
+  `b537023cf5c80a35e75bc8aaf4b61c05f25388e2`, correction canonical binary diff
+  `e5ee8aa78b20a77bafe03d52210e5fcad5b515a3`, cumulative diff from AUDIT-043
+  `5208cb6ef0a46cf1577fb4821a8f137675d8b051`. The additive chronology correction
+  is triple-approved and public all-eight green in push CI `30934518525`, PR CI
+  `30934523152`, stable/nightly Rust `30934523078`, all three CodeQL analyses in
+  `30934519513`, and aggregate `92077350363`.
 - Current accepted public AUDIT-043 authorization head:
   `5276df5b6f3369bd2b6fc78a7a39289e8609ed00`, parent `cb43d1bb`, tree
   `c3eaf3cf244f6f6e7e97423e2bcc6a1a8b44dc58`, correction canonical binary diff
@@ -1529,15 +1535,21 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   superseded pre-acceptance AUDIT-043 pending/no-ranking evidence in present tense.
   It was not published and no characterization/source edit began. The additive six-
   record correction is chronology-only and changes no ARCH-001 boundary.
+- Authorization acceptance: exact additive correction `1dcfd869`, parent `63d8d599`,
+  tree `b537023c`, correction diff `e5ee8aa7`, cumulative diff `5208cb6e`, received
+  three fresh exact approvals and was published unchanged. Push CI `30934518525`, PR
+  CI `30934523152`, Rust `30934523078`, CodeQL `30934519513`, and aggregate
+  `92077350363` pass all eight checks on the exact PR/remote head. No source/test edit
+  or classification/capability movement occurred.
 
 ## Exact next action
 
-The additive six-record chronology correction's fresh and verification exact
+This six-record ARCH-001 authorization-acceptance sync's fresh and verification exact
 repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
 claim, and 25/25 binding tests, plus all downstream suites. Review target: the exact
-committed correction HEAD containing only these six record changes. Obtain three exact
-reviews, publish that snapshot unchanged, and require all eight public checks before
-any test/source edit. Do not combine the classifier with R-002 behavior, resolve
+committed six-record sync HEAD. Obtain three exact reviews, publish unchanged, and
+require all-eight public acceptance before changing the characterization test. Do not
+edit classifier source, combine the classifier with R-002 behavior, resolve
 bounds policy implicitly, promote a capability, change
 workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
 push, or touch `master`.

@@ -1790,15 +1790,25 @@ promise future compatibility.
   and checked boundaries; generic/context gates remain external. The selected R-002
   shape must remain accepted. No reference/array/tuple/default/ownership/layout/ABI/
   bounds/lowering/execution/backend support or capability evidence follows.
-- Its fresh exact authorization gate exits 0 with 139/139 library, 149/149 binary,
-  7/7 claim, and 25/25 binding tests, plus all downstream suites. Its verification
-  exact gate independently exits 0 at the same counts with all downstream suites.
-  Review, publication, and public acceptance remain pending; no capability moves.
+- Its pre-acceptance fresh and verification exact authorization gates (historical;
+  superseded below) each exited 0 with 139/139 library, 149/149 binary, 7/7 claim,
+  and 25/25 binding tests, plus all downstream suites. At that point review,
+  publication, and public acceptance remained pending; no capability moved.
 - First ARCH-001 snapshot `63d8d599`, tree `28cd120c`, diff `9fef5adf`, was not
   published after a valid P1 chronology rejection: five records retained superseded
   AUDIT-043 pending/no-ranking evidence in present tense. The additive six-record
   correction makes it historical and changes no capability or classifier boundary.
-- The additive correction's fresh and verification exact full gates each exit 0 with
+- The additive correction's pre-acceptance fresh and verification exact full gates
+  (historical; superseded below) each exited 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
-  downstream suites. Fresh review and public acceptance remain pending; no capability
-  moves.
+  downstream suites. At that point fresh review and public acceptance remained
+  pending; no capability moved.
+- Exact `1dcfd869`, tree `b537023c`, correction diff `e5ee8aa7`, cumulative diff
+  `5208cb6e`, is triple-approved and public all-eight green in compiler CI
+  `30934518525` / `30934523152`, Rust `30934523078`, CodeQL `30934519513`, and
+  aggregate `92077350363`. Authorization acceptance moves no capability; only a
+  separate green characterization boundary is now eligible.
+- The six-record acceptance sync's fresh and verification exact full gates each exit 0
+  with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. Exact review and public sync acceptance remain pending; no
+  capability moves.
