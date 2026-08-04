@@ -7597,14 +7597,15 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   exhaustive aggregate with (1) an unsupported `String` closure parameter followed by
   literal equality, which must retain `closure parameters must be admitted scalar
   types`, and (2) a missing left child followed by a nested literal equality, which
-  must retain the exact `checked IR has no binding for \`missing\`` diagnostic. The current pre-scan must
-  make exactly these new assertions fail. Then remove the pre-scan and carry one
+  must retain the exact ``checked IR has no binding for `missing` `` diagnostic. The
+  current pre-scan must make exactly these new assertions fail. Then remove the pre-
+  scan and carry one
   closure-context admission flag through the existing recursive validation so
   parameter validation precedes equality classification and every comparison validates
-  left then right before the shared classifier is either admitted in an ordinary
-  context or preserved in a closure/impl context. Do not add a semantic guard,
-  duplicate equality eligibility,
-  change raw lowering, or broaden any excluded context. Correct live state wording to
+  left then right before an ordinary context may invoke the shared classifier; a
+  closure/impl context must bypass it and preserve the existing rejection. Do not add
+  a semantic guard, duplicate equality eligibility, change raw lowering, or broaden
+  any excluded context. Correct live state wording to
   preserve `ec6369d` as rejected and report the corrected commit identity externally.
 - Corrective tests-first evidence: after adding only those two precedence specimens,
   the exhaustive aggregate fails 0/1 with exactly two findings. Both currently return
@@ -7614,12 +7615,25 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   boundary.
 - Corrective implementation evidence: the complete equality aggregate now passes 1/1.
   The recursive equality pre-scan is removed; one propagated admission-context flag
-  makes closure comparisons reach the same shared classifier only after normal
-  left/right validation, preserving both new diagnostics while keeping the direct
-  closure equality quarantine exact. Both classifier roots pass 1/1, adjacent String
+  makes closure comparisons validate normally left then right and then bypass the
+  classifier, falling through to the existing generic operand rejection. This
+  preserves both new diagnostics and keeps the direct closure equality quarantine
+  exact. Both classifier roots pass 1/1, adjacent String
   and fixed-array length suites pass 1/1, binding contracts 28/28, typed admission
   13/13, checked IR 8/8, and verifier CLI 12/12. The exact corrected root gate is
   formatting and correctness-Clippy clean and exits 0 with 145/145 library, 155/155
-  CLI, 7/7 claim, 28/28 binding, every integration suite, and doc tests. The successor
-  commit identity will be reported externally; fresh exact reviews, unchanged push,
-  public checks, and stable-Linux exit 41 remain pending.
+  CLI, 7/7 claim, 28/28 binding, every integration suite, and doc tests.
+- Second candidate review: exact unpublished/unpushed
+  `ed9ad3e76cca4d833e678b5bde09b244a0442da7`, parent `ec6369d`, tree
+  `a99215675f0ff5448e0ea7272941c466114ed5a9`, cumulative canonical hash
+  `4971092da1ab15da4efb69c404bb3299c89e2e66`, and correction-only hash
+  `bea54bfdd34bb3e30dde07a244136f547d7cebd0`, closed the prior compiler P1.
+  Backend/claim approved. Type/safety rejected P3 because the evidence incorrectly
+  said closures reach the classifier; IR/codegen rejected P3 because the live handoff
+  still described reporting the already-reviewed successor identity as future work.
+  Neither review found a remaining compiler, test, workflow, backend, or claim defect.
+- Record-only correction: state explicitly that closure/impl comparisons validate
+  their children and then bypass static-equality classification, and use present-tense
+  external-identity wording. The single commit containing this exact corrected tree is
+  the immutable successor candidate; its identity is reported externally. Fresh exact
+  reviews, unchanged push, public checks, and stable-Linux exit 41 remain pending.

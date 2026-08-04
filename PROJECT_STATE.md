@@ -22,7 +22,9 @@ public Linux CI acceptance requirement, not a local Windows claim. The first can
 diagnostics and its handoff chronology was stale. The additive correction removes that
 pre-scan, preserves child-first validation through a closure-context admission flag,
 and has a green expanded aggregate, adjacent focused suites, and exact corrected root
-gate.
+gate. Corrected compiler candidate `ed9ad3e` closed that P1 but remained unpublished
+after two record-only P3 findings: closure contexts bypass rather than invoke the
+classifier, and already-reported candidate identity must use present tense.
 
 `CORE-039` is accepted public at `7709eec6b5eb18249a756225ff7c368ccbed5341`.
 Its exact local gate passed 144/144 library, 154/154 CLI, 7/7 claim, 28/28 binding,
@@ -1616,15 +1618,16 @@ found stale candidate chronology, and type/safety plus IR/codegen independently 
 the closure equality pre-scan could mask an earlier invalid parameter or child. The
 corrective regression failed with exactly those two findings before source correction.
 The pre-scan is now removed; a propagated admission-context flag lets the normal
-validator check parameters and comparison children before the shared classifier while
-retaining the direct closure quarantine. The expanded aggregate and every adjacent
-focused suite pass.
+validator check parameters and comparison children before ordinary contexts may invoke
+the shared classifier. Closure contexts then bypass classification and retain the
+generic comparison quarantine. The expanded aggregate and every adjacent focused
+suite pass.
 
 The exact corrected root gate is formatting and correctness-Clippy clean and passes
 145/145 library, 155/155 CLI, 7/7 claim, 28/28 binding, the expanded equality
-aggregate, every downstream suite, and doc tests. Treat the single commit containing
-the complete corrected tree as the immutable successor candidate and report its
-identity externally. Obtain three fresh exact type/safety, IR/codegen, and backend/
+aggregate, every downstream suite, and doc tests. The single commit containing the
+complete record-corrected tree is the immutable successor candidate; its identity is
+reported externally. Obtain three fresh exact type/safety, IR/codegen, and backend/
 claim approvals, push only the unchanged approved commit, and require all eight public
 checks plus stable Linux checked build, pinned LLVM 22 verification, machine
 verification/object lowering, Clang linking, and exact native exit 41. Do not publish

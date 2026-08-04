@@ -873,3 +873,8 @@ declared compatibility policy and release-level coverage.
   precedence intersections to the exhaustive aggregate, and passes the same exact
   145/145 library and 155/155 CLI root gate. No matrix cell or class changes; corrected
   exact review and public native exit-41 evidence remain pending.
+- Corrected compiler candidate `ed9ad3e` closed the closure-precedence defect and was
+  retained unpublished after record-only P3 findings. The evidence now accurately says
+  closure/impl contexts validate children and bypass the static equality classifier,
+  and the immutable successor identity is reported externally in present tense. No
+  compiler, test, workflow, matrix, capability, or claim boundary changes.
