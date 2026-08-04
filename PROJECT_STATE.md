@@ -4,21 +4,22 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 53 `AUDIT-043` authorization. Exact CORE-036 closure `3f042e18` is
-triple-approved, public, and all-eight green. Only the six control records may now
-authorize a new clean-head read-only ranking. No source/test edit, candidate ranking,
-implementation, capability/matrix/risk movement, backend action, or claim is
-authorized before that separate authorization is accepted.
+Milestone 54 `ARCH-001` authorization. AUDIT-043 is complete and unanimously selects
+exact valueless nonrecursive three-array-tuple containment under R-002, conditional
+on a separately accepted behavior-neutral binding-annotation classifier. Only the six
+control records may now authorize that refactor. No test/source edit, classifier
+implementation, R-002 behavior change, capability movement, backend action, or claim
+is authorized before the separate architecture authorization is accepted.
 
 ## Active hypothesis
 
-Three complete, independent, delta-aware rankings from exact clean public CORE-036
-closure `3f042e18` can identify at most one distinct bounded residual or an explicit
-stop without inheriting U, T, B, or any prior order. The audit remains static and
-read-only. The unresolved compile-time-versus-runtime bounds choice remains a stop;
-no ranking may invent semantics, expand beyond two compiler phases, or promote
-rejection, tests, annotations, LLVM text, object emission, or helpers into support or
-hardware-execution evidence.
+A nonrecursive shared classifier in `ast.rs` can encode only the exact existing
+binding-annotation truth table and replace duplicated structural matching in semantic
+analysis and checked admission without changing any acceptance, rejection,
+diagnostic, precedence, traversal, type inference, raw API, IR, LLVM, backend, or
+claim behavior. Neutral routing labels and exhaustive characterization/parity
+evidence are mandatory. The selected R-002 behavior must remain accepted throughout
+ARCH-001 and requires a separate later public-red contract.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -52,7 +53,15 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current accepted public CORE-036 closure head:
+- Current accepted public AUDIT-043 authorization head:
+  `5276df5b6f3369bd2b6fc78a7a39289e8609ed00`, parent `cb43d1bb`, tree
+  `c3eaf3cf244f6f6e7e97423e2bcc6a1a8b44dc58`, correction canonical binary diff
+  `b8b7586ffef867f48e440d5ee8dbff9b5a653c39`, cumulative diff from CORE-036
+  `fe5376dc943881e8d15f852e8a66dd795797a3c8`. The corrected six-record
+  authorization is triple-approved and public all-eight green in push CI
+  `30931510621`, PR CI `30931515125`, stable/nightly Rust `30931515426`, all three
+  CodeQL analyses in `30931509579`, and aggregate `92067252294`.
+- Accepted public CORE-036 closure:
   `3f042e18766d4675d04e0ba7e0289b7aac43d7ea`, parent `799c4181`, tree
   `15d56e0ceb0715543b03f7338505901906b59d60`, canonical binary diff
   `ee8cbed07657edf21559205c0bc23b7bb0f40a53`. The exact six-record second
@@ -1477,15 +1486,52 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   snapshot” stale for the already-committed review target. It was not published and
   no ranking began. The additive correction aligns current state and changes no
   other boundary.
+- Corrected authorization acceptance: exact `5276df5b`, parent `cb43d1bb`, tree
+  `c3eaf3cf`, correction canonical binary diff `b8b7586f`, and cumulative diff from
+  CORE-036 `fe5376dc`, changed only six records, passed its correction gate, received
+  three fresh exact approvals, and is public all-eight green in push CI `30931510621`,
+  PR CI `30931515125`, Rust `30931515426`, CodeQL `30931509579`, and aggregate
+  `92067252294`.
+- Ranking result: type/safety initially selected bounded R-009 UTF-16 LSP coordinate
+  correction; IR/codegen and backend/claim selected exact valueless nonrecursive
+  `Array(Array(Array(Tuple)))` containment under R-002. All ranked the complete
+  eleven-risk set and kept R-011 bounds stopped. Final compatibility unanimously
+  selected R-002 over R-009, but only after a separate behavior-neutral shared-
+  classifier task closes green. AUDIT-043 was entirely read-only and moved no
+  semantics, risk, matrix, capability, backend, artifact, or claim state.
+
+## ARCH-001 authorization boundary
+
+- Classifier: `BindingAnnotationDisposition` with only
+  `ExistingExplicitRejection(RejectKind)`,
+  `MatchesExistingContractShape(ContractKind)`, and `PreserveExistingBehavior`.
+  “Contract shape” is routing metadata, not support or capability. Preserve is inert:
+  it performs no inference, fallback, rejection, quarantine, traversal, or diagnostic.
+- Input: exact annotation tree plus initializer presence. Classification is
+  nonrecursive. The ten existing initialized/valueless rejection rules, their count
+  conditions, both reference flags, and boundary-specific diagnostics must remain
+  exact. Contract kinds are only current `i32`/`int`, `f64`/`float`, `bool`, uppercase
+  `String`, and positive one-level numeric arrays; existing generic/context gates stay
+  outside the classifier.
+- Order: semantic duplicate precedence; initialized RHS validation; checked RHS/Void;
+  mismatch/generic-impl behavior; valueless fallback; checked generic-function outer
+  rejection; trait syntax-only behavior; and all traversal remain byte-for-byte and
+  behavior-for-behavior unchanged. Raw generation and unchecked compatibility APIs do
+  not call the classifier.
+- Workflow: after six-record authorization acceptance, add green characterization/
+  parity evidence in the binding contract test only. After separate review and public
+  green, refactor only `ast.rs`, `semantic_analyzer.rs`, and `ir_generator.rs`.
+  ARCH-001 must keep the later exact three-array R-002 specimen accepted and all valid
+  LLVM byte-identical. Any behavior delta or third compiler phase is a stop.
 
 ## Exact next action
 
-The additively corrected six-record AUDIT-043 authorization's fresh exact repository-
-root full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
-binding tests, plus all downstream suites. The committed HEAD is the immutable six-
-record review snapshot. Obtain three fresh exact reviews of that HEAD, publish it
-unchanged, and require all eight public checks before any ranking begins. Do not edit
-source/tests, rank a residual early, resolve
+The prepared six-record ARCH-001 authorization's fresh and verification exact
+repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
+claim, and 25/25 binding tests, plus all downstream suites. Review target: the exact
+committed HEAD containing only these six record changes. Obtain three exact reviews,
+publish that snapshot unchanged, and require all eight public checks before any test/
+source edit. Do not combine the classifier with R-002 behavior, resolve
 bounds policy implicitly, promote a capability, change
 workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
 push, or touch `master`.

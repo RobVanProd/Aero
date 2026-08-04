@@ -957,3 +957,26 @@ The additive correction's fresh exact repository-root full gate exits 0 with 139
 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream
 suites. Fresh review, unchanged publication, and public all-eight acceptance remain.
 No risk status changes and no ranking has begun.
+
+Corrected AUDIT-043 authorization `5276df5b`, tree `c3eaf3cf`, correction diff
+`b8b7586f`, cumulative diff `fe5376dc`, received three fresh approvals and is public
+all-eight green in push CI `30931510621`, PR CI `30931515125`, Rust `30931515426`,
+CodeQL `30931509579`, and aggregate `92067252294`. Three complete rankings and final
+compatibility unanimously select conditional exact valueless three-array-tuple R-002
+only after a separate neutral classifier closes green. R-009 remains a bounded
+fallback and R-011 bounds remains stopped. AUDIT-043 changed no risk status.
+
+Preregistered ARCH-001 addresses combinatorial predicate-drift risk only. It may
+introduce a nonrecursive behavior-neutral classifier for exact existing rejection,
+contract-shape routing, and inert preserve outcomes, with exhaustive characterization
+and semantic/checked parity evidence. It must not change acceptance, diagnostics,
+ordering, inference, traversal, raw APIs, LLVM, backend behavior, or claims; the later
+R-002 shape remains accepted. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED,
+R-011 remains open, and every risk, matrix, capability, backend, artifact, and claim
+classification remains unchanged. Separate authorization gates must pass before work.
+
+The fresh exact ARCH-001 authorization gate exits 0 with 139/139 library, 149/149
+binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. Its
+verification exact gate independently exits 0 at the same counts with all downstream
+suites. Review, unchanged publication, and public all-eight acceptance remain
+pending; no risk status changes.

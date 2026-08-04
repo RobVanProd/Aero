@@ -812,3 +812,19 @@ declared compatibility policy and release-level coverage.
 - Its fresh exact repository-root full gate exits 0 with 139/139 library, 149/149
   binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. Fresh review
   and public acceptance remain pending; no matrix row or cell moves.
+- Corrected AUDIT-043 authorization `5276df5b`, tree `c3eaf3cf`, correction diff
+  `b8b7586f`, cumulative diff `fe5376dc`, is triple-approved and public all-eight
+  green in compiler `30931510621` / `30931515125`, Rust `30931515426`, CodeQL
+  `30931509579`, and aggregate `92067252294`. Complete rankings and final
+  compatibility unanimously select conditional exact R-002 after a separate neutral
+  classifier; R-009 remains fallback and bounds stopped. No matrix row or cell moves.
+- Preregistered ARCH-001 may refactor only exact existing annotation disposition into
+  a shared nonrecursive classifier with rejection, contract-shape-routing, and inert
+  preserve outcomes. It must keep all phase diagnostics/order/traversal, generic/
+  trait gates, raw compatibility, valid LLVM, and the later R-002 shape unchanged.
+  Tuples remain parsed-only, references/fixed arrays partial, bounds unresolved, and
+  CPU/ROCm/CUDA separate. The refactor is not capability or support evidence.
+- Its fresh exact authorization gate exits 0 with 139/139 library, 149/149 binary,
+  7/7 claim, and 25/25 binding tests, plus all downstream suites. Its verification
+  exact gate independently exits 0 at the same counts with all downstream suites.
+  Review and later acceptance remain pending; no matrix row or cell moves.

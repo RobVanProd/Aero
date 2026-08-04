@@ -6760,3 +6760,110 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
   downstream suites. The corrected committed HEAD is the immutable review snapshot;
   three fresh reviews, unchanged publication, and public all-eight acceptance remain.
+- Corrected authorization acceptance: exact
+  `5276df5b6f3369bd2b6fc78a7a39289e8609ed00`, parent `cb43d1bb`, tree
+  `c3eaf3cf244f6f6e7e97423e2bcc6a1a8b44dc58`, correction canonical binary diff
+  `b8b7586ffef867f48e440d5ee8dbff9b5a653c39`, and cumulative canonical binary
+  diff from CORE-036 `fe5376dc943881e8d15f852e8a66dd795797a3c8`, changed only the
+  six control records. Three fresh exact reviews approved it; it was published
+  unchanged. Push CI `30931510621`, PR CI `30931515125`, stable/nightly Rust
+  `30931515426`, all three CodeQL analyses in `30931509579`, and aggregate
+  `92067252294` pass.
+- Independent ranking result: type/safety ranked R-002/R-011/R-005/R-004/R-009/
+  R-006/R-013/R-012/R-010/R-007/R-016 and initially selected bounded R-009 UTF-16
+  LSP coordinate containment. IR/codegen ranked R-002/R-011/R-005/R-004/R-006/R-009/
+  R-012/R-013/R-010/R-016/R-007 and selected exact valueless three-array-tuple
+  containment. Backend/claim ranked R-011/R-002/R-005/R-004/R-006/R-013/R-007/
+  R-010/R-009/R-012/R-016, stopped R-011 on bounds policy, and selected the same
+  R-002 surface. Each ranking covered all eleven residuals with tracked evidence and
+  made no edit, test, build, probe, artifact, hardware action, or external query.
+- Reconciliation: all three prefer exact valueless nonrecursive
+  `Type::Array(Type::Array(Type::Array(Type::Tuple(_), c3), c2), c1)` containment
+  over R-009 after a separate behavior-neutral classifier closes green. Every count
+  and tuple arity is included only in the later behavioral contract. R-009 remains a
+  bounded fallback; R-011 remains stopped. All three block another duplicated guard
+  pair and block bundling classifier refactor with behavior. AUDIT-043 is complete,
+  read-only, and classification-neutral; it grants no edit or implementation.
+
+## ARCH-001 - Shared binding-annotation disposition classifier
+
+- Task ID/date/owner: `ARCH-001`, 2026-08-04, lead-owned behavior-preserving compiler
+  architecture task with type/safety, IR/codegen, and backend/claim reviewers at
+  authorization, characterization, implementation, and closure boundaries.
+- Observed behavior: semantic analysis and checked IR admission each spell ten
+  parallel topology-specific initialized/valueless rejection predicates. Their
+  structural truth table is intended to agree, but predicate, count, ordering, and
+  diagnostic drift risk grows combinatorially. Adding the selected R-002 shape as an
+  eleventh copied pair is unanimously blocked.
+- Hypothesis: one nonrecursive classifier on `ast::Type` plus initializer presence can
+  encode only the exact existing structural disposition table, while each trusted
+  boundary retains its own ordering, diagnostics, traversal, context gates, inference,
+  and insertion. Replacing only the duplicated matches can be behavior-neutral and
+  remain within semantic analysis and checked admission.
+- Frozen classifier API: `BindingAnnotationDisposition` has exactly
+  `ExistingExplicitRejection(BindingAnnotationRejectKind)`,
+  `MatchesExistingContractShape(BindingContractKind)`, and
+  `PreserveExistingBehavior`. `MatchesExistingContractShape` is shape-only routing
+  metadata, not enforcement, support, capability, safety, lowering, or execution.
+  `PreserveExistingBehavior` is the default and performs no inference, `Int` fallback,
+  rejection, quarantine, recursive search, traversal, or diagnostic.
+- Frozen rejection table: input includes `value.is_some()` and exact annotation tree.
+  Valueless rejection kinds are direct `Tuple`, `Array(Tuple)`,
+  `Array(Array(Tuple))`, `Reference(Tuple)`, and `Reference(Array(Tuple))`, with all
+  array counts/tuple arities and both reference flags. Initialized kinds are the same,
+  except `Reference(Array(Tuple))` rejects only when its array count is positive.
+  Matching is exact and nonrecursive; deeper arrays, generic/reference/wrapper near
+  shapes, arrays around references, and every other topology preserve existing paths.
+- Frozen contract-shape table: exact named `i32`/`int`, `f64`/`float`, `bool`, uppercase
+  `String`, and positive-count one-level arrays of exact numeric named types only.
+  Lowercase `string`, zero-count arrays, nested arrays, named custom types, generics,
+  references, tuples, and all other shapes are preserve. Initializer state is supplied
+  but contract enforcement remains in existing boundary code; semantic type-parameter
+  and checked generic-impl gates stay outside the classifier.
+- Frozen precedence and traversal: semantic duplicate remains first. Valueless
+  explicit rejection remains before semantic `Ty::Int` fallback and checked raw/no-
+  value admission. Initialized expression initialization/value validation and checked
+  Void rejection remain before explicit rejection. Existing mismatch, mutable-String,
+  insertion, generic-impl exemption, checked generic-function outer rejection,
+  semantic generic-function traversal, generic/non-generic impl traversal, trait-
+  default syntax preflight, and all block/control-flow/loop/top-level traversal remain
+  unchanged. The classifier produces no user-facing text; every phase-specific
+  diagnostic and public prefix remains byte-exact.
+- Characterization-first file: after authorization is public all-eight green, only
+  `src/compiler/tests/binding_type_contract_tests.rs` may change. Add one green
+  aggregate that exhausts structural equivalence classes for initializer state, all
+  ten reject kinds, zero/positive counts, representative tuple arities, both reference
+  flags, contract shapes, lower/custom names, deeper/wrapped/generic near misses,
+  duplicate/RHS/Void/mismatch precedence, generic/trait exclusions, traversal, raw
+  boundary preservation, the selected R-002 triple-array acceptance, and valid LLVM.
+  No existing assertion may be weakened or reclassified.
+- Implementation files: only after separately reviewed public-green characterization
+  evidence may `src/compiler/src/ast.rs` add the private classifier/enums and pure
+  truth-table unit tests, while `semantic_analyzer.rs` and `ir_generator.rs` replace
+  only the current duplicated structural predicates. No parser, lexer, raw IR,
+  verifier, codegen, LSP, CLI, runtime, workflow, dependency, backend, or claim edit.
+- Acceptance: authorization must pass two exact full gates at current 139/139 library,
+  149/149 binary, 7/7 claim, and 25/25 binding counts, three exact reviews, unchanged
+  publication, and public all-eight checks. Characterization must be green before
+  source work, triple-reviewed, and public all-eight green. Implementation must leave
+  every preexisting behavioral observation, diagnostic, public error, raw boundary,
+  and valid LLVM byte-identical; its focused parity aggregate, full gate, three reviews,
+  unchanged publication, and public all-eight checks must pass.
+- Risks: treating contract shape as support; recursive or default rejection; contract
+  enforcement in valueless/generic paths; count/flag drift; diagnostic or precedence
+  changes; new traversal; generic/trait behavior changes; raw API use of classifier;
+  changing valid LLVM; or hiding the later R-002 behavior in the refactor.
+- Stop conditions: any accepted/rejected result, diagnostic, ordering, traversal,
+  insertion, inferred type, raw IR, verifier/codegen output, LLVM byte, capability,
+  matrix, risk, backend, artifact, or claim changes; any third compiler phase or extra
+  source/test file; inability to exhaust finite structural/count equivalence classes;
+  a failing existing test; or need for semantics/compatibility decisions.
+- Authorization files/actions: before acceptance only the six control records may
+  change. No characterization, source edit, ranking, build artifact, hardware action,
+  external query, workflow/dependency change, history rewrite, force-push, or `master`
+  action is authorized. Status: authorization prepared only. Its fresh exact full gate
+  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests,
+  plus all downstream suites. Its verification exact full gate independently exits 0
+  at the same counts with all downstream suites. Exact review of the committed six-
+  record snapshot, unchanged publication, and public all-eight acceptance remain
+  required.

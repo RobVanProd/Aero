@@ -1769,3 +1769,24 @@ promise future compatibility.
 - The additive correction's fresh exact full gate exits 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no capability class moves.
+
+## AUDIT-043 result and ARCH-001 boundary
+
+- Corrected authorization `5276df5b`, tree `c3eaf3cf`, correction diff `b8b7586f`,
+  cumulative diff `fe5376dc`, is triple-approved and public all-eight green in push
+  CI `30931510621`, PR CI `30931515125`, Rust `30931515426`, CodeQL `30931509579`,
+  and aggregate `92067252294`.
+- Complete rankings initially selected R-009 once and exact valueless three-array-
+  tuple R-002 twice. Final compatibility unanimously selects R-002 only after a
+  separate behavior-neutral shared classifier closes green. R-009 remains bounded
+  fallback; R-011 remains stopped. The audit was read-only and moves no capability.
+- ARCH-001 may classify only exact current rejection, contract-shape routing, and
+  preserved behavior from annotation topology plus initializer presence. It must be
+  nonrecursive, diagnostic-free, inference-free, and behavior-neutral across semantic
+  and checked boundaries; generic/context gates remain external. The selected R-002
+  shape must remain accepted. No reference/array/tuple/default/ownership/layout/ABI/
+  bounds/lowering/execution/backend support or capability evidence follows.
+- Its fresh exact authorization gate exits 0 with 139/139 library, 149/149 binary,
+  7/7 claim, and 25/25 binding tests, plus all downstream suites. Its verification
+  exact gate independently exits 0 at the same counts with all downstream suites.
+  Review, publication, and public acceptance remain pending; no capability moves.

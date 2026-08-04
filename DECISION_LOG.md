@@ -2308,9 +2308,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-049 - Authorize clean-head read-only AUDIT-043 after CORE-036
 
 - Date: 2026-08-04
-- Status: prepared authorization only; fresh and verification local gates are green.
-  Exact review, unchanged publication, and public all-eight acceptance remain
-  required before ranking.
+- Status: corrected authorization `5276df5b` is triple-approved and public all-eight
+  green; AUDIT-043 ranking and final compatibility reconciliation are complete and
+  read-only.
 - Decision: authorize only a static, read-only, independent re-ranking of the complete
   remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
   from exact clean public CORE-036 closure `3f042e18`. Exclude every accepted slice
@@ -2343,3 +2343,40 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Additive correction gate: the fresh exact repository-root full gate exits 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
   downstream suites. Fresh review and public acceptance remain pending.
+- Corrected authorization acceptance: exact `5276df5b`, tree `c3eaf3cf`, correction
+  diff `b8b7586f`, cumulative diff `fe5376dc`, received three fresh approvals and is
+  public all-eight green in push CI `30931510621`, PR CI `30931515125`, Rust
+  `30931515426`, CodeQL `30931509579`, and aggregate `92067252294`.
+- Result: initial candidates split R-009 versus R-002 two-to-one. After comparing the
+  active compiler false success, LSP scope, and guard duplication, all three approve
+  exact valueless nonrecursive three-array-tuple R-002 as the sole conditional
+  selection, with R-009 fallback and R-011 stopped. A separate green shared-classifier
+  prerequisite is mandatory; no behavior or implementation is authorized here.
+
+## DEC-050 - Authorize behavior-neutral binding-annotation classifier prerequisite
+
+- Date: 2026-08-04
+- Status: prepared authorization only. Fresh and verification exact full gates are
+  green; exact review of the committed six-record snapshot, unchanged publication,
+  and public all-eight acceptance remain required before tests/source.
+- Decision: classify only exact existing binding-annotation structure as
+  `ExistingExplicitRejection(RejectKind)`,
+  `MatchesExistingContractShape(ContractKind)`, or `PreserveExistingBehavior` from
+  annotation tree plus initializer presence. Contract match is routing metadata, not
+  support/enforcement; preserve is inert; matching is nonrecursive.
+- Truth table: preserve all ten current initialized/valueless rejection categories,
+  including the positive-count-only initialized reference-array-tuple rule; exact
+  scalar/uppercase-String/positive numeric-array contract shapes; and preservation of
+  all other counts, names, wrappers, generics, references, and deeper topologies.
+- Boundary: share structural classification only. Keep phase-specific diagnostics,
+  semantic duplicate, initialized RHS and checked Void precedence, mismatch/generic
+  gates, traversal, trait/generic exclusions, fallback/insertion, raw APIs, valid LLVM,
+  and CPU/ROCm/CUDA behavior unchanged. The later R-002 shape remains accepted.
+- Workflow: six-record authorization, green characterization-only evidence, then a
+  separate three-source-file behavior-neutral refactor. Combining behavior or adding
+  another copied guard is prohibited. Any behavior delta, third phase, or claim move
+  is a stop.
+- Fresh authorization gate: exact repository-root `./tools/test.sh` exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. The verification exact gate independently exits 0 at the same
+  counts with all downstream suites. Exact review and later boundaries remain pending.
