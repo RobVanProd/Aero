@@ -4,21 +4,21 @@ Last updated: 2026-08-03 (America/New_York)
 
 ## Current objective
 
-Milestone 33 `CORE-027` record closure. Triple-reviewed authorization `3574704` and
-tests-first commit `f57cf2e` are public, and exact corrected implementation
-`b3e7910` is all-eight public green. The grammar and core-features tutorial now
-visibly distinguish normative Aero v1.0.0 design from current compiler evidence
-without changing a production, example, compiler phase, or capability class.
-Immediate work is to gate the exact six-record closure. R-010 remains HIGH/HIGH and
-OPEN; this containment does not establish grammar conformance.
+Milestone 34 `AUDIT-034` authorization. `CORE-027` is complete at public-green
+record closure `d649c2d`: the grammar and core-features tutorial now visibly
+distinguish normative Aero v1.0.0 design from current compiler evidence without
+changing a production, example, compiler phase, or capability class. Immediate work
+is to gate a new clean-head, read-only ranking of all eleven remaining OPEN or
+PARTIALLY CONTROLLED risks. No implementation is authorized. R-010 remains
+HIGH/HIGH and OPEN; containment does not establish grammar conformance.
 
 ## Active hypothesis
 
-Adding an established leading design-target/current-implementation notice to exactly
-`docs/language/aero_grammar.md` and `tutorials/02-core-features.md`, while replacing
-only the grammar introduction's unqualified definitive-compiler-guide sentence, will
-contain the false authority boundary without changing any grammar production, example,
-language behavior, capability class, or compatibility contract.
+A clean-head, delta-aware comparison after `CORE-027` can select the highest-severity
+remaining bounded correctness defect whose semantics are already frozen, whose
+tests-first evidence is deterministic, and whose implementation spans at most two
+compiler phases, or stop explicitly. The audit must not repeat accepted sub-slices,
+inherit a prior ranking, or treat documentation containment as grammar conformance.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -52,6 +52,12 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-027` record closure
+  `d649c2d8a9db1fdf51a5065e90ae79d5240412f4`, tree `b5ad7ee2`, diff `d4281863`,
+  passes compiler `30865772404` / `30865775196`, stable/nightly Rust
+  `30865775214`, all three analyses in CodeQL `30865772793`, and aggregate
+  `91857289172` after three exact approvals. PR #4 remains open and draft; upstream
+  `master` remains `8f8c733`.
 - Accepted public `CORE-027` implementation
   `b3e79103ec4238abb3c4e07beddc0ef9cf07f1b8`, tree `2728bbc6`, diff `90e1c4b6`,
   passes focused 1/1, version-claim 8/8, exact `./tools/test.sh` at 139/139 library
@@ -737,10 +743,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 ## Exact next action
 
 Obtain three fresh exact approvals for the full-local-gate-green six-record
-`CORE-027` closure, publish that exact tree unchanged, and require all eight public
-checks. Do not treat containment as R-010 closure, alter productions/examples/
-compiler behavior/capability, change workflows or dependencies, publish artifacts,
-modify immutable claim evidence, or touch `master`.
+`AUDIT-034` authorization, publish it unchanged, and require all eight public checks.
+Only then begin the strictly read-only complete residual-risk rankings. Do not edit
+tests or implementation, repeat accepted slices, invent semantics, change workflows
+or dependencies, publish artifacts, modify immutable claim evidence, or touch
+`master`.
 
 ## Unauthorized actions
 

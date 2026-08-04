@@ -1485,7 +1485,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-032 - Grammar and core tutorial are design targets, not compiler evidence
 
 - Date: 2026-08-03
-- Status: accepted at public implementation `b3e7910`; exact record closure pending.
+- Status: accepted and record-closed at public `d649c2d`.
 - Decision: `docs/language/aero_grammar.md` and `tutorials/02-core-features.md` must
   visibly classify their v1.0.0 material as intended normative design, not evidence of
   the currently implemented compiler subset, conformance, or stability. Both must
@@ -1515,5 +1515,13 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   and OPEN; grammar compatibility, current conformance, executable examples,
   migration, parser/AST/semantic convergence, stability, and every capability claim
   remain unproved or unchanged.
+- Closure evidence: exact six-record closure `d649c2d`, tree `b5ad7ee2`, diff
+  `d4281863`, received three approvals and passes compiler `30865772404` /
+  `30865775196`, stable/nightly Rust `30865775214`, CodeQL `30865772793`, and
+  aggregate `91857289172`.
+- Audit handoff: `AUDIT-034` may independently re-rank all eleven remaining OPEN or
+  PARTIALLY CONTROLLED risks from this clean public head only after its separate
+  exact six-record authorization is reviewed, published unchanged, and all-eight
+  green. It carries no implementation or capability-promotion authority.
 - Revisit actual grammar compatibility only through a separately frozen authority,
   migration, parser/AST/semantic, executable-example, and compatibility contract.

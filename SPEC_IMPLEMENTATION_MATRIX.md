@@ -316,6 +316,12 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   production and tutorial code example is unchanged, the grammar remains normative
   intended v1 design, and no parser, semantic, IR, verifier, codegen, ABI, backend,
   row, cell, or capability class changes. R-010 remains HIGH/HIGH and OPEN.
+- Exact `CORE-027` record closure `d649c2d`, tree `b5ad7ee2`, diff `d4281863`, is
+  triple-approved and all-eight public green in compiler `30865772404` /
+  `30865775196`, Rust `30865775214`, CodeQL `30865772793`, and aggregate
+  `91857289172`. No matrix cell changes. Preregistered read-only `AUDIT-034` may
+  re-rank all eleven residual risks only after its own exact gates; it cannot change
+  a matrix cell, capability class, or implementation.
 - At `6ce85922`, trusted library/build/check/run/test/profile parser paths reject
   malformed root and applicable direct-module sources with located errors. Lexer
   failures remain uncontrolled, and shared compiler truth remains partial.

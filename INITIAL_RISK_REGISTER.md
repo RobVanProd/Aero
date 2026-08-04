@@ -390,3 +390,11 @@ stable/nightly Rust `30865346602`, CodeQL `30865345043`, and aggregate
 classification remains unchanged. R-010 remains HIGH/HIGH and OPEN: actual grammar
 compatibility, executable examples, migration, and implementation convergence are
 not established by this containment.
+
+Exact `CORE-027` record closure `d649c2d`, tree `b5ad7ee2`, diff `d4281863`, passes
+compiler `30865772404` / `30865775196`, stable/nightly Rust `30865775214`, CodeQL
+`30865772793`, and aggregate `91857289172` after three exact approvals. R-010
+remains HIGH/HIGH and OPEN. `AUDIT-034` is preregistered to rank the complete
+remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
+from this clean closure, excluding every accepted sub-slice including CORE-027
+authority containment and carrying no implementation authority.
