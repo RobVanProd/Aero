@@ -1299,3 +1299,20 @@ promise future compatibility.
   and CPU/ROCm/CUDA behavior are unchanged. This is exact fail-closed containment,
   not nested-array or tuple support; no capability class or matrix cell moves, and
   R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+## CORE-031 closure and AUDIT-038 boundary
+
+- Exact closure `45696091`, tree `480c3504`, canonical diff `d682b0f6`, received
+  three approvals and is public all-eight green in compiler `30882630407` /
+  `30882632698`, stable/nightly Rust `30882632696`, all three CodeQL analyses in
+  `30882630822`, and aggregate `91907149874`.
+- CORE-031 remains exact fail-closed containment only. Candidate B and every other
+  excluded annotation shape, tuple/nested-array behavior, raw API, verifier/codegen,
+  ABI/ownership, valid-output certification, and CPU/ROCm/CUDA capability remain
+  unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or
+  capability class moves.
+- Preregistered read-only AUDIT-038 must independently re-rank the complete remaining
+  eleven-risk set from exact clean public closure `45696091`, excluding every
+  accepted slice through CORE-031 and inheriting no prior candidate or order. It may
+  select one bounded residual or a stop only after separate authorization gates; it
+  never grants test, implementation, semantics, or capability authority.

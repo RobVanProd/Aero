@@ -1738,8 +1738,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-038 - Exact two-array-deep valueless tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: accepted implementation at public all-eight-green `4bc7a345`; exact
-  six-record closure gates pending.
+- Status: accepted and complete at public all-eight-green record closure `45696091`.
 - Decision: for an uninitialized `let` annotation exactly shaped as
   `Type::Array(Type::Array(Type::Tuple(_), _), _)`, reject in semantic analysis
   after same-scope duplicate detection and independently in checked IR admission
@@ -1772,3 +1771,28 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   bounds, layout, mutation, ABI, ownership, lowering, execution, or backend support.
   Candidate B and every named preservation boundary remain unchanged. No matrix
   cell, capability class, or R-002 likelihood/impact/status changes.
+- Closure evidence: exact snapshot `45696091`, tree `480c3504`, canonical diff
+  `d682b0f6`, received three approvals and was published unchanged. Compiler
+  `30882630407` / `30882632698`, stable/nightly Rust `30882632696`, CodeQL
+  `30882630822`, and aggregate `91907149874` all pass.
+
+## DEC-039 - Post-CORE-031 selection requires clean-head full-set reconciliation
+
+- Date: 2026-08-04
+- Status: accepted selection protocol; AUDIT-038 authorization gates pending.
+- Decision: no next implementation is selected from CORE-031's preserved Candidate
+  B or any earlier ranking. Three independent read-only auditors must rank the
+  complete remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
+  R-016 set from exact public-green CORE-031 closure `45696091`, excluding every
+  accepted sub-slice through CORE-031.
+- Evidence boundary: static immutable repository evidence only during ranking. No
+  edit, test, build, formatter, probe, benchmark, artifact, hardware action,
+  external query, workflow, dependency, backend, package/release/registry,
+  immutable claim-evidence, history, or `master` action is authorized. Passing the
+  authorization gates unlocks read-only ranking only.
+- Selection rule: reconcile one distinct residual with frozen semantics,
+  deterministic tests-first feasibility, and no more than two compiler phases, or
+  record an explicit stop. Any test or implementation requires a separate reviewed
+  six-record contract and public failing regression evidence first.
+- Claim boundary: AUDIT-038 cannot change a risk status, matrix row/cell, capability
+  class, backend claim, compatibility rule, or language semantics.

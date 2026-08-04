@@ -543,3 +543,12 @@ other unsupported annotations, raw APIs, tuple/nested-array support, valid-outpu
 claims, and every backend remain unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY
 CONTROLLED; record closure is required before another residual audit or
 implementation authorization.
+
+Exact CORE-031 record closure `45696091`, tree `480c3504`, canonical diff
+`d682b0f6`, passes compiler `30882630407` / `30882632698`, stable/nightly Rust
+`30882632696`, CodeQL `30882630822`, and aggregate `91907149874` after three exact
+approvals. No risk status, matrix cell, or capability class changes. Preregistered
+AUDIT-038 may re-rank the complete remaining eleven-risk set only after its own exact
+authorization gates, must exclude every accepted slice through CORE-031, must not
+inherit Candidate B or another prior order, and carries no test, implementation,
+semantics, or capability authority.

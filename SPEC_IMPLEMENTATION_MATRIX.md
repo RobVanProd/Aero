@@ -495,3 +495,12 @@ declared compatibility policy and release-level coverage.
   value, default, bounds, layout, mutation, lowering, execution, or backend evidence;
   therefore every matrix row, cell, and capability class remains unchanged, and
   R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Exact six-record CORE-031 closure `45696091`, tree `480c3504`, canonical diff
+  `d682b0f6`, is triple-approved and public all-eight green in compiler
+  `30882630407` / `30882632698`, Rust `30882632696`, CodeQL `30882630822`, and
+  aggregate `91907149874`. No matrix cell changes.
+- Preregistered read-only AUDIT-038 may re-rank the complete remaining eleven-risk
+  set only after its separate exact authorization gates. It must exclude every
+  accepted slice through CORE-031, inherit neither Candidate B nor any prior order,
+  and cannot change a matrix row, cell, capability class, source, test, workflow,
+  dependency, backend, semantics, or claim.

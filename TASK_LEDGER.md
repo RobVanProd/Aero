@@ -5493,7 +5493,72 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   raw generation, verifier, codegen, ABI, ownership, and CPU/ROCm/CUDA behavior are
   unchanged. Rejection adds no nested-array or tuple support. R-002 remains
   HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability class moves.
-- Status: implementation accepted at exact public all-eight-green `4bc7a345`; this
-  six-record update is the pending record-closure snapshot. No further residual
-  selection or implementation is authorized before exact closure review,
-  unchanged publication, and public all-eight verification.
+- Status: complete at exact triple-approved public all-eight-green record closure
+  `45696091d9ba10f97e1ce42b9372f330c3b4199b`, tree
+  `480c35042a3db71c026f98281e527814735e4da0`, canonical diff
+  `d682b0f6fcb55dc50e3c990488dad8994ddd0e81`. Compiler `30882630407` /
+  `30882632698`, stable/nightly Rust `30882632696`, all three CodeQL analyses in
+  `30882630822`, and aggregate `91907149874` pass. No capability, matrix cell, or
+  risk status moved.
+
+## AUDIT-038 - Clean-head full-risk reconciliation after CORE-031
+
+- Task ID/date/owner: `AUDIT-038`, 2026-08-04, lead-owned read-only selection audit
+  with three independent type/safety, IR/codegen, and backend/claim reviewers.
+- Audit basis: exact clean public CORE-031 closure
+  `45696091d9ba10f97e1ce42b9372f330c3b4199b`, tree
+  `480c35042a3db71c026f98281e527814735e4da0`, canonical diff
+  `d682b0f6fcb55dc50e3c990488dad8994ddd0e81`. It passes compiler
+  `30882630407` / `30882632698`, stable/nightly Rust `30882632696`, all three
+  CodeQL analyses in `30882630822`, and aggregate `91907149874` after three exact
+  approvals.
+- Observed behavior: CORE-031 closes only the exact valueless immediate array-of-
+  array-of-tuple fallback. R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/
+  R-013/R-016 remain OPEN or PARTIALLY CONTROLLED with broader residuals. CORE-031's
+  preserved reference-array candidate and all prior rankings are stale selection
+  inputs rather than authority for another implementation.
+- Hypothesis: three complete, independent, delta-aware static rankings from the
+  exact clean public head can identify one distinct active residual with frozen
+  semantics and deterministic tests-first feasibility within at most two compiler
+  phases, or an explicit stop, without repeating an accepted slice or inventing
+  language, ownership, aggregate, ABI, backend, or claim semantics.
+- Frozen audit method: each reviewer must independently inspect and rank the complete
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the
+  exact audit basis. Each ranking must exclude every accepted sub-slice through
+  CORE-031, cite file/symbol or line evidence for every rank, name one top candidate
+  or stop, explain reachability and containment, state semantic decisions and phase
+  count, propose an exact deterministic failing specimen plus preservation controls,
+  and distinguish rejection, simulation, annotation, object emission, and hardware
+  execution. The lead may reconcile rankings statically to one unanimous bounded
+  candidate or record a stop; no inherited runner-up is privileged.
+- Allowed files/actions: this authorization may change only `TASK_LEDGER.md`,
+  `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`. After exact
+  authorization gates, the audit itself is read-only: no file edit, commit, test,
+  build, formatter, probe, benchmark, artifact, hardware action, or external query.
+  No workflow, dependency, backend, package/release/registry, immutable claim-
+  evidence, history, or `master` action is authorized.
+- Acceptance: the authorization must pass exact repository-root `./tools/test.sh`,
+  three exact reviews, unchanged publication, and all eight public checks before
+  ranking begins. All three complete rankings must inspect the same immutable head
+  and report the required nine evidence fields. Reconciliation may select at most
+  one bounded residual or an explicit stop. AUDIT-038 never authorizes a regression
+  test, implementation edit, capability promotion, risk-status change, or matrix
+  movement; any later change requires its own reviewed six-record contract and
+  public failing regression evidence first.
+- Risks: omitting a residual or accepted-slice exclusion; inheriting Candidate B or
+  another earlier order; conflating a verifier-contained defect with trusted
+  publication; treating raw compatibility reachability as trusted admission;
+  inventing annotation, ownership, aggregate, generic, ABI, or backend semantics;
+  mistaking a rejection, test, LLVM text, helper simulation, or flag for implemented
+  execution; or allowing an invalid program to IR/backend generation.
+- Stop conditions: incomplete ranking; edit/test/probe/artifact/external query during
+  the audit; more than two compiler phases; unresolved semantic or compatibility
+  choice; hardware requirement; unsupported-source-type fallback; valid-output
+  uncertainty; workflow/dependency, benchmark, package/release/registry, immutable
+  evidence, destructive-system, history-rewrite, or `master` action.
+- Status: preregistered authorization records only. This exact six-record contract
+  passes its fresh full local gate with 139/139 library, 149/149 binary, binding
+  20/20, and every later active suite. Ranking, regression tests, implementation,
+  capability changes, and claims remain unauthorized until three exact reviews,
+  unchanged publication, and all eight public checks also pass.

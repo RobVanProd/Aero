@@ -4,20 +4,20 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 42 `CORE-031` record closure. Authorization `ba57efec`, public tests-first
-`6899cb1b`, and the exact two-boundary implementation `4bc7a345` are each
-triple-approved. The implementation passes focused 1/1, binding 20/20, the exact
-full local gate, and all eight public checks. Immediate work is exact review and
-unchanged publication of this six-record closure; no next residual or implementation
-is selected yet.
+Milestone 43 `AUDIT-038` authorization. CORE-031 is complete at exact triple-approved
+public all-eight-green closure `45696091`. No next implementation is inherited from
+its preserved Candidate B or any earlier ranking. The six-record clean-head
+authorization passes its fresh exact full local gate; immediate work is exact review
+and unchanged publication. No ranking, regression test, source edit, or capability
+change is yet authorized.
 
 ## Active hypothesis
 
-Two exact nonrecursive guards can reject only a valueless annotation shaped as
-`Type::Array(Type::Array(Type::Tuple(_), _), _)` after semantic duplicate checking
-and before fake `Int`, insertion, or raw generation. Counts remain irrelevant; this
-does not define nested-array/tuple defaults, bounds, layout, ABI, ownership,
-execution, or backend capability.
+Three independent, delta-aware static rankings from the exact clean public
+CORE-031 closure can identify one distinct remaining residual with frozen semantics
+and deterministic tests-first feasibility in no more than two compiler phases, or
+record an explicit stop, without inheriting Candidate B, repeating an accepted
+slice, or inventing language, ownership, aggregate, ABI, backend, or claim semantics.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -51,6 +51,12 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
+- Accepted public `CORE-031` record closure
+  `45696091d9ba10f97e1ce42b9372f330c3b4199b`, tree `480c3504`, canonical diff
+  `d682b0f6`, passes compiler `30882630407` / `30882632698`, stable/nightly Rust
+  `30882632696`, all three CodeQL analyses in `30882630822`, and aggregate
+  `91907149874` after three exact approvals. The closure was published unchanged
+  from a clean worktree; `master` and `origin/master` remain `8f8c733`.
 - Accepted public `CORE-031` implementation
   `4bc7a3453f0829fca11929e0826abd4ed06fb962`, tree `61361621`, canonical diff
   `349e34ee`, passes focused 1/1, binding 20/20, formatting, the exact full local
@@ -908,12 +914,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Obtain three exact approvals for this six-record CORE-031 closure, publish the
-immutable tree unchanged, and require all eight public checks. Only after clean
-closure may a separately preregistered full-risk audit select another bounded
-residual. Do not broaden beyond exactly two immediate array layers, promote a
-capability, change workflows/dependencies/backends, publish artifacts or claims, or
-touch `master`.
+Obtain three exact approvals for the fresh-full-gate-green six-record AUDIT-038
+authorization, publish the immutable tree unchanged, and require all eight public
+checks. Only then may the three independent complete rankings begin. Do not inherit
+Candidate B, edit tests/source during ranking, promote a capability, change
+workflows/dependencies/backends, publish artifacts or claims, or touch `master`.
 
 ## Unauthorized actions
 
