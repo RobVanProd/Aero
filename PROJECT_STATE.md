@@ -4,19 +4,18 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 45 `AUDIT-039` authorization. CORE-032 is complete at exact public closure
-`9c82cbfc`, with all eight checks green. Immediate work is only the six-record
-authorization for a clean-head, read-only ranking of all eleven remaining risks.
-No ranking begins before authorization acceptance, and no regression,
-implementation, semantics, capability, matrix, or risk-status change is authorized.
+Milestone 46 `CORE-033` behavior authorization. AUDIT-039 is complete, read-only,
+and clean at public-green `fa522b2c`; all three final compatibility reviews approve
+only initialized exact two-array-deep tuple containment. Immediate work is the
+six-record behavior contract only. No regression or implementation has begun.
 
 ## Active hypothesis
 
-Three complete independent static rankings from exact clean public closure
-`9c82cbfc` can identify at most one distinct residual with frozen semantics,
-deterministic tests-first feasibility, and no more than two compiler phases, or an
-explicit stop. All eleven residuals must be ranked, all accepted slices through
-CORE-032 excluded, and no prior candidate or ordering inherited.
+Two exact nonrecursive guards can reject only initialized
+`Type::Array(Type::Array(Type::Tuple(_), _), _)` after initializer validation and
+existing initialized outer/immediate tuple diagnostics but before mismatch,
+insertion, the generic-impl bypass, or raw generation. Counts are irrelevant. This
+is rejection-only containment and defines no tuple/nested-array capability.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -961,20 +960,50 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   slice through CORE-032; name one bounded candidate or stop with reachability,
   containment, semantic choices, phase count, deterministic failing specimen, and
   preservation controls; inherit no earlier candidate/order.
-- Boundary: after authorization acceptance, ranking is read-only—no edits, tests,
+- Boundary: after authorization acceptance, ranking is read-only: no edits, tests,
   builds, formatters, probes, artifacts, hardware action, or external query. It
   grants no test, implementation, semantics, capability, matrix, risk, workflow,
   dependency, backend, claim, history, or `master` authority.
 - Gate: the prepared six-record authorization's fresh exact full gate exits 0 with
-  139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking has not
-  begun.
+  139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking began
+  only after those gates and is complete below.
+
+## AUDIT-039 result and CORE-033 authorization
+
+- Exact AUDIT-039 authorization `fa522b2c`, tree `365a536d`, canonical diff
+  `cefb797e`, is triple-approved and public all-eight green in compiler
+  `30888751268` / `30888754238`, Rust `30888754262`, CodeQL `30888752230`, and
+  aggregate `91925849313`.
+- All three complete rankings put R-002 first. Type/safety initially selected the
+  valueless three-array form historically labeled Candidate T; IR/codegen and backend selected initialized
+  two-array Candidate A. Preference comparison favored A two to one. The lead
+  provisionally selected A for its smaller predicate/count/test surface and frozen
+  initializer ordering; all three explicitly approved exact A at the final
+  compatibility gate. The audit changed nothing.
+- CORE-033 freezes initialized exact nonrecursive `Array(Array(Tuple))` rejection in
+  semantic and checked admission only. Duplicate/RHS/Void/existing diagnostics stay
+  first; generic impl is covered; semantic generic-function traversal is covered;
+  checked generic function retains its outer rejection. Candidate T, the reference-
+  array form historically labeled Candidate B, other three-plus depth, wrappers,
+  raw/verifier/codegen, ABI/ownership, valid output, and backends are preserved.
+- Tests-first must reclassify the two existing Candidate A acceptance rows and add
+  one aggregate with exactly 12 false acceptances: 8 count/phase, 1 public, 2 generic
+  impl, 1 semantic generic function. The checked generic-function result stays green.
+- The prepared six-record CORE-033 authorization's fresh exact full gate exits 0
+  with 139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Tests and
+  implementation have not begun.
+- First authorization snapshot `d0500865`, tree `d2378320`, canonical diff
+  `97a15c9f`, passed its local gate but received one approval and two blocking reviews
+  because one ledger sentence mislabeled Candidate T's valueless form as Candidate B.
+  It remained unpublished; the corrected records keep both historical identities
+  unambiguous.
 
 ## Exact next action
 
-Obtain three exact approvals for the AUDIT-039 authorization, publish its immutable
-six-record tree unchanged, require all eight public checks, and only then dispatch
-the three independent read-only rankings on that same public head. Do not edit source
-or tests, run ranking probes/builds/external queries, inherit an earlier candidate,
+Obtain three exact approvals for the CORE-033 behavior authorization, publish its
+immutable six-record tree unchanged, require all eight public checks, and only then
+make the tests-only Candidate A reclassification. Do not edit compiler source yet,
+broaden beyond initialized exact two-array depth, change diagnostic precedence,
 promote a capability, change workflows/dependencies/backends, publish artifacts or
 claims, or touch `master`.
 

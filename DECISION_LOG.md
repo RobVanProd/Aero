@@ -1871,7 +1871,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-041 - AUDIT-039 resets residual ordering after CORE-032
 
 - Date: 2026-08-04
-- Status: authorization pending exact review and public checks; ranking not begun.
+- Status: complete, read-only, and clean at public-green `fa522b2c`.
 - Decision: only after this six-record authorization is triple-approved, published
   unchanged, and all eight public checks pass, three independent read-only reviewers
   may re-rank the complete R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/
@@ -1890,3 +1890,41 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   capability/matrix/risk movement, artifact/claim publication, history action, or
   `master` change. Any later test or implementation requires a separately reviewed
   six-record contract and public failing regression evidence first.
+- Result: exact authorization `fa522b2c`, tree `365a536d`, canonical diff
+  `cefb797e`, received three approvals and passes compiler `30888751268` /
+  `30888754238`, Rust `30888754262`, CodeQL `30888752230`, and aggregate
+  `91925849313`. All rankings put R-002 first. Initial candidates split between the
+  valueless three-array form historically labeled Candidate T (type/safety) and initialized two-array Candidate
+  A (IR/codegen and backend). Targeted preference favored A two to one; the lead
+  provisionally selected A for its smaller predicate/count/test surface and frozen
+  initialized-child ordering. All three then approved exact A in a final
+  compatibility gate. Candidate T and the reference-array Candidate B remain preserved.
+
+## DEC-042 - Initialized exact two-array-deep tuple annotations must fail closed
+
+- Date: 2026-08-04
+- Status: behavior authorization pending exact review and public checks; tests and
+  implementation not begun.
+- Decision: for an initialized binding whose annotation is exactly nonrecursive
+  `Type::Array(Type::Array(Type::Tuple(_), _), _)`, validate the initializer and
+  preserve existing initialized outer/immediate tuple diagnostics, then reject in
+  semantics and independently in checked admission before mismatch/insertion, the
+  generic-impl mismatch bypass, or raw generation. Counts are irrelevant.
+- Diagnostics: semantic `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.`; checked
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding`. Public compilation preserves
+  its existing semantic-error wrapper.
+- Tests-first boundary: reclassify both existing Candidate A acceptance rows into
+  one aggregate with exactly 12 false acceptances—8 count/phase, 1 public, 2 generic
+  impl, 1 semantic generic function—while preserving the checked generic-function
+  outer rejection. No other test/source file may change at that stage.
+- Claim boundary: rejection is containment only. Candidate T, reference-array
+  Candidate B, other three-plus-depth, wrappers, tuple/array meaning, raw APIs,
+  verifier/codegen, layout/bounds, ABI/
+  ownership, valid output, backends, risk status, matrix cells, and capability
+  classes remain unchanged. The prepared six-record gate exits 0 with 139/139,
+  149/149, 7/7, and 21/21; exact review, unchanged publication, and all eight checks
+  are required before tests-first work.
+- Authorization history: first snapshot `d0500865`, tree `d2378320`, canonical diff
+  `97a15c9f`, passed its local gate but received one approval and two blocking reviews
+  because one ledger sentence mislabeled Candidate T's valueless form as Candidate B.
+  It remained unpublished; corrected records preserve both historical names exactly.

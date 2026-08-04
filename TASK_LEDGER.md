@@ -5779,6 +5779,109 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   choice; hardware requirement; unsupported-source-type fallback; valid-output
   uncertainty; workflow/dependency, benchmark, package/release/registry, immutable
   evidence, destructive-system, history-rewrite, or `master` action.
-- Status: authorization records prepared on the clean public basis and fresh exact
-  gate exit 0 recorded above. Three exact authorization reviews, unchanged
-  publication, and all eight public checks remain required; ranking has not begun.
+- Authorization acceptance: exact `fa522b2c8d60f15c337db57566cad97c44e43993`,
+  tree `365a536d1e36b3e69292e5f77cf1f19f407c3452`, canonical diff
+  `cefb797e6060cbf3ad881fbfb94adab6e20b3b90`, received three exact approvals and
+  was published unchanged. Compiler `30888751268` / `30888754238`, stable/nightly
+  Rust `30888754262`, all three CodeQL analyses in `30888752230`, and aggregate
+  `91925849313` pass.
+- Independent complete rankings: type/safety ranks R-002/R-011/R-005/R-012/R-004/
+  R-013/R-009/R-006/R-010/R-016/R-007. IR/codegen ranks R-002/R-005/R-011/R-006/
+  R-009/R-012/R-013/R-004/R-010/R-016/R-007. Backend/claim ranks R-002/R-005/
+  R-011/R-004/R-013/R-006/R-012/R-009/R-010/R-016/R-007. Each inspected the
+  same immutable public basis, ranked all eleven residuals, excluded accepted slices,
+  changed no file, and ran no test, build, probe, artifact, hardware action, or
+  external query.
+- Initial candidate split: type/safety selected valueless exact
+  `Array(Array(Array(Tuple)))` (historical Candidate T); IR/codegen and backend selected
+  initialized exact `Array(Array(Tuple))` (Candidate A). Both have trusted scalar-
+  IR reach, exact nonrecursive two-phase containment, and no later verifier defense.
+- Targeted preference comparison selected A by two to one. Type/safety and IR/codegen
+  judged A's two counts, 12-acceptance red surface, and CORE-032-frozen initializer-
+  child ordering the smaller total compatibility/preservation burden; backend
+  preferred Candidate T's valueless population despite its three counts and 20 acceptances.
+  The lead provisionally selected A on the smaller predicate/test surface and
+  already-frozen initialized ordering. A final compatibility gate made all three
+  reviewers explicitly approve exact A with no semantic, compatibility, or phase
+  blocker. Candidate T and the reference-array form historically labeled Candidate
+  B remain preservation controls, not inherited next tasks.
+- Status: complete, read-only, and clean at public-green `fa522b2c`. AUDIT-039 made
+  no source, test, risk-status, matrix, capability, semantics, or implementation
+  change. The separately frozen CORE-033 contract below is the only next action.
+
+## CORE-033 - Reject initialized exact two-array-deep tuple annotations
+
+- Task ID/date/owner: `CORE-033`, 2026-08-04, lead-owned two-phase R-002 fail-closed
+  containment selected by AUDIT-039 final compatibility reconciliation.
+- Observed behavior: `fn main() { let value: [[(int, float); 1]; 1] = 1; }` is
+  explicitly accepted in two preservation arrays in
+  `src/compiler/tests/binding_type_contract_tests.rs`. Semantic analysis validates
+  the scalar initializer, misses the exact two-array tuple annotation, and inserts
+  inferred `Int`; checked admission independently misses it; raw lowering discards
+  the annotation and emits verifier-valid scalar IR. Trusted library/CLI routes can
+  therefore publish LLVM for an invalid declared aggregate contract.
+- Hypothesis: after existing initializer child validation and initialized outer/
+  immediate tuple guards, one exact nonrecursive guard in semantic analysis and one
+  in checked admission can reject only initialized
+  `Type::Array(Type::Array(Type::Tuple(_), _), _)` before mismatch/insertion or raw
+  generation. Both counts are irrelevant. No tuple/nested-array support, layout,
+  bounds, mutation, ownership, ABI, lowering, execution, or backend meaning follows.
+- Frozen semantics and diagnostics: duplicate-name rejection remains first. Validate
+  the initializer child first; checked admission also preserves Void rejection.
+  Preserve existing initialized outer-tuple and immediate array-to-tuple diagnostics,
+  then reject exact Candidate A before mismatch handling, semantic insertion, the
+  checked generic-impl mismatch bypass, or raw generation. Semantic diagnostic is
+  `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.` Checked diagnostic is
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding`; public compilation retains
+  the existing `Semantic Analysis Error: ` wrapper. Generic impl bodies receive the
+  rejection at both phases; semantic generic-function traversal receives it, while
+  checked admission preserves its earlier outer `generic function IR is not admitted`
+  rejection.
+- Tests-first contract: after this authorization is public all-eight green, only
+  `src/compiler/tests/binding_type_contract_tests.rs` may change. Explicitly remove
+  Candidate A from the two existing acceptance arrays and reclassify it in one new
+  aggregate test; do not silently delete either acceptance. The aggregate must report
+  exactly 12 unexpected acceptances before implementation: four outer/inner `0/1`
+  count combinations at semantic and checked boundaries (8), one all-ones public
+  compilation (1), generic-impl semantic and checked traversal (2), and generic-
+  function semantic traversal (1). Checked generic-function outer rejection is a
+  green preservation assertion. Focused result must be 0/1, binding aggregate 21/22
+  with only this test failing, and the exact full gate must retain 139/139 library,
+  149/149 binary, and 7/7 doc before reaching the intended binding failure.
+- Later implementation boundary: only after separately reviewed, public expected-red
+  evidence may implementation change `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs`, adding only the two exact guards. Raw IR,
+  verifier, codegen, LLVM verification, CLI orchestration, and backends must not
+  change.
+- Preservation: CORE-025/028/029/030/031/032 exact diagnostics and ordering;
+  duplicate and initializer-child precedence; valueless two-array rejection;
+  initialized and valueless three-plus-depth shapes including Candidate T; the
+  reference-array form historically labeled Candidate B; other reference/generic
+  wrappers and arrays of references; scalar/numeric arrays,
+  mismatch behavior, valid numeric LLVM; raw compatibility APIs; generic-function
+  checked outer rejection; ABI/ownership; CPU/ROCm/CUDA behavior; and every current
+  matrix/capability classification.
+- Allowed authorization files/actions: before tests-first acceptance, only
+  `TASK_LEDGER.md`, `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`
+  may change. This prepared authorization's fresh exact full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. It requires
+  three exact reviews, unchanged publication, and all eight public checks before the
+  tests-only change.
+- Risks: recursive or wrapper traversal; capturing three-plus-depth or valueless
+  forms; placing rejection before duplicate/RHS/Void/existing diagnostics; retaining
+  contradictory acceptance assertions; changing mismatch/generic precedence;
+  treating counts as bounds/layout; or claiming tuple/nested-array support.
+- Stop conditions: need for new initializer, mismatch, generic, tuple, array,
+  layout, bounds, ownership, ABI, valid-output, or compatibility semantics; recursive
+  classification; more than the two named compiler phases; raw/verifier/codegen/
+  backend change; workflow/dependency/artifact/claim/history/`master` action.
+- Authorization review history: first snapshot `d0500865`, tree `d2378320`,
+  canonical diff `97a15c9f`, passed its exact local gate and received one approval,
+  but IR/codegen rejected at P1 and backend/claim at P2 because one ledger sentence
+  called Candidate T's valueless population “B,” colliding with the historical
+  reference-array Candidate B. It was never published. The corrected records use
+  Candidate T unambiguously and preserve reference-array Candidate B separately.
+- Status: exact behavior authorization prepared; fresh gate exit 0 recorded above.
+  Three exact reviews, unchanged publication, and all eight checks remain required;
+  no test or implementation change has begun.

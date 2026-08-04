@@ -1387,7 +1387,7 @@ promise future compatibility.
   compiler `30888222316` / `30888225734`, Rust `30888226011`, CodeQL `30888222480`,
   and aggregate `91924197947`.
 
-## AUDIT-039 authorization boundary
+## AUDIT-039 reconciliation and CORE-033 boundary
 
 - The complete remaining set is still R-002/R-004/R-005/R-006/R-007/R-009/R-010/
   R-011/R-012/R-013/R-016. AUDIT-039 must rank all eleven independently from exact
@@ -1397,9 +1397,29 @@ promise future compatibility.
   trusted reach and containment, unresolved semantic choices, phase count, one exact
   deterministic failing specimen, and preservation controls. Rejection, annotation,
   simulation, LLVM text, object emission, and hardware execution remain distinct.
-- The prepared six-record authorization's fresh exact full gate exits 0 with 139/139
-  library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking remains forbidden
-  until three exact reviews, unchanged publication, and all eight checks pass.
-- AUDIT-039 is read-only and cannot move any capability, matrix cell, or risk status,
-  authorize tests/implementation, invent semantics, or change workflows,
-  dependencies, backends, artifacts, claims, history, or `master`.
+- Exact authorization `fa522b2c`, tree `365a536d`, canonical diff `cefb797e`, is
+  triple-approved and public all-eight green in compiler `30888751268` /
+  `30888754238`, Rust `30888754262`, CodeQL `30888752230`, and aggregate
+  `91925849313`.
+- Type/safety ranks R-002/R-011/R-005/R-012/R-004/R-013/R-009/R-006/R-010/R-016/
+  R-007. IR/codegen ranks R-002/R-005/R-011/R-006/R-009/R-012/R-013/R-004/R-010/
+  R-016/R-007. Backend/claim ranks R-002/R-005/R-011/R-004/R-013/R-006/R-012/
+  R-009/R-010/R-016/R-007. The audit stayed static, read-only, and clean.
+- Initial candidates split: type/safety selected the valueless exact three-array form
+  historically labeled Candidate T; IR/codegen and backend selected initialized exact two-array Candidate
+  A. Preference comparison favored A two to one. The lead provisionally selected A
+  because it has two rather than three count dimensions, exactly 12 rather than 20
+  red acceptances, a smaller predicate, and CORE-032-frozen initializer ordering.
+  All three then explicitly approved exact A with no semantic or phase blocker.
+- Preregistered CORE-033 may reject only initialized exact `Array(Array(Tuple))` at
+  semantic and checked boundaries after initializer/existing diagnostics. It adds no
+  tuple/nested-array meaning. Candidate T, reference-array Candidate B, other deeper/
+  wrapped shapes, raw APIs, valid output, backends, risk status, matrix cells, and
+  capability classes remain unchanged.
+- The prepared CORE-033 authorization's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Tests-first remains
+  forbidden until three exact reviews, unchanged publication, and all eight checks.
+- First authorization snapshot `d0500865`, tree `d2378320`, canonical diff
+  `97a15c9f`, passed its local gate but was rejected unpublished by two reviewers
+  after one ledger sentence called Candidate T's valueless form Candidate B. The
+  corrected records keep Candidate T and reference-array Candidate B distinct.

@@ -609,10 +609,35 @@ containment, semantic decisions, phase count, an exact deterministic failing spe
 and preservation controls. Rejection, simulation, annotations, LLVM text, object
 emission, and hardware execution remain distinct.
 
-The prepared AUDIT-039 six-record authorization's fresh exact full gate exits 0 with
-139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking has not
-begun and remains forbidden until three exact reviews, unchanged publication, and all
-eight checks pass. The audit is read-only and cannot change source/tests, risks,
-matrix/capability state, semantics, workflows, dependencies, backends, artifacts,
-claims, history, or `master`; any later behavior change needs a separate reviewed
-contract and public failing regression evidence first.
+Exact AUDIT-039 authorization `fa522b2c`, tree `365a536d`, canonical diff `cefb797e`,
+passes compiler `30888751268` / `30888754238`, stable/nightly Rust `30888754262`,
+CodeQL `30888752230`, and aggregate `91925849313` after three exact approvals. Every
+complete ranking puts R-002 first. Type/safety initially selects valueless exact
+three-array Candidate T; IR/codegen and backend select initialized exact two-array
+Candidate A. Targeted preference favors A two to one. The lead provisionally selects
+A for its smaller predicate, two count dimensions, exact 12-acceptance surface, and
+already-frozen initializer-child ordering; all three then explicitly approve exact A
+with no semantic, compatibility, or phase blocker. AUDIT-039 remains read-only and
+changes no risk status.
+
+Preregistered CORE-033 may reject only initialized exact nonrecursive
+`Array(Array(Tuple))` after initializer and existing initialized diagnostics in
+semantic analysis and checked admission. Tests-first must explicitly reclassify both
+current A acceptance rows and reproduce exactly 12 false acceptances: eight count/
+phase, one public, two generic-impl, and one semantic generic-function; checked
+generic-function outer rejection remains green. Candidate T, reference-array
+Candidate B, other initialized/valueless three-plus depth, wrappers, raw APIs,
+verifier/codegen, valid output, tuple/array meaning, bounds/layout, ownership/ABI,
+and all backends remain unchanged. R-002 stays
+HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix or capability class moves.
+
+The prepared CORE-033 authorization's fresh exact full gate exits 0 with 139/139
+library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Exact reviews, unchanged
+publication, and all eight checks are required before tests-first; implementation
+requires separate reviewed public-red evidence and remains limited to two phases.
+
+First CORE-033 authorization snapshot `d0500865`, tree `d2378320`, canonical diff
+`97a15c9f`, passed its local gate but received one approval and two blocking reviews
+because one ledger sentence mislabeled Candidate T's valueless population as
+Candidate B. It remained unpublished. Corrected records keep Candidate T and the
+reference-array Candidate B distinct; no risk status changes.

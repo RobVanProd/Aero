@@ -547,9 +547,23 @@ declared compatibility policy and release-level coverage.
   clean public closure `9c82cbfc`. It must exclude all accepted slices through
   CORE-032, inherit no prior candidate/order, and distinguish rejection, simulation,
   annotation, LLVM text, object emission, and hardware execution.
-- Its prepared six-record authorization's fresh exact full gate exits 0 with 139/139
-  library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking remains forbidden
-  until three exact reviews, unchanged publication, and all eight checks pass.
-  AUDIT-039 cannot edit source/tests, run builds/probes/external queries, or change a
-  matrix row/cell, capability class, risk status, semantics, workflow, dependency,
-  backend, artifact, claim, history, or `master`.
+- Exact AUDIT-039 authorization `fa522b2c`, tree `365a536d`, canonical diff
+  `cefb797e`, is triple-approved and public all-eight green. All rankings put R-002
+  first. Initial candidates split between valueless three-array Candidate T and
+  initialized two-array Candidate A; targeted preference favored A two to one, and
+  final compatibility reconciliation unanimously approved exact A.
+- Preregistered CORE-033 may reject only initialized exact nonrecursive
+  `Array(Array(Tuple))` after initializer and existing initialized diagnostics at
+  semantic and checked boundaries. Its tests-first red surface is exactly 12
+  acceptances after explicit reclassification of both existing A acceptance rows.
+  Candidate T, reference-array Candidate B, other deeper/wrapped shapes, and every
+  tuple/array value, layout, bounds, ownership, ABI, lowering, execution, backend,
+  matrix, risk, and capability state remain unchanged.
+- The prepared CORE-033 six-record authorization's fresh exact full gate exits 0
+  with 139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. No test or
+  source change is permitted before three exact reviews, unchanged publication, and
+  all eight public checks.
+- First authorization snapshot `d0500865`, tree `d2378320`, canonical diff
+  `97a15c9f`, passed its local gate but was rejected unpublished by two reviewers
+  because one ledger sentence mislabeled Candidate T as Candidate B. The correction
+  changes no matrix, capability, risk, or behavior boundary.
