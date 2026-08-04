@@ -2328,10 +2328,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   prerequisites pass, the audit is read-only and grants no test, implementation,
   semantics, capability, matrix, risk, workflow, dependency, backend, artifact,
   claim, history, or `master` authority.
-- Gate evidence: the prepared authorization's fresh and verification exact
-  repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
-  claim, and 25/25 binding tests, plus all downstream suites. Exact review and public
-  acceptance remain pending.
+- Pre-acceptance gate evidence at corrected snapshot `5276df5b` (historical;
+  superseded by acceptance below): the prepared authorization's fresh and verification
+  exact repository-root full gates each exited 0 with 139/139 library, 149/149 binary,
+  7/7 claim, and 25/25 binding tests, plus all downstream suites. At that point exact
+  review and public acceptance remained pending.
 - Correction history: first authorization snapshot `cb43d1bb`, parent `3f042e18`,
   tree `f0f19f5d`, canonical binary diff `ead99a7b`, changed only six records and
   passed both exact gates. All three reviewers rejected it at P1 because this
@@ -2340,9 +2341,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   committed review target. It was not published and no ranking began. The additive
   correction aligns current state and changes no authority, semantics,
   classification, or public claim.
-- Additive correction gate: the fresh exact repository-root full gate exits 0 with
+- Pre-acceptance additive correction gate (historical; superseded below): the fresh
+  exact repository-root full gate exited 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
-  downstream suites. Fresh review and public acceptance remain pending.
+  downstream suites. At that point fresh review and public acceptance remained
+  pending.
 - Corrected authorization acceptance: exact `5276df5b`, tree `c3eaf3cf`, correction
   diff `b8b7586f`, cumulative diff `fe5376dc`, received three fresh approvals and is
   public all-eight green in push CI `30931510621`, PR CI `30931515125`, Rust
@@ -2380,3 +2383,13 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
   downstream suites. The verification exact gate independently exits 0 at the same
   counts with all downstream suites. Exact review and later boundaries remain pending.
+- Review correction: first ARCH-001 snapshot `63d8d599`, parent `5276df5b`, tree
+  `28cd120c`, canonical binary diff `9fef5adf`, received type/safety and IR/codegen
+  approvals but a backend/claim P1 rejection because pre-acceptance AUDIT-043 pending/
+  no-ranking evidence remained in present tense in five records beside the completed
+  result. It was not published. The additive six-record correction makes only that
+  chronology historical; DEC-050 and every behavior/capability boundary remain exact.
+- Additive chronology-correction gates: fresh and verification exact repository-root
+  `./tools/test.sh` each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  25/25 binding tests, plus all downstream suites. Fresh exact review, unchanged
+  publication, and public acceptance remain pending.

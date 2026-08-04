@@ -6740,11 +6740,13 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   phases; nondeterministic tests-first topology; hardware dependence; a source/test/
   workflow/dependency edit; risk/matrix/capability movement; external artifact or
   claim; history rewrite, force-push, or `master` action.
-- Status: authorization prepared only. No ranking, source/test edit, build, probe,
-  artifact, hardware action, or external query has begun. Its fresh and verification
-  exact full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
-  25/25 binding tests, plus all downstream suites. Three reviews, unchanged
-  publication, and public all-eight checks remain required.
+- Pre-acceptance status at corrected snapshot `5276df5b` (historical; superseded by
+  the acceptance and result below): authorization was prepared only. No ranking,
+  source/test edit, build, probe, artifact, hardware action, or external query had
+  begun. Its fresh and verification exact full gates each exited 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream
+  suites. At that point three reviews, unchanged publication, and public all-eight
+  checks remained required.
 - Correction history: first authorization snapshot
   `cb43d1bb94bfcf6070ae457946bcda4b46b342c1`, parent `3f042e18`, tree
   `f0f19f5d848583b10a6d43936505496424e140e4`, canonical binary diff
@@ -6756,10 +6758,12 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   ranking began, and it remains in corrected ancestry. The additive correction aligns
   current state with gate evidence and changes no task, authority, semantics,
   implementation, classification, or claim boundary.
-- Additive correction gate: the fresh exact repository-root full gate exits 0 with
+- Pre-acceptance additive correction gate (historical; superseded below): the fresh
+  exact repository-root full gate exited 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
-  downstream suites. The corrected committed HEAD is the immutable review snapshot;
-  three fresh reviews, unchanged publication, and public all-eight acceptance remain.
+  downstream suites. The corrected committed HEAD was the immutable review snapshot;
+  at that point three fresh reviews, unchanged publication, and public all-eight
+  acceptance remained.
 - Corrected authorization acceptance: exact
   `5276df5b6f3369bd2b6fc78a7a39289e8609ed00`, parent `cb43d1bb`, tree
   `c3eaf3cf244f6f6e7e97423e2bcc6a1a8b44dc58`, correction canonical binary diff
@@ -6867,3 +6871,17 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   at the same counts with all downstream suites. Exact review of the committed six-
   record snapshot, unchanged publication, and public all-eight acceptance remain
   required.
+- Authorization review history: first ARCH-001 snapshot
+  `63d8d599fc1d9e0b02acc03f79246d0a98aa1811`, parent `5276df5b`, tree
+  `28cd120c0164968b9159e4478bf0264f46938155`, canonical binary diff
+  `9fef5adf4cf79cb165b987fba905a3cf8a5bb2b9`, changed exactly these six
+  records. Type/safety and IR/codegen approved; backend/claim rejected P1 because five
+  records left pre-acceptance AUDIT-043 pending/no-ranking text in present tense beside
+  its completed result. Nothing was published and no test/source work began. This
+  additive six-record correction makes that chronology explicitly historical and
+  changes no ARCH-001 contract, semantics, classification, implementation, risk,
+  matrix, capability, backend, artifact, or claim boundary.
+- Additive chronology-correction gates: the fresh and verification exact repository-
+  root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  25/25 binding tests, plus all downstream suites. Fresh exact review of the committed
+  correction, unchanged publication, and public all-eight acceptance remain pending.

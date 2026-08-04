@@ -1523,15 +1523,21 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   green, refactor only `ast.rs`, `semantic_analyzer.rs`, and `ir_generator.rs`.
   ARCH-001 must keep the later exact three-array R-002 specimen accepted and all valid
   LLVM byte-identical. Any behavior delta or third compiler phase is a stop.
+- Review history: first ARCH-001 snapshot `63d8d599`, parent `5276df5b`, tree
+  `28cd120c`, canonical binary diff `9fef5adf`, changed exactly the six records and
+  received two approvals. Backend/claim rejected P1 because five records retained
+  superseded pre-acceptance AUDIT-043 pending/no-ranking evidence in present tense.
+  It was not published and no characterization/source edit began. The additive six-
+  record correction is chronology-only and changes no ARCH-001 boundary.
 
 ## Exact next action
 
-The prepared six-record ARCH-001 authorization's fresh and verification exact
+The additive six-record chronology correction's fresh and verification exact
 repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
 claim, and 25/25 binding tests, plus all downstream suites. Review target: the exact
-committed HEAD containing only these six record changes. Obtain three exact reviews,
-publish that snapshot unchanged, and require all eight public checks before any test/
-source edit. Do not combine the classifier with R-002 behavior, resolve
+committed correction HEAD containing only these six record changes. Obtain three exact
+reviews, publish that snapshot unchanged, and require all eight public checks before
+any test/source edit. Do not combine the classifier with R-002 behavior, resolve
 bounds policy implicitly, promote a capability, change
 workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
 push, or touch `master`.

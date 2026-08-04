@@ -941,11 +941,12 @@ separately frozen compile-time-versus-runtime bounds policy. Its six-record
 authorization must pass exact local gates, three reviews, unchanged publication, and
 all eight public checks before ranking begins.
 
-The prepared AUDIT-043 authorization's fresh and verification exact repository-root
-full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
-binding tests, plus all downstream suites. Exact review, unchanged publication, and
-public all-eight acceptance remain pending. No risk status changes and no ranking has
-begun.
+Pre-acceptance evidence at corrected snapshot `5276df5b` (historical; superseded by
+the acceptance and result below): the prepared AUDIT-043 authorization's fresh and
+verification exact repository-root full gates each exited 0 with 139/139 library,
+149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. At that
+point exact review, unchanged publication, and public all-eight acceptance remained
+pending. No risk status had changed and no ranking had begun.
 
 First authorization snapshot `cb43d1bb`, tree `f0f19f5d`, canonical binary diff
 `ead99a7b`, passed both gates but all three reviewers rejected P1 because DEC-049
@@ -953,10 +954,11 @@ status still called them required; type/safety also found stale “next immutabl
 snapshot” wording. It was not published and no ranking began. The additive correction
 changes no risk status, backend distinction, artifact boundary, claim, or authority.
 
-The additive correction's fresh exact repository-root full gate exits 0 with 139/139
-library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream
-suites. Fresh review, unchanged publication, and public all-eight acceptance remain.
-No risk status changes and no ranking has begun.
+Pre-acceptance additive correction evidence (historical; superseded below): its fresh
+exact repository-root full gate exited 0 with 139/139 library, 149/149 binary, 7/7
+claim, and 25/25 binding tests, plus all downstream suites. At that point fresh review,
+unchanged publication, and public all-eight acceptance remained. No risk status had
+changed and no ranking had begun.
 
 Corrected AUDIT-043 authorization `5276df5b`, tree `c3eaf3cf`, correction diff
 `b8b7586f`, cumulative diff `fe5376dc`, received three fresh approvals and is public
@@ -979,4 +981,14 @@ The fresh exact ARCH-001 authorization gate exits 0 with 139/139 library, 149/14
 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. Its
 verification exact gate independently exits 0 at the same counts with all downstream
 suites. Review, unchanged publication, and public all-eight acceptance remain
+pending; no risk status changes.
+
+First ARCH-001 snapshot `63d8d599`, tree `28cd120c`, diff `9fef5adf`, was not
+published after backend/claim found a valid P1 chronology contradiction in superseded
+AUDIT-043 pending/no-ranking evidence. The additive six-record correction makes that
+evidence historical and changes no risk, backend, artifact, claim, or task boundary.
+
+The additive correction's fresh and verification exact full gates each exit 0 with
+139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream
+suites. Fresh review, unchanged publication, and public all-eight acceptance remain
 pending; no risk status changes.

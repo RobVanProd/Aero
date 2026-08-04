@@ -800,18 +800,20 @@ declared compatibility policy and release-level coverage.
   or claim. Bounds B remains stopped pending compile-time-versus-runtime policy;
   tuples remain parsed-only, references/fixed arrays partial, bounds unresolved, and
   CPU/ROCm/CUDA separate.
-- The prepared authorization's fresh and verification exact full gates each exit 0
-  with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
-  downstream suites. Exact review and public acceptance remain pending; no matrix row
-  or cell moves.
+- Pre-acceptance evidence at corrected snapshot `5276df5b` (historical; superseded by
+  the result below): the prepared authorization's fresh and verification exact full
+  gates each exited 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+  binding tests, plus all downstream suites. At that point exact review and public
+  acceptance remained pending; no matrix row or cell moved.
 - First authorization snapshot `cb43d1bb`, tree `f0f19f5d`, canonical binary diff
   `ead99a7b`, passed both gates but all three reviewers rejected P1 because DEC-049
   status still called them required; type/safety also found stale “next immutable
   snapshot” wording. Nothing was published and no ranking began. The additive
   correction moves no matrix row or cell.
-- Its fresh exact repository-root full gate exits 0 with 139/139 library, 149/149
-  binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. Fresh review
-  and public acceptance remain pending; no matrix row or cell moves.
+- Pre-acceptance additive correction evidence (historical; superseded below): its
+  fresh exact repository-root full gate exited 0 with 139/139 library, 149/149 binary,
+  7/7 claim, and 25/25 binding tests, plus all downstream suites. At that point fresh
+  review and public acceptance remained pending; no matrix row or cell moved.
 - Corrected AUDIT-043 authorization `5276df5b`, tree `c3eaf3cf`, correction diff
   `b8b7586f`, cumulative diff `fe5376dc`, is triple-approved and public all-eight
   green in compiler `30931510621` / `30931515125`, Rust `30931515426`, CodeQL
@@ -828,3 +830,11 @@ declared compatibility policy and release-level coverage.
   7/7 claim, and 25/25 binding tests, plus all downstream suites. Its verification
   exact gate independently exits 0 at the same counts with all downstream suites.
   Review and later acceptance remain pending; no matrix row or cell moves.
+- First ARCH-001 snapshot `63d8d599`, tree `28cd120c`, diff `9fef5adf`, was not
+  published after a valid P1 chronology rejection. This additive six-record correction
+  labels superseded AUDIT-043 pending/no-ranking evidence historical; no matrix row or
+  cell moves.
+- The additive correction's fresh and verification exact full gates each exit 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. Fresh review and public acceptance remain pending; no matrix row
+  or cell moves.

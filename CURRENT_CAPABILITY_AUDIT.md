@@ -1757,18 +1757,22 @@ promise future compatibility.
   remains stopped on unresolved compile-time-versus-runtime policy. Tuples stay
   parsed-only, references/fixed arrays stay partial, R-002 remains HIGH/CRITICAL and
   PARTIALLY CONTROLLED, R-011 remains open, and no capability class moves.
-- The prepared six-record authorization's fresh and verification exact full gates
-  each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding
-  tests, plus all downstream suites. Exact review, unchanged publication, and public
-  all-eight acceptance remain pending; no ranking has begun.
+- Pre-acceptance evidence at corrected snapshot `5276df5b` (historical; superseded by
+  the result below): the prepared six-record authorization's fresh and verification
+  exact full gates each exited 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  25/25 binding tests, plus all downstream suites. At that point exact review,
+  unchanged publication, and public all-eight acceptance remained pending; no ranking
+  had begun.
 - First authorization snapshot `cb43d1bb`, tree `f0f19f5d`, canonical binary diff
   `ead99a7b`, passed both gates but all three reviewers rejected P1 because DEC-049
   status still called them required; type/safety also found stale “next immutable
   snapshot” wording. Nothing was published and no ranking began. The additive
   correction changes no capability class or authority.
-- The additive correction's fresh exact full gate exits 0 with 139/139 library,
+- Pre-acceptance additive correction evidence (historical; superseded below): its
+  fresh exact full gate exited 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
-  Fresh review and public acceptance remain pending; no capability class moves.
+  At that point fresh review and public acceptance remained pending; no capability
+  class moved.
 
 ## AUDIT-043 result and ARCH-001 boundary
 
@@ -1790,3 +1794,11 @@ promise future compatibility.
   7/7 claim, and 25/25 binding tests, plus all downstream suites. Its verification
   exact gate independently exits 0 at the same counts with all downstream suites.
   Review, publication, and public acceptance remain pending; no capability moves.
+- First ARCH-001 snapshot `63d8d599`, tree `28cd120c`, diff `9fef5adf`, was not
+  published after a valid P1 chronology rejection: five records retained superseded
+  AUDIT-043 pending/no-ranking evidence in present tense. The additive six-record
+  correction makes it historical and changes no capability or classifier boundary.
+- The additive correction's fresh and verification exact full gates each exit 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. Fresh review and public acceptance remain pending; no capability
+  moves.
