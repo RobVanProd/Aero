@@ -914,3 +914,15 @@ claim each rejected at P1 because PROJECT_STATE still named CORE-035 `b8fd5a17` 
 the current public implementation. It was not independently published and remains in
 corrected ancestry. The additive correction names `26d18924` and changes no risk
 status, backend distinction, artifact boundary, or claim.
+
+First additive correction `799c4181`, tree `1c8a883f`, canonical binary diff
+`9a1f5cd8`, received type/safety approval but IR/codegen rejected P1 because DEC-048
+still called the completed verification gate pending. The review round stopped before
+publication. The second additive correction aligns that status with the two recorded
+green gates and changes no risk status, backend distinction, artifact boundary, or
+claim.
+
+The second additive correction's fresh exact repository-root full gate exits 0 with
+139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+downstream suites. Exact review, unchanged publication, and public all-eight checks
+remain required.

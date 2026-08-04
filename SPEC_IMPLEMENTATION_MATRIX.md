@@ -781,3 +781,10 @@ declared compatibility policy and release-level coverage.
   current implementation pointer remained at CORE-035 `b8fd5a17`. It was not
   independently published. The additive corrected closure names `26d18924`,
   preserves the rejected snapshot in ancestry, and moves no matrix row or cell.
+- First additive correction `799c4181`, tree `1c8a883f`, canonical binary diff
+  `9a1f5cd8`, received type/safety approval but IR/codegen rejected P1 because DEC-048
+  still called the completed verification gate pending. The review round stopped
+  before publication. The second additive correction aligns that status and moves no
+  matrix row or cell.
+- Its fresh exact repository-root full gate exits 0 with 139/139 library, 149/149
+  binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.

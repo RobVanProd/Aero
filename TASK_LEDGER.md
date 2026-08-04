@@ -6659,3 +6659,16 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   was not independently pushed or made branch head and remains in corrected ancestry.
   This additive correction names exact public CORE-036 implementation `26d18924` and
   changes no task, evidence, semantics, implementation, or classification boundary.
+- First additive correction snapshot
+  `799c4181014eab7514d9118dc38e98ddb71d7785`, parent `39c8564`, tree
+  `1c8a883f3969b8fda3d5c6da1658cae9a88d16c6`, canonical binary diff
+  `9a1f5cd8607e75acd9c686f9b2d589ed1409d8ed`, changed only the six records. Type/
+  safety approved, but IR/codegen rejected it at P1 because DEC-048's status still
+  called the completed verification gate pending while its closure-gate evidence
+  correctly recorded both gates green. The review round was stopped; the snapshot
+  was not published and remains in second-correction ancestry. This correction makes
+  the status and evidence agree and changes no other boundary.
+- Second additive correction gate: the fresh exact repository-root full gate exits 0
+  with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. Exact review, unchanged publication, and public all-eight checks
+  remain required.

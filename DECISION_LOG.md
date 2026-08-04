@@ -2223,8 +2223,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 
 - Date: 2026-08-04
 - Status: implementation triple-approved and public all-eight green at `26d18924`;
-  six-record classification-neutral closure fresh-local-gate green, with verification,
-  exact review, unchanged publication, and public checks pending.
+  six-record classification-neutral closure fresh and verification exact local gates
+  green, with exact review, unchanged publication, and public checks pending.
 - Decision: for a valueless binding whose annotation is exactly nonrecursive
   `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)`, preserve semantic
   duplicate precedence and all four existing valueless tuple-shape diagnostics, then
@@ -2290,3 +2290,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   the current public implementation. It was not independently published and remains
   in corrected ancestry. The additive correction points current implementation state
   to `26d18924` without changing this decision or any classification.
+- Second correction: first additive correction `799c4181`, tree `1c8a883f`, canonical
+  binary diff `9a1f5cd8`, changed only six records. Type/safety approved, but IR/codegen
+  rejected it at P1 because this decision's status still called the completed
+  verification gate pending. Its review round stopped before publication. The second
+  additive correction aligns that status with the two recorded green gates and
+  changes no decision, evidence, semantics, implementation, or classification.
+- Second-correction gate: the fresh exact repository-root full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites.

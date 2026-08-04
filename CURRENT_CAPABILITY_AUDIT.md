@@ -1733,3 +1733,10 @@ promise future compatibility.
   implementation authority at CORE-035 `b8fd5a17`. The corrected ancestry preserves
   that snapshot and now points to public CORE-036 implementation `26d18924`; no
   capability class moves.
+- First additive correction `799c4181`, tree `1c8a883f`, canonical binary diff
+  `9a1f5cd8`, received type/safety approval but IR/codegen rejected P1 because DEC-048
+  still called the completed verification gate pending. Review stopped before
+  publication. The second additive correction aligns that status with the recorded
+  two green gates and moves no capability class.
+- The second additive correction's fresh exact full gate exits 0 with 139/139 library,
+  149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.

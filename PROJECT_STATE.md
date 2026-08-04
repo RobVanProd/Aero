@@ -1431,15 +1431,21 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   pushed or made branch head. It remains in corrected ancestry; this additive
   correction updates the current pointer to `26d18924` and changes no evidence,
   semantics, implementation, classification, or authority boundary.
+- First additive correction `799c4181`, parent `39c8564b`, tree `1c8a883f`, canonical
+  binary diff `9a1f5cd8`, changed only the six records. Type/safety approved it, but
+  IR/codegen rejected P1 because DEC-048's status still called the completed
+  verification gate pending while the later evidence recorded both gates green. The
+  review round stopped before publication. It remains in second-correction ancestry;
+  the next correction aligns that status and changes no other boundary.
 
 ## Exact next action
 
-The additively corrected six-record CORE-036 closure's fresh and verification exact
-repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
-claim, and 25/25 binding tests. Commit only the six control records, obtain three
-fresh exact reviews, publish unchanged, and require all eight public checks before
-declaring CORE-036 closed. Do not edit source/tests, start another residual, resolve
-bounds policy implicitly, promote a capability, change
+The second additive six-record CORE-036 closure correction's fresh exact repository-
+root full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+binding tests, plus all downstream suites. Obtain three fresh exact reviews, publish
+unchanged, and require all eight public checks before declaring CORE-036 closed. Do
+not edit source/tests, start another
+residual, resolve bounds policy implicitly, promote a capability, change
 workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
 push, or touch `master`.
 
