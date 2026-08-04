@@ -1470,26 +1470,49 @@ promise future compatibility.
   Compiler `30893527220` / `30893529999`, stable/nightly Rust `30893529992`, all
   three CodeQL analyses in `30893527445`, and aggregate `91941079083` pass.
 
-## AUDIT-040 authorization boundary
+## AUDIT-040 result and CORE-034 authorization boundary
 
 - The complete remaining set is still R-002/R-004/R-005/R-006/R-007/R-009/R-010/
-  R-011/R-012/R-013/R-016. AUDIT-040 must rank all eleven independently from exact
-  clean public closure `1ee9c71`, exclude every accepted slice through CORE-033,
-  and inherit neither Candidate T/B/A nor any earlier ordering.
-- Each reviewer must provide evidence for every rank, one bounded candidate or stop,
-  trusted reachability and exact containment, unresolved semantic choices, phase
-  count, one exact deterministic failing specimen, and preservation controls.
-  Rejection, annotation, simulation, LLVM text, object emission, and hardware
-  execution remain distinct.
+  R-011/R-012/R-013/R-016. AUDIT-040 ranked all eleven independently from exact
+  clean public closure `1ee9c71`, excluded every accepted slice through CORE-033,
+  and inherited neither Candidate T/B/A nor any earlier ordering.
 - First authorization snapshot `c83ec3a`, tree `bb25e528`, canonical diff
   `c02f71e5`, passed its exact repository-root full gate with 139/139 library,
   149/149 binary, 7/7 claim, and 22/22 binding tests. Type/safety and backend/claim
   approved, but IR/codegen rejected at P1 because a late PROJECT_STATE subsection
   still treated accepted CORE-033 closure as future work. It was rejected before
-  publication. The corrected authorization's fresh exact gate exits 0 with 139/139
-  library, 149/149 binary, 7/7 claim, and 22/22 binding tests. Ranking remains
-  forbidden until three exact reviews, unchanged publication, and all eight checks
-  pass.
-- AUDIT-040 is read-only and cannot move any capability, matrix cell, or risk status,
-  authorize tests/implementation, invent semantics, or change workflows,
-  dependencies, backends, artifacts, claims, history, or `master`.
+  publication. Corrected authorization `7b9ed83`, tree `8dbe975e`, canonical diff
+  `c4ba110a`, passed its fresh exact gate with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests, received three exact approvals, and was published
+  unchanged. Compiler `30894708169` / `30894713332`, stable/nightly Rust
+  `30894713411`, all three CodeQL analyses in `30894708736`, and aggregate
+  `91944883143` pass.
+- Type/safety ranked R-002/R-005/R-004/R-011/R-009/R-012/R-013/R-006/R-010/R-016/
+  R-007 and selected valueless exact three-array tuple containment. IR/codegen
+  ranked R-002/R-012/R-005/R-013/R-011/R-016/R-010/R-006/R-009/R-004/R-007 and
+  selected initialized exact immediate reference-to-tuple containment. Backend/
+  claim ranked R-011/R-005/R-002/R-004/R-006/R-013/R-009/R-010/R-007/R-012/R-016
+  and selected immediate nonnegative literal fixed-array bounds containment.
+- Targeted comparison preferred reference containment two to one. Literal bounds
+  remains stopped pending a separately frozen compile-time-versus-runtime bounds
+  policy. Exact three-array valueless containment remains bounded but has greater
+  topology and test-count burden. All three final compatibility reviews approved
+  only initialized exact nonrecursive `Type::Reference(Type::Tuple(_), _)`
+  rejection at semantic and checked-admission boundaries, for both mutability
+  flags and with the frozen diagnostic/ordering/context boundary. AUDIT-040 was
+  read-only and changed no capability, matrix cell, risk status, source, or test.
+- CORE-034 is now preregistered to reclassify exactly two existing acceptance rows
+  and reproduce exactly 30 unexpected acceptances in one tests-first aggregate only
+  after this six-record authorization passes its fresh full gate, receives three
+  exact approvals, is published unchanged, and passes all eight public checks.
+  Implementation remains limited to the semantic analyzer and checked IR admission
+  after separately reviewed public-red evidence. This defines no reference or tuple
+  value, mutability, ownership, lifetime, layout, ABI, coercion, lowering, execution,
+  backend, or stability capability. R-002 remains HIGH/CRITICAL and PARTIALLY
+  CONTROLLED; no capability or matrix classification moves. First authorization
+  snapshot `7d4d7ca`, tree `b633abbb`, canonical diff `a901f4dc`, passed its exact
+  full gate with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
+  IR/codegen and backend/claim approved, but type/safety rejected it at P1 because
+  TASK_LEDGER's final status still called the completed gate future work. It remained
+  unpublished. The corrected authorization's fresh exact full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.

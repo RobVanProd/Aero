@@ -603,7 +603,7 @@ declared compatibility policy and release-level coverage.
   `30893527220` / `30893529999`, stable/nightly Rust `30893529992`, all three
   CodeQL analyses in `30893527445`, and aggregate `91941079083`. No matrix cell
   moves.
-- Preregistered read-only AUDIT-040 may re-rank only the complete remaining
+- Preregistered read-only AUDIT-040 required re-ranking only the complete remaining
   R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
   clean public closure `1ee9c71`. It must exclude all accepted slices through
   CORE-033, inherit no prior candidate/label/order, and distinguish rejection,
@@ -612,10 +612,35 @@ declared compatibility policy and release-level coverage.
   `c02f71e5`, passed its exact full gate with 139/139 library, 149/149 binary, 7/7
   claim, and 22/22 binding tests. Type/safety and backend/claim approved, but IR/
   codegen rejected at P1 because a late PROJECT_STATE subsection still treated
-  accepted CORE-033 closure as future work. It was rejected before publication. The
-  corrected authorization's fresh exact gate exits 0 with 139/139 library, 149/149
-  binary, 7/7 claim, and 22/22 binding tests. Ranking remains forbidden until three
-  exact reviews, unchanged publication, and all eight checks pass. AUDIT-040 cannot
-  edit source/tests, run builds/probes/
-  external queries, or change a matrix row/cell, capability class, risk status,
-  semantics, workflow, dependency, backend, artifact, claim, history, or `master`.
+  accepted CORE-033 closure as future work. It was rejected before publication.
+  Corrected authorization `7b9ed83`, tree `8dbe975e`, canonical diff `c4ba110a`,
+  passed its fresh exact gate with 139/139 library, 149/149 binary, 7/7 claim, and
+  22/22 binding tests, received three exact approvals, and was published unchanged.
+  Compiler `30894708169` / `30894713332`, stable/nightly Rust `30894713411`, all
+  three CodeQL analyses in `30894708736`, and aggregate `91944883143` pass.
+- AUDIT-040 completed read-only. Type/safety selected valueless exact three-array
+  tuple containment; IR/codegen selected initialized exact immediate reference-to-
+  tuple containment; backend/claim selected immediate nonnegative literal fixed-
+  array bounds containment. Targeted comparison preferred reference containment two
+  to one, and all three final compatibility reviews approved that exact predicate.
+  Literal bounds remains stopped pending separately frozen compile-time-versus-
+  runtime policy; the three-array candidate remains a bounded fallback with greater
+  topology and count burden. No matrix row, cell, capability class, or risk moved.
+- Preregistered CORE-034 may reject only initialized exact nonrecursive
+  `Type::Reference(Type::Tuple(_), _)` in semantic analysis and checked admission,
+  after initializer validation and all existing initialized tuple-shape diagnostics,
+  for both reference mutability flags. Only after the six-record authorization is
+  locally green, triple-approved, published unchanged, and public all-eight green
+  may one tests-first aggregate reclassify two existing acceptance rows and expose
+  exactly 30 false acceptances. Implementation requires separately reviewed public-
+  red evidence and remains limited to the semantic analyzer and checked IR admission.
+  First authorization snapshot `7d4d7ca`, tree `b633abbb`, canonical diff
+  `a901f4dc`, passed its exact full gate with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests. IR/codegen and backend/claim approved, but type/
+  safety rejected it at P1 because TASK_LEDGER's final status still called the
+  completed gate future work. It remained unpublished. The corrected authorization's
+  fresh exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  22/22 binding tests. Rejection adds no reference or tuple value, mutability,
+  ownership, lifetime, layout, ABI, coercion, lowering, execution,
+  bounds, backend, or stability evidence. Every matrix row and cell remains exactly
+  unchanged; R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.

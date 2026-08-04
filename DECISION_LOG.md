@@ -1974,9 +1974,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-043 - AUDIT-040 resets residual ordering after CORE-033
 
 - Date: 2026-08-04
-- Status: first authorization snapshot rejected before publication; corrected
-  authorization local gate green, with exact reviews, publication, and public checks
-  pending; ranking not begun.
+- Status: complete, read-only, and clean at public-green `7b9ed83`.
 - Decision: only after this six-record authorization passes its exact local gate, is
   triple-approved, published unchanged, and all eight public checks pass may three
   independent read-only reviewers re-rank the complete R-002/R-004/R-005/R-006/
@@ -1994,10 +1992,58 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   backend/claim approved, but IR/codegen rejected at P1 because a late PROJECT_STATE
   subsection still treated accepted CORE-033 closure as future work. It was rejected
   before publication. The corrected tree's fresh exact gate exits 0 with 139/139
-  library, 149/149 binary, 7/7 claim, and 22/22 binding tests; three exact reviews,
-  unchanged publication, and all eight checks remain.
+  library, 149/149 binary, 7/7 claim, and 22/22 binding tests. Corrected `7b9ed83`,
+  tree `8dbe975e`, canonical diff `c4ba110a`, then received three exact approvals,
+  was published unchanged, and passes compiler `30894708169` / `30894713332`, Rust
+  `30894713411`, CodeQL `30894708736`, and aggregate `91944883143`.
 - Boundary: ranking is static and read-only. It authorizes no source/test edit,
   build/probe/external query, semantics, workflow/dependency/backend action,
   capability/matrix/risk movement, artifact/claim publication, history action, or
   `master` change. Any later test or implementation requires a separately reviewed
   six-record contract and public failing regression evidence first.
+- Result: the independent top candidates were valueless exact three-array tuple
+  containment (type/safety), initialized exact immediate reference-to-tuple
+  containment (IR/codegen), and immediate literal fixed-array bounds containment
+  (backend/claim). Targeted comparison preferred reference containment two to one;
+  compile-time versus runtime bounds policy remains unresolved, and the three-array
+  shape has greater topology/count burden. The lead provisionally selected exact
+  initialized immediate reference-to-tuple rejection. All three final compatibility
+  reviews approved that exact predicate, both mutability flags, diagnostics, ordering,
+  generic-context behavior, two-phase limit, and preservation boundary. The audit
+  changed nothing.
+
+## DEC-044 - Initialized immediate reference-to-tuple annotations must fail closed
+
+- Date: 2026-08-04
+- Status: first authorization snapshot rejected before publication; corrected
+  authorization fresh-local-gate green, with exact reviews, publication, and public
+  checks pending. Tests and implementation have not begun.
+- Decision: for an initialized binding whose annotation is exactly nonrecursive
+  `Type::Reference(Type::Tuple(_), _)`, validate the initializer, preserve checked
+  Void and all existing initialized tuple-shape diagnostics, then reject in semantics
+  and independently in checked admission before mismatch, insertion, the generic-
+  impl bypass, or raw generation. Both reference mutability flags are included.
+- Diagnostics: semantic `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding.`; checked
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding`. Public compilation preserves its
+  existing semantic-error prefix.
+- Context: use only traversal already present in the two named phases. Generic impl
+  and semantic generic-function bodies are covered; checked generic-function outer
+  rejection and syntax-only generic trait defaults remain unchanged. No checked
+  duplicate-binding rule is added.
+- Tests-first boundary: only after authorization acceptance may the binding contract
+  test file reclassify the two existing initialized immutable/mutable rows into one
+  aggregate with exactly 30 frozen false acceptances across direct, public, top-level,
+  generic, block, control-flow, loop, and non-generic-impl routes. All precedence and
+  preservation rows remain green; implementation needs separately reviewed public-
+  red evidence.
+- Claim boundary: exact rejection is containment only. It defines no reference or
+  tuple value, mutability, ownership, lifetime, layout, ABI, coercion, default,
+  lowering, execution, bounds, backend, matrix, capability, or stability meaning.
+  R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+- Authorization evidence: first snapshot `7d4d7ca`, tree `b633abbb`, canonical diff
+  `a901f4dc`, passed its exact full gate with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests. IR/codegen and backend/claim approved, but type/
+  safety rejected it at P1 because TASK_LEDGER's final status still called the
+  completed gate future work. It remained unpublished. The corrected six-record
+  tree's fresh exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests.

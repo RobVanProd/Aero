@@ -6039,7 +6039,121 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   work remained and that its final correction must occur, contradicting accepted
   public closure `1ee9c71`. It was rejected before publication. The corrected tree
   converts that subsection to completed history; no source/test or ranking began.
-- Status: corrected authorization records are prepared on the exact clean public
-  basis and its fresh exact full local gate exits 0 with the counts above. Three
-  exact authorization reviews, unchanged publication, and all eight public checks
-  remain required; ranking has not begun.
+- Authorization acceptance: corrected `7b9ed83b0663c4effcd63d2d9963e21b1416f54d`,
+  parent `1ee9c71`, tree `8dbe975eff15e8b6741c2bd848b90cf1958cdcdf`,
+  canonical diff `c4ba110a613064bf06a27ef943b3fc819c049b97`, received three
+  exact approvals and was published unchanged. Compiler `30894708169` /
+  `30894713332`, stable/nightly Rust `30894713411`, all three CodeQL analyses in
+  `30894708736`, and aggregate `91944883143` pass.
+- Independent complete rankings: type/safety ranked R-002/R-005/R-004/R-011/R-009/
+  R-012/R-013/R-006/R-010/R-016/R-007 and selected valueless exact three-array
+  tuple containment. IR/codegen ranked R-002/R-012/R-005/R-013/R-011/R-016/R-010/
+  R-006/R-009/R-004/R-007 and selected initialized exact immediate reference-to-
+  tuple containment. Backend/claim ranked R-011/R-005/R-002/R-004/R-006/R-013/
+  R-009/R-010/R-007/R-012/R-016 and selected immediate nonnegative literal fixed-
+  array bounds containment. Each inspected all eleven residuals on the immutable
+  basis, excluded accepted slices, changed no file, and ran no test, probe, build,
+  artifact, hardware action, or external query.
+- Targeted comparison: type/safety and IR/codegen ranked reference/three-array/bounds;
+  backend/claim ranked bounds/reference/three-array. The bounds path has the highest
+  immediate backend consequence but conflicting records require runtime handling or
+  permit compile-time/runtime error, so it remains stopped pending a separately
+  frozen bounds policy. Exact three-array valueless rejection is bounded but has an
+  arbitrary depth boundary, eight count combinations, and a larger preservation
+  burden. The lead provisionally selected the initialized immediate reference shape
+  on the two-to-one readiness result and absence of semantic invention. All three
+  final compatibility reviews then approved that exact candidate, diagnostics,
+  ordering, two-phase boundary, generic-context behavior, and preservation set.
+- Status: complete, read-only, and clean at public-green `7b9ed83`. AUDIT-040 made
+  no source, test, semantics, risk-status, matrix, capability, backend, or claim
+  change. The separately frozen CORE-034 contract below is the only next action.
+
+## CORE-034 - Reject initialized immediate reference-to-tuple annotations
+
+- Task ID/date/owner: `CORE-034`, 2026-08-04, lead-owned two-phase R-002 fail-closed
+  containment selected by AUDIT-040 final compatibility reconciliation.
+- Observed behavior: active preservation rows at
+  `src/compiler/tests/binding_type_contract_tests.rs:895-913` explicitly accept both
+  `fn main() { let value: &(int, float) = 1; }` and its `&mut` form at semantics and
+  checked admission. Reference and tuple annotations produce no selected binding
+  contract, so the validated scalar RHS becomes effective `Ty::Int`; raw lowering
+  ignores the annotation. Public compilation can therefore publish scalar LLVM
+  after accepting a declared reference-to-tuple contract that has no value, layout,
+  ABI, ownership, or lowering support.
+- Hypothesis: after existing initializer child validation and initialized outer/
+  one-array/two-array tuple diagnostics, one exact nonrecursive semantic guard and
+  one exact checked-admission guard can reject only
+  `Type::Reference(Type::Tuple(_), _)` for initialized bindings before mismatch,
+  insertion, the generic-impl bypass, or raw generation. The reference mutability
+  flag does not affect rejection. No reference/tuple capability follows.
+- Frozen semantics and diagnostics: semantic duplicate-name rejection stays first.
+  Validate the RHS first; checked admission also preserves Void rejection. Preserve
+  existing initialized outer-, one-array-, and two-array tuple diagnostics, then
+  reject the exact target. Semantic diagnostic is `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding.` Checked diagnostic is
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding`; public compilation retains the
+  existing `Semantic Analysis Error: ` prefix. Match both reference mutability flags
+  without assigning mutability meaning.
+- Context boundary: apply the guard wherever each named phase already traverses a
+  binding, including direct function bodies, top-level statements, recursive block/
+  if/while/for/loop statements, non-generic impl methods, generic impl methods, and
+  semantic generic-function bodies. Checked generic functions retain the earlier
+  `generic function IR is not admitted` rejection. Generic trait default bodies
+  remain syntax-only; this task must not activate semantic or checked traversal for
+  them.
+- Tests-first contract: after this authorization is triple-approved and public
+  all-eight green, only `src/compiler/tests/binding_type_contract_tests.rs` may
+  change. Remove the two exact initialized rows from the existing preservation loop
+  only by reclassifying them in one new aggregate test. Before implementation that
+  aggregate must report exactly 30 unexpected acceptances: immutable/mutable direct
+  semantic and checked boundaries (4); immutable/mutable public compilation (2);
+  immutable/mutable top-level semantic and checked boundaries (4); immutable/mutable
+  generic-impl semantic and checked traversal (4); immutable/mutable semantic
+  generic-function traversal (2); and one immutable target in each of explicit
+  block, if-then/else, while, for, loop, and non-generic impl contexts at semantic
+  and checked boundaries (14). Checked generic-function outer rejection remains a
+  green assertion. Focused result must be 0/1, binding aggregate 22/23 with only this
+  test failing, and the exact full gate must retain 139/139 library, 149/149 binary,
+  and 7/7 claim before reaching that intended failure.
+- Required green precedence/preservation evidence: both duplicate-name cases; tuple,
+  undefined, and Void RHS child errors; checked generic-function outer rejection;
+  syntax-only generic trait defaults; initialized immutable/mutable scalar references;
+  double references; reference-around-array, array-around-reference, generic,
+  deeper, and wrapped forms; valueless direct immutable/mutable reference rejection;
+  every accepted CORE-025/028/029/030/031/032/033 diagnostic and ordering; and valid
+  numeric-array LLVM output.
+- Later implementation boundary: only after separately reviewed, public expected-red
+  evidence may implementation change `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs`, adding only the two exact guards. Parser, raw
+  IR, verifier, codegen, LLVM verification, CLI orchestration, and backends must not
+  change.
+- Allowed authorization files/actions: before tests-first acceptance, only
+  `TASK_LEDGER.md`, `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`
+  may change. The prepared authorization's fresh exact repository-root
+  `./tools/test.sh` gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim,
+  and 22/22 binding tests. It requires three exact reviews, unchanged publication,
+  and all eight public checks before the tests-only change.
+- Preservation: no reference/tuple value, mutability, ownership, lifetime, layout,
+  ABI, coercion, default, lowering, execution, or compatibility semantics; no bounds
+  decision; no raw compatibility API, valid-output, CPU, ROCm, or CUDA change; no
+  matrix cell, capability class, or risk-status movement. Candidate V three-array
+  valueless and Candidate L literal-bounds paths remain separate and unchanged.
+- Risks: recursive matching; consuming valueless, double-reference, reference-array,
+  array-reference, generic, deeper, or wrapped forms; placing rejection before
+  duplicate/RHS/Void/existing diagnostics; applying it after the generic-impl bypass;
+  accidentally traversing checked generic functions or trait defaults; adding a
+  checked duplicate-binding rule; or treating rejection as reference/tuple support.
+- Stop conditions: need for reference/tuple value, mutability, ownership, lifetime,
+  layout, ABI, coercion, valid-output, bounds, or compatibility semantics; recursive
+  classification; more than the two named compiler phases; raw/verifier/codegen/
+  backend change; workflow/dependency/artifact/claim/history/`master` action; or any
+  expected-red count/context that does not match the frozen matrix.
+- First authorization snapshot `7d4d7ca`, tree `b633abbb`, canonical diff
+  `a901f4dc`, passed its exact full local gate with 139/139 library, 149/149 binary,
+  7/7 claim, and 22/22 binding tests. IR/codegen and backend/claim approved, but
+  type/safety rejected it at P1 because this final status called that completed gate
+  future work. It remained unpublished; no test or source change began.
+- Status: corrected authorization records on exact public AUDIT-040 head `7b9ed83`
+  pass a fresh exact local gate at exit 0 with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests. Three fresh exact reviews, unchanged publication,
+  and all eight public checks remain required. Tests-first has not begun.

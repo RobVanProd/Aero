@@ -680,7 +680,7 @@ compiler `30893527220` / `30893529999`, stable/nightly Rust `30893529992`, all
 three CodeQL analyses in `30893527445`, and aggregate `91941079083`. CORE-033 is
 closed without changing any risk status.
 
-Preregistered read-only AUDIT-040 must independently re-rank the complete remaining
+Preregistered read-only AUDIT-040 required independent re-ranking of the complete remaining
 R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
 clean public closure `1ee9c71`, excluding every accepted slice through CORE-033 and
 inheriting no earlier candidate, label, or order. Every ranking must be complete and
@@ -693,12 +693,39 @@ First AUDIT-040 authorization snapshot `c83ec3a`, tree `bb25e528`, canonical dif
 `c02f71e5`, passed its exact repository-root full gate with 139/139 library, 149/149
 binary, 7/7 claim, and 22/22 binding tests. Type/safety and backend/claim approved,
 but IR/codegen rejected at P1 because a late PROJECT_STATE subsection still treated
-accepted CORE-033 closure as future work. It was rejected before publication. The
-corrected authorization's fresh exact gate exits 0 with 139/139 library, 149/149
-binary, 7/7 claim, and 22/22 binding tests. Ranking has not begun and remains
-forbidden until three exact reviews, unchanged publication, and all eight checks
-pass. The audit is read-only and cannot
-change source/tests, risks, matrix/capability state, semantics, workflows,
-dependencies, backends, artifacts, claims, history, or `master`; any later behavior
-change needs a separate reviewed contract and public failing regression evidence
-first.
+accepted CORE-033 closure as future work. It was rejected before publication.
+Corrected authorization `7b9ed83`, tree `8dbe975e`, canonical diff `c4ba110a`,
+passed its fresh exact gate with 139/139 library, 149/149 binary, 7/7 claim, and
+22/22 binding tests, received three exact approvals, and was published unchanged.
+Compiler `30894708169` / `30894713332`, stable/nightly Rust `30894713411`, all
+three CodeQL analyses in `30894708736`, and aggregate `91944883143` pass.
+
+AUDIT-040 completed without edits or classification changes. Type/safety selected
+valueless exact three-array tuple containment; IR/codegen selected initialized exact
+immediate reference-to-tuple containment; backend/claim selected immediate
+nonnegative literal fixed-array bounds containment. The two-to-one targeted result
+and three final compatibility approvals selected only initialized exact nonrecursive
+`Type::Reference(Type::Tuple(_), _)` rejection. The bounds candidate remains stopped
+pending a separately frozen compile-time-versus-runtime policy; the three-array
+candidate remains a bounded fallback with greater topology and count burden.
+
+Preregistered CORE-034 may reject that exact initialized reference-to-tuple shape in
+semantic analysis and checked admission, after initializer validation and existing
+initialized tuple-shape diagnostics, for both reference mutability flags. Its first
+authorized test edit must reclassify the two existing acceptance rows and reproduce
+exactly 30 false acceptances as the sole new aggregate failure across direct, public,
+top-level, generic-impl, semantic generic-function, block, control-flow, loop, and
+non-generic-impl routes. No test or source edit is permitted before this six-record
+authorization passes a fresh exact gate, receives three exact approvals, is published
+unchanged, and passes all eight checks; implementation additionally requires public
+reviewed-red evidence and remains limited to two phases. First authorization
+snapshot `7d4d7ca`, tree `b633abbb`, canonical diff `a901f4dc`, passed its exact
+full gate with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
+IR/codegen and backend/claim approved, but type/safety rejected it at P1 because
+TASK_LEDGER's final status still called the completed gate future work. It remained
+unpublished. The corrected authorization's fresh exact full gate exits 0 with
+139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. This containment
+supplies no reference or tuple value, mutability,
+ownership, lifetime, layout, ABI, coercion, lowering, execution, bounds, backend, or
+stability evidence. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 stays
+open without a frozen policy, and every other risk status remains unchanged.

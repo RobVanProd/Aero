@@ -4,20 +4,20 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 47 `AUDIT-040` authorization. CORE-033 is complete at exact public closure
-`1ee9c71`, with three exact approvals and all eight checks green. Immediate work is
-only the six-record authorization for a clean-head, read-only ranking of all eleven
-remaining risks. No ranking begins before authorization acceptance, and no
-regression, implementation, semantics, capability, matrix, or risk-status change is
-authorized.
+Milestone 48 `CORE-034` authorization. AUDIT-040 is complete, read-only, and clean
+at exact public head `7b9ed83`; three final compatibility approvals select only
+initialized exact immediate reference-to-tuple containment. Immediate work is the
+six-record CORE-034 contract. No regression, implementation, capability, matrix, or
+risk-status change is authorized before that contract's acceptance.
 
 ## Active hypothesis
 
-Three complete independent static rankings from exact clean public closure
-`1ee9c71` can identify at most one distinct residual with frozen semantics,
-deterministic tests-first feasibility, and no more than two compiler phases, or an
-explicit stop. All eleven residuals must be ranked, every accepted slice through
-CORE-033 excluded, and no prior candidate or ordering inherited.
+After initializer validation and existing initialized tuple-shape diagnostics, two
+exact nonrecursive guards can reject only an initialized annotation shaped as
+`Type::Reference(Type::Tuple(_), _)` before mismatch, binding insertion, the checked
+generic-impl bypass, or raw generation. Both reference mutability flags are covered;
+this defines no reference or tuple value, ownership, layout, ABI, or execution
+semantics.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1066,16 +1066,71 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   CORE-033 subsection at lines 1023-1044 still called closure future work. It was
   rejected before publication. The corrected authorization's fresh exact gate exits
   0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
+- Corrected authorization `7b9ed83b0663c4effcd63d2d9963e21b1416f54d`, tree
+  `8dbe975eff15e8b6741c2bd848b90cf1958cdcdf`, canonical diff
+  `c4ba110a613064bf06a27ef943b3fc819c049b97`, received three exact approvals and
+  was published unchanged. Compiler `30894708169` / `30894713332`, stable/nightly
+  Rust `30894713411`, all three CodeQL analyses in `30894708736`, and aggregate
+  `91944883143` pass.
+- Independent rankings selected valueless exact three-array tuple containment
+  (type/safety), initialized exact immediate reference-to-tuple containment
+  (IR/codegen), and fixed-array immediate literal bounds containment (backend/claim).
+  Targeted comparison ranked reference/three-array/bounds twice and bounds/reference/
+  three-array once. The bounds candidate remains stopped on conflicting compile-time
+  versus runtime policy; the three-array candidate remains bounded but has the
+  larger topology/count burden. All three final compatibility reviews approve the
+  exact reference candidate below. The audit changed no file or classification.
+
+## CORE-034 authorization
+
+- Exact behavior: reject only initialized `Statement::Let` annotations exactly
+  shaped as `Type::Reference(Type::Tuple(_), _)`, for both reference mutability
+  flags and without recursive descent.
+- Ordering/diagnostics: semantic duplicate detection and RHS validation remain
+  first; checked RHS validation and Void rejection remain first; existing initialized
+  outer-, one-array-, and two-array tuple diagnostics stay first. Then semantic emits
+  `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding.` and checked admission emits
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath a reference for an initialized binding` before mismatch, insertion, the
+  generic-impl bypass, or raw generation. The public semantic prefix is unchanged.
+- Context: apply only wherever semantic analysis and checked admission already
+  traverse bindings. Generic impl and semantic generic-function bodies are covered;
+  checked generic functions retain their earlier outer rejection, and trait default
+  bodies remain syntax-only.
+- Tests-first: after authorization acceptance, only
+  `src/compiler/tests/binding_type_contract_tests.rs` may change. Reclassify, never
+  silently delete, the two existing initialized immutable/mutable acceptance rows
+  into one new aggregate. It must report exactly 30 unexpected acceptances before
+  implementation: direct 4, public 2, top-level 4, generic impl 4, semantic generic
+  function 2, and seven recursive/non-generic-impl contexts at both phases 14.
+  Checked generic-function outer rejection and all precedence/preservation rows stay
+  green. Expected focused result is 0/1 and binding aggregate 22/23 with only the new
+  test failing after 139/139 library, 149/149 binary, and 7/7 claim tests pass.
+- Later implementation may change only `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs`, adding the two exact guards after separately
+  reviewed public-red evidence. Raw IR, verifier, codegen, CLI, and backends cannot
+  change.
+- Preservation: all CORE-025/028/029/030/031/032/033 diagnostics and ordering;
+  valueless direct reference rejection; duplicate/RHS/Void precedence; scalar and
+  double references; reference-around-array, array-around-reference, generic,
+  deeper, and wrapped forms; generic-function checked rejection; trait defaults;
+  tuple/reference values, ownership, layout, ABI, raw compatibility APIs, valid
+  numeric output, CPU/ROCm/CUDA behavior, and every capability/matrix classification.
+- Gate: first authorization snapshot `7d4d7ca`, tree `b633abbb`, canonical diff
+  `a901f4dc`, passed its exact full gate with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests. IR/codegen and backend/claim approved, but type/
+  safety rejected it at P1 because TASK_LEDGER's final status still called that gate
+  future work. It remained unpublished. The corrected authorization's fresh exact
+  full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22
+  binding tests.
 
 ## Exact next action
 
-Obtain three exact approvals for the corrected AUDIT-040 authorization, publish its
-immutable six-record tree unchanged, require all eight
-public checks, and only then dispatch the three independent read-only rankings on
-that same public head. Do not edit source or tests, run ranking probes/builds/
-external queries, inherit Candidate T/B/A or another earlier candidate, promote a
-capability, change workflows/dependencies/backends, publish artifacts or claims,
-rewrite history, force-push, or touch `master`.
+Obtain three exact approvals for the corrected, locally green CORE-034 authorization,
+publish its immutable tree unchanged, and require all eight public checks.
+Do not edit source/tests, begin the 30-observation regression, change another
+reference/tuple/array shape, resolve bounds policy implicitly, promote a capability,
+change workflows/dependencies/backends, publish artifacts or claims, rewrite
+history, force-push, or touch `master`.
 
 ## Unauthorized actions
 
