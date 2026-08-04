@@ -1,5 +1,7 @@
 # Tutorial 2: Core Aero Language Features
 
+> **Design target — not current implementation evidence.** This material presents the intended Aero v1.0.0 design target, not the currently implemented compiler subset and not conformance or stability evidence. See `CURRENT_CAPABILITY_AUDIT.md` and `SPEC_IMPLEMENTATION_MATRIX.md` for current compiler capability.
+
 Welcome to the second tutorial in the Aero series! Building on what you learned in "Getting Started," this tutorial dives into the core features of the Aero language. We'll cover variables, data types, operators, control flow, functions, and comments.
 
 ## Variables and Mutability
