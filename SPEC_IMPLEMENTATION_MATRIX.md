@@ -772,10 +772,10 @@ declared compatibility policy and release-level coverage.
   lifetime/layout/ABI/bounds/lowering/execution/backend evidence. Every matrix row
   and cell remains unchanged: tuples parsed-only, references/fixed arrays partial,
   bounds unresolved, and CPU/ROCm/CUDA separated. R-002 stays HIGH/CRITICAL and
-  PARTIALLY CONTROLLED; R-011 stays open. The prepared six-record closure requires
-  its own reviews, unchanged publication, and public checks before closure. The
-  additively corrected six-record tree's fresh and verification exact full gates each
-  exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests.
+  PARTIALLY CONTROLLED; R-011 stays open. The additively corrected six-record
+  closure's fresh and verification exact full gates each exit 0 with 139/139 library,
+  149/149 binary, 7/7 claim, and 25/25 binding tests. Exact acceptance `3f042e18`
+  below closes CORE-036 without matrix movement.
 - First closure snapshot `39c8564b`, tree `7932dd42`, canonical binary diff
   `2cb44b26`, passed two gates but received two P1 rejections because PROJECT_STATE's
   current implementation pointer remained at CORE-035 `b8fd5a17`. It was not
@@ -788,3 +788,19 @@ declared compatibility policy and release-level coverage.
   matrix row or cell.
 - Its fresh exact repository-root full gate exits 0 with 139/139 library, 149/149
   binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
+- Exact CORE-036 closure `3f042e18`, tree `15d56e0c`, canonical binary diff
+  `ee8cbed0`, changed only six records, received three exact approvals, and is public
+  all-eight green in compiler `30930377220` / `30930379386`, Rust `30930380195`,
+  CodeQL `30930375201`, and aggregate `92063404658`. CORE-036 is closed; every matrix
+  row and cell remains unchanged.
+- Preregistered AUDIT-043 may independently re-rank only the complete remaining
+  eleven-risk set from exact clean public closure `3f042e18`, excluding every
+  accepted slice through CORE-036 and inheriting no U/T/B label or order. It remains
+  read-only and cannot move a matrix row or cell, capability, risk, backend, artifact,
+  or claim. Bounds B remains stopped pending compile-time-versus-runtime policy;
+  tuples remain parsed-only, references/fixed arrays partial, bounds unresolved, and
+  CPU/ROCm/CUDA separate.
+- The prepared authorization's fresh and verification exact full gates each exit 0
+  with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. Exact review and public acceptance remain pending; no matrix row
+  or cell moves.

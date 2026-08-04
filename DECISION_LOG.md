@@ -2223,8 +2223,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 
 - Date: 2026-08-04
 - Status: implementation triple-approved and public all-eight green at `26d18924`;
-  six-record classification-neutral closure fresh and verification exact local gates
-  green, with exact review, unchanged publication, and public checks pending.
+  exact classification-neutral closure `3f042e18` is triple-approved, public, and
+  all-eight green.
 - Decision: for a valueless binding whose annotation is exactly nonrecursive
   `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)`, preserve semantic
   duplicate precedence and all four existing valueless tuple-shape diagnostics, then
@@ -2299,3 +2299,35 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Second-correction gate: the fresh exact repository-root full gate exits 0 with
   139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
   downstream suites.
+- Closure acceptance: exact `3f042e18`, parent `799c4181`, tree `15d56e0c`, canonical
+  binary diff `ee8cbed0`, changed only the six control records, received three exact
+  approvals, and was published unchanged. Push CI `30930377220`, PR CI `30930379386`,
+  stable/nightly Rust `30930380195`, all three CodeQL analyses in `30930375201`, and
+  aggregate `92063404658` pass. CORE-036 is closed without classification movement.
+
+## DEC-049 - Authorize clean-head read-only AUDIT-043 after CORE-036
+
+- Date: 2026-08-04
+- Status: prepared authorization only; local gates, exact review, unchanged
+  publication, and public all-eight acceptance remain required before ranking.
+- Decision: authorize only a static, read-only, independent re-ranking of the complete
+  remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
+  from exact clean public CORE-036 closure `3f042e18`. Exclude every accepted slice
+  through CORE-036 and inherit no prior candidate, label, preservation row, or order.
+- Method: each type/safety, IR/codegen, and backend/claim reviewer must rank all eleven
+  residuals with tracked file/symbol evidence, trusted reachability, exact containment,
+  unresolved choices, phase count, deterministic failing specimen and preservation
+  controls, and one bounded candidate or explicit stop. Reconciliation may select at
+  most one unanimously bounded residual or stop.
+- Semantic boundary: this audit defines no semantics or behavior. The existing
+  compile-time-versus-runtime bounds ambiguity remains a stop; B is not implementation
+  authority. Rejection, tests, helper simulation, annotations, LLVM text, object
+  emission, and hardware execution remain distinct evidence classes.
+- Authority boundary: authorization changes only the six control records. Once all
+  prerequisites pass, the audit is read-only and grants no test, implementation,
+  semantics, capability, matrix, risk, workflow, dependency, backend, artifact,
+  claim, history, or `master` authority.
+- Gate evidence: the prepared authorization's fresh and verification exact
+  repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
+  claim, and 25/25 binding tests, plus all downstream suites. Exact review and public
+  acceptance remain pending.

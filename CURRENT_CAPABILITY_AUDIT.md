@@ -1722,11 +1722,10 @@ promise future compatibility.
   evidence. Tuples remain parsed-only; references and fixed arrays remain partial;
   R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open; no
   backend, hardware-execution, artifact, matrix, capability, or claim class moves.
-- A six-record closure is prepared from clean public all-eight-green implementation
-  `26d18924`. The additively corrected six-record tree's fresh and verification exact
-  full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
-  binding tests. Three approvals, unchanged publication, and all-eight checks remain
-  required before CORE-036 is closed.
+- A six-record closure was prepared from clean public all-eight-green implementation
+  `26d18924`. The additively corrected tree's fresh and verification exact full gates
+  each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding
+  tests. Exact acceptance `3f042e18` below closes CORE-036.
 - First closure snapshot `39c8564b`, tree `7932dd42`, canonical binary diff
   `2cb44b26`, passed two gates but was rejected before independent publication. Type/
   safety approved; IR/codegen and backend/claim found P1 stale PROJECT_STATE current-
@@ -1740,3 +1739,25 @@ promise future compatibility.
   two green gates and moves no capability class.
 - The second additive correction's fresh exact full gate exits 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
+
+## CORE-036 closure and AUDIT-043 boundary
+
+- Exact closure `3f042e18`, tree `15d56e0c`, canonical binary diff `ee8cbed0`, changed
+  only the six control records, received three exact approvals, and is public all-
+  eight green in push CI `30930377220`, PR CI `30930379386`, stable/nightly Rust
+  `30930380195`, all three CodeQL analyses in `30930375201`, and aggregate
+  `92063404658`. CORE-036 is closed with no capability movement.
+- Preregistered AUDIT-043 may only re-rank the complete remaining eleven-risk set
+  from exact clean public closure `3f042e18`, excluding every accepted slice through
+  CORE-036 and inheriting no U/T/B label or order. It is static and read-only after a
+  separate six-record authorization is locally green, triple-approved, published
+  unchanged, and public all-eight green.
+- The audit defines no language, type, ownership, memory, aggregate, ABI, bounds,
+  lowering, execution, tooling, backend, accelerator, or claim semantics. Bounds B
+  remains stopped on unresolved compile-time-versus-runtime policy. Tuples stay
+  parsed-only, references/fixed arrays stay partial, R-002 remains HIGH/CRITICAL and
+  PARTIALLY CONTROLLED, R-011 remains open, and no capability class moves.
+- The prepared six-record authorization's fresh and verification exact full gates
+  each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding
+  tests, plus all downstream suites. Exact review, unchanged publication, and public
+  all-eight acceptance remain pending; no ranking has begun.

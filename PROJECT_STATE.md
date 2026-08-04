@@ -4,21 +4,21 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 52 `CORE-036` closure. Exact implementation `26d18924` is triple-approved,
-locally green, and public all-eight green. Only the six classification-neutral
-control records may now change to close the slice. No new source/test work, residual
-selection, capability/matrix/risk movement, backend action, or claim is authorized
-before closure acceptance.
+Milestone 53 `AUDIT-043` authorization. Exact CORE-036 closure `3f042e18` is
+triple-approved, public, and all-eight green. Only the six control records may now
+authorize a new clean-head read-only ranking. No source/test edit, candidate ranking,
+implementation, capability/matrix/risk movement, backend action, or claim is
+authorized before that separate authorization is accepted.
 
 ## Active hypothesis
 
-The exact CORE-036 evidence can be closed without changing a semantic or
-classification boundary: the tests-first snapshot proves precisely 34 false
-acceptances while 40 controls stay green; the two exact guards make focused 1/1,
-binding 25/25, and the full gate green; public all-eight evidence matches. R-002 must
-remain HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 remains open, and rejection must
-not be promoted into reference/array/tuple/default/ownership/layout/ABI/bounds/
-lowering/execution/backend support.
+Three complete, independent, delta-aware rankings from exact clean public CORE-036
+closure `3f042e18` can identify at most one distinct bounded residual or an explicit
+stop without inheriting U, T, B, or any prior order. The audit remains static and
+read-only. The unresolved compile-time-versus-runtime bounds choice remains a stop;
+no ranking may invent semantics, expand beyond two compiler phases, or promote
+rejection, tests, annotations, LLVM text, object emission, or helpers into support or
+hardware-execution evidence.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -52,7 +52,15 @@ capability claims are stop conditions rather than implementation invitations.
 - Starting commit date: `2026-05-28T21:13:40-04:00`
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
-- Current public implementation head:
+- Current accepted public CORE-036 closure head:
+  `3f042e18766d4675d04e0ba7e0289b7aac43d7ea`, parent `799c4181`, tree
+  `15d56e0ceb0715543b03f7338505901906b59d60`, canonical binary diff
+  `ee8cbed07657edf21559205c0bc23b7bb0f40a53`. The exact six-record second
+  additive correction changed 62 lines in and 8 lines out, passed its fresh exact
+  gate, received three exact approvals, and was published unchanged. Push CI
+  `30930377220`, PR CI `30930379386`, stable/nightly Rust `30930380195`, all three
+  CodeQL analyses in `30930375201`, and aggregate `92063404658` pass.
+- Accepted public CORE-036 implementation:
   `26d18924a7fe59eb99a6ed40de2f435b30093c7b`, parent `d52b117e`, tree
   `8aec746cd3786eb839b7df705c26726d8341e9fa`, canonical binary diff
   `543f8a1ccb8d737587877d0886614d48fe747881`. The exact two-file CORE-036
@@ -1420,9 +1428,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   preserved. This is containment, not supported value/lowering/execution evidence.
   R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open; no
   capability, matrix, risk, backend, artifact, or claim class moves.
-- Closure boundary: only the six control records may change. A fresh exact full gate,
-  three exact reviews, unchanged publication, and all eight public checks are
-  required before CORE-036 is closed.
+- Closure acceptance: exact `3f042e18766d4675d04e0ba7e0289b7aac43d7ea`, parent
+  `799c4181`, tree `15d56e0ceb0715543b03f7338505901906b59d60`, canonical
+  binary diff `ee8cbed07657edf21559205c0bc23b7bb0f40a53`, changed only the six
+  control records with 62 insertions and 8 deletions. Its fresh correction gate,
+  three exact approvals, unchanged publication, push CI `30930377220`, PR CI
+  `30930379386`, stable/nightly Rust `30930380195`, all three CodeQL analyses in
+  `30930375201`, and aggregate `92063404658` pass. CORE-036 is closed without any
+  semantic, capability, matrix, risk, backend, artifact, or claim movement.
 - Correction history: first closure snapshot `39c8564b`, parent `26d18924`, tree
   `7932dd42`, canonical binary diff `2cb44b26`, changed only six records and passed
   two exact full gates. Type/safety approved, but IR/codegen and backend/claim each
@@ -1436,16 +1449,37 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   IR/codegen rejected P1 because DEC-048's status still called the completed
   verification gate pending while the later evidence recorded both gates green. The
   review round stopped before publication. It remains in second-correction ancestry;
-  the next correction aligns that status and changes no other boundary.
+  exact accepted correction `3f042e18` aligns that status and changes no other
+  boundary.
+
+## AUDIT-043 authorization boundary
+
+- Basis: exact clean public CORE-036 closure `3f042e18`. Exclude every accepted slice
+  through CORE-036 and independently rank the complete remaining R-002/R-004/R-005/
+  R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set.
+- Method: type/safety, IR/codegen, and backend/claim reviewers must each rank all
+  eleven residuals with file/symbol evidence, trusted reachability, exact containment,
+  unresolved choices, phase count, deterministic failing specimen and preservation
+  controls, and one bounded candidate or explicit stop. No prior candidate, label,
+  preservation row, or order is privileged.
+- Authority: static read-only inspection only after this six-record authorization is
+  locally green, triple-approved, published unchanged, and public all-eight green.
+  It grants no test, implementation, semantics, capability, matrix, risk, workflow,
+  dependency, backend, artifact, claim, history, or `master` authority.
+- Stop: incomplete ranking, unresolved semantics or compatibility, more than two
+  compiler phases, hardware dependence, unsupported valid-output claim, or inability
+  to specify deterministic tests-first evidence. Bounds candidate B remains stopped
+  while compile-time rejection versus runtime behavior is unfrozen.
 
 ## Exact next action
 
-The second additive six-record CORE-036 closure correction's fresh exact repository-
-root full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
-binding tests, plus all downstream suites. Obtain three fresh exact reviews, publish
-unchanged, and require all eight public checks before declaring CORE-036 closed. Do
-not edit source/tests, start another
-residual, resolve bounds policy implicitly, promote a capability, change
+The prepared six-record AUDIT-043 authorization's fresh and verification exact
+repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
+claim, and 25/25 binding tests, plus all downstream suites. The next immutable
+snapshot must contain only the six control records; obtain three exact reviews of
+that snapshot, publish it unchanged, and require all eight public checks before any
+ranking begins. Do not edit source/tests, rank a residual early, resolve
+bounds policy implicitly, promote a capability, change
 workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
 push, or touch `master`.
 

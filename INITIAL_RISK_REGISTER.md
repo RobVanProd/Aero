@@ -902,11 +902,10 @@ CORE-036 narrows one false-success subset but does not resolve the broader unsup
 type/ownership/memory surface or bounds policy. R-002 remains HIGH/CRITICAL and
 PARTIALLY CONTROLLED; R-011 remains open. Every other risk status, matrix cell,
 capability class, backend distinction, artifact boundary, and claim remains
-unchanged. The six-record closure is prepared and requires its own gates, three
-reviews, unchanged publication, and all-eight public checks before closure. The
-additively corrected six-record tree's fresh and verification exact full gates each
-exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests. No
-risk status moves.
+unchanged. The additively corrected six-record closure's fresh and verification exact
+full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+binding tests. Exact acceptance `3f042e18` below closes CORE-036. No risk status
+moves.
 
 First closure snapshot `39c8564b`, tree `7932dd42`, canonical binary diff
 `2cb44b26`, passed two exact gates. Type/safety approved; IR/codegen and backend/
@@ -924,5 +923,26 @@ claim.
 
 The second additive correction's fresh exact repository-root full gate exits 0 with
 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
-downstream suites. Exact review, unchanged publication, and public all-eight checks
-remain required.
+downstream suites.
+
+Exact CORE-036 closure `3f042e18`, tree `15d56e0c`, canonical binary diff
+`ee8cbed0`, changed only the six control records, received three exact approvals,
+and is public all-eight green in push CI `30930377220`, PR CI `30930379386`, stable/
+nightly Rust `30930380195`, all three CodeQL analyses in `30930375201`, and aggregate
+`92063404658`. CORE-036 is closed without changing any risk status, matrix cell,
+capability class, backend distinction, artifact boundary, or claim.
+
+Preregistered read-only AUDIT-043 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `3f042e18`, excluding every accepted slice through CORE-036 and
+inheriting no U/T/B label or order. It defines no semantics and cannot change risk,
+matrix, capability, backend, artifact, or claim state. B remains stopped pending a
+separately frozen compile-time-versus-runtime bounds policy. Its six-record
+authorization must pass exact local gates, three reviews, unchanged publication, and
+all eight public checks before ranking begins.
+
+The prepared AUDIT-043 authorization's fresh and verification exact repository-root
+full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+binding tests, plus all downstream suites. Exact review, unchanged publication, and
+public all-eight acceptance remain pending. No risk status changes and no ranking has
+begun.
