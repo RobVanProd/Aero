@@ -878,3 +878,29 @@ declared compatibility policy and release-level coverage.
   closure/impl contexts validate children and bypass the static equality classifier,
   and the immutable successor identity is reported externally in present tense. No
   compiler, test, workflow, matrix, capability, or claim boundary changes.
+- Exact `edd63f3`, tree `8ef355a6`, is the accepted public CORE-040 successor. Three
+  fresh exact reviews and all eight public checks pass; stable Linux job `92134492264`
+  ran checked build, pinned LLVM 22 verification, machine verification/object
+  lowering, Clang link, and native exit 41. This closes only the enumerated compile-time
+  exact-String equality class. Strings and comparisons remain `PARTIAL`; ordering,
+  concatenation, runtime/dynamic String operations, layout, ABI, ownership, and GPU
+  support remain unchanged.
+- Preregistered CORE-041 may add only the complete four-method Boolean-predicate class
+  for trusted compile-time decoded Strings: `is_empty`, `contains`, `starts_with`, and
+  `ends_with`. One classifier must own method, arity, receiver/argument trust, and exact
+  sequence results; checked admission and active checked lowering may consume it to
+  produce logical Bool constants. Dynamic/runtime Strings, normalization, patterns,
+  noncanonical annotations, collections, impl/generic/closure/trait/raw paths, other
+  methods, layout, ABI, ownership, and accelerators remain excluded. No matrix row or
+  cell moves at authorization; Strings remain `PARTIAL`, and no capability claim moves
+  until the exhaustive aggregate and pinned exit-43 native gate pass.
+- Local pre-publication CORE-041 evidence implements that exact four-method class under
+  one classifier consumed by checked admission and active checked lowering. The
+  expanded exhaustive aggregate, both classifier roots, adjacent CORE-038/039/040 and
+  admission/verifier contracts, and exact root gate pass at 146/146 library and
+  156/156 CLI tests. The example contains all four predicates and the stable-Linux CI
+  route requires pinned LLVM 22 verify/lower/link plus exact native exit 43. Strings
+  remain `PARTIAL`; no dynamic/runtime String, general method dispatch, normalization,
+  layout, ABI, ownership, accelerator, stability, or performance cell moves. Exact
+  review, unchanged publication, all-eight checks, and native Linux evidence remain
+  pending.

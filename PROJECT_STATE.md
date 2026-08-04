@@ -4,27 +4,33 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 59 `CORE-040`: close exact equality and inequality for compile-time strings
-as an executable CPU capability. The one-time class enumeration starts from accepted
-public head `7709eec` and will close the distinct grammar equality class once; it will
-not re-rank residuals or reopen on candidate heads. Exact `==`/`!=` is admitted only
-when both operands resolve through CORE-039's decoded literal or finite immutable
-literal-alias provenance. One private classifier owns operator eligibility and exact
-decoded-content equality. Checked admission and active checked lowering consume it;
-lowering evaluates left then right once and materializes a logical `Bool` without a
-runtime string layout. Ordering, concatenation, dynamic/mutable/signature strings,
-noncanonical annotations, impl/generic/closure/trait/raw/runtime paths, normalization,
-case folding, locale, grapheme, ownership, allocation, ABI, GPU, and general operator
-overloading remain excluded. The exhaustive aggregate, classifier units, adjacent
-contracts, and exact root gate are green. Native pinned-LLVM 22 execution remains a
-public Linux CI acceptance requirement, not a local Windows claim. The first candidate
-`ec6369d` was rejected unpublished because its closure pre-scan masked earlier
-diagnostics and its handoff chronology was stale. The additive correction removes that
-pre-scan, preserves child-first validation through a closure-context admission flag,
-and has a green expanded aggregate, adjacent focused suites, and exact corrected root
-gate. Corrected compiler candidate `ed9ad3e` closed that P1 but remained unpublished
-after two record-only P3 findings: closure contexts bypass rather than invoke the
-classifier, and already-reported candidate identity must use present tense.
+Milestone 60 `CORE-041`: close the complete Boolean-predicate class for compile-time
+strings as an executable CPU capability. The one-time enumeration starts from exact
+accepted public head `edd63f3` and includes all four already-specified String methods:
+`is_empty()`, `contains(needle)`, `starts_with(needle)`, and `ends_with(needle)`.
+Eligible receivers and one-argument needles must independently resolve through
+CORE-039's decoded literal or finite immutable literal-alias provenance. One pure
+classifier owns all four exact method names, arities, trust requirements, and decoded
+UTF-8 sequence predicates. Checked admission and active checked lowering consume it
+only after ordered child validation/evaluation; lowering materializes the existing
+logical `Bool` with a constant `ICmp`, without runtime String layout. The exhaustive
+aggregate, both classifier roots, every adjacent focused suite, and the exact root
+gate are locally green. Pinned LLVM 22 verification/link/native exit 43 remains a
+public stable-Linux acceptance requirement, not a local Windows claim.
+Dynamic strings/needles, noncanonical annotations, collections, method chaining,
+impl/generic/closure/trait/raw/runtime paths, other String methods, normalization,
+case folding, locale, grapheme, regex, ownership, allocation, ABI, GPU, and general
+method support remain excluded. The separately discussed annotation-topology
+classification is explicitly not part of this task; CORE-041 may consume existing
+provenance but may not add topology-specific annotation guards.
+
+`CORE-040` is accepted public at `edd63f3c59de38b19d92aebec1b6915240b5e5a5`.
+Its exact local gate passed 145/145 library, 155/155 CLI, 7/7 claim, 28/28 binding,
+the exhaustive equality aggregate, every downstream suite, and doc tests. Three fresh
+exact reviewers approved. Push CI `30951517745`, PR CI `30951522726`, stable/nightly
+Rust `30951522837`, CodeQL `30951520564`, and aggregate `92134642374` pass all eight
+checks; stable Linux job `92134492264` built, LLVM-verified, machine-verified,
+object-lowered, linked, and executed the exact String-equality example with exit 41.
 
 `CORE-039` is accepted public at `7709eec6b5eb18249a756225ff7c368ccbed5341`.
 Its exact local gate passed 144/144 library, 154/154 CLI, 7/7 claim, 28/28 binding,
@@ -44,14 +50,16 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-Both semantic inference paths already type same-type String comparisons as `Bool`,
-the grammar separates equality from ordering, the tracked string-library contract
-names equality, and CORE-039 preserves exact decoded literals as `ImmString`. A pure
-classifier over two optional trusted values plus `ComparisonOp` can therefore close
-exact `==`/`!=` in checked admission and active lowering without lexer, parser,
-semantic, IR-enum, verifier, code-generator, stdlib, runtime-layout, ABI, or backend
-changes. Left-then-right validation/evaluation, Bool metadata, child diagnostics,
-annotation quarantine, and raw compatibility must remain unchanged.
+Both semantic inference paths already type all four selected String methods as
+`Bool`, the tracked built-in contract defines their exact zero-length/substring/
+prefix/suffix meanings, CORE-039 preserves exact decoded literals as `ImmString`, and
+CORE-040 establishes constant logical-Bool lowering. The implemented single classifier
+over an optional trusted receiver, exact method name, and ordered optional trusted
+arguments locally closes the complete class in checked admission and active lowering
+without lexer, parser, semantic, annotation-classifier, IR-enum, verifier,
+code-generator, stdlib, runtime-layout, ABI, or backend changes. Ordered child
+diagnostics/evaluation, Bool metadata, annotation quarantine, `.len()`, equality,
+collections, and raw compatibility remain unchanged under the exhaustive aggregate.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -733,7 +741,7 @@ capability claims are stop conditions rather than implementation invitations.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
-  `7709eec6b5eb18249a756225ff7c368ccbed5341` (`CORE-039`).
+  `edd63f3c59de38b19d92aebec1b6915240b5e5a5` (`CORE-040`).
 - Previous public implementation record: `CORE-015` changed only the two
   preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
@@ -1595,42 +1603,33 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-CORE-039 is accepted at exact public head
-`7709eec6b5eb18249a756225ff7c368ccbed5341`: three exact reviews and all eight checks
-pass, and stable Linux executed the complete pinned-LLVM 22 native gate with exit 33.
-Do not reopen its closed class audit.
+CORE-040 is accepted at exact public head
+`edd63f3c59de38b19d92aebec1b6915240b5e5a5`: three fresh exact reviews and all eight
+checks pass, and stable Linux job `92134492264` executed the complete pinned-LLVM 22
+native gate with exact exit 41. Do not reopen its closed class audit.
 
-CORE-040 was preregistered from that immutable basis. Its complete failing regression
-aggregate preceded production source changes, with exactly 20 intended findings after
-one fixture-only correction. One private
-classifier now owns both eligible operators and decoded-content equality; checked
-admission and active checked lowering consume it without changing semantic analysis,
-IR shape, verification, code generation, runtime, or backend code. The complete
-aggregate passes 1/1, classifier units pass in both crate roots, checked IR passes 8/8,
-verifier CLI 12/12, typed admission 13/13, binding 28/28, and claim contracts 7/7.
-The exact root gate is formatting and correctness-Clippy clean and passes 145/145
-library, 155/155 CLI, every integration suite, and doc tests. Historical literal-
-comparison rejection fixtures were exhaustively reclassified before publication;
-their fail-before-backend properties retain array-comparison controls.
+CORE-041 is preregistered from that immutable basis as one complete four-method class:
+compile-time String `is_empty`, `contains`, `starts_with`, and `ends_with`. Its single
+exhaustive aggregate preceded production changes and failed 0/1 with exactly 27
+intended findings: one absent example, eight checked/public positive-product
+rejections, one checked Bool-IR rejection, eight method-specific arity diagnostics,
+and nine absent native-CI anchors. One private classifier now owns method/arity/trust/
+content classification; checked admission and active checked lowering consume it,
+and the all-four-method exit-43 example plus pinned native CI step are present. The
+expanded aggregate covers public arity prefixes, independent receiver/needle
+provenance and annotation quarantine, every child before arity, Bool placements,
+raw/closure preservation, and deterministic Bool IR; it passes 1/1. Classifier units
+pass 1/1 in both roots; binding 28/28, checked IR 8/8, fixed-array length 1/1, verifier
+CLI 12/12, equality 1/1, String length 1/1, and typed admission 13/13 pass. The exact
+root gate is formatting and correctness-Clippy clean and passes 146/146 library,
+156/156 CLI, 7/7 claim, 28/28 binding, every integration suite, and doc tests.
 
-The first immutable candidate `ec6369d` was rejected and not pushed: all reviewers
-found stale candidate chronology, and type/safety plus IR/codegen independently found
-the closure equality pre-scan could mask an earlier invalid parameter or child. The
-corrective regression failed with exactly those two findings before source correction.
-The pre-scan is now removed; a propagated admission-context flag lets the normal
-validator check parameters and comparison children before ordinary contexts may invoke
-the shared classifier. Closure contexts then bypass classification and retain the
-generic comparison quarantine. The expanded aggregate and every adjacent focused
-suite pass.
-
-The exact corrected root gate is formatting and correctness-Clippy clean and passes
-145/145 library, 155/155 CLI, 7/7 claim, 28/28 binding, the expanded equality
-aggregate, every downstream suite, and doc tests. The single commit containing the
-complete record-corrected tree is the immutable successor candidate; its identity is
-reported externally. Obtain three fresh exact type/safety, IR/codegen, and backend/
-claim approvals, push only the unchanged approved commit, and require all eight public
-checks plus stable Linux checked build, pinned LLVM 22 verification, machine
-verification/object lowering, Clang linking, and exact native exit 41. Do not publish
+Update final evidence wording, rerun that exact root gate, form one intentional
+candidate commit, obtain three fresh exact type/safety, IR/codegen, and backend/claim
+reviews, and publish only an unchanged approved commit. Require all eight public checks
+and stable Linux checked build, pinned LLVM 22 verification, machine verification/
+object lowering, Clang link, and exact native exit 43. After acceptance, synchronize
+PR #4 to the accepted CORE-041 head under the new repository rule. Do not publish
 releases/packages/benchmarks/claims, rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions

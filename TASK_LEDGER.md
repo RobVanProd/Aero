@@ -7637,3 +7637,196 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   external-identity wording. The single commit containing this exact corrected tree is
   the immutable successor candidate; its identity is reported externally. Fresh exact
   reviews, unchanged push, public checks, and stable-Linux exit 41 remain pending.
+- Final acceptance: exact `edd63f3c59de38b19d92aebec1b6915240b5e5a5`, parent
+  `ed9ad3e76cca4d833e678b5bde09b244a0442da7`, tree
+  `8ef355a64436f1e73d023170e2bcf3dc979e5203`, cumulative canonical Git Bash
+  full-index hash `4e0c0e80b8d58e30769d475c6d4c78e3e63d8e07`, and record-only
+  hash `76e98b4e1446c500a4da2b49ff76afd110fba0ec`, received three fresh exact
+  approvals with no P0-P3 findings and was published unchanged. Push CI
+  `30951517745`, PR CI `30951522726`, stable/nightly Rust `30951522837`, all
+  three CodeQL analyses in `30951520564`, and aggregate check `92134642374`
+  pass all eight exact checks. Stable Linux job `92134492264` ran checked
+  build, pinned `opt-22` verification, `llc-22` machine verification and object
+  lowering, `clang-22` linking, and the native process; its immutable log reports
+  `static_string_equality test passed with exit code 41`. CORE-040 is accepted,
+  its one-time class enumeration remains closed, and neither rejected predecessor
+  is retroactively accepted as an independently published candidate.
+
+## CORE-041 - Executable Boolean predicates for compile-time strings
+
+- Task ID/date/owner: `CORE-041`, 2026-08-04, lead-owned tests-first compiler
+  vertical slice under the active autonomous mandate. This is the sole authorization
+  record for the complete class. Its one-time enumeration begins at accepted public
+  CORE-040 head `edd63f3c59de38b19d92aebec1b6915240b5e5a5` and closes when the
+  normalized four-method product below is exhausted; later candidate heads do not
+  reopen or re-rank it.
+- Observed behavior and authority: both active semantic inference paths already map
+  String `is_empty`, `contains`, `starts_with`, and `ends_with` calls to `Ty::Bool`.
+  The tracked built-in collections contract defines these exact methods as zero-length,
+  substring, prefix, and suffix predicates. Strict lexing supplies decoded valid UTF-8
+  `Expression::StringLiteral` values, and CORE-039 retains that exact provenance
+  through bounded immutable aliases. Checked admission currently rejects all four
+  after child validation with the existing generic method diagnostic, while unchecked
+  method lowering fabricates integer zero. CORE-040 supplies the existing logical-Bool
+  constant-`ICmp` lowering shape. No authority specifies pattern objects, normalization,
+  case folding, regex, locale, grapheme, ownership, allocation, or runtime String ABI.
+- Hypothesis: one pure classifier over an optional trusted decoded receiver, exact
+  method name, and the ordered optional trusted decoded argument list can own the
+  entire class. Checked admission can consume its disposition only after validating
+  receiver and every argument left-to-right. Active checked lowering can evaluate the
+  receiver and each argument once, consume the same classifier, and materialize the
+  result as a constant integer `ICmp` with logical type `Bool`; no String IR value,
+  runtime helper, layout, allocation, verifier, code-generator, or backend change is
+  required.
+- Frozen supported class: ordinary executable checked calls on a compile-time decoded
+  String receiver retained by CORE-039 provenance. `is_empty()` has exactly zero
+  arguments. `contains(needle)`, `starts_with(needle)`, and `ends_with(needle)` each
+  have exactly one independently provenance-qualified compile-time decoded String
+  argument. Results use exact Rust/UTF-8 String sequence predicates: no normalization,
+  canonical equivalence, case folding, locale, collation, regex, pattern, grapheme, or
+  interpolation semantics. Empty receiver and empty needle follow exact sequence
+  laws. Receiver then arguments are validated and evaluated left-to-right exactly
+  once. Result type is the existing logical `Bool`.
+- Complete normalized product: method is each of the four exact lowercase names.
+  Receiver provenance quotient is direct literal, parser-normalized raw f-string,
+  unannotated immutable binding, finite immutable alias, exact uppercase-`String`
+  annotated literal/alias, nested lexical alias, and shadowed alias. The one-argument
+  methods independently take the same argument quotient. Content relations cover
+  empty/empty and empty/nonempty; exact whole match; shorter/longer needle; prefix,
+  suffix, internal, absent, and repeated ASCII matches; every supported escape plus
+  preserved unknown-escape text; same/different multibyte scalars; emoji; composed
+  versus combining sequence; and mixed ASCII/multibyte values. Bool placements are
+  direct `if` and `while`, inferred and exact-`bool` bindings, identifier reuse, `!`,
+  both sides of `&&`/`||`, Bool-to-Bool equality, known Bool function argument/return,
+  print argument, discarded expression, nested block/tail, and branch traversal.
+  Arity product is exact zero/one plus too few and too many; every child is validated
+  before a method-specific arity disposition. These are syntax/traversal quotients of
+  one predicate, not per-method tasks or independent guards.
+- Shared classifier and order: add one private pure module with only
+  `StaticBool(bool)`, method-specific `WrongArity { method, expected, actual }`, and
+  `PreserveExistingBehavior`. It alone recognizes the four names, owns their arities,
+  requires trusted receiver/argument provenance, and applies exact content predicates.
+  Admission validates the receiver and all arguments before classification, after the
+  existing fixed-array and static-String `.len()` classifiers, and returns `Ty::Bool`
+  only for `StaticBool`. Active checked lowering evaluates the same ordered children
+  once and emits one constant integer `ICmp`; no eligibility or value rule may be
+  copied into semantic analysis, verification, codegen, stdlib, runtime, another
+  lowering route, or a second topology matcher.
+- Frozen exclusions and preservation: dynamic/mutable/signature/function-produced or
+  method-produced strings; dynamic/non-String predicate arguments; field, index,
+  borrow/deref, aggregate, collection, or chained receivers; lowercase/custom/
+  reference/generic/array and all other preserved annotations; impl, generic-function,
+  generic/non-generic impl, trait-default, closure, and top-level-expression contexts;
+  raw ordinary/named/closure routes; wrong case and all other String methods; array,
+  Vec, HashMap, and user methods sharing these names; and runtime String operations
+  remain unchanged. Existing `.len()` capabilities, equality, numeric/Bool behavior,
+  iterator admission, child diagnostics/order, semantic preservation, raw fabricated
+  zero, generated LLVM, and all invalid-program fail-before-backend boundaries remain
+  exact. This task does not introduce the separately discussed annotation-topology
+  classification refactor: the existing shared binding-annotation disposition is
+  consumed through CORE-039 provenance, and no new nested annotation guard is allowed.
+- Tests first and completeness proof: one aggregate must enumerate every supported
+  method/provenance/content/Bool-placement quotient and each excluded neighbor;
+  require exact checked/public wrong-arity and preservation diagnostics; prove all ten
+  noncanonical annotation topologies remain semantically preserved but checked/public
+  quarantined; characterize the existing closure preflight and all three raw routes;
+  preserve receiver-before-all-arguments diagnostic order, including an earlier bad
+  child before a later eligible nested predicate; require checked IR to contain a
+  Bool-producing constant `ICmp`, no retained String operand or predicate/runtime
+  helper, and deterministic LLVM; and inspect CI for every pinned build/verify/lower/
+  link/run anchor. Classifier unit tables in both crate roots must close all four
+  methods, their arities, receiver/argument trust states, content relations, case
+  variants, and unrelated names. Existing assertions may be reclassified only if a
+  repository-wide search proves they are historical static-predicate rejections that
+  directly contradict this frozen class; their original pipeline property must retain
+  an unchanged rejected control.
+- End-to-end acceptance: add `examples/static_string_predicates.aero` with all four
+  methods and an unconditional Rust-CI step immediately after exact String equality.
+  It must run checked `build`, pinned `opt-22` verification, `llc-22` machine
+  verification and object lowering, `clang-22` linking, native execution, and exact
+  sentinel exit 43. Run the focused red aggregate before production source changes,
+  then focused green, formatting, correctness Clippy, exact repository-root
+  `./tools/test.sh`, three fresh exact read-only conformance reviews, one intentional
+  commit, unchanged push, and all eight public checks.
+- Allowed files: `TASK_LEDGER.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, one new private static-string-predicate classifier
+  module, private module declarations in `src/compiler/src/lib.rs` and
+  `src/compiler/src/main.rs`, `src/compiler/src/ir_generator.rs`, one focused
+  static-string-predicate integration test, only adjacent existing tests proven stale
+  by the red aggregate/repository search, `examples/static_string_predicates.aero`,
+  `.github/workflows/rust.yml`, and `AGENTS.md` solely for the user-authorized rule
+  requiring the cumulative draft PR description to track the latest accepted public
+  checkpoint. No lexer, parser, AST, semantic analyzer, types,
+  binding-annotation classifier, IR enum, verifier, code generator, stdlib, dependency,
+  runtime, backend, claim-evidence, release, benchmark, registry, published-history,
+  or `master` action is authorized.
+- Risks and stop conditions: stop if any of the four method semantics or exact UTF-8
+  sequence behavior is ambiguous; if trustworthy receiver/argument provenance or Bool
+  metadata is unavailable; if a parser/semantic/type/annotation-classifier/IR-enum/
+  verifier/codegen/stdlib/runtime/backend change is required; if child order, raw
+  behavior, excluded contexts, `.len()`, equality, or valid LLVM changes; if the
+  implementation unexpectedly crosses a second compiler phase; if the baseline is
+  red; if a test/spec must be weakened; or if a topology-specific annotation rule
+  would be added. A rejection-only outcome cannot close CORE-041.
+- Status/evidence: preregistered from exact accepted public CORE-040. No CORE-041
+  regression test, production source, example, workflow step, probe, artifact, or new
+  capability exists at authorization. The repository is clean on
+  `agent/aero-integration`; the accepted exact local/public base is
+  `edd63f3c59de38b19d92aebec1b6915240b5e5a5`. The complete tests-first aggregate
+  then fails 0/1 with exactly 27 intended findings: the absent executable example;
+  checked/public rejection for each of four positive product programs (eight);
+  the direct checked logical-Bool IR specimen; all eight method-specific wrong-arity
+  diagnostics; and nine absent CI anchors. Both semantic paths, every supported
+  method/content/provenance quotient, all ten noncanonical annotation quarantines,
+  dynamic/context/collection/child exclusions, receiver-and-argument diagnostic
+  order, trait syntax preservation, the existing closure aggregate preflight, all
+  three raw fabricated-zero routes, and unchanged `.len()`, equality, and iterator
+  specimens are already green. No production compiler source, example, or workflow
+  file changed at this red boundary. The user then identified the cumulative draft
+  PR description as stale at CORE-010/011 despite the accepted CORE-040 head. PR #4
+  was updated in place to lead with exact accepted public CORE-040, its 218-commit
+  scope, current executable checkpoints, evidence links, all-eight status, native
+  exit-41 evidence, and explicit remaining limits; it remains draft and does not
+  describe unpublished CORE-041 as accepted. The required publication workflow is
+  amended so every future public acceptance synchronizes that front page to the exact
+  accepted public head and verifies it before task closure. After the first green
+  aggregate, a completeness inspection found that all eight wrong-arity cases asserted
+  exact checked-admission diagnostics but did not repeat the same boundary through
+  the public compile wrapper, despite the frozen checked/public requirement. Before
+  candidate formation, add those eight public-prefix assertions and extend classifier
+  units to prove untrusted receivers preserve behavior even at wrong arity. This is a
+  coverage-only correction over the already-shared arity disposition; no compiler,
+  example, workflow, diagnostic, supported shape, or exclusion change is authorized.
+  The same pre-candidate inspection also found receiver provenance fully instantiated
+  while one-argument needle provenance was represented mainly by direct literals.
+  Extend the existing positive product so the needle independently exercises raw
+  f-string text, unannotated binding, finite alias chain, exact-`String` annotated
+  literal and alias, nested lexical alias, and shadowed alias. The production path
+  already resolves receiver and arguments through the same CORE-039 provenance helper;
+  this correction must add no provenance matcher or compiler change.
+  Finally, close receiver/needle symmetry for exclusions by reusing the same ten
+  noncanonical annotation fixtures with the annotated binding in predicate-argument
+  position, and add a valid first argument followed by a missing second argument to
+  prove all children precede arity classification. These are data-only aggregate
+  additions; they must not introduce a topology rule in production.
+- Local implementation evidence: one private classifier owns exactly the four method
+  names, zero/one arities, receiver/argument trust states, and exact decoded-sequence
+  predicate values. Checked admission invokes it only after existing receiver and all-
+  argument validation; active checked lowering evaluates those children once and emits
+  a constant integer `ICmp` with logical `Bool`. No semantic analyzer, type system,
+  binding-annotation classifier, IR enum, verifier, code generator, stdlib, runtime,
+  or backend file changed. The all-four-method example compiles to deterministic LLVM
+  with exact exit-43 control flow and no predicate/runtime String helper. The complete
+  expanded aggregate passes 1/1, including both receiver and needle provenance and all
+  ten annotation quarantines in each position, exact checked/public arity diagnostics,
+  child order, exclusions, all three raw routes, existing closure preflight, and every
+  CI anchor. Classifier units pass 1/1 in both crate roots; binding contracts pass
+  28/28; checked IR 8/8; fixed-array length 1/1; LLVM-verifier CLI 12/12; CORE-040
+  equality 1/1; CORE-039 length 1/1; and typed admission 13/13. The exact repository-
+  root `./tools/test.sh` gate exits 0 with formatting and correctness Clippy clean,
+  146/146 library tests, 156/156 CLI tests, 7/7 claim, 28/28 binding, every integration
+  suite, and doc tests. Windows has no local pinned LLVM 22 link/run toolchain, so
+  external verification, machine verification/object lowering, Clang link, and native
+  exit 43 remain mandatory stable-Linux CI evidence after exact review and unchanged
+  publication. PR #4 already reflects accepted public CORE-040 and remains deliberately
+  unsynchronized to unpublished CORE-041 until that acceptance completes.

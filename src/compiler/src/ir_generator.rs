@@ -12,6 +12,9 @@ use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
 };
 use crate::static_string_method::{StaticStringLenDisposition, classify_static_string_len};
+use crate::static_string_predicate::{
+    StaticStringPredicateDisposition, classify_static_string_predicate,
+};
 use crate::types::{Ty, needs_promotion};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
@@ -858,6 +861,36 @@ impl IrGenerator {
                             )));
                         }
                         StaticStringLenDisposition::PreserveExistingBehavior => {}
+                    }
+                    let static_arguments = arguments
+                        .iter()
+                        .map(|argument| Self::static_string_value(argument, bindings))
+                        .collect::<Vec<_>>();
+                    let static_argument_refs = static_arguments
+                        .iter()
+                        .map(|argument| argument.as_deref())
+                        .collect::<Vec<_>>();
+                    match classify_static_string_predicate(
+                        static_string.as_deref(),
+                        method,
+                        &static_argument_refs,
+                    ) {
+                        StaticStringPredicateDisposition::StaticBool(_) => return Ok(Ty::Bool),
+                        StaticStringPredicateDisposition::WrongArity {
+                            method,
+                            expected,
+                            actual,
+                        } => {
+                            let argument_label = if expected == 1 {
+                                "argument"
+                            } else {
+                                "arguments"
+                            };
+                            return Err(admission_error(&format!(
+                                "compile-time string .{method}() expects exactly {expected} {argument_label}, got {actual}"
+                            )));
+                        }
+                        StaticStringPredicateDisposition::PreserveExistingBehavior => {}
                     }
                 }
                 if method == "iter"
@@ -1726,6 +1759,38 @@ impl IrGenerator {
                         classify_static_string_len(static_string, &method, arguments.len())
                     {
                         return (Value::ImmInt(i64::from(count)), Ty::Int);
+                    }
+                    let static_arguments = arguments
+                        .iter()
+                        .cloned()
+                        .map(|argument| {
+                            let (value, ty) = self.generate_expression_ir(argument, function);
+                            match (value, ty) {
+                                (Value::ImmString(value), Ty::String) => Some(value),
+                                _ => None,
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let static_argument_refs = static_arguments
+                        .iter()
+                        .map(|argument| argument.as_deref())
+                        .collect::<Vec<_>>();
+                    if let StaticStringPredicateDisposition::StaticBool(value) =
+                        classify_static_string_predicate(
+                            static_string,
+                            &method,
+                            &static_argument_refs,
+                        )
+                    {
+                        let result_reg = Value::Reg(self.next_reg);
+                        self.next_reg += 1;
+                        function.body.push(Inst::ICmp {
+                            op: if value { "eq" } else { "ne" }.to_string(),
+                            result: result_reg.clone(),
+                            left: Value::ImmInt(0),
+                            right: Value::ImmInt(0),
+                        });
+                        return (result_reg, Ty::Bool);
                     }
                 }
                 if method == "iter"

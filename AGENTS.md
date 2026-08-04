@@ -46,7 +46,11 @@ default branch is `master`; integration work belongs on
 
    On Windows, ensure `%USERPROFILE%\.cargo\bin` is inherited by Git Bash.
 5. Update the capability/state/decision documents affected by the result.
-6. Do not stack new implementation on a red build.
+6. After an accepted checkpoint is published, synchronize the cumulative draft PR
+   title/body to the exact accepted public head, current executable capabilities,
+   immutable evidence, and remaining exclusions. Never present unpublished local
+   work as accepted, and verify the rendered PR metadata before closing the task.
+7. Do not stack new implementation on a red build.
 
 ## Evidence and reporting
 
