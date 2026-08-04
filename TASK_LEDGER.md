@@ -5669,8 +5669,8 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   mutation/ABI/ownership semantics, valid-output change, more
   than the two named compiler phases, backend work, or any unresolved compatibility
   decision.
-- Status: selected implementation is accepted public all-eight green; corrected
-  six-record closure remains pending exact review and publication. Snapshot
+- Status: selected implementation and corrected six-record closure are accepted
+  public all-eight green. Snapshot
   `58e46e34`, tree
   `b47c7427`, canonical diff `f36748c2`, passed its local gate but received three
   blocking reviews and was rejected before publication because its five-acceptance
@@ -5709,14 +5709,76 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   because its successful closure gate omitted the literal status `exit 0`; it also
   remained unpublished. The twice-corrected six-record working tree records both
   review rounds, and its fresh exact full gate exits 0 with 139/139 library, 149/149
-  binary, 7/7 doc, and 21/21 binding tests. Its exact next action is three approvals,
-  unchanged publication, and all eight public checks.
+  binary, 7/7 doc, and 21/21 binding tests. It then received three approvals,
+  unchanged publication, and all eight public checks listed below.
 - Result boundary: initialized exact immediate `Array(Tuple)` annotations now stop
   after initializer validation at semantic analysis and independently at checked
   admission, including traversed generic contexts, before raw generation. Candidate
   T/B, valueless and deeper/wrapped forms, tuple/array compatibility and values,
   raw APIs, verifier/codegen, ABI/ownership, valid-output behavior, and all backends
   remain unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix
-  cell or capability class moves. No further audit or implementation is authorized
-  until the corrected exact six-record closure is reviewed, published unchanged,
-  and all eight public checks pass.
+  cell or capability class moves. Exact closure `9c82cbfc`, tree `b2a106ee`,
+  canonical diff `fc672744`, received three approvals, was published unchanged, and
+  passes compiler `30888222316` / `30888225734`, stable/nightly Rust `30888226011`,
+  all three CodeQL analyses in `30888222480`, and aggregate `91924197947`.
+
+## AUDIT-039 - Clean-head full-risk reconciliation after CORE-032
+
+- Task ID/date/owner: `AUDIT-039`, 2026-08-04, lead-owned read-only selection audit
+  with three independent type/safety, IR/codegen, and backend/claim reviewers.
+- Audit basis: exact clean public CORE-032 closure
+  `9c82cbfc91c5bef77c33619bd63032b2a31d6733`, tree
+  `b2a106ee69887bc07df0f5c1aa639c706502880d`, canonical diff
+  `fc672744c2e7e2bffb40267a874820bdfcc8c0d4`. It passes compiler
+  `30888222316` / `30888225734`, stable/nightly Rust `30888226011`, all three
+  CodeQL analyses in `30888222480`, and aggregate `91924197947` after three exact
+  approvals.
+- Observed behavior: CORE-032 closes only the exact initialized immediate array-of-
+  tuple fallback. R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
+  R-016 remain OPEN or PARTIALLY CONTROLLED with broader residuals. Every CORE-032
+  preservation candidate and every prior ranking is stale selection input rather
+  than authority for another implementation.
+- Hypothesis: three complete, independent, delta-aware static rankings from this
+  exact clean public head can identify one distinct active residual with frozen
+  semantics and deterministic tests-first feasibility within at most two compiler
+  phases, or an explicit stop, without repeating an accepted slice or inventing
+  language, ownership, aggregate, ABI, backend, or claim semantics.
+- Frozen audit method: each reviewer must independently inspect and rank the complete
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the
+  exact basis. Each must exclude every accepted sub-slice through CORE-032, cite
+  file/symbol or line evidence for every rank, name one top candidate or stop,
+  explain reachability and containment, state semantic decisions and phase count,
+  propose an exact deterministic failing specimen plus preservation controls, and
+  distinguish rejection, simulation, annotation, object emission, and hardware
+  execution. The lead may reconcile statically to one unanimous bounded candidate
+  or record a stop; no prior runner-up or preservation candidate is privileged.
+- Allowed files/actions: this authorization may change only `TASK_LEDGER.md`,
+  `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`. Once its exact
+  authorization gates pass, the ranking itself is read-only: no file edit, commit,
+  test, build, formatter, probe, benchmark, artifact, hardware action, or external
+  query. No workflow, dependency, backend, package/release/registry, immutable
+  claim-evidence, history, or `master` action is authorized.
+- Acceptance: this authorization's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 doc, and 21/21 binding tests. It still requires three
+  exact reviews, unchanged publication, and all eight public checks before ranking
+  begins. All three complete rankings must inspect the same immutable head and report
+  the required nine evidence fields. Reconciliation may select at most one bounded
+  residual or an explicit stop. AUDIT-039 never authorizes a regression test,
+  implementation edit, capability promotion, risk-status change, or matrix movement;
+  any later change requires its own reviewed six-record contract and public failing
+  regression evidence first.
+- Risks: omitting a residual or accepted-slice exclusion; inheriting Candidate T/B
+  or another earlier order; conflating verifier-contained or raw-API behavior with
+  trusted publication; inventing annotation, ownership, aggregate, generic, ABI, or
+  backend semantics; mistaking rejection, tests, LLVM text, helper simulation,
+  annotations, flags, or object emission for implemented hardware execution; or
+  allowing an invalid program to reach IR/backend generation.
+- Stop conditions: incomplete ranking; edit/test/probe/artifact/external query during
+  the audit; more than two compiler phases; unresolved semantic or compatibility
+  choice; hardware requirement; unsupported-source-type fallback; valid-output
+  uncertainty; workflow/dependency, benchmark, package/release/registry, immutable
+  evidence, destructive-system, history-rewrite, or `master` action.
+- Status: authorization records prepared on the clean public basis and fresh exact
+  gate exit 0 recorded above. Three exact authorization reviews, unchanged
+  publication, and all eight public checks remain required; ranking has not begun.

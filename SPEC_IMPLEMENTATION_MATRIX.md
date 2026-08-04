@@ -538,5 +538,18 @@ declared compatibility policy and release-level coverage.
   approvals but was rejected unpublished at P3 by the type reviewer because the
   successful closure gate lacked literal `exit 0`. The twice-corrected records
   preserve both rounds; their fresh exact gate exits 0 with 139/139 library, 149/149
-  binary, 7/7 doc, and 21/21 binding tests. Exact review, unchanged publication, and
-  all eight checks remain pending.
+  binary, 7/7 doc, and 21/21 binding tests. Exact closure `9c82cbfc`, tree
+  `b2a106ee`, canonical diff `fc672744`, is triple-approved and public all-eight
+  green in compiler `30888222316` / `30888225734`, Rust `30888226011`, CodeQL
+  `30888222480`, and aggregate `91924197947`. No matrix cell moves.
+- Preregistered read-only AUDIT-039 may re-rank only the complete remaining
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+  clean public closure `9c82cbfc`. It must exclude all accepted slices through
+  CORE-032, inherit no prior candidate/order, and distinguish rejection, simulation,
+  annotation, LLVM text, object emission, and hardware execution.
+- Its prepared six-record authorization's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking remains forbidden
+  until three exact reviews, unchanged publication, and all eight checks pass.
+  AUDIT-039 cannot edit source/tests, run builds/probes/external queries, or change a
+  matrix row/cell, capability class, risk status, semantics, workflow, dependency,
+  backend, artifact, claim, history, or `master`.

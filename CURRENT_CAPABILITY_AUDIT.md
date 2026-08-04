@@ -1382,5 +1382,24 @@ promise future compatibility.
   unpublished at P3 by the type reviewer because the successful closure gate lacked
   literal `exit 0`. The twice-corrected six-record tree records both review rounds;
   its fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7 doc, and
-  21/21 binding tests. It awaits only three exact approvals, unchanged publication,
-  and all eight public checks.
+  21/21 binding tests. Exact closure `9c82cbfc`, tree `b2a106ee`, canonical diff
+  `fc672744`, then received three approvals, was published unchanged, and passes
+  compiler `30888222316` / `30888225734`, Rust `30888226011`, CodeQL `30888222480`,
+  and aggregate `91924197947`.
+
+## AUDIT-039 authorization boundary
+
+- The complete remaining set is still R-002/R-004/R-005/R-006/R-007/R-009/R-010/
+  R-011/R-012/R-013/R-016. AUDIT-039 must rank all eleven independently from exact
+  clean public closure `9c82cbfc`, exclude every accepted slice through CORE-032,
+  and inherit neither Candidate T/B nor any earlier ordering.
+- Each reviewer must provide evidence for every rank, one bounded candidate or stop,
+  trusted reach and containment, unresolved semantic choices, phase count, one exact
+  deterministic failing specimen, and preservation controls. Rejection, annotation,
+  simulation, LLVM text, object emission, and hardware execution remain distinct.
+- The prepared six-record authorization's fresh exact full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking remains forbidden
+  until three exact reviews, unchanged publication, and all eight checks pass.
+- AUDIT-039 is read-only and cannot move any capability, matrix cell, or risk status,
+  authorize tests/implementation, invent semantics, or change workflows,
+  dependencies, backends, artifacts, claims, history, or `master`.

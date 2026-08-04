@@ -595,5 +595,24 @@ the known exit 1 above instead of generic nonzero. Second snapshot `48f2fd60`, t
 approvals but was rejected unpublished at P3 by the type reviewer because the
 successful closure gate omitted literal `exit 0`. The twice-corrected records preserve
 both rounds; their fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
-doc, and 21/21 binding tests. R-002 and every other risk status remain unchanged while
-exact review, unchanged publication, and all eight public checks remain pending.
+doc, and 21/21 binding tests. Exact closure `9c82cbfc`, tree `b2a106ee`, canonical
+diff `fc672744`, then received three approvals, was published unchanged, and passes
+compiler `30888222316` / `30888225734`, Rust `30888226011`, CodeQL `30888222480`,
+and aggregate `91924197947`. R-002 and every other risk status remain unchanged.
+
+Preregistered read-only AUDIT-039 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `9c82cbfc`, excluding every accepted slice through CORE-032 and
+inheriting no earlier candidate or order. Every ranking must be complete and
+evidence-cited, identify one bounded candidate or stop, and state reachability,
+containment, semantic decisions, phase count, an exact deterministic failing specimen,
+and preservation controls. Rejection, simulation, annotations, LLVM text, object
+emission, and hardware execution remain distinct.
+
+The prepared AUDIT-039 six-record authorization's fresh exact full gate exits 0 with
+139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking has not
+begun and remains forbidden until three exact reviews, unchanged publication, and all
+eight checks pass. The audit is read-only and cannot change source/tests, risks,
+matrix/capability state, semantics, workflows, dependencies, backends, artifacts,
+claims, history, or `master`; any later behavior change needs a separate reviewed
+contract and public failing regression evidence first.

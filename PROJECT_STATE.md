@@ -4,22 +4,19 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 44 `CORE-032` record closure. Exact implementation `30d0d730` rejects only
-initialized immediate array-of-tuple annotations at semantic analysis and checked
-admission after initializer validation. Focused 1/1, binding 21/21, two consecutive
-exact full gates, three exact reviews, and all eight public checks pass. Immediate
-work is the six-record closure only; no new audit, regression, implementation, or
-capability change is authorized.
+Milestone 45 `AUDIT-039` authorization. CORE-032 is complete at exact public closure
+`9c82cbfc`, with all eight checks green. Immediate work is only the six-record
+authorization for a clean-head, read-only ranking of all eleven remaining risks.
+No ranking begins before authorization acceptance, and no regression,
+implementation, semantics, capability, matrix, or risk-status change is authorized.
 
 ## Active hypothesis
 
-Two exact nonrecursive guards reject only an initialized immediate
-`Type::Array(Type::Tuple(_), _)` annotation after existing initializer-child and
-outer-tuple handling but before mismatch logic or raw generation. Count remains
-irrelevant. The guard applies wherever each phase already traverses the statement,
-including generic impls; earlier outer generic-function rejection remains first.
-This defines no tuple/array compatibility, value, bounds, layout, ABI, ownership,
-execution, or backend capability.
+Three complete independent static rankings from exact clean public closure
+`9c82cbfc` can identify at most one distinct residual with frozen semantics,
+deterministic tests-first feasibility, and no more than two compiler phases, or an
+explicit stop. All eleven residuals must be ranked, all accepted slices through
+CORE-032 excluded, and no prior candidate or ordering inherited.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -951,15 +948,35 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   the type reviewer because the successful closure gate omitted literal `exit 0`.
   The twice-corrected six-record tree records both rounds, and its fresh exact gate
   exits 0 with 139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests.
+- Exact closure `9c82cbfc`, tree `b2a106ee`, canonical diff `fc672744`, received
+  three exact approvals, was published unchanged, and passes compiler
+  `30888222316` / `30888225734`, Rust `30888226011`, CodeQL `30888222480`, and
+  aggregate `91924197947`.
+
+## AUDIT-039 authorization
+
+- Basis: exact clean public CORE-032 closure `9c82cbfc`; complete residual set
+  R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016.
+- Method: three independent complete evidence-cited rankings; exclude every accepted
+  slice through CORE-032; name one bounded candidate or stop with reachability,
+  containment, semantic choices, phase count, deterministic failing specimen, and
+  preservation controls; inherit no earlier candidate/order.
+- Boundary: after authorization acceptance, ranking is read-only—no edits, tests,
+  builds, formatters, probes, artifacts, hardware action, or external query. It
+  grants no test, implementation, semantics, capability, matrix, risk, workflow,
+  dependency, backend, claim, history, or `master` authority.
+- Gate: the prepared six-record authorization's fresh exact full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Ranking has not
+  begun.
 
 ## Exact next action
 
-Obtain three exact approvals for this corrected six-record-only closure, publish the
-immutable closure tree unchanged, and require all eight public checks.
-Do not begin another residual audit or implementation before that acceptance. Do not
-edit tests/source, omit the unexplained first implementation-gate attempt, broaden
-beyond immediate initialized array-to-tuple, promote a capability, change workflows/
-dependencies/backends, publish artifacts or claims, or touch `master`.
+Obtain three exact approvals for the AUDIT-039 authorization, publish its immutable
+six-record tree unchanged, require all eight public checks, and only then dispatch
+the three independent read-only rankings on that same public head. Do not edit source
+or tests, run ranking probes/builds/external queries, inherit an earlier candidate,
+promote a capability, change workflows/dependencies/backends, publish artifacts or
+claims, or touch `master`.
 
 ## Unauthorized actions
 

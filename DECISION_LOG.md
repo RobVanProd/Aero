@@ -1807,7 +1807,7 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-040 - Initialized immediate array-of-tuple annotations must fail closed
 
 - Date: 2026-08-04
-- Status: implemented public all-eight green at `30d0d730`; record closure pending.
+- Status: complete at public all-eight-green closure `9c82cbfc`.
 - Decision: for an initialized `let` annotation exactly shaped as
   `Type::Array(Type::Tuple(_), _)`, validate the initializer first, preserve existing
   initialized outer-tuple handling, then reject in semantics and independently in
@@ -1863,3 +1863,30 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   default, bounds, layout, mutation, ABI, ownership, lowering, execution, backend,
   matrix, or capability decision follows. R-002 remains HIGH/CRITICAL and PARTIALLY
   CONTROLLED.
+- Closure result: exact `9c82cbfc`, tree `b2a106ee`, canonical diff `fc672744`,
+  received three approvals, was published unchanged, and passes compiler
+  `30888222316` / `30888225734`, Rust `30888226011`, CodeQL `30888222480`, and
+  aggregate `91924197947`.
+
+## DEC-041 - AUDIT-039 resets residual ordering after CORE-032
+
+- Date: 2026-08-04
+- Status: authorization pending exact review and public checks; ranking not begun.
+- Decision: only after this six-record authorization is triple-approved, published
+  unchanged, and all eight public checks pass, three independent read-only reviewers
+  may re-rank the complete R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/
+  R-013/R-016 set from exact clean public closure `9c82cbfc`. Every accepted slice
+  through CORE-032 is excluded and no earlier runner-up or preservation candidate is
+  privileged.
+- Method: every reviewer must supply a complete evidence-cited ranking, one exact
+  candidate or stop, trusted reach/containment, semantic decisions, phase count,
+  deterministic failing specimen, and preservation controls. Reconciliation may
+  select at most one unanimously bounded residual or record a stop.
+- Authorization evidence: the prepared six-record tree's fresh exact full gate exits
+  0 with 139/139 library, 149/149 binary, 7/7 doc, and 21/21 binding tests. Exact
+  reviews, unchanged publication, and all eight checks are still pending.
+- Boundary: ranking is static and read-only. It authorizes no source/test edit,
+  build/probe/external query, semantics, workflow/dependency/backend action,
+  capability/matrix/risk movement, artifact/claim publication, history action, or
+  `master` change. Any later test or implementation requires a separately reviewed
+  six-record contract and public failing regression evidence first.
