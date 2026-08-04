@@ -1640,9 +1640,10 @@ promise future compatibility.
   Tuples remain parsed-only; references and fixed arrays remain partial; R-002 stays
   HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open without bounds policy;
   and every backend, artifact, hardware-execution, and claim boundary is unchanged.
-- No ranking may begin before the authorization passes a fresh exact full local gate,
-  three exact reviews, unchanged publication, and all eight public checks. Afterward
-  the audit remains read-only and can select at most one bounded candidate or stop.
+- Ranking could begin only after a fresh exact full local gate, three exact reviews,
+  unchanged publication, and all eight public checks. Those prerequisites are
+  satisfied by corrected authorization `2d8a0c54`; the completed audit remained
+  read-only and selected at most one bounded candidate.
 - The prepared authorization's fresh exact full gate exits 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 24/24 binding tests. No capability class moves.
 - First authorization snapshot `4ce0de0d`, tree `350984b8`, canonical diff
@@ -1650,3 +1651,51 @@ promise future compatibility.
   head publication because PROJECT_STATE retained the completed CORE-035 hypothesis
   as active and DEC-046 retained pending-closure status. The corrected authorization
   ancestry preserves that snapshot; ranking never began and no capability moves.
+
+## AUDIT-042 accepted result
+
+- Corrected authorization `2d8a0c54`, tree `45d1c184`, correction canonical diff
+  `b36d3d9b`, and cumulative diff from CORE-035 closure `478e947a`, changed only six
+  control records, passed two fresh exact full gates, received three fresh exact
+  approvals, and was published unchanged. Compiler `30924946683` / `30924950615`,
+  stable/nightly Rust `30924951134`, CodeQL `30924945035`, and aggregate
+  `92044919183` pass.
+- On that immutable public head, type/safety selected valueless exact nonrecursive
+  `Reference(Array(Tuple))` U, IR/codegen selected valueless exact
+  `Array(Array(Array(Tuple)))` T, and backend/claim selected direct nonnegative
+  scalar-literal fixed-array bounds B. The first two reviewers ranked U > T > B and
+  stopped B on unresolved compile-time-versus-runtime policy; backend/claim ranked
+  B > U > T. The lead selected U two to one, and all three final compatibility
+  reviews approved its exact two-phase boundary.
+- AUDIT-042 performed no edit, test, build, formatter, probe, artifact, hardware
+  action, or external query. It is complete and classification-neutral. Tuples remain
+  parsed-only; references and fixed arrays remain partial; R-002 stays HIGH/CRITICAL
+  and PARTIALLY CONTROLLED; R-011 remains open; no backend, hardware-execution,
+  artifact, matrix, capability, or claim class moves.
+
+## CORE-036 authorization boundary
+
+- CORE-036 may only fail closed a valueless annotation exactly shaped as
+  nonrecursive `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)` in
+  semantic analysis and checked IR admission. Both reference flags, all counts
+  including zero, and all tuple arities are matched. Initialized and every deeper,
+  wrapped, mixed, scalar, and numeric-array form remain outside the guard.
+- Existing semantic duplicate precedence and four valueless tuple-shape diagnostics
+  remain first. The exact new semantic and checked diagnostics distinguish an
+  uninitialized binding and run before fallback insertion or raw generation. Existing
+  traversal only is used; checked generic-function outer rejection and syntax-only
+  generic trait defaults do not move.
+- The tests-first change must reclassify all four existing exact-U acceptance
+  occurrence blocks containing five source rows, expose exactly 34 false acceptances,
+  and retain exactly 40 preservation observations. Before implementation, focused
+  0/1 and binding 24/25 must be the only expected-red result after the 139/139,
+  149/149, and 7/7 suites pass. After the separately reviewed public-red boundary,
+  only the semantic analyzer and checked IR generator may change.
+- This is proposed containment before IR, not supported value or lowering evidence.
+  It defines no reference/array/tuple/default/mutability/ownership/lifetime/layout/
+  ABI/bounds/execution/backend semantics. Every capability and claim classification
+  remains unchanged; R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED and R-011
+  remains open. The prepared authorization's fresh full gate exits 0 with 139/139
+  library, 149/149 binary, 7/7 claim, and 24/24 binding tests. A verification gate,
+  three exact approvals, unchanged publication, and all eight public checks remain
+  required before tests-first work.

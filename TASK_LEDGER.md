@@ -6475,12 +6475,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   choice; hardware requirement; unsupported-source-type fallback; valid-output
   uncertainty; workflow/dependency, benchmark, package/release/registry, immutable
   evidence, destructive-system, history-rewrite, or `master` action.
-- Status: CORE-035 is closed at exact public all-eight-green `60ad91f7` without a
-  capability, matrix, risk, backend, artifact, claim, history, or `master` movement.
-  The prepared AUDIT-042 authorization's fresh exact repository-root full gate exits
-  0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. Three
-  exact reviews, unchanged publication, and public all-eight checks remain required
-  before the read-only rankings begin.
+- Status: complete, read-only, and classification-neutral on corrected public all-
+  eight-green authorization `2d8a0c54`. Its prepared gate passed with 139/139
+  library, 149/149 binary, 7/7 claim, and 24/24 binding tests; all three exact
+  reviews, unchanged publication, public checks, complete rankings, reconciliation,
+  and final compatibility reviews are satisfied below.
 - Correction history: first authorization snapshot `4ce0de0d5c1b66daff53d828d8d32b035d63b80d`,
   tree `350984b8bfcbec46a9c1f3208c541aff20ee47f6`, canonical diff
   `347278c32239df2276cd3d21f9cc8daa41c4ef72`, passed the exact authorization gate
@@ -6489,3 +6488,127 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   plus P1 stale DEC-046 closure status; backend/claim independently found the stale
   closure status at P1. The snapshot is retained in corrected authorization ancestry;
   no ranking, source/test edit, build, probe, artifact, or external query began.
+- Corrected authorization acceptance: exact
+  `2d8a0c54f5423c7783e8822d6758a90fa122adae`, parent `4ce0de0d`, tree
+  `45d1c1841340a8f34f32c4b509af22e070317de6`, correction canonical diff
+  `b36d3d9bbeb9467d89205e9faa824e9c09fddaec`, and cumulative canonical diff from
+  CORE-035 closure `478e947aee6f15993ad1dd12a008a6f398c4fc77`, changed only the six
+  control records. Two fresh exact full gates passed with 139/139 library, 149/149
+  binary, 7/7 claim, and 24/24 binding tests. Three fresh exact reviews approved the
+  corrected snapshot; it was published unchanged. Compiler `30924946683` /
+  `30924950615`, stable/nightly Rust `30924951134`, all three CodeQL analyses in
+  `30924945035`, and aggregate `92044919183` pass.
+- Independent ranking result from immutable public head `2d8a0c54`: type/safety
+  ranked R-002/R-011/R-005/R-004/R-013/R-009/R-012/R-006/R-010/R-016/R-007 and
+  selected U, valueless exact nonrecursive `Reference(Array(Tuple))`; IR/codegen
+  ranked R-002/R-011/R-005/R-004/R-006/R-009/R-013/R-012/R-010/R-007/R-016 and
+  selected T, valueless exact `Array(Array(Array(Tuple)))`; backend/claim ranked
+  R-011/R-002/R-005/R-004/R-006/R-013/R-007/R-010/R-009/R-012/R-016 and selected
+  B, nonnegative compile-time direct homogeneous scalar-literal array indexing with
+  literal index at least the literal length. All work was static and read-only; no
+  edit, test, build, formatter, probe, artifact, hardware action, or external query
+  occurred.
+- Reconciliation: type/safety and IR/codegen ranked U > T > B and stopped B because
+  compile-time rejection versus runtime behavior is not frozen. Backend/claim ranked
+  B > U > T. The lead selected U two to one. Three final compatibility reviews
+  approve only U with no unresolved semantic choice or phase expansion. Type/safety
+  additionally requires every existing U acceptance assertion to be reclassified;
+  this is a binding tests-first obligation, not a semantic ambiguity. B remains
+  stopped pending separately frozen bounds policy; T remains a bounded fallback.
+- Result: AUDIT-042 is complete, read-only, and classification-neutral. It authorizes
+  no test or source edit by itself. R-002 remains HIGH/CRITICAL and PARTIALLY
+  CONTROLLED; R-011 remains open; no matrix, capability, backend, artifact, claim,
+  history, or `master` state moves.
+
+## CORE-036 - Fail-closed valueless reference-array-tuple binding annotations
+
+- Task ID/date/owner: `CORE-036`, 2026-08-04, lead-owned tests-first vertical slice
+  with three exact reviewers at authorization, expected-red, implementation, and
+  closure boundaries.
+- Observed behavior: a valueless `let` annotation exactly shaped as nonrecursive
+  `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)` is accepted by
+  semantic analysis and checked IR admission, then admitted as an unsupported binding
+  through existing traversal. Both reference flags and every array count, including
+  zero, are affected. Four existing acceptance blocks contain five source rows for
+  this exact surface and therefore must be reclassified, while their sibling controls
+  remain acceptance evidence.
+- Hypothesis: exact nonrecursive fail-closed guards in semantic analysis and checked
+  IR admission can reject only that valueless surface before fallback insertion or
+  raw generation, without defining reference, array, tuple, ownership, lifetime,
+  layout, ABI, default, bounds, lowering, execution, backend, or compatibility
+  semantics.
+- Frozen semantics: apply only to `Statement::Let` with `value.is_none()` whose
+  annotation is exactly
+  `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)`. Match both
+  reference flags, every count including zero, and every tuple arity; count and arity
+  carry no new meaning. Exclude initialized bindings, double/deeper references,
+  `Reference(Array(Array(Tuple)))`, `Array(Reference(Tuple))`, generic or tuple
+  wrappers, scalar references, numeric-array references, and all other shapes.
+  CORE-035's count-zero preservation applies only to initialized bindings and does
+  not conflict with this valueless count-insensitive guard.
+- Frozen ordering and diagnostics: semantic duplicate-name rejection remains first;
+  the four existing valueless tuple-shape diagnostics for immediate array-tuple,
+  two-array-tuple, immediate reference-tuple, and outer tuple remain first; then U
+  rejects before the `Ty::Int` fallback. Checked admission preserves those same four
+  diagnostics and adds no duplicate rule; then U rejects before no-value admission
+  and raw generation. Semantic diagnostic is
+  `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding.`
+  Checked diagnostic is
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding`.
+  Public compilation retains the existing `Semantic Analysis Error: ` prefix.
+- Context boundary: use only binding traversal already present in the two named
+  phases: direct and top-level statements, explicit blocks, if branches, while/for/
+  loop bodies, non-generic impl methods, generic impl methods, and semantic generic-
+  function bodies. Checked generic functions retain their existing outer rejection;
+  generic trait default bodies remain syntax-only.
+- Frozen tests-first file and mandatory reclassification: after authorization is
+  public all-eight green, only
+  `src/compiler/tests/binding_type_contract_tests.rs` may change. Reclassify every
+  existing exact-U acceptance occurrence: immutable and mutable rows in the
+  CORE-035 residual-preservation loop near lines 1519-1526; the immutable row near
+  line 1661; the immutable candidate row near line 1863; and the immutable row near
+  line 2114. These are four occurrence blocks and five source rows. Preserve every
+  sibling row.
+- Frozen expected-red aggregate: exactly 34 unexpected acceptances: direct counts
+  zero and one x both flags x semantic/checked (8); public count one x both flags
+  (2); top-level both flags x semantic/checked (4); generic-impl both flags x
+  semantic/checked (4); semantic generic functions both flags (2); and one immutable
+  count-one specimen in each of explicit block, if-then, if-else, while, for, loop,
+  and non-generic impl contexts x semantic/checked (14). Counts zero and one prove
+  count is ignored. Before implementation, focused result must be 0/1, binding
+  aggregate 24/25 with this sole new failure, and the exact full gate must first pass
+  139/139 library, 149/149 binary, and 7/7 claim tests.
+- Frozen green aggregate: exactly 40 preservation observations: duplicate precedence
+  (2); existing outer/array/two-array/reference tuple diagnostics in both phases (8);
+  initialized CORE-035 positive-count target for both flags and phases (4 exact
+  rejections); initialized count-zero target for both flags and phases (4
+  acceptances); valueless scalar references for both flags and phases (4);
+  valueless numeric-array references for both flags and phases (4); five exact near
+  shapes in both phases (10); syntax-only trait defaults in both flags (2); checked
+  generic-function outer rejection (1); and valid numeric-array public nonempty LLVM
+  output (1). After implementation, focused 1/1, binding 25/25, and the exact full
+  gate must be green.
+- Allowed implementation files: only after separately reviewed public expected-red
+  evidence may `src/compiler/src/semantic_analyzer.rs` and
+  `src/compiler/src/ir_generator.rs` add the two exact guards. No parser, raw IR,
+  verifier, codegen, CLI, runtime, workflow, dependency, backend, or claim edit.
+- Authorization files/actions: this contract may change only `TASK_LEDGER.md`,
+  `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `INITIAL_RISK_REGISTER.md`. A fresh exact
+  repository-root full gate, three exact reviews, unchanged publication, and all
+  eight public checks are required before the tests-only edit.
+- Risks: incomplete acceptance-row reclassification; recursive matching; consuming
+  initialized, deeper/wrapped/mixed, scalar, numeric-array, or array-around-reference
+  forms; changing count-zero initialized behavior; diagnostic-order regression;
+  accidentally traversing checked generic functions or trait defaults; assigning
+  mutability/ownership/default meaning; or treating rejection as support.
+- Stop conditions: any red/green count or diagnostic differs; an existing exact-U
+  acceptance remains; more than the two named compiler phases are required; a
+  semantic, compatibility, valid-output, ownership, layout, ABI, bounds, lowering,
+  execution, backend, workflow, dependency, artifact, claim, history, or `master`
+  decision is required.
+- Status: six-record authorization prepared from exact public all-eight-green
+  AUDIT-042 head `2d8a0c54`. Its fresh exact repository-root full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests. A verification
+  gate, three exact reviews, unchanged publication, and all eight public checks
+  remain required before tests-first work.

@@ -2157,8 +2157,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-047 - Re-rank the complete residual set after CORE-035
 
 - Date: 2026-08-04
-- Status: authorization fresh-local-gate green from exact public CORE-035 closure;
-  exact reviews, unchanged publication, and public checks pending.
+- Status: complete, read-only, and classification-neutral at exact corrected public
+  all-eight-green authorization `2d8a0c54`; U selected by two-to-one reconciliation
+  and approved by all three final compatibility reviews.
 - Closure acceptance: exact `60ad91f7`, parent `b8fd5a17`, tree `978aa98f`, canonical
   diff `818a8112`, changed only the six control records, passed the exact full local
   gate with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests,
@@ -2194,3 +2195,69 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   backend/claim independently reported the closure status at P1. The rejected
   snapshot remains in corrected ancestry, ranking did not begin, and the correction
   changes no authority or classification boundary.
+- Corrected authorization acceptance: exact `2d8a0c54`, parent `4ce0de0d`, tree
+  `45d1c184`, correction canonical diff `b36d3d9b`, and cumulative canonical diff
+  from CORE-035 closure `478e947a`, changed only the six control records, passed two
+  fresh exact full gates, received three fresh exact approvals, and was published
+  unchanged. Compiler `30924946683` / `30924950615`, stable/nightly Rust
+  `30924951134`, all three CodeQL analyses in `30924945035`, and aggregate
+  `92044919183` pass.
+- Ranking result: type/safety ranked R-002/R-011/R-005/R-004/R-013/R-009/R-012/
+  R-006/R-010/R-016/R-007 and selected valueless exact nonrecursive
+  `Reference(Array(Tuple))` U. IR/codegen ranked R-002/R-011/R-005/R-004/R-006/
+  R-009/R-013/R-012/R-010/R-007/R-016 and selected valueless exact
+  `Array(Array(Array(Tuple)))` T. Backend/claim ranked R-011/R-002/R-005/R-004/
+  R-006/R-013/R-007/R-010/R-009/R-012/R-016 and selected direct nonnegative
+  homogeneous scalar-literal array bounds B.
+- Reconciliation: type/safety and IR/codegen ranked U > T > B and stopped B because
+  compile-time rejection versus runtime bounds behavior is unresolved; backend/claim
+  ranked B > U > T. The lead chose U two to one. All three final compatibility
+  reviews approved U as exact, count-insensitive, two-phase containment. B remains
+  stopped pending policy and T remains a bounded fallback. The audit performed no
+  edit, test, build, formatter, probe, artifact, hardware action, or external query.
+- Classification boundary: selection is authority only for a later reviewed contract.
+  It changes no language semantics, implementation, risk, matrix, capability,
+  backend, artifact, claim, history, or `master` state.
+
+## DEC-048 - Reject valueless exact reference-array-tuple annotations before IR
+
+- Date: 2026-08-04
+- Status: six-record authorization fresh-local-gate green; verification gate, three
+  exact reviews, unchanged publication, and public all-eight checks pending.
+- Decision: for a valueless binding whose annotation is exactly nonrecursive
+  `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)`, preserve semantic
+  duplicate precedence and all four existing valueless tuple-shape diagnostics, then
+  reject in semantic analysis before fallback insertion and independently in checked
+  IR admission before no-value admission/raw generation. Both reference flags, every
+  count including zero, and every tuple arity are included; no recursive shape is.
+- Diagnostics: semantic
+  `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding.`;
+  checked
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding`.
+  Public compilation preserves the existing semantic-error prefix.
+- Context: use only existing semantic/checked binding traversal. Direct, top-level,
+  block/control-flow/loop, non-generic impl, generic impl, and semantic generic-
+  function routes are covered. Checked generic-function outer rejection and syntax-
+  only generic trait defaults remain unchanged. No checked duplicate rule is added.
+- Tests-first boundary: after authorization acceptance, only the binding-contract
+  test file may change. All four existing acceptance occurrence blocks containing
+  five exact-U source rows must be reclassified while siblings remain. One aggregate
+  must expose exactly 34 false acceptances across counts zero/one, both flags, both
+  phases, public compilation, top-level, generic, block, control-flow, loop, and impl
+  routes, with exactly 40 preservation observations green. Focused 0/1 and binding
+  24/25 must be the sole expected failure after 139/139 library, 149/149 binary, and
+  7/7 claim passes.
+- Implementation boundary: only separately reviewed public-red evidence may
+  authorize exact guards in `semantic_analyzer.rs` and `ir_generator.rs`. More than
+  those two phases, a different count/diagnostic, or any semantic/compatibility/
+  valid-output uncertainty is a stop.
+- Claim boundary: fail-closed rejection defines no reference, array, tuple, value,
+  default, mutability, ownership, lifetime, layout, ABI, coercion, bounds, lowering,
+  execution, backend, matrix, capability, risk, or stability meaning. Initialized
+  CORE-035 count-zero behavior stays unchanged. R-002 remains HIGH/CRITICAL and
+  PARTIALLY CONTROLLED; R-011 remains open pending bounds policy.
+- Authorization basis: exact corrected public all-eight-green AUDIT-042 head
+  `2d8a0c54`, tree `45d1c184`, with compiler `30924946683` / `30924950615`, Rust
+  `30924951134`, CodeQL `30924945035`, and aggregate `92044919183` green.
+- Gate evidence: the prepared authorization's fresh exact repository-root full gate
+  exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding tests.

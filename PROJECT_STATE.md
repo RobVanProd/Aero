@@ -4,22 +4,23 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 50 `AUDIT-042` authorization. CORE-035 is closed at exact public all-eight-
-green `60ad91f7`. The six-record authorization snapshot is locally green and awaiting
-exact review/publication. No source/test change, inherited candidate order,
-capability/matrix/risk movement, backend action, or claim is authorized before that
-contract's acceptance.
+Milestone 51 `CORE-036` authorization. AUDIT-042 is complete, read-only, and
+classification-neutral on exact corrected public all-eight-green head `2d8a0c54`.
+Its two-to-one reconciliation and three final compatibility approvals select only
+valueless exact nonrecursive `Reference(Array(Tuple))` fail-closed containment for a
+separate reviewed contract. No source/test change, capability/matrix/risk movement,
+backend action, or claim is authorized before CORE-036 authorization acceptance.
 
 ## Active hypothesis
 
-Three complete, independent, delta-aware static rankings from exact clean public
-CORE-035 closure `60ad91f7` can select at most one next bounded high-severity
-containment with frozen semantics and deterministic tests-first feasibility within
-two compiler phases, or an explicit stop. Every accepted slice through CORE-035 is
-excluded; no historical candidate, label, preservation row, or rank order is
-privileged. The audit remains read-only, and semantic ambiguity, unsupported-type
-fallback, hardware dependence, or valid-output uncertainty is a stop rather than
-implementation authority.
+For a valueless binding only, exact nonrecursive semantic and checked-admission
+guards can reject `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)`
+for both flags and every count before fallback insertion or raw generation, while
+preserving duplicate and existing tuple-shape diagnostic precedence and every
+initialized/deeper/wrapped/scalar/numeric-array control. The tests-first evidence
+must reclassify every existing exact-U acceptance occurrence and prove exactly 34
+false acceptances plus 40 green preservation observations. Any different count,
+diagnostic, phase boundary, semantic choice, or valid-output result is a stop.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1344,13 +1345,66 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   found the same issue at P2 plus P1 stale DEC-046 closure status; backend/claim
   independently found the stale closure status at P1. The snapshot is retained in
   corrected authorization ancestry; ranking never began.
+- Corrected authorization `2d8a0c54`, parent `4ce0de0d`, tree `45d1c184`, correction
+  canonical diff `b36d3d9b`, and cumulative canonical diff from CORE-035 closure
+  `478e947a`, passed two fresh exact full gates, received three fresh exact approvals,
+  and was published unchanged. Compiler `30924946683` / `30924950615`, stable/
+  nightly Rust `30924951134`, all three CodeQL analyses in `30924945035`, and
+  aggregate `92044919183` pass.
+- Complete independent ranking orders were: type/safety R-002/R-011/R-005/R-004/
+  R-013/R-009/R-012/R-006/R-010/R-016/R-007 with U; IR/codegen R-002/R-011/R-005/
+  R-004/R-006/R-009/R-013/R-012/R-010/R-007/R-016 with T; backend/claim R-011/
+  R-002/R-005/R-004/R-006/R-013/R-007/R-010/R-009/R-012/R-016 with B.
+- In targeted comparison, type/safety and IR/codegen ranked U > T > B and stopped B
+  pending compile-time-versus-runtime bounds policy; backend/claim ranked B > U > T.
+  The lead chose U two to one. All three final compatibility reviews approved only
+  exact count-insensitive valueless U in two phases. Type/safety's nonblocking P1
+  requires reclassification of every existing exact-U acceptance occurrence.
+- AUDIT-042 is complete with no edit, test, build, formatter, probe, artifact,
+  hardware action, or external query during ranking. B remains stopped and T remains
+  fallback. No capability, matrix, risk, backend, artifact, or claim class moves.
+
+## CORE-036 authorization
+
+- Scope: valueless `Statement::Let` only, exact nonrecursive
+  `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)`, both flags, every
+  count including zero, and every tuple arity. Initialized, double/deeper reference,
+  deeper array, array-around-reference, generic/wrapped, scalar-reference, numeric-
+  array-reference, and all other shapes are excluded.
+- Order: semantic duplicate and the four existing valueless tuple-shape diagnostics
+  remain first, followed by the exact new semantic rejection before `Ty::Int`
+  fallback. Checked admission preserves those four diagnostics, adds no duplicate
+  rule, then rejects before no-value admission/raw generation. Existing traversal
+  only; checked generic-function outer rejection and syntax-only trait defaults stay.
+- Diagnostics: semantic
+  `Error: Variable \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding.`;
+  checked
+  `checked IR binding \`{name}\` uses an unsupported tuple type annotation directly beneath an array directly beneath a reference for an uninitialized binding`.
+  Public compilation retains its existing semantic prefix.
+- Tests first: only the binding-contract test file may change after this six-record
+  authorization is accepted. Reclassify the four existing occurrence blocks/five
+  source rows (immutable+mutable near 1519, immutable near 1661, immutable near 1863,
+  and immutable near 2114) while preserving siblings. The new aggregate must report
+  exactly 34 unexpected acceptances and 40 green preservation observations. Expected
+  red is focused 0/1 and binding 24/25 only, after 139/139 library, 149/149 binary,
+  and 7/7 claim tests pass.
+- Implementation later: only separately reviewed public-red evidence may authorize
+  exact guards in `semantic_analyzer.rs` and `ir_generator.rs`. Parser, raw IR,
+  verifier, codegen, CLI, runtime, workflow, dependency, backend, artifact, and claim
+  surfaces stay untouched.
+- Classification: rejection is containment, not support. It defines no reference,
+  array, tuple, default, mutability, ownership, lifetime, layout, ABI, bounds,
+  lowering, execution, backend, or compatibility meaning. R-002 remains HIGH/
+  CRITICAL and PARTIALLY CONTROLLED; R-011 remains open; no classification moves.
 
 ## Exact next action
 
-Obtain three exact reviews for the locally green six-record AUDIT-042 authorization,
-publish the immutable authorization unchanged, and require all eight public checks
-before read-only ranking. Do not edit source/tests, inherit a prior candidate order,
-resolve bounds policy implicitly, promote a capability, change workflows/
+The prepared six-record CORE-036 authorization's fresh exact repository-root full
+gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding
+tests. Rerun the exact gate as verification, commit only the six control records,
+obtain three exact reviews, publish the immutable authorization unchanged, and
+require all eight public checks before the tests-only edit. Do not edit source/tests
+yet, resolve bounds policy implicitly, promote a capability, change workflows/
 dependencies/backends, publish artifacts or claims, rewrite history, force-push, or
 touch `master`.
 

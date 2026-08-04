@@ -835,3 +835,46 @@ First authorization snapshot `4ce0de0d`, tree `350984b8`, canonical diff
 head publication because PROJECT_STATE retained completed CORE-035 semantics as the
 active hypothesis and DEC-046 retained pending-closure status. The snapshot remains
 in corrected authorization ancestry; no ranking began and no risk status changed.
+
+Corrected AUDIT-042 authorization `2d8a0c54`, tree `45d1c184`, correction canonical
+diff `b36d3d9b`, and cumulative canonical diff from CORE-035 closure `478e947a`,
+passed two fresh exact full gates, received three fresh exact approvals, and is public
+all-eight green in compiler `30924946683` / `30924950615`, stable/nightly Rust
+`30924951134`, all three CodeQL analyses in `30924945035`, and aggregate
+`92044919183`.
+
+AUDIT-042 completed read-only on that immutable head. Type/safety selected valueless
+exact nonrecursive reference-array-tuple U; IR/codegen selected valueless exact
+three-array tuple T; backend/claim selected direct nonnegative scalar-literal array
+bounds B. Type/safety and IR/codegen ranked U > T > B and stopped B on unresolved
+compile-time-versus-runtime policy; backend/claim ranked B > U > T. The lead selected
+U two to one, and all three final compatibility reviews approved only exact U within
+semantic analysis and checked IR admission. B remains stopped and T remains a bounded
+fallback. No edit, test, build, probe, artifact, hardware action, external query,
+risk status, matrix cell, capability, backend, or claim changed.
+
+Preregistered CORE-036 may fail closed only a valueless exact nonrecursive
+`Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)` for both flags and
+all counts, after semantic duplicate and existing tuple-shape diagnostics and before
+fallback insertion or raw generation. Its first authorized test edit must reclassify
+all four existing acceptance occurrence blocks containing five exact-U source rows,
+expose exactly 34 false acceptances, and retain exactly 40 green preservation
+observations. Focused 0/1 and binding 24/25 must be the sole expected red after
+139/139 library, 149/149 binary, and 7/7 claim suites pass. Implementation is limited
+to the semantic analyzer and checked IR generator after separately reviewed public-
+red evidence.
+
+The principal CORE-036 regression risks are incomplete acceptance-row
+reclassification, recursive shape matching, consuming initialized/count-zero,
+deeper/wrapped/mixed/scalar/numeric-array controls, disturbing earlier diagnostic
+precedence, crossing the checked generic-function or syntax-only trait-default
+boundaries, or treating rejection as supported reference/array/tuple/default/
+ownership/layout/ABI/bounds/execution semantics. Any different observation count or
+diagnostic, phase expansion, or semantic/compatibility/valid-output decision is a
+stop. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 stays open pending
+bounds policy; every other risk status and claim boundary remains unchanged.
+
+The prepared six-record CORE-036 authorization's fresh exact repository-root full
+gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding
+tests. A verification gate, three exact approvals, unchanged publication, and public
+all-eight checks remain required before the tests-only change; no risk status moves.

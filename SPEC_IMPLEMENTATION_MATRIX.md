@@ -726,3 +726,30 @@ declared compatibility policy and release-level coverage.
   `347278c3`, passed that gate but was rejected before independent push or branch-
   head publication for stale active-hypothesis and closure-status wording. It remains
   in corrected ancestry; ranking did not begin and no matrix cell moves.
+- Corrected AUDIT-042 authorization `2d8a0c54`, tree `45d1c184`, correction canonical
+  diff `b36d3d9b`, and cumulative canonical diff `478e947a`, is triple-approved and
+  public all-eight green in compiler `30924946683` / `30924950615`, stable/nightly
+  Rust `30924951134`, all three CodeQL analyses in `30924945035`, and aggregate
+  `92044919183`.
+- Three complete rankings selected U/T/B respectively. Targeted comparison selected
+  valueless exact nonrecursive `Reference(Array(Tuple))` U two to one; all three
+  final compatibility reviews approved only that exact two-phase containment. Direct
+  literal bounds B remains stopped pending compile-time-versus-runtime policy;
+  valueless exact three-array tuple T remains a bounded fallback. AUDIT-042 was read-
+  only and moves no matrix row or cell.
+- Preregistered CORE-036 may reject only a valueless exact nonrecursive
+  `Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)` for both flags and
+  all counts at semantic and checked-admission boundaries, after existing duplicate/
+  tuple-shape diagnostics and before fallback/raw generation. Its tests-first file
+  must reclassify all four existing acceptance occurrence blocks/five exact source
+  rows, expose exactly 34 false acceptances, and preserve exactly 40 observations.
+  Implementation remains two exact guards after separately reviewed public-red
+  evidence.
+- That proposed rejection supplies no reference, array, tuple, default, mutability,
+  ownership, lifetime, layout, ABI, bounds, lowering, execution, or backend support.
+  Initialized count-zero behavior remains unchanged. Every matrix row and cell,
+  including tuples parsed-only, references/fixed arrays partial, bounds unresolved,
+  and CPU/ROCm/CUDA separated, remains exactly unchanged. Authorization must be
+  triple-approved, published unchanged, and public all-eight green before tests-first
+  work. Its fresh exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7
+  claim, and 24/24 binding tests; a verification gate remains before review.
