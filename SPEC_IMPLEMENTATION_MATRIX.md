@@ -773,6 +773,11 @@ declared compatibility policy and release-level coverage.
   and cell remains unchanged: tuples parsed-only, references/fixed arrays partial,
   bounds unresolved, and CPU/ROCm/CUDA separated. R-002 stays HIGH/CRITICAL and
   PARTIALLY CONTROLLED; R-011 stays open. The prepared six-record closure requires
-  its own reviews, unchanged publication, and public checks before closure. Its fresh
-  exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
-  binding tests; a verification gate remains before review.
+  its own reviews, unchanged publication, and public checks before closure. The
+  additively corrected six-record tree's fresh and verification exact full gates each
+  exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests.
+- First closure snapshot `39c8564b`, tree `7932dd42`, canonical binary diff
+  `2cb44b26`, passed two gates but received two P1 rejections because PROJECT_STATE's
+  current implementation pointer remained at CORE-035 `b8fd5a17`. It was not
+  independently published. The additive corrected closure names `26d18924`,
+  preserves the rejected snapshot in ancestry, and moves no matrix row or cell.

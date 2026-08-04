@@ -902,7 +902,15 @@ CORE-036 narrows one false-success subset but does not resolve the broader unsup
 type/ownership/memory surface or bounds policy. R-002 remains HIGH/CRITICAL and
 PARTIALLY CONTROLLED; R-011 remains open. Every other risk status, matrix cell,
 capability class, backend distinction, artifact boundary, and claim remains
-unchanged. The six-record closure is prepared and requires its own full gate, three
-reviews, unchanged publication, and all-eight public checks before closure. Its fresh
-exact full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
-binding tests; a verification gate remains before review. No risk status moves.
+unchanged. The six-record closure is prepared and requires its own gates, three
+reviews, unchanged publication, and all-eight public checks before closure. The
+additively corrected six-record tree's fresh and verification exact full gates each
+exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests. No
+risk status moves.
+
+First closure snapshot `39c8564b`, tree `7932dd42`, canonical binary diff
+`2cb44b26`, passed two exact gates. Type/safety approved; IR/codegen and backend/
+claim each rejected at P1 because PROJECT_STATE still named CORE-035 `b8fd5a17` as
+the current public implementation. It was not independently published and remains in
+corrected ancestry. The additive correction names `26d18924` and changes no risk
+status, backend distinction, artifact boundary, or claim.

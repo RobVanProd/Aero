@@ -1723,6 +1723,13 @@ promise future compatibility.
   R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 remains open; no
   backend, hardware-execution, artifact, matrix, capability, or claim class moves.
 - A six-record closure is prepared from clean public all-eight-green implementation
-  `26d18924`. Its fresh exact full gate exits 0 with 139/139 library, 149/149 binary,
-  7/7 claim, and 25/25 binding tests. A verification gate, three approvals, unchanged
-  publication, and all-eight checks remain required before CORE-036 is closed.
+  `26d18924`. The additively corrected six-record tree's fresh and verification exact
+  full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+  binding tests. Three approvals, unchanged publication, and all-eight checks remain
+  required before CORE-036 is closed.
+- First closure snapshot `39c8564b`, tree `7932dd42`, canonical binary diff
+  `2cb44b26`, passed two gates but was rejected before independent publication. Type/
+  safety approved; IR/codegen and backend/claim found P1 stale PROJECT_STATE current-
+  implementation authority at CORE-035 `b8fd5a17`. The corrected ancestry preserves
+  that snapshot and now points to public CORE-036 implementation `26d18924`; no
+  capability class moves.

@@ -2281,5 +2281,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   defines no reference, array, tuple, default, ownership, lifetime, layout, ABI,
   bounds, lowering, execution, backend, matrix, capability, risk, or stability
   meaning. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 stays open.
-- Closure gate: the prepared six-record closure's fresh exact full gate exits 0 with
-  139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests.
+- Closure gates: the additively corrected six-record closure's fresh and verification
+  exact full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  25/25 binding tests.
+- Closure correction: first snapshot `39c8564b`, tree `7932dd42`, canonical binary
+  diff `2cb44b26`, passed two exact gates. Type/safety approved; IR/codegen and
+  backend/claim rejected at P1 because PROJECT_STATE retained CORE-035 `b8fd5a17` as
+  the current public implementation. It was not independently published and remains
+  in corrected ancestry. The additive correction points current implementation state
+  to `26d18924` without changing this decision or any classification.

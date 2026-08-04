@@ -53,12 +53,12 @@ capability claims are stop conditions rather than implementation invitations.
 - Current branch: `agent/aero-integration`
 - Public draft PR: `https://github.com/RobVanProd/Aero/pull/4`
 - Current public implementation head:
-  `b8fd5a177d4916baf9a850f0857a83d57d71db66`, parent `f04e80c9`, tree
-  `77bd2536989e72dfd695b670ebf11f1d50177ea2`, canonical diff
-  `2f1e992029ff2a12f64ab450012803971e68fc4f`. The exact two-file CORE-035
-  implementation is triple-approved; compiler `30922853658` / `30922859177`,
-  stable/nightly Rust `30922863203`, all three CodeQL analyses in `30922853619`,
-  and aggregate `92037794056` pass.
+  `26d18924a7fe59eb99a6ed40de2f435b30093c7b`, parent `d52b117e`, tree
+  `8aec746cd3786eb839b7df705c26726d8341e9fa`, canonical binary diff
+  `543f8a1ccb8d737587877d0886614d48fe747881`. The exact two-file CORE-036
+  implementation is triple-approved; compiler `30928759703` / `30928760789`,
+  stable/nightly Rust `30928758562`, all three CodeQL analyses in `30928754859`,
+  and aggregate `92057919831` pass.
 - Accepted public CORE-035 closure:
   `60ad91f7d6ab3d9881346ab5b98f1d0e161d6629`, parent `b8fd5a17`, tree
   `978aa98fbab94ebc1a949a3e4f7eb023ee922281`, canonical diff
@@ -1423,16 +1423,25 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 - Closure boundary: only the six control records may change. A fresh exact full gate,
   three exact reviews, unchanged publication, and all eight public checks are
   required before CORE-036 is closed.
+- Correction history: first closure snapshot `39c8564b`, parent `26d18924`, tree
+  `7932dd42`, canonical binary diff `2cb44b26`, changed only six records and passed
+  two exact full gates. Type/safety approved, but IR/codegen and backend/claim each
+  rejected it at P1 because Repository state still named CORE-035 `b8fd5a17` as the
+  current public implementation head. The rejected snapshot was not independently
+  pushed or made branch head. It remains in corrected ancestry; this additive
+  correction updates the current pointer to `26d18924` and changes no evidence,
+  semantics, implementation, classification, or authority boundary.
 
 ## Exact next action
 
-The prepared six-record CORE-036 closure's fresh exact repository-root full gate
-exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests.
-Rerun the exact gate as verification, commit only the six control records, obtain
-three exact reviews, publish unchanged, and require all eight public checks before
+The additively corrected six-record CORE-036 closure's fresh and verification exact
+repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
+claim, and 25/25 binding tests. Commit only the six control records, obtain three
+fresh exact reviews, publish unchanged, and require all eight public checks before
 declaring CORE-036 closed. Do not edit source/tests, start another residual, resolve
-bounds policy implicitly, promote a capability, change workflows/dependencies/
-backends, publish artifacts or claims, rewrite history, force-push, or touch master.
+bounds policy implicitly, promote a capability, change
+workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
+push, or touch `master`.
 
 ## Unauthorized actions
 

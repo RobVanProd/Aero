@@ -6644,7 +6644,18 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   PARTIALLY CONTROLLED; R-011 remains open; no matrix, capability, backend, artifact,
   claim, history, or `master` state moves.
 - Status: implementation is triple-approved and public all-eight green at
-  `26d18924`; the six-record closure is prepared from that clean head. Its fresh exact
-  full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
-  binding tests. A verification gate, three exact reviews, unchanged publication,
-  and public all-eight checks remain before CORE-036 is closed.
+  `26d18924`; the six-record closure is prepared from that clean head. The additively
+  corrected six-record tree's fresh and verification exact full gates each exit 0
+  with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests. Three
+  exact reviews, unchanged publication, and public all-eight checks remain before
+  CORE-036 is closed.
+- Correction history: first closure snapshot
+  `39c8564bbc6800bf15bb3394dcd0e49030476889`, parent `26d18924`, tree
+  `7932dd42099a6a6bd6eae71bf21f92a0ee2132f5`, canonical binary diff
+  `2cb44b26698ec5ca77ce275f395b93a8d336e77c`, changed only six records and passed
+  two exact full gates. Type/safety approved, but IR/codegen and backend/claim each
+  rejected it at P1 because PROJECT_STATE's Repository state retained CORE-035
+  implementation `b8fd5a17` as the current public implementation head. The snapshot
+  was not independently pushed or made branch head and remains in corrected ancestry.
+  This additive correction names exact public CORE-036 implementation `26d18924` and
+  changes no task, evidence, semantics, implementation, or classification boundary.
