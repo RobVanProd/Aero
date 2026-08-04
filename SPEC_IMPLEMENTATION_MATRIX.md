@@ -589,7 +589,13 @@ declared compatibility policy and release-level coverage.
 - First six-record closure snapshot `fe90f583`, tree `90ac8ae6`, canonical diff
   `89fe6824`, changed only the control records and passed its exact gate with
   139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received
-  two approvals but was rejected unpublished because stale PROJECT_STATE wording
-  could reopen tests-first and implementation. Corrected records change no matrix
-  cell; their fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
-  claim, and 22/22 binding tests. Exact review and public gates remain.
+  two approvals but was rejected before independent push or branch-head publication
+  because stale PROJECT_STATE wording could reopen tests-first and implementation.
+  First correction `19f688a`, tree `9d9c642f`, canonical diff `f885588c`, fixed the
+  wording, passed the same gate, received three approvals, and is public all-eight
+  green in compiler `30893002336` / `30893005706`, Rust `30893006634`, CodeQL
+  `30893002479`, and aggregate `91939375982`. Its linear push also made rejected
+  parent `fe90f583` publicly reachable as an ancestor, invalidating the stronger
+  never-published wording. Final additive correction changes no matrix cell; exact
+  gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding
+  tests. Exact review and public gates remain.

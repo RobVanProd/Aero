@@ -665,7 +665,13 @@ unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
 First CORE-033 six-record closure snapshot `fe90f583`, tree `90ac8ae6`, canonical
 diff `89fe6824`, changed only the control records and passed its exact gate with
 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received two
-approvals but was rejected unpublished at P1 because stale PROJECT_STATE wording
-could reopen tests-first and implementation. Corrected records make that chronology
-historical; their fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
-claim, and 22/22 binding tests. Review/public gates remain; no risk status changes.
+approvals but was rejected at P1 before independent push or branch-head publication
+because stale PROJECT_STATE wording could reopen tests-first and implementation.
+First correction `19f688a`, tree `9d9c642f`, canonical diff `f885588c`, made that
+chronology historical, passed the exact gate, received three approvals, and is
+public all-eight green in compiler `30893002336` / `30893005706`, Rust
+`30893006634`, CodeQL `30893002479`, and aggregate `91939375982`. Its linear push
+also made `fe90f583` publicly reachable as an ancestor, so never-published wording
+was inaccurate and closure was withheld. Final additive record correction and its
+fresh exact gate exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22
+binding tests are recorded; review/public checks remain and no risk status changes.

@@ -5930,9 +5930,25 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   records and passed its exact gate with 139/139 library, 149/149 binary, 7/7 claim,
   and 22/22 binding tests. Type/safety and backend/claim approved, but IR/codegen
   rejected at P1 because a late PROJECT_STATE subsection still said tests-first
-  must occur and tests/implementation had not begun. It was never published.
+  must occur and tests/implementation had not begun. It was rejected before any
+  independent push or branch-head publication.
+- First correction `19f688a9974d89a5b208a021c30e8932d590d59e`, parent
+  `fe90f583`, tree `9d9c642fa49e7117f35b16111cbe15012ff00118`, canonical
+  diff `f885588c1823f05183bdec0e71f999ea49037cb5`, converted the stale section to
+  accepted history and recorded the rejected snapshot across all six records. Its
+  fresh exact gate exited 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  22/22 binding tests; three reviewers approved, and it was pushed as branch head.
+  Compiler `30893002336` / `30893005706`, stable/nightly Rust `30893006634`, all
+  three CodeQL analyses in `30893002479`, and aggregate `91939375982` pass.
+- Ancestry correction: immediately after that push, the lead identified that
+  `19f688a` was committed linearly atop `fe90f583`. The push therefore made the
+  rejected snapshot publicly reachable as an ancestor even though it had never
+  been pushed independently or made branch head. `19f688a` still said it was never
+  published, so closure was not accepted despite its reviews and green checks. No
+  force-push or history rewrite is permitted; the final record correction must state
+  the ancestry exactly.
 - Status: implementation remains complete and public all-eight green at `76a6e802`.
-  Corrected six-record closure preparation fixes only that stale state chronology;
-  its fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and
-  22/22 binding tests. Three reviews, unchanged publication, and all eight public
-  checks remain required before another audit or implementation authorization.
+  Final six-record ancestry correction is the only current action; its fresh exact
+  gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding
+  tests. Three reviews, unchanged publication, and all eight public checks remain
+  required before another audit or implementation authorization.

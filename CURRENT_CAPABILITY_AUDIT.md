@@ -1456,8 +1456,14 @@ promise future compatibility.
 - First six-record closure snapshot `fe90f583`, tree `90ac8ae6`, canonical diff
   `89fe6824`, changed only the control records and passed its exact gate with
   139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received
-  two approvals but was rejected unpublished at P1 because PROJECT_STATE retained
-  stale future tests/implementation wording. Corrected records make that chronology
-  historical; their fresh exact gate exits 0 with 139/139 library, 149/149 binary,
-  7/7 claim, and 22/22 binding tests. Review, unchanged publication, and all eight
-  public checks remain before closure acceptance.
+  two approvals but was rejected at P1 before independent push or branch-head
+  publication because PROJECT_STATE retained stale future tests/implementation
+  wording. First correction `19f688a`, tree `9d9c642f`, canonical diff `f885588c`,
+  made that chronology historical, passed the same exact gate, received three
+  approvals, and was pushed. Compiler `30893002336` / `30893005706`, Rust
+  `30893006634`, CodeQL `30893002479`, and aggregate `91939375982` pass. That push
+  also made rejected parent `fe90f583` publicly reachable as an ancestor, so its
+  never-published wording was inaccurate and closure was withheld. Additive record
+  correction has fresh exact gate exit 0 with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests; exact review, unchanged publication, and all eight
+  checks remain.

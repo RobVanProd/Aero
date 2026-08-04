@@ -7,11 +7,12 @@ Last updated: 2026-08-04 (America/New_York)
 Milestone 46 `CORE-033` record closure. Authorization, corrected tests-first
 evidence, and the exact two-phase implementation are complete. Accepted
 implementation `76a6e802` is public all-eight green; immediate work is limited to
-the prepared six closure/control records, their exact reviews, and unchanged
-publication. The corrected record tree requires a fresh exact gate after the first
-snapshot was rejected unpublished for stale state wording; that corrected gate
-exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
-No next residual or implementation is authorized.
+the final six-record ancestry correction, its exact gate and reviews, and unchanged
+publication. Closure commit `19f688a` is public all-eight green but not accepted:
+its linear push made rejected parent `fe90f583` publicly reachable while its records
+said that parent was never published. The final correction's fresh exact gate exits
+0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. No next
+residual or implementation is authorized.
 
 ## Active hypothesis
 
@@ -1022,18 +1023,27 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   It remained unpublished; the corrected records keep both historical identities
   unambiguous.
 - First closure snapshot `fe90f583`, tree `90ac8ae6`, canonical diff `89fe6824`,
-  passed its exact gate and received two approvals but was rejected unpublished at
-  P1 because this section still described tests-first as mandatory future work and
-  said tests/implementation had not begun. The corrected section above records the
-  accepted chronology and cannot reopen source or test work.
+  passed its exact gate and received two approvals but was rejected at P1 before any
+  independent push or branch-head publication because this section still described
+  tests-first as mandatory future work and said tests/implementation had not begun.
+  First correction `19f688a`, tree `9d9c642f`, canonical diff `f885588c`, records
+  accepted chronology, passed the exact gate, received three approvals, and was
+  pushed. Compiler `30893002336` / `30893005706`, Rust `30893006634`, CodeQL
+  `30893002479`, and aggregate `91939375982` pass.
+- Because `19f688a` was committed linearly atop `fe90f583`, its push also made the
+  rejected snapshot publicly reachable as an ancestor. The lead identified that
+  `19f688a`'s never-published wording was therefore inaccurate, withheld closure
+  acceptance, and retained published history. Final additive record correction must
+  state this ancestry exactly; it cannot reopen source or test work.
 
 ## Exact next action
 
-Freeze the exact six-record CORE-033 closure, obtain three exact reviews, publish
-that immutable record tree unchanged, and require all eight public checks. Do not
-select another residual, edit compiler or test source, broaden beyond initialized
-exact two-array depth, change diagnostic precedence, promote a capability, change
-workflows/dependencies/backends, publish artifacts or claims, or touch `master`.
+Freeze the final six-record CORE-033 ancestry correction, obtain three exact reviews,
+publish that immutable record tree unchanged, and require all eight public checks.
+Do not select another residual, edit compiler or test source, broaden beyond
+initialized exact two-array depth, change diagnostic precedence, promote a
+capability, change workflows/dependencies/backends, publish artifacts or claims,
+rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

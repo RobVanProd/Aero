@@ -1904,9 +1904,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 
 - Date: 2026-08-04
 - Status: accepted implementation public all-eight green at `76a6e802`; corrected
-  six-record closure prepared after an unpublished record rejection, awaiting its
-  exact reviews and publication gates. Its fresh full gate exits 0 with 139/139
-  library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
+  closure is not yet accepted because the first rejected snapshot became publicly
+  reachable through the later correction's linear ancestry. Final record correction
+  has fresh exact gate exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
+  22/22 binding tests; reviews and publication gates remain.
 - Decision: for an initialized binding whose annotation is exactly nonrecursive
   `Type::Array(Type::Array(Type::Tuple(_), _), _)`, validate the initializer and
   preserve existing initialized outer/immediate tuple diagnostics, then reject in
@@ -1957,8 +1958,15 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Closure review history: first snapshot `fe90f583`, tree `90ac8ae6`, canonical diff
   `89fe6824`, changed only the six control records and passed its exact gate with
   139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received
-  two approvals but was rejected unpublished at P1 because a late PROJECT_STATE
-  subsection still treated tests-first and implementation as future work. Corrected
-  records make that chronology historical; their fresh exact gate exits 0 with
-  139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. Exact review
-  and public gates remain required.
+  two approvals but was rejected at P1 before any independent push or branch-head
+  publication because a late PROJECT_STATE subsection still treated tests-first and
+  implementation as future work. First correction `19f688a`, tree `9d9c642f`,
+  canonical diff `f885588c`, made that chronology historical, passed the same exact
+  gate, received three approvals, and was pushed. Compiler `30893002336` /
+  `30893005706`, Rust `30893006634`, CodeQL `30893002479`, and aggregate
+  `91939375982` pass. Because `19f688a` was linear atop `fe90f583`, that push also
+  made the rejected snapshot reachable as an ancestor, contradicting `19f688a`'s
+  stronger never-published wording. The lead withheld closure acceptance and chose
+  additive record correction rather than force-push or history rewrite. The final
+  correction's fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
+  claim, and 22/22 binding tests; exact review and public checks remain.
