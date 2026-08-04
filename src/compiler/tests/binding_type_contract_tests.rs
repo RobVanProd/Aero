@@ -779,10 +779,6 @@ fn tuple_annotations_fail_closed_before_binding_insertion_or_generation() {
     let outer_shape_controls = [
         ("scalar", "fn main() { let value: int; }"),
         (
-            "array containing tuple",
-            "fn main() { let value: [(int, float); 1]; }",
-        ),
-        (
             "generic containing tuple",
             "fn main() { let value: Vec<(int, float)>; }",
         ),
@@ -884,10 +880,6 @@ fn immediate_reference_to_tuple_annotations_fail_closed_before_integer_fallback(
             "fn main() { let value: &mut int; }",
         ),
         (
-            "array containing tuple",
-            "fn main() { let value: [(int, float); 1]; }",
-        ),
-        (
             "generic containing tuple",
             "fn main() { let value: Vec<(int, float)>; }",
         ),
@@ -920,6 +912,128 @@ fn immediate_reference_to_tuple_annotations_fail_closed_before_integer_fallback(
             checked_source(source),
         );
     }
+
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn valueless_immediate_array_of_tuple_annotation_fails_closed_before_integer_fallback() {
+    const NONZERO_SOURCE: &str = "fn main() { let value: [(int, float); 1]; }";
+    const ZERO_SOURCE: &str = "fn main() { let value: [(int, float); 0]; }";
+    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding.";
+    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding";
+    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding.";
+
+    let mut failures = Vec::new();
+    for (label, source) in [
+        ("nonzero count", NONZERO_SOURCE),
+        ("zero count", ZERO_SOURCE),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} direct semantics"),
+            semantic_result(source),
+            SEMANTIC_ERROR,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            CHECKED_ERROR,
+        );
+    }
+
+    let public_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(NONZERO_SOURCE, CompilerOptions::default())
+    })) {
+        Err(_) => Err("compile_program unwound".to_string()),
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_exact_rejection(
+        &mut failures,
+        "public compilation",
+        public_result,
+        PUBLIC_ERROR,
+    );
+
+    expect_exact_rejection(
+        &mut failures,
+        "duplicate semantic precedence",
+        semantic_result("fn main() { let value = 1; let value: [(int, float); 1]; }"),
+        "Error: Variable `value` is already defined in this scope.",
+    );
+
+    for (label, source) in [
+        ("scalar array", "fn main() { let value: [int; 1]; }"),
+        (
+            "generic containing tuple",
+            "fn main() { let value: Vec<(int, float)>; }",
+        ),
+        (
+            "deeper array containing tuple",
+            "fn main() { let value: [[(int, float); 1]; 1]; }",
+        ),
+        (
+            "reference containing array containing tuple",
+            "fn main() { let value: &[(int, float); 1]; }",
+        ),
+        (
+            "initialized immediate array containing tuple",
+            "fn main() { let value: [(int, float); 1] = 1; }",
+        ),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+        );
+    }
+
+    expect_exact_rejection(
+        &mut failures,
+        "accepted outer-tuple semantic diagnostic",
+        semantic_result("fn main() { let value: (int, float); }"),
+        "Error: Variable `value` uses an unsupported tuple type annotation for an uninitialized binding.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "accepted outer-tuple checked diagnostic",
+        checked_source("fn main() { let value: (int, float); }"),
+        "checked IR binding `value` uses an unsupported tuple type annotation for an uninitialized binding",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "accepted immediate reference-to-tuple semantic diagnostic",
+        semantic_result("fn main() { let value: &(int, float); }"),
+        "Error: Variable `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding.",
+    );
+    expect_exact_rejection(
+        &mut failures,
+        "accepted immediate reference-to-tuple checked diagnostic",
+        checked_source("fn main() { let value: &(int, float); }"),
+        "checked IR binding `value` uses an unsupported tuple type annotation directly beneath a reference for an uninitialized binding",
+    );
+
+    let valid_result = match catch_unwind(AssertUnwindSafe(|| {
+        compile_program(
+            "fn main() { let values: [int; 1] = [1]; let first = values[0]; println!(\"{}\", first); }",
+            CompilerOptions::default(),
+        )
+    })) {
+        Err(_) => Err("valid compile_program unwound".to_string()),
+        Ok(Ok(llvm)) if llvm.is_empty() => {
+            Err("valid compile_program returned empty LLVM".to_string())
+        }
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(error)) => Err(error),
+    };
+    expect_acceptance(&mut failures, "valid numeric-array output", valid_result);
 
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
