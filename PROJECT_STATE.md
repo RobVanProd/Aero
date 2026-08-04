@@ -1470,15 +1470,22 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   compiler phases, hardware dependence, unsupported valid-output claim, or inability
   to specify deterministic tests-first evidence. Bounds candidate B remains stopped
   while compile-time rejection versus runtime behavior is unfrozen.
+- Correction history: first authorization snapshot `cb43d1bb`, parent `3f042e18`,
+  tree `f0f19f5d`, canonical binary diff `ead99a7b`, changed only six records and
+  passed both gates. All three reviewers rejected it at P1 because DEC-049 status
+  still called the completed gates required; type/safety also found “next immutable
+  snapshot” stale for the already-committed review target. It was not published and
+  no ranking began. The additive correction aligns current state and changes no
+  other boundary.
 
 ## Exact next action
 
-The prepared six-record AUDIT-043 authorization's fresh and verification exact
-repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
-claim, and 25/25 binding tests, plus all downstream suites. The next immutable
-snapshot must contain only the six control records; obtain three exact reviews of
-that snapshot, publish it unchanged, and require all eight public checks before any
-ranking begins. Do not edit source/tests, rank a residual early, resolve
+The additively corrected six-record AUDIT-043 authorization's fresh exact repository-
+root full gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+binding tests, plus all downstream suites. The committed HEAD is the immutable six-
+record review snapshot. Obtain three fresh exact reviews of that HEAD, publish it
+unchanged, and require all eight public checks before any ranking begins. Do not edit
+source/tests, rank a residual early, resolve
 bounds policy implicitly, promote a capability, change
 workflows/dependencies/backends, publish artifacts or claims, rewrite history, force-
 push, or touch `master`.

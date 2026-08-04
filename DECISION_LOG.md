@@ -2308,8 +2308,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-049 - Authorize clean-head read-only AUDIT-043 after CORE-036
 
 - Date: 2026-08-04
-- Status: prepared authorization only; local gates, exact review, unchanged
-  publication, and public all-eight acceptance remain required before ranking.
+- Status: prepared authorization only; fresh and verification local gates are green.
+  Exact review, unchanged publication, and public all-eight acceptance remain
+  required before ranking.
 - Decision: authorize only a static, read-only, independent re-ranking of the complete
   remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
   from exact clean public CORE-036 closure `3f042e18`. Exclude every accepted slice
@@ -2331,3 +2332,14 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   repository-root full gates each exit 0 with 139/139 library, 149/149 binary, 7/7
   claim, and 25/25 binding tests, plus all downstream suites. Exact review and public
   acceptance remain pending.
+- Correction history: first authorization snapshot `cb43d1bb`, parent `3f042e18`,
+  tree `f0f19f5d`, canonical binary diff `ead99a7b`, changed only six records and
+  passed both exact gates. All three reviewers rejected it at P1 because this
+  decision's status still called those completed gates required; type/safety also
+  found PROJECT_STATE's “next immutable snapshot” wording stale for the already-
+  committed review target. It was not published and no ranking began. The additive
+  correction aligns current state and changes no authority, semantics,
+  classification, or public claim.
+- Additive correction gate: the fresh exact repository-root full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. Fresh review and public acceptance remain pending.

@@ -1761,3 +1761,11 @@ promise future compatibility.
   each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding
   tests, plus all downstream suites. Exact review, unchanged publication, and public
   all-eight acceptance remain pending; no ranking has begun.
+- First authorization snapshot `cb43d1bb`, tree `f0f19f5d`, canonical binary diff
+  `ead99a7b`, passed both gates but all three reviewers rejected P1 because DEC-049
+  status still called them required; type/safety also found stale “next immutable
+  snapshot” wording. Nothing was published and no ranking began. The additive
+  correction changes no capability class or authority.
+- The additive correction's fresh exact full gate exits 0 with 139/139 library,
+  149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
+  Fresh review and public acceptance remain pending; no capability class moves.

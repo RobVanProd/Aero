@@ -804,3 +804,11 @@ declared compatibility policy and release-level coverage.
   with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
   downstream suites. Exact review and public acceptance remain pending; no matrix row
   or cell moves.
+- First authorization snapshot `cb43d1bb`, tree `f0f19f5d`, canonical binary diff
+  `ead99a7b`, passed both gates but all three reviewers rejected P1 because DEC-049
+  status still called them required; type/safety also found stale “next immutable
+  snapshot” wording. Nothing was published and no ranking began. The additive
+  correction moves no matrix row or cell.
+- Its fresh exact repository-root full gate exits 0 with 139/139 library, 149/149
+  binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. Fresh review
+  and public acceptance remain pending; no matrix row or cell moves.

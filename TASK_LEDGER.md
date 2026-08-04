@@ -6745,3 +6745,18 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   exact full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
   25/25 binding tests, plus all downstream suites. Three reviews, unchanged
   publication, and public all-eight checks remain required.
+- Correction history: first authorization snapshot
+  `cb43d1bb94bfcf6070ae457946bcda4b46b342c1`, parent `3f042e18`, tree
+  `f0f19f5d848583b10a6d43936505496424e140e4`, canonical binary diff
+  `ead99a7bb601e6f8cbf04574f68aa9d23fb17898`, changed only the six control
+  records with 244 insertions and 48 deletions and passed both exact gates. All three
+  reviewers rejected it at P1 because DEC-049 status still called the completed gates
+  required; type/safety additionally found PROJECT_STATE's “next immutable snapshot”
+  wording stale for the committed review target. The snapshot was not published, no
+  ranking began, and it remains in corrected ancestry. The additive correction aligns
+  current state with gate evidence and changes no task, authority, semantics,
+  implementation, classification, or claim boundary.
+- Additive correction gate: the fresh exact repository-root full gate exits 0 with
+  139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+  downstream suites. The corrected committed HEAD is the immutable review snapshot;
+  three fresh reviews, unchanged publication, and public all-eight acceptance remain.

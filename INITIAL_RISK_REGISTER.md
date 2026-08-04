@@ -946,3 +946,14 @@ full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/2
 binding tests, plus all downstream suites. Exact review, unchanged publication, and
 public all-eight acceptance remain pending. No risk status changes and no ranking has
 begun.
+
+First authorization snapshot `cb43d1bb`, tree `f0f19f5d`, canonical binary diff
+`ead99a7b`, passed both gates but all three reviewers rejected P1 because DEC-049
+status still called them required; type/safety also found stale “next immutable
+snapshot” wording. It was not published and no ranking began. The additive correction
+changes no risk status, backend distinction, artifact boundary, claim, or authority.
+
+The additive correction's fresh exact repository-root full gate exits 0 with 139/139
+library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream
+suites. Fresh review, unchanged publication, and public all-eight acceptance remain.
+No risk status changes and no ranking has begun.
