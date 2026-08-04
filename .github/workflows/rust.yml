@@ -179,6 +179,24 @@ jobs:
         fi
         echo "typed_empty_numeric_arrays test passed with exit code $exit_code"
 
+    - name: Test fixed numeric array static length example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/fixed_numeric_array_len.aero -o ../../fixed_numeric_array_len.ll
+        opt-22 -passes=verify -disable-output ../../fixed_numeric_array_len.ll
+        llc-22 -verify-machineinstrs ../../fixed_numeric_array_len.ll -o /dev/null
+        llc-22 -filetype=obj ../../fixed_numeric_array_len.ll -o ../../fixed_numeric_array_len.o
+        clang-22 ../../fixed_numeric_array_len.o -o ../../fixed_numeric_array_len
+        set +e
+        ../../fixed_numeric_array_len
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 37 ]; then
+          echo "Expected exit code 37, got $exit_code"
+          exit 1
+        fi
+        echo "fixed_numeric_array_len test passed with exit code $exit_code"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

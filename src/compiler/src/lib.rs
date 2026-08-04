@@ -4,6 +4,7 @@ mod binding_annotation;
 mod code_generator;
 pub mod conformance;
 pub mod errors;
+mod fixed_array_method;
 pub mod gpu;
 pub mod graph_compiler;
 mod ir;

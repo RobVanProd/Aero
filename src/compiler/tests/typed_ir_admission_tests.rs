@@ -413,12 +413,6 @@ fn checked_admission_reports_panicking_scalar_sources_without_unwind() {
 fn checked_admission_rejects_fabricated_scalar_fallbacks() {
     let cases = [
         RejectionCase {
-            name: "ordinary array method",
-            source: "fn main() { let values = [1, 2]; let count = values.len(); }",
-            expected_prefix: "IR Generation Error:",
-            check_cli: true,
-        },
-        RejectionCase {
             name: "custom enum construction",
             source: "enum Choice { Number(int) } fn main() { let choice = Choice::Number(7); }",
             expected_prefix: "IR Generation Error:",

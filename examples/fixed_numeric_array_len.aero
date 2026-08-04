@@ -1,0 +1,19 @@
+fn main() -> int {
+    let ints: [int; 0] = [];
+    let mut ints_mut: [int; 1] = [1; 1];
+    let i32s: [i32; 2] = [1, 2];
+    let mut i32s_mut: [i32; 3] = [1; 3];
+    let floats: [float; 4] = [1.0, 2.0, 3.0, 4.0];
+    let mut floats_mut: [float; 5] = [1.0; 5];
+    let f64s: [f64; 6] = [2.0; 6];
+    let mut f64s_mut: [f64; 16] = [3.0; 16];
+
+    return ints.len()
+        + ints_mut.len()
+        + i32s.len()
+        + i32s_mut.len()
+        + floats.len()
+        + floats_mut.len()
+        + f64s.len()
+        + f64s_mut.len();
+}

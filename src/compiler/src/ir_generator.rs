@@ -3,6 +3,9 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
     typed_empty_numeric_array_contract,
 };
+use crate::fixed_array_method::{
+    FixedNumericArrayLenDisposition, classify_fixed_numeric_array_len,
+};
 use crate::ir::{Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::types::{Ty, needs_promotion};
@@ -335,6 +338,7 @@ impl IrGenerator {
                 bindings,
                 top_level_functions,
                 ExpressionUse::Value,
+                inside_impl,
             )?;
         }
         Ok(())
@@ -376,6 +380,7 @@ impl IrGenerator {
                             bindings,
                             top_level_functions,
                             ExpressionUse::Binding,
+                            inside_impl,
                         )?
                     } else if let Some(contract) = type_annotation.as_ref().and_then(|annotation| {
                         typed_empty_numeric_array_contract(annotation, value)
@@ -387,6 +392,7 @@ impl IrGenerator {
                             bindings,
                             top_level_functions,
                             ExpressionUse::Binding,
+                            inside_impl,
                         )?
                     };
                     if matches!(ty, Ty::Void) {
@@ -437,6 +443,7 @@ impl IrGenerator {
                         bindings,
                         top_level_functions,
                         ExpressionUse::Value,
+                        inside_impl,
                     )?;
                 }
             }
@@ -446,6 +453,7 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Discarded,
+                    inside_impl,
                 )?;
             }
             Statement::Block(block) => {
@@ -528,6 +536,7 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 let mut then_bindings = bindings.clone();
                 Self::validate_block(
@@ -556,6 +565,7 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 let mut nested = bindings.clone();
                 Self::validate_block(
@@ -577,6 +587,7 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 let mut nested = bindings.clone();
                 let element_ty = match iterable_ty {
@@ -644,6 +655,7 @@ impl IrGenerator {
         bindings: &HashMap<String, AdmissionBinding>,
         top_level_functions: &HashMap<String, AdmissionTopLevelFunction>,
         expression_use: ExpressionUse,
+        inside_impl: bool,
     ) -> Result<Ty, IrGenerationError> {
         let admission_error = |message: &str| IrGenerationError::Admission(message.to_string());
         match expression {
@@ -680,12 +692,14 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 let right_ty = Self::validate_expression(
                     right,
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 let derived_ty = if matches!(left_ty, Ty::Float)
                     && matches!(right_ty, Ty::Int | Ty::Float)
@@ -722,6 +736,7 @@ impl IrGenerator {
                         bindings,
                         top_level_functions,
                         ExpressionUse::Value,
+                        inside_impl,
                     )?;
                 }
                 if let Some(binding) = bindings.get(name) {
@@ -766,6 +781,7 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 for argument in arguments {
                     Self::validate_expression(
@@ -773,7 +789,24 @@ impl IrGenerator {
                         bindings,
                         top_level_functions,
                         ExpressionUse::Value,
+                        inside_impl,
                     )?;
+                }
+                if !inside_impl {
+                    match classify_fixed_numeric_array_len(&object_ty, method, arguments.len()) {
+                        FixedNumericArrayLenDisposition::StaticLength(_) => return Ok(Ty::Int),
+                        FixedNumericArrayLenDisposition::WrongArity { actual } => {
+                            return Err(admission_error(&format!(
+                                "fixed numeric array .len() expects exactly 0 arguments, got {actual}"
+                            )));
+                        }
+                        FixedNumericArrayLenDisposition::LengthOutsideIntRange { count } => {
+                            return Err(admission_error(&format!(
+                                "fixed numeric array .len() count {count} is outside the admitted i32 range"
+                            )));
+                        }
+                        FixedNumericArrayLenDisposition::PreserveExistingBehavior => {}
+                    }
                 }
                 if method == "iter"
                     && arguments.is_empty()
@@ -793,6 +826,7 @@ impl IrGenerator {
                         bindings,
                         top_level_functions,
                         ExpressionUse::PrintArgument,
+                        inside_impl,
                     )?;
                     if !matches!(argument_ty, Ty::Int | Ty::Float | Ty::Bool | Ty::String) {
                         return Err(admission_error("print argument type is not admitted"));
@@ -809,12 +843,14 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 let right_ty = Self::validate_expression(
                     right,
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 if !matches!(
                     (&left_ty, &right_ty),
@@ -836,12 +872,14 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 Self::validate_expression(
                     right,
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 Ok(Ty::Bool)
             }
@@ -862,6 +900,7 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 match op {
                     crate::ast::UnaryOp::Not => Ok(Ty::Bool),
@@ -882,18 +921,31 @@ impl IrGenerator {
                     ));
                 }
                 let mut element_ty = Ty::Int;
+                let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
                 for (index, element) in elements.iter().enumerate() {
                     let current = Self::validate_expression(
                         element,
                         bindings,
                         top_level_functions,
                         ExpressionUse::Value,
+                        inside_impl,
                     )?;
-                    if !matches!(current, Ty::Int | Ty::Float) {
-                        return Err(admission_error("only fixed numeric arrays are admitted"));
-                    }
                     if index == 0 {
+                        if !matches!(current, Ty::Int | Ty::Float) {
+                            return Err(admission_error("only fixed numeric arrays are admitted"));
+                        }
                         element_ty = current;
+                    } else if !matches!(current, Ty::Int | Ty::Float) {
+                        return Err(admission_error("only fixed numeric arrays are admitted"));
+                    } else if !inside_impl {
+                        remaining_types.push(current);
+                    }
+                }
+                if !inside_impl {
+                    if remaining_types.iter().any(|current| current != &element_ty) {
+                        return Err(admission_error(
+                            "fixed numeric arrays must have homogeneous element types in checked IR",
+                        ));
                     }
                 }
                 Ok(Ty::Array(Box::new(element_ty), elements.len()))
@@ -904,6 +956,7 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 if !matches!(element_ty, Ty::Int | Ty::Float) {
                     return Err(admission_error("only fixed numeric arrays are admitted"));
@@ -916,12 +969,14 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 let index_ty = Self::validate_expression(
                     index,
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 if !matches!(index_ty, Ty::Int) {
                     return Err(admission_error("array index must be Int"));
@@ -970,6 +1025,7 @@ impl IrGenerator {
                     &closure_bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 if !matches!(result_ty, Ty::Int | Ty::Float | Ty::Bool) {
                     return Err(admission_error(
@@ -988,6 +1044,7 @@ impl IrGenerator {
                         bindings,
                         top_level_functions,
                         ExpressionUse::Value,
+                        inside_impl,
                     )?;
                 }
                 Err(admission_error(
@@ -1000,6 +1057,7 @@ impl IrGenerator {
                     bindings,
                     top_level_functions,
                     ExpressionUse::Value,
+                    inside_impl,
                 )?;
                 Err(admission_error(
                     "borrow and dereference are not admitted in checked IR",
@@ -1562,6 +1620,12 @@ impl IrGenerator {
                 arguments,
             } => {
                 let (object_value, object_ty) = self.generate_expression_ir(*object, function);
+                if self.checked_mode
+                    && let FixedNumericArrayLenDisposition::StaticLength(count) =
+                        classify_fixed_numeric_array_len(&object_ty, &method, arguments.len())
+                {
+                    return (Value::ImmInt(i64::from(count)), Ty::Int);
+                }
                 if method == "iter"
                     && arguments.is_empty()
                     && matches!(object_ty, Ty::Array(_, _) | Ty::Vec(_))

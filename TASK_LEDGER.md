@@ -7045,6 +7045,170 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   approval, but backend/claims rejected publication solely because the preceding
   correction-history transition ended in the dangling words `Three fresh`. This
   record-only correction removes that fragment and preserves the complete chronology.
-  The candidate identity is reported externally after commit creation. Three fresh
-  approvals, push, native Linux CI execution, and all public checks remain pending.
-  CORE-037 and its capability claim are not yet closed.
+  Accepted implementation `c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c`, parent
+  `241e39e5426f3edcbd47d72150b7dd1bcefda31e`, tree
+  `0e85ac19f8fa1ac4bc3cdea643934ebb3c79d0bc`, retained the exact clean gate, received
+  all three fresh approvals, and was published unchanged. Push CI `30940474151`, PR CI
+  `30940478223`, stable/nightly Rust `30940478652`, all three CodeQL analyses in
+  `30940474477`, and aggregate `92077350363` pass. Stable Linux ran pinned LLVM 22
+  verification, machine verification/object lowering, Clang linking, and the exact
+  typed-empty native exit 37. CORE-037 and its bounded capability are closed.
+
+## CORE-038 - Executable static length for fixed numeric arrays
+
+- Task ID/date/owner: `CORE-038`, 2026-08-04, lead-owned tests-first compiler
+  vertical slice under the updated autonomous mandate. This is the sole authorization
+  record for the class; corrections must amend the candidate before publication.
+- Accepted basis: clean public integration head
+  `c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c`, parent `241e39e`, tree
+  `0e85ac19f8fa1ac4bc3cdea643934ebb3c79d0bc`. `CORE-037` is all-eight green:
+  push CI `30940474151`, PR CI `30940478223`, stable/nightly Rust `30940478652`,
+  CodeQL `30940474477`, and aggregate `92077350363`; stable Linux executed its
+  pinned-LLVM example with exact exit 37.
+- Observed behavior: both existing semantic method-inference paths return `Int` for
+  array `.len()` and preserve the array type/count through `.iter()`. Checked
+  admission validates the receiver then every argument but admits only exact
+  zero-argument Array/Vec `.iter()`. The active lowerer evaluates the receiver and
+  then fabricates integer zero for every other method; the raw and closure-compatible
+  paths share that legacy behavior. Checked `Ty::Array` retains an initializer-derived
+  static element/count, so runtime length metadata is unnecessary. `Inst::ArrayLength`
+  is dormant and deliberately rejected by checked verification/codegen.
+- One-time audit closure and source authority: type/safety, IR/codegen, and
+  backend/claim reviewers exhaustively enumerated this class once at `c4f5be0`; it
+  must not be reranked or reopened on later heads. The primary founding PDF establishes
+  fixed-size arrays and compile-time array-size computation but does not define a
+  `.len()` surface; the truncated strategy PDF defines execution-quality direction,
+  not language semantics. Authority for this slice is therefore the compiler's two
+  existing explicit array-`len` semantic tables plus the bounded checked-type contract.
+- Frozen supported class: an exact zero-argument `receiver.len()` on an ordinary
+  executable checked path where validated `receiver` is exactly
+  `Ty::Array(Ty::Int | Ty::Float, N)` and `0 <= N <= i32::MAX`. The result is logical
+  `Int`, lowered as `Value::ImmInt(i64::from(N as i32))` after evaluating the receiver
+  exactly once. The finite normalized product includes homogeneous int/float literals;
+  positive/zero repeats; `vec!` spellings already desugared to the same array AST;
+  exact CORE-037 typed-empty aliases; identifiers and subsequent Copy aliases;
+  immutable/mutable bindings; parenthesized/immediate receivers; and any finite chain
+  of exact zero-argument `.iter()` wrappers. The four source aliases
+  `int|i32|float|f64` normalize to the two trusted element types. The resulting Int may
+  occupy every already-admitted Int expression position and ordinary nested/control-
+  flow traversal route. Initializer-derived receiver type/count always wins over an
+  annotation mismatch.
+- Frozen count policy: only counts representable by the existing checked i32 `Int`
+  are executable. An otherwise eligible `.len()` whose checked `Ty::Array` count is
+  larger than `i32::MAX` must reject at checked admission before lowering with one
+  stable phase-specific diagnostic; truncation, wrapping, saturation, float promotion,
+  widening, or a runtime query is forbidden. The accepted/public evidence is x86-64;
+  no 32-bit-host behavior or support claim is made. Stop if closing the supported
+  x86-64 class requires parser count-policy changes.
+- Shared classifier: add one private pure module owning
+  `classify_fixed_numeric_array_len(&Ty, method, argument_count)` with exactly four
+  dispositions: eligible static `i32` length, wrong arity, count outside Int range,
+  and preserve existing behavior. Checked admission and only the active primary
+  checked lowering path must consume that classifier. Ordinary/impl/generic/closure/
+  trait/raw context remains outside the shape classifier. Receiver validation and then
+  every argument left-to-right must precede classification; checked lowering must
+  evaluate the receiver once before consuming the same result.
+- Frozen exclusions and preservation: direct untyped empty, Bool/String/custom/
+  heterogeneous/nested/tuple/reference/scalar and actual `Ty::Vec` receivers;
+  function-returned/field/index/borrow/deref array topologies not already admitted;
+  dynamic arrays/slices and array parameters/returns; nonzero `.len(...)`; unknown
+  methods and case variants; `.len().len()`/`.len().iter()`; top-level
+  `AstNode::Expression`; generic functions; non-generic/generic impl bodies; trait
+  defaults; closures; and both raw lowering paths remain unchanged. Exact Array/Vec
+  `.iter()`, child/arity diagnostic precedence, zero-length-index containment,
+  receiver metadata/allocation effects, annotation behavior, and direct
+  `Inst::ArrayLength` rejection must remain exact. This proves no runtime length,
+  capacity, positive-length bounds, element-layout, array ABI, ownership, GPU,
+  performance, release, benchmark, or general method-dispatch capability.
+- Tests first and completeness proof: add one focused aggregate that enumerates the
+  normalized positive product and every excluded quotient; reclassify the existing
+  ordinary array-method rejection; require receiver-first and argument-child-first
+  diagnostics; require exact wrong-arity and out-of-range checked diagnostics; preserve
+  generic/impl/trait/closure/raw boundaries; verify initializer-derived logical array
+  metadata and logical Int results; and prove no checked `ArrayLength` instruction or
+  LLVM marker appears. Raw ordinary, named-function, iter-chain, and closure specimens
+  must remain byte-identical to their pre-capability fabricated-zero controls. The
+  single-function example must cover all aliases, both mutability states, typed-empty,
+  literal/repeat provenance, and return exact sentinel 37; compile it twice for byte
+  equality without claiming general multi-function determinism.
+- End-to-end acceptance: add `examples/fixed_numeric_array_len.aero` and an
+  unconditional Rust-CI step immediately after the typed-empty example. It must run
+  checked `build`, pinned `opt-22` verification, `llc-22` machine verification and
+  object lowering, `clang-22` linking, native execution, and exact exit 37. Focused
+  tests, formatting, correctness Clippy, the exact root `./tools/test.sh` gate, three
+  fresh read-only conformance reviews, an intentional integration commit/push, and all
+  eight public checks must pass.
+- Allowed files: `TASK_LEDGER.md`, `PROJECT_STATE.md`, one new private fixed-array
+  method classifier module, private module declarations in `src/compiler/src/lib.rs`
+  and `src/compiler/src/main.rs`, `src/compiler/src/ir_generator.rs`,
+  `src/compiler/tests/typed_ir_admission_tests.rs`, one focused fixed-array-length
+  integration test, `examples/fixed_numeric_array_len.aero`, and
+  `.github/workflows/rust.yml`. No lexer, parser, AST, semantic analyzer, IR enum,
+  verifier, code generator, stdlib, dependency, runtime, backend, claim-evidence,
+  release, benchmark, registry, published-history, or `master` action is authorized.
+- Risks and stop conditions: stop on a need to invent `.len()` semantics, change parser
+  count policy, query runtime layout, use `Inst::ArrayLength`, widen/truncate `Int`,
+  reorder child diagnostics, broaden an excluded context/receiver, change raw output,
+  cross an unlisted compiler phase, stack on a red build, or weaken a test/spec. A
+  rejection-only result cannot close this task.
+- Status/evidence: authorized and preregistered from the closed one-time audit. The
+  complete focused regression compiled and failed 0/1 before compiler/CI correction
+  with exactly 26 intended findings: all six checked/public positive products, the
+  metadata specimen, both arities, both out-of-range routes, example compilation, and
+  all eight absent CI anchors. Every excluded-neighbor/context/raw preservation control
+  was already green. The shared classifier, propagated impl-context gate, checked-only
+  static lowering, example, and CI step now close the focused regression 1/1; the
+  classifier unit matrix passes in both crate roots and the reclassified legacy
+  admission aggregate passes. The exact repository-root `./tools/test.sh` gate exits 0
+  with formatting and correctness Clippy clean, 143/143 library, 153/153 CLI, 7/7
+  claim, 28/28 binding, the new 1/1 fixed-array-length suite, and every downstream
+  suite. No parser, semantic, IR-enum, verifier, codegen, stdlib, backend, or raw path
+  changed. The first exact candidate (`0efef09cb572fa8d4a001f7ab0ef6c41df0f12b8`)
+  was not published: backend conformance approved it, while type conformance rejected
+  direct checked heterogeneous array admission and the absence of distinct zero-repeat
+  lowering witnesses; IR review was stopped after that rejection. The correction test
+  first reproduced the heterogeneous case reaching IR verification, then the ordinary
+  checked-array boundary was made to reject non-homogeneous element types
+  before classification, and Int/Float zero-repeat receivers were added to the complete
+  focused aggregate. The first root-gate rerun then exposed that generic-impl syntax-only
+  quarantine had been narrowed; a test-first containment correction restricted the new
+  homogeneity boundary to ordinary executable contexts and added both generic and
+  non-generic heterogeneous impl witnesses. The corrected focused regression passes 1/1
+  and the pre-existing generic/trait quarantine test passes. The second exact
+  repository-root `./tools/test.sh` rerun exits 0 with formatting and correctness
+  Clippy clean, 143/143 library, 153/153 CLI, 7/7 claim, 28/28 binding, the new 1/1
+  fixed-array-length suite, and every downstream suite. The amended snapshot
+  (`a77b667066464afb6513c817125f8bd069537059`) was not published: backend/claims
+  conformance rejected a stale ledger instruction that said the already-amended
+  candidate still required amendment. Its record-only correction produced snapshot
+  `ea7545d6cac43f4ac8c03bc0f924152f690de454`, which an exact IR/codegen review rejected
+  because homogeneity comparison masked a failing receiver child to its right. The
+  added focused regression first failed with the homogeneity diagnostic instead of the
+  missing-binding child diagnostic; ordinary checked numeric arrays now validate all
+  remaining children left-to-right before the one homogeneity decision, while impl
+  quarantine keeps its pre-existing path. The focused aggregate and pre-existing
+  generic/trait quarantine test pass. After the formatter's one-line test rewrite, the
+  fresh exact repository-root `./tools/test.sh` rerun exits 0 with formatting and
+  correctness Clippy clean, 143/143 library, 153/153 CLI, 7/7 claim, 28/28 binding, the
+  new 1/1 fixed-array-length suite, and every downstream suite. The resulting snapshot
+  (`899a06c233a5e7fbf1079379d8c40211e81277cd`) was not published: a subsequent exact
+  IR/codegen review found that the child-order correction also deferred the pre-existing
+  nonnumeric-element rejection. Its added focused witness first reported the later
+  missing binding instead of `only fixed numeric arrays are admitted`; the deferral is
+  now limited to Int/Float homogeneity, while a nonnumeric child still rejects
+  immediately. Both focused precedence witnesses and the generic/trait quarantine test
+  pass. The fresh exact repository-root `./tools/test.sh` rerun exits 0 with formatting
+  and correctness Clippy clean, 143/143 library, 153/153 CLI, 7/7 claim, 28/28 binding,
+  the new 1/1 fixed-array-length suite, and every downstream suite. Snapshot
+  `ca1375137e85bf14842b3b626ec3961fce6cd2fe` (tree
+  `54cdce4a9ce6944b28f8123e65de7a99413d3f5f`, canonical diff
+  `818dd7550d0f8c9fa01ceae9905f589791ef076a`) was not published: backend/claims
+  conformance rejected its omission of the immutable `a77b667`, `ea7545d`, and
+  `899a06c` review boundaries. Its record-only correction snapshot
+  `424c586e5a84cf226118f14257a5e21d43b10cfd` (tree
+  `f490b193027d7036d9b266610f1ae98fc72a533a`, canonical diff
+  `639c12ab36e3713b47dde5f1daa92bed7e78996d`) was likewise not published:
+  backend/claims conformance rejected the remaining omission of the immediately
+  preceding `ca137513` boundary. All rejected publication boundaries are now enumerated
+  in this single task record. Three exact reviews, unchanged publication, and public
+  native CI remain.

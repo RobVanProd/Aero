@@ -6,6 +6,7 @@ mod compatibility;
 mod conformance;
 mod doc_generator;
 mod errors;
+mod fixed_array_method;
 mod gpu;
 mod graph_compiler;
 mod ir;

@@ -4,38 +4,42 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 56 `CORE-037`: close the exact typed empty fixed numeric array class as an
-executable CPU capability while implementing the nonrecursive ARCH-001 classifier.
-The local tests-first slice admits only `[int|i32|float|f64; 0] = []` in existing
-ordinary non-generic binding contexts, keeps typed-empty construction out of impl/trait
-and generic executable capability, preserves every neighboring zero-repeat/topology
-binding route, and adds a pinned-LLVM CI example that exits 37. The first unpublished
-review found a zero-length indexing escape and two overclaims; the amended focused
-tests now reject every statically empty fixed-array index before IR wherever existing
-semantic/checked traversal reaches it, including impl methods and semantic generic-
-function traversal, while preserving checked generic outer-gate precedence and
-positive-length bounds behavior. The corrected exact root gate passes 142/142 library,
-152/152 CLI, 7/7 claim, and 28/28 binding tests plus every downstream suite. A later
-read-only review found that semantic float-alias retyping still leaked into non-generic
-impl methods; its tests-first context correction now passes the focused capability test,
-and the fresh exact root rerun again passes 142/152/7/28 plus every downstream suite.
-Review, publication, and public CI execution evidence remain pending. No accepted
-capability claim has moved yet.
+Milestone 57 `CORE-038`: close the exact fixed numeric array static-length class as an
+executable CPU capability. The one-time class audit at accepted public head `c4f5be0`
+is closed and will not be rerun on later candidate heads. The tests-first slice must
+admit exact zero-argument `.len()` wherever an ordinary checked receiver normalizes to
+`Ty::Array(Int|Float, N)` and `N` is representable by Aero's admitted i32 `Int`, lower
+the result to a static `Int` immediate after evaluating the receiver exactly once, and
+execute a pinned-LLVM CI example that exits 37. One shared classifier must cover every
+literal, repeat, `vec!`-desugared, typed-empty, bound/Copy-alias, mutability, immediate,
+and finite exact `.iter()`-chain spelling; no per-shape admission guards are allowed.
+Larger counts, dynamic/Vec/String/nonnumeric/nested receivers, nonzero arity, and
+generic/impl/closure/trait/raw execution remain outside the capability.
+The tests-first regression failed with exactly 26 intended findings before source/CI
+correction and now passes 1/1. The exact repository-root gate is formatting and
+correctness-Clippy clean and passes 143/143 library, 153/153 CLI, 7/7 claim, 28/28
+binding, the new 1/1 fixed-array-length suite, and every downstream suite. Exact
+candidate review, unchanged publication, and public native CI execution remain.
+
+`CORE-037` is accepted public at `c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c`.
+Its exact local gate passed 142/142 library, 152/152 CLI, 7/7 claim, and 28/28
+binding tests plus every downstream suite. Push CI `30940474151`, PR CI
+`30940478223`, stable/nightly Rust `30940478652`, all three CodeQL analyses in
+`30940474477`, and aggregate `92077350363` pass; stable Linux built, LLVM-verified,
+machine-verified, linked, and executed the typed-empty example with exact exit 37.
 
 ## Active hypothesis
 
-One shared, exact predicate can classify all ten existing binding-annotation reject
-topologies and the existing contract shapes without recursive broadening. A second
-exact predicate can recognize the finite typed-empty numeric class and let the declared
-element type reuse the already-admitted zero-length allocation/hint path. The class is
-closed only if all aliases, mutability states, admitted traversal, logical metadata,
-byte-deterministic single-function example LLVM, and native CI execution pass while
-unannotated, nested, generic, positive-count, zero-repeat, and nonnumeric neighbors
-retain their previous binding behavior. One shared element-agnostic predicate rejects
-all `Ty::Array(_, 0)` indexing before IR; it does not freeze positive-length bounds.
-This safety containment is global across already-traversed generic/impl contexts;
-typed-empty construction there, multi-function serialization order, and impl/trait
-lowering are not capability claims.
+The existing semantic result type for array `.len()` and the checked receiver's
+initializer-derived `Ty::Array` count are sufficient to close this finite class without
+parser, semantic, IR-instruction, verifier, code-generator, runtime-layout, ABI, or
+backend changes. A private pure classifier shared by checked admission and the active
+checked lowering path can distinguish eligible static length, wrong arity,
+out-of-Int-range count, and preserved behavior. Expression-boundary context remains a
+separate admission gate so impl bodies cannot gain a falsely executable capability.
+Receiver and argument validation order, exact Array/Vec `.iter()`, raw fabricated-zero
+compatibility, zero-length index containment, annotation precedence, and every excluded
+method/receiver topology must remain unchanged.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -52,6 +56,11 @@ capability claims are stop conditions rather than implementation invitations.
 - The tracked Claude strategy PDF is a truncated one-page capture. Its preserved
   execution-quality guidance and AI/ML-infrastructure recommendation are usable;
   absent continuation is not inferred.
+- The primary paper establishes fixed-size arrays and compile-time array-size
+  computation as design directions, but neither founding PDF specifies a `.len()`
+  method surface or its exact semantics. `CORE-038` is authorized by the compiler's
+  existing explicit array-`len` semantic tables and bounded checked-type evidence, not
+  by inventing detail absent from those papers.
 - `FRAMEWORK_ALIGNMENT.md` records source authority, current gaps, an execution-
   quality scorecard, and the Aero-native AI/ML infrastructure flagship direction.
 - `Roadmap.md` now follows the founding Design -> Minimal Prototype -> Self-Host ->
@@ -711,7 +720,7 @@ capability claims are stop conditions rather than implementation invitations.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
-  `8be8c21696cf98602c82e1e5e4fdfc6bf10e9777`.
+  `c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c` (`CORE-037`).
 - Previous public implementation record: `CORE-015` changed only the two
   preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
@@ -1573,18 +1582,19 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Review the amended CORE-037 snapshot whose parent is accepted public
-`241e39e5426f3edcbd47d72150b7dd1bcefda31e`; its exact root gate passes formatting,
-correctness Clippy, 142/142 library, 152/152 CLI, 7/7 claim, 28/28 binding, and every
-downstream suite. Obtain three fresh exact approvals, then push that unchanged commit
-to `agent/aero-integration` and require the typed-empty example to pass pinned LLVM 22
-verification, `llc`/Clang lowering/linking, native exit 37, and all public PR checks.
-Only after that evidence may CORE-037 and the exact typed-empty CPU capability be
-marked accepted. Do not admit
-impl/trait bodies or broaden typed-empty construction to zero repeats, nonnumeric/
-nested/generic annotations, positive-length bounds, ABI, GPU, or other aggregate
-semantics; do not claim multi-function determinism, publish releases/packages/
-benchmarks/claims, rewrite published history, force-push, or touch `master`.
+Review the exact CORE-038 candidate whose parent is accepted public
+`c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c`; its exact root gate passes formatting,
+correctness Clippy, 143/143 library, 153/153 CLI, 7/7 claim, 28/28 binding, the new
+1/1 fixed-array-length suite, and every downstream suite. Obtain three fresh exact
+conformance approvals without reopening the closed class audit, then push that
+unchanged commit to `agent/aero-integration`. Require the fixed-array-length example
+to pass pinned LLVM 22 verification, `llc` machine verification/object lowering,
+Clang linking, native exit 37, and every public PR check. Only after that evidence may
+CORE-038 and the exact static fixed-numeric-array length CPU capability be treated as
+accepted. Do not admit impl/trait/generic/closure or raw execution; broaden to dynamic,
+Vec/String/nonnumeric/nested length, bounds, layout, ABI, GPU, or general method
+semantics; claim multi-function determinism; publish releases/packages/benchmarks/
+claims; rewrite published history; force-push; or touch `master`.
 
 ## Unauthorized actions
 
