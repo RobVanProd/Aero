@@ -1,13 +1,14 @@
 use crate::ast::{AstNode, Expression, Statement, Type};
 use crate::binding_annotation::{
-    BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
-    typed_empty_numeric_array_contract,
+    BindingAnnotationDisposition, BindingContractKind, classify_binding_annotation,
+    is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
 use crate::fixed_array_method::{
     FixedNumericArrayLenDisposition, classify_fixed_numeric_array_len,
 };
 use crate::ir::{Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
+use crate::static_string_method::{StaticStringLenDisposition, classify_static_string_len};
 use crate::types::{Ty, needs_promotion};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
@@ -39,6 +40,7 @@ impl From<crate::ir_verifier::IrVerificationError> for IrGenerationError {
 struct AdmissionBinding {
     ty: Ty,
     callable: bool,
+    static_string: Option<String>,
 }
 
 struct AdmissionTopLevelFunction {
@@ -374,6 +376,17 @@ impl IrGenerator {
                     )));
                 }
                 if let Some(value) = value {
+                    let static_string = if type_annotation.is_none()
+                        || matches!(
+                            disposition,
+                            BindingAnnotationDisposition::MatchesExistingContractShape(
+                                BindingContractKind::String
+                            )
+                        ) {
+                        Self::static_string_value(value, bindings)
+                    } else {
+                        None
+                    };
                     let ty = if inside_impl || inside_generic_impl {
                         Self::validate_expression(
                             value,
@@ -431,6 +444,7 @@ impl IrGenerator {
                         name.clone(),
                         AdmissionBinding {
                             callable: matches!(ty, Ty::Fn(_)),
+                            static_string,
                             ty,
                         },
                     );
@@ -504,6 +518,7 @@ impl IrGenerator {
                         AdmissionBinding {
                             ty: parameter_ty,
                             callable: false,
+                            static_string: None,
                         },
                     );
                 }
@@ -603,6 +618,7 @@ impl IrGenerator {
                     AdmissionBinding {
                         ty: element_ty,
                         callable: false,
+                        static_string: None,
                     },
                 );
                 Self::validate_block(
@@ -806,6 +822,25 @@ impl IrGenerator {
                             )));
                         }
                         FixedNumericArrayLenDisposition::PreserveExistingBehavior => {}
+                    }
+                    let static_string = Self::static_string_value(object, bindings);
+                    match classify_static_string_len(
+                        static_string.as_deref(),
+                        method,
+                        arguments.len(),
+                    ) {
+                        StaticStringLenDisposition::StaticLength(_) => return Ok(Ty::Int),
+                        StaticStringLenDisposition::WrongArity { actual } => {
+                            return Err(admission_error(&format!(
+                                "compile-time string .len() expects exactly 0 arguments, got {actual}"
+                            )));
+                        }
+                        StaticStringLenDisposition::LengthOutsideIntRange { count } => {
+                            return Err(admission_error(&format!(
+                                "compile-time string .len() count {count} is outside the admitted i32 range"
+                            )));
+                        }
+                        StaticStringLenDisposition::PreserveExistingBehavior => {}
                     }
                 }
                 if method == "iter"
@@ -1017,6 +1052,7 @@ impl IrGenerator {
                         AdmissionBinding {
                             ty: parameter_ty,
                             callable: false,
+                            static_string: None,
                         },
                     );
                 }
@@ -1119,6 +1155,19 @@ impl IrGenerator {
             | Expression::FloatLiteral(_)
             | Expression::StringLiteral(_)
             | Expression::Identifier(_) => false,
+        }
+    }
+
+    fn static_string_value(
+        expression: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+    ) -> Option<String> {
+        match expression {
+            Expression::StringLiteral(value) => Some(value.clone()),
+            Expression::Identifier(name) => bindings
+                .get(name)
+                .and_then(|binding| binding.static_string.clone()),
+            _ => None,
         }
     }
 
@@ -1620,11 +1669,21 @@ impl IrGenerator {
                 arguments,
             } => {
                 let (object_value, object_ty) = self.generate_expression_ir(*object, function);
-                if self.checked_mode
-                    && let FixedNumericArrayLenDisposition::StaticLength(count) =
+                if self.checked_mode {
+                    if let FixedNumericArrayLenDisposition::StaticLength(count) =
                         classify_fixed_numeric_array_len(&object_ty, &method, arguments.len())
-                {
-                    return (Value::ImmInt(i64::from(count)), Ty::Int);
+                    {
+                        return (Value::ImmInt(i64::from(count)), Ty::Int);
+                    }
+                    let static_string = match (&object_value, &object_ty) {
+                        (Value::ImmString(value), Ty::String) => Some(value.as_str()),
+                        _ => None,
+                    };
+                    if let StaticStringLenDisposition::StaticLength(count) =
+                        classify_static_string_len(static_string, &method, arguments.len())
+                    {
+                        return (Value::ImmInt(i64::from(count)), Ty::Int);
+                    }
                 }
                 if method == "iter"
                     && arguments.is_empty()

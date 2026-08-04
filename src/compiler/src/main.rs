@@ -24,6 +24,7 @@ mod project_init;
 mod quantization;
 mod registry;
 mod semantic_analyzer;
+mod static_string_method;
 mod types;
 
 #[cfg(test)]

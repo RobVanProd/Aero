@@ -17,6 +17,7 @@ pub mod parser;
 pub mod quantization;
 pub mod registry;
 pub mod semantic_analyzer;
+mod static_string_method;
 pub mod stdlib;
 pub mod types;
 

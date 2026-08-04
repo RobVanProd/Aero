@@ -7210,5 +7210,203 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `639c12ab36e3713b47dde5f1daa92bed7e78996d`) was likewise not published:
   backend/claims conformance rejected the remaining omission of the immediately
   preceding `ca137513` boundary. All rejected publication boundaries are now enumerated
-  in this single task record. Three exact reviews, unchanged publication, and public
-  native CI remain.
+  in this single task record. Accepted implementation
+  `25805f561fa32d2f89463cb32ff5d0c5adff7acb`, parent `c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c`,
+  tree `a0a611f9bd63e4e8062a85a3c64b425a608c2d43`, and canonical binary diff
+  `5d12c739f0e6fd93418ea1867a9378b9728263f7` retained the exact clean gate,
+  received all three fresh exact approvals, and was published unchanged. Push CI
+  `30944853303`, PR CI `30944856497`, stable/nightly Rust `30944856525`, CodeQL
+  `30944854080`, and aggregate `92112319035` pass all eight public checks. Stable
+  Linux job `92112187769` ran checked build, pinned LLVM 22 IR verification, machine
+  verification and object lowering, Clang 22 linking, and native exit 37. CORE-038
+  and its exact static fixed-numeric-array length capability are closed.
+
+## CORE-039 - Executable static character length for string literals
+
+- Task ID/date/owner: `CORE-039`, 2026-08-04, lead-owned tests-first compiler
+  vertical slice under the active autonomous mandate. This is the sole authorization
+  record for the class; its one-time class audit is closed at accepted public
+  `25805f561fa32d2f89463cb32ff5d0c5adff7acb` and must not be repeated on candidate
+  heads.
+- Observed behavior and authority: both semantic method-inference paths already type
+  `Ty::String.len()` as `Int`; the tracked built-in collections summary explicitly
+  defines string `len()` as character count and its string section requires UTF-8
+  safety; the lexer decodes supported escapes into Rust `String` contents before the
+  parser creates `Expression::StringLiteral`. Checked admission accepts immutable
+  strings only as compile-time aliases, rejects mutable string bindings, and rejects
+  String parameters/returns. The active checked lowerer preserves literal and alias
+  receivers as `Value::ImmString` but fabricates integer zero for their method calls.
+  `StringOps::generate_len` is an untrusted float-ten placeholder and is not authority
+  or an executable runtime path.
+- Hypothesis: one pure classifier over an optional trusted literal value, exact method,
+  and argument count can return the decoded Unicode-scalar count as checked `Int`.
+  Checked admission can retain literal provenance through immutable alias bindings;
+  active checked lowering can consume the already-preserved `ImmString`. This closes
+  the class without runtime string layout, allocation, metadata, ownership, ABI,
+  verifier, codegen, parser, semantic-table, or stdlib changes.
+- Frozen supported class: exact zero-argument `receiver.len()` in an ordinary
+  executable checked context, where `receiver` is a decoded
+  `Expression::StringLiteral` or any finite immutable binding/alias chain rooted in
+  one. The parser's existing `FStringLiteral`-to-`StringLiteral` normalization is
+  included exactly as raw literal text; interpolation is neither activated nor
+  claimed. Empty, ASCII, supported escaped contents, embedded NUL, and arbitrary
+  valid Unicode contents are counted with Rust `str::chars`, i.e. Unicode scalar
+  values, matching the tracked character contract. The result is logical `Int`,
+  lowered as `Value::ImmInt` only when the count is representable by i32, after
+  evaluating the receiver exactly once. Parentheses normalize away; uppercase
+  `String` annotations retain the initializer-derived literal. The resulting Int may
+  occupy every already-admitted Int expression/traversal position.
+- Complete normalized product: literal provenance is ordinary literal, normalized
+  f-string literal, annotated literal, direct immutable binding, finite immutable
+  alias chain, nested lexical alias, and shadowed alias. Content equivalence classes
+  are empty, one/many ASCII, each supported escape (`n`, `t`, `r`, backslash, quote,
+  NUL), preserved unknown escape text, one/many non-ASCII Unicode scalars, and mixed
+  multi-byte/ASCII. Result placements are direct/implicit return, explicit binding,
+  arithmetic, comparison/control condition, unary, function argument, print argument,
+  discarded expression, array element/repeat/index, nested block, if/else, while,
+  for-body, and loop traversal. These are syntax/traversal quotients over the same
+  classifier, not separate semantics or guards.
+- Shared classifier and order: add one private pure module with dispositions
+  `StaticLength(i32)`, `WrongArity { actual }`,
+  `LengthOutsideIntRange { count }`, and `PreserveExistingBehavior`. It alone owns
+  exact `len`, arity, Unicode-scalar counting, and i32 conversion. Checked admission
+  and only the active primary checked lowerer consume it. Admission validates the
+  receiver and then every argument left-to-right before classification; lowering
+  evaluates the receiver once before classification. A synthetic count unit boundary
+  closes the otherwise impractical greater-than-i32 equivalence class without
+  allocating a multi-gigabyte source string. No duplicated guard may appear in
+  semantic analysis, verification, codegen, or stdlib.
+- Frozen exclusions and preservation: mutable String bindings; nonliteral/dynamic
+  owned strings; String parameters or returns; function-produced, field, index,
+  borrow/deref, collection, aggregate, numeric, Bool, reference, and custom receivers;
+  nonzero `.len(...)`; unknown or case-variant methods; chained String-producing
+  methods; `.len().len()` and `.len().iter()`; top-level `AstNode::Expression`;
+  generic functions; generic/non-generic impl bodies; trait defaults; closures; both
+  raw lowering routes; and all runtime String operations remain unchanged. Child
+  diagnostic precedence, existing generic method rejection text, print behavior,
+  literal storage, and raw fabricated-zero output must remain exact. No grapheme,
+  byte-length, normalization, interpolation, mutability, ownership, allocation,
+  slice, dynamic String, runtime, GPU, performance, release, benchmark, or general
+  method-dispatch capability is claimed.
+- Tests first and completeness proof: one aggregate must enumerate every admitted
+  content/provenance/placement quotient and each excluded neighbor; require exact
+  wrong-arity and child-first diagnostics; preserve mutable/signature/context gates;
+  prove ordinary, named-function, and closure raw output byte-identical to fabricated
+  zero controls; prove checked IR contains an exact Int and no runtime string-length
+  instruction/placeholder; require two identical single-function example compilations;
+  and inspect CI for every pinned build/verify/lower/link/run anchor. The classifier
+  unit table closes method/arity/count boundaries including synthetic i32 overflow.
+  No existing test or diagnostic may be weakened.
+- End-to-end acceptance: add `examples/static_string_len.aero` and an unconditional
+  Rust-CI step immediately after the fixed-array-length example. It must run checked
+  `build`, pinned `opt-22` verification, `llc-22` machine verification and object
+  lowering, `clang-22` linking, native execution, and the exact sentinel exit 33.
+  Run the focused red regression before production source changes, then focused green,
+  formatting, correctness Clippy, the exact repository-root `./tools/test.sh` gate,
+  three fresh exact read-only conformance reviews, one intentional commit, unchanged
+  push, and all eight public checks.
+- Allowed files: `TASK_LEDGER.md`, `PROJECT_STATE.md`, one new private static-string
+  method classifier module, private module declarations in
+  `src/compiler/src/lib.rs` and `src/compiler/src/main.rs`,
+  `src/compiler/src/ir_generator.rs`, one focused static-string-length integration
+  test, the existing fixed-array-length integration test only to reclassify its
+  tracked String-receiver specimen from rejection to acceptance,
+  `examples/static_string_len.aero`, and `.github/workflows/rust.yml`. No lexer,
+  parser, AST, semantic analyzer, IR enum, verifier, code generator, stdlib,
+  dependency, runtime, backend, claim-evidence, release, benchmark, registry,
+  published-history, or `master` action is authorized.
+- Risks and stop conditions: stop if repository authority cannot distinguish character
+  count; if literal provenance cannot remain exact; if interpolation, dynamic layout,
+  allocation, ownership, ABI, verifier, codegen, parser, semantic, stdlib, or a third
+  compiler phase is required; if child diagnostics, raw output, excluded contexts, or
+  existing valid LLVM change; if the baseline is red; or if any test/spec must be
+  weakened. A rejection-only outcome cannot close CORE-039.
+- Status/evidence: preregistered from the closed one-time class audit. The first
+  focused red run exposed the intended capability failures plus two false raw-output
+  findings caused only by nondeterministic `HashMap` debug order; the test comparison
+  was corrected to sort function identities before any production source edit. The
+  corrected focused regression then failed 0/1 with exactly 12 intended findings:
+  checked/public rejection for each of the four positive source products (eight),
+  example compilation, checked Unicode IR, and the one-/two-argument exact diagnostic
+  expectations. Every excluded neighbor, child-precedence specimen, context gate,
+  trait quarantine, deterministic raw compatibility control, and all nine CI anchors
+  was already green. No production source behavior had changed at that red boundary.
+  After implementation, the complete CORE-039 aggregate passed 1/1 and both crate-root
+  classifier unit boundaries passed. The adjacent CORE-038 suite then reported its
+  sole expected transition: the previously rejected String-receiver specimen is now
+  supported. That specimen is reclassified in place to positive checked acceptance,
+  not removed or weakened; all fixed-array boundaries remain unchanged. A first green
+  implementation run then exposed only a formatting-sensitive pretty-Debug matcher:
+  its displayed checked IR already returned `ImmInt(3)`. Compact structural Debug
+  matching replaced that test-harness assumption without changing source behavior.
+  The strengthened final aggregate additionally covers implicit return, explicit
+  field/index/borrow/deref/struct receiver exclusions, combining marks, and joined
+  emoji scalar counts; it passes 1/1. Classifier unit evidence passes in both crate
+  roots, CORE-038 passes 1/1, and the adjacent checked-admission suite passes 12/12.
+  The exact repository-root `./tools/test.sh` gate exits 0 with formatting and
+  correctness Clippy clean, 144/144 library tests, 154/154 CLI tests, 7/7 claim,
+  28/28 binding, the CORE-038 and CORE-039 1/1 aggregates, and every downstream suite
+  and doc test. The candidate changes no lexer, parser, AST, semantic analyzer, IR
+  enum, verifier, code generator, stdlib, dependency, runtime, backend, or raw path.
+  The single commit containing this exact tree is the intended immutable candidate;
+  its identity is reported externally after creation rather than guessed inside its
+  own contents. Three fresh exact read-only reviews, unchanged publication, and public
+  pinned-LLVM/native all-eight evidence remain before acceptance.
+- First immutable candidate `5ea25f4bb85fb12d0f055d5b1366aef382569dd3`, parent
+  `25805f561fa32d2f89463cb32ff5d0c5adff7acb`, tree
+  `45d24ec6456e28116775ec674a1ee559e77bc113`, was not published. IR/codegen found no
+  content defect but rejected the handoff because its supplied diff identity did not
+  reproduce: it had been produced through a PowerShell text pipeline that altered
+  the bytes relative to canonical Git output. The reproducible Git Bash full-index
+  hash is `cc5507358e8fe5be9d237dfcc33b28994ff87084`. Backend/claims confirmed that
+  identity correction and found one P1 record defect: the live top objective/hypothesis in
+  `PROJECT_STATE.md` still described CORE-038 as pending despite its later accepted
+  evidence and the active CORE-039 candidate. This amendment corrects that live state
+  and review chronology before publication; it changes no classifier, compiler,
+  example, workflow, test, capability, or claim boundary. The amended commit identity
+  is reported externally and requires three fresh exact reviews.
+- The corrected but still unpublished candidate
+  `5b24db849431ab53853822b288abbe87789c3f2e`, parent
+  `25805f561fa32d2f89463cb32ff5d0c5adff7acb`, tree
+  `5d09861d579c775b371b18945416cc7f621033db`, canonical Git Bash full-index hash
+  `4fc8d07406510ec7dbd5569b336154e7e5cc1e35`, received backend/claims approval but
+  was not published. IR/codegen rejected one P3 record sentence because it falsely
+  attributed the first hash mismatch to a missing `--full-index` flag rather than the
+  PowerShell text pipeline. Type/safety rejected one P1 capability defect: admission
+  retained literal provenance through preserved annotation topologies such as
+  lowercase `string`, custom names, references, generics, and arrays, thereby
+  admitting `.len()` outside the frozen unannotated-or-exact-`String` product. The
+  corrected regression enumerates all ten preserved annotation quotients (lowercase
+  name, custom name, custom annotated alias, immutable reference, mutable reference,
+  one-argument generic, two-argument generic, zero-count array, nested array, and
+  array-around-reference). Its tests-first run fails 0/1 with exactly 20 intended
+  findings: checked and public provenance leakage for each quotient. Their existing
+  semantic preservation, canonical uppercase `String` aliases, unannotated aliases,
+  and every other positive and exclusion specimen remain green. The fix must consume
+  the existing shared binding-annotation disposition; it may not add another topology
+  matcher or broaden annotation semantics. The minimal correction does exactly that:
+  static-string provenance is retained only when the annotation is absent or the
+  shared classifier returns `MatchesExistingContractShape(String)`. The complete
+  aggregate now passes 1/1; classifier unit boundaries pass 1/1 in both crate roots;
+  CORE-038 passes 1/1; binding contracts pass 28/28; and typed admission passes 12/12.
+  The exact repository-root `./tools/test.sh` gate exits 0 with formatting and
+  correctness Clippy clean, 144/144 library tests, 154/154 CLI tests, 7/7 claim,
+  28/28 binding, both CORE-038/CORE-039 aggregates, every downstream suite, and doc
+  tests. The final evidence wording is included before the required exact-tree rerun
+  and immutable candidate amendment.
+- The next unpublished candidate
+  `3a977403a2763580213e1a84ef2a55158c70f6ff`, parent
+  `25805f561fa32d2f89463cb32ff5d0c5adff7acb`, tree
+  `64c3a9db348208be6a1126c8e3dd4d1058a44434`, canonical Git Bash full-index hash
+  `932ae287e7d569a7fdcba329ed1bbbfb1d3823bc`, was not published. Backend/claims
+  approved it with no P0-P3 findings. IR/codegen found no compiler defect but rejected
+  one P1 live-state inconsistency: the repository-state inventory still named
+  CORE-037 `c4f5be0` as the last accepted public full-gate code commit even though
+  CORE-038 `25805f5` is the accepted public basis. Type/safety confirmed the prior P1
+  provenance defect closed and rejected only one P3 present-tense inconsistency: the
+  top objective said immutable identity was still required while the review was
+  already bound to that exact commit and the exact-next-action section correctly
+  treated it as the immutable candidate. Both record defects are corrected together
+  before publication: the inventory now names CORE-038 `25805f5`, and the objective
+  says candidate identity is reported externally while approvals and public evidence
+  remain. No compiler, test, example, workflow, capability, or claim boundary changes.

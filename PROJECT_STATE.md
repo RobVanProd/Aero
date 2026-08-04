@@ -4,42 +4,51 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 57 `CORE-038`: close the exact fixed numeric array static-length class as an
-executable CPU capability. The one-time class audit at accepted public head `c4f5be0`
-is closed and will not be rerun on later candidate heads. The tests-first slice must
-admit exact zero-argument `.len()` wherever an ordinary checked receiver normalizes to
-`Ty::Array(Int|Float, N)` and `N` is representable by Aero's admitted i32 `Int`, lower
-the result to a static `Int` immediate after evaluating the receiver exactly once, and
-execute a pinned-LLVM CI example that exits 37. One shared classifier must cover every
-literal, repeat, `vec!`-desugared, typed-empty, bound/Copy-alias, mutability, immediate,
-and finite exact `.iter()`-chain spelling; no per-shape admission guards are allowed.
-Larger counts, dynamic/Vec/String/nonnumeric/nested receivers, nonzero arity, and
-generic/impl/closure/trait/raw execution remain outside the capability.
-The tests-first regression failed with exactly 26 intended findings before source/CI
-correction and now passes 1/1. The exact repository-root gate is formatting and
-correctness-Clippy clean and passes 143/143 library, 153/153 CLI, 7/7 claim, 28/28
-binding, the new 1/1 fixed-array-length suite, and every downstream suite. Exact
-candidate review, unchanged publication, and public native CI execution remain.
+Milestone 58 `CORE-039`: close the exact compile-time string-literal character-length
+class as an executable CPU capability. The one-time class audit at accepted public
+head `25805f5` is closed and will not be rerun on candidate heads. The tests-first
+slice admits exact zero-argument `.len()` only when an ordinary checked receiver is a
+decoded string literal or finite immutable literal-alias chain. One shared classifier
+owns exact method, arity, Unicode-scalar `str::chars` counting, and checked i32
+conversion; checked lowering evaluates the receiver once and returns a static logical
+`Int`. Mutable, dynamic, parameter/return, impl/generic/closure/trait/raw/runtime
+String paths remain excluded. Parser f-string normalization is preserved as raw
+literal text; no interpolation, grapheme, byte-length, normalization, ownership,
+layout, ABI, GPU, or general method-dispatch semantics are activated or claimed.
+The initial corrected tests-first aggregate failed with exactly 12 intended findings
+before source correction. Exact review then exposed annotation-provenance leakage;
+the expanded regression failed with exactly 20 checked/public findings across all ten
+preserved annotation topologies. Admission now consumes the shared binding classifier
+and retains provenance only for unannotated or exact uppercase `String` bindings. The
+complete aggregate passes 1/1, as do both classifier roots, CORE-038, the 28/28 binding
+contract, and the 12/12 typed-admission contract. The corrected tree's exact
+repository-root gate is formatting and correctness-Clippy clean and passes 144/144
+library, 154/154 CLI, 7/7 claim, 28/28 binding, both CORE-038/CORE-039 aggregates,
+every downstream suite, and doc tests. Its immutable candidate identity is reported
+externally; three fresh approvals, unchanged publication, and public pinned-LLVM 22
+native exit-33 evidence remain.
 
-`CORE-037` is accepted public at `c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c`.
-Its exact local gate passed 142/142 library, 152/152 CLI, 7/7 claim, and 28/28
-binding tests plus every downstream suite. Push CI `30940474151`, PR CI
-`30940478223`, stable/nightly Rust `30940478652`, all three CodeQL analyses in
-`30940474477`, and aggregate `92077350363` pass; stable Linux built, LLVM-verified,
-machine-verified, linked, and executed the typed-empty example with exact exit 37.
+`CORE-038` is accepted public at `25805f561fa32d2f89463cb32ff5d0c5adff7acb`.
+Its exact local gate passed 143/143 library, 153/153 CLI, 7/7 claim, 28/28 binding,
+and the fixed-array-length class 1/1 plus every downstream suite. Push CI
+`30944853303`, PR CI `30944856497`, stable/nightly Rust `30944856525`, CodeQL
+`30944854080`, and aggregate `92112319035` pass; stable Linux job `92112187769`
+built, LLVM-verified, machine-verified, object-lowered, linked, and executed the
+fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-The existing semantic result type for array `.len()` and the checked receiver's
-initializer-derived `Ty::Array` count are sufficient to close this finite class without
-parser, semantic, IR-instruction, verifier, code-generator, runtime-layout, ABI, or
-backend changes. A private pure classifier shared by checked admission and the active
-checked lowering path can distinguish eligible static length, wrong arity,
-out-of-Int-range count, and preserved behavior. Expression-boundary context remains a
-separate admission gate so impl bodies cannot gain a falsely executable capability.
-Receiver and argument validation order, exact Array/Vec `.iter()`, raw fabricated-zero
-compatibility, zero-length index containment, annotation precedence, and every excluded
-method/receiver topology must remain unchanged.
+The existing semantic `Int` result for String `.len()`, lexer-decoded literal contents,
+checked admission's immutable compile-time String aliases, and active lowering's
+preserved `ImmString` value are sufficient to close this finite class without parser,
+semantic-table, IR-instruction, verifier, code-generator, stdlib, runtime-layout, ABI,
+or backend changes. A private pure classifier shared by checked admission and active
+checked lowering distinguishes eligible static character count, wrong arity,
+out-of-Int-range count, and preserved behavior. Literal provenance is representation
+bridging, while method/arity/count eligibility exists only in the classifier.
+Receiver-then-argument validation, mutable/signature/context rejection, raw
+fabricated-zero compatibility, and every dynamic or aggregate receiver exclusion must
+remain unchanged.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -57,10 +66,11 @@ capability claims are stop conditions rather than implementation invitations.
   execution-quality guidance and AI/ML-infrastructure recommendation are usable;
   absent continuation is not inferred.
 - The primary paper establishes fixed-size arrays and compile-time array-size
-  computation as design directions, but neither founding PDF specifies a `.len()`
-  method surface or its exact semantics. `CORE-038` is authorized by the compiler's
-  existing explicit array-`len` semantic tables and bounded checked-type evidence, not
-  by inventing detail absent from those papers.
+  computation as design directions, but neither founding PDF specifies String
+  `.len()` semantics. `CORE-039` is authorized by the compiler's two existing explicit
+  String-`len` semantic tables, the tracked built-in collections summary's character
+  count/UTF-8 contract, the type-system document's Unicode scalar definition, and the
+  bounded checked literal contract—not by inventing detail absent from the PDFs.
 - `FRAMEWORK_ALIGNMENT.md` records source authority, current gaps, an execution-
   quality scorecard, and the Aero-native AI/ML infrastructure flagship direction.
 - `Roadmap.md` now follows the founding Design -> Minimal Prototype -> Self-Host ->
@@ -720,7 +730,7 @@ capability claims are stop conditions rather than implementation invitations.
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
 - Last accepted public full-gate code commit:
-  `c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c` (`CORE-037`).
+  `25805f561fa32d2f89463cb32ff5d0c5adff7acb` (`CORE-038`).
 - Previous public implementation record: `CORE-015` changed only the two
   preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
@@ -1582,19 +1592,35 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Review the exact CORE-038 candidate whose parent is accepted public
-`c4f5be0726e5f3cbe1d790bbaf106b2f3e60585c`; its exact root gate passes formatting,
-correctness Clippy, 143/143 library, 153/153 CLI, 7/7 claim, 28/28 binding, the new
-1/1 fixed-array-length suite, and every downstream suite. Obtain three fresh exact
-conformance approvals without reopening the closed class audit, then push that
-unchanged commit to `agent/aero-integration`. Require the fixed-array-length example
-to pass pinned LLVM 22 verification, `llc` machine verification/object lowering,
-Clang linking, native exit 37, and every public PR check. Only after that evidence may
-CORE-038 and the exact static fixed-numeric-array length CPU capability be treated as
-accepted. Do not admit impl/trait/generic/closure or raw execution; broaden to dynamic,
-Vec/String/nonnumeric/nested length, bounds, layout, ABI, GPU, or general method
-semantics; claim multi-function determinism; publish releases/packages/benchmarks/
-claims; rewrite published history; force-push; or touch `master`.
+CORE-038 is accepted at public exact head
+`25805f561fa32d2f89463cb32ff5d0c5adff7acb`: all eight checks pass and stable Linux
+executed the pinned-LLVM fixed-array-length example with exit 37. Do not reopen its
+closed class audit.
+
+CORE-039 is a corrected local candidate from that immutable basis. Its first corrected
+red aggregate had exactly 12 intended capability findings. Exact review then exposed
+annotation-provenance leakage, and the expanded tests-first boundary failed with
+exactly 20 checked/public findings across all ten preserved annotation topologies.
+Admission now consumes the shared binding classifier and retains literal provenance
+only for unannotated or exact uppercase `String` bindings. The shared classifier,
+checked-only static lowering, exit-33 example, and CI gate pass the complete 1/1 class
+aggregate; both classifier roots, CORE-038, 28/28 binding, and 12/12 typed admission
+also pass. Mutable/dynamic/parameter/return/impl/trait/generic/closure/raw/runtime
+String paths, preserved noncanonical annotations, child diagnostics, and fabricated-
+zero raw output remain preserved; no lexer/parser, semantic-table, verifier, codegen,
+stdlib, ownership, layout, ABI, or interpolation semantics changed. The exact root
+gate passes formatting and correctness Clippy, 144/144 library, 154/154 CLI, 7/7
+claim, 28/28 binding, both CORE-038/CORE-039 aggregates, every downstream suite, and
+doc tests.
+
+Treat the single commit containing this exact tree as the immutable candidate and
+report its identity externally. Obtain three fresh exact type/safety, IR/codegen, and
+backend/claim approvals without reopening the closed class audit, then push only that
+unchanged approved commit. Require all eight public
+checks and stable Linux checked build, pinned LLVM 22 verification, machine
+verification/object lowering, Clang linking, and exact native exit 33 before treating
+CORE-039 as accepted. Do not publish releases/packages/benchmarks/claims, rewrite
+history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

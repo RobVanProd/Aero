@@ -306,10 +306,6 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
     for (label, source) in [
         ("scalar receiver", "fn main() { let observed = 1.len(); }"),
         (
-            "String receiver",
-            "fn main() { let observed = \"a\".len(); }",
-        ),
-        (
             "unknown array method",
             "fn main() { let values = [1, 2]; let observed = values.first(); }",
         ),
@@ -333,6 +329,12 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
             EXISTING_METHOD_REJECTION,
         );
     }
+
+    expect_acceptance(
+        &mut failures,
+        "subsequently admitted compile-time String receiver",
+        checked_parsed_source("fn main() { let observed = \"a\".len(); }"),
+    );
 
     expect_exact_rejection(
         &mut failures,

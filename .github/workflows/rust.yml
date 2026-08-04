@@ -197,6 +197,24 @@ jobs:
         fi
         echo "fixed_numeric_array_len test passed with exit code $exit_code"
 
+    - name: Test static string character length example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/static_string_len.aero -o ../../static_string_len.ll
+        opt-22 -passes=verify -disable-output ../../static_string_len.ll
+        llc-22 -verify-machineinstrs ../../static_string_len.ll -o /dev/null
+        llc-22 -filetype=obj ../../static_string_len.ll -o ../../static_string_len.o
+        clang-22 ../../static_string_len.o -o ../../static_string_len
+        set +e
+        ../../static_string_len
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 33 ]; then
+          echo "Expected exit code 33, got $exit_code"
+          exit 1
+        fi
+        echo "static_string_len test passed with exit code $exit_code"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
