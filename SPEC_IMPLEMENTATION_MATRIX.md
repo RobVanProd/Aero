@@ -1153,7 +1153,8 @@ declared compatibility policy and release-level coverage.
   Match evaluation, duplicate consumption, use-after-call, and arm reuse across semantic
   analysis and checked admission.
 - Checked enum-bearing functions retain exact `LogicalType::Enum` schemas and use direct
-  `CheckedUnitEnumParameter` SSA binders rather than generic storage. Independent
+  then-named `CheckedUnitEnumParameter` SSA binders rather than generic storage.
+  CORE-052 later generalizes that binder name and schema class. Independent
   verification proves binder/signature coverage and identity, call argument/result and
   return types, dominance, and global enum-schema consistency. LLVM lowers only verified
   enum parameters/calls/returns to direct internal `i32`; no source `Int`, public
@@ -1170,7 +1171,7 @@ declared compatibility policy and release-level coverage.
   traits, recursive CFG ownership, loop state, stable ABI/FFI, accelerators, performance,
   release, and stability remain excluded.
 
-## CORE-051 candidate owned unary scalar-payload enums
+## CORE-051 accepted owned unary scalar-payload enums
 
 - CORE-051 generalizes the shared enum classifier to unique top-level non-generic,
   nonempty definitions whose declaration-ordered variants are unit or carry exactly
@@ -1197,10 +1198,49 @@ declared compatibility policy and release-level coverage.
   target, and docs. The composed `signals` example reaches LLVM with 12 tagged
   aggregate insertions, 16 selected-lane extractions, six switches, and SHA-256
   `42930069C175CE245EEA0C2CFBF0F01B0D0B21FD1FD9AB2B9B587BC6990D39CC`.
-  Public acceptance remains conditional on all eight checks and pinned LLVM/Clang 22
-  external/machine verification, object/link, and exact native exit 181.
-- Payload-enum function transport, fields, arrays, references, borrowing, mutation,
+  Exact implementation `babb1cd543fb36e13ec16458889f336ad5549a49`, tree
+  `6b8382ed0370c67994ee519a892f149c3ffe4825`, and stable patch ID
+  `2aaf5bee97f294f90c9494b364267deb250601b8` pass all eight public checks. Stable job
+  `92223344697` uses LLVM/Clang 22.1.8 for external/machine verification, object/link,
+  exact native exit 181, and 162/168 test passes.
+- Fields, arrays, references, borrowing, mutation,
   equality, casts, printing, copying, heap/drop, Option/Result Match, guards,
   destructuring, general CFG ownership, loop state, stable ABI/FFI, accelerators,
   performance, release, and stability remain excluded. The broad enum and Match rows
   remain `PARTIAL`.
+
+## CORE-052 candidate owned scalar-payload enum transport
+
+- CORE-052 removes the final unit-only condition from the one shared enum transport
+  annotation resolver. Every exact schema already admitted by `EnumRegistry`—unit or
+  any declaration-ordered mix of unary `Int`/`Float`/`Bool` variants—may now occur in
+  exact internal parameters and results alongside existing admitted by-value scalars,
+  finite acyclic Copy structs, and flat fixed Copy arrays. Multiple enum parameters,
+  multiple enum names, consumers, producers, identity/forwarding chains, direct
+  constructors, named moved values, call results, and direct-result Match are covered.
+- Passing or returning a named enum transfers ownership and invalidates its source; the
+  Copy payload does not make the containing enum Copy. The existing recursive consumed-
+  owned-value classifier closes nested calls, argument lists, duplicate consumption,
+  use after call, and Match-arm reuse. Containers, references, fields, mutation,
+  borrowing, partial payload moves, general CFG/NLL, drop, and unsupported contexts
+  remain fail-closed.
+- Checked IR renames the unit-specific binder to one `CheckedEnumParameter` carrying
+  the exact schema. Independent verification proves schema validity/global identity,
+  signature/binder coverage, entry-block placement, call argument/result and return
+  equality, dominance, and transported construction/extraction/dispatch integrity.
+  Unit transport remains private `i32`; payload transport remains private
+  `{ i32, double, i1 }` through internal definitions, parameters, calls, and returns.
+  This is not a stable layout, calling convention, ABI, or FFI contract.
+- The exhaustive target, payload-specific verifier corruption cases, CORE-050/051
+  controls, and exact root gate pass locally: 162 library and 168 binary tests plus
+  formatting, correctness Clippy, every integration target, and docs. The composed
+  module example reaches LLVM with seven aggregate-returning definitions, ten aggregate
+  calls, eight aggregate returns, seven switches, 48 extractions, 45 insertions, and
+  SHA-256 `AD23CC66B1579D18870F05E3C63481C781209033F63F5A653872FB88B77160B5`.
+  Public acceptance requires all eight checks and pinned LLVM/Clang 22 external/machine
+  verification, object/link, and exact native exit 197.
+- Enum arrays/fields/references, aggregate/non-scalar/multi-field/struct/generic/
+  recursive payloads, Option/Result transport or Match, process-entry/closure/nested/
+  trait/impl contexts, mutation, borrowing, equality, printing, heap/drop, recursive
+  CFG ownership, stable ABI/FFI, accelerators, performance, release, and stability
+  remain excluded. The enum, pattern, function, and ownership rows remain `PARTIAL`.

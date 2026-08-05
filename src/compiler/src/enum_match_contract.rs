@@ -166,7 +166,6 @@ pub(crate) enum EnumError {
         parameter: String,
     },
     UnsupportedTransportResult(String),
-    PayloadEnumTransport(String),
 }
 
 impl EnumError {
@@ -238,28 +237,25 @@ impl EnumError {
             Self::DuplicateConsumption(name) => {
                 format!("enum `{name}` is consumed more than once in one expression")
             }
-            Self::ProcessEntryTransport => "process entry cannot transport unit enums".to_string(),
+            Self::ProcessEntryTransport => "process entry cannot transport enums".to_string(),
             Self::GenericTransportFunction => {
-                "generic unit-enum transport functions are not admitted".to_string()
+                "generic enum transport functions are not admitted".to_string()
             }
             Self::InvalidTransportFunction => {
-                "unit-enum transport function name is not admitted".to_string()
+                "enum transport function name is not admitted".to_string()
             }
             Self::InvalidTransportParameter(parameter) => format!(
-                "unit-enum transport function defines invalid or duplicate parameter `{parameter}`"
+                "enum transport function defines invalid or duplicate parameter `{parameter}`"
             ),
             Self::UnsupportedTransportParameter {
                 function,
                 parameter,
             } => format!(
-                "unit-enum transport function `{function}` parameter `{parameter}` is not an admitted by-value type"
+                "enum transport function `{function}` parameter `{parameter}` is not an admitted by-value type"
             ),
             Self::UnsupportedTransportResult(function) => format!(
-                "unit-enum transport function `{function}` result is not an admitted by-value type"
+                "enum transport function `{function}` result is not an admitted by-value type"
             ),
-            Self::PayloadEnumTransport(name) => {
-                format!("payload enum `{name}` is not admitted in function transport")
-            }
         }
     }
 }
@@ -390,9 +386,6 @@ impl EnumRegistry {
             && self.definitions.contains_key(name)
         {
             let contract = self.contract(name)?;
-            if !contract.schema.is_unit() {
-                return Err(EnumError::PayloadEnumTransport(name.clone()));
-            }
             return Ok(Some(EnumTransportType {
                 ty: contract.ty(),
                 logical_type: contract.schema.logical_type(),

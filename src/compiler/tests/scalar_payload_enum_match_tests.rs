@@ -368,16 +368,6 @@ fn main() -> int {
             "enum Signal { Count(int) } fn main() { let signal = Signal::Count(1); let value = match signal { Signal::Count(inner) => inner }; let reused = signal; }",
             "Use of moved value `signal`",
         ),
-        (
-            "payload enum parameter remains excluded",
-            "enum Signal { Count(int) } fn take(value: Signal) -> int { match value { Signal::Count(inner) => inner } } fn main() { let result = take(Signal::Count(1)); }",
-            "payload enum `Signal` is not admitted in function transport",
-        ),
-        (
-            "payload enum result remains excluded",
-            "enum Signal { Count(int) } fn make() -> Signal { Signal::Count(1) } fn main() { let value = make(); }",
-            "payload enum `Signal` is not admitted in function transport",
-        ),
     ] {
         if let Some(failure) = expect_rejection(label, source, expected) {
             failures.push(failure);

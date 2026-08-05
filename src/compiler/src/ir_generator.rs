@@ -1995,7 +1995,7 @@ impl IrGenerator {
             | Inst::Or { result, .. }
             | Inst::Not { result, .. }
             | Inst::Neg { result, .. }
-            | Inst::CheckedUnitEnumParameter { result, .. }
+            | Inst::CheckedEnumParameter { result, .. }
             | Inst::CheckedEnumVariant { result, .. }
             | Inst::CheckedEnumPayload { result, .. } => Some(result),
             Inst::Call {
@@ -3183,7 +3183,7 @@ impl IrGenerator {
                     variants,
                 } = &contract.parameters[index].1.logical_type
             {
-                function_ir.body.push(Inst::CheckedUnitEnumParameter {
+                function_ir.body.push(Inst::CheckedEnumParameter {
                     result: storage,
                     parameter: param.name.clone(),
                     schema: EnumSchema {
@@ -3224,7 +3224,7 @@ impl IrGenerator {
         }
 
         // Create a schema-carrying checked definition only for an admitted Copy or
-        // unit-enum transport contract; legacy/raw definitions keep their old shape.
+        // enum transport contract; legacy/raw definitions keep their old shape.
         let func_def = if let Some(contract) = enum_contract {
             Inst::CheckedFunctionDef {
                 name: name.clone(),

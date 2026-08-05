@@ -242,7 +242,7 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, source);
                 }
-                Inst::CheckedUnitEnumParameter { result, .. } => {
+                Inst::CheckedEnumParameter { result, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
                 Inst::CheckedEnumVariant {
@@ -615,7 +615,7 @@ impl CodeGenerator {
                 | Inst::CheckedStructAlloca { .. }
                 | Inst::CheckedStructFieldPtr { .. }
                 | Inst::CheckedImmutableBorrow { .. }
-                | Inst::CheckedUnitEnumParameter { .. }
+                | Inst::CheckedEnumParameter { .. }
                 | Inst::CheckedEnumVariant { .. }
                 | Inst::CheckedEnumPayload { .. }
                 | Inst::CheckedEnumDispatch { .. } => {}
@@ -1478,15 +1478,42 @@ impl CodeGenerator {
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
                     ));
                 }
-                Inst::CheckedUnitEnumParameter {
-                    result, parameter, ..
+                Inst::CheckedEnumParameter {
+                    result,
+                    parameter,
+                    schema,
                 } => {
                     let Value::Reg(result) = result else {
-                        panic!("Expected register for checked unit-enum parameter")
+                        panic!("Expected register for checked enum parameter")
                     };
+                    let parameter = Self::llvm_parameter_name(parameter);
+                    if schema.is_unit() {
+                        llvm_ir.push_str(&format!("  %reg{result} = add i32 %{parameter}, 0\n"));
+                        continue;
+                    }
+                    let enum_type = "{ i32, double, i1 }";
+                    let tag = self.fresh_reg();
+                    let numeric = self.fresh_reg();
+                    let boolean = self.fresh_reg();
+                    let with_tag = self.fresh_reg();
+                    let with_numeric = self.fresh_reg();
                     llvm_ir.push_str(&format!(
-                        "  %reg{result} = add i32 %{}, 0\n",
-                        Self::llvm_parameter_name(parameter)
+                        "  %{tag} = extractvalue {enum_type} %{parameter}, 0\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{numeric} = extractvalue {enum_type} %{parameter}, 1\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{boolean} = extractvalue {enum_type} %{parameter}, 2\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{with_tag} = insertvalue {enum_type} poison, i32 %{tag}, 0\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{with_numeric} = insertvalue {enum_type} %{with_tag}, double %{numeric}, 1\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = insertvalue {enum_type} %{with_numeric}, i1 %{boolean}, 2\n"
                     ));
                 }
                 Inst::CheckedEnumVariant {
@@ -1749,6 +1776,11 @@ impl CodeGenerator {
                         "  %{result_str} = call {array_type} @{function}({args_str})\n"
                     ));
                 }
+                enum_type if enum_type == "{ i32, double, i1 }" => {
+                    llvm_ir.push_str(&format!(
+                        "  %{result_str} = call {enum_type} @{function}({args_str})\n"
+                    ));
+                }
                 _ => llvm_ir.push_str(&format!(
                     "  %{} = call double @{}({})\n",
                     result_str, function, args_str
@@ -1834,7 +1866,10 @@ impl CodeGenerator {
     }
 
     fn emit_return(&mut self, llvm_ir: &mut String, value: &Value, return_llvm_type: &str) {
-        if return_llvm_type.starts_with("%aero.struct.") || return_llvm_type.starts_with('[') {
+        if return_llvm_type.starts_with("%aero.struct.")
+            || return_llvm_type.starts_with('[')
+            || return_llvm_type == "{ i32, double, i1 }"
+        {
             let Value::Reg(register) = value else {
                 panic!("verified aggregate return must use an aggregate result register");
             };

@@ -277,7 +277,7 @@ fn main() -> int { return 0; }
         Err(error) => failures.push(format!("checked enum transport IR/LLVM failed: {error}")),
         Ok((checked, llvm)) => {
             let debug = format!("{checked:?}");
-            if debug.matches("CheckedUnitEnumParameter").count() < 9 {
+            if debug.matches("CheckedEnumParameter").count() < 9 {
                 failures.push(format!("checked IR lost enum parameter binders:\n{debug}"));
             }
             if debug.matches("CheckedFunctionDef").count() < 11 {
@@ -314,44 +314,39 @@ fn main() -> int { return 0; }
             "function parameter `value` is not an admitted scalar type",
         ),
         (
-            "payload enum parameter",
-            "enum Phase { Cold, Warm(int) } fn take(value: Phase) -> int { 1 } fn main() -> int { 0 }",
-            "payload enum `Phase` is not admitted in function transport",
-        ),
-        (
             "process entry parameter",
             "enum Phase { Cold } fn main(value: Phase) -> int { 0 }",
-            "process entry cannot transport unit enums",
+            "process entry cannot transport enums",
         ),
         (
             "process entry result",
             "enum Phase { Cold } fn main() -> Phase { Phase::Cold }",
-            "process entry cannot transport unit enums",
+            "process entry cannot transport enums",
         ),
         (
             "generic enum transport function",
             "enum Phase { Cold } fn take<T>(value: Phase) -> Phase { value } fn main() -> int { 0 }",
-            "generic unit-enum transport functions are not admitted",
+            "generic enum transport functions are not admitted",
         ),
         (
             "enum array parameter",
             "enum Phase { Cold } fn take(values: [Phase; 2]) -> int { 1 } fn main() -> int { 0 }",
-            "unit-enum transport function `take` parameter `values` is not an admitted by-value type",
+            "enum transport function `take` parameter `values` is not an admitted by-value type",
         ),
         (
             "enum reference parameter",
             "enum Phase { Cold } fn take(value: &Phase) -> int { 1 } fn main() -> int { 0 }",
-            "unit-enum transport function `take` parameter `value` is not an admitted by-value type",
+            "enum transport function `take` parameter `value` is not an admitted by-value type",
         ),
         (
             "String mixed parameter",
             "enum Phase { Cold } fn take(value: Phase, text: String) -> int { 1 } fn main() -> int { 0 }",
-            "unit-enum transport function `take` parameter `text` is not an admitted by-value type",
+            "enum transport function `take` parameter `text` is not an admitted by-value type",
         ),
         (
             "tuple mixed result",
             "enum Phase { Cold } fn take(value: Phase) -> (int, int) { (1, 2) } fn main() -> int { 0 }",
-            "unit-enum transport function `take` result is not an admitted by-value type",
+            "enum transport function `take` result is not an admitted by-value type",
         ),
         (
             "wrong enum argument",
@@ -413,7 +408,7 @@ fn main() -> int { return 0; }
         Ok(ast) => {
             let raw = IrGenerator::new().generate_ir(ast);
             let debug = format!("{raw:?}");
-            if debug.contains("CheckedUnitEnumParameter")
+            if debug.contains("CheckedEnumParameter")
                 || debug.contains("CheckedFunctionDef")
                 || debug.contains("CheckedEnumVariant")
                 || debug.contains("CheckedEnumDispatch")

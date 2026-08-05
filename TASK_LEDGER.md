@@ -10001,3 +10001,173 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   composed gate are the controls. Next action is one intentional candidate commit and
   push, immediate PR-front-page synchronization, and exact public acceptance inspection
   without merging or release.
+- Public acceptance: exact implementation
+  `babb1cd543fb36e13ec16458889f336ad5549a49`, tree
+  `6b8382ed0370c67994ee519a892f149c3ffe4825`, and stable patch ID
+  `2aaf5bee97f294f90c9494b364267deb250601b8` are accepted on draft PR #4.
+  All eight public checks pass. Actions run `30980384047`, stable job `92223344697`,
+  uses LLVM/Clang 22.1.8, reports `ExternalVerified: opt 22.1.8`, runs
+  `llc-22 -verify-machineinstrs`, emits an object, links with `clang-22`, executes
+  exact native exit `181`, and records 162/162 library plus 168/168 binary tests.
+  PR #4 is synchronized through CORE-051 at 239 commits, 63,574 additions, 1,432
+  deletions, and 133 files; it remains draft, open, and unmerged. No release,
+  benchmark, stable ABI/layout, accelerator, merge, or `master` claim follows.
+
+## CORE-052 - Owned scalar-payload enum function transport
+
+- Task ID: `CORE-052`. Observed behavior: accepted CORE-051 admits the complete
+  `EnumRegistry` definition class—unit or unary `Int`/`Float`/`Bool` variants in any
+  declaration-ordered mixture—and executes construction and exhaustive bound Match
+  locally, but one unit-only condition in the shared transport annotation resolver
+  rejects every schema containing a payload. CORE-050 already proves internal
+  parameter/call/return ownership transfer for the unit subset. This task closes the
+  remaining transport partition of the already-enumerated enum-schema class; it is not
+  another audit or per-payload residual ranking.
+- Authoritative semantics and hypothesis: the ownership design states that passing and
+  returning non-`Copy` values transfer ownership, that ownership applies to data held
+  in enums, and explicitly passes a mixed payload enum into a matching function while
+  copying only the selected scalar payload binding. Existing accepted semantics keep
+  the containing enum non-`Copy` even though each admitted payload is Copy. One shared
+  transport annotation resolver should therefore admit the exact schema returned by
+  `EnumRegistry::contract`, carry it unchanged through semantic analysis and checked
+  admission, and select the private LLVM value type from that schema without defining
+  a public calling convention.
+- Frozen signature class: a supported transport function is one unique valid top-level
+  non-generic, non-`main` function whose signature mentions at least one declared enum
+  and whose every parameter and result is an existing admitted by-value scalar, finite
+  acyclic Copy struct, flat fixed Copy array, or exact supported enum schema. This
+  includes payload-only and mixed unit/payload schemas, multiple parameters, multiple
+  enum names, scalar/Copy-aggregate mixtures, enum consumers returning scalar/Void,
+  enum producers, identity/forwarding functions, and call chains. Pure unit schemas
+  retain CORE-050 behavior. Unknown, ambiguous, rejected, quarantined, nested,
+  aggregate-payload, generic, recursive, array-of-enum, field-held enum, reference,
+  tuple, String, Option/Result, variadic, closure, nested-function, trait-default, impl-
+  method, process-entry, and unsupported mixed signature topologies remain rejected by
+  the same definition/signature classification path before checked IR.
+- Frozen value and ownership class: exact constructors, named owned locals and
+  parameters, and admitted enum call results may be arguments or returns. Passing or
+  returning a named enum transfers the whole value and invalidates the source; its
+  scalar payload does not make the enum Copy. Direct constructor and call-result
+  temporaries have no reusable source binding. A result may bind, move, feed another
+  call, return, or serve directly as an exhaustive Match scrutinee. The existing one
+  recursive consumed-owned-value classifier must cover argument lists, nested calls,
+  Match evaluation and arms, duplicate argument consumption, use after call, and reuse
+  after Match. Function parameters become owned values in the callee. No selected-arm-
+  only ownership, partial payload move, borrowing, mutation, drop, or CFG/NLL rule is
+  introduced.
+- Checked IR and backend contract: rename the unit-specific direct parameter binder to
+  one `CheckedEnumParameter` carrying the exact `EnumSchema`; no phase may add its own
+  payload-topology transport guard. The verifier independently proves supported schema
+  validity and global identity, exact signature/binder coverage, entry-block placement,
+  one binder per enum parameter, call argument/result and return type equality,
+  dominance, and payload construction/extraction/dispatch invariants across transported
+  values. Unit schemas retain private direct `i32` transport. Payload schemas use the
+  already-verified private `{ i32, double, i1 }` value through internal parameters,
+  calls, and returns, with a schema-selected binder identity and exact Match lane
+  extraction. This establishes no source integer identity, stable discriminant, memory
+  layout, calling convention, ABI, FFI, optimizer, or cross-module binary contract.
+- Tests-first completeness contract: add one exhaustive focused target covering parser
+  retention; payload-only and mixed schemas; Int/Float/Bool payload parameters and
+  results; direct constructors, named locals, parameters, and call-result origins;
+  scalar/Void consumers, producers, identity, multi-argument/multi-enum/mixed admitted
+  signatures, nested forwarding, direct-result Match, result binding/move/return, and
+  source-order ownership failures. Enumerate every invalid definition/signature,
+  annotation, arity, type, result, ownership, container/reference, raw-path, binder,
+  schema, call, return, dominance, and global-consistency form above. Require semantic-
+  before-IR rejection, exact checked metadata, private aggregate LLVM function/call/
+  return anchors, no legacy raw enum instructions, invalid CLI artifact hygiene, and
+  tracked example/workflow anchors. Run it red before any compiler, example, workflow,
+  or capability-state mutation. Existing CORE-049/050/051 coverage may be corrected
+  only where its explicit payload-transport exclusion becomes this positive class.
+- System-level gate: add one tracked direct-module example composing mixed payload-enum
+  construction, internal parameter/call/return transfer, forwarding, direct-result
+  exhaustive Match, unit-enum transport, compile-time Strings, fixed arrays, finite
+  Copy aggregates/transport, immutable scalar references, scalar control flow, checked
+  verification, LLVM, object/link, and exact native exit `197`. Stable/nightly CI must
+  unconditionally use pinned LLVM/Clang 22, `opt-22`,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking, execution, and
+  the exact exit. Parser-only, rejection-only, LLVM-text-only, unchecked, or unexecuted
+  evidence cannot close CORE-052.
+- Allowed files: this ledger; `src/compiler/src/enum_match_contract.rs`,
+  `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs`; one new
+  `src/compiler/tests/payload_enum_transport_tests.rs`; only exact stale transport-
+  exclusion or binder-name expectations in `unit_enum_transport_tests.rs`,
+  `scalar_payload_enum_match_tests.rs`, and checked-enum verifier tests; one new tracked
+  `examples/payload_enum_transport/` module pair; `.github/workflows/rust.yml`; and,
+  only after executable acceptance, `README.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md`. No lexer/parser/AST,
+  dependency, optimizer, runtime, stdlib simulation, generic ownership architecture,
+  general pattern engine, claim-verification, benchmark, release, `master`, PR merge,
+  force-push, history rewrite, or controlled mega-PR checkpoint is authorized.
+- Risks and stop conditions: stop rather than broaden if transport requires a public ABI
+  or stable layout decision; aggregate values cannot remain exact SSA values; schema
+  identity drifts across functions; payload lanes enter scalar/numeric places without
+  extraction; ownership requires unsound CFG approximation; a rejected topology
+  activates; raw IR becomes trusted; parameter identity cannot be independently
+  verified; unit transport or local payload Match regresses; any test must be weakened;
+  or work requires parser, AST, dependency, runtime, optimizer, general ownership, or
+  semantics outside this frozen class.
+- Starting evidence: exact clean accepted CORE-051 head
+  `babb1cd543fb36e13ec16458889f336ad5549a49` equals
+  `origin/agent/aero-integration`; tree
+  `6b8382ed0370c67994ee519a892f149c3ffe4825`; patch ID
+  `2aaf5bee97f294f90c9494b364267deb250601b8`; all eight checks and pinned
+  LLVM/Clang 22 native exit `181` pass. Draft PR #4 is synchronized, open, unmerged,
+  and carries the four scaling controls. The only CORE-052 mutation at authorization
+  is this ledger record. The next allowed mutation is the exhaustive focused red test;
+  no CORE-052 compiler behavior, example, workflow, capability claim, commit, or public
+  artifact exists.
+- Tests-first red evidence: `cargo test --manifest-path src/compiler/Cargo.toml --test
+  payload_enum_transport_tests -- --nocapture` builds and runs the single exhaustive
+  target but fails 0/1 before any compiler, example, workflow, or capability-state
+  mutation. Parser retention passes for a mixed unit/Int/Float/Bool enum-bearing
+  signature. Every positive payload-only or mixed schema, parameter/result type,
+  producer/consumer/identity/forwarding/multi-enum signature, constructor/local/
+  parameter/call-result origin, and ownership case stops at the exact existing
+  `payload enum ... is not admitted in function transport` condition. Generalized
+  process-entry/generic diagnostics, later exact type/arity/move checks, generalized
+  `CheckedEnumParameter`, aggregate LLVM function/call/return flow, valid CLI artifact,
+  both tracked example files, and all six stable workflow anchors are absent. Invalid
+  definitions and raw-path containment already fail closed. This proves the frozen
+  capability—not parser retention or a rejection wording change—is red; no existing
+  test was weakened and no public branch or PR state changed.
+- Local implementation result: the single transport annotation resolver now accepts
+  the exact supported `EnumRegistry` schema instead of applying a unit-only condition;
+  no payload-kind branch was added. The checked transport predicate independently
+  accepts that same valid schema class. The former `CheckedUnitEnumParameter` is one
+  `CheckedEnumParameter` carrying the full schema and binding every enum parameter
+  exactly once in the entry block. Existing recursive consumed-owned-value analysis
+  applies unchanged to payload-enum arguments, returns, nested calls, and Match. Unit
+  values retain private `i32`; payload values retain private `{ i32, double, i1 }`
+  through definitions, arguments, calls, results, and returns. The binder reconstructs
+  one exact aggregate SSA identity from the verified parameter without exposing lanes
+  to source semantics. No stable layout, public calling convention, ABI, or FFI claim
+  is introduced.
+- Independent verification and adjacent controls: the private corruption test now
+  accepts exact unit and mixed unit/Int/Float/Bool transport, then rejects missing,
+  duplicate, misplaced, wrong-name, wrong-schema, unsupported-lane, wrong-return, and
+  wrong-call binders/values. The exhaustive CORE-052 target passes. CORE-050 unit
+  transport and CORE-051 local payload Match pass after only the exact binder-name,
+  generalized diagnostic, and obsolete payload-transport exclusion expectations were
+  corrected. No rejection, ownership invariant, or test was weakened.
+- Local system trace: the tracked `examples/payload_enum_transport/` module pair
+  composes root and module payload-enum producers, forwarders, consumers, direct-result
+  Match, unit-enum transport, Copy structs/arrays/transport, immutable scalar
+  references, compile-time String length, and control flow. A fresh real CLI build
+  resolves `signals`, completes source through checked IR and internal LLVM
+  verification, and emits seven aggregate-returning definitions, ten aggregate calls,
+  eight aggregate returns, 32 aggregate parameter occurrences, seven tag switches, 48
+  aggregate extractions, and 45 aggregate insertions. SHA-256 is
+  `AD23CC66B1579D18870F05E3C63481C781209033F63F5A653872FB88B77160B5`.
+  This Windows host truthfully remains `InternalOnly` because LLVM/Clang 22 is absent.
+- Local gate and remaining risk: the unchanged repository-root `./tools/test.sh` gate
+  exits 0 and passes formatting, correctness Clippy, 162/162 library tests, 168/168
+  binary tests, every integration target, and doc tests. No unsupported source reaches
+  checked IR or LLVM. Remaining risks are aggregate parameter identity, schema drift
+  across calls, ABI-shaped backend mistakes, or ownership regressions; shared
+  classification, independent corruption tests, adjacent suites, the full root gate,
+  and the pinned native job are the controls. Next action is one intentional candidate
+  commit and push, immediate draft PR front-page synchronization, then all eight public
+  checks plus pinned LLVM/Clang 22 external/machine verification, object/link, and exact
+  native exit `197`. Keep PR #4 draft and unmerged.

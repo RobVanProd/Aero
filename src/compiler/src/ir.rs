@@ -68,8 +68,8 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
-    /// Verified direct SSA binding of an owned unit-enum function parameter.
-    CheckedUnitEnumParameter {
+    /// Verified direct SSA binding of an owned enum function parameter.
+    CheckedEnumParameter {
         result: Value,
         parameter: String,
         schema: EnumSchema,

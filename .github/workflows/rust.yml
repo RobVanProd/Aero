@@ -431,6 +431,24 @@ jobs:
         fi
         echo "owned scalar-payload enum example passed with exit code 181"
 
+    - name: Test owned scalar-payload enum transport integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/payload_enum_transport/main.aero -o ../../payload_enum_transport.ll
+        opt-22 -passes=verify -disable-output ../../payload_enum_transport.ll
+        llc-22 -verify-machineinstrs ../../payload_enum_transport.ll -o /dev/null
+        llc-22 -filetype=obj ../../payload_enum_transport.ll -o ../../payload_enum_transport.o
+        clang-22 ../../payload_enum_transport.o -o ../../payload_enum_transport
+        set +e
+        ../../payload_enum_transport
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 197 ]; then
+          echo "Expected exit code 197, got $exit_code"
+          exit 1
+        fi
+        echo "owned scalar-payload enum transport example passed with exit code 197"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

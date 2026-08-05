@@ -314,10 +314,6 @@ fn valid_enum_schema(schema: &EnumSchema) -> bool {
         })
 }
 
-fn valid_unit_enum_schema(schema: &EnumSchema) -> bool {
-    valid_enum_schema(schema) && schema.is_unit()
-}
-
 fn valid_struct_schema(fields: &[LogicalType]) -> bool {
     !fields.is_empty() && fields.iter().all(valid_copy_struct_field_type)
 }
@@ -350,7 +346,7 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
             matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
                 || valid_copy_struct_type(element)
         }
-        LogicalType::Enum { name, variants } => valid_unit_enum_schema(&EnumSchema {
+        LogicalType::Enum { name, variants } => valid_enum_schema(&EnumSchema {
             name: name.clone(),
             variants: variants.clone(),
         }),
@@ -861,7 +857,7 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::Load(result, _)
         | Inst::SIToFP(result, _)
         | Inst::FPToSI(result, _)
-        | Inst::CheckedUnitEnumParameter { result, .. }
+        | Inst::CheckedEnumParameter { result, .. }
         | Inst::CheckedEnumVariant { result, .. }
         | Inst::CheckedEnumPayload { result, .. } => Some(result),
         Inst::Call { result, .. } => result.as_ref(),
@@ -917,7 +913,7 @@ fn definition_type(
             .and_then(|id| places.get(&PlaceId(id)))
             .and_then(PlaceType::logical),
         Inst::Call { function, .. } => signatures.get(function).map(|sig| sig.result.clone()),
-        Inst::CheckedEnumVariant { schema, .. } | Inst::CheckedUnitEnumParameter { schema, .. } => {
+        Inst::CheckedEnumVariant { schema, .. } | Inst::CheckedEnumParameter { schema, .. } => {
             Some(schema.logical_type())
         }
         Inst::CheckedEnumPayload {
@@ -1267,7 +1263,7 @@ impl<'a> FunctionVerifier<'a> {
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(format!(
-                                        "unit-enum parameter `{name}` requires a direct checked parameter binder"
+                                        "enum parameter `{name}` requires a direct checked parameter binder"
                                     )),
                                 ));
                             }
@@ -2416,14 +2412,14 @@ impl<'a> FunctionVerifier<'a> {
                             ));
                         }
                     }
-                    Inst::CheckedUnitEnumParameter {
+                    Inst::CheckedEnumParameter {
                         parameter, schema, ..
                     } => {
-                        if block_index != 0 || !valid_unit_enum_schema(schema) {
+                        if block_index != 0 || !valid_enum_schema(schema) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked unit-enum parameter `{parameter}` must bind a valid schema in the entry block"
+                                    "checked enum parameter `{parameter}` must bind a valid schema in the entry block"
                                 )),
                             ));
                         }
@@ -2439,7 +2435,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked unit-enum parameter `{parameter}` disagrees with its function signature"
+                                    "checked enum parameter `{parameter}` disagrees with its function signature"
                                 )),
                             ));
                         }
@@ -2447,7 +2443,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked unit-enum parameter `{parameter}` is bound more than once"
+                                    "checked enum parameter `{parameter}` is bound more than once"
                                 )),
                             ));
                         }
@@ -2613,7 +2609,7 @@ impl<'a> FunctionVerifier<'a> {
             return Err(self.error(
                 0,
                 IrVerificationErrorKind::MetadataMismatch(
-                    "checked unit-enum parameter binders do not exactly cover the enum signature"
+                    "checked enum parameter binders do not exactly cover the enum signature"
                         .to_string(),
                 ),
             ));
@@ -2828,7 +2824,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 }
                 Inst::CheckedEnumVariant { schema, .. }
                 | Inst::CheckedEnumPayload { schema, .. }
-                | Inst::CheckedUnitEnumParameter { schema, .. }
+                | Inst::CheckedEnumParameter { schema, .. }
                 | Inst::CheckedEnumDispatch { schema, .. } => {
                     register_enum(schema, schemas, enum_schemas)?
                 }
@@ -2987,8 +2983,12 @@ mod tests {
         )])
     }
 
-    fn checked_enum_transport_program(forward_body: Vec<Inst>, main_runtime: Vec<Inst>) -> RawIr {
-        let enum_type = unit_schema("Phase", &["Cold", "Warm"]).logical_type();
+    fn checked_enum_transport_program(
+        schema: &EnumSchema,
+        forward_body: Vec<Inst>,
+        main_runtime: Vec<Inst>,
+    ) -> RawIr {
+        let enum_type = schema.logical_type();
         let mut main_body = vec![Inst::CheckedFunctionDef {
             name: "forward".to_string(),
             parameters: vec![("value".to_string(), enum_type.clone())],
@@ -3028,10 +3028,10 @@ mod tests {
     }
 
     #[test]
-    fn checked_unit_enum_transport_signatures_and_binders_are_fail_closed() {
+    fn checked_enum_transport_signatures_and_binders_are_fail_closed() {
         let schema = unit_schema("Phase", &["Cold", "Warm"]);
         let enum_type = schema.logical_type();
-        let binder = || Inst::CheckedUnitEnumParameter {
+        let binder = || Inst::CheckedEnumParameter {
             result: Value::Reg(0),
             parameter: "value".to_string(),
             schema: schema.clone(),
@@ -3050,6 +3050,7 @@ mod tests {
             Inst::Return(Value::ImmInt(1)),
         ];
         let checked = verify_ir(checked_enum_transport_program(
+            &schema,
             vec![binder(), Inst::Return(Value::Reg(0))],
             valid_main,
         ))
@@ -3085,7 +3086,7 @@ mod tests {
             (
                 "wrong binder parameter",
                 vec![
-                    Inst::CheckedUnitEnumParameter {
+                    Inst::CheckedEnumParameter {
                         result: Value::Reg(0),
                         parameter: "other".to_string(),
                         schema: schema.clone(),
@@ -3096,7 +3097,7 @@ mod tests {
             (
                 "wrong binder schema",
                 vec![
-                    Inst::CheckedUnitEnumParameter {
+                    Inst::CheckedEnumParameter {
                         result: Value::Reg(0),
                         parameter: "value".to_string(),
                         schema: unit_schema("Phase", &["Cold", "Hot"]),
@@ -3108,7 +3109,7 @@ mod tests {
                 "duplicate binder",
                 vec![
                     binder(),
-                    Inst::CheckedUnitEnumParameter {
+                    Inst::CheckedEnumParameter {
                         result: Value::Reg(1),
                         parameter: "value".to_string(),
                         schema: schema.clone(),
@@ -3137,6 +3138,7 @@ mod tests {
         for (label, body) in invalid_forward_bodies {
             assert!(
                 verify_ir(checked_enum_transport_program(
+                    &schema,
                     body,
                     vec![Inst::Return(Value::ImmInt(0))]
                 ))
@@ -3156,11 +3158,138 @@ mod tests {
         ];
         assert!(
             verify_ir(checked_enum_transport_program(
+                &schema,
                 vec![binder(), Inst::Return(Value::Reg(0))],
                 wrong_call,
             ))
             .is_err(),
             "wrong enum call argument passed checked IR verification"
+        );
+
+        let payload_schema = scalar_payload_schema("Signal");
+        let payload_type = payload_schema.logical_type();
+        let payload_binder = || Inst::CheckedEnumParameter {
+            result: Value::Reg(0),
+            parameter: "value".to_string(),
+            schema: payload_schema.clone(),
+        };
+        let payload_main = vec![
+            Inst::CheckedEnumVariant {
+                result: Value::Reg(0),
+                schema: payload_schema.clone(),
+                variant_index: 1,
+                payload: Some(Value::ImmInt(7)),
+            },
+            Inst::Call {
+                function: "forward".to_string(),
+                arguments: vec![Value::Reg(0)],
+                result: Some(Value::Reg(1)),
+            },
+            checked_dispatch(
+                Value::Reg(1),
+                payload_schema.clone(),
+                &["idle", "count", "ratio", "ready"],
+            ),
+            Inst::Label("idle".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("count".to_string()),
+            Inst::Return(Value::ImmInt(1)),
+            Inst::Label("ratio".to_string()),
+            Inst::Return(Value::ImmInt(2)),
+            Inst::Label("ready".to_string()),
+            Inst::Return(Value::ImmInt(3)),
+        ];
+        let checked = verify_ir(checked_enum_transport_program(
+            &payload_schema,
+            vec![payload_binder(), Inst::Return(Value::Reg(0))],
+            payload_main,
+        ))
+        .expect("exact payload-enum binder, call, return, and dispatch are valid");
+        assert_eq!(
+            checked.metadata().functions["forward"].signature.parameters,
+            vec![("value".to_string(), payload_type.clone())]
+        );
+        assert_eq!(
+            checked.metadata().functions["main"].results[&ResultId(1)],
+            payload_type
+        );
+
+        for (label, body) in [
+            (
+                "payload binder replaced by unit schema",
+                vec![
+                    Inst::CheckedEnumParameter {
+                        result: Value::Reg(0),
+                        parameter: "value".to_string(),
+                        schema: unit_schema("Signal", &["Idle", "Count", "Ratio", "Ready"]),
+                    },
+                    Inst::Return(Value::Reg(0)),
+                ],
+            ),
+            (
+                "payload binder carries unsupported lane type",
+                vec![
+                    Inst::CheckedEnumParameter {
+                        result: Value::Reg(0),
+                        parameter: "value".to_string(),
+                        schema: EnumSchema {
+                            name: "Signal".to_string(),
+                            variants: vec![EnumVariantSchema {
+                                name: "Text".to_string(),
+                                payload: Some(LogicalType::String),
+                            }],
+                        },
+                    },
+                    Inst::Return(Value::Reg(0)),
+                ],
+            ),
+            (
+                "payload return changes schema",
+                vec![
+                    payload_binder(),
+                    Inst::CheckedEnumVariant {
+                        result: Value::Reg(1),
+                        schema: scalar_payload_schema("Other"),
+                        variant_index: 1,
+                        payload: Some(Value::ImmInt(7)),
+                    },
+                    Inst::Return(Value::Reg(1)),
+                ],
+            ),
+        ] {
+            assert!(
+                verify_ir(checked_enum_transport_program(
+                    &payload_schema,
+                    body,
+                    vec![Inst::Return(Value::ImmInt(0))],
+                ))
+                .is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+
+        let wrong_payload_call = vec![
+            Inst::CheckedEnumVariant {
+                result: Value::Reg(0),
+                schema: scalar_payload_schema("Other"),
+                variant_index: 1,
+                payload: Some(Value::ImmInt(7)),
+            },
+            Inst::Call {
+                function: "forward".to_string(),
+                arguments: vec![Value::Reg(0)],
+                result: Some(Value::Reg(1)),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        assert!(
+            verify_ir(checked_enum_transport_program(
+                &payload_schema,
+                vec![payload_binder(), Inst::Return(Value::Reg(0))],
+                wrong_payload_call,
+            ))
+            .is_err(),
+            "wrong payload-enum call argument passed checked IR verification"
         );
     }
 

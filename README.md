@@ -247,20 +247,31 @@ aero lsp
 > externally verifies, machine-verifies, object-lowers, links, and executes exact
 > native exit 173.
 >
-> CORE-051 is the locally green candidate for owned local enums whose variants are
+> CORE-051 is publicly accepted for owned local enums whose variants are
 > unit or carry exactly one `int`, `float`, or `bool` payload. Construction requires
 > the exact declared scalar type; exhaustive Match requires one identifier binding
 > for each payload arm, scopes that Copy scalar to the selected arm, and consumes the
 > non-`Copy` enum. One shared schema classifier serves semantics, checked admission,
 > IR, verification, and lowering. Checked IR retains construction, selected payload
 > extraction, and exhaustive dispatch; verified LLVM uses a private
-> `{ i32, double, i1 }` aggregate with deterministic inactive lanes. The full local
-> gate passes 162 library and 168 binary tests. Public acceptance still requires all
-> eight checks plus pinned LLVM/Clang 22 external verification, object/link, and exact
-> native exit 181. Payload-enum function transport, aggregate storage, references,
+> `{ i32, double, i1 }` aggregate with deterministic inactive lanes. Exact implementation
+> `babb1cd5` passes all eight public checks; stable job `92223344697` uses pinned
+> LLVM/Clang 22.1.8 for external and machine verification, object/link, and exact native
+> exit 181, with 162 library and 168 binary tests. Aggregate storage, references,
 > non-scalar/multi-field/struct/generic payloads, Option/Result matching, wildcard/
 > guard/nested destructuring, mutation, stable layout/ABI, and general pattern
 > matching remain unsupported. Other Match topologies retain the fail-closed boundary.
+>
+> CORE-052 is the locally green candidate that carries every supported unit or unary
+> scalar-payload enum schema through exact internal parameters, arguments, call results,
+> and returns. One shared transport annotation resolver admits the complete schema class;
+> `CheckedEnumParameter` and the independent verifier preserve exact binder/signature/
+> call/return identity and ownership transfer. Unit enums remain private `i32`; payload
+> enums remain private `{ i32, double, i1 }` SSA values. The full local gate passes 162
+> library and 168 binary tests. Public acceptance requires all eight checks plus pinned
+> LLVM/Clang 22 external verification, machine verification, object/link, and exact
+> native exit 197. This creates no stable layout, public calling convention, ABI, FFI,
+> aggregate enum storage, borrowing, mutation, drop, or general CFG ownership claim.
 
 Formal spec: `docs/language/aero_formal_language_specification.md`
 
