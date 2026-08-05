@@ -228,12 +228,21 @@ aero lsp
 > object lowering, linking, and exact native exit 127. The Windows host accurately
 > remains `InternalOnly` because LLVM 22 is absent locally.
 
-> **Pattern matching status:** `match` syntax, arms, and patterns are recognized,
-> but Match value evaluation is not executable yet. Trusted parsed source bodies,
-> including default trait method bodies, inspect the scrutinee and arm bodies for
-> established errors, then reject the Match before IR with
-> `Match expressions are not supported.` This is a fail-closed boundary, not pattern
-> typing, exhaustiveness, arm selection, or Match execution support.
+> **Pattern matching status:** CORE-049 accepts one bounded owned unit-enum class:
+> unique top-level non-generic enums with one or more unit variants, exact payload-free
+> construction, immutable local moves, and exhaustive matches containing exactly one
+> explicit arm per variant with uniform `Int`, `Float`, or `Bool` results. Unit enums
+> remain non-`Copy`; matching an identifier consumes it, nested possible-arm consumption
+> is conservative, and reuse fails before IR. Checked IR preserves distinct enum identity
+> and exhaustive dispatch, the verifier independently rejects malformed schemas and CFG,
+> and LLVM uses an internal `i32` plus `switch` without creating a public integer identity
+> or ABI. Exact implementation `b38a6b0` passes 160 library and 166 binary tests plus all
+> eight public checks; pinned Linux LLVM/Clang 22.1.8 externally verifies, machine-verifies,
+> object-lowers, links, and executes the composed module with exact native exit 149.
+> Payload/generic enums, Option/Result matching, wildcard/binding/guard patterns, enum
+> function or aggregate transport, borrowing, mutation, stable layout/ABI, and general
+> pattern matching remain unsupported. Other Match topologies retain the established
+> fail-closed boundary.
 
 Formal spec: `docs/language/aero_formal_language_specification.md`
 

@@ -1102,3 +1102,38 @@ declared compatibility policy and release-level coverage.
   ABI, escaping/aggregate references, assignment/mutation, NLL, owner drop/resource
   ownership, FFI/stable pointer ABI, accelerators, performance, release, and stability
   remain excluded.
+
+## CORE-049 accepted owned unit-enum exhaustive Match
+
+- Accepted CORE-049 admits exactly one unique top-level, non-generic, nonempty enum
+  definition containing unique unit variants and no same-name struct. Payload-free
+  constructors initialize immutable inferred or exact local bindings; local aliasing
+  moves the source, and matching an identifier consumes it because the enum is not
+  `Copy`. One shared registry/classifier owns definition, constructor, annotation,
+  execution-context, exhaustive-arm, scalar-result, and nested consumption topology
+  across semantic analysis and checked admission.
+- An admitted Match contains exactly one explicit payload-free arm for every declared
+  variant in arbitrary order, with uniform exact `Int`, `Float`, or `Bool` results.
+  Nested matches and existing scalar parents are supported, only the selected arm
+  executes, and possible-arm nested consumption is conservative at the expression join.
+  Unsupported Match topologies retain their established fail-closed behavior.
+- Checked IR introduces a distinct schema-bearing `LogicalType::Enum`, exact
+  `CheckedUnitEnumVariant`, and exhaustive `CheckedUnitEnumDispatch` terminator.
+  Independent verification rejects malformed/empty/duplicate/conflicting schemas,
+  invalid indices, immediate/undefined/non-dominating/wrong-enum values, incomplete/
+  duplicate/missing targets, identifier-kind collisions, and excluded aggregate or
+  function transport. LLVM lowers the verified local identity to internal `i32` and
+  `switch i32`; this is not source `Int` and defines no stable enum ABI.
+- The exhaustive target passes 1/1, unsupported Match containment passes 15/15, and
+  the exact root gate passes 160 library and 166 binary tests plus formatting,
+  correctness Clippy, every integration target, and doc tests. Exact implementation
+  `b38a6b0927c747909918b5ebf3c0f6b58d0727dd`, tree
+  `80829d3a74ddf2b6edfa247b75205b0a0ec799cc`, stable patch ID
+  `c22f9210b9756645022be636cb98d24678d5a60f`, passes all eight public checks. Stable
+  job `92208529644` uses LLVM/Clang 22.1.8 for external and machine verification,
+  object lowering, linking, exact native exit 149, and 160/166 test passes. Execution
+  is `Y` only for this bounded class; the broader enum/Match row remains `PARTIAL`.
+- Payload/struct/generic/mixed enums, Option/Result Match, wildcard/binding/guard/
+  literal patterns, enum parameters/results/calls/aggregates/references, mutation,
+  borrowing, public discriminants, stable layout/ABI/FFI, heap/drop behavior,
+  accelerators, performance, release, and stability remain excluded.

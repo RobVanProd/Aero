@@ -4,6 +4,40 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
+Milestone 68 `CORE-049` is accepted public for explicit exhaustive matches over owned
+local unit enums. The admitted definition is exactly one unique top-level non-generic,
+nonempty enum containing unique unit variants and no same-name struct. Exact
+payload-free constructors may initialize or move through immutable local bindings.
+Matching an identifier consumes it because unit enums are not `Copy`; one shared
+registry/classifier owns definition, constructor, annotation, exhaustive-arm,
+uniform-result, execution-context, and nested consumed-scrutinee decisions across
+semantic analysis and checked admission.
+
+Supported matches contain exactly one payload-free `Enum::Variant` arm per declared
+variant in any order and return one exact scalar type: `Int`, `Float`, or `Bool`.
+Nested matches and already-admitted scalar parents execute only the selected arm.
+Checked IR retains a distinct schema-bearing `LogicalType::Enum`, exact variant result,
+and exhaustive dispatch terminator. Independent verification rejects malformed,
+conflicting, incomplete, undefined, non-dominating, colliding, or transport-leaking
+enum IR before LLVM. Verified LLVM uses an internal `i32` and `switch` without making
+the enum a source `Int` or establishing stable layout/ABI.
+
+Exact implementation `b38a6b0927c747909918b5ebf3c0f6b58d0727dd`, tree
+`80829d3a74ddf2b6edfa247b75205b0a0ec799cc`, and stable patch ID
+`c22f9210b9756645022be636cb98d24678d5a60f` pass all eight public checks. Push CI
+`30975499818`, PR CI `30975502408`, Rust CI `30975502412`, CodeQL `30975500460`,
+and aggregate `92208615520` are green. Stable job `92208529644` uses LLVM/Clang
+22.1.8, resolves `signals`, reports `ExternalVerified` through `opt-22`,
+machine-verifies and object-lowers with `llc-22`, links with `clang-22`, records exact
+native exit 149, and passes 160/160 library plus 166/166 binary tests. The local host
+truthfully remains `InternalOnly` because LLVM 22 is absent.
+
+Payload/generic/mixed enums, Option/Result Match, wildcard/binding/guard patterns,
+enum parameters/results/arrays/struct fields/references, mutation, borrowing, public
+discriminants, stable layout/ABI/FFI, heap/drop semantics, accelerator execution,
+performance, release, and stability claims remain excluded. Existing unsupported
+Match classes retain their established fail-closed boundary and diagnostic precedence.
+
 Milestone 67 `CORE-048` is accepted public for non-escaping immutable
 references to existing local `Int`, `Float`, and `Bool` places. One shared classifier
 now admits only `&x` for an initialized scalar identifier, exact inferred or annotated
@@ -100,8 +134,10 @@ composition rather than a module system.
   calls. CORE-047 now takes recursive named aggregate classification, layout, field
   Copy behavior, and transport rather than selecting another scalar leaf. CORE-048
   takes immutable ownership/provenance and typed pointer representation through
-  checked verification and native execution. Non-Copy
-  ownership, runtime representation, stable ABI, full module semantics, and real
+  checked verification and native execution. CORE-049 takes an owned non-Copy ADT,
+  exhaustive control flow, schema-bearing checked IR, and internal backend
+  representation through native execution. Deeper non-Copy ownership, runtime
+  representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
   is a candidate for generation from a future structured checkpoint manifest. Such a
@@ -119,6 +155,9 @@ composition rather than a module system.
   fields, chained projection, and arrays of the resulting structs through pinned
   stable-Linux native execution. CORE-048's accepted exit-127 gate adds local immutable
   scalar-reference provenance and typed alias/load lowering to the same composition.
+  CORE-049's accepted exit-149 gate adds owned unit-enum identity, conservative move
+  effects, exhaustive nested dispatch, independent enum/CFG verification, and native
+  selected-arm execution to that system trace.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -1710,7 +1749,7 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push this records-only CORE-048 acceptance synchronization unchanged,
+Commit and push this records-only CORE-049 acceptance synchronization unchanged,
 immediately resynchronize draft PR #4 to the records head, and require all eight
 records-head checks. Then separately choose the next hard capability or authorize the
 controlled mega-PR checkpoint strategy or structured evidence-manifest generator.

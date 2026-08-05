@@ -9628,3 +9628,36 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   artifact was removed. Local verification remains truthfully `InternalOnly` because no
   LLVM 22 verifier is installed, so pinned public `opt-22`/`llc-22`/`clang-22` native
   exit `149` remains mandatory before acceptance.
+- Public implementation acceptance: exact implementation
+  `b38a6b0927c747909918b5ebf3c0f6b58d0727dd` (tree
+  `80829d3a74ddf2b6edfa247b75205b0a0ec799cc`, stable patch ID
+  `c22f9210b9756645022be636cb98d24678d5a60f`) was pushed unchanged. Push compiler CI
+  `30975499818`, PR compiler CI `30975502408`, stable/nightly Rust `30975502412`,
+  CodeQL actions/python/rust `30975500460`, and aggregate CodeQL `92208615520` pass
+  all eight checks at that exact SHA. Stable job `92208529644` installs Ubuntu LLVM/
+  Clang 22.1.8, resolves `signals`, reports `ExternalVerified: opt 22.1.8 at
+  /usr/bin/opt-22`, runs `llc-22 -verify-machineinstrs`, object-lowers, links with
+  `clang-22`, and records `owned unit-enum match example passed with exit code 149`.
+  The same job passes 160/160 library and 166/166 binary tests plus correctness Clippy.
+  This accepts only the frozen local owned unit-enum/exhaustive-Match class; internal
+  `i32` remains unobservable and every listed payload, transport, ABI, general
+  ownership, trait, accelerator, performance, release, and stability exclusion remains.
+- PR-front-page synchronization: immediately after implementation publication, draft
+  PR #4 was updated in place to `Integrate Aero compiler checkpoints through CORE-049`
+  and led with exact candidate identity, 236 commits ahead of `master`, 60,299
+  additions, 1,394 deletions, 127 changed files, pending public status, local evidence,
+  exclusions, and all four standing scaling controls. It remained draft and unmerged.
+  After all eight checks and the stable native log passed, this records-only acceptance
+  synchronization changes only `TASK_LEDGER.md`, `README.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md`. It changes no compiler,
+  test, example, workflow, semantic, ownership, IR, backend, dependency, runtime,
+  immutable claim evidence, release, benchmark, `master`, or merge state. Its successor
+  identity must pass the exact local root gate, be pushed unchanged, resynchronize the
+  PR front page to accepted records, and pass all eight records-head checks again.
+- Records-only pre-publication gate: from repository root on Windows, with the Cargo
+  bin directory inherited by Git Bash, `./tools/test.sh` passes after the five-file
+  acceptance synchronization. This includes the 1/1 owned unit-enum suite, all 15/15
+  preserved unsupported-Match precedence tests, all 8/8 version-claim contracts, the
+  complete active baseline, formatting, correctness Clippy, and documentation. Because
+  this result is now recorded in the candidate tree, the exact committed records tree
+  must pass the same root gate again before push.
