@@ -13359,3 +13359,34 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   active Windows LLVM-verifier CLI timeout fixture, whose fake tool deliberately ran a
   61-second delay; process inspection showed Cargo actively waiting on that controlled
   test, not a deadlock or Windows Security intervention.
+
+### CORE-067 accepted public implementation evidence
+
+- Accepted implementation identity: commit
+  `e7525bf039339909c8f4f5cc68262fdf498079e0`, tree
+  `a41eb54122cd1b358ddd3d5c590d738bce98ae29`, stable patch ID
+  `ddcbeaf010903474568bb7f79a79457d7b955d25`, and parent
+  `3df9dc682a959b2c48429da71c6f4d901ec09f38`. It is public only on
+  `agent/aero-integration`; `master` remains unchanged and draft PR #4 remains open,
+  draft, and unmerged.
+- Public candidate-head checks: CodeQL run `31055990327` passes Actions job
+  `92473489550`, Python job `92473489497`, Rust job `92473489414`, and aggregate check
+  `92473599078`; push CI run `31055993229` / job `92473494175`; PR CI run
+  `31055992466` / job `92473491398`; and PR Rust CI run `31055992663` with stable job
+  `92473492653` and nightly job `92473492801` all pass on the exact implementation.
+- Pinned native system evidence: stable LLVM/Clang 22.1.8 rejects the known-invalid
+  LLVM fixture, reports `ExternalVerified`, completes `opt-22` verification,
+  `llc-22 -verify-machineinstrs`, object lowering, explicit private non-PIE
+  `clang-22` linking, and exact native exit 167 for the tracked two-file program.
+  Nightly independently reports external verification and exact exit 167.
+- Acceptance boundary: CORE-067 is accepted public only for the frozen shared
+  intrinsic-method classification and recursive CopyData fixed-array `.len()` /
+  `.is_empty()` query class. Runtime Strings/collections, general or generic method
+  dispatch, callable/iterator ABI, heap behavior, closures, ownership/lifetimes,
+  layout/FFI, accelerators, performance, releases, stability/safety, and merge remain
+  excluded. The four scaling controls remain active.
+- Records closure: this additive documentation sync changes no compiler source, test,
+  workflow, dependency, language classification, accepted implementation identity,
+  or public claim boundary. Its exact successor commit must be pushed to
+  `agent/aero-integration`, draft PR #4 must be synchronized immediately, and all
+  eight checks must pass again before administrative closure.

@@ -40,14 +40,14 @@ increment block. The exhaustive/verifier/compatibility/root gates, all eight pub
 checks, and pinned LLVM/Clang 22.1.8 external/machine/object/link/native exit 149 pass.
 Outer-owner backedge/exit joins, moved-target reinitialization, loop labels/expressions,
 and general CFG ownership remain unsupported.
-The green local `CORE-067` candidate closes the remaining intrinsic-method false-
+Accepted public `CORE-067` closes the remaining intrinsic-method false-
 success tables behind one shared semantic/admission/lowering classifier and admits
 exact recursive CopyData fixed-array `.len()`/`.is_empty()` constants. Static String
 queries and Array/Vec `.iter()` compatibility remain bounded; runtime Strings,
 collections, generic dispatch, iterator ABI, heap behavior, and closures do not move.
-Focused, classifier, compatibility, and 183-library/root gates pass locally; local
-Clang 19.1.5 executes exact exit 167. Immutable identity, public checks, and pinned
-LLVM/Clang 22 native exit 167 remain required before acceptance.
+Focused, classifier, compatibility, and 183-library/root gates pass. All eight public
+checks pass; pinned stable LLVM/Clang 22.1.8 externally and machine-verifies, object-
+lowers, links, and executes exit 167, while nightly repeats exit 167.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

@@ -4,9 +4,10 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 86 `CORE-067` has an exact green local implementation candidate; immutable
-commit identity, public workflows, pinned LLVM/Clang 22 execution, and public
-acceptance remain pending. One shared intrinsic-method classifier now owns receiver,
+Milestone 86 `CORE-067` has an accepted public implementation at exact commit
+`e7525bf039339909c8f4f5cc68262fdf498079e0`; the additive records-only closure and
+its fresh all-eight public check set remain pending. One shared intrinsic-method
+classifier now owns receiver,
 method, arity, static-String provenance, phase, and preserved-context classification
 for both semantic inference paths and checked admission/lowering. Unknown and
 unimplemented methods no longer fabricate semantic scalar/composite types, and trusted
@@ -2091,11 +2092,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Create one immutable CORE-067 implementation commit from the documented exact green
-root-gated candidate on `agent/aero-integration`, push it,
-immediately synchronize draft PR #4 to that exact candidate, and require all eight
-public checks plus pinned stable LLVM/Clang 22 native exit 167 before any acceptance
-record moves. Keep the PR draft and unmerged. The controlled
+Commit and push the additive CORE-067 public-acceptance records only, immediately
+synchronize draft PR #4 to that records head, and require a fresh all-eight public
+check set before administrative closure. Keep the PR draft and unmerged. The controlled
 mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
 tasks, hard capability classes must not be deferred for convenient slices, and
 periodic multi-capability system gates remain mandatory.

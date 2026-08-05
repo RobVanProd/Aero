@@ -106,21 +106,22 @@ object-lowers, links, and executes exact exit 149, with nightly repeating exit 1
 Outer-owner backedge/exit joins, moved-target reinitialization, loop expressions/
 labels, and general CFG ownership remain deliberately excluded.
 
-The green local `CORE-067` candidate advances the framework's strong-typing and
+Accepted public `CORE-067` advances the framework's strong-typing and
 zero-cost-abstraction direction without claiming general method dispatch. One shared
 classifier replaces duplicated semantic/admission topology tables, rejects unsupported
 methods before checked IR, and supplies exact compile-time lowering for recursive
 CopyData fixed-array `.len()` and `.is_empty()`. Existing immutable compile-time String
 queries and Array/Vec `.iter()` compatibility are preserved. The tracked composed
 program crosses direct modules, structs, tuples, nested arrays, semantics, checked IR,
-verification, and LLVM and executes locally with native exit 167. Runtime Strings, collections,
+verification, LLVM, machine verification, object/link, and exact native exit 167 on
+pinned LLVM/Clang 22.1.8; nightly repeats exit 167. Runtime Strings, collections,
 heap or iterator ABI, generic/trait dispatch, closures, ownership changes, stable ABI,
-and accelerator execution remain excluded. Public and pinned-native acceptance are
-still pending, consistent with Minimal Prototype / correctness recovery.
+and accelerator execution remain excluded, consistent with Minimal Prototype /
+correctness recovery.
 
 | Framework direction | Current evidence | Required next proof |
 |---|---|---|
-| Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. The CORE-067 candidate similarly closes fabricated intrinsic-method result types behind one shared classifier while admitting only exact compile-time queries. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze closure typing/capture/call semantics before any positive closure path |
+| Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-067 similarly closes fabricated intrinsic-method result types behind one shared classifier while admitting only exact compile-time queries. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze closure typing/capture/call semantics before any positive closure path |
 | Ownership-based safety | Shallow move checks remain partial. CORE-048/053 through accepted CORE-066 establish bounded immutable/mutable whole-place ownership, internal reference transport, recursive finite CopyData composition, direct CopyData owner reassignment, owned enum transport/replacement, exact acyclic conditional joins, independent enum-owner CFG consumption proof, and fresh per-iteration enum owners without transporting an outer moved owner. Mutable projections, reference results, escaping provenance, outer-owner loop joins, stable reference ABI, general CFG ownership, NLL, drop, lifetime inference, and memory-safety claims remain absent; 16 broader semantic/lossy-shape Phase 5 tests remain quarantined. | Freeze another hard module, runtime, ownership, or execution slice |
 | Structs, arrays, enums, traits, and Match | CORE-043 through CORE-047 accept bounded all-Copy scalar/named-struct construction, projection, arrays, transport, and finite acyclic graphs. CORE-049 through CORE-052 accept unit/unary-scalar enums, exhaustive bound Match, and owned internal transport. CORE-058 through CORE-061 add flat tuples, whole-place references, and direct CopyData owner replacement. Accepted CORE-062 removes the executable CopyData topology whitelist. Accepted CORE-063 carries that recursive class through unary owned-enum payloads and exact bound Match under a pinned native exit-113 gate. Accepted CORE-064 adds exact whole-owner enum replacement under a pinned native exit-131 gate. Accepted CORE-065 composes those operations across acyclic `if` joins under a pinned native exit-137 gate. Generic/multi-field enums, Option/Result Match, wildcard/guard/nested destructuring, enum fields/arrays/borrowing/projection, unit/unary tuples, unsupported/cyclic structs, dynamic arrays, traits, and stable aggregate/reference ABI remain open. | Address another hard generic/module/runtime/ownership class under separately frozen semantics |
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist; typed-IR invariants and verification are incomplete | Fallible typed IR, structural verifier, LLVM verifier, object/link/runtime gates on supported platforms |

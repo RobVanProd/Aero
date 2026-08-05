@@ -2928,8 +2928,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-063 - Centralize intrinsic methods and admit recursive CopyData array queries
 
 - Date: 2026-08-05
-- Status: exact green local CORE-067 candidate; immutable commit identity, public
-  workflows, pinned LLVM/Clang 22 native exit 167, and acceptance remain pending.
+- Status: accepted public CORE-067 implementation at exact commit
+  `e7525bf039339909c8f4f5cc68262fdf498079e0`, tree
+  `a41eb54122cd1b358ddd3d5c590d738bce98ae29`, and stable patch ID
+  `ddcbeaf010903474568bb7f79a79457d7b955d25`; additive records-only closure pending.
 - Decision: one stage-aware classifier is the sole receiver/method/arity/static-
   provenance/context authority for intrinsic method semantic result types, checked
   admission, and trusted lowering. Its dispositions are supported, explicitly
@@ -2954,8 +2956,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   target, 29-target compatibility ring, formatting, all-target/all-feature correctness
   Clippy, docs, all integration targets, and exact root gate pass at 183/183 library
   tests. The tracked two-file system specimen links with local Clang 19.1.5 and executes
-  exit 167; the pinned stable workflow still requires external and machine verification,
-  object lowering, link, and the same native result.
+  exit 167. All eight candidate-head checks pass. Pinned stable LLVM/Clang 22.1.8
+  rejects the known-invalid fixture, externally and machine-verifies the program,
+  object-lowers, links, and executes exit 167; nightly independently repeats exit 167.
 - Exclusions: runtime/dynamic String operations, Option/Result/Vec/Map method
   semantics beyond established `.iter()`, heap allocation, callable or iterator ABI,
   general dispatch, generic/trait dispatch, closures, captures, new ownership or

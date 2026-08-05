@@ -72,18 +72,19 @@ executes exact exit 149. Nightly job `92463336701` independently repeats exit 14
 This is exact public evidence for the bounded loop-local class, not a general loop,
 ownership, representation, ABI, or backend-stability claim.
 
-The green local `CORE-067` candidate adds no runtime method-dispatch ABI, collection
+Accepted public `CORE-067` adds no runtime method-dispatch ABI, collection
 representation, String layout, or new checked-IR opcode. Supported recursive CopyData
 fixed-array length/emptiness and established immutable compile-time String predicates
 lower to exact immediate scalar values; Array/Vec `.iter()` retains its existing
 receiver compatibility. One shared classifier is consumed by checked admission and
 trusted lowering, whose unsupported-method path has no fabricated scalar fallback.
 The tracked direct-module program emits Windows LLVM, links with Visual Studio Clang
-19.1.5, and executes exact exit 167. The stable workflow still requires external
-verification, machine verification, object lowering, private non-PIE linking, and the
-same native exit under LLVM/Clang 22. Immutable candidate identity and those pinned/
-public results are pending, so this is not yet public backend evidence and establishes no general method,
-layout, ABI, backend-stability, or performance class.
+19.1.5, and executes exact exit 167. Stable job `92473492653` on LLVM/Clang 22.1.8
+rejects the known-invalid fixture, externally verifies, machine-verifies, object-
+lowers, privately non-PIE links, and executes the same exit; nightly job `92473492801`
+independently repeats exit 167. This is public evidence only for the exact bounded
+intrinsic-method class and establishes no general method, layout, ABI, backend-
+stability, or performance class.
 
 ## ROCm path
 

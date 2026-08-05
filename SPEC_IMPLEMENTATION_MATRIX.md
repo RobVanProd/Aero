@@ -88,7 +88,8 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- Local green `CORE-067` candidate evidence removes both duplicate semantic method
+- Accepted public `CORE-067` implementation
+  `e7525bf039339909c8f4f5cc68262fdf498079e0` removes both duplicate semantic method
   tables and routes semantic inference, checked admission, and trusted lowering
   through one stage-aware supported/explicitly-rejected/preserved classifier. Unknown
   or unimplemented methods no longer acquire fabricated `Int`, `Bool`, `String`,
@@ -99,9 +100,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   Array/Vec `.iter()` compatibility remain exact. The focused aggregate, classifier
   units, 29-target compatibility ring, and exact root gate pass at 183/183 library
   tests. The tracked direct-module specimen links with local Clang 19.1.5 and executes
-  exit 167; the stable LLVM 22 workflow requires the same result after external and
-  machine verification. Commit identity, public checks, pinned native evidence, and acceptance remain
-  pending, so no row becomes `END_TO_END` or `STABLE`.
+  exit 167. All eight candidate-head checks pass; stable LLVM/Clang 22.1.8 rejects the
+  known-invalid fixture, externally and machine-verifies the specimen, object-lowers,
+  links, and executes exit 167, while nightly repeats exit 167. This accepts only the
+  frozen bounded method class; no row becomes `END_TO_END` or `STABLE`.
 
 - Accepted `CORE-066` at exact implementation
   `e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree
