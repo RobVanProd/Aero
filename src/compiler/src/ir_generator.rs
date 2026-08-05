@@ -22,7 +22,7 @@ use crate::local_reference::{
     reference_call_source_mode,
 };
 use crate::scalar_assignment::{
-    ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
+    CopyPlaceAssignmentDisposition, CopyPlaceAssignmentTargetFacts, classify_copy_place_assignment,
 };
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
@@ -371,15 +371,6 @@ impl IrGenerator {
                 | Ty::Vec(_)
                 | Ty::Fn(_)
         )
-    }
-
-    fn scalar_logical_type(ty: &Ty) -> Option<LogicalType> {
-        match ty {
-            Ty::Int => Some(LogicalType::Int),
-            Ty::Float => Some(LogicalType::Float),
-            Ty::Bool => Some(LogicalType::Bool),
-            _ => None,
-        }
     }
 
     fn admitted_copy_place_logical_type(
@@ -897,7 +888,7 @@ impl IrGenerator {
                 let facts = if let Expression::Identifier(name) = target {
                     bindings
                         .get(name)
-                        .map(|binding| ScalarAssignmentTargetFacts {
+                        .map(|binding| CopyPlaceAssignmentTargetFacts {
                             ty: binding.ty.clone(),
                             mutable: binding.mutable,
                             initialized: binding.initialized,
@@ -907,17 +898,18 @@ impl IrGenerator {
                 } else {
                     None
                 };
-                match classify_scalar_assignment(
+                match classify_copy_place_assignment(
                     Some(target),
                     facts.as_ref(),
                     &rhs,
                     inside_admitted_function,
+                    &program.structs,
                 ) {
-                    ScalarAssignmentDisposition::Supported(_) => {}
-                    ScalarAssignmentDisposition::ExplicitlyRejected(message) => {
+                    CopyPlaceAssignmentDisposition::Supported(_) => {}
+                    CopyPlaceAssignmentDisposition::ExplicitlyRejected(message) => {
                         return Err(IrGenerationError::Admission(message));
                     }
-                    ScalarAssignmentDisposition::PreserveExistingBehavior => {
+                    CopyPlaceAssignmentDisposition::PreserveExistingBehavior => {
                         unreachable!("explicit assignment must receive a classifier disposition")
                     }
                 }
@@ -2305,10 +2297,6 @@ impl IrGenerator {
         for instruction in instructions.iter() {
             match instruction {
                 Inst::Alloca(Value::Reg(register), _)
-                | Inst::CheckedMutableScalarAlloca {
-                    result: Value::Reg(register),
-                    ..
-                }
                 | Inst::CheckedMutableCopyPlaceAlloca {
                     result: Value::Reg(register),
                     ..
@@ -2385,13 +2373,10 @@ impl IrGenerator {
         for instruction in instructions {
             match instruction {
                 Inst::Alloca(place, _) => Self::rewrite_place(place, &places),
-                Inst::CheckedMutableScalarAlloca { result, .. } => {
-                    Self::rewrite_place(result, &places)
-                }
                 Inst::CheckedMutableCopyPlaceAlloca { result, .. } => {
                     Self::rewrite_place(result, &places)
                 }
-                Inst::CheckedScalarAssignment { target, .. } => {
+                Inst::CheckedCopyPlaceAssignment { target, .. } => {
                     Self::rewrite_place(target, &places)
                 }
                 Inst::AllocaArray { result, .. } => Self::rewrite_place(result, &places),
@@ -2991,12 +2976,11 @@ impl IrGenerator {
 
                 let mutable_copy_place = self.checked_mode
                     && mutable
-                    && matches!(&expr_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_))
                     && matches!(
                         classify_copy_place_type(
                             &expr_type,
                             &self.struct_registry,
-                            CopyPlaceExecutionContext::AdmittedMutableReference,
+                            CopyPlaceExecutionContext::AdmittedOwnedAssignment,
                         ),
                         CopyPlaceDisposition::Supported(_)
                     );
@@ -3007,7 +2991,7 @@ impl IrGenerator {
                     self.next_ptr += 1;
                     let ty = self.admitted_copy_place_logical_type(
                         &expr_type,
-                        CopyPlaceExecutionContext::AdmittedMutableReference,
+                        CopyPlaceExecutionContext::AdmittedOwnedAssignment,
                     );
                     current_function
                         .body
@@ -3053,22 +3037,9 @@ impl IrGenerator {
                     // Allocate a stack slot for the variable
                     let ptr_reg = Value::Reg(self.next_ptr);
                     self.next_ptr += 1;
-                    if self.checked_mode
-                        && mutable
-                        && let Some(ty) = Self::scalar_logical_type(&expr_type)
-                    {
-                        current_function
-                            .body
-                            .push(Inst::CheckedMutableScalarAlloca {
-                                result: ptr_reg.clone(),
-                                name: name.clone(),
-                                ty,
-                            });
-                    } else {
-                        current_function
-                            .body
-                            .push(Inst::Alloca(ptr_reg.clone(), name.clone()));
-                    }
+                    current_function
+                        .body
+                        .push(Inst::Alloca(ptr_reg.clone(), name.clone()));
                     self.symbol_table.insert(name, (ptr_reg.clone(), expr_type));
 
                     // Store the expression result into the allocated slot
@@ -3098,12 +3069,21 @@ impl IrGenerator {
                             .clone();
                         debug_assert_eq!(assigned_type, target_type);
                         if self.checked_mode {
-                            current_function.body.push(Inst::CheckedScalarAssignment {
-                                target: target_place,
-                                value: assigned_value,
-                                ty: Self::scalar_logical_type(&target_type)
-                                    .expect("checked admission admits only scalar reassignment"),
-                            });
+                            let assigned_value = self.load_copy_aggregate_value(
+                                assigned_value,
+                                &assigned_type,
+                                current_function,
+                            );
+                            current_function
+                                .body
+                                .push(Inst::CheckedCopyPlaceAssignment {
+                                    target: target_place,
+                                    value: assigned_value,
+                                    ty: self.admitted_copy_place_logical_type(
+                                        &target_type,
+                                        CopyPlaceExecutionContext::AdmittedOwnedAssignment,
+                                    ),
+                                });
                         } else {
                             current_function
                                 .body

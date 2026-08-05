@@ -7,6 +7,7 @@ use crate::types::Ty;
 pub(crate) enum CopyPlaceExecutionContext {
     AdmittedImmutableReference,
     AdmittedMutableReference,
+    AdmittedOwnedAssignment,
     PreservedContext,
 }
 
@@ -31,6 +32,7 @@ pub(crate) fn classify_copy_place_type(
     let transport = match context {
         CopyPlaceExecutionContext::AdmittedImmutableReference => "immutable reference transport",
         CopyPlaceExecutionContext::AdmittedMutableReference => "mutable reference transport",
+        CopyPlaceExecutionContext::AdmittedOwnedAssignment => "owned assignment",
         CopyPlaceExecutionContext::PreservedContext => return CopyPlaceDisposition::Preserved,
     };
     registry.resolve_copy_type(ty).map_or_else(
@@ -56,6 +58,7 @@ pub(crate) fn classify_copy_place_annotation(
     let transport = match context {
         CopyPlaceExecutionContext::AdmittedImmutableReference => "immutable reference transport",
         CopyPlaceExecutionContext::AdmittedMutableReference => "mutable reference transport",
+        CopyPlaceExecutionContext::AdmittedOwnedAssignment => "owned assignment",
         CopyPlaceExecutionContext::PreservedContext => return CopyPlaceDisposition::Preserved,
     };
     registry.resolve_copy_annotation(annotation).map_or_else(
@@ -102,6 +105,7 @@ mod tests {
         for context in [
             CopyPlaceExecutionContext::AdmittedImmutableReference,
             CopyPlaceExecutionContext::AdmittedMutableReference,
+            CopyPlaceExecutionContext::AdmittedOwnedAssignment,
         ] {
             for ty in [Ty::Int, Ty::Float, Ty::Bool] {
                 assert!(supported(ty, &registry, context));
@@ -159,6 +163,7 @@ mod tests {
         for context in [
             CopyPlaceExecutionContext::AdmittedImmutableReference,
             CopyPlaceExecutionContext::AdmittedMutableReference,
+            CopyPlaceExecutionContext::AdmittedOwnedAssignment,
         ] {
             for ty in &rejected {
                 assert!(
@@ -196,6 +201,7 @@ mod tests {
         for context in [
             CopyPlaceExecutionContext::AdmittedImmutableReference,
             CopyPlaceExecutionContext::AdmittedMutableReference,
+            CopyPlaceExecutionContext::AdmittedOwnedAssignment,
         ] {
             for annotation in &annotations {
                 assert!(matches!(
@@ -214,6 +220,7 @@ mod tests {
         for context in [
             CopyPlaceExecutionContext::AdmittedImmutableReference,
             CopyPlaceExecutionContext::AdmittedMutableReference,
+            CopyPlaceExecutionContext::AdmittedOwnedAssignment,
         ] {
             for annotation in &rejected_annotations {
                 assert!(matches!(

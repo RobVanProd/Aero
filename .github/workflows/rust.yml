@@ -596,6 +596,25 @@ jobs:
         fi
         echo "mutable Copy-place reference example passed with exit code 59"
 
+    - name: Test Copy-place reassignment integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/copy_place_reassignment/main.aero -o ../../copy_place_reassignment.ll
+        opt-22 -passes=verify -disable-output ../../copy_place_reassignment.ll
+        llc-22 -verify-machineinstrs ../../copy_place_reassignment.ll -o /dev/null
+        llc-22 -filetype=obj ../../copy_place_reassignment.ll -o ../../copy_place_reassignment.o
+        clang-22 ../../copy_place_reassignment.o -o ../../copy_place_reassignment
+        set +e
+        ../../copy_place_reassignment
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 83 ]; then
+          echo "Copy-place reassignment example returned $exit_code, expected 83"
+          exit 1
+        fi
+        echo "Copy-place reassignment example passed with exit code 83"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

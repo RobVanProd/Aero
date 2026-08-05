@@ -11287,7 +11287,7 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `agent/aero-integration`, PR #4 front-page synchronization, all-eight public check
   observation, and pinned LLVM/Clang 22 native-exit-23 acceptance. PR #4 stays draft,
   open, and unmerged; no release or claim-verification artifact is authorized.
-- Final record-inclusive gate: exact repository-root `./tools/test.sh` exited 0 in
+- First record-inclusive gate: exact repository-root `./tools/test.sh` exited 0 in
   21.7 seconds after the preceding candidate result and its ledger record were both
   present. It again passed 171/171 library tests, 177/177 binary tests, every
   integration target, rustfmt, all-target checking, correctness Clippy, and doc
@@ -11678,3 +11678,229 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   180/180 binary tests, every integration target, claims contracts, the established
   Phase 5 split, and doc tests. This post-gate line is administrative only; no source,
   test, workflow, capability, decision, or semantic content changed after the gate.
+
+## CORE-061 - Direct reassignment of mutable owned Copy-data places
+
+- Task ID: `CORE-061`.
+- Owner: lead compiler engineer; one coupled source-to-native vertical-slice owner.
+- Status: authorized; the exhaustive failing target is the next behavior mutation.
+- Starting identity: accepted public CORE-060 commit
+  `7c7a47a471460dfe2276ea63cc4964fa59ad54be`, tree
+  `e9863de79a69766114020060a138c94357005351`, stable patch ID
+  `ec2c33060e33ca6e52894fa1a18daf5b5d9c6ba7`; local and remote branch heads are
+  identical. Draft PR #4 is open, mergeable, and unmerged at 248 commits, 77,463
+  additions, 1,531 deletions, and 164 files. All eight checks pass; stable job
+  `92301482760` uses LLVM/Clang 22.1.8, externally and machine verifies, object-lowers,
+  links, executes exact native exit 59, and passes 174/174 library plus 180/180 binary
+  tests. The untracked `tmp/` tree remains user-owned and outside this task.
+- One-class audit and closure criterion: this audit covers only direct source assignment
+  to an owned mutable local identifier. It is not a residual re-ranking and will not be
+  repeated because a later head exists. The class is exhaustively enumerated here by
+  target topology, binding state, Copy-data schema, RHS equality, execution context,
+  and checked representation. The audit closes with this enumeration. Implementation
+  closes only when every admitted schema uses one shared predicate and the composed
+  example executes under the pinned public gate.
+- Observed defect: CORE-054 introduced explicit statement assignment and one shared
+  `scalar_assignment` topology classifier, but that classifier rejects every target not
+  typed `Int`, `Float`, or `Bool`. Semantic analysis and checked admission consume that
+  artificial scalar guard. CORE-060 now allocates exact checked mutable aggregate
+  owners and its write-through-reference path already performs exact once-only whole
+  replacement for the complete Copy-data universe. Direct `let mut row = Row { ... };
+  row = Row { ... };` nevertheless stops before IR. Checked mutable owner allocation is
+  also split between scalar and aggregate instruction variants even though both carry
+  the same logical place invariant.
+- Authoritative semantics and hypothesis: Aero's formal specification defines
+  `let mut` and assignment-like statements under exact static typing; the core tutorial
+  defines `target = value;` as assignment to a mutable variable. CORE-054 already
+  freezes assignment as a value-less statement that evaluates the RHS exactly once and
+  replaces the target while preserving initialization, type, place identity, and
+  ownership. CORE-059 exhaustively defines the admitted Copy-data universe, and
+  CORE-060 proves exact whole-value replacement for that universe through a mutable
+  reference. Therefore direct whole-owner replacement requires no new source value,
+  layout, conversion, projection, lifetime, or ABI semantics. One owned-assignment
+  classifier can consume the same Copy-place predicate and one checked mutable-place/
+  assignment pair can cover scalars and aggregates.
+- Frozen admitted data class: exactly `Int`, `Float`, and `Bool`; every flat tuple of
+  arity two or greater whose ordered elements are those scalars; every admitted fixed
+  numeric array, including zero length; every admitted fixed array of one exact Copy
+  struct, including zero length; and every finite acyclic named Copy struct admitted by
+  `StructRegistry`, including nested named fields and fixed numeric or Copy-struct-array
+  fields. Tuple order/arity, array count/element schema, and full recursive struct name/
+  field/order schema are exact identity. No value or layout class is added.
+- Frozen assignment topology: inside an admitted non-generic top-level function body,
+  `target = rhs;` supports only the nearest already-defined, initialized, owned local
+  identifier declared `let mut`, with target and RHS having exactly the same admitted
+  Copy-data type. The RHS is any already-admitted value expression of that exact type
+  and is evaluated once before the existing place is replaced. Constructors, exact-
+  typed identifiers, Copy aliases, function results, and immutable/mutable-reference
+  Copy reads already admitted by prior milestones are included. Raw empty literals keep
+  their existing inference; contextual empty-literal inference is not broadened, so an
+  exact typed zero-length replacement identifier is the complete route where required.
+- Frozen execution contexts: inferred and exact annotations; sequential and repeated
+  writes; reads before and after; nearest-binding shadowing; nested blocks; selected
+  `if`/`else`; compiler-bounded `for`; `while`-carried state; direct and terminating
+  recursive calls returning admitted Copy data; mutation before a borrow and after its
+  lexical end; tuple projection, struct projection, array indexing/length/iteration,
+  and whole Copy aliases after replacement; and flattened direct modules. Target place
+  identity and initialization remain stable through CFG. Copy-data source owners remain
+  usable after RHS evaluation.
+- Shared predicate and source contract: add an admitted owned-assignment context to
+  `copy_place_contract`. The whole-assignment classifier retains the three dispositions
+  supported, explicitly rejected, and preserved; owns identifier topology, existence,
+  locality, initialization, mutability, ownership, and exact RHS equality; and delegates
+  the target data schema only to `copy_place_contract`. Semantic analysis and checked
+  admission consume that one result. The mutable-reference dereference-assignment path
+  remains separately classified before owned assignment; field/index/tuple-projection
+  targets do not gain projected-write semantics. No phase may retain or introduce a
+  scalar-versus-aggregate owned-assignment whitelist.
+- Frozen checked representation: one `CheckedMutableCopyPlaceAlloca` instruction must
+  represent every admitted mutable Copy-data owner, scalar or aggregate, with exact
+  `LogicalType` and one adjacent initializer store. One `CheckedCopyPlaceAssignment`
+  instruction must represent every admitted direct assignment, load an aggregate RHS
+  value exactly once where needed, and retain target/value/schema identity. These names
+  supersede the scalar-only checked allocation/assignment split; compatibility tests
+  must update exact identities rather than retain parallel instructions. The independent
+  verifier must prove valid schema, declared mutable place, adjacent initialization,
+  exact target metadata, RHS type/dominance, active-loan exclusion, and collision-free
+  definitions. Generic `Store` may initialize the adjacent declaration only and may not
+  masquerade as a checked source assignment.
+- Frozen backend: verified scalar assignments retain the established `double`/`i1`
+  private representation; verified tuple/array/struct assignments emit one exact typed
+  aggregate store through the existing owner pointer. LLVM contains no pointer/integer
+  conversion or unrelated bitcast. This creates no public layout, calling convention,
+  ABI, FFI, volatility, atomicity, alias-analysis, accelerator, performance, safety,
+  stability, or release claim.
+- Explicitly rejected or preserved: immutable bindings and parameters; unknown,
+  uninitialized, nonlocal, moved, or currently borrowed targets; all type mismatches
+  and implicit assignment conversions; String, enum, reference, function, Option/
+  Result, Vec/HashMap, generic/type-parameter, unsupported struct/array, unit/unary/
+  nested/non-scalar tuple, and tuple-containing struct/array targets; field, index,
+  tuple-projection, pattern, destructuring, temporary, and computed targets; assignment
+  values/expressions, chaining, and compound operators; direct writes through a
+  reference outside CORE-060's separate checked path; partial field/element moves or
+  writes; globals/statics, captures, nested functions, trait/default/impl bodies,
+  generic execution, module namespace/visibility changes, NLL, lifetime inference,
+  drop/destruction, heap, concurrency, atomics, unsafe, stable ABI/FFI, accelerators,
+  performance, benchmark, release, stability, and general memory-safety claims.
+- Complete shape proof required: the shared predicate unit proof must enumerate both
+  source `Type` and resolved `Ty` families for the owned-assignment context, including
+  scalar aliases; scalar tuple products through arity six while retaining an arity-
+  generic predicate; zero/nonzero numeric and Copy-struct arrays; arbitrary finite
+  accepted struct depth; every rejected top-level family; and immutable/mutable
+  reference compatibility. One exhaustive integration target must cover every admitted
+  family, exact/inferred owners, every frozen RHS category and consumer, sequential/
+  CFG/loop/shadowing/call/recursion/module contexts, every rejected target/binding/type
+  topology, checked schema, verifier corruption, raw-path containment, deterministic
+  typed LLVM, CLI no-artifact hygiene, tracked composed sources, and workflow anchors.
+- Red-first acceptance: before production mutation, the exhaustive CORE-061 target must
+  fail because tuple, numeric-array, Copy-struct-array, direct struct, and recursive-
+  struct assignments reach the existing `supports only Int, Float, or Bool` boundary.
+  Existing scalar assignment and CORE-060 write-through-reference targets must stay
+  green. The tracked example must not checked-build and no native claim exists.
+- Completion gate: focused CORE-061 target and private verifier corruptions; shared
+  classifier proof; CORE-054 scalar assignment; CORE-055/056/057/060 mutable-reference
+  compatibility; CORE-059 immutable references; tuple, array, struct, recursive
+  aggregate, enum, unsupported-topology, checked-IR, frontend, and binding contracts;
+  rustfmt; all-target check; correctness Clippy; full Cargo; exact repository-root
+  `./tools/test.sh`; tracked two-module example; local native execution at exact exit
+  83; one atomic commit/push; immediate PR #4 synchronization; all eight public checks;
+  and pinned LLVM/Clang 22 external verification, machine verification, object/link,
+  exact exit 83, and exact test totals.
+- Allowed files: this single `TASK_LEDGER.md` record; `copy_place_contract.rs`,
+  `scalar_assignment.rs`, `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; one exhaustive CORE-061 integration target
+  plus only directly superseded scalar/mutable-reference/aggregate/checked-IR
+  expectations; one tracked two-file example; `.github/workflows/rust.yml`; and current
+  capability truth in `README.md`, `CURRENT_CAPABILITY_AUDIT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `DECISION_LOG.md`, `CONFORMANCE_PLAN.md`, and
+  `Roadmap.md`. Minimal module registration is allowed only if required by Rust layout.
+- Forbidden files/actions: lexer/parser/AST grammar, projected target semantics,
+  contextual literal inference, enum ownership/layout, tuple/struct/array value-layout
+  expansion, module graph/namespaces/visibility, generic/trait/impl/closure execution,
+  runtime/stdlib, raw IR activation, compiler options, dependencies, accelerators,
+  benchmarks/claims, releases/packages/registry, `claim-verification/`, downstream
+  repositories, PR merge, history rewrite, force-push, and `master`.
+- Risks: an aggregate RHS place may be stored instead of its loaded Copy value; mutable
+  initialization may be mistaken for source assignment; CFG may retain a stale place;
+  a direct write may bypass an active loan; recursive metadata may diverge between
+  source, checked IR, verifier, and LLVM; scalar and aggregate checked paths may remain
+  duplicated; or superseded scalar tests may be weakened instead of generalized.
+- Stop conditions: any admitted result requires new projected/partial-write semantics,
+  contextual inference, destructive move/drop behavior, mixed alias/lifetime policy,
+  a new value layout, parser change, enum Copy decision, module semantic decision,
+  public ABI, accelerator contract, a third parallel whitelist, a weakened test, or an
+  unexpected file outside this contract. Stop and amend this record before production
+  mutation rather than narrow the class to an easier aggregate family or invent rules.
+- Exhaustive red evidence: after formatting the new target and correcting three
+  preservation expectations to their established earlier enum-binding, nested-tuple,
+  and non-Copy-struct-construction diagnostics, `cargo test --test
+  copy_place_reassignment_tests -- --nocapture` compiles and executes the sole target
+  but exits 1 at 0/1 before any production mutation. Direct assignments for flat tuples,
+  zero/nonzero numeric arrays, zero/nonzero Copy-struct arrays, direct and recursively
+  nested Copy structs, exact/inferred owners, function results, shared/mutable-reference
+  Copy reads, branches, loops, shadowing, recursion, and post-borrow owner reuse all
+  stop at `assignment target ... supports only Int, Float, or Bool`. Immutable owners,
+  parameters, unsupported Copy-data shapes, type mismatch, and active-loan cases are
+  likewise masked by that one scalar guard. Parser retention and existing scalar plus
+  mutable-reference assignment paths run; rejected earlier topologies preserve their
+  diagnostics. The unified checked identities, tracked example pair, eight workflow
+  anchors, checked CLI build, and new CLI diagnostic are absent as required. No
+  requested artifact exists and Windows Security did not intervene. This is the full
+  frozen class red, not a per-shape task; production implementation may now begin.
+- Implementation result: `copy_place_contract` now has one admitted owned-assignment
+  context. The assignment classifier retains identifier/existence/locality/
+  initialization/mutability/ownership/exact-RHS facts and delegates data schema only to
+  that shared predicate. Semantic analysis and checked admission consume the same
+  result. One `CheckedMutableCopyPlaceAlloca` and one
+  `CheckedCopyPlaceAssignment` supersede the scalar/aggregate split; the independent
+  verifier uses one mutable Copy-place set and proves schema, adjacent initialization,
+  exact target metadata, RHS type/dominance, collision freedom, and active-loan
+  exclusion. LLVM preserves established private `double`/`i1` scalar storage and emits
+  exact typed whole tuple/array/struct stores.
+- Focused and compatibility evidence: the exhaustive CORE-061 target passes 1/1; the
+  shared classifier and private verifier shape proofs pass inside 174/174 library
+  tests. CORE-054 scalar reassignment, CORE-055 scalar mutable references, CORE-059
+  immutable Copy-place references, CORE-060 mutable Copy-place references, acyclic Copy
+  aggregates, and the 28-test binding contract all pass. Directly superseded CORE-054
+  array/struct negatives became explicit positive compatibility checks, while String,
+  enum, reference, immutable, uninitialized, borrowed, projected, compound, chained,
+  and assignment-expression boundaries remain fail closed. One backend correction
+  retained the established `double` storage for logical `Int` under the unified alloca.
+- Local native evidence: the tracked two-module example resolves `updates`, passes
+  lexing, parsing, semantic ownership, checked IR, mandatory internal verification,
+  and typed LLVM generation. Visual Studio Clang 19.1.5 accepts the module and the
+  executable returns exact exit 83. The local compiler truthfully reports
+  `InternalOnly` because no LLVM 22 verifier is installed; public pinned LLVM/Clang 22
+  verification, machine verification, object/link, and exact exit 83 remain mandatory.
+  Windows Security did not intervene.
+- Repository-root gate evidence: an initial PowerShell-to-Git-Bash environment attempt
+  did not start the gate because Cargo was absent from inherited `PATH`; explicitly
+  inheriting `%USERPROFILE%\.cargo\bin` corrected the host setup. The first executing
+  exact `./tools/test.sh` run reached the claim contracts and exposed one stale exact
+  README boundary sentence after all compiler targets had run. Restoring the required
+  no-general-borrow-checker/no-memory-safety wording made the focused claim target pass
+  8/8. The immediate exact root rerun exited 0 in 23.3 seconds, passing rustfmt,
+  all-target checking, correctness Clippy, 174/174 library tests, 180/180 binary tests,
+  every integration target including CORE-061, the established Phase 5 split, claims
+  contracts, and doc tests. A final record-inclusive exact root gate remains required
+  after this evidence line; no acceptance claim is made yet.
+- Final record-inclusive gate: exact repository-root `./tools/test.sh` exited 0 in
+  22.7 seconds with the preceding implementation, capability, decision, native, and
+  gate records present. It again passed rustfmt, all-target checking, correctness
+  Clippy, 174/174 library tests, 180/180 binary tests, every integration target,
+  claims contracts, the established Phase 5 split, and doc tests. A subsequent
+  pre-public exact-diff review found that aggregate alloca/loan corruptions and scalar
+  direct-assignment corruptions were covered separately, but the unified instruction's
+  direct aggregate assignment identity lacked explicit private corruption cases. The
+  existing private verifier target now proves a valid aggregate owner assignment after
+  lexical loan end and rejects wrong recursive assignment schema, wrong aggregate RHS,
+  generic owner-store substitution, and assignment during an active aggregate loan.
+  Its focused target passes 1/1. Because that is a test change after this gate, a new
+  final record-inclusive exact root gate is required.
+- Final verifier-complete record gate: exact repository-root `./tools/test.sh` exited
+  0 in 76.0 seconds with the aggregate direct-assignment corruption matrix and all
+  preceding records present. It passed rustfmt, all-target checking, correctness
+  Clippy, 174/174 library tests, 180/180 binary tests, every integration target,
+  claims contracts, the established Phase 5 split, and doc tests. This line is the only
+  post-gate change and is administrative evidence; implementation, tests, workflow,
+  capability, decision, and semantics are unchanged after the gate.

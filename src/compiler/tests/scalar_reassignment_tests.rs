@@ -312,6 +312,16 @@ fn main() -> int {
             "fn main() -> int { let mut total = 0; for item in [1, 2, 3] { total = total + item; } total }",
             vec!["store double", "load double"],
         ),
+        (
+            "superseding Copy-data array reassignment",
+            "fn main() -> int { let mut value = [1, 2]; value = [3, 4]; value[1] }",
+            vec!["alloca [2 x double]", "store [2 x double]"],
+        ),
+        (
+            "superseding Copy-data struct reassignment",
+            "struct Row { value: int } fn main() -> int { let mut row = Row { value: 1 }; row = Row { value: 2 }; row.value }",
+            vec!["alloca %aero.struct.Row", "store %aero.struct.Row"],
+        ),
     ] {
         failures.extend(expect_success(label, source, &required));
     }
@@ -320,12 +330,12 @@ fn main() -> int {
         Err(error) => failures.push(format!("checked reassignment IR/LLVM failed: {error}")),
         Ok((checked, llvm)) => {
             let debug = format!("{checked:#?}");
-            if debug.matches("CheckedMutableScalarAlloca").count() < 5 {
+            if debug.matches("CheckedMutableCopyPlaceAlloca").count() < 5 {
                 failures.push(format!(
                     "checked IR lost mutable scalar place declarations:\n{debug}"
                 ));
             }
-            if debug.matches("CheckedScalarAssignment").count() < 9
+            if debug.matches("CheckedCopyPlaceAssignment").count() < 9
                 || !debug.contains("ty: Int")
                 || !debug.contains("ty: Float")
                 || !debug.contains("ty: Bool")
@@ -346,12 +356,12 @@ fn main() -> int {
         (
             "immutable local",
             "fn main() -> int { let value = 1; value = 2; value }",
-            "assignment target `value` must be a mutable local scalar binding",
+            "assignment target `value` must be a mutable local Copy-data binding",
         ),
         (
             "immutable parameter",
             "fn change(value: int) -> int { value = 2; value } fn main() -> int { change(1) }",
-            "assignment target `value` must be a mutable local scalar binding",
+            "assignment target `value` must be a mutable local Copy-data binding",
         ),
         (
             "unknown target",
@@ -376,22 +386,12 @@ fn main() -> int {
         (
             "String target",
             "fn main() -> int { let mut value = \"a\"; value = \"b\"; 0 }",
-            "assignment target `value` supports only Int, Float, or Bool",
-        ),
-        (
-            "array target",
-            "fn main() -> int { let mut value = [1, 2]; value = [3, 4]; 0 }",
-            "assignment target `value` supports only Int, Float, or Bool",
-        ),
-        (
-            "struct target",
-            "struct Row { value: int } fn main() -> int { let mut row = Row { value: 1 }; row = Row { value: 2 }; 0 }",
-            "assignment target `row` supports only Int, Float, or Bool",
+            "type String is not admitted Copy-data for owned assignment",
         ),
         (
             "enum target",
             "enum Mode { Off, On } fn main() -> int { let mode = Mode::Off; mode = Mode::On; 0 }",
-            "assignment target `mode` supports only Int, Float, or Bool",
+            "type Mode is not admitted Copy-data for owned assignment",
         ),
         (
             "immutably borrowed target",
@@ -416,7 +416,7 @@ fn main() -> int {
         (
             "top-level assignment",
             "let mut value = 1; value = 2; fn main() -> int { value }",
-            "scalar reassignment is supported only inside admitted function bodies",
+            "Copy-place reassignment is supported only inside admitted function bodies",
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, expected) {
@@ -448,8 +448,8 @@ fn main() -> int {
         Ok(ast) => {
             let raw = IrGenerator::new().generate_ir(ast);
             let debug = format!("{raw:#?}");
-            if debug.contains("CheckedMutableScalarAlloca")
-                || debug.contains("CheckedScalarAssignment")
+            if debug.contains("CheckedMutableCopyPlaceAlloca")
+                || debug.contains("CheckedCopyPlaceAssignment")
             {
                 failures.push(format!(
                     "deprecated raw generation activated checked reassignment:\n{debug}"
@@ -530,7 +530,8 @@ fn main() -> int {
     let diagnostics = output_text(&output);
     if output.status.success()
         || output_path.exists()
-        || !diagnostics.contains("assignment target `value` must be a mutable local scalar binding")
+        || !diagnostics
+            .contains("assignment target `value` must be a mutable local Copy-data binding")
     {
         failures.push(format!(
             "invalid scalar-reassignment CLI hygiene failed (status={}, artifact={}):\n{}",

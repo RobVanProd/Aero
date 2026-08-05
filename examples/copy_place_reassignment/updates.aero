@@ -1,0 +1,42 @@
+fn update_frame() -> int {
+    let seed = Point { x: 0, y: 0 };
+    let rows = [seed, seed];
+    let mut frame = Frame { point: seed, rows: rows, bias: 0 };
+    let point = Point { x: 5, y: 6 };
+    let updated_rows = [point, point];
+    frame = Frame { point: point, rows: updated_rows, bias: 7 };
+    frame.point.x + frame.point.y + frame.rows[1].x + frame.bias
+}
+
+fn update_tuple() -> int {
+    let mut tuple = (0, 0.5, 1 == 2);
+    tuple = (8, 2.5, 1 < 2);
+    if tuple.2 { return tuple.0 + 1; }
+    0
+}
+
+fn update_values() -> int {
+    let mut values = [0, 0, 0];
+    values = [2, 4, 6];
+    values[2]
+}
+
+fn update_rows() -> int {
+    let seed = Point { x: 0, y: 0 };
+    let mut rows = [seed, seed];
+    let point = Point { x: 7, y: 8 };
+    rows = [point, point];
+    rows[1].y
+}
+
+fn cfg_score() -> int {
+    let mut selected = Point { x: 0, y: 0 };
+    if 1 < 2 { selected = Point { x: 1, y: 2 }; }
+    else { selected = Point { x: 20, y: 21 }; }
+    let mut step = 0;
+    while step < 2 {
+        selected = Point { x: selected.x + 1, y: selected.y + 1 };
+        step = step + 1;
+    }
+    selected.x + selected.y
+}

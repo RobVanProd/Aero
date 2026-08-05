@@ -40,6 +40,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
+| Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | P | P | ? | P | N | N | P | PARSED_ONLY |
@@ -81,17 +82,28 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- `CORE-059` is a locally green candidate that extends immutable references only over
-  the exact previously admitted Copy-data place universe: scalars, flat Copy-scalar
-  tuples, fixed numeric arrays, fixed Copy-struct arrays, and finite acyclic Copy
-  structs. One three-way classifier owns supported, explicitly rejected, and preserved
-  topology across semantic and checked admission. Exact recursive pointee identity is
-  retained through checked IR, independent verification, and private typed-pointer
-  LLVM. Mutable aggregates, non-identifier borrow origins, reference results, new
-  layouts, stable ABI/FFI, general lifetime/drop/safety, accelerator, performance,
-  release, and stability claims remain absent. Focused, complete compiler, local
-  native-exit-37, and exact repository-root evidence is green; public gates remain
-  pending.
+- `CORE-061` is the locally green candidate for direct whole-owner reassignment of the
+  exact accepted Copy-data universe. One owned-assignment context reuses the shared
+  three-way Copy-place predicate; one checked mutable Copy-place allocation and one
+  checked Copy-place assignment retain exact scalar, tuple, array-count/element, and
+  recursive struct schema. The exhaustive target, verifier proof, and adjacent
+  compatibility targets, exact repository-root gate, and local native exit 83 pass;
+  the tracked source and pinned workflow lane are present. Immutable identity,
+  all-eight public, and LLVM/Clang 22 native evidence remain required. Projected
+  targets, unsupported layouts, assignment
+  expressions/chaining/compound forms, new lifetime/drop/ABI/safety semantics, and
+  accelerator or performance claims remain absent.
+
+- `CORE-059` and `CORE-060` are accepted public for immutable and exclusive mutable
+  whole-place references over the exact previously admitted Copy-data universe:
+  scalars, flat Copy-scalar tuples, fixed numeric arrays, fixed Copy-struct arrays, and
+  finite acyclic Copy structs. One three-way classifier owns supported, explicitly
+  rejected, and preserved schemas across semantic and checked admission. Exact
+  recursive pointee/loan/write identity is retained through checked IR, independent
+  verification, and private typed-pointer LLVM. Exact public implementations `5a78eb5`
+  and `7c7a47a` pass all eight checks with pinned native exits 37 and 59. Projected
+  origins/writes, reference results, new layouts, stable ABI/FFI, general lifetime/
+  drop/safety, accelerator, performance, release, and stability claims remain absent.
 
 - `CORE-058` moves only the bounded flat Copy-scalar tuple slice from parser-only to
   partial execution: arity at least two; exact ordered `Int`/`Float`/`Bool` elements;

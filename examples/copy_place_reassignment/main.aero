@@ -1,0 +1,29 @@
+mod updates;
+
+enum Mode { Off, On }
+struct Point { x: int, y: int }
+struct Frame { point: Point, rows: [Point; 2], bias: int }
+
+fn mode_score(value: Mode) -> int { match value { Mode::Off => 1, Mode::On => 10 } }
+
+fn main() -> int {
+    let mut point = Point { x: 1, y: 2 };
+    point = Point { x: 3, y: 4 };
+    let mut viewed = 0;
+    { let view = &point; viewed = (*view).x + (*view).y; }
+
+    let mut borrowed = Point { x: 1, y: 1 };
+    { let alias = &mut borrowed; *alias = Point { x: 2, y: 2 }; }
+    borrowed = Point { x: 4, y: 5 };
+
+    let mut empty: [int; 0] = [];
+    let empty_replacement: [int; 0] = [];
+    empty = empty_replacement;
+
+    if empty.len() == 0 {
+        return update_frame() + update_tuple() + update_values() + update_rows()
+            + cfg_score() + viewed + borrowed.x + borrowed.y
+            + "aero".len() + mode_score(Mode::On);
+    }
+    1
+}

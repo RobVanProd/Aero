@@ -62,20 +62,14 @@ pub enum Inst {
     Alloca(Value, String),     // pointer_reg, variable_name
     Store(Value, Value),       // pointer_reg, value_to_store
     Load(Value, Value),        // result_reg, pointer_reg
-    /// Verified mutable stack place for an admitted local scalar binding.
-    CheckedMutableScalarAlloca {
-        result: Value,
-        name: String,
-        ty: LogicalType,
-    },
-    /// Verified mutable stack place for an admitted aggregate Copy-data binding.
+    /// Verified mutable stack place for an admitted local Copy-data binding.
     CheckedMutableCopyPlaceAlloca {
         result: Value,
         name: String,
         ty: LogicalType,
     },
-    /// Verified reassignment of an existing admitted mutable scalar place.
-    CheckedScalarAssignment {
+    /// Verified whole-value reassignment of an existing admitted mutable Copy-data place.
+    CheckedCopyPlaceAssignment {
         target: Value,
         value: Value,
         ty: LogicalType,

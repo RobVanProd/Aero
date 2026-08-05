@@ -93,16 +93,17 @@ reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
 
-`CORE-059` is accepted public for immutable references over exact admitted Copy-data
-places, with pinned LLVM/Clang 22 verification and exact native exit 37. `CORE-060`
-extends the same classified place universe to exclusive whole-place mutable references
-without admitting projected origins, mixed alias signatures, reference results, stable
-ABI, or general lifetime/memory-safety claims.
+`CORE-059` and `CORE-060` are accepted public for immutable and exclusive mutable
+whole-place references over exact admitted Copy-data places, with pinned LLVM/Clang 22
+verification and exact native exits 37 and 59. `CORE-061` extends only direct mutable
+whole-owner reassignment across that same classified universe, without admitting
+projected targets, mixed alias signatures, reference results, stable ABI, or general
+lifetime/memory-safety claims.
 
-The CORE-060 conformance gate traces a tracked two-module program through lexing,
+The CORE-061 conformance gate traces a tracked two-module program through lexing,
 parsing, semantic ownership, exact recursive checked IR, independent verifier
 corruptions, typed LLVM, external and machine verification, object/link, and exact
-native exit 59. Local Clang execution is supporting evidence only; public acceptance
+native exit 83. Local Clang execution is supporting evidence only; public acceptance
 requires the pinned LLVM/Clang 22 lane and all eight repository checks. This composed
 gate is periodic architecture evidence, not proof that every Aero language subsystem
 or release criterion is coherent.

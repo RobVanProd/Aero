@@ -308,13 +308,6 @@ fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
     }
 }
 
-fn valid_mutable_scalar_type(ty: &LogicalType) -> bool {
-    matches!(
-        ty,
-        LogicalType::Int | LogicalType::Float | LogicalType::Bool
-    )
-}
-
 fn valid_mutable_reference_pointee(ty: &LogicalType) -> bool {
     valid_immutable_reference_pointee(ty)
 }
@@ -955,7 +948,6 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
 fn place_definition(instruction: &Inst) -> Option<&Value> {
     match instruction {
         Inst::Alloca(result, _)
-        | Inst::CheckedMutableScalarAlloca { result, .. }
         | Inst::CheckedMutableCopyPlaceAlloca { result, .. }
         | Inst::AllocaArray { result, .. }
         | Inst::GetElementPtr { result, .. }
@@ -1088,7 +1080,6 @@ struct FunctionVerifier<'a> {
     places: BTreeMap<PlaceId, PlaceType>,
     place_names: BTreeMap<PlaceId, Option<String>>,
     element_owners: BTreeMap<PlaceId, PlaceId>,
-    mutable_scalar_places: BTreeSet<PlaceId>,
     mutable_copy_places: BTreeSet<PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
@@ -1116,7 +1107,6 @@ impl<'a> FunctionVerifier<'a> {
             places: BTreeMap::new(),
             place_names: BTreeMap::new(),
             element_owners: BTreeMap::new(),
-            mutable_scalar_places: BTreeSet::new(),
             mutable_copy_places: BTreeSet::new(),
             mutable_reference_origins: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
@@ -1311,9 +1301,6 @@ impl<'a> FunctionVerifier<'a> {
                             Some(&block.label),
                             IrVerificationErrorKind::ExpectedPlaceIdentifier(match instruction {
                                 Inst::Alloca(..) => "alloca",
-                                Inst::CheckedMutableScalarAlloca { .. } => {
-                                    "checked mutable scalar alloca"
-                                }
                                 Inst::CheckedMutableCopyPlaceAlloca { .. } => {
                                     "checked mutable Copy-place alloca"
                                 }
@@ -1359,34 +1346,13 @@ impl<'a> FunctionVerifier<'a> {
                         ));
                     }
                     let (place_type, name) = match instruction {
-                        Inst::CheckedMutableScalarAlloca { name, ty, .. } => {
-                            if !valid_symbol(name) || !valid_mutable_scalar_type(ty) {
-                                return Err(IrVerificationError::new(
-                                    &self.body.name,
-                                    Some(&block.label),
-                                    IrVerificationErrorKind::MetadataMismatch(format!(
-                                        "checked mutable scalar place `{name}` requires a valid name and Int, Float, or Bool metadata"
-                                    )),
-                                ));
-                            }
-                            self.mutable_scalar_places.insert(id);
-                            (PlaceType::Known(ty.clone()), Some(name.clone()))
-                        }
                         Inst::CheckedMutableCopyPlaceAlloca { name, ty, .. } => {
-                            if !valid_symbol(name)
-                                || !valid_mutable_reference_pointee(ty)
-                                || !matches!(
-                                    ty,
-                                    LogicalType::Struct { .. }
-                                        | LogicalType::Array { .. }
-                                        | LogicalType::Tuple { .. }
-                                )
-                            {
+                            if !valid_symbol(name) || !valid_mutable_reference_pointee(ty) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(format!(
-                                        "checked mutable Copy place `{name}` requires a valid name and admitted aggregate Copy-data metadata"
+                                        "checked mutable Copy place `{name}` requires a valid name and admitted Copy-data metadata"
                                     )),
                                 ));
                             }
@@ -1854,8 +1820,7 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             };
-                            if !self.mutable_scalar_places.contains(&source_id)
-                                && !self.mutable_copy_places.contains(&source_id)
+                            if !self.mutable_copy_places.contains(&source_id)
                                 && !self.mutable_reference_origins.contains_key(&source_id)
                                 && !self.mutable_reference_parameters.contains(&source_id)
                             {
@@ -2363,7 +2328,6 @@ impl<'a> FunctionVerifier<'a> {
                         )?;
                     }
                     Inst::Alloca(..)
-                    | Inst::CheckedMutableScalarAlloca { .. }
                     | Inst::CheckedMutableCopyPlaceAlloca { .. }
                     | Inst::AllocaArray { .. }
                     | Inst::CheckedStructAlloca { .. }
@@ -2391,9 +2355,7 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
-                        if self.mutable_scalar_places.contains(&id)
-                            || self.mutable_copy_places.contains(&id)
-                        {
+                        if self.mutable_copy_places.contains(&id) {
                             let definition = self
                                 .place_definitions
                                 .get(&id)
@@ -2475,20 +2437,20 @@ impl<'a> FunctionVerifier<'a> {
                             }
                         }
                     }
-                    Inst::CheckedScalarAssignment { target, value, ty } => {
+                    Inst::CheckedCopyPlaceAssignment { target, value, ty } => {
                         let target = self.require_place(
                             target,
-                            "checked scalar assignment",
+                            "checked Copy-place assignment",
                             block_index,
                             position,
                         )?;
-                        if !valid_mutable_scalar_type(ty)
-                            || !self.mutable_scalar_places.contains(&target)
+                        if !valid_mutable_reference_pointee(ty)
+                            || !self.mutable_copy_places.contains(&target)
                         {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(
-                                    "checked scalar assignment target is not a declared mutable scalar place"
+                                    "checked Copy-place assignment target is not a declared mutable Copy-data place"
                                         .to_string(),
                                 ),
                             ));
@@ -2497,7 +2459,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked scalar assignment target {} is not initialized by its adjacent declaration store",
+                                    "checked Copy-place assignment target {} is not initialized by its adjacent declaration store",
                                     target.0
                                 )),
                             ));
@@ -2506,7 +2468,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked scalar assignment to source place {} is forbidden while its mutable reference is active",
+                                    "checked Copy-place assignment to source place {} is forbidden while its mutable reference is active",
                                     target.0
                                 )),
                             ));
@@ -2516,7 +2478,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked scalar assignment metadata `{ty}` disagrees with target place {}",
+                                    "checked Copy-place assignment metadata `{ty}` disagrees with target place {}",
                                     target.0
                                 )),
                             ));
@@ -2524,7 +2486,7 @@ impl<'a> FunctionVerifier<'a> {
                         self.require_type(
                             value,
                             ty,
-                            "checked scalar assignment",
+                            "checked Copy-place assignment",
                             "value",
                             block_index,
                             position,
@@ -3013,8 +2975,7 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
-                        let initialized_owner = (self.mutable_scalar_places.contains(&source)
-                            || self.mutable_copy_places.contains(&source))
+                        let initialized_owner = self.mutable_copy_places.contains(&source)
                             && initialized_mutable_places.contains(&source);
                         let active_local_parent = active_mutable_references.contains(&source)
                             && self.mutable_reference_origins.contains_key(&source);
@@ -3403,11 +3364,7 @@ impl<'a> FunctionVerifier<'a> {
             }
         }
 
-        let declared_mutable_places = self
-            .mutable_scalar_places
-            .union(&self.mutable_copy_places)
-            .copied()
-            .collect::<BTreeSet<_>>();
+        let declared_mutable_places = self.mutable_copy_places.clone();
         if initialized_mutable_places != declared_mutable_places {
             return Err(self.error(
                 0,
@@ -5086,14 +5043,14 @@ mod tests {
     }
 
     #[test]
-    fn checked_mutable_scalar_places_and_assignments_are_fail_closed() {
-        let place = || Inst::CheckedMutableScalarAlloca {
+    fn checked_mutable_copy_places_and_assignments_are_fail_closed() {
+        let place = || Inst::CheckedMutableCopyPlaceAlloca {
             result: Value::Reg(0),
             name: "value".to_string(),
             ty: LogicalType::Int,
         };
         let initialize = || Inst::Store(Value::Reg(0), Value::ImmInt(1));
-        let assign = || Inst::CheckedScalarAssignment {
+        let assign = || Inst::CheckedCopyPlaceAssignment {
             target: Value::Reg(0),
             value: Value::ImmInt(2),
             ty: LogicalType::Int,
@@ -5114,7 +5071,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedScalarAssignment {
+                    Inst::CheckedCopyPlaceAssignment {
                         target: Value::Reg(9),
                         value: Value::ImmInt(2),
                         ty: LogicalType::Int,
@@ -5127,7 +5084,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedScalarAssignment {
+                    Inst::CheckedCopyPlaceAssignment {
                         target: Value::ImmInt(0),
                         value: Value::ImmInt(2),
                         ty: LogicalType::Int,
@@ -5147,7 +5104,7 @@ mod tests {
             (
                 "unsupported place metadata",
                 vec![
-                    Inst::CheckedMutableScalarAlloca {
+                    Inst::CheckedMutableCopyPlaceAlloca {
                         result: Value::Reg(0),
                         name: "value".to_string(),
                         ty: LogicalType::String,
@@ -5161,7 +5118,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedScalarAssignment {
+                    Inst::CheckedCopyPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::ImmFloat(2.0),
                         ty: LogicalType::Float,
@@ -5174,7 +5131,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedScalarAssignment {
+                    Inst::CheckedCopyPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::ImmFloat(2.0),
                         ty: LogicalType::Int,
@@ -5187,7 +5144,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedScalarAssignment {
+                    Inst::CheckedCopyPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::Reg(8),
                         ty: LogicalType::Int,
@@ -5255,7 +5212,7 @@ mod tests {
                     Inst::Add(Value::Reg(1), Value::ImmInt(1), Value::ImmInt(2)),
                     Inst::Jump("use".to_string()),
                     Inst::Label("use".to_string()),
-                    Inst::CheckedScalarAssignment {
+                    Inst::CheckedCopyPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::Reg(1),
                         ty: LogicalType::Int,
@@ -5275,7 +5232,7 @@ mod tests {
 
     #[test]
     fn checked_mutable_scalar_borrows_writes_and_ends_are_fail_closed() {
-        let place = |result, name: &str| Inst::CheckedMutableScalarAlloca {
+        let place = |result, name: &str| Inst::CheckedMutableCopyPlaceAlloca {
             result: Value::Reg(result),
             name: name.to_string(),
             ty: LogicalType::Int,
@@ -5303,7 +5260,7 @@ mod tests {
             write(1, Value::ImmInt(2)),
             Inst::Load(Value::Reg(2), Value::Reg(1)),
             end(1, 0),
-            Inst::CheckedScalarAssignment {
+            Inst::CheckedCopyPlaceAssignment {
                 target: Value::Reg(0),
                 value: Value::ImmInt(3),
                 ty: LogicalType::Int,
@@ -5451,7 +5408,7 @@ mod tests {
                     place(0, "value"),
                     Inst::Store(Value::Reg(0), Value::ImmInt(1)),
                     borrow(1, 0),
-                    Inst::CheckedScalarAssignment {
+                    Inst::CheckedCopyPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::ImmInt(2),
                         ty: LogicalType::Int,
@@ -5524,7 +5481,7 @@ mod tests {
         };
         let caller = || {
             vec![
-                Inst::CheckedMutableScalarAlloca {
+                Inst::CheckedMutableCopyPlaceAlloca {
                     result: Value::Reg(0),
                     name: "owner".to_string(),
                     ty: LogicalType::Int,
@@ -5756,7 +5713,7 @@ mod tests {
                     result: LogicalType::Int,
                     body: outer_body(),
                 },
-                Inst::CheckedMutableScalarAlloca {
+                Inst::CheckedMutableCopyPlaceAlloca {
                     result: Value::Reg(0),
                     name: "owner".to_string(),
                     ty: LogicalType::Int,
@@ -6256,11 +6213,17 @@ mod tests {
                     source: Value::Reg(2),
                     pointee: leaf.clone(),
                 },
+                Inst::CheckedCopyPlaceAssignment {
+                    target: Value::Reg(2),
+                    value: Value::Reg(1),
+                    ty: leaf.clone(),
+                },
                 Inst::Return(Value::ImmInt(0)),
             ]
         };
 
-        verify_ir(function(valid())).expect("exact mutable Copy-place loan must verify");
+        verify_ir(function(valid()))
+            .expect("exact mutable Copy-place loan and subsequent owned assignment must verify");
 
         let mut wrong_alloca = valid();
         wrong_alloca[2] = Inst::CheckedMutableCopyPlaceAlloca {
@@ -6296,8 +6259,34 @@ mod tests {
         wrong_end_source[6] = Inst::CheckedMutableBorrowEnd {
             reference: Value::Reg(3),
             source: Value::Reg(0),
-            pointee: leaf,
+            pointee: leaf.clone(),
         };
+
+        let mut wrong_owned_assignment_schema = valid();
+        wrong_owned_assignment_schema[7] = Inst::CheckedCopyPlaceAssignment {
+            target: Value::Reg(2),
+            value: Value::Reg(1),
+            ty: LogicalType::Struct {
+                name: "Leaf".to_string(),
+                fields: vec![LogicalType::Float, LogicalType::Bool],
+            },
+        };
+
+        let mut wrong_owned_assignment_value = valid();
+        wrong_owned_assignment_value[7] = Inst::CheckedCopyPlaceAssignment {
+            target: Value::Reg(2),
+            value: Value::ImmInt(1),
+            ty: LogicalType::Struct {
+                name: "Leaf".to_string(),
+                fields: vec![LogicalType::Int, LogicalType::Bool],
+            },
+        };
+
+        let mut generic_owner_store = valid();
+        generic_owner_store[7] = Inst::Store(Value::Reg(2), Value::Reg(1));
+
+        let mut assignment_during_loan = valid();
+        assignment_during_loan.swap(6, 7);
 
         for (label, body) in [
             ("unsupported mutable owner schema", wrong_alloca),
@@ -6306,6 +6295,19 @@ mod tests {
             ("whole-write value mismatch", wrong_write_value),
             ("generic store through reference", generic_store),
             ("borrow-end provenance mismatch", wrong_end_source),
+            (
+                "owned assignment schema mismatch",
+                wrong_owned_assignment_schema,
+            ),
+            (
+                "owned assignment value mismatch",
+                wrong_owned_assignment_value,
+            ),
+            ("generic owner reassignment store", generic_owner_store),
+            (
+                "owned assignment during active loan",
+                assignment_during_loan,
+            ),
         ] {
             let error = match verify_ir(function(body)) {
                 Err(error) => error,
@@ -6315,7 +6317,8 @@ mod tests {
             assert!(
                 diagnostic.contains("mutable")
                     || diagnostic.contains("store")
-                    || diagnostic.contains("type mismatch"),
+                    || diagnostic.contains("type mismatch")
+                    || diagnostic.contains("copy-place assignment"),
                 "{label}: {diagnostic}"
             );
         }

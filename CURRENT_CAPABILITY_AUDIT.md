@@ -8,16 +8,24 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-060` is the current locally green implementation candidate for whole-place
-  mutable references over the exact admitted Copy-data universe. Mutable annotation,
-  local borrow, dereference, whole replacement, single-reference function transport,
-  child reborrow, checked admission, and verification consume the same three-way
-  `copy_place_contract` used by immutable references. Checked IR retains exact mutable
-  owner, reference, value, write, and end schemas; private typed LLVM executes the
-  tracked two-module example locally at exact exit 59. The full Cargo suite passes at
-  174/174 library and 180/180 binary tests. The exact record-synced root gate, immutable
-  commit identity, all eight public checks, and pinned LLVM/Clang 22 stages remain
-  acceptance gates.
+- `CORE-061` is the current locally green implementation candidate for direct
+  reassignment of initialized mutable whole-owner places over the exact admitted
+  Copy-data universe. The owned-assignment classifier delegates data shape to the same
+  `copy_place_contract` used by immutable and mutable references; one checked mutable
+  Copy-place allocation and assignment identity covers scalar and aggregate owners.
+  The exhaustive product, 174/174 library tests, 180/180 binary tests, every integration
+  target, local native exit 83, and the exact repository-root gate pass. Immutable
+  commit identity, all eight public checks, and pinned LLVM/Clang 22 native exit 83
+  remain acceptance gates.
+- `CORE-060` is accepted public at exact implementation
+  `7c7a47a471460dfe2276ea63cc4964fa59ad54be`, tree
+  `e9863de79a69766114020060a138c94357005351`, and stable patch ID
+  `ec2c33060e33ca6e52894fa1a18daf5b5d9c6ba7`. All eight checks pass; stable job
+  `92301482760` uses LLVM/Clang 22.1.8 for external verification, machine verification,
+  object lowering, linking, and exact native exit 59 with 174/174 library and 180/180
+  binary tests. The accepted class is exclusive whole-place mutable Copy-data
+  references, not projected origins/writes, general lifetimes, stable ABI/FFI, or a
+  memory-safety guarantee.
 - `CORE-059` is accepted public at exact implementation
   `5a78eb5d670045277532cc3cdc9a6144b1449895`, tree
   `03fbdd58e836532dc8a4f95a0bb3c0402b1e5f1c`, and stable patch ID

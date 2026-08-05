@@ -272,7 +272,6 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, rhs);
                 }
                 Inst::Alloca(ptr, _)
-                | Inst::CheckedMutableScalarAlloca { result: ptr, .. }
                 | Inst::CheckedMutableCopyPlaceAlloca { result: ptr, .. }
                 | Inst::AllocaArray { result: ptr, .. }
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
@@ -312,7 +311,7 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, value);
                 }
                 Inst::Store(ptr, value)
-                | Inst::CheckedScalarAssignment {
+                | Inst::CheckedCopyPlaceAssignment {
                     target: ptr, value, ..
                 }
                 | Inst::CheckedMutableDereferenceAssignment {
@@ -652,9 +651,8 @@ impl CodeGenerator {
                 | Inst::Div(..)
                 | Inst::FDiv(..)
                 | Inst::Alloca(..)
-                | Inst::CheckedMutableScalarAlloca { .. }
                 | Inst::CheckedMutableCopyPlaceAlloca { .. }
-                | Inst::CheckedScalarAssignment { .. }
+                | Inst::CheckedCopyPlaceAssignment { .. }
                 | Inst::CheckedMutableDereferenceAssignment { .. }
                 | Inst::Store(..)
                 | Inst::Load(..)
@@ -1028,27 +1026,14 @@ impl CodeGenerator {
 
         for inst in instructions {
             match inst {
-                Inst::CheckedMutableScalarAlloca { result, ty, .. } => {
-                    let Value::Reg(ptr_id) = result else {
-                        panic!("Expected register for checked mutable scalar alloca")
-                    };
-                    match ty {
-                        LogicalType::Int | LogicalType::Float => {
-                            llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca double, align 8\n"))
-                        }
-                        LogicalType::Bool => {
-                            llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca i1, align 1\n"))
-                        }
-                        _ => unreachable!("verified mutable scalar alloca has scalar metadata"),
-                    }
-                }
                 Inst::CheckedMutableCopyPlaceAlloca { result, ty, .. } => {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked mutable Copy-place alloca")
                     };
-                    let aggregate_type = Self::logical_type_to_llvm(ty);
+                    let copy_type = Self::reference_pointee_to_llvm(ty);
+                    let align = if *ty == LogicalType::Bool { 1 } else { 8 };
                     llvm_ir.push_str(&format!(
-                        "  %ptr{ptr_id} = alloca {aggregate_type}, align 8\n"
+                        "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
                     ));
                 }
                 Inst::Alloca(ptr_reg, name) => {
@@ -1178,14 +1163,14 @@ impl CodeGenerator {
                         val_str, ptr_str
                     ));
                 }
-                Inst::CheckedScalarAssignment { target, value, ty }
+                Inst::CheckedCopyPlaceAssignment { target, value, ty }
                 | Inst::CheckedMutableDereferenceAssignment {
                     target,
                     value,
                     pointee: ty,
                 } => {
                     let Value::Reg(ptr_id) = target else {
-                        panic!("Expected register for checked scalar assignment target")
+                        panic!("Expected register for checked Copy-place assignment target")
                     };
                     match ty {
                         LogicalType::Int | LogicalType::Float => llvm_ir.push_str(&format!(

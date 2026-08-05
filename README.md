@@ -146,7 +146,7 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus accepted bounded scalar immutable/mutable-reference subsets. CORE-059 is a locally green candidate that extends only immutable references across the exact admitted Copy-data place universe through one shared three-way classifier, exact checked schemas, independent verification, and typed private LLVM pointers. The CORE-056/057 mutable-reference product remains scalar-only, and aggregate mutable references remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
+| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references over the exact admitted Copy-data universe. CORE-061 is a locally green candidate for direct whole-owner reassignment of that same universe through the shared three-way classifier and unified checked place/write proof. Projected writes/borrows and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
@@ -212,7 +212,7 @@ aero lsp
 > all eight public checks pass, and pinned Linux LLVM/Clang 22 externally verifies,
 > machine-verifies, object-lowers, links, and executes exact native exit 107.
 >
-> This does not provide non-Copy or destructive move semantics, aggregate assignment, general
+> This does not provide non-Copy or destructive move semantics, projected/partial aggregate assignment, general
 > methods beyond the exact array `.len()`/`.iter()` forms,
 > destructuring, Match, direct nested arrays, Bool arrays, dynamic
 > bounds, runtime checks, cyclic aggregates, generics, visibility, separate
@@ -274,7 +274,7 @@ aero lsp
 > verifies, lowers, links, and records exact native exit 253 with 169 library and 175
 > binary tests.
 >
-> CORE-059 is a locally green candidate for immutable references over every exact
+> CORE-059 is publicly accepted for immutable references over every exact
 > already-admitted Copy-data place: `Int`/`Float`/`Bool`, flat Copy-scalar tuples,
 > fixed numeric arrays, fixed arrays of one exact Copy struct, and finite acyclic Copy
 > structs. One `copy_place_contract` classifies supported, explicitly rejected, and
@@ -283,12 +283,20 @@ aero lsp
 > consumers, arbitrary immutable-reference/owned-Copy internal signatures, CFG,
 > forwarding, recursion, direct modules, independent verification, and private typed-
 > pointer LLVM. Focused and complete compiler suites pass at 173 library and 179
-> binary tests; Visual Studio Clang accepts the tracked direct-module program and it
-> returns exact exit 37. The exact repository-root gate passes. Public checks and
-> pinned LLVM/Clang 22 evidence remain mandatory.
+> binary tests. Exact implementation `5a78eb5` passes all eight public checks; pinned
+> LLVM/Clang 22.1.8 externally verifies, machine-verifies, object-lowers, links, and
+> executes the tracked direct-module program at exact exit 37.
+>
+> CORE-060 is publicly accepted for exclusive whole-place mutable references over that
+> same Copy-data universe. Exact mutable owner, alias, dereference read/write, child
+> reborrow, function transport, lexical end, and recursive schema identity survive
+> checked IR and independent verification. Exact implementation `7c7a47a` passes all
+> eight public checks; pinned LLVM/Clang 22.1.8 externally verifies, machine-verifies,
+> object-lowers, links, and executes exact native exit 59 with 174 library and 180
+> binary tests.
 >
 > `&mut *alias`, mutable-reference results, temporary or projected borrow origins,
-> mutable aggregate references, escape, relocation, reassignment,
+> projected mutable origins or writes, escape, relocation, alias reassignment,
 > storage/capture, NLL, lifetime inference, drop, stable pointer ABI/FFI, and any memory-
 > safety guarantee remain unsupported. A local alias's root owner remains borrowed until
 > lexical alias end. The Windows host accurately remains `InternalOnly` because LLVM 22
@@ -306,9 +314,19 @@ aero lsp
 > Exact implementation `6ef3e44` passes 165 library and 171 binary tests plus all eight
 > public checks; pinned Linux LLVM/Clang 22.1.8 externally verifies, machine-verifies,
 > object-lowers, links, and executes exact native exit 227.
-> Immutable locals/parameters, unknown or uninitialized targets, borrowed targets,
-> non-scalar or non-identifier targets, assignment values/chaining/compound syntax,
-> aggregate assignment, NLL, drop, stable ABI, and memory-safety claims remain excluded.
+> CORE-061 is the locally green superseding candidate for the same direct whole-owner
+> statement across every exact admitted Copy-data type: scalars, flat Copy tuples,
+> fixed numeric arrays, fixed Copy-struct arrays, and finite acyclic Copy structs,
+> including zero-length admitted arrays. One owned-assignment context delegates schema
+> classification to `copy_place_contract`; one checked mutable Copy-place allocation
+> and one checked Copy-place assignment now cover scalars and aggregates. The exhaustive
+> target and adjacent compatibility suites pass, and the tracked two-module source is
+> pinned to native exit 83. The exact local repository-root gate passes; immutable
+> commit identity and public LLVM/Clang 22 evidence remain required before acceptance.
+> Immutable locals/parameters, unknown or uninitialized
+> targets, borrowed targets, String/enums/references/unsupported layouts, projected or
+> non-identifier targets, assignment values/chaining/compound syntax, NLL, drop, stable
+> ABI, and memory-safety claims remain excluded.
 
 > **Pattern matching status:** CORE-049 accepts one bounded owned unit-enum class:
 > unique top-level non-generic enums with one or more unit variants, exact payload-free

@@ -2586,13 +2586,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-055 - Generalize whole-place mutable references across admitted Copy-data
 
 - Date: 2026-08-05
-- Status: locally green implementation candidate; exact record-synced root, immutable
-  commit identity, public checks, and pinned LLVM/Clang 22 execution remain pending.
-  DEC-054/CORE-059 is accepted public at exact commit
-  `5a78eb5d670045277532cc3cdc9a6144b1449895`, tree
-  `03fbdd58e836532dc8a4f95a0bb3c0402b1e5f1c`, and stable patch ID
-  `62a23bef479f22d3d9da22fc4bf753c7610c3e77`, with all eight checks, 173/173
-  library tests, 179/179 binary tests, and pinned native exit 37 green.
+- Status: accepted public at exact commit
+  `7c7a47a471460dfe2276ea63cc4964fa59ad54be`, tree
+  `e9863de79a69766114020060a138c94357005351`, and stable patch ID
+  `ec2c33060e33ca6e52894fa1a18daf5b5d9c6ba7`; all eight checks, 174/174
+  library tests, 180/180 binary tests, and pinned native exit 59 are green.
 - Decision: admit mutable references only to initialized mutable whole-owner places in
   the exact CORE-059 Copy-data universe. Mutable aliases retain the established
   exclusive lexical-loan model; whole dereference reads produce owned Copy values and
@@ -2622,12 +2620,52 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   verifier corruptions, adjacent mutable/immutable/tuple/aggregate/enum compatibility,
   raw containment, CLI no-artifact hygiene, tracked two-module example, full Cargo,
   exact root gate, all eight public checks, and pinned LLVM/Clang 22 verification,
-  machine verification, object/link, and native exit 59 are mandatory. Locally,
-  rustfmt, all-target check, correctness Clippy, 174/174 library tests, 180/180 binary
-  tests, every integration target, and Visual Studio Clang 19.1.5 native exit 59 pass;
-  the local compiler truthfully reports `InternalOnly` because LLVM 22 is unavailable.
+  machine verification, object/link, and native exit 59 are mandatory. The accepted
+  identity passes those local and public gates with 174/174 library tests, 180/180
+  binary tests, every integration target, and pinned native exit 59.
 - Scaling boundary: this hard ownership/layout/IR/backend slice and the shared classifier
   answer immediate combinatorial guard growth without authorizing projected semantics.
   PR #4 stays draft and unmerged. Checkpoint/merge strategy, a structured evidence
   manifest, and broader release-eligibility system design remain separate work, while
   the exit-59 composition is the required periodic system gate for this checkpoint.
+
+## DEC-056 - Unify direct owned reassignment across admitted Copy-data
+
+- Date: 2026-08-05
+- Status: locally green implementation candidate; exact record-synced root, immutable
+  commit identity, public checks, and pinned LLVM/Clang 22 native exit 83 remain
+  pending. DEC-055/CORE-060 is accepted public at the exact identity above.
+- Decision: admit `target = rhs;` only for the nearest initialized owned local
+  identifier declared `let mut` when target and RHS have one exact admitted Copy-data
+  type. This generalizes the accepted scalar statement to flat Copy tuples, fixed
+  numeric arrays, fixed Copy-struct arrays, and finite acyclic Copy structs, including
+  admitted zero-length arrays. RHS evaluation occurs once before whole-place
+  replacement. No projected or partial target semantics are introduced.
+- Shared contract: add one admitted owned-assignment execution context to
+  `copy_place_contract`. The assignment classifier continues to own target topology,
+  locality, initialization, mutability, ownership, and exact RHS equality, while the
+  shared predicate alone owns Copy-data schema. Semantic analysis and checked admission
+  consume that contract; unsupported String, enum, reference, generic, nested/non-Copy,
+  projected, compound, chained, and expression-assignment topologies remain rejected or
+  preserved.
+- IR/backend: replace the scalar/aggregate checked split with one
+  `CheckedMutableCopyPlaceAlloca` and one `CheckedCopyPlaceAssignment`. Exact logical
+  schema survives adjacent initialization, dominance, active-loan exclusion, RHS type
+  proof, and collision checks. LLVM retains the private `double`/`i1` scalar storage and
+  uses exact typed tuple/array/struct whole stores without pointer/integer conversion or
+  unrelated bitcast.
+- Evidence gate: one exhaustive source-to-native target covers every admitted schema,
+  exact/inferred bindings, calls, recursion, CFG, shadowing, borrow boundaries, direct
+  modules, fail-closed negatives, verifier identity, raw containment, CLI artifact
+  hygiene, and a tracked exit-83 composition. Focused implementation, classifier,
+  verifier, and adjacent scalar/aggregate/reference targets, 174/174 library tests,
+  180/180 binary tests, every integration target, the exact repository-root gate, and
+  local native exit 83 pass. Immutable identity and the public pinned lane remain
+  mandatory before acceptance.
+- Scaling boundary: this is intentionally a hard ownership/mutation consolidation, not
+  another convenient compile-time leaf. It reduces duplicated topology rules without
+  authorizing projected semantics. PR #4 remains a draft integration program; its body
+  must be synchronized to every accepted head. Controlled checkpoint/merge strategy,
+  structured evidence-manifest generation, and broader release-eligibility design
+  remain separate tasks, while the composed exit-83 lane supplies the periodic system
+  trace for this checkpoint.

@@ -416,7 +416,7 @@ fn main() -> int {
         (
             "mutable alias reassignment",
             "fn main() -> int { let mut left = 1; let mut right = 2; let alias = &mut left; alias = &mut right; *alias }",
-            "supports only Int, Float, or Bool",
+            "type &mut int is not admitted Copy-data for owned assignment",
         ),
         (
             "wrong mutable annotation",

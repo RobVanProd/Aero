@@ -15,7 +15,7 @@ use crate::local_reference::{
     reference_call_fact_subject,
 };
 use crate::scalar_assignment::{
-    ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
+    CopyPlaceAssignmentDisposition, CopyPlaceAssignmentTargetFacts, classify_copy_place_assignment,
 };
 use crate::struct_contract::{
     CopyStructArrayIndexDisposition, StructExecutionContext, StructRegistry,
@@ -2781,7 +2781,7 @@ impl SemanticAnalyzer {
                 }
                 let facts = if let Expression::Identifier(name) = target {
                     self.scope_manager.get_variable(name).map(|variable| {
-                        ScalarAssignmentTargetFacts {
+                        CopyPlaceAssignmentTargetFacts {
                             ty: variable.var_type.clone(),
                             mutable: variable.mutable,
                             initialized: variable.initialized,
@@ -2792,18 +2792,19 @@ impl SemanticAnalyzer {
                 } else {
                     None
                 };
-                match classify_scalar_assignment(
+                match classify_copy_place_assignment(
                     Some(target),
                     facts.as_ref(),
                     &rhs,
                     inside_admitted_function,
+                    &self.struct_registry,
                 ) {
-                    ScalarAssignmentDisposition::Supported(_) => {
+                    CopyPlaceAssignmentDisposition::Supported(_) => {
                         self.apply_enum_match_moves(value)?;
                         Ok(())
                     }
-                    ScalarAssignmentDisposition::ExplicitlyRejected(message) => Err(message),
-                    ScalarAssignmentDisposition::PreserveExistingBehavior => {
+                    CopyPlaceAssignmentDisposition::ExplicitlyRejected(message) => Err(message),
+                    CopyPlaceAssignmentDisposition::PreserveExistingBehavior => {
                         unreachable!("explicit assignment must receive a classifier disposition")
                     }
                 }
