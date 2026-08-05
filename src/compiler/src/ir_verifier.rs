@@ -398,6 +398,93 @@ fn signature(
     })
 }
 
+fn checked_signature(
+    function: &str,
+    parameters: &[(String, LogicalType)],
+    result: &LogicalType,
+) -> Result<FunctionSignature, IrVerificationError> {
+    if !valid_symbol(function) {
+        return Err(IrVerificationError::new(
+            function,
+            None,
+            IrVerificationErrorKind::InvalidSymbol {
+                role: "function",
+                name: function.to_string(),
+            },
+        ));
+    }
+    let valid_transport_type = |ty: &LogicalType| {
+        matches!(
+            ty,
+            LogicalType::Int | LogicalType::Float | LogicalType::Bool
+        ) || matches!(ty, LogicalType::Struct { name, fields } if valid_symbol(name) && valid_struct_schema(fields))
+    };
+    let mut parameter_names = BTreeSet::new();
+    for (name, ty) in parameters {
+        if !valid_symbol(name) {
+            return Err(IrVerificationError::new(
+                function,
+                None,
+                IrVerificationErrorKind::InvalidSymbol {
+                    role: "parameter",
+                    name: name.clone(),
+                },
+            ));
+        }
+        if !parameter_names.insert(name.as_str()) {
+            return Err(IrVerificationError::new(
+                function,
+                None,
+                IrVerificationErrorKind::MetadataMismatch(format!(
+                    "function signature defines duplicate parameter `{name}`"
+                )),
+            ));
+        }
+        if !valid_transport_type(ty) {
+            return Err(IrVerificationError::new(
+                function,
+                None,
+                IrVerificationErrorKind::UnsupportedType(format!(
+                    "checked function parameter {ty}"
+                )),
+            ));
+        }
+    }
+    if *result != LogicalType::Void && !valid_transport_type(result) {
+        return Err(IrVerificationError::new(
+            function,
+            None,
+            IrVerificationErrorKind::UnsupportedType(format!("checked function return {result}")),
+        ));
+    }
+    let mentions_struct = parameters
+        .iter()
+        .any(|(_, ty)| matches!(ty, LogicalType::Struct { .. }))
+        || matches!(result, LogicalType::Struct { .. });
+    if !mentions_struct {
+        return Err(IrVerificationError::new(
+            function,
+            None,
+            IrVerificationErrorKind::MetadataMismatch(
+                "checked function definition requires a struct-bearing signature".to_string(),
+            ),
+        ));
+    }
+    if function == "main" && (!parameters.is_empty() || *result != LogicalType::Int) {
+        return Err(IrVerificationError::new(
+            function,
+            None,
+            IrVerificationErrorKind::MetadataMismatch(
+                "process entry must have exact signature `i32 @main()`".to_string(),
+            ),
+        ));
+    }
+    Ok(FunctionSignature {
+        parameters: parameters.to_vec(),
+        result: result.clone(),
+    })
+}
+
 fn collect_bodies<'a>(
     ir: &'a RawIr,
 ) -> Result<(Vec<Body<'a>>, BTreeMap<String, FunctionSignature>), IrVerificationError> {
@@ -437,14 +524,22 @@ fn collect_bodies<'a>(
             ));
         }
         for instruction in &function.body {
-            if let Inst::FunctionDef {
-                name,
-                parameters,
-                return_type,
-                body,
-            } = instruction
-            {
-                let sig = signature(name, parameters, return_type)?;
+            let definition = match instruction {
+                Inst::FunctionDef {
+                    name,
+                    parameters,
+                    return_type,
+                    body,
+                } => Some((name, body, signature(name, parameters, return_type)?)),
+                Inst::CheckedFunctionDef {
+                    name,
+                    parameters,
+                    result,
+                    body,
+                } => Some((name, body, checked_signature(name, parameters, result)?)),
+                _ => None,
+            };
+            if let Some((name, body, sig)) = definition {
                 if definitions
                     .insert(name.clone(), (body, sig.clone()))
                     .is_some()
@@ -501,7 +596,12 @@ fn collect_bodies<'a>(
         let runtime = function
             .body
             .iter()
-            .filter(|instruction| !matches!(instruction, Inst::FunctionDef { .. }))
+            .filter(|instruction| {
+                !matches!(
+                    instruction,
+                    Inst::FunctionDef { .. } | Inst::CheckedFunctionDef { .. }
+                )
+            })
             .collect::<Vec<_>>();
         if definitions.contains_key(&function.name) {
             if !runtime.is_empty() {
@@ -535,7 +635,9 @@ fn is_terminator(instruction: &Inst) -> bool {
 
 fn unsupported_name(instruction: &Inst) -> Option<&'static str> {
     match instruction {
-        Inst::FunctionDef { .. } => Some("nested function definition"),
+        Inst::FunctionDef { .. } | Inst::CheckedFunctionDef { .. } => {
+            Some("nested function definition")
+        }
         Inst::AllocaStruct { .. } => Some("alloca struct"),
         Inst::GetFieldPtr { .. } => Some("field pointer"),
         Inst::VecAlloca { .. } => Some("vec alloca"),
@@ -1737,7 +1839,7 @@ impl<'a> FunctionVerifier<'a> {
                         block_index,
                         position,
                     )?,
-                    Inst::FunctionDef { .. } => {}
+                    Inst::FunctionDef { .. } | Inst::CheckedFunctionDef { .. } => {}
                     Inst::Call {
                         function,
                         arguments,
@@ -2060,6 +2162,36 @@ impl<'a> FunctionVerifier<'a> {
 }
 
 fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError> {
+    fn register_type(
+        logical_type: &LogicalType,
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
+    ) -> Result<(), IrVerificationError> {
+        let LogicalType::Struct { name, fields } = logical_type else {
+            return Ok(());
+        };
+        if !valid_symbol(name) || !valid_struct_schema(fields) {
+            return Err(IrVerificationError::new(
+                "<module>",
+                None,
+                IrVerificationErrorKind::UnsupportedType(format!("checked struct schema `{name}`")),
+            ));
+        }
+        if let Some(existing) = schemas.get(name) {
+            if existing != fields {
+                return Err(IrVerificationError::new(
+                    "<module>",
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "conflicting checked struct schemas for `{name}`"
+                    )),
+                ));
+            }
+        } else {
+            schemas.insert(name.clone(), fields.clone());
+        }
+        Ok(())
+    }
+
     fn visit(
         instructions: &[Inst],
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
@@ -2071,30 +2203,27 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                     field_types,
                     ..
                 } => {
-                    if !valid_symbol(struct_name) || !valid_struct_schema(field_types) {
-                        return Err(IrVerificationError::new(
-                            "<module>",
-                            None,
-                            IrVerificationErrorKind::UnsupportedType(format!(
-                                "checked struct schema `{struct_name}`"
-                            )),
-                        ));
-                    }
-                    if let Some(existing) = schemas.get(struct_name) {
-                        if existing != field_types {
-                            return Err(IrVerificationError::new(
-                                "<module>",
-                                None,
-                                IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "conflicting checked struct schemas for `{struct_name}`"
-                                )),
-                            ));
-                        }
-                    } else {
-                        schemas.insert(struct_name.clone(), field_types.clone());
-                    }
+                    register_type(
+                        &LogicalType::Struct {
+                            name: struct_name.clone(),
+                            fields: field_types.clone(),
+                        },
+                        schemas,
+                    )?;
                 }
                 Inst::FunctionDef { body, .. } => visit(body, schemas)?,
+                Inst::CheckedFunctionDef {
+                    parameters,
+                    result,
+                    body,
+                    ..
+                } => {
+                    for (_, parameter) in parameters {
+                        register_type(parameter, schemas)?;
+                    }
+                    register_type(result, schemas)?;
+                    visit(body, schemas)?;
+                }
                 _ => {}
             }
         }

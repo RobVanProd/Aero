@@ -162,19 +162,26 @@ aero lsp
 > trusted compiler paths reject those expressions before IR generation with
 > `Tuple expressions are not supported.`
 
-> **Struct value status:** one bounded scalar-struct slice is executable. A unique,
+> **Struct value status:** one bounded scalar-struct value slice is publicly accepted,
+> and an all-component-`Copy` transport extension is locally green pending public
+> native CI. A unique,
 > non-generic, nonempty top-level struct with unique `int`/`i32`, `float`/`f64`, or
 > `bool` fields can be constructed exactly by field name inside an admitted
 > top-level function; construction fields may be reordered and are evaluated once
 > in written order. Direct and local immutable projection use checked aggregate IR
-> and verified LLVM named types. Unsupported definitions, shapes, annotations, and
-> contexts remain rejected before LLVM.
+> and verified LLVM named types. Such a struct is Copy because every admitted field
+> is Copy: local aliases preserve the original, and exact-name internal function
+> parameters, arguments, call results, and returns use checked named aggregates by
+> value. This includes mixed scalar/struct signatures, forwarding, terminating direct
+> recursion, and the flattened one-level direct-module route. Unsupported definitions,
+> shapes, annotations, and contexts remain rejected before LLVM.
 >
-> This slice does not provide struct parameters/returns, moves/copies, assignment,
-> methods, destructuring, Match, nested/recursive aggregates, generics, visibility,
-> separate compilation, stable layout/ABI, ownership/drop/lifetimes, heap storage,
+> This does not provide non-Copy or destructive move semantics, assignment, methods,
+> destructuring, Match, nested/recursive aggregates, generics, visibility, separate
+> compilation, stable layout/ABI/FFI, general ownership/drop/lifetimes, heap storage,
 > accelerator execution, or performance guarantees. LLVM owns internal padding and
-> alignment. Method calls remain a distinct AST form.
+> alignment. `main` retains exact `i32 @main()`, and method calls remain a distinct
+> AST form.
 
 > **Pattern matching status:** `match` syntax, arms, and patterns are recognized,
 > but Match value evaluation is not executable yet. Trusted parsed source bodies,

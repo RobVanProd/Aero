@@ -28,7 +28,7 @@ pub struct FunctionInfo {
 }
 
 #[derive(Debug, Clone)]
-struct NumericFunctionContract {
+struct AdmittedFunctionContract {
     name: String,
     parameters: Vec<(String, Ty)>,
     return_type: Ty,
@@ -47,19 +47,19 @@ pub struct VariableInfoNew {
 
 pub struct FunctionTable {
     functions: HashMap<String, FunctionInfo>,
-    numeric_contracts: HashMap<String, NumericFunctionContract>,
+    admitted_contracts: HashMap<String, AdmittedFunctionContract>,
 }
 
 impl FunctionTable {
     pub fn clear(&mut self) {
         self.functions.clear();
-        self.numeric_contracts.clear();
+        self.admitted_contracts.clear();
     }
 
     pub fn new() -> Self {
         Self {
             functions: HashMap::new(),
-            numeric_contracts: HashMap::new(),
+            admitted_contracts: HashMap::new(),
         }
     }
 }
@@ -127,20 +127,20 @@ impl FunctionTable {
         }
     }
 
-    fn define_numeric_contract(&mut self, contract: NumericFunctionContract) {
-        self.numeric_contracts
+    fn define_admitted_contract(&mut self, contract: AdmittedFunctionContract) {
+        self.admitted_contracts
             .insert(contract.name.clone(), contract);
     }
 
-    fn get_numeric_contract(&self, name: &str) -> Option<&NumericFunctionContract> {
-        self.numeric_contracts.get(name)
+    fn get_admitted_contract(&self, name: &str) -> Option<&AdmittedFunctionContract> {
+        self.admitted_contracts.get(name)
     }
 
-    fn validate_numeric_call(&self, name: &str, args: &[Ty]) -> Result<Ty, String> {
+    fn validate_admitted_call(&self, name: &str, args: &[Ty]) -> Result<Ty, String> {
         let contract = self
-            .numeric_contracts
+            .admitted_contracts
             .get(name)
-            .expect("numeric function contract must be registered");
+            .expect("admitted function contract must be registered");
 
         if contract.parameters.len() != args.len() {
             return Err(format!(
@@ -474,7 +474,7 @@ pub struct SemanticAnalyzer {
     compatibility_scope_snapshots: Vec<HashMap<String, VariableInfo>>,
     function_table: FunctionTable,
     closure_binding_scopes: Vec<HashSet<String>>,
-    return_contract_stack: Vec<Option<NumericFunctionContract>>,
+    return_contract_stack: Vec<Option<AdmittedFunctionContract>>,
     scope_manager: ScopeManager,
     /// Stack of active generic type parameter sets (e.g., ["T", "U"] for fn<T, U>)
     type_param_scopes: Vec<Vec<String>>,
@@ -546,8 +546,16 @@ impl SemanticAnalyzer {
                         .get(name)
                         .is_some_and(|variable| matches!(&variable.ty, Ty::Struct(_)))
             }
+            Expression::FunctionCall { name, .. } => self
+                .function_table
+                .get_admitted_contract(name)
+                .is_some_and(|contract| matches!(&contract.return_type, Ty::Struct(_))),
             _ => false,
         }
+    }
+
+    fn is_copy_type(&self, ty: &Ty) -> bool {
+        ty.is_copy_type() || self.struct_registry.is_copy_struct_ty(ty)
     }
 
     fn infer_into_iterator_item_type(&self, iterable_type: &Ty) -> Option<Ty> {
@@ -659,31 +667,59 @@ impl SemanticAnalyzer {
                 ..
             }) = node
             {
-                let numeric_contract = if type_params.is_empty() {
-                    let contract_type: fn(&crate::ast::Type) -> Option<Ty> = if name == "main" {
-                        Self::numeric_contract_type
-                    } else {
-                        Self::helper_contract_type
-                    };
-                    let parameter_types = parameters
-                        .iter()
-                        .map(|parameter| {
-                            contract_type(&parameter.param_type)
-                                .map(|ty| (parameter.name.clone(), ty))
-                        })
-                        .collect::<Option<Vec<_>>>();
-                    let contract_return = match return_type {
-                        Some(ty) => contract_type(ty),
-                        None => Some(Ty::Void),
-                    };
-
-                    match (parameter_types, contract_return) {
-                        (Some(parameters), Some(return_type)) => Some(NumericFunctionContract {
-                            name: name.clone(),
+                let admitted_contract = if type_params.is_empty() {
+                    let struct_copy_contract = match self
+                        .struct_registry
+                        .resolve_copy_function_contract(
+                            name,
                             parameters,
-                            return_type,
-                        }),
-                        _ => None,
+                            return_type.as_ref(),
+                            type_params,
+                        ) {
+                        Ok(contract) => contract,
+                        Err(
+                            crate::struct_contract::StructContractError::PreserveExistingBehavior,
+                        ) => None,
+                        Err(error) => return Err(error.diagnostic()),
+                    };
+                    if let Some(contract) = struct_copy_contract {
+                        Some(AdmittedFunctionContract {
+                            name: contract.name,
+                            parameters: contract
+                                .parameters
+                                .into_iter()
+                                .map(|(parameter, contract)| (parameter, contract.ty))
+                                .collect(),
+                            return_type: contract.result.ty,
+                        })
+                    } else {
+                        let contract_type: fn(&crate::ast::Type) -> Option<Ty> = if name == "main" {
+                            Self::numeric_contract_type
+                        } else {
+                            Self::helper_contract_type
+                        };
+                        let parameter_types = parameters
+                            .iter()
+                            .map(|parameter| {
+                                contract_type(&parameter.param_type)
+                                    .map(|ty| (parameter.name.clone(), ty))
+                            })
+                            .collect::<Option<Vec<_>>>();
+                        let contract_return = match return_type {
+                            Some(ty) => contract_type(ty),
+                            None => Some(Ty::Void),
+                        };
+
+                        match (parameter_types, contract_return) {
+                            (Some(parameters), Some(return_type)) => {
+                                Some(AdmittedFunctionContract {
+                                    name: name.clone(),
+                                    parameters,
+                                    return_type,
+                                })
+                            }
+                            _ => None,
+                        }
                     }
                 } else {
                     None
@@ -699,8 +735,8 @@ impl SemanticAnalyzer {
                     return_type: public_return_type,
                     defined_at: None,
                 })?;
-                if let Some(contract) = numeric_contract {
-                    self.function_table.define_numeric_contract(contract);
+                if let Some(contract) = admitted_contract {
+                    self.function_table.define_admitted_contract(contract);
                 }
             }
         }
@@ -1177,7 +1213,7 @@ impl SemanticAnalyzer {
                 if !self.is_closure_callable(name)
                     && self
                         .function_table
-                        .get_numeric_contract(name)
+                        .get_admitted_contract(name)
                         .is_some_and(|contract| contract.return_type == Ty::Void)
                 {
                     return Err(format!(
@@ -1469,7 +1505,7 @@ impl SemanticAnalyzer {
             && !self.is_closure_callable(name)
             && self
                 .function_table
-                .get_numeric_contract(name)
+                .get_admitted_contract(name)
                 .is_some_and(|contract| contract.return_type == Ty::Void)
         {
             let mut array_types = ArrayInferenceCache::new();
@@ -1523,9 +1559,9 @@ impl SemanticAnalyzer {
 
                 if self.is_closure_callable(name) {
                     Ok(Ty::Int)
-                } else if self.function_table.get_numeric_contract(name).is_some() {
+                } else if self.function_table.get_admitted_contract(name).is_some() {
                     self.function_table
-                        .validate_numeric_call(name, &argument_types)
+                        .validate_admitted_call(name, &argument_types)
                 } else if self.function_table.get_function(name).is_some() {
                     Ok(Ty::Int)
                 } else {
@@ -2000,7 +2036,7 @@ impl SemanticAnalyzer {
                     match val_expr {
                         // Move semantics: let x = y (non-Copy type moves)
                         Expression::Identifier(source_name) => {
-                            if !binding_type.is_copy_type() {
+                            if !self.is_copy_type(&binding_type) {
                                 self.scope_manager.mark_moved(source_name)?;
                             }
                         }
@@ -2091,7 +2127,7 @@ impl SemanticAnalyzer {
                 }
 
                 let return_contract = if is_top_level {
-                    self.function_table.get_numeric_contract(name).cloned()
+                    self.function_table.get_admitted_contract(name).cloned()
                 } else {
                     None
                 };
@@ -2489,7 +2525,7 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     if let Expression::Identifier(arg_name) = arg {
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;
-                        if !arg_type.is_copy_type() {
+                        if !self.is_copy_type(&arg_type) {
                             self.scope_manager.mark_moved(arg_name)?;
                         }
                     }
@@ -2499,7 +2535,7 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     if let Expression::Identifier(arg_name) = arg {
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;
-                        if !arg_type.is_copy_type() {
+                        if !self.is_copy_type(&arg_type) {
                             self.scope_manager.mark_moved(arg_name)?;
                         }
                     }

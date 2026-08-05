@@ -8307,3 +8307,222 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   performance, or release claim. This records-only successor changes no compiler,
   test, example, workflow, or capability boundary; PR #4 remains draft and its mutable
   front page must identify CORE-043 as the latest accepted checkpoint.
+
+## CORE-044 - Executable scalar-struct Copy transport across function boundaries
+
+- Task ID/date/owner: `CORE-044`, 2026-08-04, lead-owned tests-first compiler
+  vertical slice. This is one all-component-`Copy` struct transport class, not
+  separate alias, parameter, argument, return, recursion, module, ABI, or diagnostic
+  tasks. The accepted CORE-043 construction/projection class and CORE-037 binding-
+  annotation topology classifier remain closed and may only be extended through
+  their existing shared predicates.
+- Framework basis and observed behavior: the founding framework defines simple
+  structs, exact static function contracts, typed aggregate IR, LLVM lowering, and
+  ownership-aware calls. Its ownership model states that scalar values are `Copy`, a
+  composite is `Copy` when every component is `Copy`, and copies remain valid after
+  assignment or function passing. The visually reviewed founding PDF pages 1-5 and
+  `docs/language/aero_ownership_borrowing.md` agree on that direction; the preserved
+  Claude strategy PDF adds execution-quality guidance but no conflicting value
+  semantics. At exact clean public basis
+  `ef2d41b71e6509ec7c1464af53eedb0685d9a123`, CORE-043 admits only local
+  construction/discard/projection for unique non-generic structs whose fields are
+  `int`/`i32`, `float`/`f64`, or `bool`. Semantic analysis and checked admission
+  explicitly reject a local struct alias, every struct parameter, every struct
+  argument, and every struct return; checked function signatures admit scalars only,
+  and the LLVM emitter has no verified aggregate call/return path. The exact baseline
+  `./tools/test.sh` is green at this basis: 150/150 library tests, 159/159 CLI tests,
+  every active integration target, formatting, correctness Clippy, and doc tests.
+- Defect-class enumeration: the source `Copy`-transport class varies over admitted
+  struct identity/schema, one/many struct and scalar parameters, scalar/struct/Void
+  result, literal/local/call-result operand origin, unannotated/exact binding,
+  immutable/mutable binding, local copy count, original reuse, argument order and
+  multiplicity, explicit/tail return, returned-call binding/projection/forwarding,
+  declaration/call order, forward/direct-recursive call graph, root/direct-module
+  physical origin, and valid/invalid source route. The complete supported product is
+  every already-admitted CORE-043 scalar struct, because every field is a design-
+  target `Copy` scalar: copying an initialized local into another local; using the
+  original and every copy afterward; passing literals, locals, copies, and returned
+  values by value to a unique flattened top-level non-generic function; mixing exact
+  admitted scalar and struct parameters; returning a literal, parameter, local copy,
+  or returned value as the exact admitted struct type; binding, forwarding,
+  discarding, or immediately projecting a struct-valued call; forward calls and
+  terminating direct recursion; and the same behavior when definitions/callers
+  originate in one-level flattened direct modules. Existing scalar function behavior
+  remains part of the composed program. `main` retains its exact process-entry
+  contract and never accepts or returns a struct.
+- Frozen value/evaluation/representation semantics: all admitted scalar structs are
+  `Copy` exactly because every component is `Copy` and no admitted schema has custom
+  destruction. A local alias, argument, and return therefore produces an independent
+  value; no source binding is moved or invalidated, and later projection from the
+  original is valid. Construction fields retain CORE-043's once-only written-order
+  evaluation. Call arguments are evaluated exactly once from left to right before
+  the call. The checked lowering may use stack places internally, but each local copy
+  has distinct storage and each function boundary carries the exact named aggregate
+  by value. LLVM field order and physical scalar slots remain CORE-043's declaration-
+  order internal representation. This is a compilation-unit implementation contract,
+  not a stable source ABI, FFI contract, separate-compilation guarantee, target-
+  independent layout promise, optimization claim, or general ownership proof.
+- One shared predicate: extend `StructRegistry` with one pure function-contract and
+  value-transport classifier derived from its already-complete definition registry.
+  It alone resolves whether an annotation denotes an admitted all-component-`Copy`
+  struct, produces the exact `Ty` and `LogicalType` schema, classifies a struct-bearing
+  top-level function signature, and identifies admitted local/call/return transport
+  shapes. Semantic analysis, checked admission, and checked lowering must consume
+  that classification rather than restating named-type/schema eligibility. Phase-
+  specific symbol tables, dominance checks, diagnostics, and physical emission are
+  allowed; a second struct/function topology guard is not.
+- Checked-IR boundary: add a distinct typed checked-function definition carrying
+  logical parameter and result types whenever a function signature contains an
+  admitted struct. Preserve the legacy raw `FunctionDef` and deprecated unchecked
+  generator unchanged. Checked call results and loads/stores may carry verified
+  `LogicalType::Struct` aggregate values; the verifier must reject invalid or empty
+  struct signature schemas, conflicting same-name schemas anywhere in the program,
+  duplicate/invalid parameters, process-entry widening, non-result aggregate call
+  operands, missing/extra/wrong-type arguments, missing/Void/mismatched call results,
+  wrong returns, result/place identity collisions, use-before-definition, and
+  dominance failures. Code generation must collect signature and allocation schemas
+  deterministically, emit exact-name-sorted named types, lower struct parameters,
+  calls, returns, and aggregate load/store with the verified named type, and never
+  route an aggregate through the numeric `double` fallback.
+- Explicit exclusions: any definition outside CORE-043's unique nonempty flattened
+  scalar schema; String/custom/array/tuple/reference/generic/nested/recursive fields;
+  generic, nested, closure, trait-default, impl/method, duplicate, unresolved, or
+  ambiguous callables; type coercion between distinct struct names or schemas; partial
+  moves, destructive moves, field mutation/assignment, destructuring, pattern
+  matching, enums/Match, references/borrows/lifetimes/provenance, heap allocation,
+  custom drop/destruction, ownership of non-`Copy` values, aggregate arrays/tuples,
+  variadics, external functions, visibility/use/namespaces, recursive module graphs,
+  separate compilation, stable ABI/FFI/packed/custom layout, CPU performance, ROCm,
+  CUDA, release, package, registry, benchmark, and broad safety/stability claims.
+  Unsupported source types may not fall back to `Int`, `Float`, `Bool`, `double`, or
+  an invented struct schema.
+- Tests-first completeness contract: before production changes, add one focused
+  aggregate whose positive Cartesian product covers every scalar field spelling;
+  one/many and multiple distinct struct schemas; immutable/mutable and absent/exact
+  local annotations; literal/local/copy/call-result operands; repeated copies and
+  original reuse; mixed scalar/struct parameter positions; struct/scalar/Void
+  results; explicit/tail literal/parameter/local/call returns; returned-call bind,
+  discard, direct projection, forwarding, and chaining; left-to-right once-only
+  argument evaluation; forward and terminating direct-recursive calls; and root-to-
+  module, module-to-root, and module-local flattened calls. The negative matrix must
+  preserve every explicit exclusion and prove exact-name mismatch, unsupported
+  schema/signature, wrong arity/type/result, `main` widening, invalid-build no-artifact
+  behavior, raw compatibility, checked metadata, global schema consistency,
+  deterministic LLVM, and verifier/codegen corruption controls. Amend the existing
+  CORE-043 aggregate only to move its exact local-copy/function-argument/function-
+  return cells into this positive aggregate; every neighboring exclusion and
+  diagnostic stays asserted.
+- System-level/end-to-end acceptance: add one tracked example that composes the new
+  struct `Copy` transport with existing numeric/Bool functions, CORE-038 fixed-array
+  length, CORE-039/040 compile-time String behavior, CORE-041 checked calls, CORE-042
+  deterministic composition, and CORE-043 construction/projection, ending in one
+  exact native sentinel. Add one unconditional stable/nightly Rust-CI step using
+  checked build, pinned `opt-22` verification, `llc-22 -verify-machineinstrs`, object
+  lowering, `clang-22` linking, native execution, and that exact sentinel. Run the
+  focused red/green aggregate, adjacent containment suites, formatting, correctness
+  Clippy, exact root `./tools/test.sh`, exact-candidate review, unchanged push, all
+  eight public checks, stable-job log inspection, and post-acceptance PR
+  synchronization. A rejection-only, records-only, raw-only, helper-only, LLVM-text-
+  only, or non-executed result cannot close CORE-044.
+- Allowed files: this `TASK_LEDGER.md` authorization record;
+  `src/compiler/src/struct_contract.rs`, `semantic_analyzer.rs`, `ir.rs`,
+  `ir_generator.rs`, `ir_verifier.rs`, and `code_generator.rs`; one new focused
+  `src/compiler/tests/struct_copy_transport_tests.rs`; the existing
+  `src/compiler/tests/struct_execution_tests.rs`; checked-IR unit/contract tests only
+  for corruption controls that cannot be expressed through the public source route;
+  one new tracked example; `.github/workflows/rust.yml`; and only
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and
+  `README.md` where the accepted callable/aggregate statements change. An adjacent
+  existing test file may change only if the exact root gate proves its historical
+  specimen is newly inside this frozen class, and that correction must be amended
+  into this single record before publication. No lexer, parser, AST shape, module
+  resolver/cache, optimizer, runtime/stdlib, backend target, dependency, formal/design
+  spec, ownership document, claim-verification, benchmark, registry, release,
+  `master`, PR merge, or history rewrite is authorized.
+- Risks and stop conditions: stop rather than invent behavior if the parser cannot
+  represent any frozen product cell; the design sources conflict on all-scalar struct
+  `Copy`; a non-`Copy` schema is required; one shared classifier cannot drive semantic
+  and checked trust boundaries; exact struct identity/schema cannot survive calls;
+  original reuse is invalidated; evaluation order changes; distinct-copy storage
+  cannot be demonstrated; checked metadata cannot distinguish aggregate results from
+  places; the verifier cannot prove global signature/schema/type/dominance invariants;
+  LLVM requires a public stable ABI/layout choice; raw compatibility changes; an
+  unsupported type reaches numeric fallback; any excluded source compiles; a third-
+  party/runtime dependency is needed; or the baseline becomes red. More than two
+  phases is expected and explicitly lead-owned for this source-to-native slice; a
+  second semantic family is a stop.
+- Status at authorization: the worktree is clean except for this single record; exact
+  local/remote/PR head is `ef2d41b71e6509ec7c1464af53eedb0685d9a123`, PR #4 is
+  open/draft and synchronized through CORE-043, all eight public checks and the fresh
+  exact local baseline are green, and `master` is untouched. No CORE-044 test,
+  production behavior, example, workflow anchor, capability record, commit, or public
+  claim exists. The next allowed action is the one exhaustive failing regression
+  aggregate, not production code.
+- Tests-first red evidence: the new single integration aggregate compiles and fails
+  0/1 before any production, example, workflow, or capability-state edit. All five
+  scalar aliases and the composed specimen stop at the existing shared `local struct
+  moves and copies are not admitted` boundary; mixed/literal/discarded and direct-
+  module calls stop at scalar-only checked parameter/return admission; immediate
+  returned-call projection stops at the semantic receiver boundary; metadata cannot
+  be produced; and the tracked example plus four unique workflow anchors are absent.
+  The negative matrix also records the intended CORE-044 diagnostic identities while
+  current behavior still reports the older scalar-only boundary. The existing
+  CORE-043 test moved only its exact local-copy, struct-argument, and struct-return
+  cells into this positive aggregate; all neighboring exclusions remain asserted.
+  No production file changed and no output artifact or public claim was created.
+- Root-gate historical reclassification: after the focused CORE-044 and checked-IR
+  corruption suites turned green, the first exact repository-root gate reached one
+  stale `frontend_tests::test_semantic_struct_is_non_copy` assertion. Its `Point`
+  contains only `i32` fields and is therefore newly and deliberately inside the
+  frozen all-component-`Copy` class; retaining an all-structs-move expectation would
+  contradict both the founding framework and this task contract. The adjacent
+  `src/compiler/tests/frontend_tests.rs` specimen is authorized only to become a
+  field-sensitive characterization: the exact all-scalar parameter-copy/reuse case
+  must pass, while a `String`-bearing struct control must remain rejected. The gate
+  was otherwise green through every earlier suite and stopped at 58/59 in this
+  target; no test was weakened or deleted, and the root gate must be rerun from the
+  beginning after this reclassification.
+- Implementation and review result: one shared `StructRegistry` classifier now
+  resolves the supported Copy schema and every struct-bearing top-level function
+  signature. Semantic analysis consumes it for exact calls/returns and field-sensitive
+  Copy tracking; checked admission consumes it for exact argument/result identity;
+  lowering uses distinct struct places and aggregate values; the new logical checked-
+  function definition carries exact schemas; verification proves typed arguments,
+  results, returns, places, global schema consistency, dominance, and exact `main`;
+  checked code generation emits deterministic named aggregate parameters, loads,
+  stores, calls, and returns. The deprecated unchecked path retains its legacy form.
+  Construction/projection, scalar functions, fixed-array length, compile-time String
+  predicates/length, checked calls, deterministic ordering, and direct modules are
+  composed in the tracked exit-63 specimen.
+- Exact-review corrections: a raw-compatibility probe first proved that fresh
+  unchecked generation remained legacy, then the stronger reused-generator control
+  failed because stale checked registry state selected `CheckedFunctionDef` and made
+  unchecked codegen lose the legacy identity body. The correction restricts the new
+  contract selection to checked mode only; the focused aggregate returns green and
+  the unrelated pre-existing cross-mode function-map retention is not changed. A
+  separate checked-IR corruption cell then proved that a handwritten scalar-only
+  `CheckedFunctionDef` was accepted; verification now requires the new definition to
+  have at least one exact struct parameter or result, preserving legacy scalar
+  representation. Both checked code-generation entry points reject it, and all seven
+  checked-codegen contract tests pass.
+- Local candidate evidence: CORE-044 and the adjacent CORE-043 aggregate each pass
+  1/1; the shared classifier passes 1/1; the field-sensitive historical frontend
+  characterization passes; and the checked-codegen aggregate passes 7/7, including
+  malformed empty/conflicting schemas, distinct struct identities, aggregate-place
+  misuse, mismatched returns, process-entry widening, and scalar-only checked-form
+  spoofing. The exact repository-root `./tools/test.sh` run after source, tests,
+  workflow, example, and capability-document edits exits 0 with 152/152 library and
+  160/160 CLI tests, every active integration target, formatting, correctness Clippy,
+  and doc tests. A checked CLI build of the exact tracked example exits 0, publishes
+  11,842 bytes of LLVM under ignored Cargo `target`, and contains exact Packet schema,
+  aggregate definition, call, and return anchors.
+- Remaining acceptance boundary: this Windows host has neither LLVM/Clang 22 nor WSL;
+  the CLI accurately reports `InternalOnly` verification rather than claiming an
+  external verifier. The unconditional workflow step is therefore the required
+  authority for `opt-22`, `llc-22 -verify-machineinstrs`, object lowering,
+  `clang-22` linking, and native exit 63. CORE-044 remains a local candidate until an
+  exact commit is reviewed, pushed unchanged, all eight public checks pass, the stable
+  job log proves those native stages, and the draft PR front page is synchronized.
+  This evidence paragraph is the final records mutation before one fresh exact-
+  candidate root gate; no release, stable ABI/layout, general ownership, accelerator,
+  performance, or merge claim is made.

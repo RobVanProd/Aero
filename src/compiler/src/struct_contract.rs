@@ -41,7 +41,6 @@ pub(crate) struct StructContract {
 }
 
 impl StructContract {
-    #[cfg(test)]
     pub(crate) fn logical_type(&self) -> LogicalType {
         LogicalType::Struct {
             name: self.name.clone(),
@@ -59,6 +58,19 @@ impl StructContract {
             .enumerate()
             .find(|(_, field)| field.name == name)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CopyTypeContract {
+    pub(crate) ty: Ty,
+    pub(crate) logical_type: LogicalType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CopyFunctionContract {
+    pub(crate) name: String,
+    pub(crate) parameters: Vec<(String, CopyTypeContract)>,
+    pub(crate) result: CopyTypeContract,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -104,6 +116,11 @@ pub(crate) enum StructContractError {
         field_name: String,
     },
     LocalMoveOrCopy,
+    UnsupportedFunctionParameter {
+        parameter_name: String,
+    },
+    UnsupportedFunctionReturn,
+    ProcessEntryStructTransport,
 }
 
 impl StructContractError {
@@ -128,6 +145,16 @@ impl StructContractError {
                 field_name,
             } => format!("struct `{struct_name}` has no field `{field_name}`"),
             Self::LocalMoveOrCopy => "local struct moves and copies are not admitted".to_string(),
+            Self::UnsupportedFunctionParameter { parameter_name } => format!(
+                "function parameter `{parameter_name}` is not an admitted scalar or Copy-struct type"
+            ),
+            Self::UnsupportedFunctionReturn => {
+                "function return type is not an admitted scalar, Copy-struct, or Void type"
+                    .to_string()
+            }
+            Self::ProcessEntryStructTransport => {
+                "process entry `main` cannot use struct parameters or returns".to_string()
+            }
         }
     }
 }
@@ -270,13 +297,84 @@ impl StructRegistry {
         initializer: &Expression,
         inferred: &Ty,
     ) -> Result<(), StructContractError> {
-        if matches!(inferred, Ty::Struct(_))
-            && !matches!(initializer, Expression::StructLiteral { .. })
-        {
-            Err(StructContractError::LocalMoveOrCopy)
-        } else {
-            Ok(())
+        let Ty::Struct(struct_name) = inferred else {
+            return Ok(());
+        };
+        if !self.is_copy_struct_name(struct_name) {
+            return Err(StructContractError::LocalMoveOrCopy);
         }
+        match initializer {
+            Expression::StructLiteral { .. }
+            | Expression::Identifier(_)
+            | Expression::FunctionCall { .. } => Ok(()),
+            _ => Err(StructContractError::LocalMoveOrCopy),
+        }
+    }
+
+    pub(crate) fn is_copy_struct_ty(&self, ty: &Ty) -> bool {
+        matches!(ty, Ty::Struct(name) if self.is_copy_struct_name(name))
+    }
+
+    pub(crate) fn copy_struct_contract(&self, ty: &Ty) -> Option<StructContract> {
+        let Ty::Struct(name) = ty else {
+            return None;
+        };
+        match self.definitions.get(name) {
+            Some(StructDefinitionDisposition::Supported(contract)) => Some(contract.clone()),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn resolve_copy_function_contract(
+        &self,
+        name: &str,
+        parameters: &[crate::ast::Parameter],
+        return_type: Option<&Type>,
+        type_params: &[String],
+    ) -> Result<Option<CopyFunctionContract>, StructContractError> {
+        let mentions_supported_struct = parameters
+            .iter()
+            .any(|parameter| self.annotation_is_copy_struct(&parameter.param_type))
+            || return_type.is_some_and(|result| self.annotation_is_copy_struct(result));
+        if !mentions_supported_struct {
+            return Ok(None);
+        }
+        if name == "main" {
+            return Err(StructContractError::ProcessEntryStructTransport);
+        }
+        if !type_params.is_empty() || !admitted_symbol(name) {
+            return Err(StructContractError::PreserveExistingBehavior);
+        }
+
+        let mut seen_parameters = HashSet::new();
+        let mut resolved_parameters = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            if !admitted_symbol(&parameter.name) || !seen_parameters.insert(parameter.name.as_str())
+            {
+                return Err(StructContractError::PreserveExistingBehavior);
+            }
+            let Some(contract) = self.resolve_copy_annotation(&parameter.param_type) else {
+                return Err(StructContractError::UnsupportedFunctionParameter {
+                    parameter_name: parameter.name.clone(),
+                });
+            };
+            resolved_parameters.push((parameter.name.clone(), contract));
+        }
+
+        let result = match return_type {
+            Some(result) => self
+                .resolve_copy_annotation(result)
+                .ok_or(StructContractError::UnsupportedFunctionReturn)?,
+            None => CopyTypeContract {
+                ty: Ty::Void,
+                logical_type: LogicalType::Void,
+            },
+        };
+        Ok(Some(CopyFunctionContract {
+            name: name.to_string(),
+            parameters: resolved_parameters,
+            result,
+        }))
     }
 
     pub(crate) fn resolve_field(
@@ -303,6 +401,48 @@ impl StructRegistry {
             });
         };
         Ok((contract.clone(), index, field.clone()))
+    }
+
+    fn is_copy_struct_name(&self, name: &str) -> bool {
+        matches!(
+            self.definitions.get(name),
+            Some(StructDefinitionDisposition::Supported(_))
+        )
+    }
+
+    fn annotation_is_copy_struct(&self, annotation: &Type) -> bool {
+        matches!(annotation, Type::Named(name) if self.is_copy_struct_name(name))
+    }
+
+    fn resolve_copy_annotation(&self, annotation: &Type) -> Option<CopyTypeContract> {
+        match annotation {
+            Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Some(CopyTypeContract {
+                ty: Ty::Int,
+                logical_type: LogicalType::Int,
+            }),
+            Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
+                Some(CopyTypeContract {
+                    ty: Ty::Float,
+                    logical_type: LogicalType::Float,
+                })
+            }
+            Type::Named(name) if name == "bool" => Some(CopyTypeContract {
+                ty: Ty::Bool,
+                logical_type: LogicalType::Bool,
+            }),
+            Type::Named(name) => {
+                let Some(StructDefinitionDisposition::Supported(contract)) =
+                    self.definitions.get(name)
+                else {
+                    return None;
+                };
+                Some(CopyTypeContract {
+                    ty: Ty::Struct(name.clone()),
+                    logical_type: contract.logical_type(),
+                })
+            }
+            _ => None,
+        }
     }
 }
 
@@ -574,5 +714,105 @@ mod tests {
                 Err(StructContractError::PreserveExistingBehavior)
             );
         }
+    }
+
+    #[test]
+    fn copy_function_classifier_closes_scalar_struct_signature_product() {
+        let registry = StructRegistry::from_top_level_ast(&[
+            definition(
+                "Packet",
+                vec![
+                    field("count", Type::Named("int".to_string())),
+                    field("ready", Type::Named("bool".to_string())),
+                ],
+                vec![],
+            ),
+            definition(
+                "Text",
+                vec![field("value", Type::Named("String".to_string()))],
+                vec![],
+            ),
+        ]);
+        let parameters = vec![
+            crate::ast::Parameter {
+                name: "prefix".to_string(),
+                param_type: Type::Named("i32".to_string()),
+            },
+            crate::ast::Parameter {
+                name: "packet".to_string(),
+                param_type: Type::Named("Packet".to_string()),
+            },
+            crate::ast::Parameter {
+                name: "suffix".to_string(),
+                param_type: Type::Named("bool".to_string()),
+            },
+        ];
+        let contract = registry
+            .resolve_copy_function_contract(
+                "transport",
+                &parameters,
+                Some(&Type::Named("Packet".to_string())),
+                &[],
+            )
+            .expect("signature is classifiable")
+            .expect("signature contains a Copy struct");
+        assert_eq!(contract.name, "transport");
+        assert_eq!(contract.parameters[0].1.ty, Ty::Int);
+        assert_eq!(
+            contract.parameters[1].1.ty,
+            Ty::Struct("Packet".to_string())
+        );
+        assert_eq!(contract.parameters[2].1.ty, Ty::Bool);
+        assert_eq!(contract.result.ty, Ty::Struct("Packet".to_string()));
+        assert_eq!(
+            contract.result.logical_type,
+            LogicalType::Struct {
+                name: "Packet".to_string(),
+                fields: vec![LogicalType::Int, LogicalType::Bool],
+            }
+        );
+        assert!(registry.is_copy_struct_ty(&contract.result.ty));
+
+        let unsupported = vec![crate::ast::Parameter {
+            name: "text".to_string(),
+            param_type: Type::Named("Text".to_string()),
+        }];
+        assert_eq!(
+            registry.resolve_copy_function_contract(
+                "mixed",
+                &[
+                    crate::ast::Parameter {
+                        name: "packet".to_string(),
+                        param_type: Type::Named("Packet".to_string()),
+                    },
+                    unsupported[0].clone(),
+                ],
+                None,
+                &[],
+            ),
+            Err(StructContractError::UnsupportedFunctionParameter {
+                parameter_name: "text".to_string(),
+            })
+        );
+        assert_eq!(
+            registry.resolve_copy_function_contract(
+                "main",
+                &parameters[1..2],
+                Some(&Type::Named("int".to_string())),
+                &[],
+            ),
+            Err(StructContractError::ProcessEntryStructTransport)
+        );
+        assert_eq!(
+            registry
+                .resolve_copy_function_contract(
+                    "scalar_only",
+                    &parameters[..1],
+                    Some(&Type::Named("int".to_string())),
+                    &[],
+                )
+                .expect("scalar signature preserves existing classifier"),
+            None
+        );
     }
 }

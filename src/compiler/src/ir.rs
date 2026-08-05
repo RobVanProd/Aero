@@ -46,6 +46,14 @@ pub enum Inst {
         return_type: Option<String>,
         body: Vec<Inst>,
     },
+    /// Source-admitted function definition whose logical signature may contain
+    /// verified all-component-`Copy` struct values.
+    CheckedFunctionDef {
+        name: String,
+        parameters: Vec<(String, LogicalType)>,
+        result: LogicalType,
+        body: Vec<Inst>,
+    },
     Call {
         function: String,
         arguments: Vec<Value>,

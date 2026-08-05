@@ -287,6 +287,24 @@ jobs:
         fi
         echo "struct example passed with exit code 53"
 
+    - name: Test scalar struct Copy transport integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/scalar_struct_copy_transport.aero -o ../../scalar_struct_copy_transport.ll
+        opt-22 -passes=verify -disable-output ../../scalar_struct_copy_transport.ll
+        llc-22 -verify-machineinstrs ../../scalar_struct_copy_transport.ll -o /dev/null
+        llc-22 -filetype=obj ../../scalar_struct_copy_transport.ll -o ../../scalar_struct_copy_transport.o
+        clang-22 ../../scalar_struct_copy_transport.o -o ../../scalar_struct_copy_transport
+        set +e
+        ../../scalar_struct_copy_transport
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 63 ]; then
+          echo "Expected exit code 63, got $exit_code"
+          exit 1
+        fi
+        echo "struct Copy transport example passed with exit code 63"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

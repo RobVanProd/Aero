@@ -40,6 +40,35 @@ fn program_with_definition(
     ])
 }
 
+fn copy_struct(name: &str, fields: Vec<LogicalType>) -> LogicalType {
+    LogicalType::Struct {
+        name: name.to_string(),
+        fields,
+    }
+}
+
+fn program_with_checked_definition(
+    callee_name: &str,
+    parameters: Vec<(String, LogicalType)>,
+    result: LogicalType,
+    callee_body: Vec<Inst>,
+    mut main_body: Vec<Inst>,
+) -> RawIr {
+    main_body.insert(
+        0,
+        Inst::CheckedFunctionDef {
+            name: callee_name.to_string(),
+            parameters,
+            result,
+            body: callee_body,
+        },
+    );
+    HashMap::from([
+        ("main".to_string(), function("main", main_body)),
+        (callee_name.to_string(), function(callee_name, Vec::new())),
+    ])
+}
+
 fn int_call_ir(arguments: Vec<Value>, result: Option<Value>) -> RawIr {
     program_with_definition(
         "takes_int",
@@ -261,6 +290,163 @@ fn invalid_ir_cases() -> Vec<InvalidIrCase> {
                     }],
                 ),
             )]),
+        },
+        InvalidIrCase {
+            name: "checked process entry cannot widen to a struct ABI",
+            expected_fragments: &["process", "entry", "exact", "i32", "main"],
+            ir: HashMap::from([(
+                "main".to_string(),
+                function(
+                    "main",
+                    vec![Inst::CheckedFunctionDef {
+                        name: "main".to_string(),
+                        parameters: Vec::new(),
+                        result: copy_struct("Value", vec![LogicalType::Int]),
+                        body: vec![Inst::Return(Value::ImmInt(0))],
+                    }],
+                ),
+            )]),
+        },
+        InvalidIrCase {
+            name: "checked function signature rejects an empty struct schema",
+            expected_fragments: &["unsupported", "checked", "struct", "schema", "Value"],
+            ir: program_with_checked_definition(
+                "identity",
+                vec![("value".to_string(), copy_struct("Value", Vec::new()))],
+                LogicalType::Int,
+                vec![Inst::Return(Value::ImmInt(0))],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked function definition cannot replace a scalar-only legacy signature",
+            expected_fragments: &["metadata", "checked", "function", "struct", "signature"],
+            ir: program_with_checked_definition(
+                "identity",
+                vec![("value".to_string(), LogicalType::Int)],
+                LogicalType::Int,
+                vec![
+                    Inst::Alloca(Value::Reg(0), "value".to_string()),
+                    Inst::Load(Value::Reg(1), Value::Reg(0)),
+                    Inst::Return(Value::Reg(1)),
+                ],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked function signatures reject conflicting same-name schemas",
+            expected_fragments: &["metadata", "conflicting", "struct", "schemas", "Value"],
+            ir: HashMap::from([
+                (
+                    "main".to_string(),
+                    function(
+                        "main",
+                        vec![
+                            Inst::CheckedFunctionDef {
+                                name: "left".to_string(),
+                                parameters: vec![(
+                                    "value".to_string(),
+                                    copy_struct("Value", vec![LogicalType::Int]),
+                                )],
+                                result: LogicalType::Int,
+                                body: vec![Inst::Return(Value::ImmInt(0))],
+                            },
+                            Inst::CheckedFunctionDef {
+                                name: "right".to_string(),
+                                parameters: vec![(
+                                    "value".to_string(),
+                                    copy_struct("Value", vec![LogicalType::Bool]),
+                                )],
+                                result: LogicalType::Int,
+                                body: vec![Inst::Return(Value::ImmInt(0))],
+                            },
+                            Inst::Return(Value::ImmInt(0)),
+                        ],
+                    ),
+                ),
+                ("left".to_string(), function("left", Vec::new())),
+                ("right".to_string(), function("right", Vec::new())),
+            ]),
+        },
+        InvalidIrCase {
+            name: "checked struct call rejects a distinct aggregate identity",
+            expected_fragments: &["call", "argument", "expected", "Left", "found", "Right"],
+            ir: program_with_checked_definition(
+                "identity",
+                vec![(
+                    "value".to_string(),
+                    copy_struct("Left", vec![LogicalType::Int]),
+                )],
+                copy_struct("Left", vec![LogicalType::Int]),
+                vec![
+                    Inst::Alloca(Value::Reg(0), "value".to_string()),
+                    Inst::Load(Value::Reg(1), Value::Reg(0)),
+                    Inst::Return(Value::Reg(1)),
+                ],
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "Right".to_string(),
+                        field_types: vec![LogicalType::Int],
+                    },
+                    Inst::Load(Value::Reg(1), Value::Reg(0)),
+                    Inst::Call {
+                        function: "identity".to_string(),
+                        arguments: vec![Value::Reg(1)],
+                        result: Some(Value::Reg(2)),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked struct call requires a loaded aggregate value",
+            expected_fragments: &["undefined", "result", "identifier", "0"],
+            ir: program_with_checked_definition(
+                "identity",
+                vec![(
+                    "value".to_string(),
+                    copy_struct("Value", vec![LogicalType::Int]),
+                )],
+                copy_struct("Value", vec![LogicalType::Int]),
+                vec![
+                    Inst::Alloca(Value::Reg(0), "value".to_string()),
+                    Inst::Load(Value::Reg(1), Value::Reg(0)),
+                    Inst::Return(Value::Reg(1)),
+                ],
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "Value".to_string(),
+                        field_types: vec![LogicalType::Int],
+                    },
+                    Inst::Call {
+                        function: "identity".to_string(),
+                        arguments: vec![Value::Reg(0)],
+                        result: Some(Value::Reg(1)),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked function return rejects a distinct aggregate identity",
+            expected_fragments: &["return", "expected", "Left", "found", "Right"],
+            ir: program_with_checked_definition(
+                "make",
+                Vec::new(),
+                copy_struct("Left", vec![LogicalType::Int]),
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "Right".to_string(),
+                        field_types: vec![LogicalType::Int],
+                    },
+                    Inst::Load(Value::Reg(1), Value::Reg(0)),
+                    Inst::Return(Value::Reg(1)),
+                ],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
         },
         InvalidIrCase {
             name: "integer immediate outside i32",
@@ -1115,5 +1301,52 @@ fn checked_struct_instructions_verify_schema_field_identity_and_scalar_storage()
     ];
     for case in invalid {
         assert_both_checked_codegen_entrypoints_reject(case);
+    }
+}
+
+#[test]
+fn checked_codegen_emits_verified_copy_struct_function_transport() {
+    let value = copy_struct("Value", vec![LogicalType::Int]);
+    let admitted = program_with_checked_definition(
+        "identity",
+        vec![("value".to_string(), value.clone())],
+        value,
+        vec![
+            Inst::Alloca(Value::Reg(0), "value".to_string()),
+            Inst::Load(Value::Reg(1), Value::Reg(0)),
+            Inst::Return(Value::Reg(1)),
+        ],
+        vec![
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(0),
+                struct_name: "Value".to_string(),
+                field_types: vec![LogicalType::Int],
+            },
+            Inst::CheckedStructFieldPtr {
+                result: Value::Reg(1),
+                base: Value::Reg(0),
+                struct_name: "Value".to_string(),
+                field_index: 0,
+                field_type: LogicalType::Int,
+            },
+            Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+            Inst::Load(Value::Reg(2), Value::Reg(0)),
+            Inst::Call {
+                function: "identity".to_string(),
+                arguments: vec![Value::Reg(2)],
+                result: Some(Value::Reg(3)),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ],
+    );
+
+    let llvm = try_generate_code(admitted).expect("checked Copy-struct transport must verify");
+    for anchor in [
+        "%aero.struct.Value = type { double }",
+        "define %aero.struct.Value @identity(%aero.struct.Value %aero.arg.value)",
+        "call %aero.struct.Value @identity(%aero.struct.Value",
+        "ret %aero.struct.Value",
+    ] {
+        assert!(llvm.contains(anchor), "missing `{anchor}`:\n{llvm}");
     }
 }

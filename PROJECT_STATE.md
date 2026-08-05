@@ -4,31 +4,33 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 62 `CORE-043` is accepted through exact public implementation commit
-`92b19cf729daa4e3e90d4591495e493573c89e51`, based on accepted CORE-042 head
-`e77276c8dcd42f6adaca7ac31e60a2d5a6fe0308`. It admits one deliberately bounded but
-architectural aggregate class: unique flattened top-level, non-generic, nonempty
-structs with unique `int`/`i32`, `float`/`f64`, or `bool` fields; exact named
-construction in source evaluation order; local/direct named projection; and
-construction inside admitted top-level functions, including direct-module-origin
-functions. One shared registry owns source topology and is consumed by semantics and
-checked admission. New schema-carrying checked instructions, verifier-owned struct
-places, deterministic named LLVM aggregates, and the tracked exit-53 program carry
-the class through source, logical IR, verification, LLVM, and the native CI route.
+Milestone 63 `CORE-044` is a locally green implementation candidate on accepted
+public CORE-043 basis `ef2d41b71e6509ec7c1464af53eedb0685d9a123`. It extends only
+CORE-043's unique flattened, non-generic, nonempty scalar structs: because every
+field is `Int`, `Float`, or `Bool` and has no admitted destruction, those values are
+Copy. Local aliases, by-value internal function parameters and returns, original
+reuse, forwarding, direct recursion, immediate returned-value projection, and
+one-level flattened direct-module composition now retain exact struct identity.
+One shared registry classifies the supported source schema and struct-bearing
+function signature for semantic analysis and checked admission.
 
-The exhaustive CORE-043 aggregate and adjacent construction quarantine are green.
-Unsupported definitions, fields, annotations, contexts, moves, calls, returns,
-arrays, and non-struct projection remain fail-closed before LLVM; invalid CLI builds
-publish no artifact. The deprecated unchecked AST generator retains its old zero-like
-stub behavior, and legacy raw `AllocaStruct`/`GetFieldPtr` remain rejected. Exact root
-`./tools/test.sh` passes 150/150 library tests, 159/159 CLI tests, every active
-integration target, formatting, correctness Clippy, and doc tests. Push CI
-`30960678710`, PR CI `30960681935`, Rust CI `30960681967`, CodeQL analysis
-`30960679155`, and aggregate CodeQL check `92163799952` pass all eight public checks.
-Stable Linux job `92163717297` used LLVM/Clang 22.1.8 to checked-build, externally
-LLVM-verify, machine-verify, object-lower, link, and execute the tracked program with
-exact native exit 53. This records-only acceptance successor changes no compiler,
-test, example, or workflow behavior.
+The candidate adds a schema-carrying checked-function definition and verifies exact
+aggregate call arguments/results, returns, places, global schemas, and process-entry
+exclusion before LLVM. Checked code generation emits named aggregate parameters,
+loads/stores, calls, and returns; the deprecated unchecked route remains unchanged.
+The exhaustive CORE-044 aggregate, CORE-043 containment suite, shared-classifier
+unit, and adversarial checked-IR controls pass. Exact root `./tools/test.sh` passes
+152/152 library tests, 160/160 CLI tests, every active integration target,
+formatting, correctness Clippy, and doc tests. The exact tracked example also builds
+through the CLI into typed aggregate LLVM. This Windows host has no LLVM/Clang 22,
+so external verification, object lowering, linking, and native exit 63 remain a
+mandatory public stable-Linux gate; CORE-044 is not accepted until that and all
+eight public checks pass.
+
+CORE-043 remains accepted at exact implementation commit
+`92b19cf729daa4e3e90d4591495e493573c89e51` and exact public synchronization head
+`ef2d41b71e6509ec7c1464af53eedb0685d9a123`. Its stable Linux job `92163717297`
+used LLVM/Clang 22.1.8 and produced native exit 53.
 
 CORE-042 is accepted public at `e77276c8dcd42f6adaca7ac31e60a2d5a6fe0308`.
 Its flattened direct-module composition example passed the exact native exit-47 gate,
@@ -42,17 +44,20 @@ composition rather than a module system.
   to the accepted head, and design a separately authorized checkpoint/merge strategy
   before normal reviewability is lost. This does not authorize merging to `master`.
 - Milestone selection must not optimize indefinitely for convenient compile-time
-  slices. CORE-043 intentionally takes the first aggregate/layout/IR vertical step;
-  ownership, runtime representation, ABI, module semantics, and real accelerator
-  execution remain mandatory hard classes for later frozen decisions.
+  slices. CORE-043 took the first aggregate/layout/IR vertical step and CORE-044
+  takes a bounded ownership and internal by-value function-boundary step. Non-Copy
+  ownership, runtime representation, stable ABI, full module semantics, and real
+  accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
   is a candidate for generation from a future structured checkpoint manifest. Such a
   manifest must be separately authorized and must not become a new source of semantic
   truth.
 - Periodic system gates must compose multiple accepted capabilities through source,
   semantics, logical checked IR, verification, LLVM, native execution, documentation,
-  and release-eligibility classification. CORE-042 and CORE-043 now provide accepted
-  composed gates; local slice tests alone never establish whole-language coherence.
+  and release-eligibility classification. CORE-042 and CORE-043 provide accepted
+  composed gates; CORE-044 adds the next candidate gate and remains incomplete until
+  pinned native CI evidence exists. Local slice tests alone never establish
+  whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
 Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
@@ -1642,17 +1647,19 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-CORE-043 is closed at exact public implementation commit `92b19cf729daa4e3e90d4591495e493573c89e51`:
-the local gate, all eight public checks, and stable Linux LLVM/Clang 22 native exit 53
-are accepted. Keep PR #4 draft and keep its mutable front page synchronized to this
-checkpoint; do not reopen or broaden the frozen struct class.
+CORE-044 is locally green but not yet accepted. Review the exact candidate, commit it
+on `agent/aero-integration`, push unchanged, require all eight public checks, inspect
+the stable Linux LLVM/Clang 22 step for external verification, machine verification,
+object lowering, linking, and exact native exit 63, then synchronize the draft PR
+front page to the accepted public head. Do not begin another implementation slice on
+red or pending evidence.
 
-Before another implementation slice, separately authorize the next semantic class.
-Milestone selection must now weigh a harder ownership/runtime-layout/ABI/module/GPU
-boundary or another cross-capability integration gate, not only convenient compile-time
-work. The controlled mega-PR checkpoint strategy and structured evidence-manifest
-generator also require separate authorization. Do not merge PR #4, publish releases/
-packages/benchmarks/claims, rewrite history, force-push, or touch `master`.
+After CORE-044 acceptance, separately authorize the next semantic class. Milestone
+selection must continue to weigh harder non-Copy ownership/runtime-layout/ABI/module/
+GPU boundaries and periodic cross-capability gates. The controlled mega-PR checkpoint
+strategy and structured evidence-manifest generator also require separate
+authorization. Do not merge PR #4, publish releases/packages/benchmarks/claims,
+rewrite history, force-push, or touch `master`.
 
 ## Unauthorized actions
 

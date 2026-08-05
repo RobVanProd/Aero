@@ -894,20 +894,40 @@ fn test_semantic_move_into_function() {
 }
 
 #[test]
-fn test_semantic_struct_is_non_copy() {
-    // Declared struct-typed parameters should use move semantics without constructing a value.
-    let source = r#"
+fn test_semantic_struct_copy_classification_follows_its_fields() {
+    // An all-scalar struct is Copy, so reusing the original parameter is valid.
+    let copy_source = r#"
         struct Point { x: i32, y: i32 }
         fn consume(p1: Point) {
             let p2 = p1;
             let p3 = p1;
         }
     "#;
-    let tokens = lexer::tokenize(source);
+    let tokens = lexer::tokenize(copy_source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Struct should use move semantics");
+    assert!(
+        result.is_ok(),
+        "all-scalar struct should be Copy: {result:?}"
+    );
+
+    // A String-bearing struct remains outside the admitted Copy transport class.
+    let non_copy_source = r#"
+        struct Message { text: String }
+        fn consume(message: Message) {
+            let first = message;
+            let second = message;
+        }
+    "#;
+    let tokens = lexer::tokenize(non_copy_source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(
+        result.is_err(),
+        "String-bearing struct must remain outside Copy transport"
+    );
 }
 
 #[test]

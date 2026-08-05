@@ -15,7 +15,9 @@ use crate::static_string_method::{StaticStringLenDisposition, classify_static_st
 use crate::static_string_predicate::{
     StaticStringPredicateDisposition, classify_static_string_predicate,
 };
-use crate::struct_contract::{StructContractError, StructExecutionContext, StructRegistry};
+use crate::struct_contract::{
+    CopyFunctionContract, StructContractError, StructExecutionContext, StructRegistry,
+};
 use crate::types::{Ty, needs_promotion};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
@@ -53,6 +55,7 @@ struct AdmissionBinding {
 struct AdmissionTopLevelFunction {
     result: Ty,
     arity: Option<usize>,
+    parameter_types: Option<Vec<Ty>>,
 }
 
 struct AdmissionProgram {
@@ -78,6 +81,7 @@ pub struct IrGenerator {
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
     function_return_types: HashMap<String, Ty>,
+    struct_copy_function_contracts: HashMap<String, CopyFunctionContract>,
     loop_label_stack: Vec<(String, String)>, // Stack of (loop_start, loop_end) labels
     closure_count: u32,                      // Counter for unique closure names
     checked_mode: bool,
@@ -94,6 +98,7 @@ impl IrGenerator {
             next_ptr: 0,
             symbol_table: HashMap::new(),
             function_return_types: HashMap::new(),
+            struct_copy_function_contracts: HashMap::new(),
             loop_label_stack: Vec::new(),
             closure_count: 0,
             checked_mode: false,
@@ -122,6 +127,7 @@ impl IrGenerator {
         self.next_ptr = 0;
         self.symbol_table.clear();
         self.function_return_types.clear();
+        self.struct_copy_function_contracts.clear();
         self.loop_label_stack.clear();
         self.closure_count = 0;
         self.checked_place_hints.clear();
@@ -136,6 +142,7 @@ impl IrGenerator {
 
     pub fn generate_ir(&mut self, ast: Vec<AstNode>) -> HashMap<String, Function> {
         self.function_return_types.clear();
+        self.struct_copy_function_contracts.clear();
         for node in &ast {
             if let AstNode::Statement(Statement::Function {
                 name,
@@ -145,16 +152,35 @@ impl IrGenerator {
                 ..
             }) = node
                 && type_params.is_empty()
-                && parameters
+            {
+                let struct_copy_contract = if self.checked_mode {
+                    self.struct_registry
+                        .resolve_copy_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                        )
+                        .expect("checked admission resolved struct Copy function contracts")
+                } else {
+                    None
+                };
+                if let Some(contract) = struct_copy_contract {
+                    self.function_return_types
+                        .insert(name.clone(), contract.result.ty.clone());
+                    self.struct_copy_function_contracts
+                        .insert(name.clone(), contract);
+                } else if parameters
                     .iter()
                     .all(|parameter| Self::numeric_contract_type(&parameter.param_type).is_some())
-            {
-                let contract_return = match return_type {
-                    Some(ty) => Self::numeric_contract_type(ty),
-                    None => Some(Ty::Void),
-                };
-                if let Some(return_type) = contract_return {
-                    self.function_return_types.insert(name.clone(), return_type);
+                {
+                    let contract_return = match return_type {
+                        Some(ty) => Self::numeric_contract_type(ty),
+                        None => Some(Ty::Void),
+                    };
+                    if let Some(return_type) = contract_return {
+                        self.function_return_types.insert(name.clone(), return_type);
+                    }
                 }
             }
         }
@@ -206,7 +232,7 @@ impl IrGenerator {
                 Value::ImmInt(0),
                 Ty::Void,
             ),
-            Some(return_type @ (Ty::Int | Ty::Float | Ty::Bool)) => {
+            Some(return_type @ (Ty::Int | Ty::Float | Ty::Bool | Ty::Struct(_))) => {
                 let result_reg = Value::Reg(self.next_reg);
                 self.next_reg += 1;
                 (
@@ -244,6 +270,7 @@ impl IrGenerator {
 
     fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
         let mut program: HashMap<String, AdmissionTopLevelFunction> = HashMap::new();
+        let structs = StructRegistry::from_top_level_ast(ast);
         for node in ast {
             if let AstNode::Statement(Statement::Function {
                 name,
@@ -253,28 +280,72 @@ impl IrGenerator {
                 ..
             }) = node
             {
-                let result = return_type
-                    .as_ref()
-                    .map(Self::admission_type)
-                    .unwrap_or(Ty::Void);
-                let arity = Self::admitted_top_level_arity(
-                    name,
-                    parameters,
-                    return_type.as_ref(),
-                    type_params,
-                );
+                let copy_contract = if type_params.is_empty() {
+                    match structs.resolve_copy_function_contract(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                    ) {
+                        Ok(contract) => contract,
+                        Err(StructContractError::PreserveExistingBehavior) => None,
+                        Err(error) => {
+                            return Err(IrGenerationError::Admission(error.diagnostic()));
+                        }
+                    }
+                } else {
+                    None
+                };
+                let (result, arity, parameter_types) = if let Some(contract) = copy_contract {
+                    let parameter_types = contract
+                        .parameters
+                        .iter()
+                        .map(|(_, parameter)| parameter.ty.clone())
+                        .collect::<Vec<_>>();
+                    (
+                        contract.result.ty,
+                        Some(parameter_types.len()),
+                        Some(parameter_types),
+                    )
+                } else {
+                    let result = return_type
+                        .as_ref()
+                        .map(Self::admission_type)
+                        .unwrap_or(Ty::Void);
+                    let arity = Self::admitted_top_level_arity(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                    );
+                    let parameter_types = arity.map(|_| {
+                        parameters
+                            .iter()
+                            .map(|parameter| Self::admission_type(&parameter.param_type))
+                            .collect()
+                    });
+                    (result, arity, parameter_types)
+                };
                 if let Some(existing) = program.get_mut(name) {
                     existing.result = result;
                     existing.arity = None;
+                    existing.parameter_types = None;
                 } else {
-                    program.insert(name.clone(), AdmissionTopLevelFunction { result, arity });
+                    program.insert(
+                        name.clone(),
+                        AdmissionTopLevelFunction {
+                            result,
+                            arity,
+                            parameter_types,
+                        },
+                    );
                 }
             }
         }
 
         let program = AdmissionProgram {
             functions: program,
-            structs: StructRegistry::from_top_level_ast(ast),
+            structs,
         };
         let mut bindings = HashMap::new();
         for node in ast {
@@ -534,6 +605,7 @@ impl IrGenerator {
                 )?;
             }
             Statement::Function {
+                name,
                 parameters,
                 return_type,
                 type_params,
@@ -556,9 +628,26 @@ impl IrGenerator {
                         },
                     );
                 }
-                for parameter in parameters {
-                    let parameter_ty = Self::admission_type(&parameter.param_type);
-                    if !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool) {
+                let copy_contract = match program.structs.resolve_copy_function_contract(
+                    name,
+                    parameters,
+                    return_type.as_ref(),
+                    type_params,
+                ) {
+                    Ok(contract) => contract,
+                    Err(StructContractError::PreserveExistingBehavior) => None,
+                    Err(error) => {
+                        return Err(IrGenerationError::Admission(error.diagnostic()));
+                    }
+                };
+                for (index, parameter) in parameters.iter().enumerate() {
+                    let parameter_ty = copy_contract.as_ref().map_or_else(
+                        || Self::admission_type(&parameter.param_type),
+                        |contract| contract.parameters[index].1.ty.clone(),
+                    );
+                    if copy_contract.is_none()
+                        && !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool)
+                    {
                         return Err(IrGenerationError::Admission(format!(
                             "function parameter `{}` is not an admitted scalar type",
                             parameter.name
@@ -573,12 +662,14 @@ impl IrGenerator {
                         },
                     );
                 }
-                if return_type.as_ref().is_some_and(|return_type| {
-                    !matches!(
-                        Self::admission_type(return_type),
-                        Ty::Int | Ty::Float | Ty::Bool
-                    )
-                }) {
+                if copy_contract.is_none()
+                    && return_type.as_ref().is_some_and(|return_type| {
+                        !matches!(
+                            Self::admission_type(return_type),
+                            Ty::Int | Ty::Float | Ty::Bool
+                        )
+                    })
+                {
                     return Err(IrGenerationError::Admission(
                         "function return type is not an admitted scalar or Void type".to_string(),
                     ));
@@ -805,15 +896,16 @@ impl IrGenerator {
                 Ok(derived_ty)
             }
             Expression::FunctionCall { name, arguments } => {
+                let mut argument_types = Vec::with_capacity(arguments.len());
                 for argument in arguments {
-                    Self::validate_expression(
+                    argument_types.push(Self::validate_expression(
                         argument,
                         bindings,
                         program,
                         ExpressionUse::Value,
                         inside_impl,
                         admit_static_string_equality,
-                    )?;
+                    )?);
                 }
                 if let Some(binding) = bindings.get(name) {
                     if binding.callable {
@@ -836,6 +928,20 @@ impl IrGenerator {
                             "call to `{name}` has {} arguments but its signature requires {expected}",
                             arguments.len()
                         )));
+                    }
+                    if let Some(expected_types) = &function.parameter_types {
+                        for (index, (expected, actual)) in
+                            expected_types.iter().zip(&argument_types).enumerate()
+                        {
+                            if expected != actual {
+                                return Err(admission_error(&format!(
+                                    "call to `{name}` argument {} type mismatch: expected {}, actual {}",
+                                    index + 1,
+                                    expected,
+                                    actual
+                                )));
+                            }
+                        }
                     }
                     return Ok(function.result.clone());
                 }
@@ -1230,6 +1336,10 @@ impl IrGenerator {
                     Expression::Identifier(name) => bindings
                         .get(name)
                         .is_some_and(|binding| matches!(&binding.ty, Ty::Struct(_))),
+                    Expression::FunctionCall { name, .. } => program
+                        .functions
+                        .get(name)
+                        .is_some_and(|function| matches!(&function.result, Ty::Struct(_))),
                     _ => false,
                 };
                 if !potential_struct_receiver {
@@ -1541,7 +1651,8 @@ impl IrGenerator {
                 }
                 Inst::Store(place, _) => Self::rewrite_place(place, &places),
                 Inst::Load(_, place) => Self::rewrite_place(place, &places),
-                Inst::FunctionDef { name, body, .. } => {
+                Inst::FunctionDef { name, body, .. }
+                | Inst::CheckedFunctionDef { name, body, .. } => {
                     Self::normalize_instruction_places(body, name, place_hints)
                 }
                 _ => {}
@@ -1580,7 +1691,7 @@ impl IrGenerator {
                 result: Some(result),
                 ..
             } => Some(result),
-            Inst::FunctionDef { body, .. } => {
+            Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                 for nested in body {
                     Self::visit_result_definitions(nested, visitor);
                 }
@@ -1634,6 +1745,43 @@ impl IrGenerator {
         (value, expected)
     }
 
+    fn allocate_copy_struct_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        let contract = self
+            .struct_registry
+            .copy_struct_contract(ty)
+            .expect("checked Copy-struct type has a shared contract");
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedStructAlloca {
+            result: place.clone(),
+            struct_name: contract.name,
+            field_types: contract
+                .fields
+                .iter()
+                .map(|field| field.kind.logical_type())
+                .collect(),
+        });
+        place
+    }
+
+    fn load_copy_struct_value(&mut self, place: Value, function: &mut Function) -> Value {
+        let value = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(value.clone(), place));
+        value
+    }
+
+    fn store_copy_struct_value(&mut self, value: Value, ty: &Ty, function: &mut Function) -> Value {
+        let place = self.allocate_copy_struct_place(ty, function);
+        function.body.push(Inst::Store(place.clone(), value));
+        place
+    }
+
+    fn copy_struct_place(&mut self, source: Value, ty: &Ty, function: &mut Function) -> Value {
+        let value = self.load_copy_struct_value(source, function);
+        self.store_copy_struct_value(value, ty, function)
+    }
+
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
         match stmt {
             Statement::Let {
@@ -1642,6 +1790,8 @@ impl IrGenerator {
                 type_annotation,
                 value,
             } => {
+                let copies_existing_struct =
+                    matches!(value.as_ref(), Some(Expression::Identifier(_)));
                 let (expr_value, expr_type) = if let Some(val) = value {
                     self.generate_binding_expression_ir(
                         val,
@@ -1652,7 +1802,14 @@ impl IrGenerator {
                     (Value::ImmInt(0), Ty::Int)
                 };
 
-                if Self::stores_value_directly(&expr_type) {
+                if matches!(&expr_type, Ty::Struct(_)) {
+                    let storage = if copies_existing_struct {
+                        self.copy_struct_place(expr_value, &expr_type, current_function)
+                    } else {
+                        expr_value
+                    };
+                    self.symbol_table.insert(name, (storage, expr_type));
+                } else if Self::stores_value_directly(&expr_type) {
                     // Keep string values as immediates for now; pointer-backed string variables
                     // and aggregate values are not fully modeled in the scalar slot pipeline yet.
                     self.symbol_table.insert(name, (expr_value, expr_type));
@@ -1675,6 +1832,9 @@ impl IrGenerator {
                 } else {
                     (Value::ImmInt(0), Ty::Int)
                 };
+                if matches!(&return_type, Ty::Struct(_)) {
+                    return_value = self.load_copy_struct_value(return_value, current_function);
+                }
                 if self.checked_mode
                     && current_function.name == "main"
                     && !self.function_return_types.contains_key("main")
@@ -1851,13 +2011,23 @@ impl IrGenerator {
                 // Generate IR for arguments
                 let mut arg_values = Vec::new();
                 for arg in arguments {
-                    let (arg_value, _) = self.generate_expression_ir(arg, function);
+                    let (arg_value, arg_type) = self.generate_expression_ir(arg, function);
+                    let arg_value = if matches!(&arg_type, Ty::Struct(_)) {
+                        self.load_copy_struct_value(arg_value, function)
+                    } else {
+                        arg_value
+                    };
                     arg_values.push(arg_value);
                 }
 
                 let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
                 function.body.push(call_inst);
-                (result, return_type)
+                if matches!(&return_type, Ty::Struct(_)) {
+                    let place = self.store_copy_struct_value(result, &return_type, function);
+                    (place, return_type)
+                } else {
+                    (result, return_type)
+                }
             }
             Expression::Print {
                 format_string,
@@ -2211,6 +2381,8 @@ impl IrGenerator {
         self.next_reg = 0;
         self.next_ptr = 0;
 
+        let copy_contract = self.struct_copy_function_contracts.get(&name).cloned();
+
         // Create parameter names and types for IR
         let eligible_contract = self.function_return_types.contains_key(&name);
         let param_names: Vec<(String, String)> = parameters
@@ -2240,12 +2412,15 @@ impl IrGenerator {
             .collect();
 
         // Set up parameter variables in symbol table
-        for param in &parameters {
+        for (index, param) in parameters.iter().enumerate() {
             let ptr_reg = Value::Reg(self.next_ptr);
             self.next_ptr += 1;
 
             // Convert AST Type to Ty
-            let param_type = self.ast_type_to_ty(&param.param_type);
+            let param_type = copy_contract.as_ref().map_or_else(
+                || self.ast_type_to_ty(&param.param_type),
+                |contract| contract.parameters[index].1.ty.clone(),
+            );
 
             self.symbol_table
                 .insert(param.name.clone(), (ptr_reg, param_type));
@@ -2274,7 +2449,10 @@ impl IrGenerator {
 
         // Handle block expression (implicit return) or default return when needed.
         if let Some(expr) = body.expression {
-            let (return_value, _) = self.generate_expression_ir(expr, &mut function_ir);
+            let (mut return_value, return_ty) = self.generate_expression_ir(expr, &mut function_ir);
+            if matches!(return_ty, Ty::Struct(_)) {
+                return_value = self.load_copy_struct_value(return_value, &mut function_ir);
+            }
             function_ir.body.push(Inst::Return(return_value));
         } else if !function_ir
             .body
@@ -2286,14 +2464,27 @@ impl IrGenerator {
             function_ir.body.push(Inst::Return(Value::ImmInt(0)));
         }
 
-        let ir_return_type = return_type.as_ref().map(|ty| self.ast_type_to_ir_name(ty));
-
-        // Create function definition instruction
-        let func_def = Inst::FunctionDef {
-            name: name.clone(),
-            parameters: param_names,
-            return_type: ir_return_type,
-            body: function_ir.body.clone(),
+        // Create a schema-carrying checked definition only for the frozen struct
+        // transport class; legacy/raw function definitions keep their old shape.
+        let func_def = if let Some(contract) = copy_contract {
+            Inst::CheckedFunctionDef {
+                name: name.clone(),
+                parameters: contract
+                    .parameters
+                    .into_iter()
+                    .map(|(parameter, contract)| (parameter, contract.logical_type))
+                    .collect(),
+                result: contract.result.logical_type,
+                body: function_ir.body.clone(),
+            }
+        } else {
+            let ir_return_type = return_type.as_ref().map(|ty| self.ast_type_to_ir_name(ty));
+            Inst::FunctionDef {
+                name: name.clone(),
+                parameters: param_names,
+                return_type: ir_return_type,
+                body: function_ir.body.clone(),
+            }
         };
 
         // Add function definition to current function (main)

@@ -356,21 +356,6 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
             "Struct construction expressions are not supported.",
         ),
         (
-            "struct move",
-            "struct Value { field: int } fn main() { let first = Value { field: 1 }; let second = first; let result: int = second.field; }",
-            "local struct moves and copies are not admitted",
-        ),
-        (
-            "struct function argument",
-            "struct Value { field: int } fn consume(value: Value) -> int { return 1; } fn main() { let result: int = consume(Value { field: 1 }); }",
-            "function parameter `value` is not an admitted scalar type",
-        ),
-        (
-            "struct return",
-            "struct Value { field: int } fn make() -> Value { return Value { field: 1 }; } fn main() {}",
-            "function return type is not an admitted scalar or Void type",
-        ),
-        (
             "struct array",
             "struct Value { field: int } fn main() { let values = [Value { field: 1 }]; }",
             "only fixed numeric arrays are admitted",

@@ -5,7 +5,27 @@ use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
-type FunctionDef = (Vec<(String, String)>, Option<String>, Vec<Inst>);
+#[derive(Clone)]
+enum FunctionDef {
+    Legacy {
+        parameters: Vec<(String, String)>,
+        return_type: Option<String>,
+        body: Vec<Inst>,
+    },
+    Checked {
+        parameters: Vec<(String, LogicalType)>,
+        result: LogicalType,
+        body: Vec<Inst>,
+    },
+}
+
+impl FunctionDef {
+    fn body(&self) -> &[Inst] {
+        match self {
+            Self::Legacy { body, .. } | Self::Checked { body, .. } => body,
+        }
+    }
+}
 
 /// A failure at the checked LLVM-emission boundary.
 #[derive(Debug)]
@@ -57,14 +77,15 @@ impl CodeGenerator {
         format!("aero.arg.{name}")
     }
 
-    fn logical_type_to_llvm(logical_type: &LogicalType) -> &'static str {
+    fn logical_type_to_llvm(logical_type: &LogicalType) -> String {
         match logical_type {
-            LogicalType::Int => "i32",
-            LogicalType::Float => "double",
-            LogicalType::Bool => "i1",
-            LogicalType::Void => "void",
-            LogicalType::String | LogicalType::Array { .. } | LogicalType::Struct { .. } => {
-                unreachable!("checked scalar call signatures exclude rich logical types")
+            LogicalType::Int => "i32".to_string(),
+            LogicalType::Float => "double".to_string(),
+            LogicalType::Bool => "i1".to_string(),
+            LogicalType::Void => "void".to_string(),
+            LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::String | LogicalType::Array { .. } => {
+                unreachable!("verified call signatures exclude String and array values")
             }
         }
     }
@@ -95,6 +116,30 @@ impl CodeGenerator {
                     }
                 }
                 Inst::FunctionDef { body, .. } => Self::collect_struct_schemas(body, schemas),
+                Inst::CheckedFunctionDef {
+                    parameters,
+                    result,
+                    body,
+                    ..
+                } => {
+                    for (_, parameter) in parameters {
+                        if let LogicalType::Struct { name, fields } = parameter {
+                            if let Some(existing) = schemas.get(name) {
+                                assert_eq!(existing, fields, "verified struct schema is stable");
+                            } else {
+                                schemas.insert(name.clone(), fields.clone());
+                            }
+                        }
+                    }
+                    if let LogicalType::Struct { name, fields } = result {
+                        if let Some(existing) = schemas.get(name) {
+                            assert_eq!(existing, fields, "verified struct schema is stable");
+                        } else {
+                            schemas.insert(name.clone(), fields.clone());
+                        }
+                    }
+                    Self::collect_struct_schemas(body, schemas);
+                }
                 _ => {}
             }
         }
@@ -272,7 +317,7 @@ impl CodeGenerator {
                         Self::bump_seed_from_value(&mut seed, value);
                     }
                 }
-                Inst::FunctionDef { body, .. } => {
+                Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                     seed = seed.max(Self::infer_next_reg_seed(body));
                 }
                 Inst::Jump(_) | Inst::Label(_) => {}
@@ -488,7 +533,9 @@ impl CodeGenerator {
                 | Inst::GetElementPtr { .. }
                 | Inst::CheckedStructAlloca { .. }
                 | Inst::CheckedStructFieldPtr { .. } => {}
-                Inst::FunctionDef { body, .. } => Self::ensure_instruction_support(body)?,
+                Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                    Self::ensure_instruction_support(body)?
+                }
                 Inst::AllocaStruct { .. } => {
                     return Err(CodeGenerationError::UnsupportedInstruction {
                         instruction: "alloca struct",
@@ -608,17 +655,38 @@ impl CodeGenerator {
         let mut function_defs: HashMap<String, FunctionDef> = HashMap::new();
         for function in ir_functions.values() {
             for instruction in &function.body {
-                if let Inst::FunctionDef {
-                    name,
-                    parameters,
-                    return_type,
-                    body,
-                } = instruction
-                {
-                    function_defs.insert(
-                        name.clone(),
-                        (parameters.clone(), return_type.clone(), body.clone()),
-                    );
+                match instruction {
+                    Inst::FunctionDef {
+                        name,
+                        parameters,
+                        return_type,
+                        body,
+                    } => {
+                        function_defs.insert(
+                            name.clone(),
+                            FunctionDef::Legacy {
+                                parameters: parameters.clone(),
+                                return_type: return_type.clone(),
+                                body: body.clone(),
+                            },
+                        );
+                    }
+                    Inst::CheckedFunctionDef {
+                        name,
+                        parameters,
+                        result,
+                        body,
+                    } => {
+                        function_defs.insert(
+                            name.clone(),
+                            FunctionDef::Checked {
+                                parameters: parameters.clone(),
+                                result: result.clone(),
+                                body: body.clone(),
+                            },
+                        );
+                    }
+                    _ => {}
                 }
             }
         }
@@ -628,13 +696,11 @@ impl CodeGenerator {
 
         for (function_name, function) in ordered_functions {
             self.current_function = Some(function_name.clone());
-            if let Some((parameters, return_type, body)) = function_defs.get(&function_name) {
+            if let Some(definition) = function_defs.get(&function_name) {
                 self.generate_function_definition(
                     &mut llvm_ir,
                     &function_name,
-                    parameters,
-                    return_type,
-                    body,
+                    definition,
                     function.next_reg,
                     &function_defs,
                 );
@@ -681,7 +747,11 @@ impl CodeGenerator {
                 {
                     function_defs.insert(
                         name.clone(),
-                        (parameters.clone(), return_type.clone(), body.clone()),
+                        FunctionDef::Legacy {
+                            parameters: parameters.clone(),
+                            return_type: return_type.clone(),
+                            body: body.clone(),
+                        },
                     );
                 }
             }
@@ -690,13 +760,11 @@ impl CodeGenerator {
         // Generate function definitions
         for (func_name, func) in ir_functions {
             // Check if this function has a definition with parameters
-            if let Some((parameters, return_type, body)) = function_defs.get(&func_name) {
+            if let Some(definition) = function_defs.get(&func_name) {
                 self.generate_function_definition(
                     &mut llvm_ir,
                     &func_name,
-                    parameters,
-                    return_type,
-                    body,
+                    definition,
                     func.next_reg,
                     &function_defs,
                 );
@@ -723,21 +791,37 @@ impl CodeGenerator {
         &mut self,
         llvm_ir: &mut String,
         func_name: &str,
-        parameters: &[(String, String)],
-        return_type: &Option<String>,
-        body: &[Inst],
+        definition: &FunctionDef,
         next_reg_seed: u32,
         function_defs: &HashMap<String, FunctionDef>,
     ) {
-        // Generate function signature
-        let return_llvm_type = if let Some(ret_type) = return_type {
-            self.type_to_llvm(ret_type).to_string()
-        } else if func_name == "main" {
-            // Keep C ABI-compatible entrypoint semantics even when source omits
-            // an explicit return type.
-            "i32".to_string()
-        } else {
-            "void".to_string()
+        let (parameters, return_llvm_type) = match definition {
+            FunctionDef::Legacy {
+                parameters,
+                return_type,
+                ..
+            } => (
+                parameters
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), self.type_to_llvm(ty).to_string()))
+                    .collect::<Vec<_>>(),
+                if let Some(ret_type) = return_type {
+                    self.type_to_llvm(ret_type).to_string()
+                } else if func_name == "main" {
+                    "i32".to_string()
+                } else {
+                    "void".to_string()
+                },
+            ),
+            FunctionDef::Checked {
+                parameters, result, ..
+            } => (
+                parameters
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), Self::logical_type_to_llvm(ty)))
+                    .collect::<Vec<_>>(),
+                Self::logical_type_to_llvm(result),
+            ),
         };
 
         let mut param_str = String::new();
@@ -747,7 +831,7 @@ impl CodeGenerator {
             }
             param_str.push_str(&format!(
                 "{} %{}",
-                self.type_to_llvm(param_type),
+                param_type,
                 Self::llvm_parameter_name(param_name)
             ));
         }
@@ -758,13 +842,13 @@ impl CodeGenerator {
         ));
 
         let mut param_types = HashMap::new();
-        for (param_name, param_type) in parameters {
+        for (param_name, param_type) in &parameters {
             param_types.insert(param_name.clone(), param_type.clone());
         }
 
         self.generate_function_body(
             llvm_ir,
-            body,
+            definition.body(),
             &param_types,
             &return_llvm_type,
             function_defs,
@@ -793,7 +877,16 @@ impl CodeGenerator {
                         _ => panic!("Expected register for alloca"),
                     };
                     let bool_place = self.is_checked_bool_place(ptr_reg);
-                    if bool_place {
+                    let struct_place = match self.checked_place_type(ptr_reg) {
+                        Some(logical_type @ LogicalType::Struct { .. }) => {
+                            Some(Self::logical_type_to_llvm(logical_type))
+                        }
+                        _ => None,
+                    };
+                    if let Some(struct_type) = &struct_place {
+                        llvm_ir
+                            .push_str(&format!("  %ptr{ptr_id} = alloca {struct_type}, align 8\n"));
+                    } else if bool_place {
                         llvm_ir.push_str(&format!("  %ptr{} = alloca i1, align 1\n", ptr_id));
                     } else {
                         llvm_ir.push_str(&format!("  %ptr{} = alloca double, align 8\n", ptr_id));
@@ -804,6 +897,12 @@ impl CodeGenerator {
                         .filter(|_| initialized_parameters.insert(name.clone()))
                     {
                         let parameter = Self::llvm_parameter_name(name);
+                        if let Some(struct_type) = &struct_place {
+                            llvm_ir.push_str(&format!(
+                                "  store {struct_type} %{parameter}, {struct_type}* %ptr{ptr_id}, align 8\n"
+                            ));
+                            continue;
+                        }
                         if bool_place {
                             llvm_ir.push_str(&format!(
                                 "  store i1 %{}, i1* %ptr{}, align 1\n",
@@ -811,7 +910,7 @@ impl CodeGenerator {
                             ));
                             continue;
                         }
-                        match self.type_to_llvm(param_type) {
+                        match param_type.as_str() {
                             "double" => llvm_ir.push_str(&format!(
                                 "  store double %{}, double* %ptr{}, align 8\n",
                                 parameter, ptr_id
@@ -857,6 +956,20 @@ impl CodeGenerator {
                     }
                 }
                 Inst::Store(ptr_reg, value) => {
+                    if let Some(logical_type @ LogicalType::Struct { .. }) =
+                        self.checked_place_type(ptr_reg)
+                    {
+                        let struct_type = Self::logical_type_to_llvm(logical_type);
+                        let ptr_id = match ptr_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for store pointer"),
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  store {struct_type} {}, {struct_type}* %ptr{ptr_id}, align 8\n",
+                            self.value_to_string(value)
+                        ));
+                        continue;
+                    }
                     if self.is_checked_bool_place(ptr_reg) {
                         let ptr_id = match ptr_reg {
                             Value::Reg(register) => *register,
@@ -880,6 +993,23 @@ impl CodeGenerator {
                     ));
                 }
                 Inst::Load(result_reg, ptr_reg) => {
+                    if let Some(logical_type @ LogicalType::Struct { .. }) =
+                        self.checked_place_type(ptr_reg)
+                    {
+                        let struct_type = Self::logical_type_to_llvm(logical_type);
+                        let result_id = match result_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for load result"),
+                        };
+                        let ptr_id = match ptr_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for load pointer"),
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %reg{result_id} = load {struct_type}, {struct_type}* %ptr{ptr_id}, align 8\n"
+                        ));
+                        continue;
+                    }
                     if self.is_checked_bool_place(ptr_reg) {
                         let result_id = match result_reg {
                             Value::Reg(register) => *register,
@@ -989,7 +1119,7 @@ impl CodeGenerator {
                         result_str, val_str
                     ));
                 }
-                Inst::FunctionDef { .. } => {}
+                Inst::FunctionDef { .. } | Inst::CheckedFunctionDef { .. } => {}
                 Inst::Call {
                     function,
                     arguments,
@@ -1250,24 +1380,39 @@ impl CodeGenerator {
             .as_ref()
             .and_then(|metadata| metadata.functions.get(function))
             .map(|metadata| metadata.signature.clone());
-        let (param_defs, return_type) =
-            if let Some((params, ret, _body)) = function_defs.get(function) {
-                (params.clone(), ret.clone())
-            } else {
-                (Vec::new(), None)
-            };
+        let (param_defs, return_type) = match function_defs.get(function) {
+            Some(FunctionDef::Legacy {
+                parameters,
+                return_type,
+                ..
+            }) => (
+                parameters
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), self.type_to_llvm(ty).to_string()))
+                    .collect(),
+                return_type
+                    .as_ref()
+                    .map(|return_type| self.type_to_llvm(return_type).to_string()),
+            ),
+            Some(FunctionDef::Checked {
+                parameters, result, ..
+            }) => (
+                parameters
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), Self::logical_type_to_llvm(ty)))
+                    .collect(),
+                Some(Self::logical_type_to_llvm(result)),
+            ),
+            None => (Vec::new(), None),
+        };
 
         let mut args = Vec::new();
         for (i, arg) in arguments.iter().enumerate() {
             let target_type = checked_signature
                 .as_ref()
                 .and_then(|signature| signature.parameters.get(i))
-                .map(|(_, ty)| Self::logical_type_to_llvm(ty).to_string())
-                .or_else(|| {
-                    param_defs
-                        .get(i)
-                        .map(|(_name, ty)| self.type_to_llvm(ty).to_string())
-                })
+                .map(|(_, ty)| Self::logical_type_to_llvm(ty))
+                .or_else(|| param_defs.get(i).map(|(_name, ty)| ty.clone()))
                 .unwrap_or_else(|| "double".to_string());
             let arg_val = self.cast_value_for_call_arg(llvm_ir, arg, &target_type);
             args.push(format!("{} {}", target_type, arg_val));
@@ -1276,10 +1421,10 @@ impl CodeGenerator {
 
         let return_llvm_type = checked_signature
             .as_ref()
-            .map(|signature| Self::logical_type_to_llvm(&signature.result).to_string())
+            .map(|signature| Self::logical_type_to_llvm(&signature.result))
             .unwrap_or_else(|| {
                 if let Some(ret) = return_type {
-                    self.type_to_llvm(&ret).to_string()
+                    ret
                 } else if result.is_some() {
                     "double".to_string()
                 } else {
@@ -1343,6 +1488,11 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!(
                         "  %{} = fadd double 0x0000000000000000, 0x0000000000000000\n",
                         result_str
+                    ));
+                }
+                struct_type if struct_type.starts_with("%aero.struct.") => {
+                    llvm_ir.push_str(&format!(
+                        "  %{result_str} = call {struct_type} @{function}({args_str})\n"
                     ));
                 }
                 _ => llvm_ir.push_str(&format!(
@@ -1426,6 +1576,13 @@ impl CodeGenerator {
     }
 
     fn emit_return(&mut self, llvm_ir: &mut String, value: &Value, return_llvm_type: &str) {
+        if return_llvm_type.starts_with("%aero.struct.") {
+            let Value::Reg(register) = value else {
+                panic!("verified struct return must use an aggregate result register");
+            };
+            llvm_ir.push_str(&format!("  ret {return_llvm_type} %reg{register}\n"));
+            return;
+        }
         match return_llvm_type {
             "void" => llvm_ir.push_str("  ret void\n"),
             "double" => {

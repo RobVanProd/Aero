@@ -32,6 +32,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Struct declarations | Y | Y | P | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Struct construction | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Named field access | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
+| All-scalar struct Copy transport | Y | â€” | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Enums and construction | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
 | Pattern matching | Y | Y | P | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
@@ -956,3 +957,28 @@ declared compatibility policy and release-level coverage.
   assignment, destructuring, Match, generics, visibility, separate compilation,
   ABI/layout guarantees, heap/drop/lifetimes, and accelerators remain absent or
   excluded. The three struct rows are `PARTIAL`, never general struct support.
+
+## CORE-044 bounded scalar-struct Copy-transport candidate
+
+- The locally green CORE-044 candidate classifies only CORE-043 structs whose every
+  field is already an admitted `Int`, `Float`, or `Bool` scalar. It proves local Copy
+  aliases and original reuse; exact-name by-value internal function parameters,
+  arguments, call results, and returns; mixed scalar/struct signatures; forwarding,
+  terminating direct recursion, immediate projection, and flattened direct-module
+  composition. The all-scalar struct Copy-transport row is `PARTIAL`, not general
+  ownership or function ABI support.
+- A distinct logical checked-function definition carries exact aggregate signatures.
+  Verifier corruption controls reject empty/invalid/conflicting schemas, distinct
+  struct identities, aggregate places used as values, wrong returns, and widened
+  `main`; checked LLVM uses named aggregate load/store/call/return forms. Deprecated
+  unchecked generation does not acquire the checked aggregate path.
+- The exact local root gate passes 152 library and 160 CLI tests plus every active
+  integration target, formatting, correctness Clippy, and doc tests. The tracked
+  exit-63 example builds through the CLI. Public all-eight checks and stable Linux
+  LLVM/Clang 22 verification, machine verification, object/link, and native execution
+  remain required before acceptance.
+- String/custom/nested/recursive/array/tuple/reference/generic fields and non-Copy
+  ownership, partial/destructive moves, mutation, destructuring, Match, methods,
+  heap/drop/lifetimes, stable layout/ABI/FFI, separate compilation, recursive module
+  semantics, accelerators, performance, release, and stability claims remain absent
+  or excluded. Existing broader struct rows remain `PARTIAL`.
