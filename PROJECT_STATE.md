@@ -4,8 +4,10 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 66 `CORE-047` is an unpublished local candidate on accepted CORE-046 records
-head `77c6095f3878883978f9afa2f0064656106945ca`. It replaces the scalar-only struct
+Milestone 66 `CORE-047` is accepted public at exact implementation commit
+`a1dcc3fbef3ce0e4750a1476b348940a966bf609`, tree
+`15cf5d3451e1e02576c506d0bb4df4e3a62ab07c`, and stable patch ID
+`2959bdc7d39ebe4a3d5e390f469fa9673033f9b6`. It replaces the scalar-only struct
 definition decision with one recursive, memoized graph classifier. Unique,
 non-generic, nonempty top-level definitions are admitted when their field graph is
 acyclic and every field is an admitted scalar, another admitted named struct, or a
@@ -29,9 +31,12 @@ exact repository-root gate is formatting and correctness-Clippy clean and passes
 library tests, 163 binary tests, every integration target, and doc tests. The tracked
 direct-module example checked-builds into typed LLVM and the stable/nightly workflow
 is prepared to run pinned LLVM/Clang 22 verification, machine verification, object
-lowering, linking, and exact native exit 107. Exact implementation identity, public
-review/checks, and the native Linux result are still pending; no public acceptance or
-release claim is made.
+lowering, linking, and exact native exit 107. Push CI `30970850067`, PR CI
+`30970852129`, Rust CI `30970852144`, CodeQL `30970850979`, and aggregate check
+`92194686649` pass all eight checks. Stable Linux job `92194611441` uses pinned
+LLVM/Clang 22.1.8, externally verifies, machine-verifies, object-lowers, links, and
+records exact native exit 107. No release, stable ABI/layout, general ownership,
+accelerator, or performance claim is made.
 
 CORE-046 remains accepted through exact public implementation commit
 `056ca334df08176dafac815c1df78f3e90ed660a` and records head
@@ -77,9 +82,9 @@ composition rather than a module system.
   modules, structs, Copy function transport, fixed arrays, scalar control flow, and
   compile-time Strings through pinned native CI. CORE-046's accepted exit-91 gate adds
   exact flat-array transport across multiple function boundaries to that composition.
-  CORE-047 prepares an exit-107 gate that adds forward/deep acyclic aggregate graphs,
-  array fields, chained projection, and arrays of the resulting structs; it is not an
-  accepted system gate until public stable Linux executes it.
+  CORE-047's accepted exit-107 gate adds forward/deep acyclic aggregate graphs, array
+  fields, chained projection, and arrays of the resulting structs through pinned
+  stable-Linux native execution.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -1670,10 +1675,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze the locally green CORE-047 tree as one exact implementation identity, publish
-that candidate unchanged, and immediately synchronize draft PR #4's title/body through
-CORE-047. Require all eight public checks plus pinned stable Linux LLVM/Clang 22 exact
-native exit 107, then record acceptance only after that immutable evidence exists.
+Publish this records-only CORE-047 acceptance synchronization unchanged, immediately
+keep draft PR #4's title/body synchronized to its exact public head, and require all
+eight records-head checks. Then separately authorize the next hard capability class,
+the controlled mega-PR checkpoint strategy, or structured evidence-manifest work; no
+new semantics follow merely from CORE-047 acceptance.
 
 Milestone selection after CORE-047 must continue to weigh harder non-Copy ownership,
 runtime layout/ABI, full module semantics, and real accelerator execution, with

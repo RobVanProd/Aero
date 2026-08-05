@@ -193,16 +193,16 @@ aero lsp
 > pinned Linux LLVM/Clang 22 externally verifies, lowers, links, and executes the
 > multi-file system example with exact native exit 91.
 >
-> The unpublished CORE-047 candidate composes those accepted Copy components into
+> The publicly accepted CORE-047 slice composes those accepted Copy components into
 > unique, non-generic, nonempty acyclic named aggregate graphs. Fields may be admitted
 > scalars, another admitted named struct, or a flat fixed numeric/struct array; forward
 > references and arbitrary finite named depth are resolved by one graph classifier.
 > Construction, independent Copy aliases, chained projection, array operations through
 > fields, internal parameters/results, and flat arrays of the new structs retain exact
 > recursive schemas through checked IR and LLVM. Its exhaustive target, tracked direct-
-> module example, and full local repository gate pass at 157 library and 163 binary
-> tests, but external LLVM/native CI and public acceptance are still pending; this
-> paragraph is candidate scope, not accepted release evidence.
+> module example, and full repository gate pass at 157 library and 163 binary tests;
+> all eight public checks pass, and pinned Linux LLVM/Clang 22 externally verifies,
+> machine-verifies, object-lowers, links, and executes exact native exit 107.
 >
 > This does not provide non-Copy or destructive move semantics, assignment, general
 > methods beyond the exact array `.len()`/`.iter()` forms,

@@ -9161,7 +9161,7 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   authorized external checked-IR target. `binding_annotation.rs`, parser/AST/module
   resolver/runtime/dependencies, `master`, claims, releases, and benchmarks are
   unchanged.
-- Remaining uncertainty and next action: exact implementation commit/tree/patch
+- Remaining uncertainty at local closure (historical): exact implementation commit/tree/patch
   identity is pending. After one final diff/status check, commit and push the unchanged
   candidate, immediately synchronize draft PR #4 through CORE-047, wait for all eight
   public checks, and inspect stable Linux for pinned LLVM/Clang 22 verification,
@@ -9169,3 +9169,30 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   calling conventions, zero-length aggregate behavior on the public toolchain, and
   workflow integration remain unaccepted until that evidence exists. No merge,
   release, ABI/layout, performance, accelerator, or general ownership claim follows.
+- Public implementation acceptance: exact implementation
+  `a1dcc3fbef3ce0e4750a1476b348940a966bf609`, parent
+  `77c6095f3878883978f9afa2f0064656106945ca`, tree
+  `15cf5d3451e1e02576c506d0bb4df4e3a62ab07c`, and stable patch ID
+  `2959bdc7d39ebe4a3d5e390f469fa9673033f9b6` was pushed unchanged. Push CI
+  `30970850067` / job `92194605183`, PR CI `30970852129` / job `92194611293`, stable
+  and nightly Rust `30970852144` / jobs `92194611441` and `92194611524`, CodeQL
+  actions/python/rust `30970850979` / jobs `92194609807`, `92194609810`, and
+  `92194609789`, plus aggregate check `92194686649`, pass all eight required checks.
+  Stable Linux job `92194611441` installs pinned LLVM/Clang 22.1.8, resolves the
+  tracked module, reports `ExternalVerified: opt 22.1.8`, runs `opt-22` verification,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking, and records
+  `acyclic Copy-aggregate example passed with exit code 107`. The same job records
+  157/157 library and 163/163 binary passes. This is direct CPU native evidence for
+  the exact frozen slice, not stable ABI, performance, release, or accelerator proof.
+- PR-front-page synchronization: immediately after candidate publication, PR #4 was
+  updated in place to `Integrate Aero compiler checkpoints through CORE-047` and led
+  with exact candidate identity, 232 commits ahead of `master`, 56,728 additions,
+  1,358 deletions, 119 changed files, local/public evidence, pending acceptance, all
+  four standing scaling controls, and explicit exclusions. It remained draft. This
+  records-only acceptance synchronization now changes only `TASK_LEDGER.md`,
+  `README.md`, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and
+  `FRAMEWORK_ALIGNMENT.md`; it changes no compiler, test, example, workflow, semantic
+  boundary, or claim class beyond converting the exact supported slice's execution
+  evidence from pending to observed. Its successor commit identity is necessarily
+  reported externally. After its exact local gate, push it unchanged, resynchronize
+  the draft PR front page to the records head, and require all eight checks again.

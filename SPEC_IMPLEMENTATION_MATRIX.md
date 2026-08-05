@@ -34,7 +34,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Struct construction | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Named field access | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | All-scalar struct Copy transport | Y | â€” | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Acyclic named Copy aggregates | Y | - | Y | P | P | P | P | P | ? | Y | Y | Y | Y | PARTIAL |
+| Acyclic named Copy aggregates | Y | - | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Enums and construction | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
 | Pattern matching | Y | Y | P | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
@@ -1043,9 +1043,9 @@ declared compatibility policy and release-level coverage.
   process-entry arrays, separate compilation, ABI/FFI, accelerators, performance,
   release, and stability claims remain excluded.
 
-## CORE-047 local acyclic named Copy-aggregate evidence
+## CORE-047 accepted acyclic named Copy-aggregate evidence
 
-- The unpublished CORE-047 candidate replaces scalar-only struct classification with
+- Accepted CORE-047 replaces scalar-only struct classification with
   one recursive, memoized graph decision. Unique, non-generic, nonempty definitions
   with valid unique fields admit scalars, another admitted named struct, or a flat
   fixed numeric/struct array. Forward references and arbitrary finite acyclic named
@@ -1062,10 +1062,13 @@ declared compatibility policy and release-level coverage.
   module check/build, and adjacent CORE-043 through CORE-046 suites pass locally. The
   exact repository-root gate is formatting and correctness-Clippy clean and passes
   157 library tests, 163 binary tests, every integration target, and doc tests. The
-  stable/nightly workflow is prepared for pinned LLVM/Clang 22 verification, machine
-  verification, object lowering, linking, and exact native exit 107. Immutable
-  implementation identity, public checks, and stable Linux native evidence remain
-  pending, so Exec stays `?` and the row remains `PARTIAL`.
+  exact implementation is `a1dcc3fbef3ce0e4750a1476b348940a966bf609`, tree
+  `15cf5d3451e1e02576c506d0bb4df4e3a62ab07c`, stable patch ID
+  `2959bdc7d39ebe4a3d5e390f469fa9673033f9b6`. All eight public checks pass. Stable
+  Linux job `92194611441` uses LLVM/Clang 22.1.8 for external verification, machine
+  verification, object lowering, linking, and exact native exit 107, and records 157
+  library plus 163 binary passes. Exec is direct evidence for this exact slice and is
+  now `Y`; the row remains `PARTIAL` because the exclusions below remain open.
 - Direct nested/Bool arrays, cyclic or non-Copy aggregates, mutation, dynamic bounds,
   move/drop/lifetime behavior, process-entry aggregates, separate compilation, stable
   layout/ABI/FFI, accelerators, performance, release, and stability remain excluded.
