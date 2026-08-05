@@ -4,7 +4,7 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 67 `CORE-048` is an unpublished local candidate for non-escaping immutable
+Milestone 67 `CORE-048` is accepted public for non-escaping immutable
 references to existing local `Int`, `Float`, and `Bool` places. One shared classifier
 now admits only `&x` for an initialized scalar identifier, exact inferred or annotated
 local aliases, copied aliases, and scalar dereference. It explicitly rejects mutable
@@ -26,8 +26,14 @@ and exact native exit 127. The exact repository-root gate passes 159 library and
 binary tests plus every formatting, correctness-Clippy, integration, and doc gate.
 The local CLI reports `InternalOnly` because no LLVM 22 verifier is installed, while
 the generated composed LLVM retains typed `double`/`i1` alias derivations and loads.
-Immutable candidate identity, public checks, and stable native execution remain
-pending, so CORE-048 is not accepted and makes no general memory-safety claim.
+Exact implementation commit `98c21b9012a5d6581c31c67a0378f20363e0688d`, tree
+`c222f99545270628686cae0524d92464a0db7848`, and stable patch ID
+`c21aeefc5852d78a55aa1003fcd4363087e713c1` pass all eight public checks. Push CI
+`30973047024`, PR CI `30973049411`, Rust CI `30973049412`, CodeQL
+`30973047727`, and aggregate `92201382503` are green. Stable job `92201296160`
+uses LLVM/Clang 22.1.8, resolves the direct module, externally verifies,
+machine-verifies, object-lowers, links, and records exact native exit 127 plus 159/159
+library and 165/165 binary passes. CORE-048 makes no general memory-safety claim.
 
 Milestone 66 `CORE-047` is accepted public at exact implementation commit
 `a1dcc3fbef3ce0e4750a1476b348940a966bf609`, tree
@@ -92,7 +98,9 @@ composition rather than a module system.
   nested aggregate storage through checked IR and LLVM. CORE-046 deliberately takes
   a harder ownership/internal-ABI boundary by moving those arrays through internal
   calls. CORE-047 now takes recursive named aggregate classification, layout, field
-  Copy behavior, and transport rather than selecting another scalar leaf. Non-Copy
+  Copy behavior, and transport rather than selecting another scalar leaf. CORE-048
+  takes immutable ownership/provenance and typed pointer representation through
+  checked verification and native execution. Non-Copy
   ownership, runtime representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -109,7 +117,8 @@ composition rather than a module system.
   exact flat-array transport across multiple function boundaries to that composition.
   CORE-047's accepted exit-107 gate adds forward/deep acyclic aggregate graphs, array
   fields, chained projection, and arrays of the resulting structs through pinned
-  stable-Linux native execution.
+  stable-Linux native execution. CORE-048's accepted exit-127 gate adds local immutable
+  scalar-reference provenance and typed alias/load lowering to the same composition.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -153,11 +162,11 @@ real place provenance without requiring mutable-loan expiry, reference ABI, drop
 runtime checks. One source classifier can keep semantic and checked admission aligned;
 an explicit checked alias-place instruction plus independent dominance/type verification
 can prevent forged pointers from reaching LLVM. Focused source-to-LLVM evidence now
-satisfies the local slice, and the exact 159/165 repository-root gate is green. Pinned
-external verification, native exit-127, immutable commit identity, and all-eight
-public evidence are still required before acceptance. Mutable references, non-scalar
-pointees, escaping references, NLL, mutation, resource ownership, drop, and stable
-pointer ABI remain outside this class.
+satisfies the local slice, and the exact 159/165 repository-root gate is green. The
+immutable implementation identity, all-eight public checks, pinned external and
+machine verification, object/link stages, and native exit 127 now satisfy the bounded
+hypothesis. Mutable references, non-scalar pointees, escaping references, NLL,
+mutation, resource ownership, drop, and stable pointer ABI remain outside this class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1701,11 +1710,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push the locally green CORE-048 implementation candidate unchanged.
-Immediately synchronize draft PR #4 through CORE-048, require all eight public checks,
-and inspect stable Linux
-for pinned LLVM/Clang 22 verification plus exact native exit 127 before acceptance.
-After acceptance, separately choose the next hard capability or authorize the
+Commit and push this records-only CORE-048 acceptance synchronization unchanged,
+immediately resynchronize draft PR #4 to the records head, and require all eight
+records-head checks. Then separately choose the next hard capability or authorize the
 controlled mega-PR checkpoint strategy or structured evidence-manifest generator.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.

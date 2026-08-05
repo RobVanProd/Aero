@@ -9403,3 +9403,25 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   Clang 22 verification, exact native exit 127, all eight checks, and a records-only
   acceptance sync remain required. The ignored-by-default two-file example must be
   explicitly staged so the public candidate cannot depend on local-only files.
+- Public implementation acceptance: exact implementation
+  `98c21b9012a5d6581c31c67a0378f20363e0688d` (tree
+  `c222f99545270628686cae0524d92464a0db7848`, stable patch ID
+  `c21aeefc5852d78a55aa1003fcd4363087e713c1`) was pushed unchanged to
+  `agent/aero-integration`. Push CI `30973047024`, PR CI `30973049411`, stable/nightly
+  Rust `30973049412`, CodeQL actions/python/rust `30973047727`, and aggregate CodeQL
+  `92201382503` pass all eight checks. Stable job `92201296160` records Ubuntu LLVM
+  and Clang 22.1.8, direct resolution of `data.aero`, `ExternalVerified` `opt-22`,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking, exact native
+  exit 127, 159/159 library tests, and 165/165 binary tests. This accepts only the
+  frozen local immutable scalar-reference class; every listed exclusion remains.
+- PR-front-page synchronization: immediately after candidate publication, draft PR
+  #4 was updated in place to `Integrate Aero compiler checkpoints through CORE-048`
+  and led with exact candidate identity, pending public status, 234 commits, 58,108
+  additions, 1,392 deletions, 123 changed files, all four scaling controls, and exact
+  exclusions. It remained draft and unmerged. This records-only acceptance sync may
+  change only `TASK_LEDGER.md`, `README.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md`; it converts pending
+  evidence to observed evidence without changing compiler behavior, tests, examples,
+  workflow, semantics, ABI, or claims beyond the bounded accepted class. Its successor
+  identity must be reported externally, pass the exact local root gate, be pushed
+  unchanged, resynchronize the PR front page, and pass all eight public checks again.
