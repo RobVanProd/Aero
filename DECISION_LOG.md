@@ -2415,3 +2415,32 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `./tools/test.sh` each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and
   25/25 binding tests, plus all downstream suites. Fresh review and public acceptance
   remain pending.
+
+## DEC-051 - Bound mutable-reference transport to one direct call-scoped scalar loan
+
+- Date: 2026-08-05
+- Status: locally green implementation candidate; public acceptance gates remain
+  pending.
+- Decision: admit only a unique non-generic internal function whose sole parameter is
+  exact `&mut Int`, `&mut Float`, or `&mut Bool`, with a scalar or Void result. The
+  sole admitted argument is direct `callee(&mut owner)` for an initialized owned local
+  mutable scalar of the exact pointee. The loan begins at argument evaluation and ends
+  immediately after the call; the callee may read and write through its parameter.
+- Architecture: extend the shared reference-function contract and add one whole-call
+  disposition using the existing local source facts. Semantic typing and checked
+  admission consume that classification. Checked IR represents a distinct mutable
+  reference signature and writable parameter binder; caller IR must contain an exact
+  adjacent checked borrow/call/end sequence. The independent verifier proves binder
+  coverage, pointee, active origin, write identity, and release topology before typed
+  `double*`/`i1*` LLVM lowering.
+- Exclusions: stored alias arguments, forwarding, reborrowing, mixed or multiple
+  parameters, reference results, nonlocal/temporary/projected/non-scalar pointees,
+  escape/storage/capture, NLL, lifetime inference, drop, stable ABI/FFI, accelerator
+  meaning, and memory-safety claims remain unsupported.
+- Evidence gate: exhaustive source/IR/LLVM/CLI and private verifier-corruption tests,
+  the exact repository-root gate, all eight public checks, pinned LLVM/Clang 22
+  verification and object/link stages, and exact native exit 251 are mandatory.
+  Focused tests and the first exact root gate pass at 167/167 library and 173/173
+  binary tests plus all downstream gates. `CORE-055` remains accepted and unchanged.
+  PR checkpoint/merge strategy and a structured evidence manifest remain separately
+  authorized scaling work.

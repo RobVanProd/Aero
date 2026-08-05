@@ -65,6 +65,13 @@ pub(crate) enum ReferenceFunctionDisposition {
     Preserved,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ReferenceCallDisposition {
+    Supported(LocalReferenceContract),
+    ExplicitlyRejected(String),
+    Preserved,
+}
+
 fn scalar_contract(ty: &Ty) -> Option<LocalReferenceContract> {
     matches!(ty, Ty::Int | Ty::Float | Ty::Bool).then(|| LocalReferenceContract {
         pointee: ty.clone(),
@@ -97,16 +104,23 @@ fn reference_transport_type(
     let Type::Reference(pointee, mutable) = annotation else {
         return Ok(None);
     };
-    if *mutable {
-        return Err("mutable reference parameters are not supported by CORE-053");
-    }
     let Some(pointee) = scalar_transport_type(pointee) else {
-        return Err("immutable reference parameters support only Int, Float, or Bool pointees");
+        return Err(if *mutable {
+            "mutable reference parameters support only Int, Float, or Bool pointees"
+        } else {
+            "immutable reference parameters support only Int, Float, or Bool pointees"
+        });
     };
     Ok(Some(ReferenceTransportTypeContract {
-        ty: Ty::Reference(Box::new(pointee.ty), false),
-        logical_type: LogicalType::ImmutableReference {
-            pointee: Box::new(pointee.logical_type),
+        ty: Ty::Reference(Box::new(pointee.ty), *mutable),
+        logical_type: if *mutable {
+            LogicalType::MutableReference {
+                pointee: Box::new(pointee.logical_type),
+            }
+        } else {
+            LogicalType::ImmutableReference {
+                pointee: Box::new(pointee.logical_type),
+            }
         },
     }))
 }
@@ -138,6 +152,19 @@ pub(crate) fn classify_reference_function(
     if name == "main" {
         return ReferenceFunctionDisposition::ExplicitlyRejected(
             "process entry cannot use reference parameters".to_string(),
+        );
+    }
+
+    let mutable_parameters = parameters
+        .iter()
+        .filter(|parameter| matches!(parameter.param_type, Type::Reference(_, true)))
+        .count();
+    if mutable_parameters > 0
+        && (parameters.len() != 1 || !matches!(parameters[0].param_type, Type::Reference(_, true)))
+    {
+        return ReferenceFunctionDisposition::ExplicitlyRejected(
+            "mutable reference transport functions require exactly one mutable scalar-reference parameter by CORE-056"
+                .to_string(),
         );
     }
 
@@ -183,6 +210,54 @@ pub(crate) fn classify_reference_function(
     })
 }
 
+pub(crate) fn classify_reference_call(
+    contract: &ReferenceFunctionContract,
+    arguments: &[Expression],
+    facts: Option<&LocalReferenceSourceFacts>,
+) -> ReferenceCallDisposition {
+    let mutable_parameter = contract.parameters.iter().find_map(|(_, parameter)| {
+        let Ty::Reference(pointee, true) = &parameter.ty else {
+            return None;
+        };
+        Some(pointee.as_ref())
+    });
+    let Some(expected_pointee) = mutable_parameter else {
+        return ReferenceCallDisposition::Preserved;
+    };
+    if arguments.len() != 1 {
+        return ReferenceCallDisposition::ExplicitlyRejected(
+            "mutable reference calls require exactly one direct `&mut` local owner argument"
+                .to_string(),
+        );
+    }
+    let Expression::Borrow {
+        expr,
+        mutable: true,
+    } = &arguments[0]
+    else {
+        return ReferenceCallDisposition::ExplicitlyRejected(
+            "mutable reference calls require a direct `&mut` local owner argument".to_string(),
+        );
+    };
+    match classify_local_borrow(expr, true, facts) {
+        LocalReferenceDisposition::Supported(contract) if contract.pointee == *expected_pointee => {
+            ReferenceCallDisposition::Supported(contract)
+        }
+        LocalReferenceDisposition::Supported(contract) => {
+            ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "mutable reference call pointee mismatch: expected {expected_pointee}, actual {}",
+                contract.pointee
+            ))
+        }
+        LocalReferenceDisposition::ExplicitlyRejected(message) => {
+            ReferenceCallDisposition::ExplicitlyRejected(message)
+        }
+        LocalReferenceDisposition::Preserved => unreachable!(
+            "direct mutable call borrow is fully classified by the local reference contract"
+        ),
+    }
+}
+
 pub(crate) fn classify_local_borrow(
     expression: &Expression,
     mutable: bool,
@@ -199,7 +274,12 @@ pub(crate) fn classify_local_borrow(
             "local scalar borrow source `{name}` is not an initialized local binding"
         ));
     };
-    if !facts.local || !facts.initialized {
+    if !facts.initialized {
+        return LocalReferenceDisposition::ExplicitlyRejected(format!(
+            "Error: Use of uninitialized variable `{name}`."
+        ));
+    }
+    if !facts.local {
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
             "local scalar borrow source `{name}` is not an initialized local binding"
         ));

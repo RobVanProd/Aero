@@ -345,11 +345,6 @@ fn immutable_scalar_reference_parameter_class_is_complete_checked_and_executable
 
     for (label, source, expected) in [
         (
-            "mutable reference parameter",
-            "fn read(value: &mut int) -> int { *value } fn main() -> int { 0 }",
-            "mutable reference parameters are not supported by CORE-053",
-        ),
-        (
             "immutable reference result",
             "fn bad(value: &int) -> &int { value } fn main() -> int { 0 }",
             "reference results require lifetime semantics and are not supported by CORE-053",
@@ -443,6 +438,15 @@ fn immutable_scalar_reference_parameter_class_is_complete_checked_and_executable
         if let Some(failure) = expect_rejection(label, source, expected) {
             failures.push(failure);
         }
+    }
+
+    if let Err(error) = compile_program(
+        "fn read(value: &mut int) -> int { *value } fn main() -> int { 0 }",
+        CompilerOptions::default(),
+    ) {
+        failures.push(format!(
+            "CORE-056 mutable reference parameter definition regressed: {error}"
+        ));
     }
 
     match analyzed_ast(

@@ -336,6 +336,7 @@ fn valid_copy_struct_field_type(logical_type: &LogicalType) -> bool {
         LogicalType::Void
         | LogicalType::String
         | LogicalType::ImmutableReference { .. }
+        | LogicalType::MutableReference { .. }
         | LogicalType::Enum { .. } => false,
     }
 }
@@ -360,7 +361,10 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
             name: name.clone(),
             variants: variants.clone(),
         }),
-        LogicalType::Void | LogicalType::String | LogicalType::ImmutableReference { .. } => false,
+        LogicalType::Void
+        | LogicalType::String
+        | LogicalType::ImmutableReference { .. }
+        | LogicalType::MutableReference { .. } => false,
     }
 }
 
@@ -370,6 +374,11 @@ fn valid_checked_parameter_type(logical_type: &LogicalType) -> bool {
             logical_type,
             LogicalType::ImmutableReference { pointee }
                 if valid_immutable_reference_pointee(pointee)
+        )
+        || matches!(
+            logical_type,
+            LogicalType::MutableReference { pointee }
+                if valid_mutable_scalar_type(pointee)
         )
 }
 
@@ -524,6 +533,25 @@ fn checked_signature(
             IrVerificationErrorKind::UnsupportedType(format!("checked function return {result}")),
         ));
     }
+    let mutable_parameters = parameters
+        .iter()
+        .filter(|(_, ty)| matches!(ty, LogicalType::MutableReference { .. }))
+        .count();
+    if mutable_parameters > 0
+        && (parameters.len() != 1
+            || !parameters
+                .first()
+                .is_some_and(|(_, ty)| matches!(ty, LogicalType::MutableReference { .. })))
+    {
+        return Err(IrVerificationError::new(
+            function,
+            None,
+            IrVerificationErrorKind::MetadataMismatch(
+                "checked mutable reference transport requires exactly one mutable scalar-reference parameter"
+                    .to_string(),
+            ),
+        ));
+    }
     let mentions_checked_transport = parameters.iter().any(|(_, ty)| {
         matches!(
             ty,
@@ -531,6 +559,7 @@ fn checked_signature(
                 | LogicalType::Array { .. }
                 | LogicalType::Enum { .. }
                 | LogicalType::ImmutableReference { .. }
+                | LogicalType::MutableReference { .. }
         )
     }) || matches!(
         result,
@@ -541,7 +570,7 @@ fn checked_signature(
             function,
             None,
             IrVerificationErrorKind::MetadataMismatch(
-                "checked function definition requires an aggregate-, enum-, or immutable-reference-bearing signature"
+                "checked function definition requires an aggregate-, enum-, or scalar-reference-bearing signature"
                     .to_string(),
             ),
         ));
@@ -905,7 +934,8 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedStructFieldPtr { result, .. }
         | Inst::CheckedImmutableBorrow { result, .. }
         | Inst::CheckedMutableBorrow { result, .. }
-        | Inst::CheckedImmutableReferenceParameter { result, .. } => Some(result),
+        | Inst::CheckedImmutableReferenceParameter { result, .. }
+        | Inst::CheckedMutableReferenceParameter { result, .. } => Some(result),
         _ => None,
     }
 }
@@ -1027,6 +1057,7 @@ struct FunctionVerifier<'a> {
     element_owners: BTreeMap<PlaceId, PlaceId>,
     mutable_scalar_places: BTreeSet<PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
+    mutable_reference_parameters: BTreeSet<PlaceId>,
     dominators: Vec<BTreeSet<usize>>,
     infer_bool_places: bool,
 }
@@ -1053,6 +1084,7 @@ impl<'a> FunctionVerifier<'a> {
             element_owners: BTreeMap::new(),
             mutable_scalar_places: BTreeSet::new(),
             mutable_reference_origins: BTreeMap::new(),
+            mutable_reference_parameters: BTreeSet::new(),
             dominators,
             infer_bool_places,
         };
@@ -1256,6 +1288,9 @@ impl<'a> FunctionVerifier<'a> {
                                 Inst::CheckedMutableBorrow { .. } => "checked mutable borrow",
                                 Inst::CheckedImmutableReferenceParameter { .. } => {
                                     "checked immutable reference parameter"
+                                }
+                                Inst::CheckedMutableReferenceParameter { .. } => {
+                                    "checked mutable reference parameter"
                                 }
                                 _ => "getelementptr",
                             }),
@@ -1711,6 +1746,41 @@ impl<'a> FunctionVerifier<'a> {
                             }
                             (PlaceType::Known(pointee.clone()), Some(parameter.clone()))
                         }
+                        Inst::CheckedMutableReferenceParameter {
+                            parameter, pointee, ..
+                        } => {
+                            if block_index != 0 || !valid_mutable_scalar_type(pointee) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked mutable reference parameter `{parameter}` must bind a supported scalar pointee in the entry block"
+                                    )),
+                                ));
+                            }
+                            let expected = self
+                                .body
+                                .signature
+                                .parameters
+                                .iter()
+                                .find(|(name, _)| name == parameter)
+                                .map(|(_, ty)| ty);
+                            if !matches!(
+                                expected,
+                                Some(LogicalType::MutableReference { pointee: expected })
+                                    if expected.as_ref() == pointee
+                            ) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked mutable reference parameter `{parameter}` disagrees with its function signature"
+                                    )),
+                                ));
+                            }
+                            self.mutable_reference_parameters.insert(id);
+                            (PlaceType::Known(pointee.clone()), Some(parameter.clone()))
+                        }
                         _ => unreachable!(),
                     };
                     if !seeded {
@@ -2069,6 +2139,7 @@ impl<'a> FunctionVerifier<'a> {
     fn verify(mut self) -> Result<FunctionMetadata, IrVerificationError> {
         let mut bound_enum_parameters = BTreeSet::new();
         let mut bound_reference_parameters = BTreeSet::new();
+        let mut bound_mutable_reference_parameters = BTreeSet::new();
         let mut initialized_mutable_scalar_places = BTreeSet::new();
         let mut active_mutable_references = BTreeSet::new();
         let mut active_mutable_sources = BTreeSet::new();
@@ -2140,7 +2211,9 @@ impl<'a> FunctionVerifier<'a> {
                     | Inst::Label(_) => {}
                     Inst::Store(place, value) => {
                         let id = self.require_place(place, "store", block_index, position)?;
-                        if self.mutable_reference_origins.contains_key(&id) {
+                        if self.mutable_reference_origins.contains_key(&id)
+                            || self.mutable_reference_parameters.contains(&id)
+                        {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
@@ -2403,6 +2476,71 @@ impl<'a> FunctionVerifier<'a> {
                                             expected: expected.to_string(),
                                             actual: actual.unwrap_or(LogicalType::Void),
                                         },
+                                    ));
+                                }
+                            } else if let LogicalType::MutableReference { pointee } = expected {
+                                let place = self.require_place(
+                                    argument,
+                                    "call mutable reference argument",
+                                    block_index,
+                                    position,
+                                )?;
+                                let actual = self.places.get(&place).and_then(PlaceType::logical);
+                                if actual.as_ref() != Some(pointee.as_ref()) {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::TypeMismatch {
+                                            operation: "call",
+                                            role: "argument type",
+                                            expected: expected.to_string(),
+                                            actual: actual.unwrap_or(LogicalType::Void),
+                                        },
+                                    ));
+                                }
+                                if !active_mutable_references.contains(&place)
+                                    || !self.mutable_reference_origins.contains_key(&place)
+                                {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(format!(
+                                            "call mutable reference argument place {} is not an active verified local mutable borrow",
+                                            place.0
+                                        )),
+                                    ));
+                                }
+                                let source = self.mutable_reference_origins[&place];
+                                let preceding_borrow = position
+                                    .checked_sub(1)
+                                    .and_then(|index| self.body.instructions.get(index).copied());
+                                let following_end =
+                                    self.body.instructions.get(position + 1).copied();
+                                let exact_borrow = matches!(
+                                    preceding_borrow,
+                                    Some(Inst::CheckedMutableBorrow {
+                                        result: Value::Reg(result),
+                                        source: Value::Reg(origin),
+                                        pointee: borrow_pointee,
+                                    }) if PlaceId(*result) == place
+                                        && PlaceId(*origin) == source
+                                        && borrow_pointee == pointee.as_ref()
+                                );
+                                let exact_end = matches!(
+                                    following_end,
+                                    Some(Inst::CheckedMutableBorrowEnd {
+                                        reference: Value::Reg(reference),
+                                        source: Value::Reg(origin),
+                                        pointee: end_pointee,
+                                    }) if PlaceId(*reference) == place
+                                        && PlaceId(*origin) == source
+                                        && end_pointee == pointee.as_ref()
+                                );
+                                if !exact_borrow || !exact_end {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(format!(
+                                            "call mutable reference argument place {} must be an exact borrow/call/end temporary",
+                                            place.0
+                                        )),
                                     ));
                                 }
                             } else {
@@ -2756,9 +2894,11 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
+                        let is_active_local_reference = active_mutable_references.contains(&target)
+                            && self.mutable_reference_origins.contains_key(&target);
                         if !valid_mutable_scalar_type(pointee)
-                            || !active_mutable_references.contains(&target)
-                            || !self.mutable_reference_origins.contains_key(&target)
+                            || (!is_active_local_reference
+                                && !self.mutable_reference_parameters.contains(&target))
                         {
                             return Err(self.error(
                                 block_index,
@@ -2858,6 +2998,45 @@ impl<'a> FunctionVerifier<'a> {
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "checked immutable reference parameter `{parameter}` is bound more than once"
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedMutableReferenceParameter {
+                        parameter, pointee, ..
+                    } => {
+                        if block_index != 0 || !valid_mutable_scalar_type(pointee) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable reference parameter `{parameter}` must bind a supported scalar pointee in the entry block"
+                                )),
+                            ));
+                        }
+                        let expected = self
+                            .body
+                            .signature
+                            .parameters
+                            .iter()
+                            .find(|(name, _)| name == parameter)
+                            .map(|(_, ty)| ty);
+                        if !matches!(
+                            expected,
+                            Some(LogicalType::MutableReference { pointee: expected })
+                                if expected.as_ref() == pointee
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable reference parameter `{parameter}` disagrees with its function signature"
+                                )),
+                            ));
+                        }
+                        if !bound_mutable_reference_parameters.insert(parameter.clone()) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable reference parameter `{parameter}` is bound more than once"
                                 )),
                             ));
                         }
@@ -3092,7 +3271,24 @@ impl<'a> FunctionVerifier<'a> {
                 ),
             ));
         }
-
+        let expected_mutable_reference_parameters = self
+            .body
+            .signature
+            .parameters
+            .iter()
+            .filter_map(|(name, ty)| {
+                matches!(ty, LogicalType::MutableReference { .. }).then_some(name.clone())
+            })
+            .collect::<BTreeSet<_>>();
+        if bound_mutable_reference_parameters != expected_mutable_reference_parameters {
+            return Err(self.error(
+                0,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "checked mutable reference parameter binders do not exactly cover the mutable-reference signature"
+                        .to_string(),
+                ),
+            ));
+        }
         for id in self.places.keys() {
             if !self.place_definitions.contains_key(id) {
                 return Err(self.error(
@@ -4947,6 +5143,218 @@ mod tests {
         for (label, body) in invalid {
             assert!(
                 verify_ir(function(body)).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+    }
+
+    #[test]
+    fn checked_mutable_reference_parameters_and_call_temporaries_are_fail_closed() {
+        let signature = vec![(
+            "value".to_string(),
+            LogicalType::MutableReference {
+                pointee: Box::new(LogicalType::Int),
+            },
+        )];
+        let binder = || Inst::CheckedMutableReferenceParameter {
+            result: Value::Reg(0),
+            parameter: "value".to_string(),
+            pointee: LogicalType::Int,
+        };
+        let write = |target, value| Inst::CheckedMutableDereferenceAssignment {
+            target: Value::Reg(target),
+            value,
+            pointee: LogicalType::Int,
+        };
+        let borrow = || Inst::CheckedMutableBorrow {
+            result: Value::Reg(1),
+            source: Value::Reg(0),
+            pointee: LogicalType::Int,
+        };
+        let call = || Inst::Call {
+            function: "bump".to_string(),
+            arguments: vec![Value::Reg(1)],
+            result: Some(Value::Reg(2)),
+        };
+        let end = || Inst::CheckedMutableBorrowEnd {
+            reference: Value::Reg(1),
+            source: Value::Reg(0),
+            pointee: LogicalType::Int,
+        };
+        let callee = || {
+            vec![
+                binder(),
+                Inst::Load(Value::Reg(1), Value::Reg(0)),
+                Inst::Add(Value::Reg(2), Value::Reg(1), Value::ImmInt(1)),
+                write(0, Value::Reg(2)),
+                Inst::Load(Value::Reg(3), Value::Reg(0)),
+                Inst::Return(Value::Reg(3)),
+            ]
+        };
+        let caller = || {
+            vec![
+                Inst::CheckedMutableScalarAlloca {
+                    result: Value::Reg(0),
+                    name: "owner".to_string(),
+                    ty: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                borrow(),
+                call(),
+                end(),
+                Inst::Load(Value::Reg(3), Value::Reg(0)),
+                Inst::Return(Value::Reg(3)),
+            ]
+        };
+        let program = |callee_body: Vec<Inst>, mut caller_body: Vec<Inst>| {
+            caller_body.insert(
+                0,
+                Inst::CheckedFunctionDef {
+                    name: "bump".to_string(),
+                    parameters: signature.clone(),
+                    result: LogicalType::Int,
+                    body: callee_body,
+                },
+            );
+            HashMap::from([
+                (
+                    "main".to_string(),
+                    Function {
+                        name: "main".to_string(),
+                        body: caller_body,
+                        next_reg: 8,
+                        next_ptr: 8,
+                    },
+                ),
+                (
+                    "bump".to_string(),
+                    Function {
+                        name: "bump".to_string(),
+                        body: Vec::new(),
+                        next_reg: 8,
+                        next_ptr: 8,
+                    },
+                ),
+            ])
+        };
+
+        verify_ir(program(callee(), caller()))
+            .expect("exact mutable parameter binder and borrow/call/end temporary are valid");
+
+        let invalid_callees = [
+            ("missing binder", vec![Inst::Return(Value::ImmInt(0))]),
+            (
+                "immutable binder substitution",
+                vec![
+                    Inst::CheckedImmutableReferenceParameter {
+                        result: Value::Reg(0),
+                        parameter: "value".to_string(),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "raw alloca binder substitution",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "value".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "raw store through mutable parameter",
+                vec![
+                    binder(),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(2)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "duplicate mutable binder",
+                vec![binder(), binder(), Inst::Return(Value::ImmInt(0))],
+            ),
+            (
+                "wrong mutable binder name",
+                vec![
+                    Inst::CheckedMutableReferenceParameter {
+                        result: Value::Reg(0),
+                        parameter: "other".to_string(),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "wrong mutable binder pointee",
+                vec![
+                    Inst::CheckedMutableReferenceParameter {
+                        result: Value::Reg(0),
+                        parameter: "value".to_string(),
+                        pointee: LogicalType::Float,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "mutable binder outside entry",
+                vec![
+                    Inst::Jump("bind".to_string()),
+                    Inst::Label("bind".to_string()),
+                    binder(),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        ];
+        for (label, body) in invalid_callees {
+            assert!(
+                verify_ir(program(body, caller())).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+
+        let mut owner_argument = caller();
+        owner_argument[3] = Inst::Call {
+            function: "bump".to_string(),
+            arguments: vec![Value::Reg(0)],
+            result: Some(Value::Reg(2)),
+        };
+        let mut ended_before_call = caller();
+        ended_before_call.swap(3, 4);
+        let mut instruction_between_borrow_and_call = caller();
+        instruction_between_borrow_and_call.insert(
+            3,
+            Inst::Add(Value::Reg(4), Value::ImmInt(1), Value::ImmInt(2)),
+        );
+        let mut instruction_between_call_and_end = caller();
+        instruction_between_call_and_end.insert(
+            4,
+            Inst::Add(Value::Reg(4), Value::ImmInt(1), Value::ImmInt(2)),
+        );
+        let mut immutable_argument = caller();
+        immutable_argument[2] = Inst::CheckedImmutableBorrow {
+            result: Value::Reg(1),
+            source: Value::Reg(0),
+            pointee: LogicalType::Int,
+        };
+        let mut missing_end = caller();
+        missing_end.remove(4);
+
+        for (label, body) in [
+            ("owner passed directly", owner_argument),
+            ("borrow ended before call", ended_before_call),
+            (
+                "instruction between borrow and call",
+                instruction_between_borrow_and_call,
+            ),
+            (
+                "instruction between call and end",
+                instruction_between_call_and_end,
+            ),
+            ("immutable borrow argument substitution", immutable_argument),
+            ("missing post-call release", missing_end),
+        ] {
+            assert!(
+                verify_ir(program(callee(), body)).is_err(),
                 "{label} passed checked IR verification"
             );
         }

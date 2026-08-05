@@ -146,7 +146,7 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus accepted bounded subsets for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places, transport of those aliases through exact internal function parameters, and explicit reassignment of initialized owned `let mut` scalar locals. CORE-055 is a locally green candidate for one non-escaping mutable alias to such a local scalar, with exact dereference writes and lexical release. These use checked IR, independent verification, and typed LLVM. No general borrow checker, mutable references, lifetime analysis, drop model, or memory-safety guarantee. Reference results remain unsupported. |
+| **Memory** | Shallow move tracking plus accepted bounded subsets for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places, immutable-reference parameter transport, exact scalar reassignment, and one local non-escaping mutable scalar alias with checked writes and lexical release. CORE-056 is a candidate for one direct call-scoped `&mut owner` parameter loan. These use checked IR, independent verification, and typed LLVM. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
@@ -234,19 +234,30 @@ aero lsp
 > Linux uses LLVM/Clang 22.1.8 for external verification, machine verification, object
 > lowering, linking, and exact native exit 211, with 163 library and 169 binary tests.
 >
-> CORE-055 is a bounded local candidate for a direct `&mut owner` alias when `owner`
+> CORE-055 is publicly accepted for a direct local `&mut owner` alias when `owner`
 > is an initialized mutable `Int`, `Float`, or `Bool`. Mutable aliases are non-`Copy`;
 > exact `*alias` reads and `*alias = value;` writes retain alias/source/pointee identity
 > through checked borrow, write, and lexical-end instructions. The verifier rejects
 > competing loans, owner access during the loan, raw-store substitution, wrong release
-> identity, and use after release. The tracked direct-module gate requires pinned
-> LLVM/Clang 22 verification and exact native exit 239 before public acceptance.
+> identity, and use after release. Exact implementation `1f6ea72` passes all eight
+> public checks. Stable Linux uses LLVM/Clang 22.1.8 for external verification, machine
+> verification, object lowering, linking, and exact native exit 239, with 166 library
+> and 172 binary tests.
 >
-> Mutable-reference parameters/results, temporary/non-scalar/projected pointees,
-> escaping or aggregate references, relocation, storage/capture, reborrowing, NLL,
-> lifetime inference, drop, stable pointer ABI, and any memory-safety guarantee remain
-> unsupported. The Windows host accurately remains `InternalOnly` because LLVM 22 is
-> absent locally.
+> CORE-056 is a bounded candidate for exactly one mutable scalar-reference parameter
+> on a non-generic internal function and exactly one direct `callee(&mut owner)` call
+> argument. The temporary exclusive loan is represented as an adjacent checked
+> borrow/call/end sequence; the callee receives a distinct writable checked parameter
+> binder. One shared whole-call classifier owns topology and source facts across
+> semantics and checked admission. LLVM uses the existing private `double*`/`i1*`
+> representation without pointer/integer conversion. The tracked direct-module lane
+> requires exact native exit 251 before public acceptance.
+>
+> Stored-alias arguments, forwarding/reborrowing, mixed or multiple parameters,
+> mutable-reference results, temporary/non-scalar/projected pointees, escaping or
+> aggregate references, relocation, storage/capture, NLL, lifetime inference, drop,
+> stable pointer ABI/FFI, and any memory-safety guarantee remain unsupported. The
+> Windows host accurately remains `InternalOnly` because LLVM 22 is absent locally.
 
 > **Mutation status:** CORE-054 is publicly accepted for semicolon-terminated
 > `target = value;` statements inside admitted functions. `target` must resolve to the

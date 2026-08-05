@@ -503,6 +503,24 @@ jobs:
         fi
         echo "local mutable scalar-reference example passed with exit code 239"
 
+    - name: Test mutable scalar-reference parameter transport integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/mutable_reference_parameter_transport/main.aero -o ../../mutable_reference_parameter_transport.ll
+        opt-22 -passes=verify -disable-output ../../mutable_reference_parameter_transport.ll
+        llc-22 -verify-machineinstrs ../../mutable_reference_parameter_transport.ll -o /dev/null
+        llc-22 -filetype=obj ../../mutable_reference_parameter_transport.ll -o ../../mutable_reference_parameter_transport.o
+        clang-22 ../../mutable_reference_parameter_transport.o -o ../../mutable_reference_parameter_transport
+        set +e
+        ../../mutable_reference_parameter_transport
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 251 ]; then
+          echo "Expected exit code 251, got $exit_code"
+          exit 1
+        fi
+        echo "mutable scalar-reference parameter transport example passed with exit code 251"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

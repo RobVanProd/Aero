@@ -104,6 +104,11 @@ pub enum Inst {
         parameter: String,
         pointee: LogicalType,
     },
+    CheckedMutableReferenceParameter {
+        result: Value,
+        parameter: String,
+        pointee: LogicalType,
+    },
     /// Verified direct SSA binding of an owned enum function parameter.
     CheckedEnumParameter {
         result: Value,
@@ -347,6 +352,9 @@ pub enum LogicalType {
     ImmutableReference {
         pointee: Box<LogicalType>,
     },
+    MutableReference {
+        pointee: Box<LogicalType>,
+    },
     Array {
         element: Box<LogicalType>,
         count: usize,
@@ -376,6 +384,7 @@ impl fmt::Display for LogicalType {
             Self::Void => write!(f, "Void"),
             Self::String => write!(f, "String"),
             Self::ImmutableReference { pointee } => write!(f, "&{pointee}"),
+            Self::MutableReference { pointee } => write!(f, "&mut {pointee}"),
             Self::Array { element, count } => write!(f, "Array<{element}; {count}>"),
             Self::Struct { name, fields } => {
                 write!(f, "Struct<{name}; [")?;

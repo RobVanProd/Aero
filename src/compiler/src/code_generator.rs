@@ -83,7 +83,8 @@ impl CodeGenerator {
             LogicalType::Float => "double".to_string(),
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Void => "void".to_string(),
-            LogicalType::ImmutableReference { pointee } => match pointee.as_ref() {
+            LogicalType::ImmutableReference { pointee }
+            | LogicalType::MutableReference { pointee } => match pointee.as_ref() {
                 LogicalType::Int | LogicalType::Float => "double*".to_string(),
                 LogicalType::Bool => "i1*".to_string(),
                 _ => unreachable!("verified immutable references carry scalar pointees"),
@@ -142,6 +143,7 @@ impl CodeGenerator {
             LogicalType::Void
             | LogicalType::String
             | LogicalType::ImmutableReference { .. }
+            | LogicalType::MutableReference { .. }
             | LogicalType::Enum { .. } => {
                 unreachable!("verified Copy-aggregate schemas exclude Void and String")
             }
@@ -258,7 +260,8 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, reference);
                     Self::bump_seed_from_value(&mut seed, source);
                 }
-                Inst::CheckedImmutableReferenceParameter { result, .. } => {
+                Inst::CheckedImmutableReferenceParameter { result, .. }
+                | Inst::CheckedMutableReferenceParameter { result, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
                 Inst::CheckedEnumParameter { result, .. } => {
@@ -646,6 +649,7 @@ impl CodeGenerator {
                 | Inst::CheckedMutableBorrow { .. }
                 | Inst::CheckedMutableBorrowEnd { .. }
                 | Inst::CheckedImmutableReferenceParameter { .. }
+                | Inst::CheckedMutableReferenceParameter { .. }
                 | Inst::CheckedEnumParameter { .. }
                 | Inst::CheckedEnumVariant { .. }
                 | Inst::CheckedEnumPayload { .. }
@@ -1562,6 +1566,26 @@ impl CodeGenerator {
                         LogicalType::Bool => "i1",
                         _ => unreachable!(
                             "verified immutable reference parameters carry scalar pointees"
+                        ),
+                    };
+                    let parameter = Self::llvm_parameter_name(parameter);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %{parameter}, i64 0\n"
+                    ));
+                }
+                Inst::CheckedMutableReferenceParameter {
+                    result,
+                    parameter,
+                    pointee,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked mutable reference parameter")
+                    };
+                    let pointee = match pointee {
+                        LogicalType::Int | LogicalType::Float => "double",
+                        LogicalType::Bool => "i1",
+                        _ => unreachable!(
+                            "verified mutable reference parameters carry scalar pointees"
                         ),
                     };
                     let parameter = Self::llvm_parameter_name(parameter);

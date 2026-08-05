@@ -10730,3 +10730,168 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   does not have the pinned LLVM/Clang 22 acceptance toolchain; external verification,
   object/link, exact native exit 239, immutable commit/tree/patch identity, all eight
   public checks, and PR synchronization remain pending publication evidence.
+- Public acceptance: exact implementation `1f6ea726ad87f079592d136cb374ff6481d4acec`,
+  tree `a3dd566a80b8555c6dcf417a0528fb13d75a2380`, and stable patch ID
+  `2c9f030dd64d4ec86835a1f9ed87322a96f3fcc7` pass all eight public checks. Push CI
+  `30989480975`, PR CI `30989483532`, Rust CI `30989483767`, and CodeQL
+  `30989480817` are green on that exact identity. Stable job `92251942540` uses
+  LLVM/Clang 22.1.8, reports `ExternalVerified: opt 22.1.8`, machine-verifies with
+  `llc-22`, object-lowers, links with `clang-22`, executes exact native exit 239, and
+  passes 166/166 library plus 172/172 binary tests. Draft PR #4 is synchronized through
+  CORE-055 at 243 commits, 69,935 additions, 1,477 deletions, and 147 changed files;
+  its front page leads with the exact accepted checkpoint and the four scaling controls.
+  It remains open, draft, and unmerged.
+
+## CORE-056 - Direct-call mutable scalar-reference parameter transport
+
+- Task ID: `CORE-056`. Observed behavior: accepted CORE-055 proves one non-escaping
+  mutable alias to a local scalar, checked dereference writes, and lexical release.
+  Accepted CORE-053 separately proves immutable scalar-reference parameters/calls and
+  typed pointer-bearing internal signatures. The shared whole-signature classifier
+  still rejects every mutable-reference parameter before function registration, so a
+  source form explicitly shown in the ownership framework—`modify(&mut owner)`—cannot
+  enter semantics or checked IR. There is no mutable parameter binder, mutable logical
+  reference signature, call-scoped loan identity, verifier rule, or writable pointer
+  parameter lowering.
+- Authority and hypothesis: the founding framework distinguishes `&T` and `&mut T`,
+  and the tracked type-system/ownership design says function signatures explicitly
+  state mutable borrowing and shows both a `fn modify_borrowed(data: &mut T)` contract
+  and a direct `append_greeting(&mut owner)` call. The formal rules allow exactly one
+  mutable borrow with no overlapping shared loan. A conservative direct-call-only
+  scalar slice can therefore be frozen without accepting stored aliases, reborrowing,
+  reference results, general lifetime inference, or stable ABI. One shared
+  whole-signature/call classifier can own the topology across semantics and checked
+  admission; explicit caller borrow/call/end and callee binder identities can preserve
+  it independently through verification and LLVM.
+- Frozen admitted signature: exactly one unique top-level, non-generic, non-`main`
+  internal function parameter may have exact type `&mut int`/`&mut i32`, `&mut
+  float`/`&mut f64`, or `&mut bool`. A mutable-reference transport function has exactly
+  that one parameter—no second reference or by-value parameter in this milestone—and
+  returns exact `Int`, `Float`, `Bool`, or `Void`, never a reference. Arbitrary top-level
+  declaration order, one-level direct modules, repeated calls, and ordinary admitted
+  scalar control flow inside the callee are included.
+- Frozen admitted call/body: inside an admitted function body, the only mutable-
+  reference argument is the direct expression `&mut source`, where `source` is the
+  nearest initialized, owned local `let mut` of the exact scalar pointee. The call owns
+  one explicit temporary exclusive loan beginning at argument evaluation and ending
+  immediately after the call instruction. The callee parameter is an initialized
+  non-`Copy` mutable reference; exact `*parameter` reads and `*parameter = value;`
+  writes are admitted. The caller may read or CORE-054-write the owner after the call,
+  including between repeated calls. This fixed call-expression lifetime is not general
+  NLL and does not infer last use.
+- Frozen excluded/preserved class: passing a local mutable alias (`modify(alias)`),
+  forwarding a mutable parameter, reborrowing, more than one parameter, mixed scalar/
+  immutable/mutable-reference signatures, mutable-reference results, `main` or generic
+  signatures, immutable/mismatched/nonlocal/unknown/uninitialized/moved/borrowed
+  sources, non-identifier/temporary/field/index/nested/String/aggregate pointees,
+  owner access during the call, alias copy/relocation/reassignment/return/capture/
+  storage, closures, traits/impls, recursive mutable-reference forwarding, NLL,
+  lifetime annotations/inference, drop/destruction, heap/concurrency/atomics, public
+  layout/calling convention/ABI/FFI, accelerators, performance, release, stability,
+  and memory-safety claims remain rejected or preserved. Existing CORE-053 immutable
+  signature/call behavior and CORE-055 local alias behavior must remain compatible.
+- Shared classification contract: evolve `ReferenceFunctionContract` to retain
+  immutable versus mutable reference mode and add one whole-call disposition that
+  consumes the resolved function contract, complete argument topology, and the same
+  `LocalReferenceSourceFacts` used by local loans. Semantic call typing and checked
+  admission must consume that disposition; neither phase may introduce its own mutable
+  source/mode/arity guard table. The direct-call temporary must not enter the local
+  alias binding map or become `Copy`.
+- Checked IR/LLVM contract: add `LogicalType::MutableReference`, one distinct checked
+  mutable-reference parameter binder carrying exact parameter/pointee identity, and
+  reuse the accepted checked mutable borrow/write/end instructions at the caller and
+  in the callee. The verifier must prove exact signature/binder coverage, scalar
+  pointee, entry placement, collision-free place identity, writable mutable parameter
+  identity for every dereference write, exact active local mutable borrow at each call
+  argument, type/dominance, and exact post-call release. Generic alloca, immutable
+  binder/borrow, raw store, scalar result, wrong place, missing/duplicate binder,
+  inactive alias, or raw call substitution must fail. LLVM uses the existing private
+  `double*`/`i1*` representation and direct pointer calls/stores without pointer/integer
+  conversions; no stable ABI is claimed.
+- Tests-first and system product: add one exhaustive CORE-056 target covering parser
+  retention, Int/Float/Bool and scalar/Void results, read/write parameters, repeated
+  calls with owner reuse, branch/loop callee CFG, forward declarations, direct modules,
+  exact rejection topology, immutable/local compatibility, checked identity counts,
+  verifier corruption, raw containment, CLI artifact hygiene, and LLVM signature/call/
+  store anchors. Add one tracked direct-module example and stable lane with exact native
+  exit 251 composing direct-call mutable loans with accepted local mutable aliases,
+  immutable reference parameters, enum ownership/Match, Copy aggregates/arrays,
+  Strings, modules, checked verification, object/link, and execution. The exact root
+  gate and all eight public checks remain mandatory.
+- Allowed files: this ledger; `local_reference.rs`, semantic call typing, checked
+  admission, `types.rs` only if exact mode metadata requires it, `ir.rs`, generator,
+  verifier, code generator; one exhaustive CORE-056 target and only directly
+  superseded mutable-parameter expectations; one example/module pair; Rust workflow;
+  and the four current capability/state/alignment documents. No lexer/parser grammar,
+  AST topology, optimizer, runtime/stdlib, dependency, target, public ABI, accelerator,
+  benchmark, release/package, `master`, merge, or downstream-repository change is
+  authorized.
+- Risks and stop conditions: an alias argument silently moves or reborrows; the caller
+  loan escapes the call; a writable parameter lacks checked identity; raw pointer calls
+  substitute for the contract; immutable reference transport changes; CFG or return
+  handling keeps a temporary loan alive; or docs imply stable ABI/safety. Stop if exact
+  direct calls require local-alias forwarding, multiple/mixed parameters, reference
+  results, inferred lifetimes, general reborrowing, a new calling convention, more than
+  the frozen compiler phases, or another semantic choice. CORE-056 is intentionally a
+  hard ownership/function-boundary/runtime slice. PR checkpoint/merge strategy and
+  structured evidence generation remain separately authorized scaling work.
+- Tests-first red evidence: with Cargo inherited and no compiler mutation after the
+  authorization record, `cargo test --quiet --manifest-path src/compiler/Cargo.toml
+  --test mutable_reference_parameter_transport_tests -- --nocapture` compiles the new
+  exhaustive target and fails 0/1. Parser retention succeeds for mutable parameter,
+  direct `&mut` call, dereference read, and dereference write topology. All six intended
+  Int/Float/Bool/Void/repeated/CFG/forward positive cases, checked identity setup, raw
+  containment setup, every topology-specific negative case that reaches signature
+  classification, and the invalid CLI case stop at the one existing exact
+  `mutable reference parameters are not supported by CORE-053` boundary. Reference
+  results, `main`, and generic signatures retain their earlier higher-precedence
+  rejections. The tracked example pair and five workflow anchors are absent; invalid
+  build exits 1 without an artifact. This is the complete red product. The next
+  permitted mutation is the shared signature/call classifier and vertical checked
+  parameter/caller implementation, not a phase-local mutable guard.
+- Implementation candidate: `local_reference.rs` now extends the existing
+  `ReferenceFunctionContract` path to mutable scalar mode and owns one complete-call
+  `Supported`/`ExplicitlyRejected`/`Preserved` decision using
+  `LocalReferenceSourceFacts`. Semantic analysis and checked admission retain the
+  same contract map and consume that decision; no second mutable-call topology table
+  was added. Mutable signatures remain exactly one sole scalar-reference parameter.
+  The generator emits `LogicalType::MutableReference`, one
+  `CheckedMutableReferenceParameter`, and an adjacent caller
+  `CheckedMutableBorrow`/`Call`/`CheckedMutableBorrowEnd` sequence. The verifier
+  separately proves the signature/binder/pointee, writable callee identity, active
+  local caller origin, and exact borrow/call/end adjacency, and rejects raw store,
+  immutable binder/borrow, missing/duplicate/wrong binder, direct owner, inactive
+  alias, and inserted-instruction substitutions. LLVM lowers the private signature,
+  call, loads, and stores as typed `double*`/`i1*` with no pointer/integer conversion.
+- Product and compatibility: the exhaustive target, tracked `main.aero` plus
+  `mutators.aero`, and stable workflow lane now cover exact exit 251 composition.
+  The directly superseded CORE-053/055 mutable-parameter rejection rows are
+  reclassified as accepted definition controls; their immutable-reference and local
+  mutable-alias siblings remain unchanged. `cargo check --all-targets` passes. The
+  CORE-056 target passes 1/1; the private verifier corruption target passes 1/1; and
+  the immutable-reference transport 1/1, local mutable-reference 1/1, scalar
+  reassignment 1/1, checked-IR contract 8/8, and CORE-056 1/1 focused set all pass.
+  Library unit tests pass 167/167. Existing warnings are unchanged and non-fatal.
+- First exact root gate: the initial Git Bash invocation inherited no Windows
+  `USERPROFILE` and stopped before tests because Cargo was absent from that shell's
+  path; the corrected invocation uses `/c/Users/usa50/.cargo/bin`. Its first complete
+  run reached and isolated one directly superseded README claim assertion in
+  `version_claim_contract_tests`; all 167 library tests and earlier targets were
+  green. After reclassifying that exact claim assertion to the bounded general-
+  mutable-reference disclaimer, the focused claim target passes 8/8. The complete
+  exact repository-root `./tools/test.sh` then exits 0 in 22 seconds with 167/167
+  library and 173/173 binary tests, every integration target including CORE-056,
+  formatting, correctness Clippy, and doc tests. No Windows Security intervention or
+  policy relaxation was required.
+- Verification gate: after synchronizing the four current capability/state/decision
+  documents and the directly superseded claim assertion, a second exact repository-
+  root `./tools/test.sh` exits 0 in 31.5 seconds at the same 167/167 library and
+  173/173 binary counts with every downstream gate green. The Windows host remains
+  `InternalOnly` because pinned LLVM 22 is absent; no native or external-verification
+  claim is made locally.
+- Remaining candidate gates: preserve the locally green candidate identity, push
+  once, and require all eight public checks plus pinned LLVM/Clang 22 external
+  verification, `llc-22 -verify-machineinstrs`, object/link stages, and exact native
+  exit 251 before public acceptance. Draft PR #4 must be synchronized to the exact
+  candidate head and current diff size immediately after publication; it remains
+  draft and unmerged.

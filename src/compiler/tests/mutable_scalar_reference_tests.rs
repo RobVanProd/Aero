@@ -499,11 +499,6 @@ fn main() -> int {
             "mutable reference assignment requires a local reference identifier",
         ),
         (
-            "mutable reference parameter remains contained",
-            "fn write(value: &mut int) -> int { *value = 2; *value } fn main() -> int { 0 }",
-            "mutable reference parameters are not supported by CORE-053",
-        ),
-        (
             "mutable reference result remains contained",
             "fn bad() -> &mut int { let mut value = 1; &mut value } fn main() -> int { 0 }",
             "reference results require lifetime semantics and are not supported by CORE-053",
@@ -512,6 +507,15 @@ fn main() -> int {
         if let Some(failure) = expect_rejection(label, source, expected) {
             failures.push(failure);
         }
+    }
+
+    if let Err(error) = compile_program(
+        "fn write(value: &mut int) -> int { *value = 2; *value } fn main() -> int { 0 }",
+        CompilerOptions::default(),
+    ) {
+        failures.push(format!(
+            "CORE-056 mutable reference parameter definition regressed: {error}"
+        ));
     }
 
     for (label, source) in [

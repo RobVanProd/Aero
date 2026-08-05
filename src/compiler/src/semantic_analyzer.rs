@@ -8,10 +8,10 @@ use crate::binding_annotation::{
 use crate::enum_match_contract::{EnumExecutionContext, EnumFunctionContract, EnumRegistry};
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
-    MutableReferenceAssignmentFacts, ReferenceFunctionDisposition, classify_local_borrow,
-    classify_local_dereference, classify_local_reference_annotation,
-    classify_mutable_reference_assignment, classify_mutable_reference_binding,
-    classify_reference_function,
+    MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
+    ReferenceFunctionDisposition, classify_local_borrow, classify_local_dereference,
+    classify_local_reference_annotation, classify_mutable_reference_assignment,
+    classify_mutable_reference_binding, classify_reference_call, classify_reference_function,
 };
 use crate::scalar_assignment::{
     ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
@@ -562,6 +562,7 @@ pub struct SemanticAnalyzer {
     struct_registry: StructRegistry,
     enum_registry: EnumRegistry,
     enum_function_contracts: HashMap<String, EnumFunctionContract>,
+    reference_function_contracts: HashMap<String, ReferenceFunctionContract>,
     enum_payload_binding_scopes: RefCell<Vec<HashMap<String, Ty>>>,
     struct_execution_stack: Vec<StructExecutionContext>,
     /// Trait registry: trait name -> list of required method names
@@ -590,6 +591,7 @@ impl SemanticAnalyzer {
             struct_registry: StructRegistry::default(),
             enum_registry: EnumRegistry::default(),
             enum_function_contracts: HashMap::new(),
+            reference_function_contracts: HashMap::new(),
             enum_payload_binding_scopes: RefCell::new(Vec::new()),
             struct_execution_stack: vec![StructExecutionContext::PreservedContext],
             trait_registry,
@@ -690,6 +692,27 @@ impl SemanticAnalyzer {
                 local: variable.scope_level > 0,
                 ownership: variable.ownership.clone(),
             })
+    }
+
+    fn reference_call_disposition(
+        &self,
+        name: &str,
+        arguments: &[Expression],
+    ) -> ReferenceCallDisposition {
+        let Some(contract) = self.reference_function_contracts.get(name) else {
+            return ReferenceCallDisposition::Preserved;
+        };
+        let facts = arguments.first().and_then(|argument| {
+            let Expression::Borrow {
+                expr,
+                mutable: true,
+            } = argument
+            else {
+                return None;
+            };
+            self.local_reference_source_facts(expr)
+        });
+        classify_reference_call(contract, arguments, facts.as_ref())
     }
 
     fn readable_identifier_type(&self, name: &str) -> Result<Ty, String> {
@@ -835,6 +858,7 @@ impl SemanticAnalyzer {
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
         self.enum_registry = EnumRegistry::from_top_level_ast(&ast);
         self.enum_function_contracts.clear();
+        self.reference_function_contracts.clear();
         self.enum_payload_binding_scopes.borrow_mut().clear();
         self.struct_execution_stack.clear();
         self.struct_execution_stack
@@ -881,6 +905,8 @@ impl SemanticAnalyzer {
                     None
                 };
                 let admitted_contract = if let Some(contract) = reference_transport {
+                    self.reference_function_contracts
+                        .insert(name.clone(), contract.clone());
                     Some(AdmittedFunctionContract {
                         name: contract.name,
                         parameters: contract
@@ -1158,7 +1184,14 @@ impl SemanticAnalyzer {
                 self.check_expression_initialization(left)?;
                 self.check_expression_initialization(right)?;
             }
-            Expression::FunctionCall { arguments, .. } => {
+            Expression::FunctionCall { name, arguments } => {
+                match self.reference_call_disposition(name, arguments) {
+                    ReferenceCallDisposition::Supported(_) => return Ok(()),
+                    ReferenceCallDisposition::ExplicitlyRejected(message) => {
+                        return Err(message);
+                    }
+                    ReferenceCallDisposition::Preserved => {}
+                }
                 for arg in arguments {
                     self.check_expression_initialization(arg)?;
                 }
@@ -1244,7 +1277,18 @@ impl SemanticAnalyzer {
                 let rhs_type = self.infer_and_validate_expression(right)?;
                 infer_binary_type(op.as_str(), &lhs_type, &rhs_type)
             }
-            Expression::FunctionCall { arguments, .. } => {
+            Expression::FunctionCall { name, arguments } => {
+                match self.reference_call_disposition(name, arguments) {
+                    ReferenceCallDisposition::Supported(contract) => {
+                        return self
+                            .function_table
+                            .validate_admitted_call(name, &[contract.reference_type()]);
+                    }
+                    ReferenceCallDisposition::ExplicitlyRejected(message) => {
+                        return Err(message);
+                    }
+                    ReferenceCallDisposition::Preserved => {}
+                }
                 for arg in arguments {
                     self.infer_and_validate_expression(arg)?;
                 }
@@ -1931,11 +1975,25 @@ impl SemanticAnalyzer {
                 infer_binary_type(op.as_str(), &lhs_type, &rhs_type)
             }
             Expression::FunctionCall { name, arguments } => {
+                let direct_mutable_call = match self.reference_call_disposition(name, arguments) {
+                    ReferenceCallDisposition::Supported(contract) => Some(contract),
+                    ReferenceCallDisposition::ExplicitlyRejected(message) => {
+                        return Err(message);
+                    }
+                    ReferenceCallDisposition::Preserved => None,
+                };
                 let mut argument_types = Vec::with_capacity(arguments.len());
-                for arg in arguments {
-                    argument_types.push(
-                        self.infer_and_validate_expression_immutable_with_cache(arg, array_types)?,
-                    );
+                if let Some(contract) = direct_mutable_call {
+                    argument_types.push(contract.reference_type());
+                } else {
+                    for arg in arguments {
+                        argument_types.push(
+                            self.infer_and_validate_expression_immutable_with_cache(
+                                arg,
+                                array_types,
+                            )?,
+                        );
+                    }
                 }
 
                 if self.is_closure_callable(name) {

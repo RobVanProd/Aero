@@ -11,10 +11,10 @@ use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
-    MutableReferenceAssignmentFacts, ReferenceFunctionContract, ReferenceFunctionDisposition,
-    classify_local_borrow, classify_local_dereference, classify_local_reference_annotation,
-    classify_mutable_reference_assignment, classify_mutable_reference_binding,
-    classify_reference_function,
+    MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
+    ReferenceFunctionDisposition, classify_local_borrow, classify_local_dereference,
+    classify_local_reference_annotation, classify_mutable_reference_assignment,
+    classify_mutable_reference_binding, classify_reference_call, classify_reference_function,
 };
 use crate::scalar_assignment::{
     ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
@@ -76,6 +76,7 @@ struct AdmissionTopLevelFunction {
 struct AdmissionProgram {
     functions: HashMap<String, AdmissionTopLevelFunction>,
     enum_functions: HashMap<String, EnumFunctionContract>,
+    reference_functions: HashMap<String, ReferenceFunctionContract>,
     structs: StructRegistry,
     enums: EnumRegistry,
 }
@@ -368,9 +369,27 @@ impl IrGenerator {
         }
     }
 
+    fn admission_local_reference_source_facts(
+        expression: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+        inside_admitted_function: bool,
+    ) -> Option<LocalReferenceSourceFacts> {
+        let Expression::Identifier(name) = expression else {
+            return None;
+        };
+        bindings.get(name).map(|binding| LocalReferenceSourceFacts {
+            ty: binding.ty.clone(),
+            mutable: binding.mutable,
+            initialized: binding.initialized,
+            local: inside_admitted_function,
+            ownership: binding.ownership.clone(),
+        })
+    }
+
     fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
         let mut program: HashMap<String, AdmissionTopLevelFunction> = HashMap::new();
         let mut enum_functions = HashMap::new();
+        let mut reference_functions = HashMap::new();
         let structs = StructRegistry::from_top_level_ast(ast);
         let enums = EnumRegistry::from_top_level_ast(ast);
         for node in ast {
@@ -431,6 +450,7 @@ impl IrGenerator {
                     None
                 };
                 let (result, arity, parameter_types) = if let Some(contract) = reference_contract {
+                    reference_functions.insert(name.clone(), contract.clone());
                     let parameter_types = contract
                         .parameters
                         .iter()
@@ -499,6 +519,7 @@ impl IrGenerator {
         let program = AdmissionProgram {
             functions: program,
             enum_functions,
+            reference_functions,
             structs,
             enums,
         };
@@ -1240,16 +1261,47 @@ impl IrGenerator {
                 Ok(derived_ty)
             }
             Expression::FunctionCall { name, arguments } => {
+                let inside_admitted_function =
+                    bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
+                let reference_call = if let Some(contract) = program.reference_functions.get(name) {
+                    let facts = arguments.first().and_then(|argument| {
+                        let Expression::Borrow {
+                            expr,
+                            mutable: true,
+                        } = argument
+                        else {
+                            return None;
+                        };
+                        Self::admission_local_reference_source_facts(
+                            expr,
+                            bindings,
+                            inside_admitted_function,
+                        )
+                    });
+                    classify_reference_call(contract, arguments, facts.as_ref())
+                } else {
+                    ReferenceCallDisposition::Preserved
+                };
                 let mut argument_types = Vec::with_capacity(arguments.len());
-                for argument in arguments {
-                    argument_types.push(Self::validate_expression(
-                        argument,
-                        bindings,
-                        program,
-                        ExpressionUse::Value,
-                        inside_impl,
-                        admit_static_string_equality,
-                    )?);
+                match reference_call {
+                    ReferenceCallDisposition::Supported(contract) => {
+                        argument_types.push(contract.reference_type());
+                    }
+                    ReferenceCallDisposition::ExplicitlyRejected(message) => {
+                        return Err(admission_error(&message));
+                    }
+                    ReferenceCallDisposition::Preserved => {
+                        for argument in arguments {
+                            argument_types.push(Self::validate_expression(
+                                argument,
+                                bindings,
+                                program,
+                                ExpressionUse::Value,
+                                inside_impl,
+                                admit_static_string_equality,
+                            )?);
+                        }
+                    }
                 }
                 if let Some(binding) = bindings.get(name) {
                     if binding.callable {
@@ -1720,15 +1772,12 @@ impl IrGenerator {
             Expression::Borrow { expr, mutable } => {
                 let inside_admitted_function =
                     bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
-                let facts = if let Expression::Identifier(name) = expr.as_ref() {
-                    bindings.get(name).map(|binding| LocalReferenceSourceFacts {
-                        ty: binding.ty.clone(),
-                        mutable: binding.mutable,
-                        initialized: binding.initialized,
-                        local: inside_admitted_function,
-                        ownership: binding.ownership.clone(),
-                    })
-                } else {
+                let facts = Self::admission_local_reference_source_facts(
+                    expr,
+                    bindings,
+                    inside_admitted_function,
+                );
+                if !matches!(expr.as_ref(), Expression::Identifier(_)) {
                     Self::validate_expression(
                         expr,
                         bindings,
@@ -1737,8 +1786,7 @@ impl IrGenerator {
                         inside_impl,
                         admit_static_string_equality,
                     )?;
-                    None
-                };
+                }
                 match classify_local_borrow(expr, *mutable, facts.as_ref()) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => {
@@ -2103,8 +2151,12 @@ impl IrGenerator {
                             .iter()
                             .enumerate()
                             .filter_map(|(index, (_, ty))| {
-                                matches!(ty, LogicalType::ImmutableReference { .. })
-                                    .then_some(index)
+                                matches!(
+                                    ty,
+                                    LogicalType::ImmutableReference { .. }
+                                        | LogicalType::MutableReference { .. }
+                                )
+                                .then_some(index)
                             })
                             .collect(),
                     );
@@ -2194,6 +2246,10 @@ impl IrGenerator {
                 | Inst::CheckedImmutableReferenceParameter {
                     result: Value::Reg(register),
                     ..
+                }
+                | Inst::CheckedMutableReferenceParameter {
+                    result: Value::Reg(register),
+                    ..
                 } => {
                     places.entry(*register).or_insert_with(|| {
                         let place = next_place;
@@ -2259,7 +2315,8 @@ impl IrGenerator {
                     Self::rewrite_place(reference, &places);
                     Self::rewrite_place(source, &places);
                 }
-                Inst::CheckedImmutableReferenceParameter { result, .. } => {
+                Inst::CheckedImmutableReferenceParameter { result, .. }
+                | Inst::CheckedMutableReferenceParameter { result, .. } => {
                     Self::rewrite_place(result, &places);
                 }
                 Inst::Store(place, _) => Self::rewrite_place(place, &places),
@@ -3055,8 +3112,34 @@ impl IrGenerator {
             Expression::FunctionCall { name, arguments } => {
                 // Generate IR for arguments
                 let mut arg_values = Vec::new();
+                let mut temporary_mutable_borrows = Vec::new();
                 for arg in arguments {
+                    let direct_mutable_source = if self.checked_mode
+                        && let Expression::Borrow {
+                            expr,
+                            mutable: true,
+                        } = &arg
+                        && let Expression::Identifier(source) = expr.as_ref()
+                    {
+                        self.symbol_table
+                            .get(source)
+                            .map(|(place, ty)| (place.clone(), ty.clone()))
+                    } else {
+                        None
+                    };
                     let (arg_value, arg_type) = self.generate_expression_ir(arg, function);
+                    if let Some((source, pointee)) = direct_mutable_source {
+                        let Ty::Reference(actual, true) = &arg_type else {
+                            unreachable!("checked direct mutable call retains reference type")
+                        };
+                        debug_assert_eq!(actual.as_ref(), &pointee);
+                        temporary_mutable_borrows.push((
+                            arg_value.clone(),
+                            source,
+                            Self::scalar_logical_type(&pointee)
+                                .expect("checked direct mutable call retains scalar pointee"),
+                        ));
+                    }
                     let arg_value = if matches!(&arg_type, Ty::Struct(_)) {
                         self.load_copy_struct_value(arg_value, function)
                     } else if matches!(&arg_type, Ty::Array(_, _)) {
@@ -3069,6 +3152,13 @@ impl IrGenerator {
 
                 let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
                 function.body.push(call_inst);
+                for (reference, source, pointee) in temporary_mutable_borrows {
+                    function.body.push(Inst::CheckedMutableBorrowEnd {
+                        reference,
+                        source,
+                        pointee,
+                    });
+                }
                 if matches!(&return_type, Ty::Struct(_)) {
                     let place = self.store_copy_struct_value(result, &return_type, function);
                     (place, return_type)
@@ -3673,6 +3763,18 @@ impl IrGenerator {
                         pointee: pointee.as_ref().clone(),
                     });
                 debug_assert!(matches!(parameter_ty, Ty::Reference(_, false)));
+            } else if let Some(contract) = &reference_contract
+                && let LogicalType::MutableReference { pointee } =
+                    &contract.parameters[index].1.logical_type
+            {
+                function_ir
+                    .body
+                    .push(Inst::CheckedMutableReferenceParameter {
+                        result: storage,
+                        parameter: param.name.clone(),
+                        pointee: pointee.as_ref().clone(),
+                    });
+                debug_assert!(matches!(parameter_ty, Ty::Reference(_, true)));
             } else if let Some(contract) = &enum_contract
                 && let LogicalType::Enum {
                     name: enum_name,
