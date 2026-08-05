@@ -4,6 +4,30 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
+Milestone 85 `CORE-066` is a green local candidate, not public acceptance. Starting
+from accepted records head `b55407836a3d76b05c7c8b8b2514fd4354e66b2b`, it
+certifies fresh per-iteration owners of every already-admitted enum schema across
+`while`, checked fixed-array `for`, and `loop` statement CFGs. Exact constructor and
+function-result definitions reset verifier ownership only when every path to a
+consumption executes that definition. Pre-loop owners still may not change across a
+condition or reachable backedge, and moved-target reinitialization and break-exit
+ownership joins remain unsupported.
+
+The red-first target exposed that admitted `for` `continue` jumped directly to its
+header and skipped the index increment. One shared statement-loop label allocator and
+one shared `for` iteration tail now route `continue` through an explicit increment
+block for both array and legacy lowering, while `while` and `loop` retain header
+targets. The exhaustive target, new fresh-result/place fixed-point corruption controls,
+11 affected integration targets, formatting, and a serialized exact repository-root
+gate pass. The first unconstrained Windows root attempt exhausted concurrent linker/
+rustc memory; the exact retry with one Cargo build job passed and is the only gate
+evidence. The tracked direct-module example builds deterministically, and local Visual
+Studio Clang 19.1.5 executes exact exit 149. Local LLVM 22 is absent, so external/
+machine verification, all eight public checks, and pinned stable/nightly native exit
+149 remain required before acceptance. Branch publication and PR #4 synchronization
+are the next actions; no merge, release, ABI, general loop ownership, or safety claim
+is authorized.
+
 Milestone 84 `CORE-065` is accepted public at exact implementation commit
 `f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree
 `7cd4ec6da2d9ce44f63741222a5b128396358bfe`, and stable patch ID

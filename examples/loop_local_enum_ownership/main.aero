@@ -1,0 +1,5 @@
+mod loops;
+
+fn main() -> int {
+    run_loop_program()
+}

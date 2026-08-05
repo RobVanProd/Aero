@@ -54,6 +54,15 @@
   and direct modules. Checked-IR corruption controls must reject serial, partial-merge,
   and cyclic double consumption. Loop-carried ownership changes remain compile-fail
   cases until a separately frozen fixed-point contract exists.
+- Fresh loop-local enum tests must cover every checked statement loop (`while`, fixed-
+  array `for`, and `loop`), zero/one/multiple iterations, nested nearest-loop targets,
+  fallthrough, return, break, and continue; inferred/exact and immutable/mutable fresh
+  bindings; constructor/call origins; every admitted payload schema and consumption;
+  and exact `for` increment-before-header behavior. Corruption controls must accept a
+  cyclic consumption only when every path executes its exact fresh result/place
+  definition first, and reject bypass, within-iteration double consumption, or any
+  unreset pre-loop owner. Outer-owner break/backedge joins and moved-target
+  reinitialization remain compile-fail categories.
 - Runtime-output tests with exact stdout, stderr, exit code, and declared sources
   of nondeterminism.
 - Diagnostic snapshots normalized only for unstable machine paths or equivalent

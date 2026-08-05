@@ -2888,3 +2888,36 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   `31049985417` pass. Stable job `92454648190` installs LLVM/Clang 22.1.8, rejects the
   known-invalid fixture, externally verifies, machine-verifies, object-lowers,
   explicitly links, and observes exit 137; nightly job `92454648318` repeats exit 137.
+
+## DEC-062 - Admit only freshly defined enum owners on statement-loop cycles
+
+- Date: 2026-08-05
+- Status: green local CORE-066 candidate; public acceptance and immutable identity are
+  pending. The serialized exact root gate and local native exit 149 pass; LLVM/Clang
+  22 and all eight public checks have not yet run on a published candidate.
+- Decision: every currently admitted unit-or-unary-CopyData enum may be freshly
+  constructed or returned, locally bound, and consumed once per dynamic iteration of
+  checked `while`, fixed-array `for`, or `loop`. Freshness is exact IR identity, not a
+  source assertion: every path to a cyclic consumption must execute the matching typed
+  result definition or place initialization during that iteration.
+- Loop control: one lowering authority allocates statement-loop labels. `while` and
+  `loop` continue at their headers. Checked `for` continues through a distinct shared
+  increment block before returning to its header; natural fallthrough uses the same
+  tail. Break targets the nearest exit. This corrects the previous admitted array-
+  `for` behavior that skipped increment and could repeat forever.
+- Ownership boundary: existing `ownership_flow` remains the sole semantic/admission
+  authority for pre-loop owners. Any changed enum state in a condition or reachable
+  backedge remains rejected. Break-exit ownership joins, moved-target reinitialization,
+  partial moves, enum borrowing/storage/projection, loop labels/expressions/break
+  values, non-array checked iterators, and general CFG ownership are not admitted.
+- Independent proof and evidence: verifier fixed-point controls accept exact fresh
+  enum result and mutable-place definitions on a cycle, and reject two consumptions
+  after one definition, a predecessor bypassing definition, and an unreset outer
+  owner. The exhaustive source/direct-module/IR/LLVM/CLI target, eleven affected
+  integration targets, formatting, exact serialized root gate, and local Clang 19.1.5
+  native exit 149 pass. The first unconstrained Windows root attempt exhausted linker/
+  rustc memory; it is not correctness evidence and the one-job exact retry is green.
+- Scaling boundary: this is the hard loop/CFG slice required to prevent selection from
+  drifting toward only convenient compile-time values. It uses one class target and
+  one authorization record, adds a composed source-to-native gate, and leaves PR #4
+  checkpoint strategy and evidence-manifest automation for separate authorization.

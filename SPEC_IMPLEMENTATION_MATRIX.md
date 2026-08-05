@@ -45,6 +45,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Direct mutable owned-enum reassignment | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Acyclic conditional owned-enum joins | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Fresh per-iteration owned enums in statement loops | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
@@ -85,6 +86,21 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 | Quantization | Y | Y | — | — | Scalar-double helper transform only | N | N | EXPERIMENTAL |
 
 ## Evidence notes
+
+- `CORE-066` is a green local candidate, not public acceptance. It admits exact fresh
+  enum constructors and enum-returning call results inside every currently checked
+  statement-loop form, with inferred/exact and immutable/mutable locals, all accepted
+  recursive CopyData payload schemas, every accepted consuming operation, nested
+  loops, return, break, and continue. Pre-loop enum ownership must remain unchanged at
+  conditions/backedges. The exhaustive test exposed and closed the existing array-
+  `for` continue defect: one centralized loop-label allocator and shared `for`
+  iteration tail now send continue through an explicit increment block. Independent
+  verifier controls accept exact fresh result/place definitions on cycles and reject
+  bypassed definition, two consumptions per iteration, and unreset outer-owner cycles.
+  The focused target, affected compatibility ring, formatting, exact serialized root
+  gate, deterministic direct-module LLVM, and local Clang 19.1.5 native exit 149 pass.
+  LLVM/Clang 22, all eight public checks, and immutable commit identity remain pending;
+  no general loop ownership, moved-target reinitialization, ABI, or safety claim moves.
 
 - `CORE-065` is accepted public at exact implementation
   `f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree

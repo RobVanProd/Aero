@@ -6947,6 +6947,53 @@ mod tests {
             "loop-carried enum consumption passed fixed-point verification"
         );
 
+        let fresh_result_cycle = vec![
+            Inst::Jump("cycle".to_string()),
+            Inst::Label("cycle".to_string()),
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            call(1),
+            Inst::Jump("cycle".to_string()),
+        ];
+        verify_ir(program(fresh_result_cycle))
+            .expect("an exact fresh enum result before each cyclic consumption must verify");
+
+        let fresh_double_consumption = vec![
+            Inst::Jump("cycle".to_string()),
+            Inst::Label("cycle".to_string()),
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            call(1),
+            call(2),
+            Inst::Jump("cycle".to_string()),
+        ];
+        assert!(
+            verify_ir(program(fresh_double_consumption)).is_err(),
+            "two consumptions after one loop-local enum definition passed verification"
+        );
+
+        let bypassed_fresh_definition = vec![
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(2),
+                left: Value::ImmInt(0),
+                right: Value::ImmInt(0),
+            },
+            Inst::Branch {
+                condition: Value::Reg(2),
+                true_label: "define".to_string(),
+                false_label: "consume".to_string(),
+            },
+            Inst::Label("define".to_string()),
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            Inst::Jump("consume".to_string()),
+            Inst::Label("consume".to_string()),
+            call(1),
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        assert!(
+            verify_ir(program(bypassed_fresh_definition)).is_err(),
+            "enum consumption passed when one predecessor bypassed the fresh definition"
+        );
+
         let place = |result| Inst::CheckedMutableOwnedPlaceAlloca {
             result: Value::Reg(result),
             name: "owner".to_string(),
@@ -6978,6 +7025,19 @@ mod tests {
         ];
         verify_ir(program(replaced_place))
             .expect("exact replacement must restore one consumable enum place owner");
+
+        let fresh_place_cycle = vec![
+            Inst::Jump("cycle".to_string()),
+            Inst::Label("cycle".to_string()),
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            place(5),
+            Inst::Store(Value::Reg(5), Value::Reg(0)),
+            load(1),
+            place_call(1, 2),
+            Inst::Jump("cycle".to_string()),
+        ];
+        verify_ir(program(fresh_place_cycle))
+            .expect("an exact fresh mutable enum place per loop iteration must verify");
 
         let consumed_place = vec![
             checked_variant(Value::Reg(0), schema, 0),

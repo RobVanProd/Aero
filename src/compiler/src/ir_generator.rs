@@ -114,6 +114,20 @@ struct GeneratedScopeSnapshot {
     mutable_owned_enum_places: HashMap<String, Value>,
 }
 
+#[derive(Clone, Copy)]
+enum StatementLoopKind {
+    While,
+    For,
+    Loop,
+}
+
+struct StatementLoopLabels {
+    header: String,
+    body: Option<String>,
+    continue_target: String,
+    exit: String,
+}
+
 pub struct IrGenerator {
     functions: HashMap<String, Function>,
     #[allow(dead_code)]
@@ -127,7 +141,7 @@ pub struct IrGenerator {
     copy_function_contracts: HashMap<String, CopyFunctionContract>,
     enum_function_contracts: HashMap<String, EnumFunctionContract>,
     reference_function_contracts: HashMap<String, ReferenceFunctionContract>,
-    loop_label_stack: Vec<(String, String)>, // Stack of (loop_start, loop_end) labels
+    loop_label_stack: Vec<(String, String)>, // Stack of (continue_target, loop_exit) labels
     checked_mode: bool,
     checked_place_hints: PlaceTypeHints,
     struct_registry: StructRegistry,
@@ -164,6 +178,35 @@ impl Default for IrGenerator {
 }
 
 impl IrGenerator {
+    fn fresh_control_label(&mut self, prefix: &str) -> String {
+        let label = format!("{prefix}_{}", self.next_reg);
+        self.next_reg += 1;
+        label
+    }
+
+    fn statement_loop_labels(&mut self, kind: StatementLoopKind) -> StatementLoopLabels {
+        let prefix = match kind {
+            StatementLoopKind::While => "while",
+            StatementLoopKind::For => "for",
+            StatementLoopKind::Loop => "loop",
+        };
+        let header = self.fresh_control_label(&format!("{prefix}_start"));
+        let body = (!matches!(kind, StatementLoopKind::Loop))
+            .then(|| self.fresh_control_label(&format!("{prefix}_body")));
+        let continue_target = if matches!(kind, StatementLoopKind::For) {
+            self.fresh_control_label("for_continue")
+        } else {
+            header.clone()
+        };
+        let exit = self.fresh_control_label(&format!("{prefix}_end"));
+        StatementLoopLabels {
+            header,
+            body,
+            continue_target,
+            exit,
+        }
+    }
+
     pub fn try_generate_ir(
         &mut self,
         ast: Vec<AstNode>,
@@ -4463,17 +4506,14 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        // Generate unique labels
-        let loop_start = format!("while_start_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_body = format!("while_body_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_end = format!("while_end_{}", self.next_reg);
-        self.next_reg += 1;
+        let labels = self.statement_loop_labels(StatementLoopKind::While);
+        let loop_start = labels.header;
+        let loop_body = labels.body.expect("while loop has a body label");
+        let loop_end = labels.exit;
 
         // Push loop labels onto stack for break/continue
         self.loop_label_stack
-            .push((loop_start.clone(), loop_end.clone()));
+            .push((labels.continue_target, loop_end.clone()));
 
         // Jump to loop start
         current_function.body.push(Inst::Jump(loop_start.clone()));
@@ -4558,15 +4598,14 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        let loop_start = format!("for_start_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_body = format!("for_body_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_end = format!("for_end_{}", self.next_reg);
-        self.next_reg += 1;
+        let labels = self.statement_loop_labels(StatementLoopKind::For);
+        let loop_start = labels.header;
+        let loop_body = labels.body.expect("for loop has a body label");
+        let loop_continue = labels.continue_target;
+        let loop_end = labels.exit;
 
         self.loop_label_stack
-            .push((loop_start.clone(), loop_end.clone()));
+            .push((loop_continue.clone(), loop_end.clone()));
 
         // User-visible loop variable slot (updated each iteration with current element).
         let array_ty = Ty::Array(Box::new(element_ty.clone()), array_len);
@@ -4631,6 +4670,7 @@ impl IrGenerator {
 
         // Body: load element at idx, assign loop variable, execute body, idx += 1.
         current_function.body.push(Inst::Label(loop_body));
+        let body_start = current_function.body.len();
         let elem_ptr = if copy_element {
             self.fixed_copy_array_element_ptr(
                 array_ptr.clone(),
@@ -4672,21 +4712,14 @@ impl IrGenerator {
             self.generate_expression_ir(expr, current_function);
         }
 
-        if !current_function
-            .body
-            .last()
-            .is_some_and(Self::instruction_terminates_block)
-        {
-            let next_index = Value::Reg(self.next_reg);
-            self.next_reg += 1;
-            current_function
-                .body
-                .push(Inst::Add(next_index.clone(), index_reg, Value::ImmInt(1)));
-            current_function
-                .body
-                .push(Inst::Store(index_ptr, next_index));
-            current_function.body.push(Inst::Jump(loop_start));
-        }
+        self.generate_for_iteration_tail(
+            body_start,
+            loop_continue,
+            loop_start,
+            index_ptr,
+            index_reg,
+            current_function,
+        );
 
         self.loop_label_stack.pop();
         current_function.body.push(Inst::Label(loop_end));
@@ -4700,15 +4733,14 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        let loop_start = format!("for_start_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_body = format!("for_body_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_end = format!("for_end_{}", self.next_reg);
-        self.next_reg += 1;
+        let labels = self.statement_loop_labels(StatementLoopKind::For);
+        let loop_start = labels.header;
+        let loop_body = labels.body.expect("for loop has a body label");
+        let loop_continue = labels.continue_target;
+        let loop_end = labels.exit;
 
         self.loop_label_stack
-            .push((loop_start.clone(), loop_end.clone()));
+            .push((loop_continue.clone(), loop_end.clone()));
 
         let var_ptr = Value::Reg(self.next_ptr);
         self.next_ptr += 1;
@@ -4745,6 +4777,7 @@ impl IrGenerator {
         });
 
         current_function.body.push(Inst::Label(loop_body));
+        let body_start = current_function.body.len();
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
             if current_function
@@ -4759,23 +4792,14 @@ impl IrGenerator {
             self.generate_expression_ir(expr, current_function);
         }
 
-        if !current_function
-            .body
-            .last()
-            .is_some_and(Self::instruction_terminates_block)
-        {
-            let incremented_reg = Value::Reg(self.next_reg);
-            self.next_reg += 1;
-            current_function.body.push(Inst::Add(
-                incremented_reg.clone(),
-                loop_var_reg,
-                Value::ImmInt(1),
-            ));
-            current_function
-                .body
-                .push(Inst::Store(var_ptr, incremented_reg));
-            current_function.body.push(Inst::Jump(loop_start));
-        }
+        self.generate_for_iteration_tail(
+            body_start,
+            loop_continue,
+            loop_start,
+            var_ptr,
+            loop_var_reg,
+            current_function,
+        );
 
         self.loop_label_stack.pop();
         current_function.body.push(Inst::Label(loop_end));
@@ -4786,15 +4810,13 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        // Generate unique labels
-        let loop_start = format!("loop_start_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_end = format!("loop_end_{}", self.next_reg);
-        self.next_reg += 1;
+        let labels = self.statement_loop_labels(StatementLoopKind::Loop);
+        let loop_start = labels.header;
+        let loop_end = labels.exit;
 
         // Push loop labels onto stack for break/continue
         self.loop_label_stack
-            .push((loop_start.clone(), loop_end.clone()));
+            .push((labels.continue_target, loop_end.clone()));
 
         // Jump to loop start
         current_function.body.push(Inst::Jump(loop_start.clone()));
@@ -4831,6 +4853,45 @@ impl IrGenerator {
 
         // Loop end (reachable via break)
         current_function.body.push(Inst::Label(loop_end));
+    }
+
+    fn generate_for_iteration_tail(
+        &mut self,
+        body_start: usize,
+        continue_target: String,
+        header: String,
+        index_place: Value,
+        current_index: Value,
+        current_function: &mut Function,
+    ) {
+        let falls_through = !current_function
+            .body
+            .last()
+            .is_some_and(Self::instruction_terminates_block);
+        if falls_through {
+            current_function
+                .body
+                .push(Inst::Jump(continue_target.clone()));
+        }
+        let has_explicit_continue = current_function.body[body_start..].iter().any(
+            |instruction| matches!(instruction, Inst::Jump(target) if target == &continue_target),
+        );
+        if !falls_through && !has_explicit_continue {
+            return;
+        }
+
+        current_function.body.push(Inst::Label(continue_target));
+        let next_index = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        current_function.body.push(Inst::Add(
+            next_index.clone(),
+            current_index,
+            Value::ImmInt(1),
+        ));
+        current_function
+            .body
+            .push(Inst::Store(index_place, next_index));
+        current_function.body.push(Inst::Jump(header));
     }
 
     fn generate_break_ir(&mut self, current_function: &mut Function) {

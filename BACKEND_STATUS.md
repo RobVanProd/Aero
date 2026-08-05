@@ -62,6 +62,15 @@ verification, object lowering, explicit private non-PIE linking, and native exit
 in stable job `92454648190`; nightly job `92454648318` repeats exit 137. No loop
 ownership, public layout, backend stability, or ABI claim follows.
 
+The `CORE-066` local candidate also changes no enum representation or ABI. It adds an
+exact `for` continue/increment CFG block and certifies fresh per-iteration enum
+definitions under the existing private types. The two-file candidate builds to
+Windows-target LLVM and Visual Studio Clang 19.1.5 links and executes exact exit 149.
+The local compiler accurately reports `InternalOnly` because LLVM 22 tools are absent;
+therefore external verification, machine verification, and public native evidence are
+pending the pinned stable lane. This local result is supporting evidence, not public
+backend acceptance or a general loop/ownership claim.
+
 ## ROCm path
 
 The CLI can retarget module metadata and invoke `llc` with AMDGPU flags, but it

@@ -12982,3 +12982,176 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   exact successor commit must be pushed to `agent/aero-integration`, draft PR #4 must
   be synchronized immediately, and all eight checks must pass again before the task is
   considered administratively closed.
+
+## CORE-066 - Fresh per-iteration enum ownership across admitted statement loops
+
+- Task ID/date/owner: `CORE-066`, 2026-08-05, lead-owned tests-first vertical
+  slice. This is the sole class authorization record; later corrections amend it
+  before publication rather than creating per-shape tasks. Starting identity is the
+  accepted public CORE-065 records head
+  `b55407836a3d76b05c7c8b8b2514fd4354e66b2b` on
+  `agent/aero-integration`; draft PR #4 is open, unmerged, and all eight public
+  checks are green. `tmp/` is pre-existing untracked user state and remains untouched.
+- Selection and specification evidence: recursive modules were audited first because
+  they are a hard architecture class, but DEC-016 and the founding RFC policy leave
+  nested base paths, namespace identity, duplicate declarations, `use`, and `pub`
+  semantics explicitly unfrozen. The founding PDFs and formal specification require
+  imports/cycle rejection but do not resolve those choices, so implementing recursion
+  would invent semantics. Aero's grammar and execution model do define `while`, `for`,
+  `loop`, nearest-loop `break`/`continue`, source-order execution, lexical scope, and
+  CFG backedges. CORE-065 already identifies loop fixed points as the next ownership
+  boundary. CORE-066 therefore selects the complete specification-backed class of
+  owners freshly created within one dynamic loop iteration; it does not reopen module
+  semantics or outer-owner loop transport.
+- Observed behavior and hypothesis: semantic analysis and checked admission discard
+  loop-local bindings at lexical exit and reject any changed pre-loop enum state, while
+  checked-IR verification uses a forward consumed-owner fixed point and recognizes
+  exact enum result/place redefinitions. This may already accept some fresh-local
+  shapes, but the class has no exhaustive source/native proof. More critically, both
+  array and legacy `for` lowering currently register the loop header as the `continue`
+  target, so `continue` skips the index increment and can repeat forever. A distinct
+  increment/continue block can preserve exact loop progress, and the existing verifier
+  transfer can accept a cycle only when every path to a consumption executes a fresh
+  exact owner definition first.
+- Frozen owner class: an owner is iteration-fresh only when an admitted unit or unary
+  CopyData enum value is constructed or returned by an admitted function during the
+  current loop condition/body evaluation and is bound within that loop's lexical
+  scope. Both inferred and exact annotations, immutable and mutable fresh locals,
+  constructor and call-result origins, unit/scalar/array/tuple/struct/recursive/mixed
+  payload schemas, multiple independent owners, and nested/shadowed fresh locals are
+  included. Static result/place identity may repeat in IR across dynamic iterations,
+  but each accepted cycle must execute its exact definition or initialization before
+  that iteration's first consumption.
+- Frozen loop and control-flow product: cover `while` condition/body execution,
+  checked fixed-array `for`, and `loop`; zero, one, and multiple iterations; natural
+  fallthrough; nested loops with nearest-loop targeting; conditional paths; definitely
+  returning paths; `break`; and `continue`. `continue` targets the condition/header for
+  `while`, the increment step for `for`, and the body header for `loop`; `break` targets
+  the corresponding exit. Statements textually after an unconditional terminator
+  remain conservatively checked by existing source phases, but trusted lowering may
+  not execute them. Labels, break values, loop expressions, pattern iterators, and
+  non-array checked `for` inputs remain outside the implemented grammar/admission set.
+- Frozen consumption product: exactly the previously accepted enum-consuming forms
+  are in class: inferred or exact move binding, exact by-value call argument,
+  exhaustive `Match`, enum return, and distinct-source whole-owner assignment into a
+  fresh mutable local or an already-owned outer mutable target. Each fresh owner may
+  be consumed at most once on every dynamic path. A fresh mutable target may be
+  replaced while still owned. No moved-target reinitialization, partial payload move,
+  borrow, projection, enum array/struct storage, drop, lifetime, or new ABI/layout is
+  added.
+- Outer-owner and fixed-point boundary: pre-loop enum parameters/locals must retain
+  the exact entry ownership on every condition evaluation and reachable backedge.
+  Moving one before fallthrough or `continue`, conditionally changing it, or consuming
+  it on a reachable cycle remains rejected before checked IR and independently by the
+  verifier. Break-exit ownership joins, loop-carried moved-target reinitialization,
+  and general path-sensitive CFG ownership remain separately unauthorized. An outer
+  mutable target may receive a fresh value only when its state is `Owned` before and
+  after each iteration; this does not rehabilitate a moved target.
+- Shared-authority and verifier contract: `ownership_flow` remains the only source
+  classifier for outer loop ownership and is consumed unchanged by semantics and
+  checked admission; no topology guard may be duplicated. Loop-target construction
+  has one lowering authority shared by the three statement-loop generators. The
+  independent verifier derives freshness only from exact typed enum definitions,
+  initializations, and CFG predecessors; no source-only marker or scalar fallback is
+  trusted. Its fixed point must kill a consumed identity only on paths that execute
+  the matching fresh definition, and union consumed identities at merges/backedges.
+- Exhaustive red-first proof: add one focused target before production mutation. It
+  must enumerate every loop/control, owner-schema/origin/binding, and consumption
+  dimension above; prove deterministic checked IR and LLVM; exercise a tracked direct
+  module; and require a pinned native sentinel. The first red must include the current
+  admitted array-`for` `continue` lowering defect as a missing increment/continue CFG
+  edge (and, if safely bounded, its nontermination consequence), not a parser, Cargo,
+  Windows Security, or host-tool failure. Existing already-green shapes are controls,
+  not substitutes for the red defect.
+- Negative/corruption closure: reject double consumption within one iteration;
+  consumption before a fresh definition; a predecessor that bypasses definition;
+  branch-only definition followed by merged consumption; pre-loop owner consumption
+  on `while` condition/fallthrough/`continue`; cyclic consumption without reset;
+  duplicate place loads without replacement; self-replacement; moved-target
+  replacement; unsupported enum declarations/storage/borrowing; wrong schema/type/
+  place/result/dominance identities; invalid break/continue placement; requested-
+  artifact residue; and every still-quarantined closure/module/generic/trait topology.
+  Ordinary scalar loops and CORE-043 through CORE-065 remain unchanged.
+- Allowed files: this ledger; `src/compiler/src/ir_generator.rs` and, only if red
+  verifier controls expose an incorrect fresh-definition transfer, the directly
+  coupled `src/compiler/src/ir_verifier.rs`; one exhaustive
+  `loop_local_enum_ownership_tests.rs`; one tracked direct-module example tree;
+  `.github/workflows/rust.yml`; directly superseded loop/enum/verifier expectations;
+  and, only after the exact candidate is green, current project/capability/framework/
+  decision/audit/README/roadmap/conformance/backend records plus draft PR #4.
+  Lexer/parser/AST/type shapes, semantic analyzer, `ownership_flow`, checked IR
+  opcodes, enum/CopyData classifiers, runtime, dependencies, and `master` are frozen.
+- Stop conditions: stop if a positive needs outer-owner exit/backedge joins,
+  moved-target reinitialization, loop expressions or labels, non-array iterator
+  semantics, a new enum representation, a source guard outside `ownership_flow`, an
+  IR opcode, an unfrozen language choice, more than IR/verifier compiler phases, a
+  weakened test, or a red unrelated baseline. A rejection-only or records-only result
+  cannot close CORE-066.
+- Acceptance gates: focused red/green and verifier corruption controls; affected loop,
+  ownership, enum, aggregate, reference, function, module, closure, checked-IR, and
+  backend suites; formatting, all-target/all-feature check, correctness Clippy, docs,
+  exact root `./tools/test.sh`; tracked source through checked IR, `opt-22`, `llc-22`
+  verification/object lowering, `clang-22` link, and exact native execution; one
+  immutable implementation candidate; immediate PR #4 synchronization; all eight
+  public checks; pinned stable LLVM/Clang 22 lane; then one additive acceptance record
+  and a second all-eight public closure. Candidate and public acceptance remain
+  separate.
+- Scaling controls: PR #4 remains an integration program needing separate checkpoint
+  authorization; this is a hard CFG/runtime slice rather than another convenient
+  compile-time value; one exhaustive class target and this one authorization bound
+  evidence administration; and the native loop/enum program is the periodic composed
+  source-to-machine system gate. Structured checkpoint-manifest generation remains
+  future authorized work rather than replacing engineering in this task.
+- Status at authorization: no CORE-066 test, example, workflow anchor, production
+  mutation, capability claim, or candidate exists. The next action is the exhaustive
+  red target on the exact accepted head.
+- First red amendment before production: the focused target compiled and ran 0/1,
+  but its complete positive source initially reused the function scrutinee name
+  `value` as Match payload binders and therefore hit the pre-existing deterministic
+  anti-shadowing diagnostic before loop admission. The self-replacement negative also
+  omitted the exact current `self-replacement` wording from its accepted fragments.
+  Correct only those two test-oracle defects, rerun the same focused command, and do
+  not mutate production until the intended missing `for_continue_` CFG evidence is
+  independently visible.
+- Exact red evidence: after the test-only amendment, the focused target again runs
+  0/1. The complete source product passes parsing, semantics, checked admission,
+  independent verification, and deterministic LLVM; every negative diagnostic and
+  no-artifact CLI control passes. Its sole compiler finding is the absent
+  `for_continue_` block, confirming admitted array-`for` sends `continue` past the
+  required increment. The only other findings are the deliberately absent two-file
+  example and six pinned workflow anchors. Command: `cargo test --manifest-path
+  src/compiler/Cargo.toml --test loop_local_enum_ownership_tests -- --nocapture` with
+  the inherited user Cargo bin directory on `PATH`. This is the required behavioral
+  red and authorizes only the frozen loop-target lowering correction.
+- Local green candidate evidence: centralized statement-loop label allocation now
+  gives `while`/`loop` their header continue target and both `for` lowerers one explicit
+  increment target. A shared `generate_for_iteration_tail` emits one increment/store/
+  header path for natural fallthrough and every explicit continue, including continue
+  in a branch whose sibling returns. The exhaustive CORE-066 target passes 1/1; fresh
+  result/place verifier controls pass; eleven affected enum/ownership/aggregate/
+  reference/module/closure/checked-IR targets pass; formatting is clean; and the
+  tracked direct-module source builds deterministic checked LLVM with no scalar or
+  pointer fallback.
+- Local system evidence: Windows lacks LLVM 22 and accurately reports
+  `InternalOnly`. Visual Studio Clang 19.1.5 accepts the generated Windows LLVM, links,
+  and executes exact exit 149. The first unconstrained exact root gate exhausted
+  concurrent linker/rustc memory (`LNK1102` plus allocation failure) without a test or
+  compiler diagnostic. The exact retry `bash ./tools/test.sh` with
+  `CARGO_BUILD_JOBS=1` and `RUST_TEST_THREADS=1` exits zero in 161.4 seconds, including
+  182/182 library tests, the existing binary suite, every integration target, rustfmt,
+  all-target/all-feature checking, correctness Clippy, and docs. This records a green
+  local candidate, not public acceptance.
+- Remaining gate: synchronize all current candidate records, rerun the exact root gate
+  on immutable content, commit and push only `agent/aero-integration`, immediately
+  synchronize draft PR #4, and require all eight checks plus pinned LLVM/Clang 22
+  external/machine/object/link/native exit 149 before acceptance. `master`, release,
+  benchmarks, claims, merge, and `tmp/` remain untouched.
+- Final record-inclusive local gate: the exact repository-root `bash ./tools/test.sh`
+  command, serialized with `CARGO_BUILD_JOBS=1` and `RUST_TEST_THREADS=1`, exited 0 in
+  35.9 seconds with the implementation, exhaustive target, tracked example, workflow,
+  capability records, and preceding evidence present. It passed 182/182 library
+  tests, every binary and integration target including CORE-066, rustfmt,
+  all-target/all-feature checking, correctness Clippy, and doc tests. This
+  administrative evidence line does not alter executable behavior; immutable
+  identity, publication, all eight public checks, and pinned LLVM/Clang 22 native
+  exit 149 remain pending.

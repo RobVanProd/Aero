@@ -8,6 +8,17 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
+- `CORE-066` is a green local candidate only. Its exhaustive class target admits
+  fresh constructor/call-result enum owners across checked `while`, fixed-array `for`,
+  and `loop` statements and keeps every changed pre-loop enum state rejected at
+  conditions/backedges. Red-first evidence found array-`for` continue skipping its
+  increment; centralized loop labels and a shared `for` tail now route it through an
+  explicit `for_continue_` block. Verifier controls accept fresh exact result/place
+  definitions on cycles and reject bypass, double consumption, or unreset outer
+  owners. Eleven affected targets, formatting, the serialized exact root gate,
+  deterministic two-file checked LLVM, and local Visual Studio Clang 19.1.5 exit 149
+  pass. LLVM/Clang 22 and all eight public checks are pending, so this does not yet
+  change the accepted public head or establish general loop ownership.
 - `CORE-065` is accepted public at exact implementation
   `f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree
   `7cd4ec6da2d9ce44f63741222a5b128396358bfe`, and stable patch ID
