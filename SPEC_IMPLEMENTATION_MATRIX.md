@@ -988,7 +988,8 @@ declared compatibility policy and release-level coverage.
 
 ## CORE-045 bounded fixed Copy-struct-array evidence
 
-- The local CORE-045 candidate admits only local fixed arrays whose element is one
+- Accepted CORE-045 implementation `54c02828413b505a1488b4333ae9db91d3773a32`
+  admits only local fixed arrays whose element is one
   exact accepted CORE-044 all-scalar Copy struct. It covers nonempty literals,
   single-evaluation repeat including zero, exact typed empty arrays, immutable and
   mutable bindings, element-wise Copy aliases with original reuse, static `.len()`,
@@ -1004,8 +1005,10 @@ declared compatibility policy and release-level coverage.
 - Focused and adjacent suites pass, and exact root `./tools/test.sh` passes 154/154
   library and 161/161 CLI tests plus every active integration, formatting,
   correctness Clippy, and doc gate. The multi-file tracked example resolves a direct
-  module and builds through the CLI into typed aggregate LLVM. Public pinned LLVM 22
-  verification/lowering/linking and native exit 77 remain required, so the specific
-  row and broader Fixed arrays/struct rows remain `PARTIAL`; no stable ABI/layout,
+  module and builds through the CLI into typed aggregate LLVM. Push CI `30966127286`,
+  PR CI `30966129490`, Rust CI `30966129402`, CodeQL `30966127813`, and aggregate
+  `92180425964` pass all eight checks; stable job `92180365622` externally verifies,
+  machine-verifies, object-lowers, links, and records exact native exit 77. The
+  specific row and broader Fixed arrays/struct rows remain `PARTIAL`; no stable ABI/layout,
   dynamic bounds, mutation, array function transport, non-Copy ownership, runtime,
   accelerator, release, or performance claim moves.

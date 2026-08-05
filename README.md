@@ -176,13 +176,13 @@ aero lsp
 > recursion, and the flattened one-level direct-module route. Unsupported definitions,
 > shapes, annotations, and contexts remain rejected before LLVM.
 >
-> The current CORE-045 local candidate also permits fixed local arrays of one exact
+> The publicly accepted CORE-045 slice also permits fixed local arrays of one exact
 > admitted all-scalar Copy struct. It covers literal, repeat, and typed-empty origins;
 > element-wise Copy aliases; static length; compile-time constant in-bounds indexing
 > and projection; and compiler-bounded iteration. Exact struct schema and count survive
 > distinct checked array IR into typed `[N x %aero.struct.Name]` LLVM. The tracked
-> multi-file exit-77 example composes this with direct-module collection, but public
-> LLVM/Clang 22 native evidence is still required before CORE-045 acceptance.
+> multi-file example composes this with direct-module collection and passes pinned
+> LLVM/Clang 22 verification, lowering, linking, and native exit 77.
 >
 > This does not provide non-Copy or destructive move semantics, assignment, general
 > methods beyond the exact array `.len()`/`.iter()` forms,

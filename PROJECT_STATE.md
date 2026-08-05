@@ -4,9 +4,9 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 64 `CORE-045` is a green local candidate on accepted public records head
-`e6bf154137600eacfbcd033f1219214e05b21f29` and accepted CORE-044 behavior head
-`da21a76cf92f2faf680a6284b4789fc401fed8fe`. It extends only CORE-044's exact
+Milestone 64 `CORE-045` is accepted through exact public implementation commit
+`54c02828413b505a1488b4333ae9db91d3773a32`, on accepted CORE-044 records head
+`e6bf154137600eacfbcd033f1219214e05b21f29`. It extends only CORE-044's exact
 all-scalar Copy structs into fixed local arrays. Nonempty literals, single-evaluation
 repeat values including zero, exact typed empty arrays, element-wise Copy aliases,
 static length, compile-time constant in-bounds indexing, projection, and compiler-
@@ -27,11 +27,14 @@ controls, and adjacent struct/numeric/binding suites pass. Exact root
 `./tools/test.sh` passes 154/154 library tests, 161/161 CLI tests, every active
 integration target, formatting, correctness Clippy, and doc tests. The exact
 multi-file tracked example resolves a direct module and builds through the CLI into
-18,081 bytes of typed aggregate LLVM. The Windows host still has no LLVM/Clang 22 and
-accurately reports internal-only verification. Exact review, unchanged publication,
-all eight public checks, pinned Linux LLVM/Clang 22 verification/lowering/linking,
-native exit 77, and immediate draft-PR front-page synchronization remain acceptance
-boundaries; no public CORE-045 acceptance is claimed yet.
+18,081 bytes of typed aggregate LLVM. Push CI `30966127286`, PR CI `30966129490`,
+Rust CI `30966129402`, CodeQL analysis `30966127813`, and aggregate CodeQL check
+`92180425964` pass all eight public checks. Stable Linux job `92180365622` uses
+Ubuntu LLVM/Clang 22.1.8 to resolve the tracked module, checked-build, externally
+`opt-22` verify, `llc-22` machine-verify and object-lower, `clang-22` link, and execute
+with exact native exit 77; it also records 154/154 library and 161/161 CLI passes.
+The Windows host accurately remains internal-only rather than supplying invented
+native evidence.
 
 CORE-043 remains accepted at exact implementation commit
 `92b19cf729daa4e3e90d4591495e493573c89e51` and exact public synchronization head
@@ -63,10 +66,10 @@ composition rather than a module system.
   semantics, logical checked IR, verification, LLVM, native execution, documentation,
   and release-eligibility classification. CORE-042 and CORE-043 provide accepted
   composed gates; CORE-044 adds an accepted ownership/function-boundary system gate
-  backed by pinned native CI. CORE-045's multi-file exit-77 candidate composes direct
+  backed by pinned native CI. CORE-045's accepted multi-file exit-77 gate composes direct
   modules, structs, Copy function transport, fixed arrays, scalar control flow, and
-  compile-time Strings; it becomes system evidence only after pinned native CI.
-  Local slice tests alone never establish whole-language coherence.
+  compile-time Strings through pinned native CI. Local slice tests alone never
+  establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
 Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
@@ -107,11 +110,11 @@ fixed-array-length example with exact exit 37.
 An exact CORE-044 Copy struct can inhabit a fixed local array without inventing layout,
 ownership, ABI, or runtime-bounds semantics if one shared contract retains exact
 element identity and count through semantic analysis, checked admission, logical IR,
-verification, LLVM, and native execution. The local candidate supports that hypothesis.
-It is accepted only if the unchanged public commit passes every check and the pinned
-Linux job externally verifies, machine-verifies, object-lowers, links, and executes the
-multi-file tracked example with exact exit 77. Any need for array function transport,
-dynamic bounds, non-Copy storage, or public ABI rules disproves this bounded class.
+verification, LLVM, and native execution. Exact implementation
+`54c02828413b505a1488b4333ae9db91d3773a32`, all eight public checks, and stable
+Linux job `92180365622` satisfy that bounded hypothesis with external and machine
+verification, object lowering, link, and native exit 77. Array function transport,
+dynamic bounds, non-Copy storage, and public ABI rules remain outside this class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1655,9 +1658,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-CORE-044 is accepted at exact public implementation commit
-`da21a76cf92f2faf680a6284b4789fc401fed8fe`: the exact local gate, all eight public
-checks, and stable Linux LLVM/Clang 22.1.8 native exit 63 pass. Publish this
+CORE-045 is accepted at exact public implementation commit
+`54c02828413b505a1488b4333ae9db91d3773a32`: the exact local gate, all eight public
+checks, and stable Linux LLVM/Clang 22.1.8 native exit 77 pass. Publish this
 records-only acceptance sync unchanged, require its all-eight public checks, and
 keep draft PR #4's front page synchronized to that exact records head. Do not begin
 another implementation slice on red or pending evidence.

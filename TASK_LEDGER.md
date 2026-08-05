@@ -8765,3 +8765,22 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   rewritten to lead with CORE-045 and immutable evidence. Until then CORE-045 remains
   a local `PARTIAL` candidate, with no stable ABI/layout, general ownership, dynamic
   bounds, accelerator, performance, release, merge, or stability claim.
+- Public implementation acceptance: exact implementation
+  `54c02828413b505a1488b4333ae9db91d3773a32` (tree
+  `92e690a11f70d07262afd3543d60f2f16530deff`, stable patch ID
+  `39d6496117fa0619c670acaef82fcb8989d968c5`) was committed from the final clean
+  candidate and pushed unchanged to `agent/aero-integration`. Push CI `30966127286`,
+  PR CI `30966129490`, stable/nightly Rust CI `30966129402`, CodeQL actions/python/
+  rust analysis `30966127813`, and aggregate CodeQL check `92180425964` pass all
+  eight public checks. Stable job `92180365622` records Ubuntu LLVM/Clang 22.1.8,
+  direct-module resolution of `shapes.aero`, checked build, external `opt-22`
+  verification, `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking,
+  and exact native exit 77; its public test step also records 154/154 library and
+  161/161 CLI passes. CORE-045 is accepted without array function transport,
+  mutation, dynamic bounds/runtime panics, stable ABI/layout, non-Copy/general
+  ownership, accelerator, performance, release, or merge claims. Draft PR #4 was
+  immediately retitled and rewritten to lead with CORE-045, immutable evidence,
+  exclusions, the multi-capability system gate, and all four integration-scaling
+  controls. This records-only successor changes no compiler, test, example, workflow,
+  or capability boundary; it must be pushed unchanged, pass all eight checks, and
+  become the exact PR front-page records head.
