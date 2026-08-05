@@ -381,6 +381,19 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
                 "call void @set(%aero.struct.Row*",
             ],
         ),
+        (
+            "recursive Bool array mutable pointee",
+            "fn replace(value: &mut [bool; 2]) -> [bool; 2] { *value = [2 < 1, 1 < 2]; *value } fn main() -> int { let mut value = [1 < 2, 2 < 1]; let copy = replace(&mut value); if copy[1] { return 1; } 0 }",
+            vec!["define [2 x i1] @replace([2 x i1]*", "store [2 x i1]"],
+        ),
+        (
+            "recursive nested tuple mutable pointee",
+            "fn replace(value: &mut ((int, int), bool)) -> ((int, int), bool) { *value = ((4, 5), 1 < 2); *value } fn main() -> int { let mut value = ((1, 2), 2 < 1); let copy = replace(&mut value); if copy.1 { return (copy.0).1; } 0 }",
+            vec![
+                "define { { double, double }, i1 } @replace({ { double, double }, i1 }*",
+                "store { { double, double }, i1 }",
+            ],
+        ),
     ] {
         failures.extend(expect_success(label, source, &required));
     }
@@ -432,16 +445,6 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
         (
             "enum pointee",
             "enum Mode { Off, On } fn bad(value: &mut Mode) { } fn main() -> int { 0 }",
-            "admitted Copy-data",
-        ),
-        (
-            "Bool array pointee",
-            "fn bad(value: &mut [bool; 2]) { } fn main() -> int { 0 }",
-            "admitted Copy-data",
-        ),
-        (
-            "nested tuple pointee",
-            "fn bad(value: &mut ((int, int), bool)) { } fn main() -> int { 0 }",
             "admitted Copy-data",
         ),
         (

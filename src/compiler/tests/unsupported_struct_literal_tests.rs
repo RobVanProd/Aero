@@ -447,13 +447,15 @@ fn established_child_diagnostics_and_field_source_order_retain_precedence() {
             "struct Inner { x: int } struct Outer { first: int, second: Inner } fn main() { let value = Outer { first: (1, 2), second: Inner { x: 1 } }; }",
             "struct `Outer` field `first` type mismatch: expected int, actual (int, int)",
         ),
-        (
-            "struct Point { x: int } fn main() { let values = (Point { x: 7 }, 1); }",
-            "flat Copy tuple element 1 has unsupported type Point; expected Int, Float, or Bool",
-        ),
     ] {
         assert_public_semantic_error(source, expected);
     }
+
+    compile_program(
+        "struct Point { x: int } fn main() { let values = (Point { x: 7 }, 1); }",
+        CompilerOptions::default(),
+    )
+    .expect("recursive CopyData admits a tuple containing an admitted struct");
 }
 
 #[test]

@@ -8,20 +8,26 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-061` is the current locally green implementation candidate for direct
-  reassignment of initialized mutable whole-owner places over the exact admitted
-  Copy-data universe. The owned-assignment classifier delegates data shape to the same
-  `copy_place_contract` used by immutable and mutable references; one checked mutable
-  Copy-place allocation and assignment identity covers scalar and aggregate owners.
-  The exhaustive product and local native exit 83 pass. Its authorized closure
-  amendment preserves syntax but rejects every executable closure with one shared
-  source-located diagnostic before checked IR, independently guards unanalyzed AST,
-  and removes the lowerer's fabricated callable/`i32` fallback. The complete Rust
-  surface passes at 175/175 library and 181/181 binary tests; formatting, all-target
-  checking, correctness Clippy, the exact amended record-inclusive root gate, and local
-  native exit 83 are green. The commit containing this record becomes the immutable
-  amended candidate; all eight public checks and pinned LLVM/Clang 22 native exit 83
-  remain acceptance gates. Pushed `a85f47b` is intermediate only.
+- `CORE-062` is the current locally green implementation candidate for recursive finite
+  CopyData composition. A single registry-backed classifier resolves parsed annotations
+  and semantic types across scalars, fixed arrays, arity-at-least-two tuples, and finite
+  acyclic unique nongeneric nonempty named structs. Semantics, checked IR, Copy-place
+  ownership operations, exact internal function transport, independent verification,
+  and private LLVM consume the recursive schema. The exhaustive product, verifier
+  corruptions, direct module, no-artifact controls, local native exit 109, 178/178
+  library tests, 184/184 binary tests, every integration/claim target, Phase 5 controls,
+  docs, formatting, all-target checking, correctness Clippy, and exact root gate pass.
+  The record-inclusive commit becomes the immutable candidate; all eight public checks
+  and pinned LLVM/Clang 22 verification/object/link/exit-109 evidence remain acceptance
+  gates.
+- `CORE-061` is accepted public at exact implementation
+  `de6fc0d5c503d2dcb03944d58312a130bac1ba05`, tree
+  `9ad23f5ad5cff17d3b69fdef31b9a4c7289ade42`, and patch ID
+  `e358319e7402f345ca414cc57bb18c0414b81cd4`. All eight checks and the pinned
+  LLVM/Clang 22 native exit-83 lane pass with 175/175 library and 181/181 binary tests.
+  It admits direct whole-owner reassignment over its frozen Copy-data class and keeps
+  closures parsed-only/fail-closed before checked IR without a callable or fallback
+  `i32` layout.
 - `CORE-060` is accepted public at exact implementation
   `7c7a47a471460dfe2276ea63cc4964fa59ad54be`, tree
   `e9863de79a69766114020060a138c94357005351`, and stable patch ID
@@ -1873,3 +1879,32 @@ promise future compatibility.
 - Its fresh and verification exact full gates each exit 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no capability moves.
+
+## CORE-062 recursive CopyData candidate boundary
+
+- The exact admitted grammar is `Int | Float | Bool | [CopyData; N] | tuple` of at
+  least two CopyData elements `|` finite acyclic named struct with unique admitted
+  CopyData fields. It is least-fixed-point recursive and depth agnostic. Exact array
+  count, tuple order/arity, struct identity, and declaration-ordered fields are schema.
+- One `StructRegistry` contract resolves both source `Type` and semantic `Ty` to exact
+  `LogicalType`. Tuple, array, struct, binding, function, Copy-place, semantic, checked-
+  admission, verifier, and backend consumers no longer keep executable per-container
+  scalar/flat/numeric/Copy-struct whitelists. The historical broad `Ty::is_copy_type`
+  is quarantined from trusted execution; immutable references remain separately Copy
+  only for established ownership tracking.
+- Positive evidence covers every immediate constructor pairing; Bool/nested arrays;
+  aggregate-bearing tuples and structs; zero arrays; inferred/exact bindings; whole
+  aliases/reassignment; immutable/mutable whole references; calls, results, forwarding,
+  terminating recursion; dynamic fixed-array indices; chained field/tuple/index
+  projection; flattened direct modules; deterministic checked IR/LLVM; and local native
+  exit 109. The exact root gate passes 178 library and 184 binary tests plus all
+  integration, claim, Phase 5, and doc controls.
+- Negative evidence keeps unit/unary tuples, String/reference/function/closure/enum/
+  generic/trait/collection leaves, malformed or cyclic structs, aggregate comparison,
+  projected borrowing/writing, exact mismatches, constant out-of-bounds indexing, raw
+  checked-IR bypass, schema corruption, and requested-artifact hygiene fail closed.
+- This candidate establishes neither stable layout/ABI/FFI nor general ownership,
+  lifetime/drop, memory safety, accelerator execution, performance, release, or
+  stability. Public acceptance remains separate and requires the immutable pushed
+  identity, PR #4 synchronization, all eight checks, and the pinned LLVM/Clang 22
+  external/machine verification, object/link, and exact exit-109 system lane.

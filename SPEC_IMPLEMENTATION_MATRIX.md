@@ -35,6 +35,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Named field access | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | All-scalar struct Copy transport | Y | â€” | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Acyclic named Copy aggregates | Y | - | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
+| Recursive finite CopyData composition | Y | - | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Enums and construction | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Pattern matching | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
@@ -82,17 +83,28 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- `CORE-061` is the locally green candidate for direct whole-owner reassignment of the
-  exact accepted Copy-data universe. One owned-assignment context reuses the shared
-  three-way Copy-place predicate; one checked mutable Copy-place allocation and one
-  checked Copy-place assignment retain exact scalar, tuple, array-count/element, and
-  recursive struct schema. The exhaustive target, verifier proof, and adjacent
-  compatibility targets, exact repository-root gate, and local native exit 83 pass;
-  the tracked source and pinned workflow lane are present. Immutable identity,
-  all-eight public, and LLVM/Clang 22 native evidence remain required. Projected
-  targets, unsupported layouts, assignment
-  expressions/chaining/compound forms, new lifetime/drop/ABI/safety semantics, and
-  accelerator or performance claims remain absent.
+- `CORE-062` is the locally green candidate for recursive finite CopyData composition.
+  One registry-backed least-fixed-point classifier owns annotation and semantic-type
+  admission for scalars, fixed arrays, arity-at-least-two tuples, and finite acyclic
+  unique nongeneric nonempty named structs. Semantic analysis, checked IR, Copy-place
+  ownership operations, function transport, and private LLVM consume the exact
+  recursive schema; the verifier independently checks it. Bool/nested arrays,
+  aggregate-bearing tuples, tuple/array-bearing structs, aliases, reassignment,
+  immutable/mutable whole-place references, calls/results/recursion, dynamic fixed-
+  array indices, chained projections, and direct modules pass the exhaustive target
+  and local native exit 109. The exact root gate passes 178 library and 184 binary
+  tests plus every integration/claim/doc target. Immutable candidate identity,
+  all-eight public checks, and pinned LLVM/Clang 22 native evidence remain required.
+  Unsupported leaves/topologies, aggregate comparison/destructuring, projected loans/
+  writes, new lifetime/drop/ABI/safety semantics, and accelerator or performance claims
+  remain absent.
+
+- `CORE-061` is accepted public for direct whole-owner reassignment over its frozen
+  Copy-data universe and closure false-success containment. Exact commit `de6fc0d`
+  passes all eight checks and the pinned LLVM/Clang 22 exit-83 system lane with 175
+  library and 181 binary tests. One checked mutable Copy-place allocation/assignment
+  retains exact schema; executable closures remain `PARSED_ONLY` and reject before
+  checked IR without a callable or fallback `i32` layout.
 
 - The `CORE-061-CLOSURE` amendment keeps closure syntax and its opening source
   location parsed, but executable closures are unsupported. One shared diagnostic is

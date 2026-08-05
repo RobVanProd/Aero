@@ -615,6 +615,25 @@ jobs:
         fi
         echo "Copy-place reassignment example passed with exit code 83"
 
+    - name: Test recursive Copy-aggregate integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/recursive_copy_aggregates/main.aero -o ../../recursive_copy_aggregates.ll
+        opt-22 -passes=verify -disable-output ../../recursive_copy_aggregates.ll
+        llc-22 -verify-machineinstrs ../../recursive_copy_aggregates.ll -o /dev/null
+        llc-22 -filetype=obj ../../recursive_copy_aggregates.ll -o ../../recursive_copy_aggregates.o
+        clang-22 ../../recursive_copy_aggregates.o -o ../../recursive_copy_aggregates
+        set +e
+        ../../recursive_copy_aggregates
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 109 ]; then
+          echo "recursive Copy-aggregate example returned $exit_code, expected 109"
+          exit 1
+        fi
+        echo "recursive Copy-aggregate example passed with exit code 109"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

@@ -84,17 +84,22 @@ fn numeric_kind(annotation: &Type) -> Option<NumericBindingKind> {
     }
 }
 
+pub(crate) fn is_legacy_numeric_array_annotation(annotation: &Type) -> bool {
+    matches!(annotation, Type::Array(element, _) if numeric_kind(element).is_some())
+}
+
 fn explicit_rejection(annotation: &Type, initialized: bool) -> Option<BindingAnnotationRejectKind> {
     match annotation {
         Type::Tuple(_) if !initialized => Some(BindingAnnotationRejectKind::Tuple),
-        Type::Array(inner, _) if matches!(inner.as_ref(), Type::Tuple(_)) => {
+        Type::Array(inner, _) if !initialized && matches!(inner.as_ref(), Type::Tuple(_)) => {
             Some(BindingAnnotationRejectKind::ArrayTuple)
         }
         Type::Array(first, _)
-            if matches!(
-                first.as_ref(),
-                Type::Array(second, _) if matches!(second.as_ref(), Type::Tuple(_))
-            ) =>
+            if !initialized
+                && matches!(
+                    first.as_ref(),
+                    Type::Array(second, _) if matches!(second.as_ref(), Type::Tuple(_))
+                ) =>
         {
             Some(BindingAnnotationRejectKind::DoubleArrayTuple)
         }
@@ -195,18 +200,26 @@ mod tests {
                         &Type::Array(Box::new(tuple(2)), count),
                         initialized,
                     ),
-                    BindingAnnotationDisposition::ExistingExplicitRejection(
-                        BindingAnnotationRejectKind::ArrayTuple
-                    )
+                    if initialized {
+                        BindingAnnotationDisposition::PreserveExistingBehavior
+                    } else {
+                        BindingAnnotationDisposition::ExistingExplicitRejection(
+                            BindingAnnotationRejectKind::ArrayTuple,
+                        )
+                    }
                 );
                 assert_eq!(
                     classify_binding_annotation(
                         &Type::Array(Box::new(Type::Array(Box::new(tuple(1)), count)), count,),
                         initialized,
                     ),
-                    BindingAnnotationDisposition::ExistingExplicitRejection(
-                        BindingAnnotationRejectKind::DoubleArrayTuple
-                    )
+                    if initialized {
+                        BindingAnnotationDisposition::PreserveExistingBehavior
+                    } else {
+                        BindingAnnotationDisposition::ExistingExplicitRejection(
+                            BindingAnnotationRejectKind::DoubleArrayTuple,
+                        )
+                    }
                 );
                 for mutable in [false, true] {
                     assert_eq!(
@@ -215,7 +228,7 @@ mod tests {
                             initialized,
                         ),
                         BindingAnnotationDisposition::ExistingExplicitRejection(
-                            BindingAnnotationRejectKind::ReferenceTuple
+                            BindingAnnotationRejectKind::ReferenceTuple,
                         )
                     );
                     let reference_array =

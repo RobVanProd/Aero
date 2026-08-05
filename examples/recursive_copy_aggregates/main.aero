@@ -1,0 +1,47 @@
+mod shapes;
+
+struct Cell { state: bool, meta: (int, bool), flags: [bool; 2] }
+struct Frame {
+    primary: Cell,
+    cell_list: [Cell; 2],
+    cells: [(Cell, [bool; 2]); 2],
+    matrix: [[int; 2]; 2],
+    mix: ((int, bool), [float; 2]),
+    empty: [[bool; 2]; 0]
+}
+struct Envelope { frame: Frame }
+
+fn main() -> int {
+    let original = make_frame(5);
+    let copied: Frame = original;
+    let forwarded = forward(copied);
+    let observed = observe(&forwarded);
+    let mut changed = recurse(observed, 2);
+    let replaced = replace(&mut changed);
+    changed = make_frame(7);
+    let nested = mixed(changed.mix, changed.cells);
+    let deep = Envelope { frame: changed };
+    let empty: [[bool; 2]; 0] = [];
+    let exact_matrix: [[int; 2]; 2] = original.matrix;
+    let exact_tuple: ((int, bool), [float; 2]) = original.mix;
+    let exact_cells: [(Cell, [bool; 2]); 2] = original.cells;
+    let selected = select_cell(original.cell_list, 1);
+    let selected_row = select_row(observed.matrix, 1);
+    if original.primary.flags[0]
+        && original.cell_list[1].meta.0 == 6
+        && forwarded.cells[1].0.meta.0 == 6
+        && observed.matrix[1][1] == 8
+        && (replaced.mix.0).0 == 9
+        && ((nested.0).0).1
+        && nested.1[1].1[1]
+        && deep.frame.cells[0].0.state
+        && deep.frame.mix.1[1] > 2.0
+        && selected.meta.0 == 6
+        && selected_row[1] == 8
+        && exact_matrix[1][1] == 8
+        && (exact_tuple.0).0 == 5
+        && exact_cells[1].0.meta.0 == 6 {
+        return 109;
+    }
+    1
+}

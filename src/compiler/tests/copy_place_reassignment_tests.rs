@@ -403,6 +403,16 @@ fn copy_place_reassignment_class_is_complete_checked_and_executable() {
             vec!["store [3 x double]", "store [2 x double]", "[0 x double]"],
         ),
         (
+            "recursive Bool array assignment",
+            "fn main() -> int { let mut values = [1 < 2, 2 < 3]; values = [2 < 1, 3 < 2]; if values[0] { return 1; } 0 }",
+            vec!["store [2 x i1]"],
+        ),
+        (
+            "recursive nested tuple assignment",
+            "fn main() -> int { let mut value = ((1, 2), 1 < 2); value = ((3, 4), 2 < 3); if value.1 { return (value.0).1; } 0 }",
+            vec!["store { { double, double }, i1 }"],
+        ),
+        (
             "zero and nonzero Copy-struct arrays",
             "struct Row { value: int } fn main() -> int { let seed = Row { value: 1 }; let mut rows = [seed, seed]; let next = Row { value: 2 }; rows = [next, next]; let mut empty: [Row; 0] = []; let replacement: [Row; 0] = []; empty = replacement; rows[1].value + empty.len() }",
             vec!["store [2 x %aero.struct.Row]", "[0 x %aero.struct.Row]"],
@@ -480,16 +490,6 @@ fn copy_place_reassignment_class_is_complete_checked_and_executable() {
             "enum target",
             "enum Mode { Off, On } fn main() -> int { let mut value = Mode::Off; value = Mode::On; 0 }",
             "mutable enum bindings are not admitted",
-        ),
-        (
-            "Bool array target",
-            "fn main() -> int { let mut values = [1 < 2, 2 < 3]; values = [2 < 1, 3 < 2]; 0 }",
-            "admitted Copy-data for owned assignment",
-        ),
-        (
-            "nested tuple target",
-            "fn main() -> int { let mut value = ((1, 2), 1 < 2); value = ((3, 4), 2 < 3); 0 }",
-            "flat Copy tuple element 1 has unsupported type",
         ),
         (
             "non-Copy struct target",

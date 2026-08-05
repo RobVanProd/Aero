@@ -2,8 +2,8 @@ use crate::ast::{
     AstNode, Block, ComparisonOp, Expression, LogicalOp, Parameter, Statement, UnaryOp,
 };
 use crate::binding_annotation::{
-    BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
-    typed_empty_numeric_array_contract,
+    BindingAnnotationDisposition, classify_binding_annotation, is_legacy_numeric_array_annotation,
+    is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::enum_match_contract::{EnumExecutionContext, EnumFunctionContract, EnumRegistry};
@@ -18,12 +18,10 @@ use crate::local_reference::{
 use crate::scalar_assignment::{
     CopyPlaceAssignmentDisposition, CopyPlaceAssignmentTargetFacts, classify_copy_place_assignment,
 };
-use crate::struct_contract::{
-    CopyStructArrayIndexDisposition, StructExecutionContext, StructRegistry,
-};
+use crate::struct_contract::{CopyArrayIndexDisposition, StructExecutionContext, StructRegistry};
 use crate::tuple_contract::{
     TupleBindingValidationError, TupleContractDisposition, TupleExecutionContext,
-    classify_flat_copy_tuple_elements, classify_tuple_projection, validate_tuple_binding,
+    classify_copy_tuple_elements, classify_tuple_projection, validate_tuple_binding,
 };
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::cell::RefCell;
@@ -633,7 +631,11 @@ impl SemanticAnalyzer {
     }
 
     fn admitted_tuple_type(&self, elements: Vec<Ty>) -> Result<Ty, String> {
-        match classify_flat_copy_tuple_elements(&elements, self.tuple_execution_context()) {
+        match classify_copy_tuple_elements(
+            &elements,
+            &self.struct_registry,
+            self.tuple_execution_context(),
+        ) {
             TupleContractDisposition::Supported(contract) => Ok(contract.ty()),
             TupleContractDisposition::ExplicitlyRejected(message) => Err(message),
             TupleContractDisposition::Preserved => {
@@ -643,7 +645,12 @@ impl SemanticAnalyzer {
     }
 
     fn admitted_tuple_projection(&self, receiver: &Ty, index: usize) -> Result<Ty, String> {
-        match classify_tuple_projection(receiver, index, self.tuple_execution_context()) {
+        match classify_tuple_projection(
+            receiver,
+            index,
+            &self.struct_registry,
+            self.tuple_execution_context(),
+        ) {
             TupleContractDisposition::Supported(contract) => Ok(contract.element),
             TupleContractDisposition::ExplicitlyRejected(message) => Err(message),
             TupleContractDisposition::Preserved => {
@@ -703,8 +710,8 @@ impl SemanticAnalyzer {
         Ok(())
     }
 
-    fn is_copy_type(&self, ty: &Ty) -> bool {
-        self.struct_registry.is_copy_type(ty)
+    fn is_copy_value_for_ownership(&self, ty: &Ty) -> bool {
+        matches!(ty, Ty::Reference(_, false)) || self.struct_registry.is_copy_type(ty)
     }
 
     fn local_reference_source_facts(
@@ -1033,22 +1040,6 @@ impl SemanticAnalyzer {
         matches!(ty, Ty::Int | Ty::Float)
     }
 
-    fn require_homogeneous_numeric_array(
-        &self,
-        expected: &Ty,
-        actual_types: impl IntoIterator<Item = Ty>,
-    ) -> Result<(), String> {
-        for actual in actual_types {
-            if actual != *expected {
-                return Err(format!(
-                    "Error: array element type mismatch: expected {}, actual {}.",
-                    expected, actual
-                ));
-            }
-        }
-        Ok(())
-    }
-
     fn infer_non_generic_array_literal(
         &self,
         elements: &[Expression],
@@ -1069,15 +1060,7 @@ impl SemanticAnalyzer {
             }
         };
 
-        if Self::is_numeric_type(&elem_type) {
-            let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
-            for element in elements.iter().skip(1) {
-                remaining_types.push(
-                    self.infer_and_validate_expression_immutable_with_cache(element, array_types)?,
-                );
-            }
-            self.require_homogeneous_numeric_array(&elem_type, remaining_types)?;
-        } else if self.struct_registry.is_copy_struct_ty(&elem_type) {
+        if self.struct_registry.resolve_copy_type(&elem_type).is_some() {
             let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
             for element in elements.iter().skip(1) {
                 remaining_types.push(
@@ -1085,12 +1068,13 @@ impl SemanticAnalyzer {
                 );
             }
             self.struct_registry
-                .validate_copy_struct_array_elements(&elem_type, remaining_types)
+                .validate_copy_array_elements(&elem_type, remaining_types)
                 .map_err(|error| error.diagnostic())?;
         } else {
             for element in elements.iter().skip(1) {
                 self.preflight_expression(element)?;
             }
+            return Err("fixed arrays require recursively admitted Copy-data elements".to_string());
         }
 
         Ok(Ty::Array(Box::new(elem_type), elements.len()))
@@ -1376,15 +1360,8 @@ impl SemanticAnalyzer {
                     return Ok(Ty::Array(Box::new(Ty::Int), 0));
                 };
                 let elem_type = self.infer_and_validate_expression(&mut first.clone())?;
-                if self.type_param_scopes.is_empty() && Self::is_numeric_type(&elem_type) {
-                    let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
-                    for element in elements.iter().skip(1) {
-                        remaining_types
-                            .push(self.infer_and_validate_expression(&mut element.clone())?);
-                    }
-                    self.require_homogeneous_numeric_array(&elem_type, remaining_types)?;
-                } else if self.type_param_scopes.is_empty()
-                    && self.struct_registry.is_copy_struct_ty(&elem_type)
+                if self.type_param_scopes.is_empty()
+                    && self.struct_registry.resolve_copy_type(&elem_type).is_some()
                 {
                     let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
                     for element in elements.iter().skip(1) {
@@ -1392,20 +1369,31 @@ impl SemanticAnalyzer {
                             .push(self.infer_and_validate_expression(&mut element.clone())?);
                     }
                     self.struct_registry
-                        .validate_copy_struct_array_elements(&elem_type, remaining_types)
+                        .validate_copy_array_elements(&elem_type, remaining_types)
                         .map_err(|error| error.diagnostic())?;
+                } else if self.type_param_scopes.is_empty() {
+                    return Err(
+                        "fixed arrays require recursively admitted Copy-data elements".to_string(),
+                    );
                 }
                 Ok(Ty::Array(Box::new(elem_type), elements.len()))
             }
             Expression::ArrayRepeat { value, count } => {
                 let elem_type = self.infer_and_validate_expression(value)?;
+                if self.type_param_scopes.is_empty()
+                    && self.struct_registry.resolve_copy_type(&elem_type).is_none()
+                {
+                    return Err(
+                        "fixed arrays require recursively admitted Copy-data elements".to_string(),
+                    );
+                }
                 Ok(Ty::Array(Box::new(elem_type), *count))
             }
             Expression::IndexAccess { object, index } => {
                 let obj_type = self.infer_and_validate_expression(object)?;
                 let index_type = self.infer_and_validate_expression(index)?;
                 if self.type_param_scopes.is_empty()
-                    && matches!(&obj_type, Ty::Array(element, _) if Self::is_numeric_type(element) || self.struct_registry.is_copy_struct_ty(element))
+                    && matches!(&obj_type, Ty::Array(element, _) if self.struct_registry.resolve_copy_type(element).is_some())
                     && index_type != Ty::Int
                 {
                     return Err(format!(
@@ -1418,19 +1406,13 @@ impl SemanticAnalyzer {
                 }
                 match self
                     .struct_registry
-                    .classify_copy_struct_array_index(&obj_type, index)
+                    .classify_copy_array_index(&obj_type, index)
                 {
-                    CopyStructArrayIndexDisposition::PreserveExistingBehavior
-                    | CopyStructArrayIndexDisposition::Accepted { .. } => {}
-                    CopyStructArrayIndexDisposition::NonConstant => {
-                        return Err(
-                            "fixed Copy-struct array index must be a compile-time integer constant"
-                                .to_string(),
-                        );
-                    }
-                    CopyStructArrayIndexDisposition::OutOfBounds { index, count } => {
+                    CopyArrayIndexDisposition::PreserveExistingBehavior
+                    | CopyArrayIndexDisposition::Accepted { .. } => {}
+                    CopyArrayIndexDisposition::OutOfBounds { index, count } => {
                         return Err(format!(
-                            "fixed Copy-struct array index {index} is outside 0..{count}"
+                            "fixed Copy-data array index {index} is outside 0..{count}"
                         ));
                     }
                 }
@@ -2130,6 +2112,13 @@ impl SemanticAnalyzer {
             Expression::ArrayRepeat { value, count } => {
                 let elem_type =
                     self.infer_and_validate_expression_immutable_with_cache(value, array_types)?;
+                if self.type_param_scopes.is_empty()
+                    && self.struct_registry.resolve_copy_type(&elem_type).is_none()
+                {
+                    return Err(
+                        "fixed arrays require recursively admitted Copy-data elements".to_string(),
+                    );
+                }
                 Ok(Ty::Array(Box::new(elem_type), *count))
             }
             Expression::IndexAccess { object, index } => {
@@ -2138,7 +2127,7 @@ impl SemanticAnalyzer {
                 let index_type =
                     self.infer_and_validate_expression_immutable_with_cache(index, array_types)?;
                 if self.type_param_scopes.is_empty()
-                    && matches!(&obj_type, Ty::Array(element, _) if Self::is_numeric_type(element) || self.struct_registry.is_copy_struct_ty(element))
+                    && matches!(&obj_type, Ty::Array(element, _) if self.struct_registry.resolve_copy_type(element).is_some())
                     && index_type != Ty::Int
                 {
                     return Err(format!(
@@ -2151,19 +2140,13 @@ impl SemanticAnalyzer {
                 }
                 match self
                     .struct_registry
-                    .classify_copy_struct_array_index(&obj_type, index)
+                    .classify_copy_array_index(&obj_type, index)
                 {
-                    CopyStructArrayIndexDisposition::PreserveExistingBehavior
-                    | CopyStructArrayIndexDisposition::Accepted { .. } => {}
-                    CopyStructArrayIndexDisposition::NonConstant => {
-                        return Err(
-                            "fixed Copy-struct array index must be a compile-time integer constant"
-                                .to_string(),
-                        );
-                    }
-                    CopyStructArrayIndexDisposition::OutOfBounds { index, count } => {
+                    CopyArrayIndexDisposition::PreserveExistingBehavior
+                    | CopyArrayIndexDisposition::Accepted { .. } => {}
+                    CopyArrayIndexDisposition::OutOfBounds { index, count } => {
                         return Err(format!(
-                            "fixed Copy-struct array index {index} is outside 0..{count}"
+                            "fixed Copy-data array index {index} is outside 0..{count}"
                         ));
                     }
                 }
@@ -2523,7 +2506,7 @@ impl SemanticAnalyzer {
                     if self.type_param_scopes.is_empty() && !self.inside_impl {
                         if let Some(contract) = type_annotation.as_ref().and_then(|annotation| {
                             self.struct_registry
-                                .typed_empty_copy_struct_array_contract(annotation, val)
+                                .typed_empty_copy_array_contract(annotation, val)
                         }) {
                             contract.ty()
                         } else {
@@ -2550,6 +2533,7 @@ impl SemanticAnalyzer {
                             type_annotation.as_ref(),
                             &inferred_type,
                             *mutable,
+                            &self.struct_registry,
                         ) {
                             Ok(()) => {}
                             Err(TupleBindingValidationError::Explicit(message)) => {
@@ -2562,12 +2546,18 @@ impl SemanticAnalyzer {
                             }
                         }
                     }
-                    self.struct_registry
-                        .validate_copy_struct_array_binding(
-                            type_annotation.as_ref(),
-                            &inferred_type,
-                        )
-                        .map_err(|error| error.diagnostic())?;
+                    if self.scope_manager.is_in_function()
+                        && self.type_param_scopes.is_empty()
+                        && !self.inside_impl
+                        && type_annotation.as_ref().is_some_and(|annotation| {
+                            !is_legacy_numeric_array_annotation(annotation)
+                                && matches!(annotation, crate::ast::Type::Array(_, _))
+                        })
+                    {
+                        self.struct_registry
+                            .validate_copy_array_binding(type_annotation.as_ref(), &inferred_type)
+                            .map_err(|error| error.diagnostic())?;
+                    }
                     self.struct_registry
                         .validate_direct_binding_initializer(initializer, &inferred_type)
                         .map_err(|error| error.diagnostic())?;
@@ -2655,7 +2645,7 @@ impl SemanticAnalyzer {
                     match val_expr {
                         // Move semantics: let x = y (non-Copy type moves)
                         Expression::Identifier(source_name) => {
-                            if !self.is_copy_type(&binding_type) {
+                            if !self.is_copy_value_for_ownership(&binding_type) {
                                 self.scope_manager.mark_moved(source_name)?;
                             }
                         }
@@ -3221,7 +3211,9 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     if let Expression::Identifier(arg_name) = arg {
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;
-                        if !matches!(arg_type, Ty::Enum(_)) && !self.is_copy_type(&arg_type) {
+                        if !matches!(arg_type, Ty::Enum(_))
+                            && !self.is_copy_value_for_ownership(&arg_type)
+                        {
                             self.scope_manager.mark_moved(arg_name)?;
                         }
                     }
@@ -3231,7 +3223,9 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     if let Expression::Identifier(arg_name) = arg {
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;
-                        if !matches!(arg_type, Ty::Enum(_)) && !self.is_copy_type(&arg_type) {
+                        if !matches!(arg_type, Ty::Enum(_))
+                            && !self.is_copy_value_for_ownership(&arg_type)
+                        {
                             self.scope_manager.mark_moved(arg_name)?;
                         }
                     }

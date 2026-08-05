@@ -343,14 +343,6 @@ fn acyclic_copy_aggregate_class_is_complete_and_executable() {
             "struct Cycle { next: Cycle } struct Parent { child: Cycle } fn take(value: Parent) -> int { return 0; } fn main() -> int { return 0; }",
         ),
         (
-            "direct nested array field",
-            "struct Value { field: [[int; 1]; 1] } fn take(value: Value) -> int { return 0; } fn main() -> int { return 0; }",
-        ),
-        (
-            "Bool array field",
-            "struct Value { field: [bool; 1] } fn take(value: Value) -> int { return 0; } fn main() -> int { return 0; }",
-        ),
-        (
             "String field",
             "struct Value { field: String } fn take(value: Value) -> int { return 0; } fn main() -> int { return 0; }",
         ),

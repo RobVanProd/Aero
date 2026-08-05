@@ -133,7 +133,31 @@ mod tests {
                     &registry,
                     context
                 ));
+                assert!(supported(
+                    Ty::Array(Box::new(Ty::Bool), count),
+                    &registry,
+                    context
+                ));
+                assert!(supported(
+                    Ty::Array(Box::new(Ty::Array(Box::new(Ty::Int), 2)), count),
+                    &registry,
+                    context
+                ));
+                assert!(supported(
+                    Ty::Array(Box::new(Ty::Tuple(vec![Ty::Int, Ty::Bool])), count),
+                    &registry,
+                    context
+                ));
             }
+            assert!(supported(
+                Ty::Tuple(vec![
+                    Ty::Array(Box::new(Ty::Bool), 2),
+                    Ty::Struct("Leaf".to_string()),
+                    Ty::Tuple(vec![Ty::Float, Ty::Int]),
+                ]),
+                &registry,
+                context
+            ));
             for name in ["Leaf", "Frame", "Envelope"] {
                 assert!(supported(Ty::Struct(name.to_string()), &registry, context));
             }
@@ -150,15 +174,12 @@ mod tests {
             Ty::Vec(Box::new(Ty::Int)),
             Ty::HashMap(Box::new(Ty::Int), Box::new(Ty::Int)),
             Ty::Fn("named".to_string()),
-            Ty::Array(Box::new(Ty::Bool), 2),
-            Ty::Array(Box::new(Ty::Array(Box::new(Ty::Int), 2)), 2),
-            Ty::Array(Box::new(Ty::Tuple(vec![Ty::Int, Ty::Int])), 2),
             Ty::Struct("Bad".to_string()),
             Ty::Struct("Empty".to_string()),
             Ty::Tuple(Vec::new()),
             Ty::Tuple(vec![Ty::Int]),
-            Ty::Tuple(vec![Ty::Tuple(vec![Ty::Int, Ty::Int]), Ty::Bool]),
             Ty::Tuple(vec![Ty::Int, Ty::String]),
+            Ty::Array(Box::new(Ty::String), 2),
         ];
         for context in [
             CopyPlaceExecutionContext::AdmittedImmutableReference,
@@ -193,9 +214,14 @@ mod tests {
             Type::Named("Envelope".to_string()),
             Type::Array(Box::new(Type::Named("int".to_string())), 3),
             Type::Array(Box::new(Type::Named("Leaf".to_string())), 2),
+            Type::Array(Box::new(Type::Named("bool".to_string())), 2),
+            Type::Array(
+                Box::new(Type::Array(Box::new(Type::Named("int".to_string())), 2)),
+                2,
+            ),
             Type::Tuple(vec![
-                Type::Named("int".to_string()),
-                Type::Named("bool".to_string()),
+                Type::Array(Box::new(Type::Named("int".to_string())), 2),
+                Type::Named("Leaf".to_string()),
             ]),
         ];
         for context in [
@@ -213,7 +239,7 @@ mod tests {
         let rejected_annotations = [
             Type::Named("String".to_string()),
             Type::Named("Bad".to_string()),
-            Type::Array(Box::new(Type::Named("bool".to_string())), 2),
+            Type::Array(Box::new(Type::Named("String".to_string())), 2),
             Type::Tuple(vec![Type::Named("int".to_string())]),
             Type::Reference(Box::new(Type::Named("int".to_string())), false),
         ];

@@ -211,6 +211,16 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
         ));
     }
 
+    failures.extend(expect_public_success(
+        "recursive tuple-valued struct field",
+        "struct Value { field: (int, int) } fn main() -> int { let value = Value { field: (1, 2) }; (value.field).1 }",
+        &[
+            "%aero.struct.Value = type { { double, double } }",
+            "getelementptr inbounds %aero.struct.Value",
+            "getelementptr inbounds { double, double }",
+        ],
+    ));
+
     let declaration_only = [
         "struct Empty {} fn main() {}",
         "struct Generic<T> { value: T } fn main() {}",
@@ -259,11 +269,6 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
             "custom field",
             "struct Value { field: Missing } fn main() { let value = Value { field: 1 }; }",
             "Struct construction expressions are not supported.",
-        ),
-        (
-            "tuple field",
-            "struct Value { field: (int, int) } fn main() { let value = Value { field: (1, 2) }; }",
-            "Tuple expressions are not supported.",
         ),
         (
             "reference field",

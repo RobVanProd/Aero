@@ -236,6 +236,25 @@ fn main() -> int { let value: (int, float, bool) = (1, 2.5, 1 < 2); pair(value).
             "fn next(value: &mut int) -> int { *value = *value + 1; *value } fn main() -> int { let mut value = 0; let ordered = (next(&mut value), next(&mut value), value); if ordered.0 == 1 && ordered.1 == 2 && ordered.2 == 2 { return 9; } 1 }",
             vec!["call i32 @next", "{ double, double, double }"],
         ),
+        (
+            "recursive nested tuple storage and projection",
+            "fn main() -> int { let value = (1, (2, 3)); (value.1).0 }",
+            vec!["{ double, { double, double } }"],
+        ),
+        (
+            "recursive array element storage and tuple-array projection",
+            "fn main() -> int { let value = (1, [2, 3]); let pairs = [(4, 5), (6, 7)]; value.1[1] + (pairs[1]).0 }",
+            vec!["{ double, [2 x double] }", "[2 x { double, double }]"],
+        ),
+        (
+            "recursive tuple-bearing mixed aggregate signature",
+            "struct Packet { value: int } fn combine(value: (int, bool), packet: Packet, values: [int; 2]) -> Packet { Packet { value: value.0 + packet.value + values[1] } } fn main() -> int { let result = combine((1, 1 < 2), Packet { value: 3 }, [4, 5]); result.value }",
+            vec![
+                "define %aero.struct.Packet @combine({ double, i1 }",
+                "%aero.struct.Packet %aero.arg.packet",
+                "[2 x double] %aero.arg.values",
+            ],
+        ),
     ] {
         failures.extend(expect_success(label, source, &required));
     }
@@ -277,27 +296,17 @@ fn main() -> int { let value: (int, float, bool) = (1, 2.5, 1 < 2); pair(value).
         (
             "unit tuple remains excluded",
             "fn main() -> int { let value = (); 0 }",
-            "flat Copy tuples require at least two elements",
-        ),
-        (
-            "nested tuple remains excluded",
-            "fn main() -> int { let value = (1, (2, 3)); value.0 }",
-            "flat Copy tuple element 2 has unsupported type",
+            "Copy tuples require at least two recursively admitted CopyData elements",
         ),
         (
             "String element remains excluded",
             "fn main() -> int { let value = (1, \"aero\"); value.0 }",
-            "flat Copy tuple element 2 has unsupported type String",
+            "Copy tuples require at least two recursively admitted CopyData elements",
         ),
         (
-            "array element remains excluded",
-            "fn main() -> int { let value = (1, [2, 3]); value.0 }",
-            "flat Copy tuple element 2 has unsupported type",
-        ),
-        (
-            "tuple array remains excluded",
+            "tuple array legacy len method remains excluded",
             "fn main() -> int { let values = [(1, 2), (3, 4)]; values.len() }",
-            "only fixed numeric arrays are admitted",
+            "method calls other than exact zero-argument array/Vec .iter() are not admitted",
         ),
         (
             "out of range projection",
@@ -307,7 +316,7 @@ fn main() -> int { let value: (int, float, bool) = (1, 2.5, 1 < 2); pair(value).
         (
             "projection from scalar",
             "fn main() -> int { let value = 1; value.0 }",
-            "tuple projection requires a flat Copy tuple",
+            "tuple projection requires a recursively admitted Copy tuple",
         ),
         (
             "tuple binding annotation mismatch",
@@ -333,21 +342,6 @@ fn main() -> int { let value: (int, float, bool) = (1, 2.5, 1 < 2); pair(value).
             "generic tuple transport remains excluded",
             "fn bad<T>(value: (int, bool)) -> (int, bool) { value } fn main() -> int { 0 }",
             "generic function IR is not admitted",
-        ),
-        (
-            "tuple-bearing signature does not absorb struct parameters",
-            "struct Packet { value: int } fn bad(value: (int, bool), packet: Packet) -> int { value.0 } fn main() -> int { 0 }",
-            "tuple-bearing function `bad` parameter `packet` is outside the scalar/flat-tuple product",
-        ),
-        (
-            "tuple-bearing signature does not absorb array parameters",
-            "fn bad(value: (int, bool), values: [int; 2]) -> int { value.0 } fn main() -> int { 0 }",
-            "tuple-bearing function `bad` parameter `values` is outside the scalar/flat-tuple product",
-        ),
-        (
-            "tuple-bearing signature does not absorb struct results",
-            "struct Packet { value: int } fn bad(value: (int, bool)) -> Packet { Packet { value: value.0 } } fn main() -> int { 0 }",
-            "tuple-bearing function `bad` result is outside the scalar/flat-tuple product",
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, expected) {
@@ -484,7 +478,8 @@ fn main() -> int { let value: (int, float, bool) = (1, 2.5, 1 < 2); pair(value).
     let diagnostics = output_text(&invalid_build);
     if invalid_build.status.success()
         || invalid_output.exists()
-        || !diagnostics.contains("flat Copy tuple element 2 has unsupported type String")
+        || !diagnostics
+            .contains("Copy tuples require at least two recursively admitted CopyData elements")
     {
         failures.push(format!(
             "invalid tuple CLI hygiene failed (status={}, artifact={}):\n{}",

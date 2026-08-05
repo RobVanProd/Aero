@@ -12067,3 +12067,262 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   implementation, tests, workflows, capability classification, and semantics are
   unchanged. The commit containing this record becomes the one immutable amended
   candidate; only then push and synchronize PR #4.
+
+## CORE-062 - Recursive finite Copy-aggregate composition
+
+- Task ID: `CORE-062`.
+- Owner: lead compiler engineer; one coupled source-to-native vertical-slice owner.
+- Status: authorized; the exhaustive failing target is the next behavior mutation.
+- Starting identity: accepted public CORE-061 commit
+  `de6fc0d5c503d2dcb03944d58312a130bac1ba05`, tree
+  `9ad23f5ad5cff17d3b69fdef31b9a4c7289ade42`, stable patch ID
+  `e358319e7402f345ca414cc57bb18c0414b81cd4`. Local and remote integration heads
+  are identical; draft PR #4 is open and unmerged. All eight public checks pass.
+  Stable public CI uses LLVM/Clang 22.1.8, externally verifies LLVM, machine-verifies,
+  object-lowers, links, executes exact native exit 83, and passes 175/175 library plus
+  181/181 binary tests. The untracked `tmp/` tree is user-owned and outside this task.
+- Selection evidence: the bounded module/visibility audit is closed with a `NO` result.
+  Current authority does not define privacy relations, path roots, import/re-export
+  conflicts, recursive module identity, namespace collision rules, mangling/linkage, or
+  cache identity, so an executable module-system slice would invent semantics. The
+  recursive-Copy audit is also closed and will not be rerun for later heads: it proves
+  that parser and `LogicalType` are recursively shaped, while tuple, struct, array,
+  semantic, checked-IR, verifier, and LLVM admission each retain topology-specific
+  whitelists. Those whitelists are the exact class CORE-062 supersedes.
+- Authoritative semantics: `docs/language/aero_ownership_borrowing.md` states that
+  booleans, floating-point values, integers, and tuples/arrays of Copy values are Copy,
+  and that a type is Copy when all of its components are Copy. Existing accepted Aero
+  execution already establishes exact fixed array counts, ordered tuple elements,
+  declaration-ordered named struct fields, finite acyclic named struct graphs, whole-
+  value copying, direct field/tuple/index value projection, exact internal function
+  transport, and private LLVM aggregate types. Therefore recursively composing those
+  already established constructors requires no new move/drop/lifetime/source-order or
+  public ABI semantics. Prior task-local exclusions of nested/Bool arrays, aggregate-
+  bearing tuples, and tuple-bearing structs are explicitly superseded only by this
+  complete class.
+- Frozen recursive data grammar: `CopyData ::= Int | Float | Bool | [CopyData; N] |
+  (CopyData, CopyData, ... at least two ordered elements) | NamedStruct`. `N` is any
+  already parsed fixed compile-time `usize`, including zero. `NamedStruct` is one unique,
+  nongeneric, nonempty, admitted-symbol definition with unique admitted-symbol fields in
+  declaration order, every field is `CopyData`, and its named dependency graph is
+  finite and acyclic. This grammar is least-fixed-point recursive: every admitted value
+  has a finite proof tree rooted in the three scalar leaves; no depth-specific or
+  topology-specific whitelist is permitted. Array count, tuple arity/order, struct
+  name/field order, and the complete recursive schema are exact type identity.
+- Explicit grammar boundary: unit/zero-element and unary tuples remain outside this
+  task because the accepted tuple value contract defines arity at least two; empty,
+  duplicate, generic, cyclic, or unresolved structs remain unsupported; and dynamic
+  arrays/slices, String, references as stored data, functions/closures, enums and enum
+  payloads, traits/impls, generic/type-parameter values, Option/Result/collections, raw
+  pointers, Void, and accelerator/device data are not `CopyData` here. Excluding those
+  separate semantic classes does not create a per-container-shape exception.
+- Complete source product: inside admitted nongeneric top-level and flattened direct-
+  module functions, every recursively admitted schema must work consistently in inferred
+  and exact bindings; nested literals and exact typed empty arrays; immutable and mutable
+  owners; whole-value aliases and direct whole-owner replacement; immutable/mutable whole-
+  place reference reads and writes already frozen by CORE-059 through CORE-061; exact
+  function parameters/results, calls, forwarding, and terminating recursion; and value
+  projection chains through any sequence of struct fields, tuple indices, and fixed-array
+  indices. Scalar leaves reached by projection retain existing arithmetic/comparison and
+  return behavior. Aggregate equality/order, destructuring, projected borrowing/writing,
+  contextual nonempty-literal coercion, and implicit conversion are not introduced.
+- Shared classification contract: introduce one recursive classifier, parameterized by
+  the immutable named-struct registry, that owns both parsed `Type` annotation and
+  semantic `Ty` admission and produces one exact recursive `CopyTypeContract` plus
+  `LogicalType`. Tuple, struct, array, binding, signature, Copy-place, semantic, checked-
+  admission, verifier-schema, and backend precondition code must consume this contract or
+  an independently verified exact schema; no phase may retain a scalar/flat-tuple/
+  numeric-array/Copy-struct-array whitelist. The broader historical `Ty::is_copy_type`
+  helper must not admit Void, references, or functions into trusted execution and must
+  be reconciled or quarantined from executable ownership decisions.
+- Frozen checked representation: checked IR must describe recursive Copy storage and
+  member/index places with exact recursive `LogicalType`, independent of source shape.
+  Shape-specific opcode mechanics may distinguish named-field, tuple-index, and runtime
+  array-index addressing, but all schema validity comes from one recursive predicate.
+  The verifier independently proves finite valid schemas, unique stable named schemas,
+  exact construction/member types, bounds facts already required by fixed arrays, value
+  dominance, alloca/store adjacency, whole-copy equality, call/result identity, and
+  collision-free definitions. Generic raw allocation/store/GEP instructions may not
+  masquerade as checked recursive aggregate construction or projection.
+- Frozen backend: recursively verified tuples use LLVM literal structs, fixed arrays use
+  LLVM fixed arrays, and named structs use declaration-ordered private identified types;
+  scalar physical representations retain established behavior. Internal calls transport
+  the exact recursive private LLVM value type; zero-length arrays use LLVM `[0 x T]` and
+  are never indexed. LLVM generation must be total over the frozen grammar and contain no
+  fallback `i32`, pointer/integer conversion, unrelated bitcast, or topology-specific
+  `unreachable!` for an admitted schema. This is a private compiler representation only:
+  no stable layout, size/alignment, calling-convention, FFI, C compatibility, separate-
+  compilation ABI, performance, safety, stability, or release claim is created.
+- Complete-shape proof: unit classifier tests must generate the recursive product over
+  all scalar leaves, tuple arities two through six while retaining an arity-generic
+  predicate, array counts zero/one/nonzero, every constructor nested immediately under
+  every constructor, arbitrary finite acyclic struct depth, and every excluded top-level
+  `Type`/`Ty` family. One exhaustive integration target must compose Bool arrays, nested
+  arrays, arrays of tuples, tuples containing arrays/tuples/structs, structs containing
+  every aggregate constructor, arrays of those structs, recursive construction, aliases,
+  reassignment, whole references, calls/results/forwarding/recursion, projection chains,
+  direct modules, checked metadata, verifier corruption, deterministic LLVM, CLI artifact
+  hygiene, and one tracked exact native sentinel.
+- Red-first acceptance: after this authorization and before production mutation, add the
+  exhaustive CORE-062 target and tracked program. It must prove that every newly composed
+  family currently fails at an existing flat/scalar/numeric/Copy-struct boundary, while
+  the already accepted scalar, flat tuple, numeric array, Copy-struct array, acyclic
+  struct, reference, reassignment, enum/match, module-composition, and closure-containment
+  targets remain green. No requested LLVM/native artifact may be produced by a rejected
+  candidate.
+- Negative completion surface: heterogeneous literals; exact annotation mismatches;
+  tuple arity below two; unsupported, empty, generic, duplicate, self-recursive, mutually
+  recursive, and zero-count-mediated cyclic structs; unsupported leaves at every
+  container depth; out-of-bounds constant indices; aggregate comparison; projected
+  borrow/write; raw checked-IR bypass; malformed recursive schema, member type/index,
+  alloca/store, call/result, and named-schema collisions; and stale requested artifacts.
+  Invalid source must stop before checked IR and trusted LLVM.
+- Positive completion gate: focused CORE-062 target and classifier/verifier proofs; all
+  directly affected tuple/array/struct/Copy-place/assignment/function/module/enum/closure
+  compatibility targets; formatting; `cargo check --all-targets`; correctness Clippy;
+  docs; exact repository-root `./tools/test.sh`; tracked multi-file example; LLVM external
+  verification; machine verification; object/link; exact native sentinel; one atomic
+  commit/push; immediate PR #4 synchronization; all eight public checks; and the pinned
+  LLVM/Clang 22 native system gate. Candidate and public-acceptance identity remain
+  separate until every public requirement is green.
+- Files allowed: this ledger; one shared recursive Copy-aggregate contract module and
+  minimal module registrations; `types.rs`, `struct_contract.rs`, `tuple_contract.rs`,
+  `copy_place_contract.rs`, `binding_annotation.rs`, `semantic_analyzer.rs`, `ir.rs`,
+  `ir_generator.rs`, `ir_verifier.rs`, and `code_generator.rs`; one exhaustive integration
+  target plus directly superseded tuple/array/struct/function/Copy-place/verifier tests;
+  one tracked example tree; `.github/workflows/rust.yml`; and only after the exact
+  candidate is green, the current capability/state/decision/framework documents and PR
+  #4. Parser/AST edits are not authorized because recursive syntax already exists.
+- Forbidden files/actions: lexer/parser grammar; module namespace/visibility semantics;
+  enum payload/layout expansion; unit/unary tuple semantics; general move/drop/lifetime/
+  NLL rules; projected loan/write semantics; generics/traits/closures; heap/runtime/
+  concurrency/atomics/unsafe/accelerator behavior; dependency changes; benchmarks or
+  claims; `claim-verification/`; releases/packages/registry; PR merge; history rewrite;
+  force-push; and `master`.
+- Risks: source admission can outrun checked verification; a nominal schema cycle can
+  recurse forever; zero-length arrays can trigger invalid GEPs; physical scalar legacy
+  representation can disagree inside aggregates; aggregate expressions may carry places
+  where values are required; nested struct schema collection can emit definitions in an
+  invalid order; tuple/array LLVM text can retain scalar-only `unreachable!`; function
+  values can be mis-typed across calls; and replacing the broad Copy helper can change
+  legacy move behavior outside the admitted execution context.
+- Stop conditions: authoritative evidence contradicts the frozen least-fixed-point
+  grammar; completion requires unit/unary tuple, dynamic bounds, aggregate comparison,
+  projected loan/write, enum payload, generic, drop/lifetime, public ABI, module-system,
+  or accelerator decisions; a single classifier cannot own both annotations and semantic
+  types; an admitted shape needs an unlisted source semantic or cannot be represented
+  exactly in verified LLVM; expected work crosses outside allowed files; or the baseline
+  becomes red for an unrelated reason. Stop and amend before production mutation rather
+  than narrowing this class to a convenient container topology.
+- Pre-red fixture correction: consecutive numeric tuple projections such as `.0.0` are
+  lexically retained as a float token after the first dot. CORE-062 does not authorize a
+  lexer/parser change, so the exhaustive source uses an equivalent parenthesized value
+  projection such as `(value.0).0`. Cyclic negative fixtures mention the invalid type in
+  an admitted function signature because unused unsupported declarations are preserved
+  and do not by themselves create an executable value. These are test-source corrections
+  before production mutation, not changes to the frozen data grammar or execution class.
+- Exhaustive red evidence: after formatting the new target and tracked two-file example,
+  `cargo test --test recursive_copy_aggregate_tests -- --nocapture` exits 1 at 0/1
+  before any production mutation. Parsing succeeds for the complete recursive source.
+  The composed program, recursive checked-IR/LLVM probe, whole immutable/mutable reference
+  transport, and tracked CLI build stop at the existing `pointee is not admitted Copy-
+  data` boundary; the immediate constructor-pair matrix stops at `Tuple expressions are
+  not supported`; and Bool arrays stop at `only fixed numeric arrays are admitted`.
+  No requested tracked LLVM artifact is created. Excluded unit, heterogeneous/String-
+  bearing, cyclic, aggregate-comparison, and projected-borrow sources remain rejected.
+  This is the expected complete-class red across every newly admitted direct constructor
+  pairing, not a per-shape failure. Cargo, lexing, parsing, direct-module resolution, and
+  test/CLI subprocess execution all ran; Windows Security did not intervene.
+- Pre-implementation allowed-file amendment: making the existing tuple wrappers delegate
+  schema admission to `StructRegistry` adds that registry argument at the already existing
+  enum-tuple compatibility call in `src/compiler/src/enum_match_contract.rs`. Add that
+  file solely for the mechanical shared-classifier call-site update; CORE-062 does not
+  change enum payload, match, ownership, or layout behavior. This expected compile edge
+  was exposed before integrating production callers and does not broaden the task.
+- Green-attempt fixture correction: the composed `replace(&mut Frame, int)` helper crossed
+  the existing CORE-060 rule that a mutable-reference transport function has exactly one
+  parameter. CORE-062 does not authorize mixed mutable-reference signatures, so the helper
+  now uses one `&mut Frame` parameter and constructs the same deterministic replacement.
+  Whole recursive mutable-reference read/write remains covered without broadening alias or
+  evaluation-order semantics.
+### CORE-062 fixture correction: zero-length arrays are compile evidence, not method-call evidence
+
+- **Observed behavior:** The focused CORE-062 candidate reached IR generation, then the test fixture's `empty.len()` and `changed.empty.len()` calls were rejected by the pre-existing fail-closed method-call boundary. Aero currently admits only exact zero-argument array/Vec `.iter()` method syntax; CORE-062 does not authorize array method semantics.
+- **Frozen correction:** Preserve zero-length recursive-array coverage through explicit typed bindings, checked IR, and required LLVM `[0 x i1]`/nested layouts. Do not call `.len()` or broaden method-call admission. Runtime success remains proven by the other recursive projections and values.
+- **Files:** `src/compiler/tests/recursive_copy_aggregate_tests.rs`, `examples/recursive_copy_aggregates/main.aero`.
+- **Risk/stop condition:** This is fixture-only removal of unrelated unsupported syntax. Stop if a zero-length typed binding cannot reach checked IR without fabricating element semantics.
+
+### CORE-062 superseded-proof migration
+
+- **Observed behavior:** The first complete library run reached 174/178 and identified four proof cases whose asserted rejection was deliberately superseded by the frozen recursive `CopyData` grammar: Bool/nested arrays in function transport and struct schemas, a scalar element carried by the legacy-named checked array opcode, and recursive arrays/tuples in Copy-place classification.
+- **Frozen correction:** Convert those obsolete negative assertions into positive recursive-product coverage. Retain fail-closed controls by substituting unsupported recursive leaves (`String`, references, empty/unary tuples, empty/cyclic/conflicting named schemas) and exact metadata/count/member mismatches. The legacy opcode name is not semantic authority; its schema is now any independently verified `CopyData` element.
+- **Allowed files:** Existing authorization already includes directly superseded Copy-place/verifier/checked-IR tests. No production semantics are changed by this proof migration.
+
+### CORE-062 locally green implementation candidate
+
+- Status: implementation and compatibility green; consistency records are authorized.
+  Immutable commit/tree/patch identity, push, PR #4 synchronization, all eight public
+  checks, and pinned LLVM/Clang 22 acceptance remain pending and are not claimed here.
+- Implementation: `StructRegistry` now owns one depth-agnostic recursive classifier for
+  both source `Type` and semantic `Ty`, producing exact `CopyTypeContract`/`LogicalType`
+  over scalar leaves, fixed arrays, arity-at-least-two tuples, and finite acyclic named
+  structs. Binding annotations, semantic literals/indexing, Copy-place ownership,
+  internal signatures, checked admission, and backend preconditions delegate to that
+  contract. Immutable references remain separately copyable for existing ownership
+  tracking but are not stored CopyData.
+- Checked IR and verifier: recursive schemas flow through aggregate allocation,
+  construction, loads/stores, whole reassignment, immutable/mutable whole-place
+  references, parameters/results/calls, and field/tuple/index places. The independent
+  verifier recursively validates finite schemas, named definitions, exact member/value/
+  call/store identity, dominance, bounds facts, adjacent initialization, and corruption
+  controls. Legacy opcode names retained for compatibility do not narrow their verified
+  schema.
+- Backend: recursively verified tuples lower to literal LLVM structs, fixed arrays to
+  fixed LLVM arrays, and named values to private identified structs collected through
+  nested schemas. The exhaustive LLVM checks forbid fallback `i32`, `inttoptr`,
+  `ptrtoint`, and unrelated `bitcast`; zero-length arrays are emitted and never indexed.
+- Positive evidence: the exhaustive 1/1 target covers every immediate constructor
+  pairing, Bool/nested arrays, arrays of tuples, aggregate-bearing tuples/structs,
+  zero arrays, inferred/exact bindings, whole copies/reassignment, immutable/mutable
+  references, calls/results/forwarding/terminating recursion, dynamic fixed-array
+  indices, chained value projections, flattened direct modules, tracked CLI build,
+  checked metadata, deterministic LLVM, and native exit 109.
+- Negative evidence: unit/unary tuples, heterogeneous and unsupported leaves, exact
+  annotation mismatch, empty/duplicate/unresolved/generic/cyclic named schemas including
+  zero-count-mediated cycles, aggregate comparison, projected borrow/write, constant
+  out-of-bounds indexing, verifier corruption, raw-path bypass, and requested-artifact
+  hygiene remain fail closed.
+- Compatibility correction: the exact gate surfaced old CORE-043/045/046/058/059/060/
+  061 and static-String tests whose asserted exclusions were explicitly superseded by
+  the frozen recursive grammar. Those cases became positive recursive coverage; still-
+  unsupported leaves/topologies replaced them where a negative control was required.
+  The one real regression was immutable reference values being marked moved after the
+  broad Copy helper was quarantined; ownership now explicitly treats only immutable
+  references as Copy while recursive stored-data admission still rejects references.
+- Commands/evidence: focused `recursive_copy_aggregate_tests` passes 1/1 with native
+  exit 109; affected array, tuple, struct, reference, assignment, binding, static-String,
+  unsupported-topology, library, and verifier targets pass. The exact Git-Bash
+  repository-root `./tools/test.sh` with `%USERPROFILE%\\.cargo\\bin` inherited exits 0;
+  the final record-inclusive run passes rustfmt, all-target/all-feature correctness
+  Clippy, 178/178
+  library tests, 184/184 binary tests, every integration and claim target, the
+  22-active/16-quarantined Phase 5 split, and doc tests. `git diff --check` passes.
+- System/public boundary: the tracked two-module program passes locally through source,
+  direct-module resolution, semantics, checked IR, verification, LLVM, Clang link, and
+  exact native exit 109. Local LLVM verification remains accurately `InternalOnly`
+  because LLVM 22 tools are absent. The workflow adds the authoritative pinned
+  `opt-22` external verifier, `llc-22` machine/object gates, `clang-22` link, and exact
+  exit-109 execution. That lane and all eight public checks must pass on the immutable
+  pushed candidate before public acceptance.
+- Remaining uncertainty and regression risk: public LLVM 22 has not yet exercised the
+  candidate. Scalar physical legacy representation, private aggregate ABI details,
+  fixed-array dynamic runtime bounds, and broader ownership/lifetime rules remain
+  explicitly uncertified. The legacy fixed-array `.len()` classifier remains a separate
+  intentionally narrow method surface. No parser, enum payload, generic, closure,
+  projected-loan, accelerator, benchmark, release, or `master` behavior changed.
+- Scaling controls: this shared classifier directly contains combinatorial topology-rule
+  growth without broadening unrelated semantics. PR #4 remains a draft integration
+  program and still needs separately authorized controlled checkpoint/merge work;
+  structured evidence-manifest generation remains separate; hard ownership/module/
+  runtime/accelerator classes must not be avoided indefinitely; and periodic composed
+  source-to-native system gates remain mandatory.

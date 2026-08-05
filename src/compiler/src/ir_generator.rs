@@ -1,7 +1,7 @@
 use crate::ast::{AstNode, Expression, Statement, Type};
 use crate::binding_annotation::{
     BindingAnnotationDisposition, BindingContractKind, classify_binding_annotation,
-    is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
+    is_legacy_numeric_array_annotation, is_statically_empty_fixed_array,
 };
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::copy_place_contract::{
@@ -33,12 +33,12 @@ use crate::static_string_predicate::{
     StaticStringPredicateDisposition, classify_static_string_predicate,
 };
 use crate::struct_contract::{
-    CopyFunctionContract, CopyStructArrayIndexDisposition, StructContractError,
-    StructExecutionContext, StructRegistry,
+    CopyArrayIndexDisposition, CopyFunctionContract, StructContractError, StructExecutionContext,
+    StructRegistry,
 };
 use crate::tuple_contract::{
-    FlatCopyTupleContract, TupleBindingValidationError, TupleContractDisposition,
-    TupleExecutionContext, classify_flat_copy_tuple_elements, classify_tuple_projection,
+    CopyTupleContract, TupleBindingValidationError, TupleContractDisposition,
+    TupleExecutionContext, classify_copy_tuple_elements, classify_tuple_projection,
     validate_tuple_binding,
 };
 use crate::types::{OwnershipState, Ty, needs_promotion};
@@ -689,16 +689,15 @@ impl IrGenerator {
                             inside_impl,
                             !inside_impl,
                         )?
-                    } else if let Some(contract) = type_annotation.as_ref().and_then(|annotation| {
-                        program
-                            .structs
-                            .typed_empty_copy_struct_array_contract(annotation, value)
-                    }) {
-                        contract.ty()
-                    } else if let Some(contract) = type_annotation.as_ref().and_then(|annotation| {
-                        typed_empty_numeric_array_contract(annotation, value)
-                    }) {
-                        contract.ty()
+                    } else if let Some(contract) = type_annotation
+                        .as_ref()
+                        .and_then(|annotation| program.structs.resolve_copy_annotation(annotation))
+                        .filter(|contract| {
+                            matches!(contract.ty, Ty::Array(_, 0))
+                                && matches!(value, Expression::ArrayLiteral(elements) if elements.is_empty())
+                        })
+                    {
+                        contract.ty
                     } else {
                         Self::validate_expression(
                             value,
@@ -718,7 +717,12 @@ impl IrGenerator {
                         disposition,
                         BindingAnnotationDisposition::ExistingExplicitRejection(_)
                     ) {
-                        match validate_tuple_binding(type_annotation.as_ref(), &ty, *mutable) {
+                        match validate_tuple_binding(
+                            type_annotation.as_ref(),
+                            &ty,
+                            *mutable,
+                            &program.structs,
+                        ) {
                             Ok(()) => {}
                             Err(TupleBindingValidationError::Explicit(message)) => {
                                 return Err(IrGenerationError::Admission(message));
@@ -730,10 +734,19 @@ impl IrGenerator {
                             }
                         }
                     }
-                    program
-                        .structs
-                        .validate_copy_struct_array_binding(type_annotation.as_ref(), &ty)
-                        .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                    if !is_top_level
+                        && !inside_impl
+                        && !inside_generic_impl
+                        && type_annotation.as_ref().is_some_and(|annotation| {
+                            !is_legacy_numeric_array_annotation(annotation)
+                                && matches!(annotation, Type::Array(_, _))
+                        })
+                    {
+                        program
+                            .structs
+                            .validate_copy_array_binding(type_annotation.as_ref(), &ty)
+                            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                    }
                     program
                         .structs
                         .validate_direct_binding_initializer(value, &ty)
@@ -1626,34 +1639,21 @@ impl IrGenerator {
                         admit_static_string_equality,
                     )?;
                     if index == 0 {
-                        if !matches!(current, Ty::Int | Ty::Float)
-                            && !program.structs.is_copy_struct_ty(&current)
-                        {
-                            return Err(admission_error("only fixed numeric arrays are admitted"));
+                        if program.structs.resolve_copy_type(&current).is_none() {
+                            return Err(admission_error(
+                                "fixed arrays require recursively admitted Copy-data elements",
+                            ));
                         }
                         element_ty = current;
-                    } else if !matches!(current, Ty::Int | Ty::Float)
-                        && !program.structs.is_copy_struct_ty(&current)
-                    {
-                        return Err(admission_error("only fixed numeric arrays are admitted"));
                     } else if !inside_impl {
                         remaining_types.push(current);
                     }
                 }
                 if !inside_impl {
-                    if program.structs.is_copy_struct_ty(&element_ty) {
-                        program
-                            .structs
-                            .validate_copy_struct_array_elements(
-                                &element_ty,
-                                remaining_types.into_iter(),
-                            )
-                            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
-                    } else if remaining_types.iter().any(|current| current != &element_ty) {
-                        return Err(admission_error(
-                            "fixed numeric arrays must have homogeneous element types in checked IR",
-                        ));
-                    }
+                    program
+                        .structs
+                        .validate_copy_array_elements(&element_ty, remaining_types)
+                        .map_err(|error| admission_error(&error.diagnostic()))?;
                 }
                 Ok(Ty::Array(Box::new(element_ty), elements.len()))
             }
@@ -1666,10 +1666,10 @@ impl IrGenerator {
                     inside_impl,
                     admit_static_string_equality,
                 )?;
-                if !matches!(element_ty, Ty::Int | Ty::Float)
-                    && !program.structs.is_copy_struct_ty(&element_ty)
-                {
-                    return Err(admission_error("only fixed numeric arrays are admitted"));
+                if program.structs.resolve_copy_type(&element_ty).is_none() {
+                    return Err(admission_error(
+                        "fixed arrays require recursively admitted Copy-data elements",
+                    ));
                 }
                 Ok(Ty::Array(Box::new(element_ty), *count))
             }
@@ -1698,20 +1698,12 @@ impl IrGenerator {
                         "zero-length fixed arrays cannot be indexed in checked IR",
                     ));
                 }
-                match program
-                    .structs
-                    .classify_copy_struct_array_index(&object_ty, index)
-                {
-                    CopyStructArrayIndexDisposition::PreserveExistingBehavior
-                    | CopyStructArrayIndexDisposition::Accepted { .. } => {}
-                    CopyStructArrayIndexDisposition::NonConstant => {
-                        return Err(admission_error(
-                            "fixed Copy-struct array index must be a compile-time integer constant",
-                        ));
-                    }
-                    CopyStructArrayIndexDisposition::OutOfBounds { index, count } => {
+                match program.structs.classify_copy_array_index(&object_ty, index) {
+                    CopyArrayIndexDisposition::PreserveExistingBehavior
+                    | CopyArrayIndexDisposition::Accepted { .. } => {}
+                    CopyArrayIndexDisposition::OutOfBounds { index, count } => {
                         return Err(admission_error(&format!(
-                            "fixed Copy-struct array index {index} is outside 0..{count}"
+                            "fixed Copy-data array index {index} is outside 0..{count}"
                         )));
                     }
                 }
@@ -1979,7 +1971,7 @@ impl IrGenerator {
                         admit_static_string_equality,
                     )?);
                 }
-                match classify_flat_copy_tuple_elements(&element_types, context) {
+                match classify_copy_tuple_elements(&element_types, &program.structs, context) {
                     TupleContractDisposition::Supported(contract) => Ok(contract.ty()),
                     TupleContractDisposition::ExplicitlyRejected(message) => {
                         Err(admission_error(&message))
@@ -2003,7 +1995,7 @@ impl IrGenerator {
                     inside_impl,
                     admit_static_string_equality,
                 )?;
-                match classify_tuple_projection(&receiver, *index, context) {
+                match classify_tuple_projection(&receiver, *index, &program.structs, context) {
                     TupleContractDisposition::Supported(contract) => Ok(contract.element),
                     TupleContractDisposition::ExplicitlyRejected(message) => {
                         Err(admission_error(&message))
@@ -2534,43 +2526,23 @@ impl IrGenerator {
         type_annotation: Option<&Type>,
         current_function: &mut Function,
     ) -> (Value, Ty) {
-        let typed_empty_copy_struct_array = if self.checked_mode {
-            type_annotation.and_then(|annotation| {
-                self.struct_registry
-                    .typed_empty_copy_struct_array_contract(annotation, &expression)
-            })
-        } else {
-            None
-        };
-        if let Some(contract) = typed_empty_copy_struct_array {
-            let place = self.allocate_copy_struct_array_place(&contract, current_function);
-            return (place, contract.ty());
+        let typed_empty = self.checked_mode.then(|| {
+            let Expression::ArrayLiteral(elements) = &expression else {
+                return None;
+            };
+            if !elements.is_empty() {
+                return None;
+            }
+            let contract = self
+                .struct_registry
+                .resolve_copy_annotation(type_annotation?)?;
+            matches!(contract.ty, Ty::Array(_, 0)).then_some(contract.ty)
+        });
+        if let Some(Some(expected)) = typed_empty {
+            let place = self.allocate_fixed_copy_array_place(&expected, current_function);
+            return (place, expected);
         }
-        let typed_empty_contract = if self.checked_mode {
-            type_annotation
-                .and_then(|annotation| typed_empty_numeric_array_contract(annotation, &expression))
-        } else {
-            None
-        };
-        let (value, inferred) = self.generate_expression_ir(expression, current_function);
-        let Some(contract) = typed_empty_contract else {
-            return (value, inferred);
-        };
-
-        let expected = contract.ty();
-        let logical_element = match &expected {
-            Ty::Array(element, 0) if matches!(element.as_ref(), Ty::Int) => LogicalType::Int,
-            Ty::Array(element, 0) if matches!(element.as_ref(), Ty::Float) => LogicalType::Float,
-            _ => unreachable!("typed empty predicate returns only zero-length numeric arrays"),
-        };
-        let Value::Reg(place) = &value else {
-            unreachable!("empty array lowering must produce an allocation place");
-        };
-        self.checked_place_hints
-            .entry(current_function.name.clone())
-            .or_default()
-            .insert(PlaceId(*place), logical_element);
-        (value, expected)
+        self.generate_expression_ir(expression, current_function)
     }
 
     fn allocate_copy_struct_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
@@ -2605,25 +2577,24 @@ impl IrGenerator {
         place
     }
 
-    fn copy_struct_place(&mut self, source: Value, ty: &Ty, function: &mut Function) -> Value {
-        let value = self.load_copy_struct_value(source, function);
-        self.store_copy_struct_value(value, ty, function)
-    }
-
-    fn flat_tuple_contract(ty: &Ty) -> FlatCopyTupleContract {
+    fn copy_tuple_contract(&self, ty: &Ty) -> CopyTupleContract {
         let Ty::Tuple(elements) = ty else {
-            unreachable!("flat tuple lowering requires a tuple type")
+            unreachable!("Copy tuple lowering requires a tuple type")
         };
-        match classify_flat_copy_tuple_elements(elements, TupleExecutionContext::AdmittedFunction) {
+        match classify_copy_tuple_elements(
+            elements,
+            &self.struct_registry,
+            TupleExecutionContext::AdmittedFunction,
+        ) {
             TupleContractDisposition::Supported(contract) => contract,
-            _ => unreachable!("checked admission retains a supported flat tuple contract"),
+            _ => unreachable!("checked admission retains a supported recursive Copy tuple"),
         }
     }
 
-    fn allocate_flat_tuple_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
-        let contract = Self::flat_tuple_contract(ty);
+    fn allocate_copy_tuple_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        let contract = self.copy_tuple_contract(ty);
         let LogicalType::Tuple { elements } = contract.logical_type() else {
-            unreachable!("flat tuple contract has tuple logical type")
+            unreachable!("Copy tuple contract has tuple logical type")
         };
         let place = Value::Reg(self.next_ptr);
         self.next_ptr += 1;
@@ -2634,15 +2605,15 @@ impl IrGenerator {
         place
     }
 
-    fn flat_tuple_field_ptr(
+    fn copy_tuple_field_ptr(
         &mut self,
         base: Value,
-        contract: &FlatCopyTupleContract,
+        contract: &CopyTupleContract,
         index: usize,
         function: &mut Function,
     ) -> Value {
         let LogicalType::Tuple { elements } = contract.logical_type() else {
-            unreachable!("flat tuple contract has tuple logical type")
+            unreachable!("Copy tuple contract has tuple logical type")
         };
         let field_type = elements[index].clone();
         let place = Value::Reg(self.next_ptr);
@@ -2657,89 +2628,17 @@ impl IrGenerator {
         place
     }
 
-    fn load_flat_tuple_value(&mut self, place: Value, function: &mut Function) -> Value {
+    fn load_copy_tuple_value(&mut self, place: Value, function: &mut Function) -> Value {
         let value = Value::Reg(self.next_reg);
         self.next_reg += 1;
         function.body.push(Inst::Load(value.clone(), place));
         value
     }
 
-    fn store_flat_tuple_value(&mut self, value: Value, ty: &Ty, function: &mut Function) -> Value {
-        let place = self.allocate_flat_tuple_place(ty, function);
+    fn store_copy_tuple_value(&mut self, value: Value, ty: &Ty, function: &mut Function) -> Value {
+        let place = self.allocate_copy_tuple_place(ty, function);
         function.body.push(Inst::Store(place.clone(), value));
         place
-    }
-
-    fn copy_flat_tuple_place(&mut self, source: Value, ty: &Ty, function: &mut Function) -> Value {
-        let value = self.load_flat_tuple_value(source, function);
-        self.store_flat_tuple_value(value, ty, function)
-    }
-
-    fn allocate_copy_struct_array_place(
-        &mut self,
-        contract: &crate::struct_contract::CopyStructArrayContract,
-        function: &mut Function,
-    ) -> Value {
-        let place = Value::Reg(self.next_ptr);
-        self.next_ptr += 1;
-        let LogicalType::Array { element, .. } = contract.logical_type() else {
-            unreachable!("fixed Copy-struct array contract has array logical type")
-        };
-        function.body.push(Inst::CheckedCopyStructArrayAlloca {
-            result: place.clone(),
-            element: *element,
-            count: contract.count,
-        });
-        place
-    }
-
-    fn copy_struct_array_element_ptr(
-        &mut self,
-        base: Value,
-        index: Value,
-        contract: &crate::struct_contract::CopyStructArrayContract,
-        function: &mut Function,
-    ) -> Value {
-        let place = Value::Reg(self.next_ptr);
-        self.next_ptr += 1;
-        function.body.push(Inst::CheckedCopyStructArrayElementPtr {
-            result: place.clone(),
-            base,
-            index,
-            element: contract.element.logical_type(),
-            count: contract.count,
-        });
-        place
-    }
-
-    fn copy_struct_array_place(
-        &mut self,
-        source: Value,
-        ty: &Ty,
-        function: &mut Function,
-    ) -> Value {
-        let contract = self
-            .struct_registry
-            .copy_struct_array_contract(ty)
-            .expect("checked fixed Copy-struct array has a shared contract");
-        let target = self.allocate_copy_struct_array_place(&contract, function);
-        for index in 0..contract.count {
-            let source_element = self.copy_struct_array_element_ptr(
-                source.clone(),
-                Value::ImmInt(index as i64),
-                &contract,
-                function,
-            );
-            let value = self.load_copy_struct_value(source_element, function);
-            let target_element = self.copy_struct_array_element_ptr(
-                target.clone(),
-                Value::ImmInt(index as i64),
-                &contract,
-                function,
-            );
-            function.body.push(Inst::Store(target_element, value));
-        }
-        target
     }
 
     fn load_fixed_copy_array_value(&mut self, place: Value, function: &mut Function) -> Value {
@@ -2758,36 +2657,52 @@ impl IrGenerator {
         match ty {
             Ty::Struct(_) => self.load_copy_struct_value(place, function),
             Ty::Array(_, _) => self.load_fixed_copy_array_value(place, function),
-            Ty::Tuple(_) => self.load_flat_tuple_value(place, function),
+            Ty::Tuple(_) => self.load_copy_tuple_value(place, function),
             _ => place,
         }
     }
 
     fn allocate_fixed_copy_array_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
-        if let Some(contract) = self.struct_registry.copy_struct_array_contract(ty) {
-            return self.allocate_copy_struct_array_place(&contract, function);
-        }
-
-        let Ty::Array(element, count) = ty else {
+        let contract = self
+            .struct_registry
+            .resolve_copy_type(ty)
+            .expect("checked fixed Copy array has one recursive contract");
+        let LogicalType::Array { element, count } = contract.logical_type else {
             unreachable!("fixed Copy-array allocation requires an array type")
         };
-        let logical_element = match element.as_ref() {
-            Ty::Int => LogicalType::Int,
-            Ty::Float => LogicalType::Float,
-            _ => unreachable!("shared transport contract admits only existing flat arrays"),
-        };
-        let place_id = self.next_ptr;
-        let place = Value::Reg(place_id);
+        let place = Value::Reg(self.next_ptr);
         self.next_ptr += 1;
-        function.body.push(Inst::AllocaArray {
+        function.body.push(Inst::CheckedCopyStructArrayAlloca {
             result: place.clone(),
-            elem_type: "double".to_string(),
-            count: *count,
+            element: *element,
+            count,
         });
-        self.checked_place_hints
-            .entry(function.name.clone())
-            .or_default()
-            .insert(PlaceId(place_id), logical_element);
+        place
+    }
+
+    fn fixed_copy_array_element_ptr(
+        &mut self,
+        base: Value,
+        index: Value,
+        ty: &Ty,
+        function: &mut Function,
+    ) -> Value {
+        let contract = self
+            .struct_registry
+            .resolve_copy_type(ty)
+            .expect("checked fixed Copy array has one recursive contract");
+        let LogicalType::Array { element, count } = contract.logical_type else {
+            unreachable!("fixed Copy-array projection requires an array type")
+        };
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedCopyStructArrayElementPtr {
+            result: place.clone(),
+            base,
+            index,
+            element: *element,
+            count,
+        });
         place
     }
 
@@ -2811,8 +2726,17 @@ impl IrGenerator {
         match ty {
             Ty::Struct(_) => self.store_copy_struct_value(value, ty, function),
             Ty::Array(_, _) => self.store_fixed_copy_array_value(value, ty, function),
-            Ty::Tuple(_) => self.store_flat_tuple_value(value, ty, function),
+            Ty::Tuple(_) => self.store_copy_tuple_value(value, ty, function),
             _ => value,
+        }
+    }
+
+    fn allocate_copy_aggregate_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        match ty {
+            Ty::Struct(_) => self.allocate_copy_struct_place(ty, function),
+            Ty::Array(_, _) => self.allocate_fixed_copy_array_place(ty, function),
+            Ty::Tuple(_) => self.allocate_copy_tuple_place(ty, function),
+            _ => unreachable!("Copy aggregate allocation requires an aggregate CopyData type"),
         }
     }
 
@@ -2887,27 +2811,14 @@ impl IrGenerator {
                         .body
                         .push(Inst::Store(storage.clone(), initial));
                     self.symbol_table.insert(name, (storage, expr_type));
-                } else if matches!(&expr_type, Ty::Struct(_)) {
+                } else if matches!(&expr_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
                     let storage = if copies_existing_aggregate {
-                        self.copy_struct_place(expr_value, &expr_type, current_function)
-                    } else {
-                        expr_value
-                    };
-                    self.symbol_table.insert(name, (storage, expr_type));
-                } else if matches!(&expr_type, Ty::Tuple(_)) {
-                    let storage = if copies_existing_aggregate {
-                        self.copy_flat_tuple_place(expr_value, &expr_type, current_function)
-                    } else {
-                        expr_value
-                    };
-                    self.symbol_table.insert(name, (storage, expr_type));
-                } else if self
-                    .struct_registry
-                    .copy_struct_array_contract(&expr_type)
-                    .is_some()
-                {
-                    let storage = if copies_existing_aggregate {
-                        self.copy_struct_array_place(expr_value, &expr_type, current_function)
+                        let value = self.load_copy_aggregate_value(
+                            expr_value,
+                            &expr_type,
+                            current_function,
+                        );
+                        self.store_copy_aggregate_value(value, &expr_type, current_function)
                     } else {
                         expr_value
                     };
@@ -3018,13 +2929,8 @@ impl IrGenerator {
                 } else {
                     (Value::ImmInt(0), Ty::Int)
                 };
-                if matches!(&return_type, Ty::Struct(_)) {
-                    return_value = self.load_copy_struct_value(return_value, current_function);
-                } else if matches!(&return_type, Ty::Array(_, _)) {
-                    return_value = self.load_fixed_copy_array_value(return_value, current_function);
-                } else if matches!(&return_type, Ty::Tuple(_)) {
-                    return_value = self.load_flat_tuple_value(return_value, current_function);
-                }
+                return_value =
+                    self.load_copy_aggregate_value(return_value, &return_type, current_function);
                 if self.checked_mode
                     && current_function.name == "main"
                     && !self.function_return_types.contains_key("main")
@@ -3267,15 +3173,7 @@ impl IrGenerator {
                         temporary_mutable_borrows.push((child.clone(), parent, logical_pointee));
                         arg_value = child;
                     }
-                    let arg_value = if matches!(&arg_type, Ty::Struct(_)) {
-                        self.load_copy_struct_value(arg_value, function)
-                    } else if matches!(&arg_type, Ty::Array(_, _)) {
-                        self.load_fixed_copy_array_value(arg_value, function)
-                    } else if matches!(&arg_type, Ty::Tuple(_)) {
-                        self.load_flat_tuple_value(arg_value, function)
-                    } else {
-                        arg_value
-                    };
+                    let arg_value = self.load_copy_aggregate_value(arg_value, &arg_type, function);
                     arg_values.push(arg_value);
                 }
 
@@ -3288,14 +3186,8 @@ impl IrGenerator {
                         pointee,
                     });
                 }
-                if matches!(&return_type, Ty::Struct(_)) {
-                    let place = self.store_copy_struct_value(result, &return_type, function);
-                    (place, return_type)
-                } else if matches!(&return_type, Ty::Array(_, _)) {
-                    let place = self.store_fixed_copy_array_value(result, &return_type, function);
-                    (place, return_type)
-                } else if matches!(&return_type, Ty::Tuple(_)) {
-                    let place = self.store_flat_tuple_value(result, &return_type, function);
+                if matches!(&return_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
+                    let place = self.store_copy_aggregate_value(result, &return_type, function);
                     (place, return_type)
                 } else {
                     (result, return_type)
@@ -3390,45 +3282,43 @@ impl IrGenerator {
             }
             Expression::ArrayLiteral(elements) => {
                 let count = elements.len();
-                let precomputed_first = (self.checked_mode && count > 0)
-                    .then(|| self.generate_expression_ir(elements[0].clone(), function));
-                if let Some((first_place, first_ty)) = precomputed_first.as_ref() {
-                    if let Some(contract) = self
-                        .struct_registry
-                        .copy_struct_array_contract(&Ty::Array(Box::new(first_ty.clone()), count))
-                    {
-                        let array = self.allocate_copy_struct_array_place(&contract, function);
-                        let first_value =
-                            self.load_copy_struct_value(first_place.clone(), function);
-                        let first_element = self.copy_struct_array_element_ptr(
+                if self.checked_mode {
+                    let Some(first) = elements.first().cloned() else {
+                        unreachable!("checked empty arrays require an exact annotation")
+                    };
+                    let (first_value, element_ty) = self.generate_expression_ir(first, function);
+                    let array_ty = Ty::Array(Box::new(element_ty.clone()), count);
+                    let array = self.allocate_fixed_copy_array_place(&array_ty, function);
+                    let first_value =
+                        self.load_copy_aggregate_value(first_value, &element_ty, function);
+                    let first_element = self.fixed_copy_array_element_ptr(
+                        array.clone(),
+                        Value::ImmInt(0),
+                        &array_ty,
+                        function,
+                    );
+                    function.body.push(Inst::Store(first_element, first_value));
+                    for (index, expression) in elements.into_iter().skip(1).enumerate() {
+                        let (value, actual) = self.generate_expression_ir(expression, function);
+                        debug_assert_eq!(actual, element_ty);
+                        let value = self.load_copy_aggregate_value(value, &actual, function);
+                        let element = self.fixed_copy_array_element_ptr(
                             array.clone(),
-                            Value::ImmInt(0),
-                            &contract,
+                            Value::ImmInt((index + 1) as i64),
+                            &array_ty,
                             function,
                         );
-                        function.body.push(Inst::Store(first_element, first_value));
-                        for (index, element) in elements.into_iter().skip(1).enumerate() {
-                            let (place, _) = self.generate_expression_ir(element, function);
-                            let value = self.load_copy_struct_value(place, function);
-                            let element = self.copy_struct_array_element_ptr(
-                                array.clone(),
-                                Value::ImmInt((index + 1) as i64),
-                                &contract,
-                                function,
-                            );
-                            function.body.push(Inst::Store(element, value));
-                        }
-                        return (array, contract.ty());
+                        function.body.push(Inst::Store(element, value));
                     }
+                    return (array, array_ty);
                 }
                 let arr_id = self.next_ptr;
                 let arr_ptr = Value::Reg(arr_id);
                 self.next_ptr += 1;
                 // Determine element type from first element
                 let elem_type = if count > 0 {
-                    let (first_val, first_ty) = precomputed_first.unwrap_or_else(|| {
-                        self.generate_expression_ir(elements[0].clone(), function)
-                    });
+                    let (first_val, first_ty) =
+                        self.generate_expression_ir(elements[0].clone(), function);
                     function.body.push(Inst::AllocaArray {
                         result: arr_ptr.clone(),
                         elem_type: "double".to_string(),
@@ -3466,40 +3356,26 @@ impl IrGenerator {
                     });
                     Ty::Int
                 };
-                if self.checked_mode {
-                    let logical_element = match &elem_type {
-                        Ty::Int => LogicalType::Int,
-                        Ty::Float => LogicalType::Float,
-                        _ => unreachable!("checked admission permits only fixed numeric arrays"),
-                    };
-                    self.checked_place_hints
-                        .entry(function.name.clone())
-                        .or_default()
-                        .insert(PlaceId(arr_id), logical_element);
-                }
                 (arr_ptr, Ty::Array(Box::new(elem_type), count))
             }
             Expression::ArrayRepeat { value, count } => {
                 let (val, elem_ty) = self.generate_expression_ir(*value, function);
-                if self.checked_mode
-                    && let Some(contract) = self
-                        .struct_registry
-                        .copy_struct_array_contract(&Ty::Array(Box::new(elem_ty.clone()), count))
-                {
-                    let copied_value = self.load_copy_struct_value(val, function);
-                    let array = self.allocate_copy_struct_array_place(&contract, function);
+                if self.checked_mode {
+                    let array_ty = Ty::Array(Box::new(elem_ty.clone()), count);
+                    let copied_value = self.load_copy_aggregate_value(val, &elem_ty, function);
+                    let array = self.allocate_fixed_copy_array_place(&array_ty, function);
                     for index in 0..count {
-                        let element = self.copy_struct_array_element_ptr(
+                        let element = self.fixed_copy_array_element_ptr(
                             array.clone(),
                             Value::ImmInt(index as i64),
-                            &contract,
+                            &array_ty,
                             function,
                         );
                         function
                             .body
                             .push(Inst::Store(element, copied_value.clone()));
                     }
-                    return (array, contract.ty());
+                    return (array, array_ty);
                 }
                 let arr_id = self.next_ptr;
                 let arr_ptr = Value::Reg(arr_id);
@@ -3509,17 +3385,6 @@ impl IrGenerator {
                     elem_type: "double".to_string(),
                     count,
                 });
-                if self.checked_mode {
-                    let logical_element = match &elem_ty {
-                        Ty::Int => LogicalType::Int,
-                        Ty::Float => LogicalType::Float,
-                        _ => unreachable!("checked admission permits only fixed numeric arrays"),
-                    };
-                    self.checked_place_hints
-                        .entry(function.name.clone())
-                        .or_default()
-                        .insert(PlaceId(arr_id), logical_element);
-                }
                 for i in 0..count {
                     let ep = Value::Reg(self.next_ptr);
                     self.next_ptr += 1;
@@ -3536,18 +3401,18 @@ impl IrGenerator {
             Expression::IndexAccess { object, index } => {
                 let (arr_val, arr_ty) = self.generate_expression_ir(*object, function);
                 let (idx_val, _) = self.generate_expression_ir(*index, function);
-                if self.checked_mode
-                    && let Some(contract) = self.struct_registry.copy_struct_array_contract(&arr_ty)
-                {
+                if self.checked_mode {
+                    let Ty::Array(element_ty, _) = &arr_ty else {
+                        unreachable!("checked array index receiver was admitted")
+                    };
+                    let element_ty = element_ty.as_ref().clone();
                     let element =
-                        self.copy_struct_array_element_ptr(arr_val, idx_val, &contract, function);
-                    let value = self.load_copy_struct_value(element, function);
-                    let place = self.store_copy_struct_value(
-                        value,
-                        &Ty::Struct(contract.element.name.clone()),
-                        function,
-                    );
-                    return (place, Ty::Struct(contract.element.name));
+                        self.fixed_copy_array_element_ptr(arr_val, idx_val, &arr_ty, function);
+                    let value = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(Inst::Load(value.clone(), element));
+                    let value = self.store_copy_aggregate_value(value, &element_ty, function);
+                    return (value, element_ty);
                 }
                 let (elem_ty, gep_elem_type) = match &arr_ty {
                     Ty::Array(et, len) => (*et.clone(), format!("[{} x double]", len)),
@@ -3723,20 +3588,21 @@ impl IrGenerator {
                 let mut element_types = Vec::with_capacity(elements.len());
                 for element in elements {
                     let (value, ty) = self.generate_expression_ir(element, function);
-                    values.push(value);
+                    values.push(self.load_copy_aggregate_value(value, &ty, function));
                     element_types.push(ty);
                 }
-                let contract = match classify_flat_copy_tuple_elements(
+                let contract = match classify_copy_tuple_elements(
                     &element_types,
+                    &self.struct_registry,
                     TupleExecutionContext::AdmittedFunction,
                 ) {
                     TupleContractDisposition::Supported(contract) => contract,
                     _ => unreachable!("checked tuple literal was admitted"),
                 };
                 let tuple_ty = contract.ty();
-                let base = self.allocate_flat_tuple_place(&tuple_ty, function);
+                let base = self.allocate_copy_tuple_place(&tuple_ty, function);
                 for (index, value) in values.into_iter().enumerate() {
-                    let field = self.flat_tuple_field_ptr(base.clone(), &contract, index, function);
+                    let field = self.copy_tuple_field_ptr(base.clone(), &contract, index, function);
                     function.body.push(Inst::Store(field, value));
                 }
                 (base, tuple_ty)
@@ -3746,17 +3612,20 @@ impl IrGenerator {
                 let projection = match classify_tuple_projection(
                     &receiver,
                     index,
+                    &self.struct_registry,
                     TupleExecutionContext::AdmittedFunction,
                 ) {
                     TupleContractDisposition::Supported(contract) => contract,
                     _ => unreachable!("checked tuple projection was admitted"),
                 };
                 let field =
-                    self.flat_tuple_field_ptr(base, &projection.tuple, projection.index, function);
+                    self.copy_tuple_field_ptr(base, &projection.tuple, projection.index, function);
                 let result = Value::Reg(self.next_reg);
                 self.next_reg += 1;
                 function.body.push(Inst::Load(result.clone(), field));
-                (result, projection.element)
+                let element = projection.element;
+                let result = self.store_copy_aggregate_value(result, &element, function);
+                (result, element)
             }
             Expression::FieldAccess { .. }
             | Expression::TupleLiteral(_)
@@ -3995,13 +3864,8 @@ impl IrGenerator {
         // Handle block expression (implicit return) or default return when needed.
         if let Some(expr) = body.expression {
             let (mut return_value, return_ty) = self.generate_expression_ir(expr, &mut function_ir);
-            if matches!(return_ty, Ty::Struct(_)) {
-                return_value = self.load_copy_struct_value(return_value, &mut function_ir);
-            } else if matches!(return_ty, Ty::Array(_, _)) {
-                return_value = self.load_fixed_copy_array_value(return_value, &mut function_ir);
-            } else if matches!(return_ty, Ty::Tuple(_)) {
-                return_value = self.load_flat_tuple_value(return_value, &mut function_ir);
-            }
+            return_value =
+                self.load_copy_aggregate_value(return_value, &return_ty, &mut function_ir);
             function_ir.body.push(Inst::Return(return_value));
         } else if !function_ir
             .body
@@ -4493,9 +4357,13 @@ impl IrGenerator {
             .push((loop_start.clone(), loop_end.clone()));
 
         // User-visible loop variable slot (updated each iteration with current element).
-        let copy_struct_contract = self.struct_registry.copy_struct_contract(&element_ty);
-        let loop_var_ptr = if copy_struct_contract.is_some() {
-            self.allocate_copy_struct_place(&element_ty, current_function)
+        let array_ty = Ty::Array(Box::new(element_ty.clone()), array_len);
+        let copy_element = self
+            .struct_registry
+            .resolve_copy_type(&element_ty)
+            .is_some();
+        let loop_var_ptr = if matches!(element_ty, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
+            self.allocate_copy_aggregate_place(&element_ty, current_function)
         } else {
             let place = Value::Reg(self.next_ptr);
             self.next_ptr += 1;
@@ -4512,7 +4380,7 @@ impl IrGenerator {
             place
         };
         self.symbol_table
-            .insert(variable.clone(), (loop_var_ptr.clone(), element_ty));
+            .insert(variable.clone(), (loop_var_ptr.clone(), element_ty.clone()));
 
         // Internal iteration index.
         let index_ptr = Value::Reg(self.next_ptr);
@@ -4551,15 +4419,11 @@ impl IrGenerator {
 
         // Body: load element at idx, assign loop variable, execute body, idx += 1.
         current_function.body.push(Inst::Label(loop_body));
-        let elem_ptr = if let Some(element) = copy_struct_contract {
-            let contract = crate::struct_contract::CopyStructArrayContract {
-                element,
-                count: array_len,
-            };
-            self.copy_struct_array_element_ptr(
+        let elem_ptr = if copy_element {
+            self.fixed_copy_array_element_ptr(
                 array_ptr.clone(),
                 index_reg.clone(),
-                &contract,
+                &array_ty,
                 current_function,
             )
         } else {

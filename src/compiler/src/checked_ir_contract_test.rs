@@ -319,42 +319,8 @@ fn invalid_ir_cases() -> Vec<InvalidIrCase> {
             ),
         },
         InvalidIrCase {
-            name: "checked function signature rejects a Bool array parameter",
-            expected_fragments: &["unsupported", "checked", "function", "parameter", "Bool"],
-            ir: program_with_checked_definition(
-                "identity",
-                vec![(
-                    "values".to_string(),
-                    LogicalType::Array {
-                        element: Box::new(LogicalType::Bool),
-                        count: 1,
-                    },
-                )],
-                LogicalType::Int,
-                vec![Inst::Return(Value::ImmInt(0))],
-                vec![Inst::Return(Value::ImmInt(0))],
-            ),
-        },
-        InvalidIrCase {
-            name: "checked function signature rejects a nested array result",
-            expected_fragments: &["unsupported", "checked", "function", "return", "Array"],
-            ir: program_with_checked_definition(
-                "identity",
-                Vec::new(),
-                LogicalType::Array {
-                    element: Box::new(LogicalType::Array {
-                        element: Box::new(LogicalType::Int),
-                        count: 1,
-                    }),
-                    count: 1,
-                },
-                vec![Inst::Return(Value::ImmInt(0))],
-                vec![Inst::Return(Value::ImmInt(0))],
-            ),
-        },
-        InvalidIrCase {
             name: "checked function signature rejects a String array parameter",
-            expected_fragments: &["unsupported", "checked", "function", "parameter", "String"],
+            expected_fragments: &["unsupported", "checked", "recursive", "array", "schema"],
             ir: program_with_checked_definition(
                 "identity",
                 vec![(
@@ -1399,7 +1365,8 @@ fn checked_flat_copy_array_function_transport_verifies_value_place_and_count_ide
             Inst::Return(Value::ImmInt(0)),
         ],
     );
-    let llvm = try_generate_code(admitted).expect("checked flat Copy-array transport must verify");
+    let llvm =
+        try_generate_code(admitted).expect("checked recursive Copy-array transport must verify");
     for anchor in [
         "define [2 x double] @identity([2 x double] %aero.arg.values)",
         "load [2 x double], [2 x double]*",
@@ -1485,7 +1452,7 @@ fn checked_flat_copy_array_function_transport_verifies_value_place_and_count_ide
 }
 
 #[test]
-fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage() {
+fn checked_copy_data_array_instructions_verify_schema_count_base_and_storage() {
     let value = copy_struct("Value", vec![LogicalType::Int]);
     let admitted = single_function(
         "main",
@@ -1535,8 +1502,8 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             Inst::Return(Value::Reg(2)),
         ],
     );
-    let llvm = try_generate_code(admitted)
-        .expect("schema-carrying fixed Copy-struct array IR must verify");
+    let llvm =
+        try_generate_code(admitted).expect("schema-carrying fixed Copy-data array IR must verify");
     for anchor in [
         "%aero.struct.Value = type { double }",
         "alloca [2 x %aero.struct.Value]",
@@ -1549,14 +1516,14 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
 
     let invalid = [
         InvalidIrCase {
-            name: "checked Copy-struct array scalar element",
-            expected_fragments: &["unsupported", "array", "element", "Int"],
+            name: "checked Copy-data array unsupported element",
+            expected_fragments: &["unsupported", "array", "element", "String"],
             ir: single_function(
                 "main",
                 vec![
                     Inst::CheckedCopyStructArrayAlloca {
                         result: Value::Reg(0),
-                        element: LogicalType::Int,
+                        element: LogicalType::String,
                         count: 1,
                     },
                     Inst::Return(Value::ImmInt(0)),
@@ -1564,7 +1531,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array empty schema",
+            name: "checked Copy-data array empty struct schema",
             expected_fragments: &["unsupported", "struct", "schema", "Value"],
             ir: single_function(
                 "main",
@@ -1579,7 +1546,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array pointer count mismatch",
+            name: "checked Copy-data array pointer count mismatch",
             expected_fragments: &["metadata", "array", "schema", "count", "mismatch"],
             ir: single_function(
                 "main",
@@ -1601,7 +1568,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array pointer schema mismatch",
+            name: "checked Copy-data array pointer schema mismatch",
             expected_fragments: &["metadata", "array", "schema", "count", "mismatch"],
             ir: single_function(
                 "main",
@@ -1623,7 +1590,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array pointer wrong base",
+            name: "checked Copy-data array pointer wrong base",
             expected_fragments: &["requires", "place", "array", "base"],
             ir: single_function(
                 "main",
@@ -1645,7 +1612,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "legacy GEP cannot address checked Copy-struct array",
+            name: "legacy GEP cannot address checked Copy-data array",
             expected_fragments: &["metadata", "legacy", "getelementptr", "array"],
             ir: single_function(
                 "main",
@@ -1689,7 +1656,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array rejects scalar store",
+            name: "checked Copy-data array rejects scalar store mismatch",
             expected_fragments: &["type", "mismatch", "store", "Struct", "Int"],
             ir: single_function(
                 "main",
@@ -1712,7 +1679,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array rejects Float index",
+            name: "checked Copy-data array rejects Float index",
             expected_fragments: &["type", "mismatch", "index", "Int", "Float"],
             ir: single_function(
                 "main",
@@ -1734,7 +1701,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array rejects constant out-of-bounds index",
+            name: "checked Copy-data array rejects constant out-of-bounds index",
             expected_fragments: &["metadata", "array", "index", "outside", "0..1"],
             ir: single_function(
                 "main",
@@ -1756,7 +1723,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array global schema conflict",
+            name: "checked Copy-data array global schema conflict",
             expected_fragments: &["metadata", "conflicting", "schema", "Value"],
             ir: single_function(
                 "main",
@@ -1776,7 +1743,7 @@ fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage()
             ),
         },
         InvalidIrCase {
-            name: "checked Copy-struct array base use before definition",
+            name: "checked Copy-data array base use before definition",
             expected_fragments: &["place", "use", "before", "definition"],
             ir: single_function(
                 "main",

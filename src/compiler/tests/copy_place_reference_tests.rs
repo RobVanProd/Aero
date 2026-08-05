@@ -344,6 +344,26 @@ fn immutable_copy_place_reference_class_is_complete_checked_and_executable() {
             vec!["define { double, double, i1 } @copy({ double, double, i1 }*"],
         ),
         (
+            "recursive nested tuple reference",
+            "fn read(value: &((int, int), bool)) -> int { let copy = *value; if copy.1 { return (copy.0).1; } 0 } fn main() -> int { let value = ((3, 7), 1 < 2); read(&value) }",
+            vec!["define i32 @read({ { double, double }, i1 }*"],
+        ),
+        (
+            "recursive Bool array reference",
+            "fn read(value: &[bool; 2]) -> int { let copy = *value; if copy[1] { return 1; } 0 } fn main() -> int { let value = [1 > 2, 1 < 2]; read(&value) }",
+            vec!["define i32 @read([2 x i1]*"],
+        ),
+        (
+            "recursive tuple array reference",
+            "fn read(value: &[(int, int); 2]) -> int { let copy = *value; (copy[1]).0 } fn main() -> int { let value = [(1, 2), (3, 4)]; read(&value) }",
+            vec!["define i32 @read([2 x { double, double }]*"],
+        ),
+        (
+            "recursive tuple-field struct reference",
+            "struct PairBox { pair: (int, int) } fn read(value: &PairBox) -> int { let copy = *value; (copy.pair).1 } fn main() -> int { let value = PairBox { pair: (3, 9) }; read(&value) }",
+            vec!["define i32 @read(%aero.struct.PairBox*"],
+        ),
+        (
             "arbitrary reference count order and forwarding",
             "struct Row { value: int } fn inner(left: &Row, bias: int, right: &Row) -> int { (*left).value + (*right).value + bias } fn outer(value: &Row) -> int { let alias = value; inner(alias, 1, value) } fn main() -> int { let row = Row { value: 3 }; let first = &row; let second = &row; outer(first) + (*second).value }",
             vec!["@inner(%aero.struct.Row*", "@outer(%aero.struct.Row*"],
@@ -429,23 +449,8 @@ fn immutable_copy_place_reference_class_is_complete_checked_and_executable() {
             "Expected type",
         ),
         (
-            "nested tuple pointee",
-            "fn bad(value: &((int, int), bool)) -> int { 0 } fn main() -> int { 0 }",
-            "admitted Copy-data",
-        ),
-        (
             "String tuple pointee",
             "fn bad(value: &(int, String)) -> int { 0 } fn main() -> int { 0 }",
-            "admitted Copy-data",
-        ),
-        (
-            "Bool array pointee",
-            "fn bad(value: &[bool; 2]) -> int { 0 } fn main() -> int { 0 }",
-            "admitted Copy-data",
-        ),
-        (
-            "tuple array pointee",
-            "fn bad(value: &[(int, int); 2]) -> int { 0 } fn main() -> int { 0 }",
             "admitted Copy-data",
         ),
         (
@@ -456,11 +461,6 @@ fn immutable_copy_place_reference_class_is_complete_checked_and_executable() {
         (
             "String-field struct pointee",
             "struct Bad { text: String } fn bad(value: &Bad) -> int { 0 } fn main() -> int { 0 }",
-            "admitted Copy-data",
-        ),
-        (
-            "tuple-field struct pointee",
-            "struct Bad { pair: (int, int) } fn bad(value: &Bad) -> int { 0 } fn main() -> int { 0 }",
             "admitted Copy-data",
         ),
         (

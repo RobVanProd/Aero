@@ -245,7 +245,7 @@ enum PlaceType {
         logical_element: Option<LogicalType>,
         physical_element: String,
         count: usize,
-        checked_copy_struct: bool,
+        checked_copy_data: bool,
     },
 }
 
@@ -283,6 +283,30 @@ fn logical_type(type_name: &str) -> Option<LogicalType> {
     }
 }
 
+fn physical_copy_type_hint(logical_type: &LogicalType) -> String {
+    match logical_type {
+        LogicalType::Int | LogicalType::Float => "double".to_string(),
+        LogicalType::Bool => "i1".to_string(),
+        LogicalType::Array { element, count } => {
+            format!("[{count} x {}]", physical_copy_type_hint(element))
+        }
+        LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+        LogicalType::Tuple { elements } => format!(
+            "{{ {} }}",
+            elements
+                .iter()
+                .map(physical_copy_type_hint)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        LogicalType::Void
+        | LogicalType::String
+        | LogicalType::ImmutableReference { .. }
+        | LogicalType::MutableReference { .. }
+        | LogicalType::Enum { .. } => logical_type.to_string(),
+    }
+}
+
 fn valid_symbol(name: &str) -> bool {
     let mut characters = name.chars();
     characters
@@ -292,20 +316,7 @@ fn valid_symbol(name: &str) -> bool {
 }
 
 fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
-    match ty {
-        LogicalType::Int | LogicalType::Float | LogicalType::Bool => true,
-        logical_type @ LogicalType::Struct { .. } => valid_copy_struct_type(logical_type),
-        LogicalType::Array { element, .. } => {
-            matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
-                || valid_copy_struct_type(element)
-        }
-        LogicalType::Tuple { elements } => valid_flat_copy_tuple(elements),
-        LogicalType::Void
-        | LogicalType::String
-        | LogicalType::ImmutableReference { .. }
-        | LogicalType::MutableReference { .. }
-        | LogicalType::Enum { .. } => false,
-    }
+    valid_copy_data_type(ty)
 }
 
 fn valid_mutable_reference_pointee(ty: &LogicalType) -> bool {
@@ -329,28 +340,17 @@ fn valid_enum_schema(schema: &EnumSchema) -> bool {
 }
 
 fn valid_struct_schema(fields: &[LogicalType]) -> bool {
-    !fields.is_empty() && fields.iter().all(valid_copy_struct_field_type)
+    !fields.is_empty() && fields.iter().all(valid_copy_data_type)
 }
 
-fn valid_flat_copy_tuple(elements: &[LogicalType]) -> bool {
-    elements.len() >= 2
-        && elements.iter().all(|element| {
-            matches!(
-                element,
-                LogicalType::Int | LogicalType::Float | LogicalType::Bool
-            )
-        })
-}
-
-fn valid_copy_struct_field_type(logical_type: &LogicalType) -> bool {
+fn valid_copy_data_type(logical_type: &LogicalType) -> bool {
     match logical_type {
         LogicalType::Int | LogicalType::Float | LogicalType::Bool => true,
-        logical_type @ LogicalType::Struct { .. } => valid_copy_struct_type(logical_type),
-        LogicalType::Array { element, .. } => {
-            matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
-                || valid_copy_struct_type(element)
+        LogicalType::Array { element, .. } => valid_copy_data_type(element),
+        LogicalType::Tuple { elements } => {
+            elements.len() >= 2 && elements.iter().all(valid_copy_data_type)
         }
-        LogicalType::Tuple { .. } => false,
+        LogicalType::Struct { name, fields } => valid_symbol(name) && valid_struct_schema(fields),
         LogicalType::Void
         | LogicalType::String
         | LogicalType::ImmutableReference { .. }
@@ -359,28 +359,22 @@ fn valid_copy_struct_field_type(logical_type: &LogicalType) -> bool {
     }
 }
 
-fn valid_copy_struct_type(logical_type: &LogicalType) -> bool {
-    matches!(
-        logical_type,
-        LogicalType::Struct { name, fields }
-            if valid_symbol(name) && valid_struct_schema(fields)
-    )
-}
-
 fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
+    if valid_copy_data_type(logical_type) {
+        return true;
+    }
     match logical_type {
-        LogicalType::Int | LogicalType::Float | LogicalType::Bool => true,
-        logical_type @ LogicalType::Struct { .. } => valid_copy_struct_type(logical_type),
-        LogicalType::Array { element, .. } => {
-            matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
-                || valid_copy_struct_type(element)
-        }
-        LogicalType::Tuple { elements } => valid_flat_copy_tuple(elements),
         LogicalType::Enum { name, variants } => valid_enum_schema(&EnumSchema {
             name: name.clone(),
             variants: variants.clone(),
         }),
-        LogicalType::Void
+        LogicalType::Int
+        | LogicalType::Float
+        | LogicalType::Bool
+        | LogicalType::Array { .. }
+        | LogicalType::Struct { .. }
+        | LogicalType::Tuple { .. }
+        | LogicalType::Void
         | LogicalType::String
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. } => false,
@@ -1118,15 +1112,9 @@ impl<'a> FunctionVerifier<'a> {
                 let place_type = match &place.pointee {
                     LogicalType::Array { element, count } => PlaceType::Array {
                         logical_element: Some((**element).clone()),
-                        physical_element: match element.as_ref() {
-                            LogicalType::Bool => "i1".to_string(),
-                            LogicalType::Struct { name, .. } => {
-                                format!("%aero.struct.{name}")
-                            }
-                            _ => "double".to_string(),
-                        },
+                        physical_element: physical_copy_type_hint(element),
                         count: *count,
-                        checked_copy_struct: matches!(element.as_ref(), LogicalType::Struct { .. }),
+                        checked_copy_data: valid_copy_data_type(element),
                     },
                     ty => PlaceType::Known(ty.clone()),
                 };
@@ -1195,7 +1183,7 @@ impl<'a> FunctionVerifier<'a> {
                             logical_element: hinted_element.cloned(),
                             physical_element: elem_type.clone(),
                             count: *count,
-                            checked_copy_struct: false,
+                            checked_copy_data: false,
                         },
                     );
                     self.place_names.insert(id, None);
@@ -1216,29 +1204,26 @@ impl<'a> FunctionVerifier<'a> {
                             &self.body.name,
                             Some(&block.label),
                             IrVerificationErrorKind::ExpectedPlaceIdentifier(
-                                "checked Copy-struct array alloca",
+                                "checked Copy-data array alloca",
                             ),
                         ));
                     };
-                    if !valid_copy_struct_type(element) {
+                    if !valid_copy_data_type(element) {
                         return Err(IrVerificationError::new(
                             &self.body.name,
                             Some(&block.label),
                             IrVerificationErrorKind::UnsupportedType(format!(
-                                "checked Copy-struct array element `{element}`"
+                                "checked Copy-data array element `{element}`"
                             )),
                         ));
                     }
-                    let LogicalType::Struct { name, .. } = element else {
-                        unreachable!("validated above")
-                    };
                     self.places.insert(
                         id,
                         PlaceType::Array {
                             logical_element: Some(element.clone()),
-                            physical_element: format!("%aero.struct.{name}"),
+                            physical_element: physical_copy_type_hint(element),
                             count: *count,
-                            checked_copy_struct: true,
+                            checked_copy_data: true,
                         },
                     );
                     self.place_names.insert(id, None);
@@ -1360,17 +1345,9 @@ impl<'a> FunctionVerifier<'a> {
                             let place_type = match ty {
                                 LogicalType::Array { element, count } => PlaceType::Array {
                                     logical_element: Some((**element).clone()),
-                                    physical_element: match element.as_ref() {
-                                        LogicalType::Struct { name, .. } => {
-                                            format!("%aero.struct.{name}")
-                                        }
-                                        _ => "double".to_string(),
-                                    },
+                                    physical_element: physical_copy_type_hint(element),
                                     count: *count,
-                                    checked_copy_struct: matches!(
-                                        element.as_ref(),
-                                        LogicalType::Struct { .. }
-                                    ),
+                                    checked_copy_data: true,
                                 },
                                 _ => PlaceType::Known(ty.clone()),
                             };
@@ -1407,30 +1384,16 @@ impl<'a> FunctionVerifier<'a> {
                                     )),
                                 ));
                             }
-                            let place_type = parameter_type.map_or(PlaceType::Numeric, |ty| {
-                                match ty {
+                            let place_type =
+                                parameter_type.map_or(PlaceType::Numeric, |ty| match ty {
                                     LogicalType::Array { element, count } => PlaceType::Array {
-                                        physical_element: match element.as_ref() {
-                                            LogicalType::Int | LogicalType::Float => {
-                                                "double".to_string()
-                                            }
-                                            LogicalType::Struct { name, .. } => {
-                                                format!("%aero.struct.{name}")
-                                            }
-                                            _ => unreachable!(
-                                                "checked signature validation admits only flat executable arrays"
-                                            ),
-                                        },
-                                        checked_copy_struct: matches!(
-                                            element.as_ref(),
-                                            LogicalType::Struct { .. }
-                                        ),
+                                        physical_element: physical_copy_type_hint(element.as_ref()),
+                                        checked_copy_data: true,
                                         logical_element: Some(*element),
                                         count,
                                     },
                                     ty => PlaceType::Known(ty),
-                                }
-                            });
+                                });
                             (place_type, Some(name.clone()))
                         }
                         Inst::AllocaArray {
@@ -1479,7 +1442,7 @@ impl<'a> FunctionVerifier<'a> {
                                         .or_else(|| (elem_type != "double").then_some(element)),
                                     physical_element: elem_type.clone(),
                                     count: *count,
-                                    checked_copy_struct: false,
+                                    checked_copy_data: false,
                                 },
                                 None,
                             )
@@ -1510,7 +1473,7 @@ impl<'a> FunctionVerifier<'a> {
                                 logical_element,
                                 physical_element,
                                 count,
-                                checked_copy_struct,
+                                checked_copy_data,
                                 ..
                             } = base_type
                             else {
@@ -1522,12 +1485,12 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             };
-                            if *checked_copy_struct {
+                            if *checked_copy_data {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(
-                                        "legacy getelementptr cannot address a checked Copy-struct array"
+                                        "legacy getelementptr cannot address a checked Copy-data array"
                                             .to_string(),
                                     ),
                                 ));
@@ -1556,24 +1519,21 @@ impl<'a> FunctionVerifier<'a> {
                             (element_place, None)
                         }
                         Inst::CheckedCopyStructArrayAlloca { element, count, .. } => {
-                            if !valid_copy_struct_type(element) {
+                            if !valid_copy_data_type(element) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::UnsupportedType(format!(
-                                        "checked Copy-struct array element `{element}`"
+                                        "checked Copy-data array element `{element}`"
                                     )),
                                 ));
                             }
-                            let LogicalType::Struct { name, .. } = element else {
-                                unreachable!("validated above")
-                            };
                             (
                                 PlaceType::Array {
                                     logical_element: Some(element.clone()),
-                                    physical_element: format!("%aero.struct.{name}"),
+                                    physical_element: physical_copy_type_hint(element),
                                     count: *count,
-                                    checked_copy_struct: true,
+                                    checked_copy_data: true,
                                 },
                                 None,
                             )
@@ -1584,12 +1544,12 @@ impl<'a> FunctionVerifier<'a> {
                             count,
                             ..
                         } => {
-                            if !valid_copy_struct_type(element) {
+                            if !valid_copy_data_type(element) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::UnsupportedType(format!(
-                                        "checked Copy-struct array element `{element}`"
+                                        "checked Copy-data array element `{element}`"
                                     )),
                                 ));
                             }
@@ -1598,14 +1558,14 @@ impl<'a> FunctionVerifier<'a> {
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::ExpectedPlaceIdentifier(
-                                        "checked Copy-struct array base",
+                                        "checked Copy-data array base",
                                     ),
                                 ));
                             };
                             let Some(PlaceType::Array {
                                 logical_element: Some(actual_element),
                                 count: actual_count,
-                                checked_copy_struct: true,
+                                checked_copy_data: true,
                                 ..
                             }) = self.places.get(&base_id)
                             else {
@@ -1613,7 +1573,7 @@ impl<'a> FunctionVerifier<'a> {
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::ExpectedPlaceIdentifier(
-                                        "checked Copy-struct array base",
+                                        "checked Copy-data array base",
                                     ),
                                 ));
                             };
@@ -1622,7 +1582,7 @@ impl<'a> FunctionVerifier<'a> {
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(
-                                        "checked Copy-struct array element pointer schema/count mismatch"
+                                        "checked Copy-data array element pointer schema/count mismatch"
                                             .to_string(),
                                     ),
                                 ));
@@ -1692,12 +1652,15 @@ impl<'a> FunctionVerifier<'a> {
                             (PlaceType::Known(field_type.clone()), None)
                         }
                         Inst::CheckedTupleAlloca { element_types, .. } => {
-                            if !valid_flat_copy_tuple(element_types) {
+                            let tuple_type = LogicalType::Tuple {
+                                elements: element_types.clone(),
+                            };
+                            if !valid_copy_data_type(&tuple_type) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::UnsupportedType(
-                                        "checked flat tuple schema".to_string(),
+                                        "checked recursive Copy tuple schema".to_string(),
                                     ),
                                 ));
                             }
@@ -1715,12 +1678,15 @@ impl<'a> FunctionVerifier<'a> {
                             field_type,
                             ..
                         } => {
-                            if !valid_flat_copy_tuple(element_types) {
+                            let tuple_type = LogicalType::Tuple {
+                                elements: element_types.clone(),
+                            };
+                            if !valid_copy_data_type(&tuple_type) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::UnsupportedType(
-                                        "checked flat tuple field schema".to_string(),
+                                        "checked recursive Copy tuple field schema".to_string(),
                                     ),
                                 ));
                             }
@@ -2873,28 +2839,28 @@ impl<'a> FunctionVerifier<'a> {
                     } => {
                         let base = self.require_place(
                             base,
-                            "checked Copy-struct array base",
+                            "checked Copy-data array base",
                             block_index,
                             position,
                         )?;
                         if !matches!(
                             self.places.get(&base),
                             Some(PlaceType::Array {
-                                checked_copy_struct: true,
+                                checked_copy_data: true,
                                 ..
                             })
                         ) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::ExpectedPlaceIdentifier(
-                                    "checked Copy-struct array base",
+                                    "checked Copy-data array base",
                                 ),
                             ));
                         }
                         self.require_type(
                             index,
                             &LogicalType::Int,
-                            "checked Copy-struct array element pointer",
+                            "checked Copy-data array element pointer",
                             "index",
                             block_index,
                             position,
@@ -2906,7 +2872,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked Copy-struct array constant index {constant} is outside 0..{count}"
+                                    "checked Copy-data array constant index {constant} is outside 0..{count}"
                                 )),
                             ));
                         }
@@ -3518,15 +3484,24 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
         enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
     ) -> Result<(), IrVerificationError> {
         if let LogicalType::Array { element, .. } = logical_type {
-            return register_type(element, schemas, enum_schemas);
-        }
-        if let LogicalType::Tuple { elements } = logical_type {
-            if !valid_flat_copy_tuple(elements) {
+            if !valid_copy_data_type(logical_type) {
                 return Err(IrVerificationError::new(
                     "<module>",
                     None,
                     IrVerificationErrorKind::UnsupportedType(
-                        "checked flat Copy tuple schema".to_string(),
+                        "checked recursive Copy array schema".to_string(),
+                    ),
+                ));
+            }
+            return register_type(element, schemas, enum_schemas);
+        }
+        if let LogicalType::Tuple { elements } = logical_type {
+            if !valid_copy_data_type(logical_type) {
+                return Err(IrVerificationError::new(
+                    "<module>",
+                    None,
+                    IrVerificationErrorKind::UnsupportedType(
+                        "checked recursive Copy tuple schema".to_string(),
                     ),
                 ));
             }
@@ -5983,6 +5958,26 @@ mod tests {
                 element: Box::new(LogicalType::Float),
                 count: 0,
             },
+            LogicalType::Array {
+                element: Box::new(LogicalType::Array {
+                    element: Box::new(LogicalType::Int),
+                    count: 1,
+                }),
+                count: 1,
+            },
+            LogicalType::Array {
+                element: Box::new(LogicalType::Bool),
+                count: 1,
+            },
+            LogicalType::Tuple {
+                elements: vec![
+                    inner.clone(),
+                    LogicalType::Array {
+                        element: Box::new(LogicalType::Bool),
+                        count: 2,
+                    },
+                ],
+            },
         ];
         verify_ir(function(vec![
             Inst::CheckedStructAlloca {
@@ -6040,14 +6035,14 @@ mod tests {
                 ],
             ),
             (
-                "direct nested array field",
+                "unsupported nested String array field",
                 vec![
                     Inst::CheckedStructAlloca {
                         result: Value::Reg(0),
-                        struct_name: "NestedArray".to_string(),
+                        struct_name: "StringArray".to_string(),
                         field_types: vec![LogicalType::Array {
                             element: Box::new(LogicalType::Array {
-                                element: Box::new(LogicalType::Int),
+                                element: Box::new(LogicalType::String),
                                 count: 1,
                             }),
                             count: 1,
@@ -6057,13 +6052,15 @@ mod tests {
                 ],
             ),
             (
-                "Bool array field",
+                "stored reference array field",
                 vec![
                     Inst::CheckedStructAlloca {
                         result: Value::Reg(0),
-                        struct_name: "BoolArray".to_string(),
+                        struct_name: "ReferenceArray".to_string(),
                         field_types: vec![LogicalType::Array {
-                            element: Box::new(LogicalType::Bool),
+                            element: Box::new(LogicalType::ImmutableReference {
+                                pointee: Box::new(LogicalType::Int),
+                            }),
                             count: 1,
                         }],
                     },
@@ -6100,7 +6097,7 @@ mod tests {
             },
             Inst::Return(Value::ImmInt(0)),
         ]))
-        .expect("one exact flat Copy tuple schema is valid");
+        .expect("one exact recursive Copy tuple schema is valid");
 
         for (label, body) in [
             (

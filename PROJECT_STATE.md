@@ -4,42 +4,48 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 80 `CORE-061` is the locally green implementation candidate for direct
-reassignment of initialized mutable whole-owner places over the exact already-admitted
-Copy-data universe: scalars, flat Copy-scalar tuples, fixed numeric arrays, fixed arrays
-of one exact Copy struct, and finite acyclic Copy structs. The owned-assignment context
-delegates schema identity to the same three-way `copy_place_contract` used by immutable
-and mutable references. Semantic analysis and checked admission no longer retain a
-scalar-versus-aggregate assignment whitelist. The authorized `CORE-061-CLOSURE`
-amendment also closes the remaining closure false-success boundary without adding a
-closure capability.
+Milestone 81 `CORE-062` is the locally green implementation candidate for recursive
+finite Copy-aggregate composition. One shared `StructRegistry` classifier now resolves
+both parsed annotations and semantic types into the least-fixed-point grammar
+`Int | Float | Bool | [CopyData; N] | tuple(CopyData, ...) | finite acyclic named
+struct(CopyData fields)`. It replaces executable scalar/flat-tuple/numeric-array/
+Copy-struct-array topology whitelists across semantic analysis, checked admission,
+Copy-place ownership operations, function transport, independent verification, and
+private LLVM lowering.
 
-Checked IR now uses one exact typed mutable Copy-place owner and one checked Copy-place
-assignment for every admitted scalar or aggregate. The verifier independently proves
-schema, adjacent initialization, exact assignment metadata/RHS type, dominance,
-collision freedom, and active-loan exclusion before private typed LLVM. The exhaustive
-CORE-061 assignment target and local native exit 83 remain green. Closure syntax,
-parameters, body, and opening-pipe location are retained, but every executable closure
-expression now returns one shared source-located unsupported diagnostic in both
-semantic inference paths. Independent checked admission rejects an unanalyzed closure;
-the legacy closure lowerer and its unknown parameter/result-to-`i32` fallbacks are
-removed, and the deprecated raw path creates no callable type, environment, layout,
-symbol, or LLVM function. The focused closure matrix passes 7/7, the complete Rust
-test surface passes at 175/175 library and 181/181 binary tests, and formatting,
-all-target checking, and correctness Clippy are green. The exact amended
-record-inclusive repository-root gate passes, and the tracked assignment program again
-builds and executes locally at exact exit 83. The commit containing this record becomes
-the immutable amended candidate; immediate PR #4 synchronization, all eight public
-checks, and pinned LLVM/Clang 22 evidence remain required before acceptance. Pushed
-`a85f47b` is only an intermediate checkpoint and cannot accept this amended candidate.
+The candidate admits Bool arrays, nested arrays, arrays of tuples, tuples containing
+arrays/tuples/structs, and structs containing every admitted aggregate constructor.
+Exact recursive schema survives inferred and annotated bindings, whole Copy aliases,
+direct owner reassignment, immutable/mutable whole-place references, internal calls and
+returns, forwarding, terminating recursion, dynamic fixed-array indices, chained value
+projection, and flattened direct modules. The verifier independently validates finite
+recursive schemas and corruption controls; LLVM uses exact literal structs, fixed
+arrays, and private identified named structs with no fallback `i32`, pointer/integer
+conversion, or unrelated bitcast. The focused exhaustive target and local native exit
+109 pass. The exact repository-root gate passes rustfmt, all-target/all-feature
+correctness Clippy, 178/178 library tests, 184/184 binary tests, every integration and
+claim target, the 22-active/16-quarantined Phase 5 split, and doc tests. The commit
+containing the complete records becomes the immutable candidate; PR #4 synchronization,
+all eight public checks, and pinned LLVM/Clang 22 external verification, machine
+verification, object/link, and exact exit 109 remain required before acceptance.
 
-Projected assignment targets or borrow origins, String/enums/references/unsupported
-layouts, copying or escaping mutable aliases, mixed/multiple mutable-reference
-signatures, reference results, partial writes, assignment expressions/chaining/compound
-forms, NLL, lifetime inference, drop, stable ABI/FFI, accelerator execution,
-performance, release, stability, and a general memory-safety claim remain excluded.
-Captures, callable ABI, closure transport/storage, lifetime behavior, invocation,
-generic closures, and every other executable closure semantic remain unsupported.
+Unit/unary tuples; String, references as stored data, closures, enums, generics, traits,
+Option/Result/collections, empty/duplicate/unresolved/generic/cyclic structs, dynamic
+arrays/slices, aggregate comparison/destructuring, projected borrow/write, contextual
+coercion, stable ABI/FFI/layout, memory-safety, accelerator, performance, release, and
+stability claims remain excluded. Immutable references remain copyable values for the
+existing ownership model, but references are not recursively stored `CopyData`.
+
+Milestone 80 `CORE-061` is accepted public at exact implementation commit
+`de6fc0d5c503d2dcb03944d58312a130bac1ba05`, tree
+`9ad23f5ad5cff17d3b69fdef31b9a4c7289ade42`, and stable patch ID
+`e358319e7402f345ca414cc57bb18c0414b81cd4`. All eight public checks pass. The pinned
+LLVM/Clang 22 lane externally verifies LLVM, machine-verifies, object-lowers, links,
+and executes exact native exit 83 with 175/175 library and 181/181 binary tests.
+CORE-061 admits direct whole-owner reassignment over its then-frozen Copy-data universe
+and keeps closures parsed-only and fail-closed before checked IR; it does not establish
+projected assignment/borrowing, general lifetimes, stable ABI/FFI, memory safety, or
+positive closure semantics.
 
 Milestone 79 `CORE-060` is accepted public at exact implementation commit
 `7c7a47a471460dfe2276ea63cc4964fa59ad54be`, tree
@@ -308,8 +314,10 @@ composition rather than a module system.
   internal calls. Accepted CORE-058 adds a heterogeneous private product layout;
   accepted CORE-059 generalizes immutable provenance over all admitted Copy-data;
   accepted CORE-060 takes whole-place mutable aggregate provenance and replacement;
-  CORE-061 now unifies direct scalar/aggregate whole-owner mutation rather than taking
-  another convenient compile-time leaf. Deeper CFG
+  accepted CORE-061 unifies direct scalar/aggregate whole-owner mutation, and CORE-062
+  removes the combinatorial aggregate-topology whitelists by taking recursive layout,
+  function transport, verification, and native execution rather than another convenient
+  compile-time leaf. Deeper CFG
   ownership, runtime representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -353,10 +361,12 @@ composition rather than a module system.
   recursive structs, tuples, numeric arrays, Copy-struct arrays, calls, recursion, and
   modules. CORE-060's accepted exit-59 gate adds exclusive whole-place mutable loans,
   aggregate writes and reads, child reborrows, exact checked schemas, and native
-  execution. CORE-061's candidate exit-83 gate composes direct mutable whole-owner
+  execution. CORE-061's accepted exit-83 gate composes direct mutable whole-owner
   replacement across scalars, tuples, arrays, recursive structs, borrow boundaries,
-  CFG, calls, enums, Strings, and direct modules under one checked place/write identity;
-  pinned public acceptance remains mandatory.
+  CFG, calls, enums, Strings, and direct modules under one checked place/write identity.
+  CORE-062's candidate exit-109 gate composes recursive arrays, tuples, and named structs
+  through source, semantics, checked IR, independent verification, LLVM, direct modules,
+  ownership operations, and native execution; pinned public acceptance remains mandatory.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -1950,14 +1960,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve the exact amended record-inclusive repository-root pass, freeze one immutable
-CORE-061 candidate identity in the commit containing this record, push once, and
-immediately resynchronize draft PR #4 to the exact candidate head and current diff
-size. Require all eight checks plus
-pinned LLVM/Clang 22 native exit 83 and the closure no-artifact controls before
-acceptance. Keep the PR draft and unmerged. Then choose the next hard capability
-separately; the controlled mega-PR checkpoint strategy and structured evidence-
-manifest generator remain separate tasks.
+Preserve the exact record-inclusive repository-root pass, freeze one immutable CORE-062
+candidate identity in the commit containing this record, push once, and immediately
+resynchronize draft PR #4 to the exact candidate head, milestone, test totals, and diff
+size. Require all eight checks plus pinned LLVM/Clang 22 external verification, machine
+verification, object/link, and exact native exit 109 before acceptance. Keep the PR
+draft and unmerged. Then choose the next hard capability separately; the controlled
+mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
+tasks, and periodic multi-capability system gates remain mandatory.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.
 

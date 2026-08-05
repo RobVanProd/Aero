@@ -176,6 +176,10 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
         ("complete executable example", EXAMPLE),
         ("content/provenance product", CONTENT_AND_PROVENANCE),
         ("Bool placement/traversal product", BOOL_POSITIONS),
+        (
+            "String equality result stored in recursive Bool array",
+            "fn main() -> int { let values = [\"a\" == \"a\"]; if values[0] { return 41; } 2 }",
+        ),
         ("legacy top-level statement route", LEGACY_TOP_LEVEL),
     ] {
         expect_acceptance(
@@ -356,11 +360,6 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
             "fn main() { let same = (\"a\" + \"b\") == \"ab\"; }",
             "binary expression is not an admitted scalar",
         ),
-        (
-            "Bool array remains excluded",
-            "fn main() { let values = [\"a\" == \"a\"]; }",
-            "only fixed numeric arrays are admitted",
-        ),
     ] {
         expect_exact_rejection(
             &mut failures,
@@ -403,14 +402,6 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
             "zero-count array annotation",
             "fn main() { let text: [int; 0] = \"a\"; let same = text == \"a\"; }",
         ),
-        (
-            "nested array annotation",
-            "fn main() { let text: [[int; 1]; 1] = \"a\"; let same = text == \"a\"; }",
-        ),
-        (
-            "array-around-reference annotation",
-            "fn main() { let text: [&String; 0] = \"a\"; let same = text == \"a\"; }",
-        ),
     ] {
         expect_acceptance(
             &mut failures,
@@ -428,6 +419,40 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
             &format!("{label} public provenance quarantine"),
             compile_program(source, CompilerOptions::default()),
             PUBLIC_EXISTING_COMPARISON_REJECTION,
+        );
+    }
+
+    for (label, source, semantic, public) in [
+        (
+            "nested array annotation",
+            "fn main() { let text: [[int; 1]; 1] = \"a\"; let same = text == \"a\"; }",
+            "fixed Copy-data array annotation mismatch: expected [[int; 1]; 1], actual String",
+            "Semantic Analysis Error: fixed Copy-data array annotation mismatch: expected [[int; 1]; 1], actual String",
+        ),
+        (
+            "array-around-reference annotation",
+            "fn main() { let text: [&String; 0] = \"a\"; let same = text == \"a\"; }",
+            "fixed Copy-data array annotation mismatch: expected array[0], actual String",
+            "Semantic Analysis Error: fixed Copy-data array annotation mismatch: expected array[0], actual String",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} shared semantic mismatch"),
+            analyzed(source),
+            semantic,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked mismatch precedence"),
+            checked_source(source),
+            semantic,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} public mismatch precedence"),
+            compile_program(source, CompilerOptions::default()),
+            public,
         );
     }
 

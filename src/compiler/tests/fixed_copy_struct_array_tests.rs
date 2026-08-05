@@ -263,6 +263,14 @@ fn fixed_copy_struct_array_class_is_complete_and_executable() {
             "struct-bearing function contains local arrays without array ABI",
             "struct Value { field: int } fn inspect(value: Value) -> Value { let values = [value; 2]; return values[1]; } fn main() -> int { return inspect(Value { field: 13 }).field; }",
         ),
+        (
+            "dynamic source index remains admitted for recursive CopyData arrays",
+            "struct Value { field: int } fn main() -> int { let values = [Value { field: 17 }]; let index = 0; let item = values[index]; item.field }",
+        ),
+        (
+            "nested fixed struct array is recursive CopyData",
+            "struct Value { field: int } fn main() -> int { let values = [[Value { field: 19 }]]; values[0][0].field }",
+        ),
     ] {
         failures.extend(expect_success(
             label,
@@ -275,32 +283,27 @@ fn fixed_copy_struct_array_class_is_complete_and_executable() {
         (
             "heterogeneous exact struct names",
             "struct Left { field: int } struct Right { field: int } fn main() { let values = [Left { field: 1 }, Right { field: 2 }]; }",
-            "fixed Copy-struct arrays require one exact element type",
+            "array element type mismatch: expected Left, actual Right",
         ),
         (
             "annotation struct-name mismatch",
             "struct Left { field: int } struct Right { field: int } fn main() { let values: [Left; 1] = [Right { field: 1 }]; }",
-            "fixed Copy-struct array annotation mismatch",
+            "fixed Copy-data array annotation mismatch: expected [Left; 1], actual [Right; 1]",
         ),
         (
             "annotation count mismatch",
             "struct Value { field: int } fn main() { let values: [Value; 1] = [Value { field: 1 }, Value { field: 2 }]; }",
-            "fixed Copy-struct array annotation mismatch",
-        ),
-        (
-            "dynamic source index",
-            "struct Value { field: int } fn main() { let values = [Value { field: 1 }]; let index = 0; let item = values[index]; }",
-            "fixed Copy-struct array index must be a compile-time integer constant",
+            "fixed Copy-data array annotation mismatch: expected [Value; 1], actual [Value; 2]",
         ),
         (
             "negative source index",
             "struct Value { field: int } fn main() { let values = [Value { field: 1 }]; let item = values[-1]; }",
-            "fixed Copy-struct array index -1 is outside 0..1",
+            "fixed Copy-data array index -1 is outside 0..1",
         ),
         (
             "out-of-range source index",
             "struct Value { field: int } fn main() { let values = [Value { field: 1 }]; let item = values[1]; }",
-            "fixed Copy-struct array index 1 is outside 0..1",
+            "fixed Copy-data array index 1 is outside 0..1",
         ),
         (
             "typed empty source index",
@@ -316,11 +319,6 @@ fn fixed_copy_struct_array_class_is_complete_and_executable() {
             "String-bearing struct remains excluded",
             "struct Value { field: String } fn main() { let values = [Value { field: \"x\" }]; }",
             "Struct construction expressions are not supported.",
-        ),
-        (
-            "nested fixed array remains excluded",
-            "struct Value { field: int } fn main() { let values = [[Value { field: 1 }]]; }",
-            "only fixed numeric arrays are admitted",
         ),
         (
             "generic function context remains excluded",
@@ -426,7 +424,7 @@ fn fixed_copy_struct_array_class_is_complete_and_executable() {
     let invalid_artifact = invalid_workspace.path("program.ll");
     fs::write(
         &invalid_source,
-        "struct Value { field: int } fn main() { let values = [Value { field: 1 }]; let index = 0; let item = values[index]; }",
+        "struct Value { field: int } fn main() { let values = [Value { field: 1 }]; let item = values[1]; }",
     )
     .expect("write invalid fixed Copy-struct array source");
     let invalid_build = run_cli(

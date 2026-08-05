@@ -2704,3 +2704,48 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   remain separately authorized. The current composed native gate remains mandatory,
   and future selection must not avoid harder ownership/module/ABI/GPU work in favor of
   convenient bounded leaves.
+
+## DEC-058 - Classify finite CopyData composition by one recursive contract
+
+- Date: 2026-08-05
+- Status: locally green CORE-062 implementation candidate; immutable commit identity,
+  PR #4 synchronization, all eight public checks, and pinned LLVM/Clang 22 native exit
+  109 remain pending. DEC-056/057 and CORE-061 are accepted public at `de6fc0d`.
+- Decision: define executable `CopyData` as the least fixed point of `Int`, `Float`,
+  `Bool`, fixed arrays of CopyData at any parsed count, tuples with at least two ordered
+  CopyData elements, and unique nongeneric nonempty named structs whose declaration-
+  ordered fields are CopyData and whose named dependency graph is finite and acyclic.
+  Exact count, tuple order/arity, struct identity, and recursive field schema are type
+  identity. One immutable registry-backed classifier resolves both `Type` and `Ty` and
+  supplies exact `LogicalType`.
+- Composition: inferred/exact bindings, literals and typed empty arrays, whole copies,
+  direct mutable-owner reassignment, immutable/mutable whole-place references, exact
+  internal parameters/results/calls/forwarding/terminating recursion, dynamic fixed-
+  array indices, chained value projection, and flattened direct modules consume this
+  contract. Immutable references remain copyable for established ownership tracking,
+  but references are not stored CopyData.
+- IR/backend: checked IR retains recursive schema for storage, function transport, and
+  field/tuple/index places. The verifier independently proves finite valid schemas,
+  exact construction/member/call/store identity, named-schema consistency, dominance,
+  and corruption controls. LLVM recursively lowers literal tuples, fixed arrays, and
+  private identified structs without fallback `i32`, pointer/integer conversion, or
+  unrelated bitcast.
+- Exclusions: unit/unary tuples; String/references/functions/closures/enums/generics/
+  traits/Option/Result/collections as stored data; empty/duplicate/unresolved/generic/
+  cyclic structs; dynamic arrays/slices; aggregate comparison/destructuring; projected
+  borrow/write; contextual coercion; public layout/ABI/FFI; lifetime/drop/memory-safety;
+  accelerator/performance/release/stability claims remain unsupported or separately
+  governed.
+- Evidence gate: the exhaustive target covers every immediate constructor pairing and
+  the complete source product, fail-closed negatives, direct modules, checked metadata,
+  verifier corruptions, deterministic LLVM, CLI artifact hygiene, and native exit 109.
+  The local exact root gate passes 178/178 library and 184/184 binary tests, every
+  integration/claim target, Phase 5 controls, and docs. Public acceptance still requires
+  the immutable pushed identity, all eight checks, and LLVM/Clang 22 external/machine
+  verification, object/link, and exact exit 109.
+- Scaling boundary: this task directly addresses combinatorial aggregate topology rules
+  through one shared classification without broadening unrelated semantics. PR #4 stays
+  draft and unmerged; controlled checkpoint/merge strategy and structured evidence-
+  manifest generation remain separate work. Hard ownership/module/runtime/accelerator
+  classes must not be deferred indefinitely, and periodic source-to-native system gates
+  remain mandatory.

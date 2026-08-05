@@ -287,12 +287,12 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
         (
             "String array receiver",
             "fn main() { let values = [\"a\", \"b\"]; let observed = values.len(); }",
-            "only fixed numeric arrays are admitted",
+            "fixed arrays require recursively admitted Copy-data elements",
         ),
         (
             "nested array receiver",
             "fn main() { let values = [[1], [2]]; let observed = values.len(); }",
-            "only fixed numeric arrays are admitted",
+            "method calls other than exact zero-argument array/Vec .iter() are not admitted",
         ),
     ] {
         expect_rejection_fragments(
@@ -368,13 +368,13 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
         &mut failures,
         "direct checked heterogeneous receiver is not trusted",
         checked_parsed_source("fn main() { let values = [1, 2.0]; let observed = values.len(); }"),
-        "fixed numeric arrays must have homogeneous element types in checked IR",
+        "Error: array element type mismatch: expected int, actual float.",
     );
     expect_exact_rejection(
         &mut failures,
         "homogeneity is enforced at the checked array boundary",
         checked_parsed_source("fn main() { let values = [1, 2.0]; }"),
-        "fixed numeric arrays must have homogeneous element types in checked IR",
+        "Error: array element type mismatch: expected int, actual float.",
     );
     expect_exact_rejection(
         &mut failures,
@@ -386,7 +386,7 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
         &mut failures,
         "nonnumeric receiver child rejection keeps earlier precedence",
         checked_parsed_source("fn main() { let observed = [1, \"a\", missing_value].len(); }"),
-        "only fixed numeric arrays are admitted",
+        "checked IR has no binding for `missing_value`",
     );
 
     let out_of_range = static_len(

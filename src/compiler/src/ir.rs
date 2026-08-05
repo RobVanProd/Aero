@@ -227,14 +227,15 @@ pub enum Inst {
         index: Value,      // element index
         elem_type: String, // LLVM element type
     },
-    /// Verified storage for a fixed array whose element is an admitted
-    /// all-component-Copy struct.
+    /// Verified storage for a fixed array whose element is recursively admitted
+    /// Copy data. The legacy variant name is retained for checked-IR compatibility;
+    /// validity is defined by the recursive schema, not by a struct-only guard.
     CheckedCopyStructArrayAlloca {
         result: Value,
         element: LogicalType,
         count: usize,
     },
-    /// Verified pointer to one element in a CheckedCopyStructArrayAlloca place.
+    /// Verified pointer to one element in a recursively checked fixed-array place.
     CheckedCopyStructArrayElementPtr {
         result: Value,
         base: Value,
@@ -252,7 +253,7 @@ pub enum Inst {
         field_index: u32,    // field index
         struct_type: String, // LLVM struct type name
     },
-    /// Verified storage for a source-admitted monomorphic scalar struct.
+    /// Verified storage for a source-admitted finite recursive Copy struct.
     CheckedStructAlloca {
         result: Value,
         struct_name: String,
@@ -266,7 +267,7 @@ pub enum Inst {
         field_index: u32,
         field_type: LogicalType,
     },
-    /// Verified storage for one admitted flat heterogeneous Copy-scalar tuple.
+    /// Verified storage for one admitted recursive heterogeneous Copy tuple.
     CheckedTupleAlloca {
         result: Value,
         element_types: Vec<LogicalType>,

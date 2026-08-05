@@ -255,6 +255,16 @@ fn fixed_copy_array_transport_class_is_complete_and_executable() {
             "struct Value { field: int } fn identity(values: [Value; 1]) -> [Value; 1] { values } fn main() -> int { return identity([Value { field: 7 }])[0].field; }",
             "[1 x %aero.struct.Value]",
         ),
+        (
+            "recursive Bool array transport",
+            "fn identity(values: [bool; 1]) -> [bool; 1] { values } fn main() -> int { let values = identity([1 < 2]); if values[0] { return 1; } 0 }",
+            "[1 x i1]",
+        ),
+        (
+            "recursive nested array transport",
+            "fn identity(values: [[int; 1]; 1]) -> [[int; 1]; 1] { values } fn main() -> int { let values = identity([[7]]); values[0][0] }",
+            "[1 x [1 x double]]",
+        ),
     ] {
         failures.extend(expect_success(
             label,
@@ -288,16 +298,6 @@ fn fixed_copy_array_transport_class_is_complete_and_executable() {
             "return exact struct mismatch",
             "struct Left { field: int } struct Right { field: int } fn make() -> [Left; 1] { return [Right { field: 1 }]; } fn main() -> int { return 0; }",
             "return type mismatch: expected [Left; 1], actual [Right; 1]",
-        ),
-        (
-            "Bool arrays are not existing executable fixed arrays",
-            "fn take(values: [bool; 1]) -> int { return 0; } fn main() -> int { return 0; }",
-            "function parameter `values` uses an unsupported fixed-array element type",
-        ),
-        (
-            "nested arrays remain excluded",
-            "fn take(values: [[int; 1]; 1]) -> int { return 0; } fn main() -> int { return 0; }",
-            "function parameter `values` uses an unsupported fixed-array element type",
         ),
         (
             "String arrays remain excluded",

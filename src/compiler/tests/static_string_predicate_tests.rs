@@ -507,14 +507,6 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
             "zero-count array argument annotation",
             "let text: [int; 0] = \"a\";",
         ),
-        (
-            "nested array argument annotation",
-            "let text: [[int; 1]; 1] = \"a\";",
-        ),
-        (
-            "array-around-reference argument annotation",
-            "let text: [&String; 0] = \"a\";",
-        ),
     ] {
         let source = format!("fn main() {{ {binding} let found = \"a\".contains(text); }}");
         expect_acceptance(
@@ -569,14 +561,6 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
             "zero-count array annotation",
             "fn main() { let text: [int; 0] = \"a\"; let found = text.contains(\"a\"); }",
         ),
-        (
-            "nested array annotation",
-            "fn main() { let text: [[int; 1]; 1] = \"a\"; let found = text.contains(\"a\"); }",
-        ),
-        (
-            "array-around-reference annotation",
-            "fn main() { let text: [&String; 0] = \"a\"; let found = text.contains(\"a\"); }",
-        ),
     ] {
         expect_acceptance(
             &mut failures,
@@ -594,6 +578,52 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
             &format!("{label} public provenance quarantine"),
             compile_program(source, CompilerOptions::default()),
             PUBLIC_EXISTING_METHOD_REJECTION,
+        );
+    }
+
+    for (label, source, semantic, public) in [
+        (
+            "nested array argument annotation",
+            "fn main() { let text: [[int; 1]; 1] = \"a\"; let found = \"a\".contains(text); }",
+            "fixed Copy-data array annotation mismatch: expected [[int; 1]; 1], actual String",
+            "Semantic Analysis Error: fixed Copy-data array annotation mismatch: expected [[int; 1]; 1], actual String",
+        ),
+        (
+            "array-around-reference argument annotation",
+            "fn main() { let text: [&String; 0] = \"a\"; let found = \"a\".contains(text); }",
+            "fixed Copy-data array annotation mismatch: expected array[0], actual String",
+            "Semantic Analysis Error: fixed Copy-data array annotation mismatch: expected array[0], actual String",
+        ),
+        (
+            "nested array receiver annotation",
+            "fn main() { let text: [[int; 1]; 1] = \"a\"; let found = text.contains(\"a\"); }",
+            "fixed Copy-data array annotation mismatch: expected [[int; 1]; 1], actual String",
+            "Semantic Analysis Error: fixed Copy-data array annotation mismatch: expected [[int; 1]; 1], actual String",
+        ),
+        (
+            "array-around-reference receiver annotation",
+            "fn main() { let text: [&String; 0] = \"a\"; let found = text.contains(\"a\"); }",
+            "fixed Copy-data array annotation mismatch: expected array[0], actual String",
+            "Semantic Analysis Error: fixed Copy-data array annotation mismatch: expected array[0], actual String",
+        ),
+    ] {
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} shared semantic mismatch"),
+            analyzed(source),
+            semantic,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} checked mismatch precedence"),
+            checked_source(source),
+            semantic,
+        );
+        expect_exact_rejection(
+            &mut failures,
+            &format!("{label} public mismatch precedence"),
+            compile_program(source, CompilerOptions::default()),
+            public,
         );
     }
 

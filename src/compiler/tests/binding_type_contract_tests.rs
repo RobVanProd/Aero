@@ -1119,14 +1119,14 @@ fn initialized_immediate_reference_to_tuple_annotations_fail_closed_after_value_
         (
             "initialized immediate array-to-tuple",
             "fn main() { let value: [(int, float); 1] = 1; }",
-            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding.",
-            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding",
+            "fixed Copy-data array annotation mismatch: expected [(int, float); 1], actual int",
+            "fixed Copy-data array annotation mismatch: expected [(int, float); 1], actual int",
         ),
         (
             "initialized two-array-to-tuple",
             "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
-            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.",
-            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding",
+            "fixed Copy-data array annotation mismatch: expected [[(int, float); 1]; 1], actual int",
+            "fixed Copy-data array annotation mismatch: expected [[(int, float); 1]; 1], actual int",
         ),
     ] {
         expect_exact_rejection(
@@ -1176,10 +1176,6 @@ fn initialized_immediate_reference_to_tuple_annotations_fail_closed_after_value_
             "fn main() { let value: &mut &(int, float) = 1; }",
         ),
         (
-            "array around reference",
-            "fn main() { let value: [&(int, float); 1] = 1; }",
-        ),
-        (
             "generic wrapper",
             "fn main() { let value: Vec<(int, float)> = 1; }",
         ),
@@ -1201,6 +1197,23 @@ fn initialized_immediate_reference_to_tuple_annotations_fail_closed_after_value_
             &mut failures,
             &format!("{label} checked admission"),
             checked_source(source),
+        );
+    }
+    for (label, result) in [
+        (
+            "array around reference semantics",
+            semantic_result("fn main() { let value: [&(int, float); 1] = 1; }"),
+        ),
+        (
+            "array around reference checked admission",
+            checked_source("fn main() { let value: [&(int, float); 1] = 1; }"),
+        ),
+    ] {
+        expect_rejection(
+            &mut failures,
+            label,
+            result,
+            &["Copy-data array annotation mismatch"],
         );
     }
 
@@ -1464,14 +1477,14 @@ fn initialized_positive_count_reference_array_tuple_annotations_fail_closed_afte
         (
             "initialized immediate array-to-tuple",
             "fn main() { let value: [(int, float); 1] = 1; }",
-            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding.",
-            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding",
+            "fixed Copy-data array annotation mismatch: expected [(int, float); 1], actual int",
+            "fixed Copy-data array annotation mismatch: expected [(int, float); 1], actual int",
         ),
         (
             "initialized two-array-to-tuple",
             "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
-            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.",
-            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding",
+            "fixed Copy-data array annotation mismatch: expected [[(int, float); 1]; 1], actual int",
+            "fixed Copy-data array annotation mismatch: expected [[(int, float); 1]; 1], actual int",
         ),
         (
             "initialized immediate reference-to-tuple",
@@ -1531,10 +1544,6 @@ fn initialized_positive_count_reference_array_tuple_annotations_fail_closed_afte
             "fn main() { let value: &mut [int; 1] = [1]; }",
         ),
         (
-            "array around reference",
-            "fn main() { let value: [&(int, float); 1] = 1; }",
-        ),
-        (
             "double reference",
             "fn main() { let value: & &(int, float) = 1; }",
         ),
@@ -1556,6 +1565,23 @@ fn initialized_positive_count_reference_array_tuple_annotations_fail_closed_afte
             &mut failures,
             &format!("{label} checked admission"),
             checked_source(source),
+        );
+    }
+    for (label, result) in [
+        (
+            "array around reference semantics",
+            semantic_result("fn main() { let value: [&(int, float); 1] = 1; }"),
+        ),
+        (
+            "array around reference checked admission",
+            checked_source("fn main() { let value: [&(int, float); 1] = 1; }"),
+        ),
+    ] {
+        expect_rejection(
+            &mut failures,
+            label,
+            result,
+            &["Copy-data array annotation mismatch"],
         );
     }
 
@@ -2048,152 +2074,61 @@ fn valueless_immediate_array_of_tuple_annotation_fails_closed_before_integer_fal
 }
 
 #[test]
-fn initialized_immediate_array_of_tuple_annotation_fails_closed_after_value_validation() {
-    const NONZERO_SOURCE: &str = "fn main() { let value: [(int, float); 1] = [1]; }";
-    const ZERO_SOURCE: &str = "fn main() { let value: [(int, float); 0] = 1; }";
-    const PUBLIC_SOURCE: &str = "fn main() { let value: [(int, float); 1] = 1; }";
-    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding.";
-    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding";
-    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding.";
+fn initialized_array_of_recursive_tuple_annotation_uses_shared_copy_data_contract() {
+    const EXACT: &str = "fn main() { let value: [(int, float); 1] = [(1, 2.0)]; let item = value[0]; let scalar = item.0; }";
+    const MISMATCH: &str = "fn main() { let value: [(int, float); 1] = [1]; }";
+    const UNINITIALIZED: &str = "fn main() { let value: [(int, float); 1]; }";
 
     let mut failures = Vec::new();
-    for (label, source) in [
-        ("nonzero count", NONZERO_SOURCE),
-        ("zero count", ZERO_SOURCE),
+    expect_acceptance(
+        &mut failures,
+        "exact tuple-array semantics",
+        semantic_result(EXACT),
+    );
+    expect_acceptance(
+        &mut failures,
+        "exact tuple-array checked IR",
+        checked_source(EXACT),
+    );
+    expect_acceptance(
+        &mut failures,
+        "exact tuple-array public compile",
+        compile_program(EXACT, CompilerOptions::default()).map(|_| ()),
+    );
+    for (label, result) in [
+        ("mismatch semantics", semantic_result(MISMATCH)),
+        ("mismatch checked IR", checked_source(MISMATCH)),
     ] {
-        expect_exact_rejection(
+        expect_rejection(
             &mut failures,
-            &format!("{label} direct semantics"),
-            semantic_result(source),
-            SEMANTIC_ERROR,
-        );
-        expect_exact_rejection(
-            &mut failures,
-            &format!("{label} checked admission"),
-            checked_source(source),
-            CHECKED_ERROR,
+            label,
+            result,
+            &["Copy-data array annotation mismatch", "(int, float)"],
         );
     }
-
-    let public_result = match catch_unwind(AssertUnwindSafe(|| {
-        compile_program(PUBLIC_SOURCE, CompilerOptions::default())
-    })) {
-        Err(_) => Err("compile_program unwound".to_string()),
-        Ok(Ok(_)) => Ok(()),
-        Ok(Err(error)) => Err(error),
-    };
-    expect_exact_rejection(
-        &mut failures,
-        "public compilation",
-        public_result,
-        PUBLIC_ERROR,
-    );
-
-    let generic_impl = generic_impl_with(binding(
-        "value",
-        Some(Type::Array(
-            Box::new(Type::Tuple(vec![
-                Type::Named("int".to_string()),
-                Type::Named("float".to_string()),
-            ])),
-            1,
-        )),
-        Expression::IntegerLiteral(1),
-    ));
-    let generic_semantics = {
-        let mut analyzer = SemanticAnalyzer::new();
-        analyzer.analyze(generic_impl.clone()).map(|_| ())
-    };
-    expect_exact_rejection(
-        &mut failures,
-        "generic impl direct semantics",
-        generic_semantics,
-        SEMANTIC_ERROR,
-    );
-    expect_exact_rejection(
-        &mut failures,
-        "generic impl checked admission",
-        checked_ast(generic_impl),
-        CHECKED_ERROR,
-    );
-
-    const GENERIC_FUNCTION_SOURCE: &str = "fn probe<T>() { let value: [(int, float); 1] = 1; }";
-    expect_exact_rejection(
-        &mut failures,
-        "generic function direct semantics",
-        semantic_result(GENERIC_FUNCTION_SOURCE),
-        SEMANTIC_ERROR,
-    );
     expect_rejection(
         &mut failures,
-        "generic function checked admission retains outer rejection",
-        checked_source(GENERIC_FUNCTION_SOURCE),
-        &["generic function IR is not admitted"],
+        "uninitialized tuple-array remains quarantined",
+        semantic_result(UNINITIALIZED),
+        &["uninitialized binding"],
     );
-
     expect_exact_rejection(
         &mut failures,
         "duplicate semantic precedence",
-        semantic_result("fn main() { let value = 1; let value: [(int, float); 1] = 1; }"),
+        semantic_result("fn main() { let value = 1; let value: [(int, float); 1] = [1]; }"),
         "Error: Variable `value` is already defined in this scope.",
     );
-    expect_exact_rejection(
-        &mut failures,
-        "tuple RHS semantic preserved annotation topology",
-        semantic_result("fn main() { let value: [(int, float); 1] = (1, 2); }"),
-        SEMANTIC_ERROR,
-    );
-    expect_exact_rejection(
-        &mut failures,
-        "tuple RHS checked preserved annotation topology",
-        checked_source("fn main() { let value: [(int, float); 1] = (1, 2); }"),
-        CHECKED_ERROR,
-    );
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
 
-    for (label, source, semantic_error, checked_error) in [
-        (
-            "initialized outer tuple",
-            "fn main() { let value: (int, float) = 1; }",
-            "Error: Variable `value` uses an unsupported tuple type annotation for an initialized binding.",
-            "checked IR binding `value` uses an unsupported tuple type annotation for an initialized binding",
-        ),
-        (
-            "valueless immediate array-to-tuple",
-            "fn main() { let value: [(int, float); 1]; }",
-            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding.",
-            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding",
-        ),
-        (
-            "valueless two-array-deep tuple",
-            "fn main() { let value: [[(int, float); 1]; 1]; }",
-            "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding.",
-            "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding",
-        ),
-    ] {
-        expect_exact_rejection(
-            &mut failures,
-            &format!("accepted {label} semantic diagnostic"),
-            semantic_result(source),
-            semantic_error,
-        );
-        expect_exact_rejection(
-            &mut failures,
-            &format!("accepted {label} checked diagnostic"),
-            checked_source(source),
-            checked_error,
-        );
-    }
+#[test]
+fn initialized_nested_array_of_recursive_tuple_annotation_is_depth_agnostic() {
+    const EXACT: &str = "fn main() { let value: [[(int, float); 1]; 1] = [[(1, 2.0)]]; let scalar = (value[0][0]).0; }";
+    const THREE_DEEP: &str = "fn main() { let value: [[[(int, float); 1]; 1]; 1] = [[[(1, 2.0)]]]; let scalar = (value[0][0][0]).0; }";
+    const MISMATCH: &str = "fn main() { let value: [[(int, float); 1]; 1] = [[(1, 2)]]; }";
 
-    for (label, source) in [
-        (
-            "Candidate T valueless three-array depth",
-            "fn main() { let value: [[[(int, float); 1]; 1]; 1]; }",
-        ),
-        (
-            "initialized generic wrapper",
-            "fn main() { let value: Vec<(int, float)> = 1; }",
-        ),
-    ] {
+    let mut failures = Vec::new();
+    for (label, source) in [("two-deep", EXACT), ("three-deep", THREE_DEEP)] {
         expect_acceptance(
             &mut failures,
             &format!("{label} semantics"),
@@ -2201,165 +2136,22 @@ fn initialized_immediate_array_of_tuple_annotation_fails_closed_after_value_vali
         );
         expect_acceptance(
             &mut failures,
-            &format!("{label} checked admission"),
+            &format!("{label} checked IR"),
             checked_source(source),
         );
     }
-
-    let valid_result = match catch_unwind(AssertUnwindSafe(|| {
-        compile_program(
-            "fn main() { let values: [int; 1] = [1]; let first = values[0]; println!(\"{}\", first); }",
-            CompilerOptions::default(),
-        )
-    })) {
-        Err(_) => Err("valid compile_program unwound".to_string()),
-        Ok(Ok(llvm)) if llvm.is_empty() => {
-            Err("valid compile_program returned empty LLVM".to_string())
-        }
-        Ok(Ok(_)) => Ok(()),
-        Ok(Err(error)) => Err(error),
-    };
-    expect_acceptance(&mut failures, "valid numeric-array output", valid_result);
-
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
-}
-
-#[test]
-fn initialized_immediate_array_of_array_of_tuple_annotation_fails_closed_after_value_validation() {
-    const SEMANTIC_ERROR: &str = "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.";
-    const CHECKED_ERROR: &str = "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding";
-    const PUBLIC_ERROR: &str = "Semantic Analysis Error: Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.";
-
-    let mut failures = Vec::new();
-    for (label, source) in [
-        (
-            "zero outer and zero inner counts",
-            "fn main() { let value: [[(int, float); 0]; 0] = 1; }",
-        ),
-        (
-            "nonzero outer and zero inner counts",
-            "fn main() { let value: [[(int, float); 0]; 1] = 1; }",
-        ),
-        (
-            "zero outer and nonzero inner counts",
-            "fn main() { let value: [[(int, float); 1]; 0] = 1; }",
-        ),
-        (
-            "nonzero outer and nonzero inner counts",
-            "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
-        ),
-    ] {
-        expect_exact_rejection(
-            &mut failures,
-            &format!("{label} direct semantics"),
-            semantic_result(source),
-            SEMANTIC_ERROR,
-        );
-        expect_exact_rejection(
-            &mut failures,
-            &format!("{label} checked admission"),
-            checked_source(source),
-            CHECKED_ERROR,
-        );
-    }
-
-    let public_result = match catch_unwind(AssertUnwindSafe(|| {
-        compile_program(
-            "fn main() { let value: [[(int, float); 1]; 1] = 1; }",
-            CompilerOptions::default(),
-        )
-    })) {
-        Err(_) => Err("compile_program unwound".to_string()),
-        Ok(Ok(_)) => Ok(()),
-        Ok(Err(error)) => Err(error),
-    };
-    expect_exact_rejection(
+    expect_rejection(
         &mut failures,
-        "public compilation",
-        public_result,
-        PUBLIC_ERROR,
-    );
-
-    let target_annotation = || {
-        Type::Array(
-            Box::new(Type::Array(
-                Box::new(Type::Tuple(vec![
-                    Type::Named("int".to_string()),
-                    Type::Named("float".to_string()),
-                ])),
-                1,
-            )),
-            1,
-        )
-    };
-    let generic_impl = generic_impl_with(binding(
-        "value",
-        Some(target_annotation()),
-        Expression::IntegerLiteral(1),
-    ));
-    let generic_semantics = {
-        let mut analyzer = SemanticAnalyzer::new();
-        analyzer.analyze(generic_impl.clone()).map(|_| ())
-    };
-    expect_exact_rejection(
-        &mut failures,
-        "generic impl direct semantics",
-        generic_semantics,
-        SEMANTIC_ERROR,
-    );
-    expect_exact_rejection(
-        &mut failures,
-        "generic impl checked admission",
-        checked_ast(generic_impl),
-        CHECKED_ERROR,
-    );
-
-    const GENERIC_FUNCTION_SOURCE: &str =
-        "fn probe<T>() { let value: [[(int, float); 1]; 1] = 1; }";
-    expect_exact_rejection(
-        &mut failures,
-        "generic function direct semantics",
-        semantic_result(GENERIC_FUNCTION_SOURCE),
-        SEMANTIC_ERROR,
+        "nested tuple leaf mismatch semantics",
+        semantic_result(MISMATCH),
+        &["Copy-data array annotation mismatch", "float", "int"],
     );
     expect_rejection(
         &mut failures,
-        "generic function checked admission retains outer rejection",
-        checked_source(GENERIC_FUNCTION_SOURCE),
-        &["generic function IR is not admitted"],
+        "nested tuple leaf mismatch checked IR",
+        checked_source(MISMATCH),
+        &["Copy-data array annotation mismatch", "float", "int"],
     );
-
-    expect_exact_rejection(
-        &mut failures,
-        "duplicate semantic precedence",
-        semantic_result("fn main() { let value = 1; let value: [[(int, float); 1]; 1] = 1; }"),
-        "Error: Variable `value` is already defined in this scope.",
-    );
-    expect_exact_rejection(
-        &mut failures,
-        "tuple RHS semantic preserved annotation topology",
-        semantic_result("fn main() { let value: [[(int, float); 1]; 1] = (1, 2); }"),
-        SEMANTIC_ERROR,
-    );
-    expect_exact_rejection(
-        &mut failures,
-        "tuple RHS checked preserved annotation topology",
-        checked_source("fn main() { let value: [[(int, float); 1]; 1] = (1, 2); }"),
-        CHECKED_ERROR,
-    );
-    const INITIALIZED_THREE_ARRAY_SOURCE: &str =
-        "fn main() { let value: [[[(int, float); 1]; 1]; 1] = 1; }";
-    expect_acceptance(
-        &mut failures,
-        "initialized three-array-depth semantics",
-        semantic_result(INITIALIZED_THREE_ARRAY_SOURCE),
-    );
-    expect_acceptance(
-        &mut failures,
-        "initialized three-array-depth checked admission",
-        checked_source(INITIALIZED_THREE_ARRAY_SOURCE),
-    );
-
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
@@ -2515,11 +2307,13 @@ fn valueless_immediate_array_of_array_of_tuple_annotation_fails_closed_before_in
 
 #[test]
 fn excluded_annotations_remain_ignored_at_direct_frontend_boundaries() {
-    let cases = [
+    let preserved_scalar_cases = [
         ("lowercase string", "fn main() { let value: string = 1; }"),
         ("custom named", "fn main() { let value: Widget = 1; }"),
         ("generic", "fn main() { let value: Vec<int> = 1; }"),
         ("reference", "fn main() { let value: &int = 1; }"),
+    ];
+    let rejected_array_cases = [
         ("bool array", "fn main() { let value: [bool; 1] = [1]; }"),
         (
             "String array",
@@ -2547,7 +2341,7 @@ fn excluded_annotations_remain_ignored_at_direct_frontend_boundaries() {
         ),
     ];
     let mut failures = Vec::new();
-    for (label, source) in cases {
+    for (label, source) in preserved_scalar_cases {
         expect_acceptance(
             &mut failures,
             &format!("{label} semantics"),
@@ -2557,6 +2351,20 @@ fn excluded_annotations_remain_ignored_at_direct_frontend_boundaries() {
             &mut failures,
             &format!("{label} checked IR"),
             checked_source(source),
+        );
+    }
+    for (label, source) in rejected_array_cases {
+        expect_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            &["Copy-data array annotation mismatch"],
+        );
+        expect_rejection(
+            &mut failures,
+            &format!("{label} checked IR"),
+            checked_source(source),
+            &["Copy-data array annotation mismatch"],
         );
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
@@ -2700,7 +2508,12 @@ fn nonnumeric_array_semantic_behavior_remains_quarantined() {
     ];
     let mut failures = Vec::new();
     for (label, source) in cases {
-        expect_acceptance(&mut failures, label, semantic_result(source));
+        expect_rejection(
+            &mut failures,
+            label,
+            semantic_result(source),
+            &["fixed arrays require recursively admitted Copy-data elements"],
+        );
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
@@ -2924,6 +2737,24 @@ fn typed_empty_numeric_array_capability_class_is_complete_and_ci_executable() {
     for (label, source) in [
         ("bool element", "fn main() { let value: [bool; 0] = []; }"),
         (
+            "nested numeric",
+            "fn main() { let value: [[int; 0]; 0] = []; }",
+        ),
+    ] {
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} recursive semantics"),
+            semantic_result(source),
+        );
+        expect_acceptance(
+            &mut failures,
+            &format!("{label} recursive checked route"),
+            checked_source(source),
+        );
+    }
+
+    for (label, source) in [
+        (
             "String element",
             "fn main() { let value: [String; 0] = []; }",
         ),
@@ -2931,19 +2762,16 @@ fn typed_empty_numeric_array_capability_class_is_complete_and_ci_executable() {
             "custom element",
             "fn main() { let value: [Widget; 0] = []; }",
         ),
-        (
-            "nested numeric",
-            "fn main() { let value: [[int; 0]; 0] = []; }",
-        ),
     ] {
-        expect_acceptance(
+        expect_rejection(
             &mut failures,
-            &format!("{label} preserved semantics"),
+            &format!("{label} unsupported semantics"),
             semantic_result(source),
+            &["Copy-data array annotation mismatch"],
         );
         expect_exact_rejection(
             &mut failures,
-            &format!("{label} preserved checked route"),
+            &format!("{label} unsupported checked route"),
             checked_source(source),
             "empty array literals have no admitted logical element type",
         );
@@ -3194,23 +3022,25 @@ fn statically_empty_fixed_array_indexing_is_exhaustively_rejected_before_lowerin
 
     for (label, source) in [
         (
-            "positive out-of-range constant remains outside frozen policy",
+            "positive out-of-range constant",
             "fn main() { let values = [1]; let observed = values[1]; }",
         ),
         (
-            "positive negative constant remains outside frozen policy",
+            "negative constant",
             "fn main() { let values = [1]; let observed = values[-1]; }",
         ),
     ] {
-        expect_acceptance(
+        expect_rejection(
             &mut failures,
             &format!("{label} semantics"),
             semantic_result(source),
+            &["fixed Copy-data array index", "outside 0..1"],
         );
-        expect_acceptance(
+        expect_rejection(
             &mut failures,
             &format!("{label} checked admission"),
             checked_source(source),
+            &["fixed Copy-data array index", "outside 0..1"],
         );
     }
 
@@ -3408,25 +3238,11 @@ fn binding_annotation_disposition_characterization_is_exhaustive_and_behavior_ne
             checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an uninitialized binding",
         },
         RejectCase {
-            label: "initialized zero-count array tuple",
-            annotation: Type::Array(Box::new(tuple(2)), 0),
-            value: Some(Expression::IntegerLiteral(1)),
-            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding.",
-            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath an array for an initialized binding",
-        },
-        RejectCase {
             label: "valueless mixed-count two-array tuple",
             annotation: Type::Array(Box::new(Type::Array(Box::new(tuple(0)), 1)), 0),
             value: None,
             semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding.",
             checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an uninitialized binding",
-        },
-        RejectCase {
-            label: "initialized mixed-count two-array tuple",
-            annotation: Type::Array(Box::new(Type::Array(Box::new(tuple(3)), 0)), 1),
-            value: Some(Expression::IntegerLiteral(1)),
-            semantic_error: "Error: Variable `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding.",
-            checked_error: "checked IR binding `value` uses an unsupported tuple type annotation directly beneath two array layers for an initialized binding",
         },
         RejectCase {
             label: "valueless immutable reference tuple",
@@ -3613,11 +3429,13 @@ fn binding_annotation_disposition_characterization_is_exhaustive_and_behavior_ne
             Some(Expression::IntegerLiteral(1)),
         ),
         (
-            "nested numeric array",
-            Type::Array(
-                Box::new(Type::Array(Box::new(Type::Named("int".to_string())), 1)),
-                1,
-            ),
+            "top-level initialized zero-count tuple array compatibility",
+            Type::Array(Box::new(tuple(2)), 0),
+            Some(Expression::IntegerLiteral(1)),
+        ),
+        (
+            "top-level initialized mixed-count nested tuple array compatibility",
+            Type::Array(Box::new(Type::Array(Box::new(tuple(3)), 0)), 1),
             Some(Expression::IntegerLiteral(1)),
         ),
         (
@@ -3670,14 +3488,6 @@ fn binding_annotation_disposition_characterization_is_exhaustive_and_behavior_ne
             None,
         ),
         (
-            "initialized triple-array tuple",
-            Type::Array(
-                Box::new(Type::Array(Box::new(Type::Array(Box::new(tuple(3)), 1)), 1)),
-                1,
-            ),
-            Some(Expression::IntegerLiteral(1)),
-        ),
-        (
             "valueless four-array tuple",
             Type::Array(
                 Box::new(Type::Array(
@@ -3709,6 +3519,30 @@ fn binding_annotation_disposition_characterization_is_exhaustive_and_behavior_ne
             &mut failures,
             &format!("{label} checked admission"),
             checked_ast(ast),
+        );
+    }
+
+    for (label, source) in [
+        (
+            "nested numeric array mismatch",
+            "fn main() { let value: [[int; 1]; 1] = 1; }",
+        ),
+        (
+            "initialized triple-array tuple mismatch",
+            "fn main() { let value: [[[(int, float, int); 1]; 1]; 1] = 1; }",
+        ),
+    ] {
+        expect_rejection(
+            &mut failures,
+            &format!("{label} semantics"),
+            semantic_result(source),
+            &["Copy-data array annotation mismatch"],
+        );
+        expect_rejection(
+            &mut failures,
+            &format!("{label} checked admission"),
+            checked_source(source),
+            &["Copy-data array annotation mismatch"],
         );
     }
 

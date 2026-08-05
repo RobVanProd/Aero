@@ -88,36 +88,45 @@ impl CodeGenerator {
                 format!("{}*", Self::reference_pointee_to_llvm(pointee))
             }
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
-            LogicalType::Tuple { elements } => format!(
-                "{{ {} }}",
-                elements
-                    .iter()
-                    .map(|element| match element {
-                        LogicalType::Int | LogicalType::Float => "double".to_string(),
-                        LogicalType::Bool => "i1".to_string(),
-                        _ => unreachable!("verified flat tuple elements are scalar"),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
+            LogicalType::Tuple { .. } | LogicalType::Array { .. } => {
+                Self::copy_data_type_to_llvm(logical_type)
+            }
             LogicalType::Enum { variants, .. }
                 if variants.iter().all(|variant| variant.payload.is_none()) =>
             {
                 "i32".to_string()
             }
             LogicalType::Enum { .. } => "{ i32, double, i1 }".to_string(),
-            LogicalType::Array { element, count } => {
-                let element = match element.as_ref() {
-                    LogicalType::Int | LogicalType::Float => "double".to_string(),
-                    LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
-                    _ => unreachable!(
-                        "verified function transport admits only existing flat fixed arrays"
-                    ),
-                };
-                format!("[{count} x {element}]")
-            }
             LogicalType::String => {
                 unreachable!("verified call signatures exclude String values")
+            }
+        }
+    }
+
+    /// Lower one independently verified recursive Copy-data schema as a private LLVM value type.
+    /// Numeric aggregate leaves retain their established `double` representation.
+    fn copy_data_type_to_llvm(logical_type: &LogicalType) -> String {
+        match logical_type {
+            LogicalType::Int | LogicalType::Float => "double".to_string(),
+            LogicalType::Bool => "i1".to_string(),
+            LogicalType::Array { element, count } => {
+                format!("[{count} x {}]", Self::copy_data_type_to_llvm(element))
+            }
+            LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::Tuple { elements } => format!(
+                "{{ {} }}",
+                elements
+                    .iter()
+                    .map(Self::copy_data_type_to_llvm)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            LogicalType::Void
+            | LogicalType::String
+            | LogicalType::ImmutableReference { .. }
+            | LogicalType::MutableReference { .. }
+            | LogicalType::Enum { .. } => {
+                unreachable!("verified Copy-data schemas exclude non-Copy-data logical types")
             }
         }
     }
@@ -160,22 +169,7 @@ impl CodeGenerator {
     }
 
     fn struct_field_type_to_llvm(logical_type: &LogicalType) -> String {
-        match logical_type {
-            LogicalType::Int | LogicalType::Float => "double".to_string(),
-            LogicalType::Bool => "i1".to_string(),
-            LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
-            LogicalType::Array { .. } => Self::logical_type_to_llvm(logical_type),
-            LogicalType::Tuple { .. } => {
-                unreachable!("flat tuples are not admitted inside Copy-struct schemas")
-            }
-            LogicalType::Void
-            | LogicalType::String
-            | LogicalType::ImmutableReference { .. }
-            | LogicalType::MutableReference { .. }
-            | LogicalType::Enum { .. } => {
-                unreachable!("verified Copy-aggregate schemas exclude Void and String")
-            }
-        }
+        Self::copy_data_type_to_llvm(logical_type)
     }
 
     fn collect_struct_schemas(
@@ -184,6 +178,18 @@ impl CodeGenerator {
     ) {
         for instruction in instructions {
             match instruction {
+                Inst::CheckedMutableCopyPlaceAlloca { ty, .. }
+                | Inst::CheckedCopyPlaceAssignment { ty, .. } => {
+                    Self::collect_logical_struct_schema(ty, schemas);
+                }
+                Inst::CheckedImmutableBorrow { pointee, .. }
+                | Inst::CheckedMutableBorrow { pointee, .. }
+                | Inst::CheckedMutableDereferenceAssignment { pointee, .. }
+                | Inst::CheckedMutableBorrowEnd { pointee, .. }
+                | Inst::CheckedImmutableReferenceParameter { pointee, .. }
+                | Inst::CheckedMutableReferenceParameter { pointee, .. } => {
+                    Self::collect_logical_struct_schema(pointee, schemas);
+                }
                 Inst::CheckedStructAlloca {
                     struct_name,
                     field_types,
@@ -198,10 +204,18 @@ impl CodeGenerator {
                     );
                 }
                 Inst::CheckedCopyStructArrayAlloca { element, .. } => {
-                    let LogicalType::Struct { .. } = element else {
-                        unreachable!("verified Copy-struct arrays carry a struct element")
-                    };
                     Self::collect_logical_struct_schema(element, schemas);
+                }
+                Inst::CheckedCopyStructArrayElementPtr { element, .. }
+                | Inst::CheckedStructFieldPtr {
+                    field_type: element,
+                    ..
+                } => Self::collect_logical_struct_schema(element, schemas),
+                Inst::CheckedTupleAlloca { element_types, .. }
+                | Inst::CheckedTupleFieldPtr { element_types, .. } => {
+                    for element in element_types {
+                        Self::collect_logical_struct_schema(element, schemas);
+                    }
                 }
                 Inst::FunctionDef { body, .. } => Self::collect_struct_schemas(body, schemas),
                 Inst::CheckedFunctionDef {
@@ -217,6 +231,24 @@ impl CodeGenerator {
                     Self::collect_struct_schemas(body, schemas);
                 }
                 _ => {}
+            }
+        }
+    }
+
+    fn collect_metadata_struct_schemas(
+        metadata: &IrMetadata,
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
+    ) {
+        for function in metadata.functions.values() {
+            for (_, parameter) in &function.signature.parameters {
+                Self::collect_logical_struct_schema(parameter, schemas);
+            }
+            Self::collect_logical_struct_schema(&function.signature.result, schemas);
+            for result in function.results.values() {
+                Self::collect_logical_struct_schema(result, schemas);
+            }
+            for place in function.places.values() {
+                Self::collect_logical_struct_schema(&place.pointee, schemas);
             }
         }
     }
@@ -790,6 +822,9 @@ impl CodeGenerator {
         llvm_ir.push_str("target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n");
         llvm_ir.push_str("target triple = \"x86_64-pc-linux-gnu\"\n\n");
         let mut struct_schemas = BTreeMap::new();
+        if let Some(metadata) = &self.checked_metadata {
+            Self::collect_metadata_struct_schemas(metadata, &mut struct_schemas);
+        }
         for function in ir_functions.values() {
             Self::collect_struct_schemas(&function.body, &mut struct_schemas);
         }
@@ -1483,9 +1518,9 @@ impl CodeGenerator {
                     count,
                 } => {
                     let Value::Reg(result) = result else {
-                        panic!("Expected register for checked Copy-struct array alloca")
+                        panic!("Expected register for checked Copy-data array alloca")
                     };
-                    let element = Self::logical_type_to_llvm(element);
+                    let element = Self::copy_data_type_to_llvm(element);
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = alloca [{count} x {element}], align 8\n"
                     ));
@@ -1498,12 +1533,12 @@ impl CodeGenerator {
                     count,
                 } => {
                     let Value::Reg(result) = result else {
-                        panic!("Expected register for checked Copy-struct array element")
+                        panic!("Expected register for checked Copy-data array element")
                     };
                     let Value::Reg(base) = base else {
-                        panic!("Expected register for checked Copy-struct array base")
+                        panic!("Expected register for checked Copy-data array base")
                     };
-                    let element = Self::logical_type_to_llvm(element);
+                    let element = Self::copy_data_type_to_llvm(element);
                     let aggregate = format!("[{count} x {element}]");
                     let index = self.value_to_i64_operand(llvm_ir, index);
                     llvm_ir.push_str(&format!(
@@ -2417,7 +2452,93 @@ mod tests {
 
     use super::*;
     use crate::ir::{Function, Inst, Value};
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
+
+    #[test]
+    fn recursive_copy_data_types_lower_to_exact_private_llvm_types() {
+        let leaf = LogicalType::Struct {
+            name: "Leaf".to_string(),
+            fields: vec![
+                LogicalType::Float,
+                LogicalType::Array {
+                    element: Box::new(LogicalType::Bool),
+                    count: 0,
+                },
+            ],
+        };
+        let nested_tuple = LogicalType::Tuple {
+            elements: vec![LogicalType::Bool, leaf.clone()],
+        };
+        let recursive = LogicalType::Array {
+            element: Box::new(LogicalType::Tuple {
+                elements: vec![
+                    LogicalType::Int,
+                    LogicalType::Array {
+                        element: Box::new(nested_tuple),
+                        count: 2,
+                    },
+                    leaf,
+                ],
+            }),
+            count: 0,
+        };
+
+        assert_eq!(
+            CodeGenerator::logical_type_to_llvm(&LogicalType::Int),
+            "i32"
+        );
+        assert_eq!(
+            CodeGenerator::logical_type_to_llvm(&recursive),
+            "[0 x { double, [2 x { i1, %aero.struct.Leaf }], %aero.struct.Leaf }]"
+        );
+        assert_eq!(
+            CodeGenerator::struct_field_type_to_llvm(&recursive),
+            "[0 x { double, [2 x { i1, %aero.struct.Leaf }], %aero.struct.Leaf }]"
+        );
+    }
+
+    #[test]
+    fn recursive_named_struct_schemas_are_collected_from_nested_checked_types() {
+        let leaf = LogicalType::Struct {
+            name: "Leaf".to_string(),
+            fields: vec![LogicalType::Bool, LogicalType::Int],
+        };
+        let outer_fields = vec![
+            LogicalType::Tuple {
+                elements: vec![
+                    LogicalType::Array {
+                        element: Box::new(leaf.clone()),
+                        count: 3,
+                    },
+                    LogicalType::Float,
+                ],
+            },
+            LogicalType::Array {
+                element: Box::new(LogicalType::Tuple {
+                    elements: vec![LogicalType::Bool, leaf.clone()],
+                }),
+                count: 0,
+            },
+        ];
+        let outer = LogicalType::Struct {
+            name: "Outer".to_string(),
+            fields: outer_fields.clone(),
+        };
+        let instructions = vec![Inst::CheckedTupleAlloca {
+            result: Value::Reg(0),
+            element_types: vec![outer, LogicalType::Int],
+        }];
+        let mut schemas = BTreeMap::new();
+
+        CodeGenerator::collect_struct_schemas(&instructions, &mut schemas);
+
+        assert_eq!(
+            schemas.get("Leaf"),
+            Some(&vec![LogicalType::Bool, LogicalType::Int])
+        );
+        assert_eq!(schemas.get("Outer"), Some(&outer_fields));
+        assert_eq!(schemas.len(), 2);
+    }
 
     #[test]
     fn test_function_definition_generation() {

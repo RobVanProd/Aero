@@ -1,5 +1,6 @@
 use crate::ast::Type;
 use crate::ir::LogicalType;
+use crate::struct_contract::{CopyTypeContract, StructRegistry};
 use crate::types::Ty;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9,34 +10,42 @@ pub(crate) enum TupleExecutionContext {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct FlatCopyTupleContract {
+pub(crate) struct CopyTupleContract {
     pub(crate) elements: Vec<Ty>,
+    logical_elements: Vec<LogicalType>,
 }
 
-impl FlatCopyTupleContract {
+impl CopyTupleContract {
     pub(crate) fn ty(&self) -> Ty {
         Ty::Tuple(self.elements.clone())
     }
 
     pub(crate) fn logical_type(&self) -> LogicalType {
         LogicalType::Tuple {
-            elements: self
-                .elements
-                .iter()
-                .map(|element| match element {
-                    Ty::Int => LogicalType::Int,
-                    Ty::Float => LogicalType::Float,
-                    Ty::Bool => LogicalType::Bool,
-                    _ => unreachable!("flat Copy tuple contract contains only scalar elements"),
-                })
-                .collect(),
+            elements: self.logical_elements.clone(),
         }
     }
 }
 
+fn tuple_contract(contract: CopyTypeContract) -> Option<CopyTupleContract> {
+    let Ty::Tuple(elements) = contract.ty else {
+        return None;
+    };
+    let LogicalType::Tuple {
+        elements: logical_elements,
+    } = contract.logical_type
+    else {
+        return None;
+    };
+    Some(CopyTupleContract {
+        elements,
+        logical_elements,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TupleProjectionContract {
-    pub(crate) tuple: FlatCopyTupleContract,
+    pub(crate) tuple: CopyTupleContract,
     pub(crate) index: usize,
     pub(crate) element: Ty,
 }
@@ -54,61 +63,53 @@ pub(crate) enum TupleBindingValidationError {
     PreserveInitializedDirectAnnotationRejection,
 }
 
-pub(crate) fn classify_flat_copy_tuple_elements(
+pub(crate) fn classify_copy_tuple_elements(
     elements: &[Ty],
+    registry: &StructRegistry,
     context: TupleExecutionContext,
-) -> TupleContractDisposition<FlatCopyTupleContract> {
+) -> TupleContractDisposition<CopyTupleContract> {
     if context != TupleExecutionContext::AdmittedFunction {
         return TupleContractDisposition::Preserved;
     }
-    if elements.len() < 2 {
-        return TupleContractDisposition::ExplicitlyRejected(
-            "flat Copy tuples require at least two elements".to_string(),
-        );
-    }
-    if let Some((index, element)) = elements
-        .iter()
-        .enumerate()
-        .find(|(_, element)| !matches!(element, Ty::Int | Ty::Float | Ty::Bool))
-    {
-        return TupleContractDisposition::ExplicitlyRejected(format!(
-            "flat Copy tuple element {} has unsupported type {}; expected Int, Float, or Bool",
-            index + 1,
-            element
-        ));
-    }
-    TupleContractDisposition::Supported(FlatCopyTupleContract {
-        elements: elements.to_vec(),
-    })
+    registry
+        .resolve_copy_type(&Ty::Tuple(elements.to_vec()))
+        .and_then(tuple_contract)
+        .map_or_else(
+            || {
+                TupleContractDisposition::ExplicitlyRejected(
+                    "Copy tuples require at least two recursively admitted CopyData elements"
+                        .to_string(),
+                )
+            },
+            TupleContractDisposition::Supported,
+        )
 }
 
-pub(crate) fn classify_flat_copy_tuple_annotation(
+pub(crate) fn classify_copy_tuple_annotation(
     annotation: &Type,
-) -> TupleContractDisposition<FlatCopyTupleContract> {
-    let Type::Tuple(elements) = annotation else {
+    registry: &StructRegistry,
+) -> TupleContractDisposition<CopyTupleContract> {
+    let Type::Tuple(_) = annotation else {
         return TupleContractDisposition::Preserved;
     };
-    let mut resolved = Vec::with_capacity(elements.len());
-    for element in elements {
-        let ty = match element {
-            Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Ty::Int,
-            Type::Named(name) if matches!(name.as_str(), "float" | "f64") => Ty::Float,
-            Type::Named(name) if name == "bool" => Ty::Bool,
-            _ => {
-                return TupleContractDisposition::ExplicitlyRejected(format!(
-                    "flat Copy tuple annotation element {} is unsupported; expected Int, Float, or Bool",
-                    resolved.len() + 1
-                ));
-            }
-        };
-        resolved.push(ty);
-    }
-    classify_flat_copy_tuple_elements(&resolved, TupleExecutionContext::AdmittedFunction)
+    registry
+        .resolve_copy_annotation(annotation)
+        .and_then(tuple_contract)
+        .map_or_else(
+            || {
+                TupleContractDisposition::ExplicitlyRejected(
+                    "Copy tuple annotations require at least two recursively admitted CopyData elements"
+                        .to_string(),
+                )
+            },
+            TupleContractDisposition::Supported,
+        )
 }
 
 pub(crate) fn classify_tuple_projection(
     receiver: &Ty,
     index: usize,
+    registry: &StructRegistry,
     context: TupleExecutionContext,
 ) -> TupleContractDisposition<TupleProjectionContract> {
     if context != TupleExecutionContext::AdmittedFunction {
@@ -116,10 +117,10 @@ pub(crate) fn classify_tuple_projection(
     }
     let Ty::Tuple(elements) = receiver else {
         return TupleContractDisposition::ExplicitlyRejected(
-            "tuple projection requires a flat Copy tuple".to_string(),
+            "tuple projection requires a recursively admitted Copy tuple".to_string(),
         );
     };
-    let tuple = match classify_flat_copy_tuple_elements(elements, context) {
+    let tuple = match classify_copy_tuple_elements(elements, registry, context) {
         TupleContractDisposition::Supported(contract) => contract,
         TupleContractDisposition::ExplicitlyRejected(message) => {
             return TupleContractDisposition::ExplicitlyRejected(message);
@@ -143,10 +144,12 @@ pub(crate) fn validate_tuple_binding(
     annotation: Option<&Type>,
     inferred: &Ty,
     _mutable: bool,
+    registry: &StructRegistry,
 ) -> Result<(), TupleBindingValidationError> {
     let inferred_contract = match inferred {
-        Ty::Tuple(elements) => match classify_flat_copy_tuple_elements(
+        Ty::Tuple(elements) => match classify_copy_tuple_elements(
             elements,
+            registry,
             TupleExecutionContext::AdmittedFunction,
         ) {
             TupleContractDisposition::Supported(contract) => Some(contract),
@@ -157,7 +160,8 @@ pub(crate) fn validate_tuple_binding(
         },
         _ => None,
     };
-    let annotation_contract = annotation.map(classify_flat_copy_tuple_annotation);
+    let annotation_contract =
+        annotation.map(|annotation| classify_copy_tuple_annotation(annotation, registry));
 
     match (annotation, annotation_contract, inferred_contract) {
         (None, _, _) => Ok(()),
@@ -213,14 +217,28 @@ fn annotation_name(annotation: &Type) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::{AstNode, FieldDecl, Statement};
+
+    fn registry() -> StructRegistry {
+        StructRegistry::from_top_level_ast(&[AstNode::Statement(Statement::StructDef {
+            name: "Leaf".to_string(),
+            fields: vec![FieldDecl {
+                name: "value".to_string(),
+                field_type: Type::Named("int".to_string()),
+            }],
+            type_params: vec![],
+        })])
+    }
 
     #[test]
-    fn flat_tuple_classifier_owns_the_complete_scalar_product() {
+    fn recursive_tuple_classifier_delegates_the_complete_product_to_the_registry() {
         fn assert_products(prefix: &mut Vec<Ty>, remaining: usize) {
             if remaining == 0 {
+                let registry = registry();
                 assert!(matches!(
-                    classify_flat_copy_tuple_elements(
+                    classify_copy_tuple_elements(
                         prefix,
+                        &registry,
                         TupleExecutionContext::AdmittedFunction
                     ),
                     TupleContractDisposition::Supported(_)
@@ -239,37 +257,105 @@ mod tests {
         }
         for int_name in ["int", "i32"] {
             for float_name in ["float", "f64"] {
+                let registry = registry();
                 let annotation = Type::Tuple(vec![
                     Type::Named(int_name.to_string()),
                     Type::Named(float_name.to_string()),
                     Type::Named("bool".to_string()),
                 ]);
                 assert!(matches!(
-                    classify_flat_copy_tuple_annotation(&annotation),
+                    classify_copy_tuple_annotation(&annotation, &registry),
                     TupleContractDisposition::Supported(_)
                 ));
             }
         }
+
+        let registry = registry();
+        let recursive = vec![
+            Ty::Array(Box::new(Ty::Bool), 0),
+            Ty::Tuple(vec![Ty::Int, Ty::Array(Box::new(Ty::Float), 2)]),
+            Ty::Struct("Leaf".to_string()),
+        ];
+        let TupleContractDisposition::Supported(contract) = classify_copy_tuple_elements(
+            &recursive,
+            &registry,
+            TupleExecutionContext::AdmittedFunction,
+        ) else {
+            panic!("recursive tuple product was not admitted");
+        };
+        assert_eq!(contract.ty(), Ty::Tuple(recursive));
+        assert_eq!(
+            contract.logical_type(),
+            LogicalType::Tuple {
+                elements: vec![
+                    LogicalType::Array {
+                        element: Box::new(LogicalType::Bool),
+                        count: 0,
+                    },
+                    LogicalType::Tuple {
+                        elements: vec![
+                            LogicalType::Int,
+                            LogicalType::Array {
+                                element: Box::new(LogicalType::Float),
+                                count: 2,
+                            },
+                        ],
+                    },
+                    LogicalType::Struct {
+                        name: "Leaf".to_string(),
+                        fields: vec![LogicalType::Int],
+                    },
+                ],
+            }
+        );
+
         for elements in [
             Vec::new(),
             vec![Ty::Int],
             vec![Ty::Int, Ty::String],
-            vec![Ty::Int, Ty::Tuple(vec![Ty::Int, Ty::Int])],
+            vec![Ty::Int, Ty::Reference(Box::new(Ty::Int), false)],
+            vec![Ty::Int, Ty::Enum("Mode".to_string())],
+            vec![Ty::Int, Ty::TypeParam("T".to_string())],
         ] {
             assert!(matches!(
-                classify_flat_copy_tuple_elements(
+                classify_copy_tuple_elements(
                     &elements,
+                    &registry,
                     TupleExecutionContext::AdmittedFunction
                 ),
                 TupleContractDisposition::ExplicitlyRejected(_)
             ));
         }
         assert!(matches!(
-            classify_flat_copy_tuple_elements(
+            classify_copy_tuple_elements(
                 &[Ty::Int, Ty::Bool],
+                &registry,
                 TupleExecutionContext::PreservedContext
             ),
             TupleContractDisposition::Preserved
+        ));
+
+        let tuple_ty = Ty::Tuple(vec![
+            Ty::Array(Box::new(Ty::Bool), 1),
+            Ty::Struct("Leaf".to_string()),
+        ]);
+        let TupleContractDisposition::Supported(projection) = classify_tuple_projection(
+            &tuple_ty,
+            1,
+            &registry,
+            TupleExecutionContext::AdmittedFunction,
+        ) else {
+            panic!("recursive tuple projection was not admitted");
+        };
+        assert_eq!(projection.element, Ty::Struct("Leaf".to_string()));
+        assert!(matches!(
+            classify_tuple_projection(
+                &tuple_ty,
+                2,
+                &registry,
+                TupleExecutionContext::AdmittedFunction,
+            ),
+            TupleContractDisposition::ExplicitlyRejected(_)
         ));
     }
 }

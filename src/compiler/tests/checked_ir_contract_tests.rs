@@ -240,7 +240,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 ],
             ))]),
         ],
-        "flat Copy tuples require at least two elements",
+        "Copy tuples require at least two recursively admitted CopyData elements",
         "surplus child precedence",
     );
 

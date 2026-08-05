@@ -1,6 +1,5 @@
 use crate::ast::{AstNode, Expression, FieldDecl, Statement, Type};
 use crate::ir::LogicalType;
-use crate::tuple_contract::{TupleContractDisposition, classify_flat_copy_tuple_annotation};
 use crate::types::Ty;
 use std::collections::{BTreeMap, HashSet};
 
@@ -52,33 +51,129 @@ pub(crate) struct CopyTypeContract {
     pub(crate) logical_type: LogicalType,
 }
 
+fn resolve_copy_annotation_shape(
+    annotation: &Type,
+    resolve_named: &mut impl FnMut(&str) -> Option<CopyTypeContract>,
+) -> Option<CopyTypeContract> {
+    match annotation {
+        Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Some(CopyTypeContract {
+            ty: Ty::Int,
+            logical_type: LogicalType::Int,
+        }),
+        Type::Named(name) if matches!(name.as_str(), "float" | "f64") => Some(CopyTypeContract {
+            ty: Ty::Float,
+            logical_type: LogicalType::Float,
+        }),
+        Type::Named(name) if name == "bool" => Some(CopyTypeContract {
+            ty: Ty::Bool,
+            logical_type: LogicalType::Bool,
+        }),
+        Type::Named(name) => resolve_named(name),
+        Type::Array(element, count) => {
+            let element = resolve_copy_annotation_shape(element, resolve_named)?;
+            Some(CopyTypeContract {
+                ty: Ty::Array(Box::new(element.ty), *count),
+                logical_type: LogicalType::Array {
+                    element: Box::new(element.logical_type),
+                    count: *count,
+                },
+            })
+        }
+        Type::Tuple(elements) if elements.len() >= 2 => {
+            let elements = elements
+                .iter()
+                .map(|element| resolve_copy_annotation_shape(element, resolve_named))
+                .collect::<Option<Vec<_>>>()?;
+            Some(CopyTypeContract {
+                ty: Ty::Tuple(elements.iter().map(|element| element.ty.clone()).collect()),
+                logical_type: LogicalType::Tuple {
+                    elements: elements
+                        .into_iter()
+                        .map(|element| element.logical_type)
+                        .collect(),
+                },
+            })
+        }
+        Type::Tuple(_) | Type::Reference(_, _) | Type::Generic(_, _) => None,
+    }
+}
+
+fn resolve_copy_ty_shape(
+    ty: &Ty,
+    resolve_named: &mut impl FnMut(&str) -> Option<CopyTypeContract>,
+) -> Option<CopyTypeContract> {
+    match ty {
+        Ty::Int => Some(CopyTypeContract {
+            ty: Ty::Int,
+            logical_type: LogicalType::Int,
+        }),
+        Ty::Float => Some(CopyTypeContract {
+            ty: Ty::Float,
+            logical_type: LogicalType::Float,
+        }),
+        Ty::Bool => Some(CopyTypeContract {
+            ty: Ty::Bool,
+            logical_type: LogicalType::Bool,
+        }),
+        Ty::Struct(name) => resolve_named(name),
+        Ty::Array(element, count) => {
+            let element = resolve_copy_ty_shape(element, resolve_named)?;
+            Some(CopyTypeContract {
+                ty: Ty::Array(Box::new(element.ty), *count),
+                logical_type: LogicalType::Array {
+                    element: Box::new(element.logical_type),
+                    count: *count,
+                },
+            })
+        }
+        Ty::Tuple(elements) if elements.len() >= 2 => {
+            let elements = elements
+                .iter()
+                .map(|element| resolve_copy_ty_shape(element, resolve_named))
+                .collect::<Option<Vec<_>>>()?;
+            Some(CopyTypeContract {
+                ty: Ty::Tuple(elements.iter().map(|element| element.ty.clone()).collect()),
+                logical_type: LogicalType::Tuple {
+                    elements: elements
+                        .into_iter()
+                        .map(|element| element.logical_type)
+                        .collect(),
+                },
+            })
+        }
+        Ty::Tuple(_)
+        | Ty::Void
+        | Ty::String
+        | Ty::Enum(_)
+        | Ty::Reference(_, _)
+        | Ty::Option(_)
+        | Ty::Result(_, _)
+        | Ty::Vec(_)
+        | Ty::HashMap(_, _)
+        | Ty::TypeParam(_)
+        | Ty::Fn(_) => None,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CopyStructArrayContract {
-    pub(crate) element: StructContract,
+pub(crate) struct CopyArrayContract {
+    pub(crate) element: CopyTypeContract,
     pub(crate) count: usize,
 }
 
-impl CopyStructArrayContract {
+impl CopyArrayContract {
     pub(crate) fn ty(&self) -> Ty {
-        Ty::Array(Box::new(Ty::Struct(self.element.name.clone())), self.count)
-    }
-
-    pub(crate) fn logical_type(&self) -> LogicalType {
-        LogicalType::Array {
-            element: Box::new(self.element.logical_type()),
-            count: self.count,
-        }
+        Ty::Array(Box::new(self.element.ty.clone()), self.count)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum CopyStructArrayIndexDisposition {
+pub(crate) enum CopyArrayIndexDisposition {
     PreserveExistingBehavior,
     Accepted {
-        contract: CopyStructArrayContract,
-        index: usize,
+        contract: CopyArrayContract,
+        constant_index: Option<usize>,
     },
-    NonConstant,
     OutOfBounds {
         index: i64,
         count: usize,
@@ -155,21 +250,14 @@ pub(crate) enum StructContractError {
     },
     UnsupportedFunctionReturn,
     UnsupportedFunctionArrayReturn,
-    TupleFunctionMixedParameter {
-        function_name: String,
-        parameter_name: String,
-    },
-    TupleFunctionMixedReturn {
-        function_name: String,
-    },
     ProcessEntryStructTransport,
     ProcessEntryArrayTransport,
     ProcessEntryTupleTransport,
-    CopyStructArrayElementMismatch {
+    CopyArrayElementMismatch {
         expected: String,
         actual: String,
     },
-    CopyStructArrayAnnotationMismatch {
+    CopyArrayAnnotationMismatch {
         expected: String,
         actual: String,
     },
@@ -210,15 +298,6 @@ impl StructContractError {
             Self::UnsupportedFunctionArrayReturn => {
                 "function return uses an unsupported fixed-array element type".to_string()
             }
-            Self::TupleFunctionMixedParameter {
-                function_name,
-                parameter_name,
-            } => format!(
-                "tuple-bearing function `{function_name}` parameter `{parameter_name}` is outside the scalar/flat-tuple product"
-            ),
-            Self::TupleFunctionMixedReturn { function_name } => format!(
-                "tuple-bearing function `{function_name}` result is outside the scalar/flat-tuple product"
-            ),
             Self::ProcessEntryStructTransport => {
                 "process entry `main` cannot use struct parameters or returns".to_string()
             }
@@ -228,11 +307,11 @@ impl StructContractError {
             Self::ProcessEntryTupleTransport => {
                 "process entry `main` cannot use tuple parameters or returns".to_string()
             }
-            Self::CopyStructArrayElementMismatch { expected, actual } => format!(
-                "fixed Copy-struct arrays require one exact element type: expected {expected}, actual {actual}"
-            ),
-            Self::CopyStructArrayAnnotationMismatch { expected, actual } => format!(
-                "fixed Copy-struct array annotation mismatch: expected {expected}, actual {actual}"
+            Self::CopyArrayElementMismatch { expected, actual } => {
+                format!("Error: array element type mismatch: expected {expected}, actual {actual}.")
+            }
+            Self::CopyArrayAnnotationMismatch { expected, actual } => format!(
+                "fixed Copy-data array annotation mismatch: expected {expected}, actual {actual}"
             ),
         }
     }
@@ -343,69 +422,17 @@ impl StructRegistry {
         resolved: &mut BTreeMap<String, StructDefinitionDisposition>,
         visiting: &mut HashSet<String>,
     ) -> Option<CopyTypeContract> {
-        match annotation {
-            Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Some(CopyTypeContract {
-                ty: Ty::Int,
-                logical_type: LogicalType::Int,
-            }),
-            Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
-                Some(CopyTypeContract {
-                    ty: Ty::Float,
-                    logical_type: LogicalType::Float,
-                })
-            }
-            Type::Named(name) if name == "bool" => Some(CopyTypeContract {
-                ty: Ty::Bool,
-                logical_type: LogicalType::Bool,
-            }),
-            Type::Named(name) => {
-                let StructDefinitionDisposition::Supported(contract) =
-                    Self::resolve_definition(name, raw_definitions, resolved, visiting)
-                else {
-                    return None;
-                };
-                Some(CopyTypeContract {
-                    ty: Ty::Struct(name.clone()),
-                    logical_type: contract.logical_type(),
-                })
-            }
-            Type::Array(element, count) => {
-                let element = match element.as_ref() {
-                    Type::Named(name) if matches!(name.as_str(), "int" | "i32") => {
-                        CopyTypeContract {
-                            ty: Ty::Int,
-                            logical_type: LogicalType::Int,
-                        }
-                    }
-                    Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
-                        CopyTypeContract {
-                            ty: Ty::Float,
-                            logical_type: LogicalType::Float,
-                        }
-                    }
-                    Type::Named(name) => {
-                        let StructDefinitionDisposition::Supported(contract) =
-                            Self::resolve_definition(name, raw_definitions, resolved, visiting)
-                        else {
-                            return None;
-                        };
-                        CopyTypeContract {
-                            ty: Ty::Struct(name.clone()),
-                            logical_type: contract.logical_type(),
-                        }
-                    }
-                    _ => return None,
-                };
-                Some(CopyTypeContract {
-                    ty: Ty::Array(Box::new(element.ty), *count),
-                    logical_type: LogicalType::Array {
-                        element: Box::new(element.logical_type),
-                        count: *count,
-                    },
-                })
-            }
-            Type::Tuple(_) | Type::Reference(_, _) | Type::Generic(_, _) => None,
-        }
+        resolve_copy_annotation_shape(annotation, &mut |name| {
+            let StructDefinitionDisposition::Supported(contract) =
+                Self::resolve_definition(name, raw_definitions, resolved, visiting)
+            else {
+                return None;
+            };
+            Some(CopyTypeContract {
+                ty: Ty::Struct(name.to_string()),
+                logical_type: contract.logical_type(),
+            })
+        })
     }
 
     pub(crate) fn resolve_construction(
@@ -512,126 +539,79 @@ impl StructRegistry {
     }
 
     pub(crate) fn is_copy_type(&self, ty: &Ty) -> bool {
-        match ty {
-            Ty::Array(element, _) => self.is_copy_type(element),
-            _ => ty.is_copy_type() || self.is_copy_struct_ty(ty),
-        }
+        self.resolve_copy_type(ty).is_some()
     }
 
     pub(crate) fn resolve_copy_type(&self, ty: &Ty) -> Option<CopyTypeContract> {
-        match ty {
-            Ty::Int => Some(CopyTypeContract {
-                ty: Ty::Int,
-                logical_type: LogicalType::Int,
-            }),
-            Ty::Float => Some(CopyTypeContract {
-                ty: Ty::Float,
-                logical_type: LogicalType::Float,
-            }),
-            Ty::Bool => Some(CopyTypeContract {
-                ty: Ty::Bool,
-                logical_type: LogicalType::Bool,
-            }),
-            Ty::Struct(_) => self
-                .copy_struct_contract(ty)
+        resolve_copy_ty_shape(ty, &mut |name| {
+            self.copy_struct_contract(&Ty::Struct(name.to_string()))
                 .map(|contract| CopyTypeContract {
-                    ty: ty.clone(),
+                    ty: Ty::Struct(name.to_string()),
                     logical_type: contract.logical_type(),
-                }),
-            Ty::Array(element, count) => {
-                let element = match element.as_ref() {
-                    Ty::Int => CopyTypeContract {
-                        ty: Ty::Int,
-                        logical_type: LogicalType::Int,
-                    },
-                    Ty::Float => CopyTypeContract {
-                        ty: Ty::Float,
-                        logical_type: LogicalType::Float,
-                    },
-                    Ty::Struct(_) => self.resolve_copy_type(element)?,
-                    _ => return None,
-                };
-                Some(CopyTypeContract {
-                    ty: Ty::Array(Box::new(element.ty), *count),
-                    logical_type: LogicalType::Array {
-                        element: Box::new(element.logical_type),
-                        count: *count,
-                    },
                 })
-            }
-            Ty::Tuple(elements) => match crate::tuple_contract::classify_flat_copy_tuple_elements(
-                elements,
-                crate::tuple_contract::TupleExecutionContext::AdmittedFunction,
-            ) {
-                TupleContractDisposition::Supported(contract) => Some(CopyTypeContract {
-                    ty: contract.ty(),
-                    logical_type: contract.logical_type(),
-                }),
-                TupleContractDisposition::ExplicitlyRejected(_)
-                | TupleContractDisposition::Preserved => None,
-            },
-            _ => None,
-        }
+        })
     }
 
-    pub(crate) fn copy_struct_array_contract(&self, ty: &Ty) -> Option<CopyStructArrayContract> {
+    pub(crate) fn copy_array_contract(&self, ty: &Ty) -> Option<CopyArrayContract> {
         let Ty::Array(element, count) = ty else {
             return None;
         };
-        self.copy_struct_contract(element)
-            .map(|element| CopyStructArrayContract {
+        self.resolve_copy_type(element)
+            .map(|element| CopyArrayContract {
                 element,
                 count: *count,
             })
     }
 
-    pub(crate) fn copy_struct_array_annotation_contract(
+    pub(crate) fn copy_array_annotation_contract(
         &self,
         annotation: &Type,
-    ) -> Option<CopyStructArrayContract> {
+    ) -> Option<CopyArrayContract> {
         let Type::Array(element, count) = annotation else {
             return None;
         };
-        let Type::Named(name) = element.as_ref() else {
-            return None;
-        };
-        self.copy_struct_contract(&Ty::Struct(name.clone()))
-            .map(|element| CopyStructArrayContract {
+        self.resolve_copy_annotation(element)
+            .map(|element| CopyArrayContract {
                 element,
                 count: *count,
             })
     }
 
-    pub(crate) fn typed_empty_copy_struct_array_contract(
+    pub(crate) fn typed_empty_copy_array_contract(
         &self,
         annotation: &Type,
         initializer: &Expression,
-    ) -> Option<CopyStructArrayContract> {
-        let contract = self.copy_struct_array_annotation_contract(annotation)?;
+    ) -> Option<CopyArrayContract> {
+        let contract = self.copy_array_annotation_contract(annotation)?;
         (contract.count == 0
             && matches!(initializer, Expression::ArrayLiteral(elements) if elements.is_empty()))
         .then_some(contract)
     }
 
-    pub(crate) fn validate_copy_struct_array_binding(
+    pub(crate) fn validate_copy_array_binding(
         &self,
         annotation: Option<&Type>,
         inferred: &Ty,
     ) -> Result<(), StructContractError> {
-        let inferred_contract = self.copy_struct_array_contract(inferred);
-        let annotated_contract = annotation
-            .and_then(|annotation| self.copy_struct_array_annotation_contract(annotation));
+        let inferred_contract = self.copy_array_contract(inferred);
+        let annotated_contract =
+            annotation.and_then(|annotation| self.copy_array_annotation_contract(annotation));
         match (annotation, inferred_contract, annotated_contract) {
-            (None, _, _) | (Some(_), None, None) => Ok(()),
-            (Some(_), Some(_), Some(expected)) if expected.ty() == *inferred => Ok(()),
-            (Some(_), _, Some(expected)) => {
-                Err(StructContractError::CopyStructArrayAnnotationMismatch {
-                    expected: expected.ty().to_string(),
+            (None, _, _) => Ok(()),
+            (Some(annotation @ Type::Array(_, _)), None, None) => {
+                Err(StructContractError::CopyArrayAnnotationMismatch {
+                    expected: annotation_name(annotation),
                     actual: inferred.to_string(),
                 })
             }
+            (Some(_), None, None) => Ok(()),
+            (Some(_), Some(_), Some(expected)) if expected.ty() == *inferred => Ok(()),
+            (Some(_), _, Some(expected)) => Err(StructContractError::CopyArrayAnnotationMismatch {
+                expected: expected.ty().to_string(),
+                actual: inferred.to_string(),
+            }),
             (Some(annotation), Some(expected), None) => {
-                Err(StructContractError::CopyStructArrayAnnotationMismatch {
+                Err(StructContractError::CopyArrayAnnotationMismatch {
                     expected: expected.ty().to_string(),
                     actual: annotation_name(annotation),
                 })
@@ -639,17 +619,17 @@ impl StructRegistry {
         }
     }
 
-    pub(crate) fn validate_copy_struct_array_elements(
+    pub(crate) fn validate_copy_array_elements(
         &self,
         expected: &Ty,
         actual_types: impl IntoIterator<Item = Ty>,
     ) -> Result<(), StructContractError> {
-        if !self.is_copy_struct_ty(expected) {
+        if self.resolve_copy_type(expected).is_none() {
             return Ok(());
         }
         for actual in actual_types {
             if actual != *expected {
-                return Err(StructContractError::CopyStructArrayElementMismatch {
+                return Err(StructContractError::CopyArrayElementMismatch {
                     expected: expected.to_string(),
                     actual: actual.to_string(),
                 });
@@ -658,32 +638,35 @@ impl StructRegistry {
         Ok(())
     }
 
-    pub(crate) fn classify_copy_struct_array_index(
+    pub(crate) fn classify_copy_array_index(
         &self,
         receiver: &Ty,
         index: &Expression,
-    ) -> CopyStructArrayIndexDisposition {
-        let Some(contract) = self.copy_struct_array_contract(receiver) else {
-            return CopyStructArrayIndexDisposition::PreserveExistingBehavior;
+    ) -> CopyArrayIndexDisposition {
+        let Some(contract) = self.copy_array_contract(receiver) else {
+            return CopyArrayIndexDisposition::PreserveExistingBehavior;
         };
         let Some(index) = constant_integer(index) else {
-            return CopyStructArrayIndexDisposition::NonConstant;
+            return CopyArrayIndexDisposition::Accepted {
+                contract,
+                constant_index: None,
+            };
         };
         let Ok(index_usize) = usize::try_from(index) else {
-            return CopyStructArrayIndexDisposition::OutOfBounds {
+            return CopyArrayIndexDisposition::OutOfBounds {
                 index,
                 count: contract.count,
             };
         };
         if index_usize >= contract.count {
-            return CopyStructArrayIndexDisposition::OutOfBounds {
+            return CopyArrayIndexDisposition::OutOfBounds {
                 index,
                 count: contract.count,
             };
         }
-        CopyStructArrayIndexDisposition::Accepted {
+        CopyArrayIndexDisposition::Accepted {
             contract,
-            index: index_usize,
+            constant_index: Some(index_usize),
         }
     }
 
@@ -711,11 +694,11 @@ impl StructRegistry {
         if !mentions_aggregate_candidate {
             return Ok(None);
         }
-        let mentions_tuple = parameters
-            .iter()
-            .any(|parameter| matches!(parameter.param_type, Type::Tuple(_)))
-            || return_type.is_some_and(|result| matches!(result, Type::Tuple(_)));
         if name == "main" {
+            let mentions_tuple = parameters
+                .iter()
+                .any(|parameter| matches!(parameter.param_type, Type::Tuple(_)))
+                || return_type.is_some_and(|result| matches!(result, Type::Tuple(_)));
             let mentions_array = parameters
                 .iter()
                 .any(|parameter| matches!(parameter.param_type, Type::Array(_, _)))
@@ -730,21 +713,6 @@ impl StructRegistry {
         }
         if !type_params.is_empty() || !admitted_symbol(name) {
             return Err(StructContractError::PreserveExistingBehavior);
-        }
-        if mentions_tuple {
-            for parameter in parameters {
-                if !Self::tuple_signature_member(&parameter.param_type) {
-                    return Err(StructContractError::TupleFunctionMixedParameter {
-                        function_name: name.to_string(),
-                        parameter_name: parameter.name.clone(),
-                    });
-                }
-            }
-            if return_type.is_some_and(|result| !Self::tuple_signature_member(result)) {
-                return Err(StructContractError::TupleFunctionMixedReturn {
-                    function_name: name.to_string(),
-                });
-            }
         }
 
         let mut seen_parameters = HashSet::new();
@@ -830,90 +798,14 @@ impl StructRegistry {
             || self.annotation_is_copy_struct(annotation)
     }
 
-    fn tuple_signature_member(annotation: &Type) -> bool {
-        match classify_flat_copy_tuple_annotation(annotation) {
-            TupleContractDisposition::Supported(_)
-            | TupleContractDisposition::ExplicitlyRejected(_) => true,
-            TupleContractDisposition::Preserved => matches!(
-                annotation,
-                Type::Named(name)
-                    if matches!(name.as_str(), "int" | "i32" | "float" | "f64" | "bool")
-            ),
-        }
-    }
-
     pub(crate) fn resolve_copy_annotation(&self, annotation: &Type) -> Option<CopyTypeContract> {
-        match annotation {
-            Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Some(CopyTypeContract {
-                ty: Ty::Int,
-                logical_type: LogicalType::Int,
-            }),
-            Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
-                Some(CopyTypeContract {
-                    ty: Ty::Float,
-                    logical_type: LogicalType::Float,
-                })
-            }
-            Type::Named(name) if name == "bool" => Some(CopyTypeContract {
-                ty: Ty::Bool,
-                logical_type: LogicalType::Bool,
-            }),
-            Type::Named(name) => {
-                let Some(StructDefinitionDisposition::Supported(contract)) =
-                    self.definitions.get(name)
-                else {
-                    return None;
-                };
-                Some(CopyTypeContract {
-                    ty: Ty::Struct(name.clone()),
+        resolve_copy_annotation_shape(annotation, &mut |name| {
+            self.copy_struct_contract(&Ty::Struct(name.to_string()))
+                .map(|contract| CopyTypeContract {
+                    ty: Ty::Struct(name.to_string()),
                     logical_type: contract.logical_type(),
                 })
-            }
-            Type::Array(element, count) => {
-                let element = match element.as_ref() {
-                    Type::Named(name) if matches!(name.as_str(), "int" | "i32") => {
-                        CopyTypeContract {
-                            ty: Ty::Int,
-                            logical_type: LogicalType::Int,
-                        }
-                    }
-                    Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
-                        CopyTypeContract {
-                            ty: Ty::Float,
-                            logical_type: LogicalType::Float,
-                        }
-                    }
-                    Type::Named(name) => {
-                        let Some(StructDefinitionDisposition::Supported(contract)) =
-                            self.definitions.get(name)
-                        else {
-                            return None;
-                        };
-                        CopyTypeContract {
-                            ty: Ty::Struct(name.clone()),
-                            logical_type: contract.logical_type(),
-                        }
-                    }
-                    _ => return None,
-                };
-                Some(CopyTypeContract {
-                    ty: Ty::Array(Box::new(element.ty), *count),
-                    logical_type: LogicalType::Array {
-                        element: Box::new(element.logical_type),
-                        count: *count,
-                    },
-                })
-            }
-            Type::Tuple(_) => match classify_flat_copy_tuple_annotation(annotation) {
-                TupleContractDisposition::Supported(contract) => Some(CopyTypeContract {
-                    ty: contract.ty(),
-                    logical_type: contract.logical_type(),
-                }),
-                TupleContractDisposition::ExplicitlyRejected(_)
-                | TupleContractDisposition::Preserved => None,
-            },
-            _ => None,
-        }
+        })
     }
 }
 
@@ -1053,6 +945,140 @@ mod tests {
     }
 
     #[test]
+    fn least_fixed_point_classifier_covers_every_immediate_constructor_pair() {
+        let registry = StructRegistry::from_top_level_ast(&[
+            definition(
+                "Envelope",
+                vec![
+                    field(
+                        "struct_array",
+                        Type::Array(Box::new(Type::Named("bool".to_string())), 1),
+                    ),
+                    field(
+                        "struct_tuple",
+                        Type::Tuple(vec![
+                            Type::Named("int".to_string()),
+                            Type::Named("bool".to_string()),
+                        ]),
+                    ),
+                    field("struct_struct", Type::Named("Leaf".to_string())),
+                ],
+                vec![],
+            ),
+            definition(
+                "Leaf",
+                vec![field("value", Type::Named("int".to_string()))],
+                vec![],
+            ),
+        ]);
+
+        let immediate_pairs = [
+            Type::Array(
+                Box::new(Type::Array(Box::new(Type::Named("bool".to_string())), 1)),
+                0,
+            ),
+            Type::Array(
+                Box::new(Type::Tuple(vec![
+                    Type::Named("int".to_string()),
+                    Type::Named("bool".to_string()),
+                ])),
+                1,
+            ),
+            Type::Array(Box::new(Type::Named("Leaf".to_string())), 2),
+            Type::Tuple(vec![
+                Type::Array(Box::new(Type::Named("bool".to_string())), 1),
+                Type::Named("int".to_string()),
+            ]),
+            Type::Tuple(vec![
+                Type::Tuple(vec![
+                    Type::Named("int".to_string()),
+                    Type::Named("bool".to_string()),
+                ]),
+                Type::Named("float".to_string()),
+            ]),
+            Type::Tuple(vec![
+                Type::Named("Leaf".to_string()),
+                Type::Named("bool".to_string()),
+            ]),
+            Type::Named("Envelope".to_string()),
+        ];
+
+        for annotation in immediate_pairs {
+            let contract = registry
+                .resolve_copy_annotation(&annotation)
+                .unwrap_or_else(|| panic!("recursive annotation was rejected: {annotation:?}"));
+            assert_eq!(
+                registry
+                    .resolve_copy_type(&contract.ty)
+                    .expect("resolved Ty must have the same recursive proof"),
+                contract
+            );
+        }
+
+        let envelope = registry
+            .resolve_copy_type(&Ty::Struct("Envelope".to_string()))
+            .expect("struct fields cover struct-array, struct-tuple, and struct-struct");
+        assert_eq!(
+            envelope.logical_type,
+            LogicalType::Struct {
+                name: "Envelope".to_string(),
+                fields: vec![
+                    LogicalType::Array {
+                        element: Box::new(LogicalType::Bool),
+                        count: 1,
+                    },
+                    LogicalType::Tuple {
+                        elements: vec![LogicalType::Int, LogicalType::Bool],
+                    },
+                    LogicalType::Struct {
+                        name: "Leaf".to_string(),
+                        fields: vec![LogicalType::Int],
+                    },
+                ],
+            }
+        );
+
+        for unsupported in [
+            Ty::Void,
+            Ty::String,
+            Ty::Enum("Mode".to_string()),
+            Ty::Reference(Box::new(Ty::Int), false),
+            Ty::Reference(Box::new(Ty::Int), true),
+            Ty::Option(Box::new(Ty::Int)),
+            Ty::Result(Box::new(Ty::Int), Box::new(Ty::Bool)),
+            Ty::Vec(Box::new(Ty::Int)),
+            Ty::HashMap(Box::new(Ty::Int), Box::new(Ty::Bool)),
+            Ty::TypeParam("T".to_string()),
+            Ty::Fn("callable".to_string()),
+            Ty::Tuple(vec![]),
+            Ty::Tuple(vec![Ty::Int]),
+            Ty::Array(Box::new(Ty::String), 1),
+        ] {
+            assert!(
+                registry.resolve_copy_type(&unsupported).is_none(),
+                "excluded Ty family was admitted: {unsupported}"
+            );
+            assert!(!registry.is_copy_type(&unsupported));
+        }
+
+        for unsupported in [
+            Type::Named("String".to_string()),
+            Type::Named("Unknown".to_string()),
+            Type::Tuple(vec![]),
+            Type::Tuple(vec![Type::Named("int".to_string())]),
+            Type::Reference(Box::new(Type::Named("int".to_string())), false),
+            Type::Reference(Box::new(Type::Named("int".to_string())), true),
+            Type::Generic("Box".to_string(), vec![Type::Named("int".to_string())]),
+            Type::Array(Box::new(Type::Named("String".to_string())), 1),
+        ] {
+            assert!(
+                registry.resolve_copy_annotation(&unsupported).is_none(),
+                "excluded Type family was admitted: {unsupported:?}"
+            );
+        }
+    }
+
+    #[test]
     fn acyclic_definition_graph_is_resolved_once_with_forward_dependencies() {
         let registry = StructRegistry::from_top_level_ast(&[
             definition(
@@ -1118,6 +1144,31 @@ mod tests {
                 vec![field(
                     "values",
                     Type::Array(Box::new(Type::Named("ArrayCycle".to_string())), 0),
+                )],
+                vec![],
+            )],
+            vec![definition(
+                "TupleCycle",
+                vec![field(
+                    "values",
+                    Type::Tuple(vec![
+                        Type::Named("int".to_string()),
+                        Type::Named("TupleCycle".to_string()),
+                    ]),
+                )],
+                vec![],
+            )],
+            vec![definition(
+                "NestedArrayCycle",
+                vec![field(
+                    "values",
+                    Type::Array(
+                        Box::new(Type::Array(
+                            Box::new(Type::Named("NestedArrayCycle".to_string())),
+                            0,
+                        )),
+                        0,
+                    ),
                 )],
                 vec![],
             )],
@@ -1268,7 +1319,7 @@ mod tests {
     }
 
     #[test]
-    fn copy_function_classifier_closes_scalar_struct_and_flat_array_signature_product() {
+    fn copy_function_classifier_closes_the_recursive_signature_product() {
         let registry = StructRegistry::from_top_level_ast(&[
             definition(
                 "Packet",
@@ -1411,29 +1462,60 @@ mod tests {
             }
         );
 
-        for unsupported in [
-            Type::Array(Box::new(Type::Named("bool".to_string())), 1),
-            Type::Array(Box::new(Type::Named("String".to_string())), 1),
-            Type::Array(
-                Box::new(Type::Array(Box::new(Type::Named("int".to_string())), 1)),
-                1,
-            ),
-        ] {
-            assert_eq!(
-                registry.resolve_copy_function_contract(
-                    "unsupported_array",
-                    &[crate::ast::Parameter {
-                        name: "values".to_string(),
-                        param_type: unsupported,
-                    }],
-                    Some(&Type::Named("int".to_string())),
-                    &[],
+        let recursive_parameters = vec![
+            crate::ast::Parameter {
+                name: "tuple".to_string(),
+                param_type: Type::Tuple(vec![
+                    Type::Named("Packet".to_string()),
+                    Type::Array(Box::new(Type::Named("bool".to_string())), 2),
+                ]),
+            },
+            crate::ast::Parameter {
+                name: "nested".to_string(),
+                param_type: Type::Array(
+                    Box::new(Type::Array(
+                        Box::new(Type::Tuple(vec![
+                            Type::Named("int".to_string()),
+                            Type::Named("Packet".to_string()),
+                        ])),
+                        1,
+                    )),
+                    0,
                 ),
-                Err(StructContractError::UnsupportedFunctionArrayParameter {
-                    parameter_name: "values".to_string(),
-                })
-            );
-        }
+            },
+        ];
+        let recursive_contract = registry
+            .resolve_copy_function_contract(
+                "recursive_transport",
+                &recursive_parameters,
+                Some(&Type::Named("Packet".to_string())),
+                &[],
+            )
+            .expect("recursive signature is classifiable")
+            .expect("recursive signature activates aggregate transport");
+        assert!(matches!(
+            recursive_contract.parameters[0].1.ty,
+            Ty::Tuple(_)
+        ));
+        assert!(matches!(
+            recursive_contract.parameters[1].1.ty,
+            Ty::Array(_, 0)
+        ));
+
+        assert_eq!(
+            registry.resolve_copy_function_contract(
+                "unsupported_array",
+                &[crate::ast::Parameter {
+                    name: "values".to_string(),
+                    param_type: Type::Array(Box::new(Type::Named("String".to_string())), 1,),
+                }],
+                Some(&Type::Named("int".to_string())),
+                &[],
+            ),
+            Err(StructContractError::UnsupportedFunctionArrayParameter {
+                parameter_name: "values".to_string(),
+            })
+        );
         assert_eq!(
             registry.resolve_copy_function_contract(
                 "main",
@@ -1446,7 +1528,7 @@ mod tests {
     }
 
     #[test]
-    fn fixed_copy_struct_array_classifier_closes_type_annotation_element_and_index_product() {
+    fn fixed_copy_array_classifier_delegates_every_recursive_element_to_copy_data() {
         let registry = StructRegistry::from_top_level_ast(&[definition(
             "Packet",
             vec![
@@ -1458,11 +1540,14 @@ mod tests {
         let packet = Ty::Struct("Packet".to_string());
         let array = Ty::Array(Box::new(packet.clone()), 2);
         let contract = registry
-            .copy_struct_array_contract(&array)
-            .expect("supported Copy struct array");
+            .copy_array_contract(&array)
+            .expect("supported recursive Copy-data array");
         assert_eq!(contract.ty(), array);
         assert_eq!(
-            contract.logical_type(),
+            registry
+                .resolve_copy_type(&array)
+                .expect("supported recursive Copy-data type")
+                .logical_type,
             LogicalType::Array {
                 element: Box::new(LogicalType::Struct {
                     name: "Packet".to_string(),
@@ -1476,38 +1561,37 @@ mod tests {
         let annotation = Type::Array(Box::new(Type::Named("Packet".to_string())), 2);
         assert_eq!(
             registry
-                .copy_struct_array_annotation_contract(&annotation)
+                .copy_array_annotation_contract(&annotation)
                 .expect("exact annotation")
                 .ty(),
             array
         );
         assert!(
             registry
-                .validate_copy_struct_array_binding(Some(&annotation), &array)
+                .validate_copy_array_binding(Some(&annotation), &array)
                 .is_ok()
         );
         assert!(matches!(
-            registry.validate_copy_struct_array_binding(
+            registry.validate_copy_array_binding(
                 Some(&Type::Array(Box::new(Type::Named("Packet".to_string())), 1,)),
                 &array,
             ),
-            Err(StructContractError::CopyStructArrayAnnotationMismatch { .. })
+            Err(StructContractError::CopyArrayAnnotationMismatch { .. })
         ));
         assert!(
             registry
-                .validate_copy_struct_array_elements(&packet, [packet.clone(), packet.clone()],)
+                .validate_copy_array_elements(&packet, [packet.clone(), packet.clone()],)
                 .is_ok()
         );
         assert!(matches!(
-            registry
-                .validate_copy_struct_array_elements(&packet, [Ty::Struct("Other".to_string())],),
-            Err(StructContractError::CopyStructArrayElementMismatch { .. })
+            registry.validate_copy_array_elements(&packet, [Ty::Struct("Other".to_string())],),
+            Err(StructContractError::CopyArrayElementMismatch { .. })
         ));
 
         let empty_annotation = Type::Array(Box::new(Type::Named("Packet".to_string())), 0);
         assert!(
             registry
-                .typed_empty_copy_struct_array_contract(
+                .typed_empty_copy_array_contract(
                     &empty_annotation,
                     &Expression::ArrayLiteral(Vec::new()),
                 )
@@ -1515,7 +1599,7 @@ mod tests {
         );
         assert!(
             registry
-                .typed_empty_copy_struct_array_contract(
+                .typed_empty_copy_array_contract(
                     &empty_annotation,
                     &Expression::ArrayRepeat {
                         value: Box::new(literal("Packet", &["count", "ready"])),
@@ -1526,35 +1610,39 @@ mod tests {
         );
 
         assert!(matches!(
-            registry.classify_copy_struct_array_index(&array, &Expression::IntegerLiteral(1),),
-            CopyStructArrayIndexDisposition::Accepted { index: 1, .. }
+            registry.classify_copy_array_index(&array, &Expression::IntegerLiteral(1),),
+            CopyArrayIndexDisposition::Accepted {
+                constant_index: Some(1),
+                ..
+            }
+        ));
+        assert!(matches!(
+            registry
+                .classify_copy_array_index(&array, &Expression::Identifier("index".to_string()),),
+            CopyArrayIndexDisposition::Accepted {
+                constant_index: None,
+                ..
+            }
         ));
         assert_eq!(
-            registry.classify_copy_struct_array_index(
-                &array,
-                &Expression::Identifier("index".to_string()),
-            ),
-            CopyStructArrayIndexDisposition::NonConstant
-        );
-        assert_eq!(
-            registry.classify_copy_struct_array_index(
+            registry.classify_copy_array_index(
                 &array,
                 &Expression::Unary {
                     op: crate::ast::UnaryOp::Negate,
                     operand: Box::new(Expression::IntegerLiteral(1)),
                 },
             ),
-            CopyStructArrayIndexDisposition::OutOfBounds {
+            CopyArrayIndexDisposition::OutOfBounds {
                 index: -1,
                 count: 2
             }
         );
         assert_eq!(
-            registry.classify_copy_struct_array_index(
-                &Ty::Array(Box::new(Ty::Int), 2),
+            registry.classify_copy_array_index(
+                &Ty::Array(Box::new(Ty::String), 2),
                 &Expression::IntegerLiteral(0),
             ),
-            CopyStructArrayIndexDisposition::PreserveExistingBehavior
+            CopyArrayIndexDisposition::PreserveExistingBehavior
         );
     }
 }
