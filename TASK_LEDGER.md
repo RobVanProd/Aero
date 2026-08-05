@@ -8526,3 +8526,18 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   This evidence paragraph is the final records mutation before one fresh exact-
   candidate root gate; no release, stable ABI/layout, general ownership, accelerator,
   performance, or merge claim is made.
+- Public implementation acceptance: exact implementation
+  `da21a76cf92f2faf680a6284b4789fc401fed8fe` was committed from the final clean
+  candidate and pushed unchanged to `agent/aero-integration`. Push CI `30963297077`,
+  PR CI `30963298874`, stable/nightly Rust CI `30963298877`, CodeQL actions/python/
+  rust analysis `30963297658`, and aggregate CodeQL check `92171836058` pass all
+  eight public checks. Stable job `92171725623` records Ubuntu LLVM/Clang 22.1.8,
+  checked build of the exact tracked example, external `opt-22` verification,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking, and exact
+  native exit 63; its public test step also records 152/152 library and 160/160 CLI
+  passes. CORE-044 is accepted without stable ABI/layout, non-Copy/general ownership,
+  accelerator, performance, release, or merge claims. Draft PR #4 was immediately
+  retitled and rewritten to lead with CORE-044, immutable evidence, exclusions, and
+  the four integration-scaling controls. This records-only successor changes no
+  compiler, test, example, workflow, or capability boundary; it must be pushed
+  unchanged, pass all eight checks, and become the exact PR front-page records head.

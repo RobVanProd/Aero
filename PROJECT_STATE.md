@@ -4,8 +4,9 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 63 `CORE-044` is a locally green implementation candidate on accepted
-public CORE-043 basis `ef2d41b71e6509ec7c1464af53eedb0685d9a123`. It extends only
+Milestone 63 `CORE-044` is accepted through exact public implementation commit
+`da21a76cf92f2faf680a6284b4789fc401fed8fe`, on accepted CORE-043 basis
+`ef2d41b71e6509ec7c1464af53eedb0685d9a123`. It extends only
 CORE-043's unique flattened, non-generic, nonempty scalar structs: because every
 field is `Int`, `Float`, or `Bool` and has no admitted destruction, those values are
 Copy. Local aliases, by-value internal function parameters and returns, original
@@ -14,7 +15,7 @@ one-level flattened direct-module composition now retain exact struct identity.
 One shared registry classifies the supported source schema and struct-bearing
 function signature for semantic analysis and checked admission.
 
-The candidate adds a schema-carrying checked-function definition and verifies exact
+The implementation adds a schema-carrying checked-function definition and verifies exact
 aggregate call arguments/results, returns, places, global schemas, and process-entry
 exclusion before LLVM. Checked code generation emits named aggregate parameters,
 loads/stores, calls, and returns; the deprecated unchecked route remains unchanged.
@@ -22,10 +23,14 @@ The exhaustive CORE-044 aggregate, CORE-043 containment suite, shared-classifier
 unit, and adversarial checked-IR controls pass. Exact root `./tools/test.sh` passes
 152/152 library tests, 160/160 CLI tests, every active integration target,
 formatting, correctness Clippy, and doc tests. The exact tracked example also builds
-through the CLI into typed aggregate LLVM. This Windows host has no LLVM/Clang 22,
-so external verification, object lowering, linking, and native exit 63 remain a
-mandatory public stable-Linux gate; CORE-044 is not accepted until that and all
-eight public checks pass.
+through the CLI into typed aggregate LLVM. Push CI `30963297077`, PR CI
+`30963298874`, Rust CI `30963298877`, CodeQL analysis `30963297658`, and aggregate
+CodeQL check `92171836058` pass all eight public checks. Stable Linux job
+`92171725623` uses Ubuntu LLVM/Clang 22.1.8 to checked-build, `opt-22` verify,
+`llc-22` machine-verify and object-lower, `clang-22` link, and execute the exact
+tracked program with native exit 63. The Windows host has no LLVM/Clang 22 and
+accurately reports internal-only verification; the accepted pinned Linux job supplies
+the external/native evidence rather than inferring it locally.
 
 CORE-043 remains accepted at exact implementation commit
 `92b19cf729daa4e3e90d4591495e493573c89e51` and exact public synchronization head
@@ -55,9 +60,9 @@ composition rather than a module system.
 - Periodic system gates must compose multiple accepted capabilities through source,
   semantics, logical checked IR, verification, LLVM, native execution, documentation,
   and release-eligibility classification. CORE-042 and CORE-043 provide accepted
-  composed gates; CORE-044 adds the next candidate gate and remains incomplete until
-  pinned native CI evidence exists. Local slice tests alone never establish
-  whole-language coherence.
+  composed gates; CORE-044 adds an accepted ownership/function-boundary system gate
+  backed by pinned native CI. Local slice tests alone never establish whole-language
+  coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
 Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
@@ -1647,14 +1652,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-CORE-044 is locally green but not yet accepted. Review the exact candidate, commit it
-on `agent/aero-integration`, push unchanged, require all eight public checks, inspect
-the stable Linux LLVM/Clang 22 step for external verification, machine verification,
-object lowering, linking, and exact native exit 63, then synchronize the draft PR
-front page to the accepted public head. Do not begin another implementation slice on
-red or pending evidence.
+CORE-044 is accepted at exact public implementation commit
+`da21a76cf92f2faf680a6284b4789fc401fed8fe`: the exact local gate, all eight public
+checks, and stable Linux LLVM/Clang 22.1.8 native exit 63 pass. Publish this
+records-only acceptance sync unchanged, require its all-eight public checks, and
+keep draft PR #4's front page synchronized to that exact records head. Do not begin
+another implementation slice on red or pending evidence.
 
-After CORE-044 acceptance, separately authorize the next semantic class. Milestone
+Separately authorize the next semantic class. Milestone
 selection must continue to weigh harder non-Copy ownership/runtime-layout/ABI/module/
 GPU boundaries and periodic cross-capability gates. The controlled mega-PR checkpoint
 strategy and structured evidence-manifest generator also require separate

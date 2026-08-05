@@ -958,10 +958,11 @@ declared compatibility policy and release-level coverage.
   ABI/layout guarantees, heap/drop/lifetimes, and accelerators remain absent or
   excluded. The three struct rows are `PARTIAL`, never general struct support.
 
-## CORE-044 bounded scalar-struct Copy-transport candidate
+## CORE-044 bounded scalar-struct Copy-transport evidence
 
-- The locally green CORE-044 candidate classifies only CORE-043 structs whose every
-  field is already an admitted `Int`, `Float`, or `Bool` scalar. It proves local Copy
+- Accepted CORE-044 implementation `da21a76cf92f2faf680a6284b4789fc401fed8fe`
+  classifies only CORE-043 structs whose every field is already an admitted `Int`,
+  `Float`, or `Bool` scalar. It proves local Copy
   aliases and original reuse; exact-name by-value internal function parameters,
   arguments, call results, and returns; mixed scalar/struct signatures; forwarding,
   terminating direct recursion, immediate projection, and flattened direct-module
@@ -974,9 +975,10 @@ declared compatibility policy and release-level coverage.
   unchecked generation does not acquire the checked aggregate path.
 - The exact local root gate passes 152 library and 160 CLI tests plus every active
   integration target, formatting, correctness Clippy, and doc tests. The tracked
-  exit-63 example builds through the CLI. Public all-eight checks and stable Linux
-  LLVM/Clang 22 verification, machine verification, object/link, and native execution
-  remain required before acceptance.
+  exit-63 example builds through the CLI. Push CI `30963297077`, PR CI `30963298874`,
+  Rust CI `30963298877`, CodeQL `30963297658`, and aggregate `92171836058` pass all
+  eight public checks. Stable job `92171725623` uses Ubuntu LLVM/Clang 22.1.8 for
+  external verification, machine verification, object/link, and exact native exit 63.
 - String/custom/nested/recursive/array/tuple/reference/generic fields and non-Copy
   ownership, partial/destructive moves, mutation, destructuring, Match, methods,
   heap/drop/lifetimes, stable layout/ABI/FFI, separate compilation, recursive module

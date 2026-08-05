@@ -162,9 +162,9 @@ aero lsp
 > trusted compiler paths reject those expressions before IR generation with
 > `Tuple expressions are not supported.`
 
-> **Struct value status:** one bounded scalar-struct value slice is publicly accepted,
-> and an all-component-`Copy` transport extension is locally green pending public
-> native CI. A unique,
+> **Struct value status:** one bounded scalar-struct value slice and its
+> all-component-`Copy` internal function-transport extension are publicly accepted.
+> A unique,
 > non-generic, nonempty top-level struct with unique `int`/`i32`, `float`/`f64`, or
 > `bool` fields can be constructed exactly by field name inside an admitted
 > top-level function; construction fields may be reordered and are evaluated once
