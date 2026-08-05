@@ -3,6 +3,7 @@ pub mod ast;
 mod binding_annotation;
 mod code_generator;
 pub mod conformance;
+mod copy_place_contract;
 mod enum_match_contract;
 pub mod errors;
 mod fixed_array_method;

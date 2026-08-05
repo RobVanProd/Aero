@@ -84,11 +84,9 @@ impl CodeGenerator {
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Void => "void".to_string(),
             LogicalType::ImmutableReference { pointee }
-            | LogicalType::MutableReference { pointee } => match pointee.as_ref() {
-                LogicalType::Int | LogicalType::Float => "double*".to_string(),
-                LogicalType::Bool => "i1*".to_string(),
-                _ => unreachable!("verified immutable references carry scalar pointees"),
-            },
+            | LogicalType::MutableReference { pointee } => {
+                format!("{}*", Self::reference_pointee_to_llvm(pointee))
+            }
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
             LogicalType::Tuple { elements } => format!(
                 "{{ {} }}",
@@ -124,12 +122,22 @@ impl CodeGenerator {
         }
     }
 
+    fn reference_pointee_to_llvm(pointee: &LogicalType) -> String {
+        match pointee {
+            LogicalType::Int | LogicalType::Float => "double".to_string(),
+            LogicalType::Bool => "i1".to_string(),
+            _ => Self::logical_type_to_llvm(pointee),
+        }
+    }
+
     fn collect_logical_struct_schema(
         logical_type: &LogicalType,
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
     ) {
         match logical_type {
-            LogicalType::Array { element, .. } => {
+            LogicalType::Array { element, .. }
+            | LogicalType::ImmutableReference { pointee: element }
+            | LogicalType::MutableReference { pointee: element } => {
                 Self::collect_logical_struct_schema(element, schemas)
             }
             LogicalType::Struct { name, fields } => {
@@ -1606,13 +1614,7 @@ impl CodeGenerator {
                     let Value::Reg(source) = source else {
                         panic!("Expected register for checked scalar borrow source")
                     };
-                    let pointee = match pointee {
-                        LogicalType::Int | LogicalType::Float => "double",
-                        LogicalType::Bool => "i1",
-                        _ => {
-                            unreachable!("verified scalar borrows carry only scalar pointee types")
-                        }
-                    };
+                    let pointee = Self::reference_pointee_to_llvm(pointee);
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
                     ));
@@ -1625,13 +1627,7 @@ impl CodeGenerator {
                     let Value::Reg(result) = result else {
                         panic!("Expected register for checked immutable reference parameter")
                     };
-                    let pointee = match pointee {
-                        LogicalType::Int | LogicalType::Float => "double",
-                        LogicalType::Bool => "i1",
-                        _ => unreachable!(
-                            "verified immutable reference parameters carry scalar pointees"
-                        ),
-                    };
+                    let pointee = Self::reference_pointee_to_llvm(pointee);
                     let parameter = Self::llvm_parameter_name(parameter);
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %{parameter}, i64 0\n"
@@ -1981,7 +1977,7 @@ impl CodeGenerator {
         target_type: &str,
     ) -> String {
         match target_type {
-            "double*" | "i1*" => match value {
+            pointer_type if pointer_type.ends_with('*') => match value {
                 Value::Reg(register) => format!("%ptr{register}"),
                 _ => panic!("verified immutable reference arguments use place identifiers"),
             },

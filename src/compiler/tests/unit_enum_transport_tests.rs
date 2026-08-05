@@ -336,7 +336,7 @@ fn main() -> int { return 0; }
         (
             "enum reference parameter",
             "enum Phase { Cold } fn take(value: &Phase) -> int { 1 } fn main() -> int { 0 }",
-            "immutable reference parameters support only Int, Float, or Bool pointees",
+            "immutable reference parameter pointee is not admitted Copy-data",
         ),
         (
             "String mixed parameter",

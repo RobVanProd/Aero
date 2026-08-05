@@ -4,31 +4,41 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 77 `CORE-058` is the implementation candidate for flat heterogeneous
-Copy-scalar tuple layout and internal transport. Inside admitted non-generic top-level
-functions, an immutable tuple has arity at least two and every ordered element is exact
-`Int`, `Float`, or `Bool`. The bounded class includes construction, inferred/exact
-bindings, whole-value Copy aliases, repeated reads, constant in-bounds projection,
-immediate projection, scalar/tuple-only internal parameters and returns, forwarding,
-CFG, terminating recursion, and flattened direct modules.
+Milestone 78 `CORE-059` is the locally green implementation candidate for immutable
+references over the exact already-admitted Copy-data place universe: scalars, flat
+Copy-scalar tuples, fixed numeric arrays, fixed arrays of one exact Copy struct, and
+finite acyclic Copy structs. One `copy_place_contract` classifies each type or
+annotation as supported, explicitly rejected, or preserved, delegating existing tuple
+and struct/array layout identity instead of duplicating topology guards. Local borrows,
+reference annotations and aliases, dereference and whole-value Copy, projection and
+array consumers, CFG, arbitrary immutable-reference/owned-Copy internal signatures,
+forwarding, recursion, and direct modules consume that shared contract.
 
-One `tuple_contract` classifier owns annotation, inferred element, binding, execution-
-context, and projection decisions across semantics and checked admission. Checked IR
-retains `LogicalType::Tuple`, checked allocation, and checked field-pointer identities;
-the independent verifier proves scalar schema, arity, ordered field metadata, place/
-result separation, dominance, signature equality, and metadata stability before LLVM.
-The backend uses a private literal aggregate with `double` physical fields for Aero
-`Int`/`Float` compatibility and `i1` for `Bool`; this is not a stable layout or ABI.
-The exhaustive CORE-058 target, all compiler unit/integration targets, direct-module
-CLI checks, invalid-artifact hygiene, and a local Visual Studio Clang native execution
-at exact exit 23 are green. The exact repository-root gate, public checks, and pinned
-LLVM/Clang 22 execution remain required.
+Checked IR retains the exact recursive pointee `LogicalType`; aggregate dereference
+creates a distinct Copy place. The independent verifier proves source/pointee schema,
+place identity, dominance, and reference-binder integrity before private typed-pointer
+LLVM lowering. Focused CORE-059, classifier, corruption, immutable/mutable reference,
+tuple, array, struct, recursive aggregate, enum compatibility, and complete compiler
+suites are green at 173/173 library and 179/179 binary tests. Visual Studio Clang
+accepts the tracked two-file example and native execution returns exact exit 37. The
+exact repository-root gate passes on the pointer-corrected content. Public checks and
+pinned LLVM/Clang 22 evidence remain required before acceptance.
 
-Unit/unary/nested/non-scalar tuples, mutation, destructuring, dynamic/out-of-range
-projection, tuple containers/fields/payloads/references, generic/impl/closure execution,
-tuple-bearing `main`, public ABI/FFI, drop, accelerator execution, performance, release,
-and stability remain excluded. Enum-bearing signatures explicitly retain their prior
-tuple rejection rather than inheriting this scalar/tuple-only function product.
+Mutable aggregate references, non-identifier borrow origins, String/enums/references/
+unsupported layouts, reference results, escape/capture, NLL, lifetime inference, drop,
+stable ABI/FFI, accelerator execution, performance, release, stability, and a general
+memory-safety claim remain excluded. The CORE-056/057 mutable-reference product stays
+exactly scalar and is not widened.
+
+Milestone 77 `CORE-058` is accepted public at exact implementation commit
+`421a0a9fe6e4df1f35f703a58e50ec41bea9e148`, tree
+`a2c486de7519b4c71631651e11152e17eb4ebf0b`, and stable patch ID
+`58ebaf3c42cfca1ebc0a3125b4ff01ad946e29a0`. All eight public checks pass. Stable
+job `92281869112` uses LLVM/Clang 22.1.8 for external verification, machine
+verification, object lowering, linking, and exact native exit 23, with 171/171
+library and 177/177 binary tests. CORE-058 accepts the bounded flat immutable
+Copy-scalar tuple product and does not establish general tuple semantics, stable
+layout/ABI/FFI, drop, or aggregate-safety claims.
 
 Milestone 76 `CORE-057` is accepted public at exact implementation commit
 `7c108ff0ae0e9686209378deec5ce1de61bff17b`, tree

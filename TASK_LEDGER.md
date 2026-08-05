@@ -11293,3 +11293,186 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   integration target, rustfmt, all-target checking, correctness Clippy, and doc
   tests. This post-gate evidence line is administrative only; no source, test,
   workflow, capability, or semantic content changed after the observed gate.
+
+## CORE-059 — Immutable references over the admitted Copy-data place universe
+
+- Task ID: `CORE-059`.
+- Owner: lead compiler engineer; one coupled vertical-slice owner.
+- Status: authorized; exhaustive red evidence is the next mutation.
+- Starting identity: accepted public CORE-058 commit
+  `421a0a9fe6e4df1f35f703a58e50ec41bea9e148`, tree
+  `a2c486de7519b4c71631651e11152e17eb4ebf0b`, stable patch ID
+  `58ebaf3c42cfca1ebc0a3125b4ff01ad946e29a0`; branch
+  `agent/aero-integration`; draft PR #4 remains open and unmerged with all eight
+  checks green and pinned LLVM/Clang 22.1.8 native exit 23.
+- Selection evidence: recursive modules were considered and rejected for this task
+  because DEC-020 and the current resolver explicitly leave nested base-directory,
+  namespace, duplicate-name, `use`, and `pub` semantics unfrozen. Implementing that
+  class would invent semantics. The normative ownership design already defines any
+  number of immutable references, dereference, non-mutation, and validity within the
+  owner's lifetime. The compiler already has executable private layouts and exact
+  Copy contracts for the bounded data universe below, while `local_reference`
+  artificially restricts immutable pointees to scalars in local borrowing,
+  annotation, dereference, signature admission, checked lowering, verification, and
+  LLVM pointer typing. Fresh examples such as `let row = Row { value: 7 }; let r =
+  &row; (*r).value` and `fn read(value: &Row) -> int { (*value).value }` stop at the
+  existing scalar-only reference diagnostic before checked IR.
+- Primary hypothesis: one shared Copy-place classifier can lift immutable borrowing
+  and internal immutable-reference transport over every already admitted Copy-data
+  layout without changing those layout contracts, mutable-reference semantics, or
+  lifetime policy. Checked aggregate places can be borrowed as typed pointers;
+  dereference produces an owned Copy value/place; the existing independent verifier
+  can prove exact pointee schema and identity before LLVM.
+- Frozen supported pointee class: exactly `Int`, `Float`, `Bool`; every CORE-058 flat
+  arity-two-or-greater tuple whose ordered elements are those scalars; every admitted
+  fixed numeric array; every admitted fixed array of one exact Copy-struct type; and
+  every finite acyclic named Copy struct already resolved by `StructRegistry`,
+  including its admitted nested named fields and fixed numeric/Copy-struct-array
+  fields. Counts, field order, names, tuple order, and complete recursive schemas are
+  part of identity. No new value/layout class is admitted by this task.
+- Frozen source and ownership class: inside admitted non-generic top-level functions,
+  `&owner` accepts only an initialized in-scope identifier place of the supported
+  class. Immutable or mutable owned bindings and exact parameters may be sources.
+  Any number of concurrent immutable borrows of the same owner are allowed; the
+  existing lexical scope/release model remains authoritative. Exact and inferred
+  reference bindings, Copy aliases of immutable references, repeated dereference,
+  whole-value Copy from dereference, field/index/tuple projection after dereference,
+  static array length/iteration after dereference, branches, loops, shadowing,
+  forward calls, call chains, terminating recursion, and flattened direct modules
+  are in class. Borrow and dereference evaluate their source once.
+- Frozen function product: a non-`main`, non-generic internal function that mentions
+  an immutable reference may have any number and order of immutable-reference or
+  owned parameters from the exact admitted Copy-data universe, and may return an
+  owned member of that universe or `Void`. Direct `&owner`, immutable-reference
+  identifiers, parameter forwarding, and reference aliases are accepted arguments.
+  Reference results remain rejected. The CORE-056/057 mutable-reference function
+  product remains exactly one scalar mutable-reference parameter and is not widened.
+- Shared predicate: add one `copy_place_contract` classification surface returning
+  supported, explicitly rejected, or preserved topology from either `Type` or `Ty`.
+  It delegates named/array schemas to `StructRegistry` and tuple products to the
+  existing tuple contract. Local borrow, exact annotation, dereference, immutable
+  reference signature admission, semantic analysis, and checked admission must
+  consume this predicate; no phase may add a second aggregate-pointee whitelist.
+  The independent IR verifier still validates the resulting schema rather than
+  trusting source admission.
+- Frozen representation: checked immutable borrow and immutable-reference-parameter
+  instructions retain exact recursive `LogicalType` pointees. Aggregate dereference
+  is an explicit private Copy load/store into the existing aggregate place model.
+  LLVM uses an exact typed pointer to the already accepted private aggregate type and
+  zero-offset typed GEP; pointer/integer conversions and unrelated bitcasts are
+  forbidden. This creates no public layout, calling-convention, ABI, or FFI contract.
+- Explicitly rejected or preserved: mutable aggregate references; String, enum,
+  reference, function, Option/Result, Vec/HashMap, generic/type-parameter, unsupported
+  struct, unsupported array, unit/unary/nested/non-scalar tuple, and tuple-containing
+  struct/array pointees; temporaries, literals, computations, fields, indices, or
+  dereferences as borrow origins; uninitialized, moved, unknown, out-of-scope, or
+  nonlocal origins; reference results, storage in aggregates/containers, capture,
+  escape, relocation of mutable references, explicit lifetime syntax, lifetime
+  inference, NLL, drop/destruction, heap, concurrency, atomics, unsafe, stable ABI/FFI,
+  accelerators, performance, release, stability, and general memory-safety claims.
+- Complete shape proof required: the classifier unit target must enumerate scalar
+  aliases; every scalar tuple product through arity six while retaining an
+  arity-generic predicate; zero/nonzero numeric and Copy-struct arrays; arbitrary
+  finite accepted struct depth; every excluded top-level `Ty`/`Type` family; and the
+  mutable-reference preservation boundary. One exhaustive integration target must
+  cover every supported family, local and parameter origins, all listed consumers,
+  arbitrary signature order/count, all rejection topologies, checked metadata,
+  verifier corruption, raw-path containment, deterministic LLVM, CLI artifact
+  hygiene, tracked direct-module sources, and workflow anchors.
+- Red-first acceptance: before production mutation, the exhaustive CORE-059 target
+  must fail because aggregate local borrows and immutable-reference signatures reach
+  the existing scalar-only boundary. The tracked example must not checked-build, and
+  no native claim exists. Existing scalar immutable/mutable reference targets and all
+  aggregate/tuple/enum compatibility targets must remain green after implementation.
+- Positive completion gate: focused CORE-059 target; local/reference/mutable-reference
+  compatibility targets; tuple, Copy-struct, fixed-array, acyclic aggregate, and enum
+  targets; rustfmt; `cargo check --all-targets`; correctness Clippy; exact repository-
+  root `./tools/test.sh`; tracked two-file example; LLVM verification; object/link;
+  exact native sentinel; one atomic commit/push; immediate PR #4 synchronization;
+  all eight public checks; and pinned LLVM/Clang 22 external verification, machine
+  verification, object/link, native execution, and exact test totals.
+- Files allowed: new `src/compiler/src/copy_place_contract.rs`; minimal registration
+  in `lib.rs` and `main.rs`; `local_reference.rs`, `struct_contract.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs`; one new exhaustive test plus directly affected reference,
+  aggregate, tuple, enum, and checked-IR expectations; one tracked example tree;
+  `.github/workflows/rust.yml`; and the five current capability/state/decision
+  documents plus this single authorization record.
+- Files and behavior forbidden: lexer/parser grammar; mutable aggregate semantics;
+  enum ownership/layout; tuple/struct/array value-layout expansion; module graph or
+  namespace semantics; generic/trait/impl/closure execution; raw IR API activation;
+  compiler options; accelerator code; benchmarks/claims; release/package/registry;
+  `claim-verification/`; PR merge; history rewrite; force-push; and `master`.
+- Risks: an aggregate dereference can accidentally reuse the owner's place instead of
+  producing Copy identity; reference-bearing signature composition can silently widen
+  enum or mutable-reference products; recursive schemas can diverge between semantic
+  and checked admission; verifier place/value namespaces can collide; code generation
+  can omit named schemas reachable only through reference metadata; and a generic
+  pointer spelling can conceal a bitcast or public-ABI claim.
+- Stop conditions: any supported result requires a new value layout, mutable aggregate
+  policy, reference return/lifetime decision, field/index borrow provenance, parser
+  change, enum Copy decision, module semantic decision, public ABI, or accelerator
+  contract; the shared predicate cannot express the complete class; expected behavior
+  crosses outside the listed files; or the baseline becomes red for an unrelated
+  reason. Stop and amend this authorization before proceeding rather than inventing
+  semantics or narrowing the class to an easier aggregate family.
+- Exhaustive red evidence: after correcting one range-expression fixture, one
+  lexer-ambiguous nested-reference spelling, and workflow-anchor scoping before any
+  production mutation, `cargo test --test copy_place_reference_tests -- --nocapture`
+  exits 1 with the sole target at 0/1. Every struct, recursive struct, numeric-array,
+  Copy-struct-array, and flat-tuple local/parameter/return/CFG/forwarding case stops at
+  `immutable reference parameters support only Int, Float, or Bool pointees` (or the
+  equivalent local scalar-only diagnostic); checked IR/LLVM and the tracked direct-
+  module build do not succeed. The negative matrix confirms the prior parser rejection
+  for unary tuple type syntax and retains the existing mutable-tuple-binding boundary.
+  The first PowerShell invocation found no `cargo` on PATH; rerunning exact
+  `C:\Users\usa50\.cargo\bin\cargo.exe` produced the compiler red above. This is an
+  environment-path fact, not a Windows Security or compiler failure. Status is now
+  active implementation against the frozen shared-predicate contract.
+- Implementation candidate: `copy_place_contract` now classifies both semantic `Ty`
+  and source `Type` topology into supported, explicitly rejected, or preserved results,
+  delegating exact tuples and recursive struct/array schemas to their existing owners.
+  Local immutable borrow, annotations, aliases, dereference, reference-bearing function
+  products, semantic analysis, and checked admission consume it. Aggregate dereference
+  creates a fresh Copy place; checked borrow and parameter binders retain exact recursive
+  `LogicalType`; the verifier proves aggregate source and binder schema; and LLVM uses
+  exact private typed pointers while collecting named schemas reachable only through
+  reference metadata. Mutable-reference classification and execution remain scalar-only.
+- Focused green evidence: the exhaustive CORE-059 target passes 1/1; classifier and
+  aggregate-reference verifier corruption tests pass 1/1 each; local immutable and all
+  three mutable-reference compatibility targets pass; flat tuple, Copy-struct, fixed
+  numeric/Copy-struct array, recursive aggregate, payload-enum, and unit-enum transport
+  targets pass. Directly superseded aggregate immutable-reference rejection fixtures
+  were converted to exact positive assertions, while String, nested-reference, enum,
+  non-Copy, invalid-origin, reference-result, and mutable aggregate boundaries retain
+  explicit negative coverage. Full Cargo, exact root, native exit 37, and public gates
+  remain pending; this record makes no acceptance claim.
+- Native-gate red and closure: after the first complete Cargo run reached 173/173
+  library and 179/179 binary tests, the tracked example's Visual Studio Clang stage
+  rejected aggregate-reference call operands such as `%reg50` because checked borrow
+  lowering had defined `%ptr50`. Before the production correction, the exhaustive
+  target gained an exact required aggregate-call `%ptr` anchor and failed 0/1 on the
+  same mismatch. `cast_value_for_call_arg` now maps every independently verified LLVM
+  pointer parameter type to the checked place namespace, rather than special-casing
+  only `double*` and `i1*`. The focused target passes 1/1, Clang accepts the generated
+  recursive aggregate/tuple/array reference LLVM, and the tracked executable returns
+  exact exit 37. The earlier `version_claim_contract_tests` 7/8 documentation failure
+  was closed by retaining its established exact no-general-borrow-checker disclaimer;
+  the target passes 8/8. Windows Security did not block compilation or execution.
+- Complete compiler evidence after the documentation correction and before the native
+  pointer fix passed 173/173 library tests, 179/179 binary tests, and every integration
+  target (with the established 22 active/16 quarantined Phase 5 split). The final exact
+  repository-root gate is required on the pointer-corrected immutable content before
+  commit; no acceptance claim is made here.
+- Pointer-corrected candidate gate: exact repository-root `./tools/test.sh` under Git
+  Bash with the inherited Cargo path exited 0 in 87.2 seconds. It passed rustfmt,
+  all-target checking, correctness Clippy, 173/173 library tests, 179/179 binary tests,
+  every integration target, the exact 22-active/16-quarantined Phase 5 split, claims
+  contracts, and doc tests. A final record-inclusive root gate remains required after
+  this evidence line; public checks and pinned external native execution remain pending.
+- Final record-inclusive gate: exact repository-root `./tools/test.sh` exited 0 in
+  40.9 seconds with the preceding pointer-corrected result and evidence record present.
+  It again passed rustfmt, all-target checking, correctness Clippy, 173/173 library
+  tests, 179/179 binary tests, every integration target, claims contracts, and doc
+  tests. This post-gate line is administrative only; no source, test, workflow,
+  capability, decision, or semantic content changed after the observed gate.

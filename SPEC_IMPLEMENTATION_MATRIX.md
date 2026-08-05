@@ -40,7 +40,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
-| Local immutable scalar references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
+| Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | P | P | ? | P | N | N | P | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
@@ -81,12 +81,25 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
+- `CORE-059` is a locally green candidate that extends immutable references only over
+  the exact previously admitted Copy-data place universe: scalars, flat Copy-scalar
+  tuples, fixed numeric arrays, fixed Copy-struct arrays, and finite acyclic Copy
+  structs. One three-way classifier owns supported, explicitly rejected, and preserved
+  topology across semantic and checked admission. Exact recursive pointee identity is
+  retained through checked IR, independent verification, and private typed-pointer
+  LLVM. Mutable aggregates, non-identifier borrow origins, reference results, new
+  layouts, stable ABI/FFI, general lifetime/drop/safety, accelerator, performance,
+  release, and stability claims remain absent. Focused, complete compiler, local
+  native-exit-37, and exact repository-root evidence is green; public gates remain
+  pending.
+
 - `CORE-058` moves only the bounded flat Copy-scalar tuple slice from parser-only to
   partial execution: arity at least two; exact ordered `Int`/`Float`/`Bool` elements;
   immutable binding and whole-value Copy; constant projection; scalar/tuple-only
   internal calls/returns; direct modules; checked tuple identities; independent
-  verification; typed literal-aggregate LLVM; and local native exit 23. Public pinned
-  evidence remains pending. Unit/unary/nested/non-scalar, mutable, destructured,
+  verification; typed literal-aggregate LLVM; and pinned native exit 23. Exact public
+  commit `421a0a9` passes all eight checks with 171 library and 177 binary tests.
+  Unit/unary/nested/non-scalar, mutable, destructured,
   contained, generic/impl/closure, process-entry, public ABI/FFI, drop, accelerator,
   performance, release, and stability surfaces remain absent or quarantined. This
   bounded move supersedes DEC-010 only for the listed product; its other tuple

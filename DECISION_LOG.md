@@ -2530,3 +2530,56 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   strategy, structured evidence manifest, and periodic broader release-eligibility
   system gate remain separately scoped work; this hard layout slice does not silently
   convert them into capability claims.
+
+## DEC-054 - Generalize immutable references across exact admitted Copy-data places
+
+- Date: 2026-08-05
+- Status: locally green implementation candidate; complete compiler, local native, and
+  exact repository-root evidence passes, while public pinned LLVM/Clang 22 evidence
+  remains pending. DEC-053/CORE-058 is accepted public at exact
+  commit `421a0a9fe6e4df1f35f703a58e50ec41bea9e148`, tree
+  `a2c486de7519b4c71631651e11152e17eb4ebf0b`, stable patch ID
+  `58ebaf3c42cfca1ebc0a3125b4ff01ad946e29a0`, with all eight checks, 171/171
+  library tests, 177/177 binary tests, and pinned native exit 23 green.
+- Decision: immutable `&owner` and immutable-reference internal transport may use the
+  exact already-admitted Copy-data place universe: `Int`, `Float`, `Bool`, CORE-058
+  flat Copy-scalar tuples, fixed numeric arrays, fixed arrays of one exact Copy struct,
+  and finite acyclic Copy structs. This admits no new value or layout class. Borrow
+  origins remain initialized in-scope local or parameter identifiers; immutable
+  aliases remain Copy and use the existing lexical validity/release policy.
+- Shared contract: `copy_place_contract` is the sole source classifier for this class
+  and returns `Supported`, `ExplicitlyRejected`, or `Preserved`. It delegates tuple
+  products to `tuple_contract` and named/array schemas to `StructRegistry`. Local
+  borrow, exact annotation, dereference, immutable-reference signature admission,
+  semantic analysis, and checked admission consume the result; older topology guards
+  do not acquire a second aggregate whitelist. The independent verifier does not trust
+  source admission and proves the resulting recursive schema.
+- Function product: a reference-bearing non-`main`, non-generic internal function may
+  have any number/order of immutable-reference or owned parameters from that exact Copy
+  universe and return an owned member or `Void`. Direct borrows, immutable-reference
+  identifiers, aliases, forwarding, CFG, terminating recursion, and flattened direct
+  modules are included. Reference results remain rejected. The CORE-056/057 mutable-
+  reference product remains exactly one scalar mutable-reference parameter.
+- IR/backend: checked immutable borrow and reference-parameter binders retain exact
+  recursive `LogicalType` pointees. Aggregate dereference loads into a fresh aggregate
+  Copy place. The verifier checks source-place schema, binder schema, place identity,
+  dominance, and function equality. LLVM uses pointers to the already accepted private
+  scalar/aggregate types, typed zero-offset GEP, loads/stores, and no pointer/integer
+  conversion or unrelated bitcast. No stable layout, calling convention, ABI, FFI, or
+  safety claim follows.
+- Exclusions: mutable aggregate references; String, enum, reference, generic, or
+  unsupported layouts; unit/unary/nested/non-scalar tuples; temporary, projected, or
+  dereferenced borrow origins; uninitialized/moved/nonlocal owners; reference results;
+  storage/capture/escape; NLL, explicit or inferred lifetime policy; drop; heap;
+  concurrency; stable ABI/FFI; accelerator execution; performance; release; stability;
+  and general memory-safety claims remain rejected or preserved.
+- Evidence gate: exhaustive classifier shapes, one full vertical integration target,
+  verifier corruptions, reference/aggregate/tuple/enum compatibility, raw containment,
+  deterministic LLVM, CLI artifact hygiene, direct modules, exact repository-root
+  gate, local native exit 37, all eight public checks, and pinned LLVM/Clang 22 verify/
+  machine-verify/object/link/native evidence are mandatory before acceptance.
+- Scaling boundary: the three-way classifier directly addresses duplicated topology
+  growth without broadening semantics. PR #4 remains an unmerged integration program;
+  controlled checkpoint/merge strategy, structured checkpoint-manifest generation,
+  and periodic broader release-eligibility system gates remain separately authorized
+  scaling work and may not be displaced by a sequence of convenient bounded slices.

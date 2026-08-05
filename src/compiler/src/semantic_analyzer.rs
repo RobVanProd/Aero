@@ -736,7 +736,7 @@ impl SemanticAnalyzer {
         };
         let facts = reference_call_fact_subject(arguments)
             .and_then(|subject| self.local_reference_source_facts(subject));
-        classify_reference_call(contract, arguments, facts.as_ref())
+        classify_reference_call(contract, arguments, facts.as_ref(), &self.struct_registry)
     }
 
     fn readable_identifier_type(&self, name: &str) -> Result<Ty, String> {
@@ -904,6 +904,7 @@ impl SemanticAnalyzer {
                     parameters,
                     return_type.as_ref(),
                     type_params,
+                    &self.struct_registry,
                 ) {
                     ReferenceFunctionDisposition::Supported(contract) => Some(contract),
                     ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
@@ -1592,7 +1593,7 @@ impl SemanticAnalyzer {
                 if facts.is_none() {
                     self.infer_and_validate_expression(expr)?;
                 }
-                match classify_local_borrow(expr, *mutable, facts.as_ref()) {
+                match classify_local_borrow(expr, *mutable, facts.as_ref(), &self.struct_registry) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
@@ -1602,7 +1603,7 @@ impl SemanticAnalyzer {
             }
             Expression::Deref(expr) => {
                 let inner_ty = self.infer_and_validate_expression(expr)?;
-                match classify_local_dereference(&inner_ty) {
+                match classify_local_dereference(&inner_ty, &self.struct_registry) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
@@ -2365,7 +2366,7 @@ impl SemanticAnalyzer {
                 if facts.is_none() {
                     self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
                 }
-                match classify_local_borrow(expr, *mutable, facts.as_ref()) {
+                match classify_local_borrow(expr, *mutable, facts.as_ref(), &self.struct_registry) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
@@ -2376,7 +2377,7 @@ impl SemanticAnalyzer {
             Expression::Deref(expr) => {
                 let inner_ty =
                     self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
-                match classify_local_dereference(&inner_ty) {
+                match classify_local_dereference(&inner_ty, &self.struct_registry) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
@@ -2622,9 +2623,27 @@ impl SemanticAnalyzer {
                     }
                 }
 
+                let reference_annotation = if matches!(inferred_type, Ty::Reference(_, _)) {
+                    type_annotation.as_ref().map_or(
+                        LocalReferenceDisposition::Preserved,
+                        |annotation| {
+                            classify_local_reference_annotation(
+                                annotation,
+                                value.is_some(),
+                                &self.struct_registry,
+                            )
+                        },
+                    )
+                } else {
+                    LocalReferenceDisposition::Preserved
+                };
                 if value.is_some()
                     && let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
                         disposition
+                    && !matches!(
+                        &reference_annotation,
+                        LocalReferenceDisposition::Supported(_)
+                    )
                 {
                     return Err(format!(
                         "Error: Variable `{}` uses an unsupported {} for an initialized binding.",
@@ -2632,17 +2651,6 @@ impl SemanticAnalyzer {
                         kind.topology()
                     ));
                 }
-
-                let reference_annotation = if matches!(inferred_type, Ty::Reference(_, _)) {
-                    type_annotation.as_ref().map_or(
-                        LocalReferenceDisposition::Preserved,
-                        |annotation| {
-                            classify_local_reference_annotation(annotation, value.is_some())
-                        },
-                    )
-                } else {
-                    LocalReferenceDisposition::Preserved
-                };
                 if let LocalReferenceDisposition::ExplicitlyRejected(message) = reference_annotation
                 {
                     return Err(message);

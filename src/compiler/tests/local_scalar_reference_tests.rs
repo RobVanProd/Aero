@@ -232,6 +232,17 @@ fn local_immutable_scalar_reference_class_is_complete_and_executable() {
         }
     }
 
+    failures.extend(expect_success(
+        "CORE-059 array pointee extension remains compatible with scalar references",
+        "fn main() -> int { let x = [1, 2]; let r = &x; let copy = *r; copy[0] }",
+        &["getelementptr inbounds [2 x double]"],
+    ));
+    failures.extend(expect_success(
+        "CORE-059 struct pointee extension remains compatible with scalar references",
+        "struct S { x: int } fn main() -> int { let x = S { x: 1 }; let r = &x; let copy = *r; copy.x }",
+        &["getelementptr inbounds %aero.struct.S"],
+    ));
+
     let rejected = [
         (
             "mutable alias relocation",
@@ -266,22 +277,12 @@ fn local_immutable_scalar_reference_class_is_complete_and_executable() {
         (
             "String pointee",
             "fn main() { let x = \"aero\"; let r = &x; }",
-            "support only Int, Float, or Bool pointees",
-        ),
-        (
-            "array pointee",
-            "fn main() { let x = [1, 2]; let r = &x; }",
-            "support only Int, Float, or Bool pointees",
-        ),
-        (
-            "struct pointee",
-            "struct S { x: int } fn main() { let x = S { x: 1 }; let r = &x; }",
-            "support only Int, Float, or Bool pointees",
+            "admitted Copy-data",
         ),
         (
             "nested reference pointee",
             "fn main() { let x = 1; let r = &x; let rr = &r; }",
-            "support only Int, Float, or Bool pointees",
+            "admitted Copy-data",
         ),
         (
             "exact annotation mismatch",

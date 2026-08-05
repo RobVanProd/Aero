@@ -292,10 +292,20 @@ fn valid_symbol(name: &str) -> bool {
 }
 
 fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
-    matches!(
-        ty,
-        LogicalType::Int | LogicalType::Float | LogicalType::Bool
-    )
+    match ty {
+        LogicalType::Int | LogicalType::Float | LogicalType::Bool => true,
+        logical_type @ LogicalType::Struct { .. } => valid_copy_struct_type(logical_type),
+        LogicalType::Array { element, .. } => {
+            matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
+                || valid_copy_struct_type(element)
+        }
+        LogicalType::Tuple { elements } => valid_flat_copy_tuple(elements),
+        LogicalType::Void
+        | LogicalType::String
+        | LogicalType::ImmutableReference { .. }
+        | LogicalType::MutableReference { .. }
+        | LogicalType::Enum { .. } => false,
+    }
 }
 
 fn valid_mutable_scalar_type(ty: &LogicalType) -> bool {
@@ -1747,13 +1757,30 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             };
-                            if !self.places.contains_key(&source_id) {
+                            let Some(source_type) = self.places.get(&source_id) else {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::ExpectedPlaceIdentifier(
                                         "checked immutable borrow source",
                                     ),
+                                ));
+                            };
+                            let actual = source_type.logical();
+                            if actual.as_ref().is_some_and(|actual| actual != pointee)
+                                || (actual.is_none()
+                                    && !matches!(
+                                        pointee,
+                                        LogicalType::Int | LogicalType::Float | LogicalType::Bool
+                                    ))
+                            {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked immutable borrow pointee `{pointee}` disagrees with source place {}",
+                                        source_id.0
+                                    )),
                                 ));
                             }
                             (PlaceType::Known(pointee.clone()), None)
@@ -4592,6 +4619,131 @@ mod tests {
             non_dominating.kind,
             IrVerificationErrorKind::PlaceDoesNotDominateUse(PlaceId(0))
         ));
+    }
+
+    #[test]
+    fn immutable_copy_place_reference_schema_integrity_is_fail_closed() {
+        let row = LogicalType::Struct {
+            name: "Row".to_string(),
+            fields: vec![LogicalType::Int, LogicalType::Bool],
+        };
+        let checked = verify_ir(function(vec![
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(0),
+                struct_name: "Row".to_string(),
+                field_types: vec![LogicalType::Int, LogicalType::Bool],
+            },
+            Inst::CheckedImmutableBorrow {
+                result: Value::Reg(1),
+                source: Value::Reg(0),
+                pointee: row.clone(),
+            },
+            Inst::Load(Value::Reg(2), Value::Reg(1)),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect("an exact immutable Copy-struct borrow is valid");
+        assert_eq!(
+            checked.metadata().functions["main"].places[&PlaceId(1)].pointee,
+            row
+        );
+
+        let wrong_source_schema = verify_ir(function(vec![
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(0),
+                struct_name: "Row".to_string(),
+                field_types: vec![LogicalType::Int, LogicalType::Bool],
+            },
+            Inst::CheckedImmutableBorrow {
+                result: Value::Reg(1),
+                source: Value::Reg(0),
+                pointee: LogicalType::Struct {
+                    name: "Other".to_string(),
+                    fields: vec![LogicalType::Int, LogicalType::Bool],
+                },
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("aggregate borrow metadata must equal its source place schema");
+        assert!(
+            wrong_source_schema
+                .to_string()
+                .contains("disagrees with source place")
+        );
+
+        let reference = LogicalType::ImmutableReference {
+            pointee: Box::new(row.clone()),
+        };
+        let definition = Inst::CheckedFunctionDef {
+            name: "copy".to_string(),
+            parameters: vec![("value".to_string(), reference)],
+            result: row.clone(),
+            body: vec![
+                Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    pointee: row.clone(),
+                },
+                Inst::Load(Value::Reg(1), Value::Reg(0)),
+                Inst::Return(Value::Reg(1)),
+            ],
+        };
+        let program = HashMap::from([
+            (
+                "main".to_string(),
+                Function {
+                    name: "main".to_string(),
+                    body: vec![definition.clone(), Inst::Return(Value::ImmInt(0))],
+                    next_reg: 8,
+                    next_ptr: 8,
+                },
+            ),
+            (
+                "copy".to_string(),
+                Function {
+                    name: "copy".to_string(),
+                    body: Vec::new(),
+                    next_reg: 8,
+                    next_ptr: 8,
+                },
+            ),
+        ]);
+        verify_ir(program).expect("exact aggregate reference parameter schema is valid");
+
+        let mut wrong_binder = definition;
+        let Inst::CheckedFunctionDef { body, .. } = &mut wrong_binder else {
+            unreachable!("fixture retains checked function definition")
+        };
+        let Inst::CheckedImmutableReferenceParameter { pointee, .. } = &mut body[0] else {
+            unreachable!("fixture retains immutable reference binder")
+        };
+        *pointee = LogicalType::Struct {
+            name: "Row".to_string(),
+            fields: vec![LogicalType::Float, LogicalType::Bool],
+        };
+        let corrupt = HashMap::from([
+            (
+                "main".to_string(),
+                Function {
+                    name: "main".to_string(),
+                    body: vec![wrong_binder, Inst::Return(Value::ImmInt(0))],
+                    next_reg: 8,
+                    next_ptr: 8,
+                },
+            ),
+            (
+                "copy".to_string(),
+                Function {
+                    name: "copy".to_string(),
+                    body: Vec::new(),
+                    next_reg: 8,
+                    next_ptr: 8,
+                },
+            ),
+        ]);
+        assert!(
+            verify_ir(corrupt).is_err(),
+            "aggregate reference binder schema corruption passed verification"
+        );
     }
 
     #[test]

@@ -343,6 +343,26 @@ fn immutable_scalar_reference_parameter_class_is_complete_checked_and_executable
         }
     }
 
+    for (label, source, required) in [
+        (
+            "CORE-059 array reference-parameter extension",
+            "fn read(value: &[int; 2]) -> int { let copy = *value; copy[1] } fn main() -> int { let values = [1, 2]; read(&values) }",
+            vec!["define i32 @read([2 x double]*"],
+        ),
+        (
+            "CORE-059 struct reference-parameter extension",
+            "struct Row { value: int } fn read(value: &Row) -> int { (*value).value } fn main() -> int { let row = Row { value: 2 }; read(&row) }",
+            vec!["define i32 @read(%aero.struct.Row*"],
+        ),
+        (
+            "CORE-059 admitted Copy-data by-value companion",
+            "struct Row { value: int } fn read(value: &int, row: Row) -> int { *value + row.value } fn main() -> int { let value = 1; let row = Row { value: 2 }; read(&value, row) }",
+            vec!["%aero.struct.Row %aero.arg.row"],
+        ),
+    ] {
+        failures.extend(expect_success(label, source, &required));
+    }
+
     for (label, source, expected) in [
         (
             "immutable reference result",
@@ -357,22 +377,12 @@ fn immutable_scalar_reference_parameter_class_is_complete_checked_and_executable
         (
             "String reference parameter",
             "fn read(value: &string) -> int { 0 } fn main() -> int { 0 }",
-            "immutable reference parameters support only Int, Float, or Bool pointees",
-        ),
-        (
-            "array reference parameter",
-            "fn read(value: &[int; 2]) -> int { 0 } fn main() -> int { 0 }",
-            "immutable reference parameters support only Int, Float, or Bool pointees",
-        ),
-        (
-            "struct reference parameter",
-            "struct Row { value: int } fn read(value: &Row) -> int { 0 } fn main() -> int { 0 }",
-            "immutable reference parameters support only Int, Float, or Bool pointees",
+            "admitted Copy-data",
         ),
         (
             "enum reference parameter",
             "enum Value { One } fn read(value: &Value) -> int { 0 } fn main() -> int { 0 }",
-            "immutable reference parameters support only Int, Float, or Bool pointees",
+            "admitted Copy-data",
         ),
         (
             "nested reference parameter",
@@ -380,14 +390,9 @@ fn immutable_scalar_reference_parameter_class_is_complete_checked_and_executable
             "Expected type",
         ),
         (
-            "aggregate by-value companion",
-            "struct Row { value: int } fn read(value: &int, row: Row) -> int { *value } fn main() -> int { 0 }",
-            "reference transport function `read` parameter `row` is not an admitted scalar or immutable scalar-reference type",
-        ),
-        (
             "enum by-value companion",
             "enum Value { One } fn read(value: &int, item: Value) -> int { *value } fn main() -> int { 0 }",
-            "reference transport function `read` parameter `item` is not an admitted scalar or immutable scalar-reference type",
+            "reference transport function `read` parameter `item` is not admitted Copy-data",
         ),
         (
             "generic reference function",

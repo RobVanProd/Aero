@@ -501,7 +501,8 @@ impl StructRegistry {
             | Expression::Identifier(_)
             | Expression::FunctionCall { .. }
             | Expression::IndexAccess { .. }
-            | Expression::FieldAccess { .. } => Ok(()),
+            | Expression::FieldAccess { .. }
+            | Expression::Deref(_) => Ok(()),
             _ => Err(StructContractError::LocalMoveOrCopy),
         }
     }
@@ -514,6 +515,62 @@ impl StructRegistry {
         match ty {
             Ty::Array(element, _) => self.is_copy_type(element),
             _ => ty.is_copy_type() || self.is_copy_struct_ty(ty),
+        }
+    }
+
+    pub(crate) fn resolve_copy_type(&self, ty: &Ty) -> Option<CopyTypeContract> {
+        match ty {
+            Ty::Int => Some(CopyTypeContract {
+                ty: Ty::Int,
+                logical_type: LogicalType::Int,
+            }),
+            Ty::Float => Some(CopyTypeContract {
+                ty: Ty::Float,
+                logical_type: LogicalType::Float,
+            }),
+            Ty::Bool => Some(CopyTypeContract {
+                ty: Ty::Bool,
+                logical_type: LogicalType::Bool,
+            }),
+            Ty::Struct(_) => self
+                .copy_struct_contract(ty)
+                .map(|contract| CopyTypeContract {
+                    ty: ty.clone(),
+                    logical_type: contract.logical_type(),
+                }),
+            Ty::Array(element, count) => {
+                let element = match element.as_ref() {
+                    Ty::Int => CopyTypeContract {
+                        ty: Ty::Int,
+                        logical_type: LogicalType::Int,
+                    },
+                    Ty::Float => CopyTypeContract {
+                        ty: Ty::Float,
+                        logical_type: LogicalType::Float,
+                    },
+                    Ty::Struct(_) => self.resolve_copy_type(element)?,
+                    _ => return None,
+                };
+                Some(CopyTypeContract {
+                    ty: Ty::Array(Box::new(element.ty), *count),
+                    logical_type: LogicalType::Array {
+                        element: Box::new(element.logical_type),
+                        count: *count,
+                    },
+                })
+            }
+            Ty::Tuple(elements) => match crate::tuple_contract::classify_flat_copy_tuple_elements(
+                elements,
+                crate::tuple_contract::TupleExecutionContext::AdmittedFunction,
+            ) {
+                TupleContractDisposition::Supported(contract) => Some(CopyTypeContract {
+                    ty: contract.ty(),
+                    logical_type: contract.logical_type(),
+                }),
+                TupleContractDisposition::ExplicitlyRejected(_)
+                | TupleContractDisposition::Preserved => None,
+            },
+            _ => None,
         }
     }
 

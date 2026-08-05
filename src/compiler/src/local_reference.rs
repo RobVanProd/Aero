@@ -1,10 +1,16 @@
 use crate::ast::{Expression, Parameter, Type};
+use crate::copy_place_contract::{
+    CopyPlaceDisposition, CopyPlaceExecutionContext, classify_copy_place_annotation,
+    classify_copy_place_type,
+};
 use crate::ir::LogicalType;
+use crate::struct_contract::StructRegistry;
 use crate::types::{OwnershipState, Ty};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LocalReferenceContract {
     pub(crate) pointee: Ty,
+    pub(crate) logical_pointee: LogicalType,
     pub(crate) mutable: bool,
 }
 
@@ -102,8 +108,15 @@ impl ReferenceCallContract {
 }
 
 fn scalar_contract(ty: &Ty) -> Option<LocalReferenceContract> {
-    matches!(ty, Ty::Int | Ty::Float | Ty::Bool).then(|| LocalReferenceContract {
+    let logical_pointee = match ty {
+        Ty::Int => LogicalType::Int,
+        Ty::Float => LogicalType::Float,
+        Ty::Bool => LogicalType::Bool,
+        _ => return None,
+    };
+    Some(LocalReferenceContract {
         pointee: ty.clone(),
+        logical_pointee,
         mutable: false,
     })
 }
@@ -129,16 +142,29 @@ fn scalar_transport_type(annotation: &Type) -> Option<ReferenceTransportTypeCont
 
 fn reference_transport_type(
     annotation: &Type,
+    registry: &StructRegistry,
 ) -> Result<Option<ReferenceTransportTypeContract>, &'static str> {
     let Type::Reference(pointee, mutable) = annotation else {
         return Ok(None);
     };
-    let Some(pointee) = scalar_transport_type(pointee) else {
-        return Err(if *mutable {
-            "mutable reference parameters support only Int, Float, or Bool pointees"
-        } else {
-            "immutable reference parameters support only Int, Float, or Bool pointees"
-        });
+    let pointee = if *mutable {
+        scalar_transport_type(pointee)
+            .ok_or("mutable reference parameters support only Int, Float, or Bool pointees")?
+    } else {
+        match classify_copy_place_annotation(
+            pointee,
+            registry,
+            CopyPlaceExecutionContext::AdmittedImmutableReference,
+        ) {
+            CopyPlaceDisposition::Supported(contract) => ReferenceTransportTypeContract {
+                ty: contract.ty,
+                logical_type: contract.logical_type,
+            },
+            CopyPlaceDisposition::ExplicitlyRejected(_) => {
+                return Err("immutable reference parameter pointee is not admitted Copy-data");
+            }
+            CopyPlaceDisposition::Preserved => unreachable!("reference context is admitted"),
+        }
     };
     Ok(Some(ReferenceTransportTypeContract {
         ty: Ty::Reference(Box::new(pointee.ty), *mutable),
@@ -159,6 +185,7 @@ pub(crate) fn classify_reference_function(
     parameters: &[Parameter],
     return_type: Option<&Type>,
     type_params: &[String],
+    registry: &StructRegistry,
 ) -> ReferenceFunctionDisposition {
     let mentions_reference = parameters
         .iter()
@@ -199,33 +226,73 @@ pub(crate) fn classify_reference_function(
 
     let mut resolved_parameters = Vec::with_capacity(parameters.len());
     for parameter in parameters {
-        let contract = match reference_transport_type(&parameter.param_type) {
+        let contract = match reference_transport_type(&parameter.param_type, registry) {
             Ok(Some(contract)) => contract,
             Err(diagnostic) => {
                 return ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic.to_string());
             }
-            Ok(None) => match scalar_transport_type(&parameter.param_type) {
-                Some(contract) => contract,
-                None => {
-                    return ReferenceFunctionDisposition::ExplicitlyRejected(format!(
-                        "reference transport function `{name}` parameter `{}` is not an admitted scalar or immutable scalar-reference type",
-                        parameter.name
-                    ));
+            Ok(None) => {
+                let contract = if mutable_parameters > 0 {
+                    scalar_transport_type(&parameter.param_type)
+                } else {
+                    match classify_copy_place_annotation(
+                        &parameter.param_type,
+                        registry,
+                        CopyPlaceExecutionContext::AdmittedImmutableReference,
+                    ) {
+                        CopyPlaceDisposition::Supported(contract) => {
+                            Some(ReferenceTransportTypeContract {
+                                ty: contract.ty,
+                                logical_type: contract.logical_type,
+                            })
+                        }
+                        CopyPlaceDisposition::ExplicitlyRejected(_)
+                        | CopyPlaceDisposition::Preserved => None,
+                    }
+                };
+                match contract {
+                    Some(contract) => contract,
+                    None => {
+                        return ReferenceFunctionDisposition::ExplicitlyRejected(format!(
+                            "reference transport function `{name}` parameter `{}` is not admitted Copy-data",
+                            parameter.name
+                        ));
+                    }
                 }
-            },
+            }
         };
         resolved_parameters.push((parameter.name.clone(), contract));
     }
 
     let result = match return_type {
-        Some(annotation) => match scalar_transport_type(annotation) {
-            Some(contract) => contract,
-            None => {
-                return ReferenceFunctionDisposition::ExplicitlyRejected(format!(
-                    "reference transport function `{name}` return type is not an admitted scalar or Void type"
-                ));
+        Some(annotation) => {
+            let contract = if mutable_parameters > 0 {
+                scalar_transport_type(annotation)
+            } else {
+                match classify_copy_place_annotation(
+                    annotation,
+                    registry,
+                    CopyPlaceExecutionContext::AdmittedImmutableReference,
+                ) {
+                    CopyPlaceDisposition::Supported(contract) => {
+                        Some(ReferenceTransportTypeContract {
+                            ty: contract.ty,
+                            logical_type: contract.logical_type,
+                        })
+                    }
+                    CopyPlaceDisposition::ExplicitlyRejected(_)
+                    | CopyPlaceDisposition::Preserved => None,
+                }
+            };
+            match contract {
+                Some(contract) => contract,
+                None => {
+                    return ReferenceFunctionDisposition::ExplicitlyRejected(format!(
+                        "reference transport function `{name}` return type is not admitted Copy-data or Void"
+                    ));
+                }
             }
-        },
+        }
         None => ReferenceTransportTypeContract {
             ty: Ty::Void,
             logical_type: LogicalType::Void,
@@ -243,6 +310,7 @@ pub(crate) fn classify_reference_call(
     contract: &ReferenceFunctionContract,
     arguments: &[Expression],
     facts: Option<&LocalReferenceSourceFacts>,
+    registry: &StructRegistry,
 ) -> ReferenceCallDisposition {
     let Some(expected_pointee) = contract.mutable_parameter_pointee() else {
         return ReferenceCallDisposition::Preserved;
@@ -313,7 +381,7 @@ pub(crate) fn classify_reference_call(
         };
     }
 
-    match classify_local_borrow(source, true, facts) {
+    match classify_local_borrow(source, true, facts, registry) {
         LocalReferenceDisposition::Supported(contract) if contract.pointee == *expected_pointee => {
             ReferenceCallDisposition::Supported(ReferenceCallContract {
                 reference: contract,
@@ -368,6 +436,7 @@ pub(crate) fn classify_local_borrow(
     expression: &Expression,
     mutable: bool,
     facts: Option<&LocalReferenceSourceFacts>,
+    registry: &StructRegistry,
 ) -> LocalReferenceDisposition {
     let Expression::Identifier(name) = expression else {
         let qualifier = if mutable { "mutable " } else { "immutable " };
@@ -390,11 +459,29 @@ pub(crate) fn classify_local_borrow(
             "local scalar borrow source `{name}` is not an initialized local binding"
         ));
     }
-    let Some(contract) = scalar_reference_contract(&facts.ty, mutable) else {
-        let qualifier = if mutable { "mutable " } else { "immutable " };
-        return LocalReferenceDisposition::ExplicitlyRejected(format!(
-            "local {qualifier}references support only Int, Float, or Bool pointees"
-        ));
+    let contract = if mutable {
+        let Some(contract) = scalar_reference_contract(&facts.ty, true) else {
+            return LocalReferenceDisposition::ExplicitlyRejected(
+                "local mutable references support only Int, Float, or Bool pointees".to_string(),
+            );
+        };
+        contract
+    } else {
+        match classify_copy_place_type(
+            &facts.ty,
+            registry,
+            CopyPlaceExecutionContext::AdmittedImmutableReference,
+        ) {
+            CopyPlaceDisposition::Supported(contract) => LocalReferenceContract {
+                pointee: contract.ty,
+                logical_pointee: contract.logical_type,
+                mutable: false,
+            },
+            CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                return LocalReferenceDisposition::ExplicitlyRejected(message);
+            }
+            CopyPlaceDisposition::Preserved => unreachable!("borrow context is admitted"),
+        }
     };
     if mutable && !facts.mutable {
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
@@ -420,14 +507,34 @@ pub(crate) fn classify_local_borrow(
     )
 }
 
-pub(crate) fn classify_local_dereference(operand: &Ty) -> LocalReferenceDisposition {
+pub(crate) fn classify_local_dereference(
+    operand: &Ty,
+    registry: &StructRegistry,
+) -> LocalReferenceDisposition {
     match operand {
-        Ty::Reference(pointee, mutable) => scalar_reference_contract(pointee, *mutable).map_or(
+        Ty::Reference(pointee, true) => scalar_reference_contract(pointee, true).map_or(
             LocalReferenceDisposition::ExplicitlyRejected(
-                "local references support only Int, Float, or Bool pointees".to_string(),
+                "local mutable references support only Int, Float, or Bool pointees".to_string(),
             ),
             LocalReferenceDisposition::Supported,
         ),
+        Ty::Reference(pointee, false) => match classify_copy_place_type(
+            pointee,
+            registry,
+            CopyPlaceExecutionContext::AdmittedImmutableReference,
+        ) {
+            CopyPlaceDisposition::Supported(contract) => {
+                LocalReferenceDisposition::Supported(LocalReferenceContract {
+                    pointee: contract.ty,
+                    logical_pointee: contract.logical_type,
+                    mutable: false,
+                })
+            }
+            CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                LocalReferenceDisposition::ExplicitlyRejected(message)
+            }
+            CopyPlaceDisposition::Preserved => unreachable!("dereference context is admitted"),
+        },
         _ => LocalReferenceDisposition::ExplicitlyRejected(
             "cannot dereference a non-reference value".to_string(),
         ),
@@ -437,6 +544,7 @@ pub(crate) fn classify_local_dereference(operand: &Ty) -> LocalReferenceDisposit
 pub(crate) fn classify_local_reference_annotation(
     annotation: &Type,
     initialized: bool,
+    registry: &StructRegistry,
 ) -> LocalReferenceDisposition {
     let Type::Reference(inner, mutable) = annotation else {
         return LocalReferenceDisposition::Preserved;
@@ -444,21 +552,35 @@ pub(crate) fn classify_local_reference_annotation(
     if !initialized {
         return LocalReferenceDisposition::Preserved;
     }
-    let pointee = match inner.as_ref() {
-        Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Ty::Int,
-        Type::Named(name) if matches!(name.as_str(), "float" | "f64") => Ty::Float,
-        Type::Named(name) if name == "bool" => Ty::Bool,
-        _ => {
-            return LocalReferenceDisposition::ExplicitlyRejected(format!(
-                "local {}references support only Int, Float, or Bool pointees",
-                if *mutable { "mutable " } else { "immutable " }
-            ));
+    if *mutable {
+        let Some(contract) = scalar_transport_type(inner) else {
+            return LocalReferenceDisposition::ExplicitlyRejected(
+                "local mutable references support only Int, Float, or Bool pointees".to_string(),
+            );
+        };
+        return LocalReferenceDisposition::Supported(LocalReferenceContract {
+            pointee: contract.ty,
+            logical_pointee: contract.logical_type,
+            mutable: true,
+        });
+    }
+    match classify_copy_place_annotation(
+        inner,
+        registry,
+        CopyPlaceExecutionContext::AdmittedImmutableReference,
+    ) {
+        CopyPlaceDisposition::Supported(contract) => {
+            LocalReferenceDisposition::Supported(LocalReferenceContract {
+                pointee: contract.ty,
+                logical_pointee: contract.logical_type,
+                mutable: false,
+            })
         }
-    };
-    LocalReferenceDisposition::Supported(LocalReferenceContract {
-        pointee,
-        mutable: *mutable,
-    })
+        CopyPlaceDisposition::ExplicitlyRejected(message) => {
+            LocalReferenceDisposition::ExplicitlyRejected(message)
+        }
+        CopyPlaceDisposition::Preserved => unreachable!("reference annotation context is admitted"),
+    }
 }
 
 pub(crate) fn classify_mutable_reference_assignment(
@@ -554,6 +676,7 @@ mod tests {
 
     #[test]
     fn classifier_partitions_supported_rejected_and_preserved_reference_shapes() {
+        let registry = StructRegistry::default();
         for pointee in [Ty::Int, Ty::Float, Ty::Bool] {
             let facts = LocalReferenceSourceFacts {
                 ty: pointee.clone(),
@@ -566,13 +689,13 @@ mod tests {
                 &Expression::Identifier("value".to_string()),
                 false,
                 Some(&facts),
+                &registry,
             );
             assert_eq!(
                 disposition,
-                LocalReferenceDisposition::Supported(LocalReferenceContract {
-                    pointee,
-                    mutable: false,
-                })
+                LocalReferenceDisposition::Supported(
+                    scalar_reference_contract(&pointee, false).expect("scalar contract"),
+                )
             );
         }
         let mutable_facts = LocalReferenceSourceFacts {
@@ -586,27 +709,38 @@ mod tests {
             classify_local_borrow(
                 &Expression::Identifier("value".to_string()),
                 true,
-                Some(&mutable_facts)
+                Some(&mutable_facts),
+                &registry,
             ),
             LocalReferenceDisposition::Supported(LocalReferenceContract {
                 pointee: Ty::Int,
-                mutable: true
+                mutable: true,
+                ..
             })
         ));
         assert!(matches!(
-            classify_local_borrow(&Expression::IntegerLiteral(1), false, None),
+            classify_local_borrow(
+                &Expression::IntegerLiteral(1),
+                false,
+                None,
+                &registry,
+            ),
             LocalReferenceDisposition::ExplicitlyRejected(message)
                 if message.contains("identifier place")
         ));
         assert!(matches!(
-            classify_local_dereference(&Ty::Reference(Box::new(Ty::String), false)),
+            classify_local_dereference(
+                &Ty::Reference(Box::new(Ty::String), false),
+                &registry,
+            ),
             LocalReferenceDisposition::ExplicitlyRejected(message)
-                if message.contains("support only Int, Float, or Bool")
+                if message.contains("admitted Copy-data")
         ));
         assert_eq!(
             classify_local_reference_annotation(
                 &Type::Reference(Box::new(Type::Named("int".to_string())), false),
-                false
+                false,
+                &registry,
             ),
             LocalReferenceDisposition::Preserved
         );
@@ -631,6 +765,7 @@ mod tests {
             &parameters,
             Some(&Type::Named("int".to_string())),
             &[],
+            &registry,
         ) else {
             panic!("reference-bearing scalar signature must be supported")
         };
@@ -652,17 +787,19 @@ mod tests {
                     Type::Reference(Box::new(Type::Named("String".to_string())), false)
                 )],
                 Some(&Type::Named("int".to_string())),
-                &[]
+                &[],
+                &registry,
             ),
             ReferenceFunctionDisposition::ExplicitlyRejected(message)
-                if message.contains("support only Int, Float, or Bool")
+                if message.contains("admitted Copy-data")
         ));
         assert_eq!(
             classify_reference_function(
                 "plain",
                 &[parameter("value", Type::Named("int".to_string()))],
                 Some(&Type::Named("int".to_string())),
-                &[]
+                &[],
+                &registry,
             ),
             ReferenceFunctionDisposition::Preserved
         );
@@ -670,6 +807,7 @@ mod tests {
 
     #[test]
     fn mutable_call_classifier_partitions_direct_identifier_and_rejected_topologies() {
+        let registry = StructRegistry::default();
         let parameter = Parameter {
             name: "value".to_string(),
             param_type: Type::Reference(Box::new(Type::Named("int".to_string())), true),
@@ -679,6 +817,7 @@ mod tests {
             &[parameter],
             Some(&Type::Named("int".to_string())),
             &[],
+            &registry,
         ) else {
             panic!("sole mutable scalar-reference function must be supported")
         };
@@ -694,7 +833,7 @@ mod tests {
             ownership: OwnershipState::Owned,
         };
         assert!(matches!(
-            classify_reference_call(&function, &direct, Some(&owner)),
+            classify_reference_call(&function, &direct, Some(&owner), &registry),
             ReferenceCallDisposition::Supported(ReferenceCallContract {
                 source_mode: ReferenceCallSourceMode::DirectOwnerBorrow,
                 ..
@@ -714,7 +853,7 @@ mod tests {
             ownership: OwnershipState::Owned,
         };
         assert!(matches!(
-            classify_reference_call(&function, &identifier, Some(&alias)),
+            classify_reference_call(&function, &identifier, Some(&alias), &registry),
             ReferenceCallDisposition::Supported(ReferenceCallContract {
                 source_mode: ReferenceCallSourceMode::MutableReferenceIdentifier,
                 ..
@@ -730,7 +869,12 @@ mod tests {
             ..alias.clone()
         };
         assert!(matches!(
-            classify_reference_call(&function, &identifier, Some(&immutable_alias)),
+            classify_reference_call(
+                &function,
+                &identifier,
+                Some(&immutable_alias),
+                &registry,
+            ),
             ReferenceCallDisposition::ExplicitlyRejected(message)
                 if message.contains("mutable scalar-reference identifier")
         ));
@@ -739,7 +883,7 @@ mod tests {
             ..alias
         };
         assert!(matches!(
-            classify_reference_call(&function, &identifier, Some(&moved_alias)),
+            classify_reference_call(&function, &identifier, Some(&moved_alias), &registry),
             ReferenceCallDisposition::ExplicitlyRejected(message)
                 if message.contains("moved mutable reference")
         ));
@@ -747,13 +891,14 @@ mod tests {
             classify_reference_call(
                 &function,
                 &[Expression::IntegerLiteral(1)],
-                Some(&owner)
+                Some(&owner),
+                &registry,
             ),
             ReferenceCallDisposition::ExplicitlyRejected(message)
                 if message.contains("mutable scalar-reference identifier")
         ));
         assert!(matches!(
-            classify_reference_call(&function, &[], None),
+            classify_reference_call(&function, &[], None, &registry),
             ReferenceCallDisposition::ExplicitlyRejected(message)
                 if message.contains("exactly one")
         ));

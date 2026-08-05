@@ -146,7 +146,7 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus accepted bounded subsets for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places, immutable-reference parameter transport, exact scalar reassignment, one local non-escaping mutable scalar alias with checked writes and lexical release, one direct call-scoped `&mut owner` parameter loan, and publicly accepted CORE-057 call-scoped child reborrows from those local aliases or the current mutable-reference parameter. These use checked IR, independent verification, and typed LLVM. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
+| **Memory** | Shallow move tracking plus accepted bounded scalar immutable/mutable-reference subsets. CORE-059 is a locally green candidate that extends only immutable references across the exact admitted Copy-data place universe through one shared three-way classifier, exact checked schemas, independent verification, and typed private LLVM pointers. The CORE-056/057 mutable-reference product remains scalar-only, and aggregate mutable references remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
@@ -157,16 +157,18 @@ aero lsp
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
-> **Tuple status:** CORE-058 is a locally green implementation candidate for flat
+> **Tuple status:** CORE-058 is publicly accepted for flat
 > immutable tuples of arity two or greater whose elements are exactly `Int`,
 > `Float`, or `Bool`. It covers inferred or exact bindings, Copy aliases, constant
 > in-bounds projection, scalar/tuple-only internal calls and returns, direct modules,
 > checked tuple identities, independent verification, typed literal-aggregate LLVM,
-> and local native exit 23. Unit/unary/nested or non-scalar tuples, mutation,
+> and native exit 23. Unit/unary/nested or non-scalar tuples, mutation,
 > destructuring, containers/fields/payloads/references, generic/impl/closure contexts,
 > tuple-bearing `main`, public layout/ABI/FFI, drop, accelerator, performance, release,
-> and stability claims remain unsupported. Public CI and pinned LLVM/Clang evidence
-> are still required before this bounded slice is accepted.
+> and stability claims remain unsupported. Exact implementation `421a0a9` passes all
+> eight public checks; pinned LLVM/Clang 22.1.8 externally verifies, machine-verifies,
+> object-lowers, links, and records exact native exit 23 with 171 library and 177
+> binary tests.
 
 > **Struct value status:** one bounded scalar-struct value slice and its
 > all-component-`Copy` internal function-transport extension are publicly accepted.
@@ -272,8 +274,21 @@ aero lsp
 > verifies, lowers, links, and records exact native exit 253 with 169 library and 175
 > binary tests.
 >
-> Multiple or mixed parameters, `&mut *alias`, mutable-reference results, temporary/
-> non-scalar/projected pointees, escape or aggregate references, relocation, reassignment,
+> CORE-059 is a locally green candidate for immutable references over every exact
+> already-admitted Copy-data place: `Int`/`Float`/`Bool`, flat Copy-scalar tuples,
+> fixed numeric arrays, fixed arrays of one exact Copy struct, and finite acyclic Copy
+> structs. One `copy_place_contract` classifies supported, explicitly rejected, and
+> preserved topology across source semantics and checked admission. Exact recursive
+> pointee schemas survive borrowing, aliases, dereference Copy, projection/array
+> consumers, arbitrary immutable-reference/owned-Copy internal signatures, CFG,
+> forwarding, recursion, direct modules, independent verification, and private typed-
+> pointer LLVM. Focused and complete compiler suites pass at 173 library and 179
+> binary tests; Visual Studio Clang accepts the tracked direct-module program and it
+> returns exact exit 37. The exact repository-root gate passes. Public checks and
+> pinned LLVM/Clang 22 evidence remain mandatory.
+>
+> `&mut *alias`, mutable-reference results, temporary or projected borrow origins,
+> mutable aggregate references, escape, relocation, reassignment,
 > storage/capture, NLL, lifetime inference, drop, stable pointer ABI/FFI, and any memory-
 > safety guarantee remain unsupported. A local alias's root owner remains borrowed until
 > lexical alias end. The Windows host accurately remains `InternalOnly` because LLVM 22

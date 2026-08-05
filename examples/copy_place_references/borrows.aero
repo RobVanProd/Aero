@@ -1,0 +1,23 @@
+fn copy_point(value: &Point) -> Point { *value }
+
+fn module_score(
+    point: &Point,
+    envelope: &Envelope,
+    tuple: &(int, float, bool),
+    values: &[int; 3],
+    rows: &[Point; 2],
+    scalar: &int,
+    bias: int
+) -> int {
+    let point_copy = *point;
+    let envelope_copy = *envelope;
+    let tuple_copy = *tuple;
+    let values_copy = *values;
+    let rows_copy = *rows;
+    if tuple_copy.2 && tuple_copy.1 > 2.0 && values_copy.len() == 3
+        && rows_copy[0].x == *scalar {
+        return point_copy.x + envelope_copy.frame.rows[1].y
+            + tuple_copy.0 + values_copy[2] + bias;
+    }
+    0
+}

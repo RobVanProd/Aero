@@ -74,7 +74,7 @@ pub enum Inst {
         value: Value,
         ty: LogicalType,
     },
-    /// Verified read-only alias of an existing scalar place.
+    /// Verified read-only alias of an existing admitted Copy-data place.
     CheckedImmutableBorrow {
         result: Value,
         source: Value,
@@ -98,7 +98,7 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
-    /// Verified read-only place binding for an immutable scalar-reference parameter.
+    /// Verified read-only place binding for an immutable Copy-data-reference parameter.
     CheckedImmutableReferenceParameter {
         result: Value,
         parameter: String,

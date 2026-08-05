@@ -4,6 +4,7 @@ mod binding_annotation;
 mod code_generator;
 mod compatibility;
 mod conformance;
+mod copy_place_contract;
 mod doc_generator;
 mod enum_match_contract;
 mod errors;

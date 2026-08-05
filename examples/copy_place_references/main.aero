@@ -1,0 +1,33 @@
+mod borrows;
+
+enum Mode { Off, On }
+struct Point { x: int, y: int }
+struct Frame { point: Point, rows: [Point; 2], bias: int }
+struct Envelope { frame: Frame }
+
+fn mode_score(value: Mode) -> int { match value { Mode::Off => 1, Mode::On => 7 } }
+
+fn main() -> int {
+    let point = Point { x: 5, y: 7 };
+    let rows = [point, point];
+    let frame = Frame { point: point, rows: rows, bias: 1 };
+    let envelope = Envelope { frame: frame };
+    let tuple = (3, 2.5, 1 < 2);
+    let values = [4, 6, 8];
+    let scalar = 5;
+    let point_ref: &Point = &point;
+    let point_alias = point_ref;
+    let envelope_ref: &Envelope = &envelope;
+    let tuple_ref: &(int, float, bool) = &tuple;
+    let values_ref: &[int; 3] = &values;
+    let rows_ref: &[Point; 2] = &rows;
+    let scalar_ref = &scalar;
+    let borrowed = module_score(
+        point_alias, envelope_ref, tuple_ref, values_ref, rows_ref, scalar_ref, 1
+    );
+    let copied = copy_point(point_ref);
+    if copied.x == 5 && point.x == 5 && (*point_ref).y == 7 {
+        return borrowed + mode_score(Mode::On) + "aero".len() + (*envelope_ref).frame.rows.len();
+    }
+    1
+}

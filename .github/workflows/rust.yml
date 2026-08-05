@@ -558,6 +558,25 @@ jobs:
         fi
         echo "flat Copy-scalar tuple example passed with exit code 23"
 
+    - name: Test immutable Copy-place reference integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/copy_place_references/main.aero -o ../../copy_place_references.ll
+        opt-22 -passes=verify -disable-output ../../copy_place_references.ll
+        llc-22 -verify-machineinstrs ../../copy_place_references.ll -o /dev/null
+        llc-22 -filetype=obj ../../copy_place_references.ll -o ../../copy_place_references.o
+        clang-22 ../../copy_place_references.o -o ../../copy_place_references
+        set +e
+        ../../copy_place_references
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 37 ]; then
+          echo "immutable Copy-place reference example returned $exit_code, expected 37"
+          exit 1
+        fi
+        echo "immutable Copy-place reference example passed with exit code 37"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

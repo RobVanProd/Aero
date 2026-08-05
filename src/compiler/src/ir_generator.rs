@@ -3,6 +3,9 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, BindingContractKind, classify_binding_annotation,
     is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
+use crate::copy_place_contract::{
+    CopyPlaceDisposition, CopyPlaceExecutionContext, classify_copy_place_type,
+};
 use crate::enum_match_contract::{
     EnumError, EnumExecutionContext, EnumFunctionContract, EnumRegistry,
 };
@@ -197,6 +200,7 @@ impl IrGenerator {
                         parameters,
                         return_type.as_ref(),
                         type_params,
+                        &self.struct_registry,
                     ) {
                         ReferenceFunctionDisposition::Supported(contract) => Some(contract),
                         ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
@@ -415,6 +419,7 @@ impl IrGenerator {
                     parameters,
                     return_type.as_ref(),
                     type_params,
+                    &structs,
                 ) {
                     ReferenceFunctionDisposition::Supported(contract) => Some(contract),
                     ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
@@ -740,8 +745,26 @@ impl IrGenerator {
                             .validate_binding(enum_name, type_annotation.as_ref(), *mutable)
                             .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
                     }
+                    let reference_annotation = if matches!(ty, Ty::Reference(_, _)) {
+                        type_annotation.as_ref().map_or(
+                            LocalReferenceDisposition::Preserved,
+                            |annotation| {
+                                classify_local_reference_annotation(
+                                    annotation,
+                                    true,
+                                    &program.structs,
+                                )
+                            },
+                        )
+                    } else {
+                        LocalReferenceDisposition::Preserved
+                    };
                     if let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
                         disposition
+                        && !matches!(
+                            &reference_annotation,
+                            LocalReferenceDisposition::Supported(_)
+                        )
                     {
                         return Err(IrGenerationError::Admission(format!(
                             "checked IR binding `{}` uses an unsupported {} for an initialized binding",
@@ -749,15 +772,6 @@ impl IrGenerator {
                             kind.topology()
                         )));
                     }
-                    let reference_annotation = if matches!(ty, Ty::Reference(_, _)) {
-                        type_annotation
-                            .as_ref()
-                            .map_or(LocalReferenceDisposition::Preserved, |annotation| {
-                                classify_local_reference_annotation(annotation, true)
-                            })
-                    } else {
-                        LocalReferenceDisposition::Preserved
-                    };
                     if let LocalReferenceDisposition::ExplicitlyRejected(message) =
                         reference_annotation
                     {
@@ -948,6 +962,7 @@ impl IrGenerator {
                     parameters,
                     return_type.as_ref(),
                     type_params,
+                    &program.structs,
                 ) {
                     ReferenceFunctionDisposition::Supported(contract) => Some(contract),
                     ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
@@ -1296,7 +1311,7 @@ impl IrGenerator {
                             inside_admitted_function,
                         )
                     });
-                    classify_reference_call(contract, arguments, facts.as_ref())
+                    classify_reference_call(contract, arguments, facts.as_ref(), &program.structs)
                 } else {
                     ReferenceCallDisposition::Preserved
                 };
@@ -1805,7 +1820,7 @@ impl IrGenerator {
                         admit_static_string_equality,
                     )?;
                 }
-                match classify_local_borrow(expr, *mutable, facts.as_ref()) {
+                match classify_local_borrow(expr, *mutable, facts.as_ref(), &program.structs) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => {
                         Err(admission_error(&message))
@@ -1824,7 +1839,7 @@ impl IrGenerator {
                     inside_impl,
                     admit_static_string_equality,
                 )?;
-                match classify_local_dereference(&reference) {
+                match classify_local_dereference(&reference, &program.structs) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => {
                         Err(admission_error(&message))
@@ -3476,7 +3491,8 @@ impl IrGenerator {
                         return (array, contract.ty());
                     }
                 }
-                let arr_ptr = Value::Reg(self.next_ptr);
+                let arr_id = self.next_ptr;
+                let arr_ptr = Value::Reg(arr_id);
                 self.next_ptr += 1;
                 // Determine element type from first element
                 let elem_type = if count > 0 {
@@ -3520,6 +3536,17 @@ impl IrGenerator {
                     });
                     Ty::Int
                 };
+                if self.checked_mode {
+                    let logical_element = match &elem_type {
+                        Ty::Int => LogicalType::Int,
+                        Ty::Float => LogicalType::Float,
+                        _ => unreachable!("checked admission permits only fixed numeric arrays"),
+                    };
+                    self.checked_place_hints
+                        .entry(function.name.clone())
+                        .or_default()
+                        .insert(PlaceId(arr_id), logical_element);
+                }
                 (arr_ptr, Ty::Array(Box::new(elem_type), count))
             }
             Expression::ArrayRepeat { value, count } => {
@@ -3552,7 +3579,7 @@ impl IrGenerator {
                     elem_type: "double".to_string(),
                     count,
                 });
-                if self.checked_mode && count == 0 {
+                if self.checked_mode {
                     let logical_element = match &elem_ty {
                         Ty::Int => LogicalType::Int,
                         Ty::Float => LogicalType::Float,
@@ -3618,11 +3645,23 @@ impl IrGenerator {
                     .get(name)
                     .expect("checked borrowed binding exists")
                     .clone();
-                let pointee_contract = match pointee {
-                    Ty::Int => LogicalType::Int,
-                    Ty::Float => LogicalType::Float,
-                    Ty::Bool => LogicalType::Bool,
-                    _ => unreachable!("checked reference admission requires a scalar pointee"),
+                let pointee_contract = if mutable {
+                    Self::scalar_logical_type(&pointee)
+                        .expect("checked mutable-reference admission requires a scalar pointee")
+                } else {
+                    match classify_copy_place_type(
+                        &pointee,
+                        &self.struct_registry,
+                        CopyPlaceExecutionContext::AdmittedImmutableReference,
+                    ) {
+                        CopyPlaceDisposition::Supported(contract) => contract.logical_type,
+                        CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                            unreachable!("checked immutable borrow escaped admission: {message}")
+                        }
+                        CopyPlaceDisposition::Preserved => {
+                            unreachable!("checked immutable borrow has admitted context")
+                        }
+                    }
                 };
                 let result = Value::Reg(self.next_ptr);
                 self.next_ptr += 1;
@@ -3644,12 +3683,18 @@ impl IrGenerator {
             Expression::Deref(reference) if self.checked_mode => {
                 let (place, reference_type) = self.generate_expression_ir(*reference, function);
                 let Ty::Reference(pointee, _) = reference_type else {
-                    unreachable!("checked dereference admission requires a scalar reference")
+                    unreachable!("checked dereference admission requires a reference")
                 };
+                let pointee = *pointee;
+                if matches!(pointee, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
+                    let value = self.load_copy_aggregate_value(place, &pointee, function);
+                    let copied = self.store_copy_aggregate_value(value, &pointee, function);
+                    return (copied, pointee);
+                }
                 let result = Value::Reg(self.next_reg);
                 self.next_reg += 1;
                 function.body.push(Inst::Load(result.clone(), place));
-                (result, *pointee)
+                (result, pointee)
             }
             Expression::EnumVariant {
                 enum_name,
