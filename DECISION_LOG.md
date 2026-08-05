@@ -2419,8 +2419,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-051 - Bound mutable-reference transport to one direct call-scoped scalar loan
 
 - Date: 2026-08-05
-- Status: locally green implementation candidate; public acceptance gates remain
-  pending.
+- Status: accepted public at exact implementation `e3ff1658039f8b9e20f18981c3d6198a07e79e92`;
+  all eight checks and pinned native execution are green.
 - Decision: admit only a unique non-generic internal function whose sole parameter is
   exact `&mut Int`, `&mut Float`, or `&mut Bool`, with a scalar or Void result. The
   sole admitted argument is direct `callee(&mut owner)` for an initialized owned local
@@ -2440,7 +2440,49 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 - Evidence gate: exhaustive source/IR/LLVM/CLI and private verifier-corruption tests,
   the exact repository-root gate, all eight public checks, pinned LLVM/Clang 22
   verification and object/link stages, and exact native exit 251 are mandatory.
-  Focused tests and the first exact root gate pass at 167/167 library and 173/173
-  binary tests plus all downstream gates. `CORE-055` remains accepted and unchanged.
-  PR checkpoint/merge strategy and a structured evidence manifest remain separately
-  authorized scaling work.
+  Exact tree `4efca0a523ae60d0d3020f925e0567f430dad9dd` and stable patch ID
+  `77377ea77150931b709898d2fdf2bbcd9713c1c1` pass push CI `30991851164`, PR CI
+  `30991854370`, Rust CI `30991853837`, and CodeQL `30991850056`. Stable job
+  `92259593558` uses LLVM/Clang 22.1.8, externally verifies, machine-verifies, object-
+  lowers, links, and executes exact native exit 251 with 167/167 library and 173/173
+  binary tests. `CORE-055` remains accepted and unchanged. PR checkpoint/merge strategy
+  and a structured evidence manifest remain separately authorized scaling work.
+
+## DEC-052 - Admit call-scoped child reborrows from mutable scalar references
+
+- Date: 2026-08-05
+- Status: locally green implementation candidate; public checks and pinned native
+  execution remain pending.
+- Decision: retain the exact accepted CORE-056 sole mutable scalar-reference signature
+  and add the complete identifier-origin argument class: an initialized in-scope
+  CORE-055 local `&mut Int`/`Float`/`Bool` alias or the current function's matching
+  mutable-reference parameter. Passing either identifier creates a fresh synchronous
+  child reborrow for the exact call; it does not move, copy, end, or escape the parent.
+- Ownership rule: the parent is unavailable during the exact adjacent child-borrow/
+  call/end interval and is restored afterward. A local parent alias's root owner remains
+  unavailable until that alias's existing lexical end. Repeated calls, multi-hop
+  forwarding, branch/loop use, arbitrary declaration order, direct modules, and
+  terminating recursion are within this bounded class.
+- Architecture: `classify_reference_call` remains the sole topology and source-fact
+  decision. Its supported contract distinguishes direct-owner borrowing from mutable-
+  reference identifier reborrowing; semantics, move tracking, checked admission, and
+  checked lowering consume that shared result. Checked IR reuses mutable borrow/end
+  identity for a child of an active local alias or mutable-reference parameter. The
+  verifier independently proves parent provenance, exact pointee, non-overlap, parent
+  exclusion, adjacency, and matching restoration before existing private typed-pointer
+  LLVM lowering.
+- Exclusions: scalar/immutable/moved/uninitialized identifiers, root-owner access while
+  a local alias lives, overlapping children, `&mut *alias`, multiple or mixed signatures,
+  reference results, non-scalar/projected/temporary pointees, relocation, reassignment,
+  storage/capture/escape, explicit or inferred lifetime policy, NLL, drop, stable ABI/
+  FFI, accelerator meaning, performance, release, stability, and memory-safety claims
+  remain unsupported or preserved.
+- Evidence gate: the exhaustive CORE-057 target, private verifier corruptions, focused
+  compatibility targets, raw-path containment, CLI artifact hygiene, tracked composed
+  module example, exact repository-root gate, all eight public checks, pinned LLVM/
+  Clang 22 verification/object/link stages, and exact native exit 253 are mandatory.
+  The new target, all focused suites, `cargo check --all-targets`, the full Cargo suite,
+  and the exact record-synced repository-root gate pass at 169/169 library and 175/175
+  binary tests. CORE-056 remains accepted.
+  PR #4 stays draft and unmerged; checkpoint strategy and structured evidence generation
+  remain separate scaling work.

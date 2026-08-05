@@ -293,16 +293,6 @@ fn main() -> int { let mut value = 1; bump(&mut value) }
 
     for (label, source, expected) in [
         (
-            "stored alias argument",
-            "fn bump(value: &mut int) -> int { *value } fn main() -> int { let mut value = 1; let alias = &mut value; bump(alias) }",
-            "mutable reference calls require a direct `&mut` local owner argument",
-        ),
-        (
-            "forwarded mutable parameter",
-            "fn inner(value: &mut int) -> int { *value } fn outer(value: &mut int) -> int { inner(value) } fn main() -> int { let mut value = 1; outer(&mut value) }",
-            "mutable reference calls require a direct `&mut` local owner argument",
-        ),
-        (
             "two mutable parameters",
             "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
             "exactly one mutable scalar-reference parameter",
@@ -376,6 +366,8 @@ fn main() -> int { let mut value = 1; bump(&mut value) }
     for source in [
         "fn read(value: &int) -> int { *value } fn main() -> int { let value = 7; read(&value) }",
         "fn main() -> int { let mut value = 1; let alias = &mut value; *alias = 2; *alias }",
+        "fn bump(value: &mut int) -> int { *value = *value + 1; *value } fn main() -> int { let mut value = 1; let alias = &mut value; bump(alias) }",
+        "fn inner(value: &mut int) -> int { *value = *value + 1; *value } fn outer(value: &mut int) -> int { inner(value); *value } fn main() -> int { let mut value = 1; outer(&mut value) }",
     ] {
         if let Err(error) = compile_program(source, CompilerOptions::default()) {
             failures.push(format!(

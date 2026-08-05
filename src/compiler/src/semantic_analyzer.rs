@@ -12,6 +12,7 @@ use crate::local_reference::{
     ReferenceFunctionDisposition, classify_local_borrow, classify_local_dereference,
     classify_local_reference_annotation, classify_mutable_reference_assignment,
     classify_mutable_reference_binding, classify_reference_call, classify_reference_function,
+    reference_call_fact_subject,
 };
 use crate::scalar_assignment::{
     ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
@@ -702,16 +703,8 @@ impl SemanticAnalyzer {
         let Some(contract) = self.reference_function_contracts.get(name) else {
             return ReferenceCallDisposition::Preserved;
         };
-        let facts = arguments.first().and_then(|argument| {
-            let Expression::Borrow {
-                expr,
-                mutable: true,
-            } = argument
-            else {
-                return None;
-            };
-            self.local_reference_source_facts(expr)
-        });
+        let facts = reference_call_fact_subject(arguments)
+            .and_then(|subject| self.local_reference_source_facts(subject));
         classify_reference_call(contract, arguments, facts.as_ref())
     }
 
@@ -3160,7 +3153,13 @@ impl SemanticAnalyzer {
     /// Track moves caused by non-Copy arguments in function calls and other expressions.
     fn track_expression_moves(&mut self, expr: &Expression) -> Result<(), String> {
         match expr {
-            Expression::FunctionCall { arguments, .. } => {
+            Expression::FunctionCall { name, arguments } => {
+                if matches!(
+                    self.reference_call_disposition(name, arguments),
+                    ReferenceCallDisposition::Supported(_)
+                ) {
+                    return Ok(());
+                }
                 for arg in arguments {
                     if let Expression::Identifier(arg_name) = arg {
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;

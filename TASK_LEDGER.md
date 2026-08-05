@@ -10889,9 +10889,204 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   173/173 binary counts with every downstream gate green. The Windows host remains
   `InternalOnly` because pinned LLVM 22 is absent; no native or external-verification
   claim is made locally.
-- Remaining candidate gates: preserve the locally green candidate identity, push
-  once, and require all eight public checks plus pinned LLVM/Clang 22 external
-  verification, `llc-22 -verify-machineinstrs`, object/link stages, and exact native
-  exit 251 before public acceptance. Draft PR #4 must be synchronized to the exact
-  candidate head and current diff size immediately after publication; it remains
-  draft and unmerged.
+- Public acceptance: exact implementation `e3ff1658039f8b9e20f18981c3d6198a07e79e92`,
+  tree `4efca0a523ae60d0d3020f925e0567f430dad9dd`, and stable patch ID
+  `77377ea77150931b709898d2fdf2bbcd9713c1c1` pass all eight public checks. Push CI
+  `30991851164`, PR CI `30991854370`, Rust CI `30991853837`, and CodeQL
+  `30991850056` are green on that exact identity. Stable job `92259593558` uses
+  LLVM/Clang 22.1.8, reports `ExternalVerified`, machine-verifies with
+  `llc-22 -verify-machineinstrs`, object-lowers, links, executes exact native exit
+  251, and passes 167/167 library plus 173/173 binary tests. Draft PR #4 is
+  synchronized through CORE-056 at 244 commits, 71,484 additions, 1,542 deletions,
+  and 150 changed files; it remains open, draft, and unmerged.
+
+## CORE-057 - Call-scoped mutable scalar-reference identifier reborrowing
+
+- Task ID and observed behavior: `CORE-057`. Accepted CORE-055 owns one lexical local
+  mutable scalar alias, and accepted CORE-056 can pass only a freshly formed direct
+  `&mut owner` temporary to a sole mutable-reference parameter. The adjacent founding
+  source form `append_greeting(r_mut1)` still fails because the shared call classifier
+  rejects every identifier argument, including an admitted local mutable alias and a
+  mutable-reference parameter. Consequently a mutable alias cannot cross even one
+  synchronous internal call, and a mutable-reference callee cannot forward or
+  recursively reborrow its parameter. The current checked verifier accepts only a
+  fresh owner borrow immediately before the call and has no parent-reference
+  reborrow proof.
+- Authority and hypothesis: `docs/language/aero_ownership_borrowing.md` explicitly
+  shows both `append_greeting(r_mut1)` and `append_greeting(&mut s_mut)`, defines a
+  mutable reference as exclusive read/write access rather than ownership transfer,
+  and says the alias may be used at the call. The formal specification requires
+  exactly one mutable borrow, no overlapping shared borrow, and lifetimes bounded by
+  lexical scopes and use sites. The type-system document requires callers to honor
+  `&mut T` signatures. Therefore an identifier argument whose exact type is the
+  already-admitted `&mut Int`/`Float`/`Bool` may be conservatively reborrowed for one
+  synchronous call without copying, moving, escaping, or ending its parent loan.
+- Complete admitted source class: for an already-admitted unique non-generic
+  non-`main` function with the exact CORE-056 sole mutable scalar-reference parameter
+  and scalar/Void result, the mutable argument topology is exactly one of: (1) the
+  accepted direct `&mut owner`; (2) an identifier naming an initialized, owned,
+  in-scope CORE-055 local mutable scalar-reference binding; or (3) an identifier
+  naming the current function's exact mutable scalar-reference parameter. Cases (2)
+  and (3) are the complete identifier-origin class because binding lookup plus exact
+  `Ty::Reference(_, true)` distinguishes every admitted mutable-reference identifier
+  from owners, immutable references, unknowns, and other values. Inferred and exact
+  annotated local aliases, Int/Float/Bool pointees, scalar/Void callees, arbitrary
+  declaration order, direct modules, repeated calls, multi-hop forwarding, branch/
+  loop use, and terminating direct recursion are included. No topology is admitted
+  by name, syntax position, or phase-local exception.
+- Frozen ownership and lifetime semantics: passing a mutable-reference identifier
+  creates a fresh non-escaping child reborrow beginning at argument evaluation and
+  ending immediately after the call. It neither moves nor copies the parent alias.
+  While the child is active, the parent cannot be read, written, reborrowed, or
+  ended; exact instruction adjacency makes that interval contain only the call. After
+  the end, a local parent alias or parameter remains usable for dereference, write,
+  and another call. A local alias's root owner remains exclusively borrowed until the
+  alias's existing lexical `CheckedMutableBorrowEnd`; passing the alias does not make
+  the root owner available. Parameter forwarding retains the incoming provenance and
+  introduces no lifetime result. These are lexical/call-expression rules, not NLL.
+- Frozen rejected and preserved class: immutable/scalar/owner identifier arguments;
+  moved, uninitialized, unknown, out-of-scope, or invalid-state aliases; use of the
+  root owner while its local alias remains active; overlapping child reborrows;
+  `&mut *alias`, nested/reference-to-reference, temporary, field, index, String,
+  aggregate, Option, Result, closure, or function pointees; alias relocation,
+  reassignment, return, capture, aggregate/global storage, or escape; reference
+  results; multiple or mixed parameters; generic or `main` signatures; explicit
+  lifetime parameters, lifetime inference/elision decisions, NLL, drop/destruction,
+  heap, concurrency, atomics, stable layout/calling convention/ABI/FFI, accelerator
+  execution, performance, release, stability, and general memory-safety claims remain
+  rejected or preserved. Existing direct-call, immutable-reference, local mutable-
+  alias, scalar, aggregate, enum, module, and diagnostic precedence behavior remains.
+- Shared classification contract: extend the existing whole-call
+  `classify_reference_call` decision rather than adding a phase guard. It must consume
+  the full resolved reference-function contract, the sole argument topology, and one
+  `LocalReferenceSourceFacts` record for either a direct borrow source or identifier.
+  It returns one source modeâ€”direct owner borrow or mutable-reference identifier
+  reborrowâ€”inside `Supported`, or one `ExplicitlyRejected`/`Preserved` decision.
+  Semantic inference/initialization and checked admission must consume that same
+  result. The classifier owns exact pointee, mutability, initialization, locality,
+  ownership, and origin topology; no semantic/IR/backend topology list may appear.
+- Checked IR and backend contract: reuse `CheckedMutableBorrow` and
+  `CheckedMutableBorrowEnd` for a child whose source may be an active checked local
+  mutable reference or a checked mutable-reference parameter, while retaining the
+  existing owner-source form. The caller must contain the exact adjacent child
+  borrow/call/end triple carrying child, parent, and pointee identity. The verifier
+  independently proves that the parent is an active local mutable alias or exact
+  parameter binder, is not already child-borrowed, has the exact pointee, dominates
+  the call, remains unavailable during the child interval, and is restored after the
+  matching end. It must reject direct parent-call substitution, forged/inactive/
+  ended parents, wrong source/pointee, immutable substitution, raw pointer/store,
+  missing/duplicate/misordered end, and any inserted instruction. LLVM reuses private
+  typed `double*`/`i1*` zero-offset pointer derivation and direct calls without
+  pointer/integer conversion; no stable ABI follows.
+- Tests first and completion proof: add one exhaustive CORE-057 integration target
+  that proves parser retention; all three pointees; inferred and annotated local
+  aliases; alias read/write/repeated-call reuse; parameter forwarding and reuse;
+  multi-hop, forward-declared, branch/loop, direct-recursive, and direct-module
+  forms; direct CORE-056 compatibility; every rejected topology above; checked child/
+  parent identity and counts; independent verifier corruption; deprecated raw-path
+  containment; CLI failure/no-artifact hygiene; and typed LLVM signature/reborrow/
+  call/load/store anchors. Reclassify only the two directly superseded stored-alias
+  and forwarded-parameter CORE-056 rows. Add one tracked direct-module system example
+  and one stable workflow lane that composes local and parameter reborrows with direct
+  loans, mutation, immutable references, enums/Match, Copy aggregates/arrays, Strings,
+  modules, checked verification, object/link, and exact native exit 253. Focused
+  tests, exact repository-root `./tools/test.sh`, all eight public checks, and the
+  pinned native lane on one immutable identity are mandatory.
+- Allowed files: this ledger; `src/compiler/src/local_reference.rs`, semantic call-
+  fact routing, checked admission/fact routing, checked IR/generator/verifier/codegen
+  only where the reborrow identity requires it; the new exhaustive CORE-057 target;
+  only directly superseded CORE-056 expectations; one tracked example/module pair;
+  `.github/workflows/rust.yml`; and the current capability/state/decision/README truth
+  surfaces. No lexer/parser grammar, AST topology, dependency, optimizer, runtime/
+  stdlib, target, benchmark, claim-verification artifact, package/release, `master`,
+  merge, downstream repository, stable ABI, or accelerator change is authorized.
+- Risks and stop conditions: stop rather than broaden if identifier passing must move
+  or copy a mutable reference; a parent can be accessed while child-borrowed; a local
+  root owner becomes available before lexical alias end; forwarding needs a reference
+  result, lifetime elision, NLL, multiple/mixed signatures, explicit reborrow syntax,
+  new calling convention, runtime loan state, or parser/AST change; verifier proof
+  cannot distinguish owner borrow from parent-reference reborrow; another phase needs
+  a duplicate topology guard; an unsupported reference reaches LLVM; a test must be
+  weakened; or docs would imply stable ABI or memory safety. This is a hard ownership/
+  provenance/function-boundary slice, not a rejection-only or evidence milestone.
+  PR checkpoint/merge strategy and structured evidence generation remain separately
+  authorized scaling work; PR #4 must stay draft and unmerged.
+- Starting evidence and next allowed mutation: branch `agent/aero-integration` is
+  clean and identical to origin at accepted CORE-056 `e3ff1658`; all eight checks and
+  stable native exit 251 are green. The founding/framework and exact current classifier
+  were inspected once for this adjacent class; no new residual audit or re-ranking is
+  authorized. This ledger record is the sole CORE-057 authorization. The next allowed
+  mutation is the exhaustive failing test and absent example/workflow anchors, before
+  any compiler behavior change.
+- Tests-first red evidence: the first unqualified PowerShell `cargo` invocation found
+  no executable and ran no tests. Using the exact installed
+  `C:\Users\usa50\.cargo\bin\cargo.exe`, `cargo test --quiet --manifest-path
+  src/compiler/Cargo.toml --test mutable_reference_reborrow_transport_tests --
+  --nocapture` compiles the new exhaustive target and fails 0/1. Parser retention,
+  direct CORE-056 owner calls, immutable-reference/local-mutable compatibility,
+  relocation rejection, signature exclusions, reference-result and non-scalar
+  exclusions all pass. Every intended inferred/annotated Int/Float/Bool local-alias
+  call, mutable-parameter reuse/forwarding, multi-hop/CFG/forward-declared/recursive
+  form, checked setup, and raw setup stops at the one existing exact `mutable
+  reference calls require a direct \`&mut\` local owner argument` boundary. The
+  tracked example pair and all five stable workflow anchors are absent; invalid CLI
+  build exits nonzero without an artifact but still has the predecessor diagnostic.
+  This is the complete red product. The next allowed mutation is the shared call
+  source-mode classifier and checked child-reborrow proof, not another phase guard.
+- Implementation candidate: `local_reference.rs` extends the existing
+  `ReferenceCallContract` with exact `DirectOwnerBorrow` and
+  `MutableReferenceIdentifier` modes. One private argument-topology function feeds the
+  public fact subject and source mode; the shared function contract owns mutable-
+  parameter recognition. `classify_reference_call` alone validates identifier
+  initialization, locality, exact mutable-reference pointee, and owned parent state.
+  Semantic call facts and checked admission consume the shared fact subject. Semantic
+  move tracking consumes the same call disposition and therefore does not move or copy
+  an admitted mutable-reference identifier. Checked lowering consumes the shared source
+  mode rather than recognizing mutable signatures or argument topology independently.
+- Checked proof and lowering: direct CORE-056 owner calls retain their exact path.
+  Identifier calls emit a fresh `CheckedMutableBorrow` child from the local-alias or
+  mutable-parameter place, the pointer-bearing call, and the matching
+  `CheckedMutableBorrowEnd`. The independent verifier admits only an active exact local
+  mutable alias or checked mutable-reference parameter as a reborrow parent, blocks
+  parent read/write/end or another child during the interval, requires exact adjacency
+  and call operand identity, and restores the parent only after the matching end. It
+  rejects direct parent substitution, immutable or wrong-pointee children, missing/
+  early/wrong end, inserted instructions, overlap, ended parents, and parent access.
+  Existing `CheckedMutableBorrow` typed zero-offset `double*`/`i1*` lowering handles the
+  child without a new raw IR variant or pointer/integer conversion.
+- Product and compatibility: the exhaustive CORE-057 target covers all three pointees,
+  inferred/exact aliases, repeated and independent aliases, nearest shadowing, local-
+  alias reuse, parameter reuse, multi-hop forwarding, branches, loops, forward
+  declarations, terminating recursion, modules, direct CORE-056 compatibility, every
+  frozen rejection, exact checked counts, LLVM anchors, raw containment, and CLI
+  artifact hygiene. Only the stored-alias and forwarded-parameter predecessor rows were
+  reclassified to positive compatibility. The tracked `main.aero`/`reborrows.aero`
+  example and stable lane compose the accepted system surface and require exact native
+  exit 253.
+- Local evidence: `cargo fmt --all`, the CORE-057 target 1/1, shared classifier unit
+  1/1, private verifier unit 1/1, mutable-reference parameter transport 1/1, local
+  mutable references 1/1, immutable-reference parameter transport 1/1, scalar
+  reassignment 1/1, checked IR contract 8/8, and `cargo check --all-targets` all pass.
+  A full `cargo test --quiet --manifest-path src/compiler/Cargo.toml` exits 0 in 74.7
+  seconds with 169/169 library and 175/175 binary tests plus every integration target.
+  Existing warnings remain non-fatal. No Windows Security intervention or policy
+  relaxation was required.
+- First exact root evidence: from repository root, Git Bash with
+  `/c/Users/usa50/.cargo/bin` prepended to `PATH` ran exact `./tools/test.sh` and exited
+  0 after the implementation/example/workflow product was present. That run preceded
+  the final enumeration-only positive rows, shared-contract cleanup, and current truth-
+  record synchronization; a fresh record-synced gate and a verification gate remain
+  mandatory before commit.
+- Record-synced exact root gate: after the complete implementation, exhaustive test,
+  tracked example/workflow, shared-contract cleanup, and all current truth surfaces were
+  synchronized, exact repository-root `./tools/test.sh` exits 0 in 29.1 seconds with
+  169/169 library and 175/175 binary tests, every integration target including
+  CORE-057, formatting, correctness Clippy, and doc tests. Only existing non-fatal
+  warnings remain. The independent verification gate is next; no public or native
+  acceptance is inferred from this Windows `InternalOnly` result.
+- Verification exact root gate: with the record-synced implementation and truth
+  surfaces unchanged, a second exact repository-root `./tools/test.sh` exits 0 in 21.4
+  seconds at the same 169/169 library and 175/175 binary counts, with every integration,
+  formatting, correctness-Clippy, and documentation gate green. The final immutable-
+  content gate must pass after this evidence entry; then one commit/push and public
+  pinned-native acceptance may proceed.

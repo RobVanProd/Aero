@@ -521,6 +521,24 @@ jobs:
         fi
         echo "mutable scalar-reference parameter transport example passed with exit code 251"
 
+    - name: Test mutable scalar-reference identifier reborrow integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/mutable_reference_reborrowing/main.aero -o ../../mutable_reference_reborrowing.ll
+        opt-22 -passes=verify -disable-output ../../mutable_reference_reborrowing.ll
+        llc-22 -verify-machineinstrs ../../mutable_reference_reborrowing.ll -o /dev/null
+        llc-22 -filetype=obj ../../mutable_reference_reborrowing.ll -o ../../mutable_reference_reborrowing.o
+        clang-22 ../../mutable_reference_reborrowing.o -o ../../mutable_reference_reborrowing
+        set +e
+        ../../mutable_reference_reborrowing
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 253 ]; then
+          echo "Expected exit code 253, got $exit_code"
+          exit 1
+        fi
+        echo "mutable scalar-reference identifier reborrow example passed with exit code 253"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

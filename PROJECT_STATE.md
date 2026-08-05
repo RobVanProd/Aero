@@ -4,27 +4,37 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 75 `CORE-056` is the implementation candidate for direct-call mutable
-scalar-reference parameter transport. A unique non-generic internal function may have
-exactly one `&mut Int`/`Float`/`Bool` parameter and no companion parameters. Its only
-admitted argument is direct `callee(&mut owner)` for the nearest initialized owned
-local `let mut` of the exact scalar type. The callee may read and write through the
-parameter; the caller regains the owner immediately after the call. Stored aliases,
-forwarding, reborrowing, mixed/multiple parameters, and reference results remain
-excluded.
+Milestone 76 `CORE-057` is the implementation candidate for call-scoped mutable
+scalar-reference identifier reborrowing. The exact accepted CORE-056 sole
+`&mut Int`/`Float`/`Bool` parameter may now receive either direct `&mut owner`, an
+initialized in-scope CORE-055 local mutable scalar alias, or the current function's
+mutable-reference parameter. An identifier argument creates a fresh child reborrow for
+the exact call without moving or copying its parent. The parent is unavailable during
+the adjacent child-borrow/call/end interval, usable again afterward, and a local
+parent's root owner remains borrowed until the parent's existing lexical end.
 
-The shared reference-function contract now owns signature mode and one whole-call
-classification using the same local source facts at semantic and checked-admission
-boundaries. Checked IR adds a distinct mutable-reference logical signature and
-parameter binder, while the caller emits an adjacent checked borrow/call/end temporary.
-Independent verification requires exact binder coverage, writable parameter identity,
-active local loan provenance, and the exact temporary sequence; it rejects raw
-alloc/store/call substitutions. LLVM uses the existing private `double*`/`i1*`
-representation with no pointer/integer conversion. Focused source/IR/LLVM/CLI and
-private corruption tests are green. The exact repository-root gate passes 167/167
-library and 173/173 binary tests plus every integration, formatting, correctness-
-Clippy, and documentation gate. Pinned Linux native exit 251 and all public checks
-remain required before public acceptance.
+One shared reference-call classifier owns direct-owner versus identifier-reborrow
+topology, exact pointee, initialization, locality, and ownership across semantic and
+checked-admission consumers. Checked IR reuses the existing mutable borrow/end identity
+for child reborrows; independent verification admits only active local-alias or mutable-
+parameter parents, enforces exact adjacency, and rejects forged, ended, overlapping,
+wrong-pointee, parent-access, raw-call, and release substitutions. LLVM reuses the
+private typed `double*`/`i1*` path without pointer/integer conversion. The exhaustive
+CORE-057 target, focused compatibility suites, `cargo check --all-targets`, the full
+Cargo suite, and the exact record-synced repository-root gate are green at 169/169
+library and 175/175 binary tests. Public checks and pinned native exit 253 remain
+required.
+
+Milestone 75 `CORE-056` is accepted public at exact implementation commit
+`e3ff1658039f8b9e20f18981c3d6198a07e79e92`, tree
+`4efca0a523ae60d0d3020f925e0567f430dad9dd`, and stable patch ID
+`77377ea77150931b709898d2fdf2bbcd9713c1c1`. All eight public checks pass. Stable
+job `92259593558` uses LLVM/Clang 22.1.8 for external verification, machine
+verification, object lowering, linking, and exact native exit 251, with 167/167
+library and 173/173 binary tests. CORE-056 accepts exactly one direct call-scoped
+mutable scalar owner loan into a sole mutable-reference parameter; it does not
+establish stored-alias transport, reborrowing, general lifetimes, stable ABI/FFI, or a
+memory-safety claim.
 
 Milestone 74 `CORE-055` is accepted public at exact implementation commit
 `1f6ea726ad87f079592d136cb374ff6481d4acec`, tree
@@ -233,9 +243,12 @@ composition rather than a module system.
   proof. Accepted CORE-054 takes explicit mutable state across branches and loops with
   one shared whole-assignment classifier and checked place/write proof. Accepted
   CORE-055 takes the harder exclusive-loan/provenance boundary with non-`Copy` aliases,
-  dereference writes, lexical release, and checked active-loan verification. CORE-056
-  now carries that exclusive provenance across an internal writable pointer boundary
-  with a call-scoped loan and independently verified callee identity. Deeper CFG
+  dereference writes, lexical release, and checked active-loan verification. Accepted
+  CORE-056 carries that exclusive provenance across an internal writable pointer
+  boundary with a call-scoped loan and independently verified callee identity.
+  CORE-057 now takes the adjacent hard parent/child provenance class by reborrowing
+  local aliases and mutable-reference parameters across synchronous internal calls.
+  Deeper CFG
   ownership, runtime representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -269,9 +282,12 @@ composition rather than a module system.
   branch-selected, and loop-carried Int/Float/Bool mutation through explicit checked
   writes while retaining that broader composition. CORE-055's accepted exit-239 gate
   adds exclusive local mutable aliases, typed dereference loads/stores, lexical owner
-  reuse, and Bool/Float/Int loan provenance. CORE-056's candidate exit-251 gate adds
+  reuse, and Bool/Float/Int loan provenance. CORE-056's accepted exit-251 gate adds
   direct mutable loans across internal calls, writable checked parameter binders, and
-  exact post-call owner reuse; public native acceptance remains mandatory.
+  exact post-call owner reuse. CORE-057's candidate exit-253 gate adds local-alias and
+  parameter child reborrows, multi-hop forwarding, terminating recursion, exact parent
+  restoration, and continued root-owner exclusion; public native acceptance remains
+  mandatory.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -310,17 +326,17 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-A direct `callee(&mut owner)` can carry one temporary exclusive scalar loan across an
-internal function boundary without admitting stored alias arguments, forwarding,
-reborrowing, multiple parameters, reference results, or inferred lifetimes. A shared
-signature/call classifier can keep semantic analysis and checked admission aligned;
-an explicit mutable parameter binder plus adjacent borrow/call/end instructions can
-give the independent verifier enough identity to reject raw pointer substitution.
-Focused source-to-LLVM, CLI, and corruption evidence is green. The exact root gate,
-immutable implementation identity, all-eight public checks, pinned external and
-machine verification, object/link stages, and native exit 251 remain required before
-acceptance. General mutable references, NLL, drop, stable ABI/FFI, and memory-safety
-claims remain outside this class.
+An initialized local mutable scalar alias or current mutable-reference parameter can be
+reborrowed for one synchronous internal call without moving, copying, ending, or
+escaping its parent. The shared call classifier can own the complete direct-owner versus
+identifier-reborrow topology, while a checked child-borrow/call/end identity gives the
+independent verifier enough provenance to block parent access and reject raw pointer
+substitution. Focused source-to-LLVM, CLI, corruption, compatibility, and full Cargo
+evidence and the record-synced exact root gate are green. Immutable implementation
+identity, all-eight public checks, pinned external and machine verification, object/link
+stages, and native exit 253 remain required before acceptance. Multiple/mixed
+signatures, reference results, NLL, drop, stable ABI/FFI, and memory-safety claims remain
+outside this class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1864,9 +1880,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve the locally green CORE-056 candidate identity, commit and push once, and
+Preserve the locally green CORE-057 candidate identity, commit and push once, and
 immediately resynchronize draft PR #4 to the exact candidate head and current diff
-size. Require all eight checks plus pinned LLVM/Clang 22 native exit 251 before
+size. Require all eight checks plus pinned LLVM/Clang 22 native exit 253 before
 acceptance. Keep the PR draft and unmerged. Then choose the next hard capability
 separately; the controlled mega-PR checkpoint strategy and structured evidence-
 manifest generator remain separate tasks.

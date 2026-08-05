@@ -11,10 +11,12 @@ use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
-    MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
-    ReferenceFunctionDisposition, classify_local_borrow, classify_local_dereference,
-    classify_local_reference_annotation, classify_mutable_reference_assignment,
-    classify_mutable_reference_binding, classify_reference_call, classify_reference_function,
+    MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceCallSourceMode,
+    ReferenceFunctionContract, ReferenceFunctionDisposition, classify_local_borrow,
+    classify_local_dereference, classify_local_reference_annotation,
+    classify_mutable_reference_assignment, classify_mutable_reference_binding,
+    classify_reference_call, classify_reference_function, reference_call_fact_subject,
+    reference_call_source_mode,
 };
 use crate::scalar_assignment::{
     ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
@@ -1264,16 +1266,9 @@ impl IrGenerator {
                 let inside_admitted_function =
                     bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
                 let reference_call = if let Some(contract) = program.reference_functions.get(name) {
-                    let facts = arguments.first().and_then(|argument| {
-                        let Expression::Borrow {
-                            expr,
-                            mutable: true,
-                        } = argument
-                        else {
-                            return None;
-                        };
+                    let facts = reference_call_fact_subject(arguments).and_then(|subject| {
                         Self::admission_local_reference_source_facts(
-                            expr,
+                            subject,
                             bindings,
                             inside_admitted_function,
                         )
@@ -3110,11 +3105,18 @@ impl IrGenerator {
                 (result_reg, result_type)
             }
             Expression::FunctionCall { name, arguments } => {
+                let mutable_call_source_mode = self
+                    .checked_mode
+                    .then(|| self.reference_function_contracts.get(&name))
+                    .flatten()
+                    .filter(|contract| contract.mutable_parameter_pointee().is_some())
+                    .and_then(|_| reference_call_source_mode(&arguments));
                 // Generate IR for arguments
                 let mut arg_values = Vec::new();
                 let mut temporary_mutable_borrows = Vec::new();
                 for arg in arguments {
-                    let direct_mutable_source = if self.checked_mode
+                    let direct_mutable_source = if mutable_call_source_mode
+                        == Some(ReferenceCallSourceMode::DirectOwnerBorrow)
                         && let Expression::Borrow {
                             expr,
                             mutable: true,
@@ -3127,7 +3129,7 @@ impl IrGenerator {
                     } else {
                         None
                     };
-                    let (arg_value, arg_type) = self.generate_expression_ir(arg, function);
+                    let (mut arg_value, arg_type) = self.generate_expression_ir(arg, function);
                     if let Some((source, pointee)) = direct_mutable_source {
                         let Ty::Reference(actual, true) = &arg_type else {
                             unreachable!("checked direct mutable call retains reference type")
@@ -3139,6 +3141,26 @@ impl IrGenerator {
                             Self::scalar_logical_type(&pointee)
                                 .expect("checked direct mutable call retains scalar pointee"),
                         ));
+                    } else if mutable_call_source_mode
+                        == Some(ReferenceCallSourceMode::MutableReferenceIdentifier)
+                    {
+                        let Ty::Reference(pointee, true) = &arg_type else {
+                            unreachable!(
+                                "checked mutable-reference identifier call retains reference type"
+                            )
+                        };
+                        let parent = arg_value;
+                        let child = Value::Reg(self.next_ptr);
+                        self.next_ptr += 1;
+                        let logical_pointee = Self::scalar_logical_type(pointee)
+                            .expect("checked mutable-reference reborrow retains scalar pointee");
+                        function.body.push(Inst::CheckedMutableBorrow {
+                            result: child.clone(),
+                            source: parent.clone(),
+                            pointee: logical_pointee.clone(),
+                        });
+                        temporary_mutable_borrows.push((child.clone(), parent, logical_pointee));
+                        arg_value = child;
                     }
                     let arg_value = if matches!(&arg_type, Ty::Struct(_)) {
                         self.load_copy_struct_value(arg_value, function)

@@ -80,7 +80,7 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
-    /// Verified exclusive non-escaping alias of an existing mutable scalar place.
+    /// Verified exclusive non-escaping alias of a mutable scalar owner or reference place.
     CheckedMutableBorrow {
         result: Value,
         source: Value,
@@ -92,7 +92,7 @@ pub enum Inst {
         value: Value,
         pointee: LogicalType,
     },
-    /// Verified lexical end of a non-escaping mutable scalar borrow.
+    /// Verified end of a non-escaping mutable scalar borrow or reborrow.
     CheckedMutableBorrowEnd {
         reference: Value,
         source: Value,

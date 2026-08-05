@@ -146,7 +146,7 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus accepted bounded subsets for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places, immutable-reference parameter transport, exact scalar reassignment, and one local non-escaping mutable scalar alias with checked writes and lexical release. CORE-056 is a candidate for one direct call-scoped `&mut owner` parameter loan. These use checked IR, independent verification, and typed LLVM. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
+| **Memory** | Shallow move tracking plus accepted bounded subsets for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places, immutable-reference parameter transport, exact scalar reassignment, one local non-escaping mutable scalar alias with checked writes and lexical release, and one direct call-scoped `&mut owner` parameter loan. CORE-057 is a candidate for call-scoped child reborrows from those local aliases or the current mutable-reference parameter. These use checked IR, independent verification, and typed LLVM. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
@@ -244,20 +244,32 @@ aero lsp
 > verification, object lowering, linking, and exact native exit 239, with 166 library
 > and 172 binary tests.
 >
-> CORE-056 is a bounded candidate for exactly one mutable scalar-reference parameter
+> CORE-056 is publicly accepted for exactly one mutable scalar-reference parameter
 > on a non-generic internal function and exactly one direct `callee(&mut owner)` call
 > argument. The temporary exclusive loan is represented as an adjacent checked
 > borrow/call/end sequence; the callee receives a distinct writable checked parameter
 > binder. One shared whole-call classifier owns topology and source facts across
 > semantics and checked admission. LLVM uses the existing private `double*`/`i1*`
-> representation without pointer/integer conversion. The tracked direct-module lane
-> requires exact native exit 251 before public acceptance.
+> representation without pointer/integer conversion. Exact implementation `e3ff165`
+> passes all eight public checks. Stable Linux uses LLVM/Clang 22.1.8 for external
+> verification, machine verification, object lowering, linking, and exact native exit
+> 251, with 167 library and 173 binary tests.
 >
-> Stored-alias arguments, forwarding/reborrowing, mixed or multiple parameters,
-> mutable-reference results, temporary/non-scalar/projected pointees, escaping or
-> aggregate references, relocation, storage/capture, NLL, lifetime inference, drop,
-> stable pointer ABI/FFI, and any memory-safety guarantee remain unsupported. The
-> Windows host accurately remains `InternalOnly` because LLVM 22 is absent locally.
+> CORE-057 is a bounded candidate for passing an initialized in-scope CORE-055 local
+> mutable scalar alias, or the current mutable-reference parameter, to that same exact
+> signature. The identifier creates a child reborrow for the adjacent call without
+> moving or copying its parent. The verifier requires active local-alias or parameter
+> provenance, exact pointee, child-borrow/call/end adjacency, parent exclusion during
+> the child, and restoration afterward. Repeated calls, multi-hop forwarding, branches,
+> loops, direct modules, and terminating recursion are covered. The tracked composed
+> lane requires exact native exit 253 before public acceptance.
+>
+> Multiple or mixed parameters, `&mut *alias`, mutable-reference results, temporary/
+> non-scalar/projected pointees, escape or aggregate references, relocation, reassignment,
+> storage/capture, NLL, lifetime inference, drop, stable pointer ABI/FFI, and any memory-
+> safety guarantee remain unsupported. A local alias's root owner remains borrowed until
+> lexical alias end. The Windows host accurately remains `InternalOnly` because LLVM 22
+> is absent locally.
 
 > **Mutation status:** CORE-054 is publicly accepted for semicolon-terminated
 > `target = value;` statements inside admitted functions. `target` must resolve to the

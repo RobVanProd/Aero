@@ -8,6 +8,25 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
+- `CORE-057` is the current implementation candidate for call-scoped mutable scalar-
+  reference identifier reborrowing. The shared whole-call classifier admits the
+  accepted direct-owner form plus exact initialized local-alias and current mutable-
+  parameter identifiers. Checked IR carries a child borrow/call/end identity; the
+  independent verifier proves active parent provenance, exact pointee and adjacency,
+  parent exclusion during the child, and parent restoration afterward. The exhaustive
+  target, focused compatibility suites, all-target check, full Cargo suite, and exact
+  record-synced root gate pass at 169/169 library and 175/175 binary tests. All eight
+  public checks, pinned LLVM/Clang 22 stages, and native exit 253 remain acceptance
+  gates.
+- `CORE-056` is accepted public at exact implementation
+  `e3ff1658039f8b9e20f18981c3d6198a07e79e92`, tree
+  `4efca0a523ae60d0d3020f925e0567f430dad9dd`, and stable patch ID
+  `77377ea77150931b709898d2fdf2bbcd9713c1c1`. All eight public checks pass;
+  stable Linux job `92259593558` uses LLVM/Clang 22.1.8 and executes exact native
+  exit 251 with 167/167 library and 173/173 binary tests. The accepted class is one
+  direct call-scoped mutable scalar owner loan into a sole mutable-reference parameter,
+  not stored-alias transport, reborrowing, general lifetimes, stable ABI, or a safety
+  guarantee.
 - `CORE-055` is accepted public at exact implementation
   `1f6ea726ad87f079592d136cb374ff6481d4acec`, tree
   `a3dd566a80b8555c6dcf417a0528fb13d75a2380`, and stable patch ID
@@ -16,14 +35,6 @@ Branch: `agent/aero-integration`
   exit 239 with 166/166 library and 172/172 binary tests. The accepted class is one
   non-escaping local mutable scalar alias, not general borrow checking or a safety
   guarantee.
-- `CORE-056` is the current implementation candidate for exactly one direct
-  call-scoped mutable scalar-reference parameter. One shared signature/call
-  classifier feeds semantics and checked admission; checked IR carries a distinct
-  writable parameter binder and an adjacent caller borrow/call/end temporary; the
-  verifier rejects binder, provenance, raw-store, and call-lifetime substitutions.
-  Focused tests and the exact root gate are green at 167/167 library and 173/173
-  binary tests plus all downstream gates. Public checks, pinned LLVM/Clang 22
-  verification/object/link stages, and native exit 251 remain acceptance gates.
 - At integration commit `6ce859220634c40c696397a3df178faea51f1912`,
   malformed root and applicable direct-module syntax is fatal in the library and
   build/check/run/test/profile paths. Located negative tests cover status and

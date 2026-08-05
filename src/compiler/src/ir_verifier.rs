@@ -1700,12 +1700,15 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             };
-                            if !self.mutable_scalar_places.contains(&source_id) {
+                            if !self.mutable_scalar_places.contains(&source_id)
+                                && !self.mutable_reference_origins.contains_key(&source_id)
+                                && !self.mutable_reference_parameters.contains(&source_id)
+                            {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::ExpectedPlaceIdentifier(
-                                        "checked mutable borrow source",
+                                        "checked mutable borrow or reborrow source",
                                     ),
                                 ));
                             }
@@ -2503,7 +2506,7 @@ impl<'a> FunctionVerifier<'a> {
                                     return Err(self.error(
                                         block_index,
                                         IrVerificationErrorKind::MetadataMismatch(format!(
-                                            "call mutable reference argument place {} is not an active verified local mutable borrow",
+                                            "call mutable reference argument place {} is not an active verified mutable borrow temporary",
                                             place.0
                                         )),
                                     ));
@@ -2843,14 +2846,18 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
+                        let initialized_owner = self.mutable_scalar_places.contains(&source)
+                            && initialized_mutable_scalar_places.contains(&source);
+                        let active_local_parent = active_mutable_references.contains(&source)
+                            && self.mutable_reference_origins.contains_key(&source);
+                        let parameter_parent = self.mutable_reference_parameters.contains(&source);
                         if !valid_mutable_scalar_type(pointee)
-                            || !self.mutable_scalar_places.contains(&source)
-                            || !initialized_mutable_scalar_places.contains(&source)
+                            || (!initialized_owner && !active_local_parent && !parameter_parent)
                         {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked mutable borrow source place {} is not an initialized declared mutable scalar",
+                                    "checked mutable borrow source place {} is not an initialized mutable scalar, active local mutable reference, or mutable-reference parameter",
                                     source.0
                                 )),
                             ));
@@ -2877,7 +2884,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "source place {} already has an active mutable reference",
+                                    "source or parent place {} already has an active mutable child reference",
                                     source.0
                                 )),
                             ));
@@ -2899,6 +2906,7 @@ impl<'a> FunctionVerifier<'a> {
                         if !valid_mutable_scalar_type(pointee)
                             || (!is_active_local_reference
                                 && !self.mutable_reference_parameters.contains(&target))
+                            || active_mutable_sources.contains(&target)
                         {
                             return Err(self.error(
                                 block_index,
@@ -5355,6 +5363,214 @@ mod tests {
         ] {
             assert!(
                 verify_ir(program(callee(), body)).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+    }
+
+    #[test]
+    fn checked_mutable_reference_child_reborrows_are_fail_closed() {
+        let signature = vec![(
+            "value".to_string(),
+            LogicalType::MutableReference {
+                pointee: Box::new(LogicalType::Int),
+            },
+        )];
+        let binder = || Inst::CheckedMutableReferenceParameter {
+            result: Value::Reg(0),
+            parameter: "value".to_string(),
+            pointee: LogicalType::Int,
+        };
+        let borrow = |result, source| Inst::CheckedMutableBorrow {
+            result: Value::Reg(result),
+            source: Value::Reg(source),
+            pointee: LogicalType::Int,
+        };
+        let end = |reference, source| Inst::CheckedMutableBorrowEnd {
+            reference: Value::Reg(reference),
+            source: Value::Reg(source),
+            pointee: LogicalType::Int,
+        };
+        let write = |target, value| Inst::CheckedMutableDereferenceAssignment {
+            target: Value::Reg(target),
+            value,
+            pointee: LogicalType::Int,
+        };
+        let call = |function: &str, argument: u32, result: Option<u32>| Inst::Call {
+            function: function.to_string(),
+            arguments: vec![Value::Reg(argument)],
+            result: result.map(Value::Reg),
+        };
+        let inner_body = || {
+            vec![
+                binder(),
+                write(0, Value::ImmInt(2)),
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+        let outer_body = || {
+            vec![
+                binder(),
+                borrow(1, 0),
+                call("inner", 1, None),
+                end(1, 0),
+                write(0, Value::ImmInt(3)),
+                Inst::Load(Value::Reg(2), Value::Reg(0)),
+                Inst::Return(Value::Reg(2)),
+            ]
+        };
+        let main_body = || {
+            vec![
+                Inst::CheckedFunctionDef {
+                    name: "inner".to_string(),
+                    parameters: signature.clone(),
+                    result: LogicalType::Void,
+                    body: inner_body(),
+                },
+                Inst::CheckedFunctionDef {
+                    name: "outer".to_string(),
+                    parameters: signature.clone(),
+                    result: LogicalType::Int,
+                    body: outer_body(),
+                },
+                Inst::CheckedMutableScalarAlloca {
+                    result: Value::Reg(0),
+                    name: "owner".to_string(),
+                    ty: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                borrow(1, 0),
+                borrow(2, 1),
+                call("outer", 2, Some(3)),
+                end(2, 1),
+                end(1, 0),
+                Inst::Load(Value::Reg(4), Value::Reg(0)),
+                Inst::Return(Value::Reg(4)),
+            ]
+        };
+        let program = |outer: Vec<Inst>, main: Vec<Inst>| {
+            let mut main = main;
+            if let Inst::CheckedFunctionDef { body, .. } = &mut main[1] {
+                *body = outer;
+            } else {
+                unreachable!("test main retains outer definition")
+            }
+            HashMap::from([
+                (
+                    "main".to_string(),
+                    Function {
+                        name: "main".to_string(),
+                        body: main,
+                        next_reg: 12,
+                        next_ptr: 12,
+                    },
+                ),
+                (
+                    "inner".to_string(),
+                    Function {
+                        name: "inner".to_string(),
+                        body: Vec::new(),
+                        next_reg: 12,
+                        next_ptr: 12,
+                    },
+                ),
+                (
+                    "outer".to_string(),
+                    Function {
+                        name: "outer".to_string(),
+                        body: Vec::new(),
+                        next_reg: 12,
+                        next_ptr: 12,
+                    },
+                ),
+            ])
+        };
+
+        verify_ir(program(outer_body(), main_body())).expect(
+            "active local aliases and mutable parameters permit exact child borrow/call/end reborrows",
+        );
+
+        let mut direct_parameter = outer_body();
+        direct_parameter[2] = call("inner", 0, None);
+        let mut immutable_child = outer_body();
+        immutable_child[1] = Inst::CheckedImmutableBorrow {
+            result: Value::Reg(1),
+            source: Value::Reg(0),
+            pointee: LogicalType::Int,
+        };
+        let mut missing_end = outer_body();
+        missing_end.remove(3);
+        let mut ended_before_call = outer_body();
+        ended_before_call.swap(2, 3);
+        let mut between_borrow_and_call = outer_body();
+        between_borrow_and_call.insert(
+            2,
+            Inst::Add(Value::Reg(4), Value::ImmInt(1), Value::ImmInt(2)),
+        );
+        let mut between_call_and_end = outer_body();
+        between_call_and_end.insert(
+            3,
+            Inst::Add(Value::Reg(4), Value::ImmInt(1), Value::ImmInt(2)),
+        );
+        let mut overlapping_child = outer_body();
+        overlapping_child.insert(2, borrow(4, 0));
+        let mut parent_load_during_child = outer_body();
+        parent_load_during_child.insert(2, Inst::Load(Value::Reg(4), Value::Reg(0)));
+        let mut parent_write_during_child = outer_body();
+        parent_write_during_child.insert(2, write(0, Value::ImmInt(4)));
+        let mut wrong_parent_end = outer_body();
+        wrong_parent_end[3] = end(1, 1);
+        let mut wrong_pointee_child = outer_body();
+        wrong_pointee_child[1] = Inst::CheckedMutableBorrow {
+            result: Value::Reg(1),
+            source: Value::Reg(0),
+            pointee: LogicalType::Float,
+        };
+
+        for (label, body) in [
+            ("parameter passed without child reborrow", direct_parameter),
+            ("immutable child substitution", immutable_child),
+            ("missing child end", missing_end),
+            ("child ended before call", ended_before_call),
+            (
+                "instruction between child borrow and call",
+                between_borrow_and_call,
+            ),
+            (
+                "instruction between child call and end",
+                between_call_and_end,
+            ),
+            ("overlapping child reborrow", overlapping_child),
+            ("parent load during child", parent_load_during_child),
+            ("parent write during child", parent_write_during_child),
+            ("wrong parent at child end", wrong_parent_end),
+            ("wrong child pointee", wrong_pointee_child),
+        ] {
+            assert!(
+                verify_ir(program(body, main_body())).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+
+        let mut ended_local_parent = main_body();
+        ended_local_parent.swap(5, 8);
+        let mut local_parent_load_during_child = main_body();
+        local_parent_load_during_child.insert(6, Inst::Load(Value::Reg(5), Value::Reg(1)));
+        let mut local_parent_write_during_child = main_body();
+        local_parent_write_during_child.insert(6, write(1, Value::ImmInt(5)));
+        for (label, body) in [
+            ("ended local parent reborrow", ended_local_parent),
+            (
+                "local parent load during child",
+                local_parent_load_during_child,
+            ),
+            (
+                "local parent write during child",
+                local_parent_write_during_child,
+            ),
+        ] {
+            assert!(
+                verify_ir(program(outer_body(), body)).is_err(),
                 "{label} passed checked IR verification"
             );
         }

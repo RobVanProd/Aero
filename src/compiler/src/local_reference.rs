@@ -58,6 +58,17 @@ pub(crate) struct ReferenceFunctionContract {
     pub(crate) result: ReferenceTransportTypeContract,
 }
 
+impl ReferenceFunctionContract {
+    pub(crate) fn mutable_parameter_pointee(&self) -> Option<&Ty> {
+        self.parameters.iter().find_map(|(_, parameter)| {
+            let Ty::Reference(pointee, true) = &parameter.ty else {
+                return None;
+            };
+            Some(pointee.as_ref())
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ReferenceFunctionDisposition {
     Supported(ReferenceFunctionContract),
@@ -67,9 +78,27 @@ pub(crate) enum ReferenceFunctionDisposition {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ReferenceCallDisposition {
-    Supported(LocalReferenceContract),
+    Supported(ReferenceCallContract),
     ExplicitlyRejected(String),
     Preserved,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReferenceCallSourceMode {
+    DirectOwnerBorrow,
+    MutableReferenceIdentifier,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReferenceCallContract {
+    pub(crate) reference: LocalReferenceContract,
+    pub(crate) source_mode: ReferenceCallSourceMode,
+}
+
+impl ReferenceCallContract {
+    pub(crate) fn reference_type(&self) -> Ty {
+        self.reference.reference_type()
+    }
 }
 
 fn scalar_contract(ty: &Ty) -> Option<LocalReferenceContract> {
@@ -215,33 +244,81 @@ pub(crate) fn classify_reference_call(
     arguments: &[Expression],
     facts: Option<&LocalReferenceSourceFacts>,
 ) -> ReferenceCallDisposition {
-    let mutable_parameter = contract.parameters.iter().find_map(|(_, parameter)| {
-        let Ty::Reference(pointee, true) = &parameter.ty else {
-            return None;
-        };
-        Some(pointee.as_ref())
-    });
-    let Some(expected_pointee) = mutable_parameter else {
+    let Some(expected_pointee) = contract.mutable_parameter_pointee() else {
         return ReferenceCallDisposition::Preserved;
     };
     if arguments.len() != 1 {
         return ReferenceCallDisposition::ExplicitlyRejected(
-            "mutable reference calls require exactly one direct `&mut` local owner argument"
-                .to_string(),
+            "mutable reference call requires exactly one mutable scalar-reference identifier or direct `&mut` local owner argument".to_string(),
         );
     }
-    let Expression::Borrow {
-        expr,
-        mutable: true,
-    } = &arguments[0]
-    else {
+    let Some((source_mode, source)) = reference_call_source_topology(arguments) else {
         return ReferenceCallDisposition::ExplicitlyRejected(
-            "mutable reference calls require a direct `&mut` local owner argument".to_string(),
+            "mutable reference call requires a mutable scalar-reference identifier or direct `&mut` local owner argument".to_string(),
         );
     };
-    match classify_local_borrow(expr, true, facts) {
+    if source_mode == ReferenceCallSourceMode::MutableReferenceIdentifier {
+        let Expression::Identifier(name) = source else {
+            unreachable!("shared mutable-reference call topology retained its identifier")
+        };
+        let Some(facts) = facts else {
+            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "mutable reference call argument `{name}` is not an initialized local binding"
+            ));
+        };
+        if !facts.initialized {
+            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "Error: Use of uninitialized variable `{name}`."
+            ));
+        }
+        if !facts.local {
+            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "mutable reference call argument `{name}` is not an initialized local binding"
+            ));
+        }
+        let Ty::Reference(actual_pointee, true) = &facts.ty else {
+            return ReferenceCallDisposition::ExplicitlyRejected(
+                "mutable reference call requires a mutable scalar-reference identifier or direct `&mut` local owner argument".to_string(),
+            );
+        };
+        let Some(reference) = scalar_reference_contract(actual_pointee, true) else {
+            return ReferenceCallDisposition::ExplicitlyRejected(
+                "mutable reference calls support only Int, Float, or Bool identifier pointees"
+                    .to_string(),
+            );
+        };
+        match facts.ownership {
+            OwnershipState::Owned => {}
+            OwnershipState::Moved => {
+                return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                    "cannot reborrow moved mutable reference `{name}`"
+                ));
+            }
+            OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
+                return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                    "mutable reference call argument `{name}` has an invalid ownership state"
+                ));
+            }
+        }
+        return if reference.pointee == *expected_pointee {
+            ReferenceCallDisposition::Supported(ReferenceCallContract {
+                reference,
+                source_mode,
+            })
+        } else {
+            ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "mutable reference call pointee mismatch: expected {expected_pointee}, actual {}",
+                reference.pointee
+            ))
+        };
+    }
+
+    match classify_local_borrow(source, true, facts) {
         LocalReferenceDisposition::Supported(contract) if contract.pointee == *expected_pointee => {
-            ReferenceCallDisposition::Supported(contract)
+            ReferenceCallDisposition::Supported(ReferenceCallContract {
+                reference: contract,
+                source_mode,
+            })
         }
         LocalReferenceDisposition::Supported(contract) => {
             ReferenceCallDisposition::ExplicitlyRejected(format!(
@@ -256,6 +333,35 @@ pub(crate) fn classify_reference_call(
             "direct mutable call borrow is fully classified by the local reference contract"
         ),
     }
+}
+
+fn reference_call_source_topology(
+    arguments: &[Expression],
+) -> Option<(ReferenceCallSourceMode, &Expression)> {
+    let [argument] = arguments else {
+        return None;
+    };
+    match argument {
+        Expression::Borrow {
+            expr,
+            mutable: true,
+        } => Some((ReferenceCallSourceMode::DirectOwnerBorrow, expr.as_ref())),
+        Expression::Identifier(_) => Some((
+            ReferenceCallSourceMode::MutableReferenceIdentifier,
+            argument,
+        )),
+        _ => None,
+    }
+}
+
+pub(crate) fn reference_call_fact_subject(arguments: &[Expression]) -> Option<&Expression> {
+    reference_call_source_topology(arguments).map(|(_, expression)| expression)
+}
+
+pub(crate) fn reference_call_source_mode(
+    arguments: &[Expression],
+) -> Option<ReferenceCallSourceMode> {
+    reference_call_source_topology(arguments).map(|(mode, _)| mode)
 }
 
 pub(crate) fn classify_local_borrow(
@@ -560,5 +666,96 @@ mod tests {
             ),
             ReferenceFunctionDisposition::Preserved
         );
+    }
+
+    #[test]
+    fn mutable_call_classifier_partitions_direct_identifier_and_rejected_topologies() {
+        let parameter = Parameter {
+            name: "value".to_string(),
+            param_type: Type::Reference(Box::new(Type::Named("int".to_string())), true),
+        };
+        let ReferenceFunctionDisposition::Supported(function) = classify_reference_function(
+            "write",
+            &[parameter],
+            Some(&Type::Named("int".to_string())),
+            &[],
+        ) else {
+            panic!("sole mutable scalar-reference function must be supported")
+        };
+        let direct = vec![Expression::Borrow {
+            expr: Box::new(Expression::Identifier("owner".to_string())),
+            mutable: true,
+        }];
+        let owner = LocalReferenceSourceFacts {
+            ty: Ty::Int,
+            mutable: true,
+            initialized: true,
+            local: true,
+            ownership: OwnershipState::Owned,
+        };
+        assert!(matches!(
+            classify_reference_call(&function, &direct, Some(&owner)),
+            ReferenceCallDisposition::Supported(ReferenceCallContract {
+                source_mode: ReferenceCallSourceMode::DirectOwnerBorrow,
+                ..
+            })
+        ));
+        assert_eq!(
+            reference_call_source_mode(&direct),
+            Some(ReferenceCallSourceMode::DirectOwnerBorrow)
+        );
+
+        let identifier = vec![Expression::Identifier("alias".to_string())];
+        let alias = LocalReferenceSourceFacts {
+            ty: Ty::Reference(Box::new(Ty::Int), true),
+            mutable: false,
+            initialized: true,
+            local: true,
+            ownership: OwnershipState::Owned,
+        };
+        assert!(matches!(
+            classify_reference_call(&function, &identifier, Some(&alias)),
+            ReferenceCallDisposition::Supported(ReferenceCallContract {
+                source_mode: ReferenceCallSourceMode::MutableReferenceIdentifier,
+                ..
+            })
+        ));
+        assert!(matches!(
+            reference_call_fact_subject(&identifier),
+            Some(Expression::Identifier(name)) if name == "alias"
+        ));
+
+        let immutable_alias = LocalReferenceSourceFacts {
+            ty: Ty::Reference(Box::new(Ty::Int), false),
+            ..alias.clone()
+        };
+        assert!(matches!(
+            classify_reference_call(&function, &identifier, Some(&immutable_alias)),
+            ReferenceCallDisposition::ExplicitlyRejected(message)
+                if message.contains("mutable scalar-reference identifier")
+        ));
+        let moved_alias = LocalReferenceSourceFacts {
+            ownership: OwnershipState::Moved,
+            ..alias
+        };
+        assert!(matches!(
+            classify_reference_call(&function, &identifier, Some(&moved_alias)),
+            ReferenceCallDisposition::ExplicitlyRejected(message)
+                if message.contains("moved mutable reference")
+        ));
+        assert!(matches!(
+            classify_reference_call(
+                &function,
+                &[Expression::IntegerLiteral(1)],
+                Some(&owner)
+            ),
+            ReferenceCallDisposition::ExplicitlyRejected(message)
+                if message.contains("mutable scalar-reference identifier")
+        ));
+        assert!(matches!(
+            classify_reference_call(&function, &[], None),
+            ReferenceCallDisposition::ExplicitlyRejected(message)
+                if message.contains("exactly one")
+        ));
     }
 }
