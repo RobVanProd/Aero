@@ -1248,7 +1248,7 @@ declared compatibility policy and release-level coverage.
   CFG ownership, stable ABI/FFI, accelerators, performance, release, and stability
   remain excluded. The enum, pattern, function, and ownership rows remain `PARTIAL`.
 
-## CORE-053 candidate immutable scalar-reference parameter transport
+## CORE-053 accepted immutable scalar-reference parameter transport
 
 - CORE-053 admits reference-bearing signatures only for unique top-level non-generic
   non-`main` functions. Any number and declaration order of immutable `&int`, `&float`,
@@ -1276,9 +1276,52 @@ declared compatibility policy and release-level coverage.
   definition, five typed pointer calls, seven parameter GEPs, zero pointer/integer
   casts, and SHA-256
   `5EA298FBD6CB9A96F525EC680AA250EB93F46D19DAD0763733C9C17726924685`.
-  Public acceptance requires all eight checks and pinned LLVM/Clang 22 external/machine
-  verification, object/link, and exact native exit 211.
+  Exact implementation `b4aec4a01312088807750b0e40150cee87dc2131`, tree
+  `197e3b9ee615d32da569d55740891a14bcaced27`, and stable patch ID
+  `a78d4d38c0bf8266b1f724d69c5ff97d28d2c5d0` pass all eight public checks. Stable job
+  `92235191630` uses LLVM/Clang 22.1.8 for external/machine verification, object/link,
+  exact native exit 211, and 163/169 test passes.
 - General reference transport, mutable loans, reference results, aggregate/storage
   references, lifetime inference, NLL, drop/destruction, stable ABI/FFI, accelerators,
   performance, release, and stability remain excluded. Function, ownership, and
   reference rows remain `PARTIAL`.
+
+## CORE-054 candidate mutable local scalar reassignment
+
+- CORE-054 parses `target = value;` as an explicit statement and admits it only inside
+  admitted function bodies when `target` is the nearest initialized, owned local
+  `let mut` of exact type `Int`, `Float`, or `Bool` and `value` has the same logical
+  type. Sequential writes, nested/shadowed locals, branches, compiler-bounded `for`,
+  `while`-carried state, internal calls, and one-level direct modules are included.
+- One whole-assignment classifier gives supported, explicitly rejected, and preserved
+  dispositions from resolved topology, locality, initialization, mutability, ownership,
+  and exact type. Semantic analysis and checked admission consume that classifier;
+  they do not maintain topology-specific duplicate guard tables.
+- Checked IR adds `CheckedMutableScalarAlloca` and `CheckedScalarAssignment`.
+  Independent verification requires supported metadata, collision-free and dominating
+  place/value definitions, exact target/value type, one adjacent initialization store,
+  and the explicit checked identity for every later source write. A generic `Alloca`
+  cannot substitute as the target, and a later raw `Store` cannot substitute for a
+  checked source assignment.
+- Verified lowering keeps the established private `double` representation for
+  `Int`/`Float` and `i1` for `Bool`, and writes then reloads the same stack place across
+  real branch and loop CFG. The exhaustive source/IR/LLVM/CLI target and private
+  corruption matrix pass locally. The tracked direct-module system gate composes
+  immutable scalar-reference transport, payload/unit enums, Copy aggregates/arrays,
+  compile-time String length, calls, and control flow and requires exact stable native
+  exit 227 before public acceptance.
+- The exact repository-root gate is formatting and correctness-Clippy clean and passes
+  165 library tests, 171 binary tests, every integration target, and doc tests. The
+  composed example emits 10 function definitions, 18 `double` and five `i1` allocas,
+  27 `double` and seven `i1` stores, 26 `double` and six `i1` loads, and zero
+  pointer/integer casts in a 10,798-byte LLVM artifact with SHA-256
+  `a7104e3db6d7f0775cd5722e8f7c672fb2b11711803e5d130e140acb88b04b17`.
+  The Windows host accurately reports `InternalOnly` because LLVM 22 is absent;
+  external/machine verification, object/link, and native exit 227 remain public-CI
+  acceptance requirements.
+- Immutable locals/parameters, unknown or uninitialized targets, borrowed or moved
+  targets, non-identifier targets, String/aggregate/reference/function values,
+  implicit conversion, assignment expressions/chaining/compound forms, mutable
+  references, NLL, drop/destruction, stable ABI/FFI, accelerators, performance,
+  release, and stability remain excluded. Assignment, ownership, control-flow, and IR
+  rows remain `PARTIAL`.

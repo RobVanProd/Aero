@@ -4,36 +4,42 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 72 `CORE-053` is the locally green candidate for non-escaping immutable
-scalar-reference parameter transport. Unique top-level non-generic non-`main`
-functions may contain any number and declaration order of immutable `&int`, `&float`,
-or `&bool` parameters mixed only with by-value `Int`/`Float`/`Bool`; results remain
-`Int`, `Float`, `Bool`, or `Void`. Direct borrows, local aliases and copied aliases,
-forwarding chains, multiple shared borrows, and terminating direct recursion retain
-their exact pointee identity. Reference results, mutable references, non-scalar
-pointees, aggregate companions, storage/capture, and lifetime-sensitive topologies
-remain rejected before checked IR.
+Milestone 73 `CORE-054` is the locally green candidate for explicit mutable-local
+scalar reassignment. Inside admitted function bodies, `target = value;` resolves only
+the nearest initialized, owned local `let mut` whose exact type is `Int`, `Float`, or
+`Bool`; the right-hand expression must have the same logical type and is evaluated
+once. Sequential writes, reads before/after writes, nested and shadowed locals,
+selected branches, compiler-bounded `for`, `while`-carried state, internal calls, and
+one-level direct modules are covered. Immutable locals and parameters, unknown or
+uninitialized targets, borrowed targets, non-scalars, non-identifier targets,
+assignment values/chaining/compound syntax, mutable references, and NLL remain
+fail-closed.
 
-One whole-signature classifier owns supported, explicitly rejected, and preserved
-reference-bearing function topologies across semantic analysis and checked admission.
-Checked IR adds a logical immutable-reference type and an explicit entry-block
-parameter-place binder. Independent verification proves signature/binder coverage,
-name and pointee identity, uniqueness, dominance, and exact pointer-bearing call
-arguments. Verified LLVM uses internal `double*` parameters for `Int`/`Float`, `i1*`
-for `Bool`, zero-offset typed pointer derivations, and scalar loads without pointer/
-integer conversions. This establishes no public pointer identity, stable calling
-convention, layout, ABI, FFI, lifetime, or memory-safety contract.
+One shared whole-assignment classifier owns topology, target facts, ownership, and
+exact-type admission across semantic analysis and checked admission. Checked IR adds
+an exact mutable scalar place declaration and a distinct scalar assignment. Independent
+verification proves supported metadata, collision-free place identity, dominance,
+one adjacent declaration initializer, and exact assignment value type; generic later
+`Store` instructions cannot substitute for a source assignment. Verified LLVM keeps
+the established internal `double` representation for `Int`/`Float` and `i1` for
+`Bool`, writing the existing stack slot so real branch and loop execution carry state.
+The exhaustive source/IR/LLVM/CLI target and private verifier corruption matrix pass.
+The tracked composed direct-module gate now requires pinned LLVM/Clang 22 external and
+machine verification, object lowering, linking, and exact native exit 227. The exact
+repository-root gate is formatting and correctness-Clippy clean and passes 165/165
+library tests, 171/171 binary tests, every integration target, and doc tests.
+Publication, all eight public checks, and public acceptance remain pending.
 
-The exact repository-root gate passes formatting, correctness Clippy, 163 library
-tests, 169 binary tests, every integration target, and doc tests. A fresh composed
-module build resolves `borrows`, completes semantics through LLVM, and emits four
-`double*` definitions, one `i1*` definition, five typed pointer calls, seven parameter
-GEPs, and zero pointer/integer casts. SHA-256 is
-`5EA298FBD6CB9A96F525EC680AA250EB93F46D19DAD0763733C9C17726924685`.
-The Windows host remains truthfully `InternalOnly` because LLVM/Clang 22 is absent.
-The tracked stable/nightly gate requires pinned LLVM/Clang 22 external and machine
-verification, object lowering, linking, and exact native exit 211. CORE-053 remains a
-candidate until the pushed head passes that gate and all eight public checks.
+Milestone 72 `CORE-053` is accepted public at exact implementation commit
+`b4aec4a01312088807750b0e40150cee87dc2131`, tree
+`197e3b9ee615d32da569d55740891a14bcaced27`, and stable patch ID
+`a78d4d38c0bf8266b1f724d69c5ff97d28d2c5d0`. All eight public checks pass. Stable
+job `92235191630` uses LLVM/Clang 22.1.8 for external verification, machine
+verification, object lowering, linking, and exact native exit 211, with 163/163
+library and 169/169 binary tests. CORE-053 accepts non-escaping immutable
+`Int`/`Float`/`Bool` references across exact internal parameters and calls without
+reference results, mutable references, stable pointer ABI/FFI, lifetime inference,
+NLL, drop, or a memory-safety claim.
 
 Milestone 71 `CORE-052` is accepted public at exact implementation commit
 `93a4a29e0b50f8d16ce6e2f845306b4ffcb37738`, tree
@@ -203,9 +209,11 @@ composition rather than a module system.
   exact owned scalar payload construction, arm-local extraction, and private tagged
   aggregate lowering rather than another compile-time leaf. CORE-052 now carries that
   tagged non-Copy identity through exact internal function boundaries, shared ownership
-  effects, checked call/return verification, and aggregate SSA lowering. CORE-053 now
-  takes immutable borrow provenance across an internal pointer-bearing call boundary,
-  with one whole-signature topology classifier and checked parameter-place proof. Deeper CFG
+  effects, checked call/return verification, and aggregate SSA lowering. Accepted
+  CORE-053 takes immutable borrow provenance across an internal pointer-bearing call
+  boundary, with one whole-signature topology classifier and checked parameter-place
+  proof. CORE-054 now takes explicit mutable state across branches and loops with one
+  shared whole-assignment classifier and checked place/write proof. Deeper CFG
   ownership, runtime representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -232,10 +240,13 @@ composition rather than a module system.
   exit-181 gate adds mixed scalar payloads, exact bound-arm types, selected-lane checked
   verification, and private tagged aggregate LLVM. CORE-052's accepted exit-197 gate adds
   payload-enum producers, forwarding, consumers, aggregate parameter/call/return flow,
-  exact ownership transfer, and module-composed execution. CORE-053's exit-211 candidate
-  adds direct and aliased scalar borrows, pointer-bearing parameters/calls, forwarding,
-  recursion, modules, and composition with enums, Copy aggregates, arrays, Strings, and
-  control flow; public native acceptance remains mandatory.
+  exact ownership transfer, and module-composed execution. CORE-053's accepted exit-211
+  gate adds direct and aliased scalar borrows, pointer-bearing parameters/calls,
+  forwarding, recursion, modules, and composition with enums, Copy aggregates, arrays,
+  Strings, and control flow. CORE-054's candidate exit-227 gate adds sequential,
+  branch-selected, and loop-carried Int/Float/Bool mutation through explicit checked
+  writes while retaining that broader composition; public native acceptance remains
+  mandatory.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -274,16 +285,17 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-A non-escaping immutable reference to an already-live local Copy scalar can preserve
-real place provenance without requiring mutable-loan expiry, reference ABI, drop, or
-runtime checks. One source classifier can keep semantic and checked admission aligned;
-an explicit checked alias-place instruction plus independent dominance/type verification
-can prevent forged pointers from reaching LLVM. Focused source-to-LLVM evidence now
-satisfies the local slice, and the exact 159/165 repository-root gate is green. The
-immutable implementation identity, all-eight public checks, pinned external and
-machine verification, object/link stages, and native exit 127 now satisfy the bounded
-hypothesis. Mutable references, non-scalar pointees, escaping references, NLL,
-mutation, resource ownership, drop, and stable pointer ABI remain outside this class.
+An explicit statement-only write to an initialized, owned local mutable scalar can
+carry real state through existing branch and loop CFG without inventing mutable-reference
+or NLL semantics. One whole-assignment classifier can keep semantic and checked
+admission aligned; explicit mutable-place and assignment instructions plus independent
+dominance/type/initialization verification can prevent generic storage IR from
+masquerading as source mutation. Focused source-to-LLVM and CLI evidence satisfies the
+local slice. The full root gate, immutable implementation identity, all-eight public
+checks, pinned external and machine verification, object/link stages, and native exit
+227 remain required before acceptance. Mutable references, non-scalar or projected
+targets, assignment values, lifetime inference, resource ownership, drop, stable ABI,
+and memory-safety claims remain outside this class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1827,11 +1839,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push the bounded CORE-053 candidate once, immediately resynchronize draft
-PR #4 to the exact candidate head and current diff size, and require all eight checks
-plus pinned LLVM/Clang 22 native exit 211 before acceptance. Keep the PR draft and
-unmerged. Then choose the next hard capability separately; the controlled mega-PR
-checkpoint strategy and structured evidence-manifest generator remain separate tasks.
+Complete the exact root gate for the bounded CORE-054 candidate, record only the final
+evidence, commit and push once, and immediately resynchronize draft PR #4 to the exact
+candidate head and current diff size. Require all eight checks plus pinned LLVM/Clang
+22 native exit 227 before acceptance. Keep the PR draft and unmerged. Then choose the
+next hard capability separately; the controlled mega-PR checkpoint strategy and
+structured evidence-manifest generator remain separate tasks.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.
 

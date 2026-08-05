@@ -903,7 +903,7 @@ fn checked_admission_rejects_closure_capture_escape_and_rich_signatures() {
         RejectionCase {
             name: "closure assignment",
             source: "fn main() { let mut callback = | | 1; callback = | | 2; }",
-            expected_prefix: "Parse error:",
+            expected_prefix: "IR Generation Error:",
             check_cli: true,
         },
     ];

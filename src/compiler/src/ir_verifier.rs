@@ -298,6 +298,13 @@ fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
     )
 }
 
+fn valid_mutable_scalar_type(ty: &LogicalType) -> bool {
+    matches!(
+        ty,
+        LogicalType::Int | LogicalType::Float | LogicalType::Bool
+    )
+}
+
 fn valid_enum_schema(schema: &EnumSchema) -> bool {
     let mut unique = BTreeSet::new();
     valid_symbol(&schema.name)
@@ -889,6 +896,7 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
 fn place_definition(instruction: &Inst) -> Option<&Value> {
     match instruction {
         Inst::Alloca(result, _)
+        | Inst::CheckedMutableScalarAlloca { result, .. }
         | Inst::AllocaArray { result, .. }
         | Inst::GetElementPtr { result, .. }
         | Inst::CheckedCopyStructArrayAlloca { result, .. }
@@ -1016,6 +1024,7 @@ struct FunctionVerifier<'a> {
     places: BTreeMap<PlaceId, PlaceType>,
     place_names: BTreeMap<PlaceId, Option<String>>,
     element_owners: BTreeMap<PlaceId, PlaceId>,
+    mutable_scalar_places: BTreeSet<PlaceId>,
     dominators: Vec<BTreeSet<usize>>,
     infer_bool_places: bool,
 }
@@ -1040,6 +1049,7 @@ impl<'a> FunctionVerifier<'a> {
             places: BTreeMap::new(),
             place_names: BTreeMap::new(),
             element_owners: BTreeMap::new(),
+            mutable_scalar_places: BTreeSet::new(),
             dominators,
             infer_bool_places,
         };
@@ -1231,6 +1241,9 @@ impl<'a> FunctionVerifier<'a> {
                             Some(&block.label),
                             IrVerificationErrorKind::ExpectedPlaceIdentifier(match instruction {
                                 Inst::Alloca(..) => "alloca",
+                                Inst::CheckedMutableScalarAlloca { .. } => {
+                                    "checked mutable scalar alloca"
+                                }
                                 Inst::AllocaArray { .. } => "alloca array",
                                 Inst::CheckedStructAlloca { .. } => "checked struct alloca",
                                 Inst::CheckedStructFieldPtr { .. } => {
@@ -1267,6 +1280,19 @@ impl<'a> FunctionVerifier<'a> {
                         ));
                     }
                     let (place_type, name) = match instruction {
+                        Inst::CheckedMutableScalarAlloca { name, ty, .. } => {
+                            if !valid_symbol(name) || !valid_mutable_scalar_type(ty) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked mutable scalar place `{name}` requires a valid name and Int, Float, or Bool metadata"
+                                    )),
+                                ));
+                            }
+                            self.mutable_scalar_places.insert(id);
+                            (PlaceType::Known(ty.clone()), Some(name.clone()))
+                        }
                         Inst::Alloca(_, name) => {
                             let parameter_type = self
                                 .body
@@ -2006,6 +2032,7 @@ impl<'a> FunctionVerifier<'a> {
     fn verify(mut self) -> Result<FunctionMetadata, IrVerificationError> {
         let mut bound_enum_parameters = BTreeSet::new();
         let mut bound_reference_parameters = BTreeSet::new();
+        let mut initialized_mutable_scalar_places = BTreeSet::new();
         for block_index in 0..self.blocks.len() {
             let instructions = self.blocks[block_index].instructions.clone();
             for (position, instruction) in instructions {
@@ -2068,11 +2095,30 @@ impl<'a> FunctionVerifier<'a> {
                         )?;
                     }
                     Inst::Alloca(..)
+                    | Inst::CheckedMutableScalarAlloca { .. }
                     | Inst::AllocaArray { .. }
                     | Inst::CheckedStructAlloca { .. }
                     | Inst::Label(_) => {}
                     Inst::Store(place, value) => {
                         let id = self.require_place(place, "store", block_index, position)?;
+                        if self.mutable_scalar_places.contains(&id) {
+                            let definition = self
+                                .place_definitions
+                                .get(&id)
+                                .expect("mutable scalar place definition was collected");
+                            if definition.block != block_index
+                                || definition.position.checked_add(1) != Some(position)
+                                || !initialized_mutable_scalar_places.insert(id)
+                            {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "generic store to mutable scalar place {} is permitted only once as the adjacent initializer; source reassignment requires CheckedScalarAssignment",
+                                        id.0
+                                    )),
+                                ));
+                            }
+                        }
                         let Some(place_type) = self.places.get(&id).cloned() else {
                             return Err(self.error(
                                 block_index,
@@ -2136,6 +2182,52 @@ impl<'a> FunctionVerifier<'a> {
                                 }
                             }
                         }
+                    }
+                    Inst::CheckedScalarAssignment { target, value, ty } => {
+                        let target = self.require_place(
+                            target,
+                            "checked scalar assignment",
+                            block_index,
+                            position,
+                        )?;
+                        if !valid_mutable_scalar_type(ty)
+                            || !self.mutable_scalar_places.contains(&target)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked scalar assignment target is not a declared mutable scalar place"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        if !initialized_mutable_scalar_places.contains(&target) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked scalar assignment target {} is not initialized by its adjacent declaration store",
+                                    target.0
+                                )),
+                            ));
+                        }
+                        let actual = self.places.get(&target).and_then(PlaceType::logical);
+                        if actual.as_ref() != Some(ty) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked scalar assignment metadata `{ty}` disagrees with target place {}",
+                                    target.0
+                                )),
+                            ));
+                        }
+                        self.require_type(
+                            value,
+                            ty,
+                            "checked scalar assignment",
+                            "value",
+                            block_index,
+                            position,
+                        )?;
                     }
                     Inst::Load(_, place) => {
                         self.require_place(place, "load", block_index, position)?;
@@ -2722,6 +2814,16 @@ impl<'a> FunctionVerifier<'a> {
                     _ => {}
                 }
             }
+        }
+
+        if initialized_mutable_scalar_places != self.mutable_scalar_places {
+            return Err(self.error(
+                0,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "checked mutable scalar places must each have one adjacent initializer store"
+                        .to_string(),
+                ),
+            ));
         }
 
         let expected_enum_parameters = self
@@ -4222,6 +4324,194 @@ mod tests {
             reference_result.is_err(),
             "reference result escaped checked signature validation"
         );
+    }
+
+    #[test]
+    fn checked_mutable_scalar_places_and_assignments_are_fail_closed() {
+        let place = || Inst::CheckedMutableScalarAlloca {
+            result: Value::Reg(0),
+            name: "value".to_string(),
+            ty: LogicalType::Int,
+        };
+        let initialize = || Inst::Store(Value::Reg(0), Value::ImmInt(1));
+        let assign = || Inst::CheckedScalarAssignment {
+            target: Value::Reg(0),
+            value: Value::ImmInt(2),
+            ty: LogicalType::Int,
+        };
+
+        verify_ir(function(vec![
+            place(),
+            initialize(),
+            assign(),
+            Inst::Load(Value::Reg(1), Value::Reg(0)),
+            Inst::Return(Value::Reg(1)),
+        ]))
+        .expect("exact checked scalar reassignment is valid");
+
+        let invalid = [
+            (
+                "undefined target",
+                vec![
+                    place(),
+                    initialize(),
+                    Inst::CheckedScalarAssignment {
+                        target: Value::Reg(9),
+                        value: Value::ImmInt(2),
+                        ty: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "non-place target",
+                vec![
+                    place(),
+                    initialize(),
+                    Inst::CheckedScalarAssignment {
+                        target: Value::ImmInt(0),
+                        value: Value::ImmInt(2),
+                        ty: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "generic alloca substitution",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "value".to_string()),
+                    initialize(),
+                    assign(),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "unsupported place metadata",
+                vec![
+                    Inst::CheckedMutableScalarAlloca {
+                        result: Value::Reg(0),
+                        name: "value".to_string(),
+                        ty: LogicalType::String,
+                    },
+                    Inst::Store(Value::Reg(0), Value::ImmString("x".to_string())),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "assignment metadata mismatch",
+                vec![
+                    place(),
+                    initialize(),
+                    Inst::CheckedScalarAssignment {
+                        target: Value::Reg(0),
+                        value: Value::ImmFloat(2.0),
+                        ty: LogicalType::Float,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "wrong RHS type",
+                vec![
+                    place(),
+                    initialize(),
+                    Inst::CheckedScalarAssignment {
+                        target: Value::Reg(0),
+                        value: Value::ImmFloat(2.0),
+                        ty: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "undefined RHS result",
+                vec![
+                    place(),
+                    initialize(),
+                    Inst::CheckedScalarAssignment {
+                        target: Value::Reg(0),
+                        value: Value::Reg(8),
+                        ty: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "identifier-kind collision",
+                vec![
+                    place(),
+                    initialize(),
+                    Inst::Add(Value::Reg(0), Value::ImmInt(1), Value::ImmInt(2)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "non-adjacent initializer",
+                vec![
+                    place(),
+                    Inst::Add(Value::Reg(1), Value::ImmInt(1), Value::ImmInt(2)),
+                    initialize(),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "generic reassignment store",
+                vec![
+                    place(),
+                    initialize(),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(2)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "missing initializer",
+                vec![place(), Inst::Return(Value::ImmInt(0))],
+            ),
+            (
+                "assignment before initializer",
+                vec![
+                    place(),
+                    assign(),
+                    initialize(),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "non-dominating RHS result",
+                vec![
+                    place(),
+                    initialize(),
+                    Inst::ICmp {
+                        op: "eq".to_string(),
+                        result: Value::Reg(3),
+                        left: Value::ImmInt(1),
+                        right: Value::ImmInt(1),
+                    },
+                    Inst::Branch {
+                        condition: Value::Reg(3),
+                        true_label: "define".to_string(),
+                        false_label: "use".to_string(),
+                    },
+                    Inst::Label("define".to_string()),
+                    Inst::Add(Value::Reg(1), Value::ImmInt(1), Value::ImmInt(2)),
+                    Inst::Jump("use".to_string()),
+                    Inst::Label("use".to_string()),
+                    Inst::CheckedScalarAssignment {
+                        target: Value::Reg(0),
+                        value: Value::Reg(1),
+                        ty: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        ];
+
+        for (label, body) in invalid {
+            assert!(
+                verify_ir(function(body)).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
     }
 
     #[test]

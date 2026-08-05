@@ -18,6 +18,7 @@ pub mod module_resolver;
 pub mod parser;
 pub mod quantization;
 pub mod registry;
+mod scalar_assignment;
 pub mod semantic_analyzer;
 mod static_string_equality;
 mod static_string_method;

@@ -62,10 +62,20 @@ impl Parser {
             Token::Use => self.parse_use_import(),
             Token::Pub => self.parse_pub_item(),
             _ => {
-                // Try to parse as expression statement
+                // Parse the target/value topology here and leave admission to the
+                // shared scalar-assignment classifier used by later phases.
                 let expr = self.parse_expression()?;
-                self.consume(Token::Semicolon, "Expected ';' after expression")?;
-                Ok(Statement::Expression(expr))
+                if self.match_token(&Token::Assign) {
+                    let value = self.parse_expression()?;
+                    self.consume(Token::Semicolon, "Expected ';' after assignment")?;
+                    Ok(Statement::Assignment {
+                        target: expr,
+                        value,
+                    })
+                } else {
+                    self.consume(Token::Semicolon, "Expected ';' after expression")?;
+                    Ok(Statement::Expression(expr))
+                }
             }
         }
     }

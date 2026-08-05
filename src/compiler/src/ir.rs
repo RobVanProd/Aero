@@ -62,6 +62,18 @@ pub enum Inst {
     Alloca(Value, String),     // pointer_reg, variable_name
     Store(Value, Value),       // pointer_reg, value_to_store
     Load(Value, Value),        // result_reg, pointer_reg
+    /// Verified mutable stack place for an admitted local scalar binding.
+    CheckedMutableScalarAlloca {
+        result: Value,
+        name: String,
+        ty: LogicalType,
+    },
+    /// Verified reassignment of an existing admitted mutable scalar place.
+    CheckedScalarAssignment {
+        target: Value,
+        value: Value,
+        ty: LogicalType,
+    },
     /// Verified read-only alias of an existing scalar place.
     CheckedImmutableBorrow {
         result: Value,

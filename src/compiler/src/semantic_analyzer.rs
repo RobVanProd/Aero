@@ -10,6 +10,9 @@ use crate::local_reference::{
     LocalReferenceDisposition, ReferenceFunctionDisposition, classify_local_borrow,
     classify_local_dereference, classify_local_reference_annotation, classify_reference_function,
 };
+use crate::scalar_assignment::{
+    ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
+};
 use crate::struct_contract::{
     CopyStructArrayIndexDisposition, StructExecutionContext, StructRegistry,
 };
@@ -1732,6 +1735,10 @@ impl SemanticAnalyzer {
                 }
             }
             Statement::Expression(expression) => self.preflight_expression(expression)?,
+            Statement::Assignment { target, value } => {
+                self.preflight_expression(target)?;
+                self.preflight_expression(value)?;
+            }
             Statement::Block(block) => self.preflight_block_syntax(block)?,
             Statement::Function { body, .. } => self.preflight_block_syntax(body)?,
             Statement::If {
@@ -2504,6 +2511,41 @@ impl SemanticAnalyzer {
                 }
 
                 Ok(())
+            }
+            Statement::Assignment { target, value } => {
+                self.check_expression_initialization(value)?;
+                let rhs = self.require_value(value)?;
+                let facts = if let Expression::Identifier(name) = target {
+                    self.scope_manager.get_variable(name).map(|variable| {
+                        ScalarAssignmentTargetFacts {
+                            ty: variable.var_type.clone(),
+                            mutable: variable.mutable,
+                            initialized: variable.initialized,
+                            local: variable.scope_level > 0,
+                            ownership: variable.ownership.clone(),
+                        }
+                    })
+                } else {
+                    None
+                };
+                let inside_admitted_function = self.scope_manager.is_in_function()
+                    && self.type_param_scopes.is_empty()
+                    && !self.inside_impl;
+                match classify_scalar_assignment(
+                    Some(target),
+                    facts.as_ref(),
+                    &rhs,
+                    inside_admitted_function,
+                ) {
+                    ScalarAssignmentDisposition::Supported(_) => {
+                        self.apply_enum_match_moves(value)?;
+                        Ok(())
+                    }
+                    ScalarAssignmentDisposition::ExplicitlyRejected(message) => Err(message),
+                    ScalarAssignmentDisposition::PreserveExistingBehavior => {
+                        unreachable!("explicit assignment must receive a classifier disposition")
+                    }
+                }
             }
             Statement::Return(expr) => {
                 let contract = self

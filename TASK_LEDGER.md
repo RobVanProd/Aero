@@ -10402,3 +10402,167 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   sentence. Restore the unchanged disclaimer verbatim and state reference-result
   exclusion separately. This is a wording-preservation correction only; no capability,
   test weakness, lifetime behavior, or memory-safety claim changes.
+- Public acceptance: exact immutable implementation
+  `b4aec4a01312088807750b0e40150cee87dc2131`, tree
+  `197e3b9ee615d32da569d55740891a14bcaced27`, and stable patch ID
+  `a78d4d38c0bf8266b1f724d69c5ff97d28d2c5d0` are accepted on draft PR #4. Push CI
+  `30984213179`, PR CI `30984217586`, Rust CI `30984217528`, CodeQL
+  `30984214305`, and the aggregate check all pass. Stable job `92235191630` uses
+  LLVM/Clang 22.1.8, reports `ExternalVerified: opt 22.1.8`, runs
+  `llc-22 -verify-machineinstrs`, object-lowers, links with `clang-22`, executes exact
+  native exit 211, and passes 163/163 library plus 169/169 binary tests. PR #4 is
+  synchronized through CORE-053 at 241 commits, 66,435 additions, 1,432 deletions,
+  and 139 files; it remains draft, open, and unmerged. No stable pointer ABI, general
+  borrow checker, mutable reference, reference result, lifetime, memory-safety,
+  accelerator, performance, release, or stability claim is created.
+
+## CORE-054 - Exact mutable local scalar reassignment
+
+- Task ID: `CORE-054`. Observed behavior: the accepted compiler parses and stores the
+  `mutable` bit on `let mut`, and its semantic scope manager already distinguishes
+  mutable bindings and owned/borrowed states, but the AST has no assignment statement
+  or expression. Outside binding initialization the parser treats `=` as unexpected,
+  so no local can change value and the founding mutable-reference example has no write
+  operation to lower. Generic `Store` exists in IR only for initialization and other
+  established storage paths; there is no checked source-level reassignment identity or
+  verifier proof that a write target was declared mutable.
+- Authoritative semantics and hypothesis: the original framework's Control Flow and
+  Memory Safety section requires mutation to be explicit, and its ownership model says
+  references may be mutable while preventing conflicting aliases. The repository's
+  formal specification permits assignment-like statements, requires exact static
+  types, and bounds borrows by lexical scopes and use sites. Before mutable-reference
+  transport can be soundly executed, one shared source classifier can admit the exact
+  already-specified write primitive and checked IR can prove its mutable target and
+  scalar type independently. Assignment is a statement with no value. The right-hand
+  expression is evaluated exactly once, then replaces the target's current value.
+- Frozen admitted class: inside an otherwise admitted top-level function body, a
+  semicolon-terminated `target = value;` may assign only to the nearest already-defined,
+  initialized, owned local binding declared `let mut`. The target is exactly one
+  identifier whose resolved type is `Int`, `Float`, or `Bool`; the right-hand side is
+  any already-admitted expression of exactly the same logical type. Inferred and exact
+  `int`/`i32`, `float`/`f64`, and `bool` annotations are included. Sequential repeated
+  assignments, reads before/after assignment, shadowed nearest bindings, nested blocks,
+  selected `if`/`else` branches, compiler-bounded `for` bodies, `while`-carried scalar
+  state, non-`main` calls, and one-level direct modules are the complete contexts.
+  Assignment preserves initialization, type, place identity, and ownership. Mutation
+  before a borrow is allowed; assignment while the target is recorded moved, immutably
+  borrowed, or mutably borrowed is rejected. No NLL or borrow-release claim is made.
+- Frozen excluded/preserved class: immutable locals and parameters; unknown or
+  uninitialized targets; top-level assignment; assignment expressions or values;
+  chaining; compound operators; non-identifier targets including dereference, field,
+  index, tuple, pattern, or destructuring forms; String, array, tuple, struct, enum,
+  reference, Option, Result, generic, closure, or function values; implicit numeric
+  assignment conversion; declaration, parameter, field, module, namespace, visibility,
+  global/static, capture, trait/default/impl, or process-entry signature mutation;
+  moves, drops, destruction, reborrowing, lifetime inference, NLL, heap/runtime
+  allocation, concurrency, atomics, ABI/FFI, accelerators, performance, release, and
+  stability. Existing parser-visible unsupported target shapes must fail before IR;
+  compound and chained syntax may retain their existing parse failure.
+- Shared classification and checked contract: add one source module whose whole-
+  assignment disposition is supported, explicitly rejected, or preserved. It receives
+  resolved target facts (existence, locality, initialized/mutable/ownership state and
+  exact type), target topology, and right-hand type; semantic analysis and checked
+  admission must consume it rather than duplicating target/type/mutability guards.
+  Add explicit checked mutable-scalar-place allocation metadata and a distinct checked
+  scalar-assignment instruction. The independent verifier must require a supported
+  logical scalar, a dominating place created as mutable, exact right-hand type and
+  dominance, one target identity, and collision-free definitions. Generic `Alloca` or
+  raw `Store` may not masquerade as an admitted source assignment.
+- LLVM contract: only verified mutable scalar places lower. `Int` and `Float` retain the
+  compiler's established internal `double` representation and `Bool` retains `i1`;
+  assignment emits one typed store to the existing stack slot and later reads load that
+  slot. Runtime branch/loop execution, not host simulation or constant text rewriting,
+  must select and repeat writes. No public layout, stable ABI, volatility, atomicity,
+  alias-analysis, accelerator, or performance contract is created.
+- Tests-first complete product: one exhaustive target must prove parser retention for
+  identifier and unsupported field/index/deref assignment targets; all three scalar
+  types; inferred/annotated declarations; sequential, nested, shadowed, branch, loop,
+  module, and non-`main` contexts; exact once-only RHS effects through existing calls;
+  reads and returns after mutation; immutable/parameter/unknown/uninitialized/wrong-
+  type/non-scalar/borrowed/moved/top-level failures; assignment-expression/chaining/
+  compound containment; checked mutable allocation and assignment identities; raw-path
+  containment; CLI check/build artifact hygiene; and typed LLVM allocation/store/load/
+  CFG anchors. Private verifier corruption cases must reject missing or non-place
+  targets, immutable generic allocation substitution, unsupported/wrong metadata,
+  wrong RHS type, undefined/non-dominating values, definition collisions, and malformed
+  placement without relying on source analysis.
+- System gate and acceptance: add one tracked direct-module example with exact native
+  exit 227 that composes sequential and loop/branch-carried Int/Float/Bool mutation with
+  accepted immutable scalar-reference transport, payload and unit enums, Copy
+  aggregates/arrays, compile-time String length, functions, and direct modules. Stable
+  CI must run source collection, semantics, checked IR, independent verification,
+  `opt-22`, `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking, and the
+  exact exit. The full root gate and all eight public checks remain mandatory.
+- Allowed files: `TASK_LEDGER.md`; parser/AST plus a new shared scalar-assignment
+  classifier; semantic analyzer; checked IR/generator/verifier/code generator; one
+  exhaustive CORE-054 target and only directly superseded adjacent expectations; one
+  tracked example/module pair; the existing Rust workflow; and `README.md`,
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md`
+  where accepted/candidate facts change. No lexer token expansion, runtime/stdlib,
+  dependency, target, accelerator, release, benchmark, package, master, or downstream
+  repository change is authorized.
+- Risks and stop conditions: parser precedence or recovery regression; mutability lost
+  through shadowing; a write reaching immutable, borrowed, moved, aggregate, parameter,
+  or raw-only storage; stale values across CFG edges; verifier acceptance of generic
+  stores as source assignments; LLVM type mismatch; duplicated topology guards; or an
+  accidental NLL, ABI, concurrency, or memory-safety claim. Stop if assignment syntax
+  proves semantically ambiguous against the founding/spec examples, existing accepted
+  behavior changes outside the frozen class, exact types cannot survive through LLVM,
+  a failing test must be weakened, or the implementation unexpectedly requires
+  compound assignment, mutable references, general liveness, or another unfrozen
+  semantic decision.
+- Scaling controls and starting evidence: CORE-054 is a stateful parser-to-native CFG
+  and ownership prerequisite, not an easy compile-time residual. One shared whole-
+  assignment classifier prevents phase/topology guard multiplication. One exhaustive
+  target and one exit-227 composed native trace cap evidence overhead. Draft PR #4 is
+  now an integration program at 241 commits and remains open, draft, and unmerged; a
+  controlled merge/checkpoint and structured evidence-manifest generator each require
+  separate authorization. Exact clean accepted CORE-053 head
+  `b4aec4a01312088807750b0e40150cee87dc2131` equals
+  `origin/agent/aero-integration`. The only CORE-054 mutation at authorization is this
+  ledger record. The next allowed mutation is the exhaustive failing target; no
+  CORE-054 parser/AST, compiler behavior, example, workflow, capability claim, commit,
+  or public artifact exists.
+- Tests-first red evidence: with `%USERPROFILE%\.cargo\bin` prepended to inherited
+  `PATH`, `cargo test --manifest-path src/compiler/Cargo.toml --test
+  scalar_reassignment_tests -- --nocapture` compiles and executes the new exhaustive
+  target but fails 0/1 before parser, compiler, example, workflow, or capability-state
+  mutation. Identifier, field, index, and dereference targets all stop at the same
+  missing assignment AST/parser boundary: the expression parser returns the target and
+  statement parsing reports `Expected Semicolon, found Assign`. Every intended valid
+  Int/Float/Bool, sequential, shadowed, branch, while, for, call, and checked-IR case is
+  therefore red. Exact immutable/parameter/unknown/uninitialized/wrong-type/non-scalar/
+  borrowed/top-level diagnostics cannot yet exist; the checked mutable scalar allocation
+  and assignment identities, tracked direct-module example, and five workflow anchors
+  are absent. Compound, chained, and assignment-value syntax remains contained, and the
+  invalid CLI build exits 1 without an artifact. This proves the executable stateful
+  capability and independent verifier contract are missing without weakening any
+  accepted test or changing the public branch/PR artifact.
+- Downstream contract correction: the first exact root gate passes formatting,
+  correctness Clippy, 165/165 library tests, 171/171 binary tests, the new exhaustive
+  CORE-054 target, and every integration target through `typed_ir_admission_tests`.
+  Its sole stale cell is `closure assignment`: before the assignment statement existed,
+  `callback = | | 2;` stopped at parsing and the test required `Parse error:`. The new
+  parser intentionally retains that topology, and checked admission still rejects the
+  unsupported closure value before checked IR with `IR Generation Error: closures are
+  admitted only as compile-time callable bindings`. Updating only that directly
+  superseded expected phase prefix is authorized; it preserves the rejection, CLI
+  failure, no-artifact behavior, closure quarantine, and every CORE-054 exclusion.
+- Implementation and local acceptance evidence: the AST and parser retain explicit
+  assignment statements and unsupported target topology; one shared
+  `scalar_assignment` classifier is consumed by semantic analysis and checked
+  admission; checked IR distinguishes mutable scalar place declarations from source
+  assignments; the verifier independently proves declaration, initializer, target,
+  type, dominance, and checked-write identity; and LLVM lowers verified writes to the
+  existing typed `double`/`i1` stack places. The exhaustive target passes 1/1, its
+  private corruption matrix passes, CORE-048/053 reference and checked-IR neighbors
+  pass, and the corrected exact repository-root `./tools/test.sh` exits 0 after
+  formatting, correctness Clippy, 165/165 library tests, 171/171 binary tests, every
+  integration target, and doc tests. The composed direct-module source builds locally
+  to a 10,798-byte LLVM artifact with SHA-256
+  `a7104e3db6d7f0775cd5722e8f7c672fb2b11711803e5d130e140acb88b04b17`, 10 function
+  definitions, 18 `double` and five `i1` allocas, 27 `double` and seven `i1` stores,
+  26 `double` and six `i1` loads, and zero pointer/integer casts. Local LLVM status is
+  accurately `InternalOnly` because LLVM 22 is absent. Exact public implementation
+  identity, pinned external/machine verification, object/link, exit 227, all eight
+  checks, and PR-front-page acceptance remain pending; PR #4 stays draft and unmerged.

@@ -242,6 +242,7 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, rhs);
                 }
                 Inst::Alloca(ptr, _)
+                | Inst::CheckedMutableScalarAlloca { result: ptr, .. }
                 | Inst::AllocaArray { result: ptr, .. }
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
@@ -272,6 +273,9 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, value);
                 }
                 Inst::Store(ptr, value)
+                | Inst::CheckedScalarAssignment {
+                    target: ptr, value, ..
+                }
                 | Inst::Load(value, ptr)
                 | Inst::SIToFP(value, ptr)
                 | Inst::FPToSI(value, ptr) => {
@@ -602,6 +606,8 @@ impl CodeGenerator {
                 | Inst::Div(..)
                 | Inst::FDiv(..)
                 | Inst::Alloca(..)
+                | Inst::CheckedMutableScalarAlloca { .. }
+                | Inst::CheckedScalarAssignment { .. }
                 | Inst::Store(..)
                 | Inst::Load(..)
                 | Inst::Return(..)
@@ -969,6 +975,20 @@ impl CodeGenerator {
 
         for inst in instructions {
             match inst {
+                Inst::CheckedMutableScalarAlloca { result, ty, .. } => {
+                    let Value::Reg(ptr_id) = result else {
+                        panic!("Expected register for checked mutable scalar alloca")
+                    };
+                    match ty {
+                        LogicalType::Int | LogicalType::Float => {
+                            llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca double, align 8\n"))
+                        }
+                        LogicalType::Bool => {
+                            llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca i1, align 1\n"))
+                        }
+                        _ => unreachable!("verified mutable scalar alloca has scalar metadata"),
+                    }
+                }
                 Inst::Alloca(ptr_reg, name) => {
                     let ptr_id = match ptr_reg {
                         Value::Reg(r) => *r,
@@ -1091,6 +1111,22 @@ impl CodeGenerator {
                         "  store double {}, double* %{}, align 8\n",
                         val_str, ptr_str
                     ));
+                }
+                Inst::CheckedScalarAssignment { target, value, ty } => {
+                    let Value::Reg(ptr_id) = target else {
+                        panic!("Expected register for checked scalar assignment target")
+                    };
+                    match ty {
+                        LogicalType::Int | LogicalType::Float => llvm_ir.push_str(&format!(
+                            "  store double {}, double* %ptr{ptr_id}, align 8\n",
+                            self.value_to_string(value)
+                        )),
+                        LogicalType::Bool => llvm_ir.push_str(&format!(
+                            "  store i1 {}, i1* %ptr{ptr_id}, align 1\n",
+                            self.bool_value_to_string(value)
+                        )),
+                        _ => unreachable!("verified scalar assignment has scalar metadata"),
+                    }
                 }
                 Inst::Load(result_reg, ptr_reg) => {
                     if let Some(

@@ -98,6 +98,10 @@ pub enum Statement {
         type_annotation: Option<Type>,
         value: Option<Expression>,
     },
+    Assignment {
+        target: Expression,
+        value: Expression,
+    },
     Return(Option<Expression>),
     Expression(Expression),
     Block(Block),

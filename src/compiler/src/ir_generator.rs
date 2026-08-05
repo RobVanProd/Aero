@@ -14,6 +14,9 @@ use crate::local_reference::{
     classify_local_borrow, classify_local_dereference, classify_local_reference_annotation,
     classify_reference_function,
 };
+use crate::scalar_assignment::{
+    ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
+};
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
 };
@@ -25,7 +28,7 @@ use crate::struct_contract::{
     CopyFunctionContract, CopyStructArrayIndexDisposition, StructContractError,
     StructExecutionContext, StructRegistry,
 };
-use crate::types::{Ty, needs_promotion};
+use crate::types::{OwnershipState, Ty, needs_promotion};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
@@ -55,6 +58,8 @@ impl From<crate::ir_verifier::IrVerificationError> for IrGenerationError {
 #[derive(Clone)]
 struct AdmissionBinding {
     ty: Ty,
+    mutable: bool,
+    initialized: bool,
     callable: bool,
     static_string: Option<String>,
 }
@@ -346,6 +351,15 @@ impl IrGenerator {
                 | Ty::Vec(_)
                 | Ty::Fn(_)
         )
+    }
+
+    fn scalar_logical_type(ty: &Ty) -> Option<LogicalType> {
+        match ty {
+            Ty::Int => Some(LogicalType::Int),
+            Ty::Float => Some(LogicalType::Float),
+            Ty::Bool => Some(LogicalType::Bool),
+            _ => None,
+        }
     }
 
     fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
@@ -727,11 +741,53 @@ impl IrGenerator {
                     bindings.insert(
                         name.clone(),
                         AdmissionBinding {
+                            mutable: *mutable,
+                            initialized: true,
                             callable: matches!(ty, Ty::Fn(_)),
                             static_string,
                             ty,
                         },
                     );
+                }
+            }
+            Statement::Assignment { target, value } => {
+                let rhs = Self::validate_expression(
+                    value,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    !inside_impl,
+                )?;
+                let inside_admitted_function = bindings.contains_key(STRUCT_ADMISSION_BINDING)
+                    && !inside_impl
+                    && !inside_generic_impl;
+                let facts = if let Expression::Identifier(name) = target {
+                    bindings
+                        .get(name)
+                        .map(|binding| ScalarAssignmentTargetFacts {
+                            ty: binding.ty.clone(),
+                            mutable: binding.mutable,
+                            initialized: binding.initialized,
+                            local: inside_admitted_function,
+                            ownership: OwnershipState::Owned,
+                        })
+                } else {
+                    None
+                };
+                match classify_scalar_assignment(
+                    Some(target),
+                    facts.as_ref(),
+                    &rhs,
+                    inside_admitted_function,
+                ) {
+                    ScalarAssignmentDisposition::Supported(_) => {}
+                    ScalarAssignmentDisposition::ExplicitlyRejected(message) => {
+                        return Err(IrGenerationError::Admission(message));
+                    }
+                    ScalarAssignmentDisposition::PreserveExistingBehavior => {
+                        unreachable!("explicit assignment must receive a classifier disposition")
+                    }
                 }
             }
             Statement::Return(expression) => {
@@ -809,6 +865,8 @@ impl IrGenerator {
                         STRUCT_ADMISSION_BINDING.to_string(),
                         AdmissionBinding {
                             ty: Ty::Void,
+                            mutable: false,
+                            initialized: true,
                             callable: false,
                             static_string: None,
                         },
@@ -874,6 +932,8 @@ impl IrGenerator {
                         parameter.name.clone(),
                         AdmissionBinding {
                             ty: parameter_ty,
+                            mutable: false,
+                            initialized: true,
                             callable: false,
                             static_string: None,
                         },
@@ -982,6 +1042,8 @@ impl IrGenerator {
                     variable.clone(),
                     AdmissionBinding {
                         ty: element_ty,
+                        mutable: false,
+                        initialized: true,
                         callable: false,
                         static_string: None,
                     },
@@ -1528,6 +1590,8 @@ impl IrGenerator {
                         parameter.name.clone(),
                         AdmissionBinding {
                             ty: parameter_ty,
+                            mutable: false,
+                            initialized: true,
                             callable: false,
                             static_string: None,
                         },
@@ -1738,6 +1802,8 @@ impl IrGenerator {
                             binding.name.clone(),
                             AdmissionBinding {
                                 ty: binding.ty.clone(),
+                                mutable: false,
+                                initialized: true,
                                 callable: false,
                                 static_string: None,
                             },
@@ -2011,6 +2077,10 @@ impl IrGenerator {
         for instruction in instructions.iter() {
             match instruction {
                 Inst::Alloca(Value::Reg(register), _)
+                | Inst::CheckedMutableScalarAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
                 | Inst::AllocaArray {
                     result: Value::Reg(register),
                     ..
@@ -2067,6 +2137,12 @@ impl IrGenerator {
         for instruction in instructions {
             match instruction {
                 Inst::Alloca(place, _) => Self::rewrite_place(place, &places),
+                Inst::CheckedMutableScalarAlloca { result, .. } => {
+                    Self::rewrite_place(result, &places)
+                }
+                Inst::CheckedScalarAssignment { target, .. } => {
+                    Self::rewrite_place(target, &places)
+                }
                 Inst::AllocaArray { result, .. } => Self::rewrite_place(result, &places),
                 Inst::GetElementPtr { result, base, .. } => {
                     Self::rewrite_place(result, &places);
@@ -2496,7 +2572,7 @@ impl IrGenerator {
         match stmt {
             Statement::Let {
                 name,
-                mutable: _,
+                mutable,
                 type_annotation,
                 value,
             } => {
@@ -2538,13 +2614,51 @@ impl IrGenerator {
                     // Allocate a stack slot for the variable
                     let ptr_reg = Value::Reg(self.next_ptr);
                     self.next_ptr += 1;
-                    current_function
-                        .body
-                        .push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                    if self.checked_mode
+                        && mutable
+                        && let Some(ty) = Self::scalar_logical_type(&expr_type)
+                    {
+                        current_function
+                            .body
+                            .push(Inst::CheckedMutableScalarAlloca {
+                                result: ptr_reg.clone(),
+                                name: name.clone(),
+                                ty,
+                            });
+                    } else {
+                        current_function
+                            .body
+                            .push(Inst::Alloca(ptr_reg.clone(), name.clone()));
+                    }
                     self.symbol_table.insert(name, (ptr_reg.clone(), expr_type));
 
                     // Store the expression result into the allocated slot
                     current_function.body.push(Inst::Store(ptr_reg, expr_value));
+                }
+            }
+            Statement::Assignment { target, value } => {
+                let Expression::Identifier(name) = target else {
+                    unreachable!("checked admission rejects non-identifier assignment targets")
+                };
+                let (assigned_value, assigned_type) =
+                    self.generate_expression_ir(value, current_function);
+                let (target_place, target_type) = self
+                    .symbol_table
+                    .get(&name)
+                    .expect("checked admission resolves assignment targets")
+                    .clone();
+                debug_assert_eq!(assigned_type, target_type);
+                if self.checked_mode {
+                    current_function.body.push(Inst::CheckedScalarAssignment {
+                        target: target_place,
+                        value: assigned_value,
+                        ty: Self::scalar_logical_type(&target_type)
+                            .expect("checked admission admits only scalar reassignment"),
+                    });
+                } else {
+                    current_function
+                        .body
+                        .push(Inst::Store(target_place, assigned_value));
                 }
             }
             Statement::Return(expr) => {

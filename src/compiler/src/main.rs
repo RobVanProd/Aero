@@ -25,6 +25,7 @@ mod profiler;
 mod project_init;
 mod quantization;
 mod registry;
+mod scalar_assignment;
 mod semantic_analyzer;
 mod static_string_equality;
 mod static_string_method;

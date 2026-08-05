@@ -467,6 +467,24 @@ jobs:
         fi
         echo "reference-parameter transport example passed with exit code 211"
 
+    - name: Test mutable scalar reassignment integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/scalar_reassignment/main.aero -o ../../scalar_reassignment.ll
+        opt-22 -passes=verify -disable-output ../../scalar_reassignment.ll
+        llc-22 -verify-machineinstrs ../../scalar_reassignment.ll -o /dev/null
+        llc-22 -filetype=obj ../../scalar_reassignment.ll -o ../../scalar_reassignment.o
+        clang-22 ../../scalar_reassignment.o -o ../../scalar_reassignment
+        set +e
+        ../../scalar_reassignment
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 227 ]; then
+          echo "Expected exit code 227, got $exit_code"
+          exit 1
+        fi
+        echo "mutable scalar reassignment example passed with exit code 227"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
