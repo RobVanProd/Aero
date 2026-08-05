@@ -146,8 +146,8 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Accepted CORE-064 extends direct whole-owner replacement to admitted enums. Locally green CORE-065 adds only exact acyclic conditional joins for those enum owners; public acceptance is pending. Projected writes/borrows, loop ownership fixed points, and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
-| **Data Types** | Recursive finite CopyData composition and bounded unit-or-unary recursive CopyData owned enums with exhaustive bound Match, internal transport, and exact mutable whole-owner replacement are publicly accepted. Locally green CORE-065 composes existing enum ownership across acyclic `if` flow without adding a representation or topology. Enum fields, arrays, borrowing, projection, and broader storage/destructuring/generic semantics remain unsupported. |
+| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Accepted CORE-064 extends direct whole-owner replacement to admitted enums; accepted CORE-065 adds exact acyclic conditional joins for those enum owners. Projected writes/borrows, loop ownership fixed points, and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
+| **Data Types** | Recursive finite CopyData composition and bounded unit-or-unary recursive CopyData owned enums with exhaustive bound Match, internal transport, exact mutable whole-owner replacement, and acyclic conditional ownership joins are publicly accepted. CORE-065 adds no representation or topology. Enum fields, arrays, borrowing, projection, and broader storage/destructuring/generic semantics remain unsupported. |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
@@ -347,16 +347,17 @@ aero lsp
 > partial moves, new CFG ownership, drop/lifetimes, stable ABI/FFI, and general enum
 > mutation remain unsupported.
 
-> CORE-065 is locally green, but not yet publicly accepted, for exact acyclic
-> conditional joins over the existing admitted enum owners. Sibling `if` arms begin
+> CORE-065 is publicly accepted for exact acyclic conditional joins over the existing
+> admitted enum owners. Sibling `if` arms begin
 > from one ownership snapshot; definitely returning arms do not reach the merge; mixed
 > reachable ownership becomes `MaybeMoved` and later use rejects deterministically.
 > Semantic analysis and checked admission share this classifier, while independent
 > checked-IR dataflow follows exact enum result/place identities through CFG predecessor
 > unions and rejects serial, partial-merge, cyclic, or unreplaced-place double
-> consumption. The local focused and root gates pass with 182 library and 188 binary
-> tests. All eight public checks and the pinned LLVM/Clang 22 native-exit-137 lane are
-> still pending. Loop fixed points, `break`/`continue` transport, conditional
+> consumption. The focused and root gates pass with 182 library and 188 binary tests.
+> Exact implementation `f4daeea` passes all eight public checks; stable LLVM/Clang
+> 22.1.8 proves the known-invalid control and exact native exit 137, while nightly
+> repeats exit 137. Loop fixed points, `break`/`continue` transport, conditional
 > reinitialization, enum borrowing/storage/projection, partial moves, drop/lifetimes,
 > stable ABI/FFI, and general CFG ownership remain unsupported.
 

@@ -86,8 +86,11 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- `CORE-065` is a locally green candidate for exact acyclic `if` ownership joins over
-  admitted enums. Sibling arms begin from one shared entry snapshot; definitely
+- `CORE-065` is accepted public at exact implementation
+  `f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree
+  `7cd4ec6da2d9ce44f63741222a5b128396358bfe`, and stable patch ID
+  `708c1a6cab096f89e76577212a241554225897a2`. It adds exact acyclic `if` ownership
+  joins over admitted enums. Sibling arms begin from one shared entry snapshot; definitely
   returning arms do not reach the join; reachable states join to `Owned`, `Moved`, or
   `MaybeMoved`; and later use of `MaybeMoved` fails before IR. The same classifier is
   consumed by semantic analysis and checked admission. Independent checked-IR CFG
@@ -96,9 +99,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   Loop-carried ownership changes remain rejected pending fixed-point semantics. The
   exhaustive source/IR/verifier/LLVM/CLI target, corruption unit, compatibility ring,
   formatting, all-target/all-feature checking, correctness Clippy, docs, exact root
-  gate, 182 library tests, and 188 binary tests pass locally. Immutable identity, all
-  eight public checks, and pinned LLVM/Clang 22 native exit 137 remain pending; no
-  public acceptance, general CFG ownership, stable ABI, or safety claim follows.
+  gate, 182 library tests, and 188 binary tests pass. All eight public checks pass;
+  stable LLVM/Clang 22.1.8 proves the known-invalid control and exact native exit 137,
+  while nightly repeats exit 137. No general CFG ownership, stable ABI, or safety claim
+  follows.
 
 - `CORE-064` is accepted public at exact implementation
   `79aed71371e192a07218d437e882a863653b6826`, tree

@@ -12953,3 +12953,32 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `break`/`continue`, partial moves, borrowing joins, conditional reinitialization, and
   general CFG ownership remain fail-closed. No new enum topology, runtime layout, ABI,
   accelerator, benchmark, release, merge, or stability behavior is claimed.
+
+### CORE-065 accepted public implementation evidence
+
+- Accepted implementation identity: commit
+  `f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree
+  `7cd4ec6da2d9ce44f63741222a5b128396358bfe`, stable patch ID
+  `708c1a6cab096f89e76577212a241554225897a2`, and parent
+  `34b2660a1f48bb404860f041784a1d1fa8dc53e2`.
+- Public checks: CodeQL run `31049983361` passes actions job `92454645397`, Python job
+  `92454645485`, Rust job `92454645478`, and aggregate `92454777531`; push CI run
+  `31049982243` / job `92454638146`, PR CI run `31049985250` / job `92454648791`, and
+  PR Rust CI run `31049985417` pass on the exact implementation head.
+- Native system evidence: stable job `92454648190` installs LLVM/Clang 22.1.8, rejects
+  the known-invalid LLVM fixture, externally verifies with `opt-22`, machine-verifies
+  and object-lowers with `llc-22`, explicitly links the private non-PIE executable with
+  `clang-22`, and observes exact exit 137. Nightly job `92454648318` independently
+  repeats exit 137.
+- Acceptance boundary: CORE-065 is accepted public only for the frozen exact acyclic
+  conditional ownership joins over already admitted enum owners and the independent
+  checked-IR consumption proof. Candidate wording in current capability records is
+  superseded by this evidence. No loop fixed point, `break`/`continue` transport,
+  conditional reinitialization, partial move, enum borrow/storage/projection, general
+  CFG ownership, drop/lifetime, stable ABI/FFI, closure, accelerator, performance,
+  release, merge, or safety/stability claim follows.
+- Records closure: this additive documentation sync changes no compiler source, test,
+  language classification, runtime behavior, or accepted implementation identity. Its
+  exact successor commit must be pushed to `agent/aero-integration`, draft PR #4 must
+  be synchronized immediately, and all eight checks must pass again before the task is
+  considered administratively closed.

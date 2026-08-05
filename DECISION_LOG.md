@@ -2845,9 +2845,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-061 - Join admitted enum ownership across acyclic conditionals
 
 - Date: 2026-08-05
-- Status: locally green candidate; immutable commit identity, draft PR synchronization,
-  all eight public checks, and pinned LLVM/Clang 22 native exit 137 remain pending. This
-  is not public acceptance, a merge, or a safety/stability/ABI claim.
+- Status: accepted public at exact implementation
+  `f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree
+  `7cd4ec6da2d9ce44f63741222a5b128396358bfe`, and stable patch ID
+  `708c1a6cab096f89e76577212a241554225897a2`. The local gate, all eight public checks,
+  and pinned LLVM/Clang 22 native exit 137 pass. This is not a merge or a
+  safety/stability/ABI claim.
 - Decision: ownership joins are admitted only for existing owners of exact non-Copy
   enum schemas accepted by DEC-059/060. Each sibling `if` arm starts from the same entry
   snapshot. Definitely returning arms are excluded, missing `else` contributes entry,
@@ -2867,8 +2870,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   focused corruption controls, affected compatibility ring, 182/182 library tests,
   188/188 binary tests, formatting, all-target/all-feature checking, correctness
   Clippy, docs, and exact repository-root gate pass locally. The tracked public workflow
-  requires LLVM/Clang 22 external and machine verification, object lowering, explicit
-  private link, and native exit 137.
+  passes LLVM/Clang 22.1.8 external and machine verification, object lowering, explicit
+  private link, and native exit 137 in stable job `92454648190`; nightly job
+  `92454648318` repeats exit 137.
 - Exclusions: loop fixed points, `break`/`continue` transport, conditional target
   reinitialization, partial moves, enum borrowing/projection/field or array storage,
   new enum topology, general CFG ownership or borrowing, drop/destructors, lifetimes,
@@ -2878,3 +2882,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   classifier rather than growing duplicated topology rules. PR #4 remains a draft
   integration program; controlled checkpoint strategy, structured evidence-manifest
   generation, and periodic composed system gates remain active separate controls.
+- Public evidence: CodeQL run `31049983361` passes actions job `92454645397`, Python
+  job `92454645485`, Rust job `92454645478`, and aggregate `92454777531`; push CI
+  `31049982243` / `92454638146`, PR CI `31049985250` / `92454648791`, and PR Rust CI
+  `31049985417` pass. Stable job `92454648190` installs LLVM/Clang 22.1.8, rejects the
+  known-invalid fixture, externally verifies, machine-verifies, object-lowers,
+  explicitly links, and observes exit 137; nightly job `92454648318` repeats exit 137.

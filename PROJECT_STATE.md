@@ -4,7 +4,10 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 84 `CORE-065` is a locally green candidate for exact acyclic conditional
+Milestone 84 `CORE-065` is accepted public at exact implementation commit
+`f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree
+`7cd4ec6da2d9ce44f63741222a5b128396358bfe`, and stable patch ID
+`708c1a6cab096f89e76577212a241554225897a2`. It adds exact acyclic conditional
 ownership joins over the enum class already accepted by CORE-063/064. One shared
 classifier gives every sibling `if` arm the same entry ownership, excludes definitely
 returning arms from the merge, and joins reachable states as `Owned`, `Moved`, or
@@ -19,13 +22,13 @@ it accepts one consumption in each mutually exclusive arm and rejects serial,
 post-partial-merge, and cyclic double consumption. The exhaustive target, corruption
 controls, affected compatibility ring, 182/182 library tests, 188/188 binary tests,
 formatting, all-target/all-feature checking, correctness Clippy, docs, and the exact
-repository-root gate pass locally. The tracked direct-module specimen and public stable
-workflow are pinned to LLVM/Clang 22 external verification, machine verification,
-object/link, and native exit 137. Exact immutable identity, all eight public checks,
-and that native result remain pending, so CORE-065 is not yet accepted public. No
-general CFG ownership, loop fixed point, break/continue transport, enum borrowing or
-aggregate storage, partial moves, drop/lifetimes, stable ABI/FFI, release, or stability
-claim follows.
+repository-root gate pass. All eight public checks pass on the exact implementation.
+Stable job `92454648190` installs LLVM/Clang 22.1.8, proves the known-invalid control,
+externally and machine verifies, object-lowers, explicitly links the private executable,
+and observes exact native exit 137; nightly job `92454648318` independently repeats
+exit 137. No general CFG ownership, loop fixed point, break/continue transport, enum
+borrowing or aggregate storage, partial moves, drop/lifetimes, stable ABI/FFI, release,
+or stability claim follows.
 
 Milestone 83 `CORE-064` is accepted public at exact implementation commit
 `79aed71371e192a07218d437e882a863653b6826`, tree
@@ -2034,11 +2037,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze the exact locally green CORE-065 candidate, commit and push it on
-`agent/aero-integration`, immediately synchronize draft PR #4 to that candidate, and
-require all eight public checks plus the pinned LLVM/Clang 22 native exit-137 result
-before recording public acceptance. Preserve accepted CORE-064 identity `79aed71` and
-keep the PR draft and unmerged. The controlled
+Preserve accepted CORE-065 implementation identity `f4daeea`, commit and push this
+records-only acceptance closure on `agent/aero-integration`, immediately synchronize
+draft PR #4 to the closure head, and require all eight fresh checks on that head. Keep
+the PR draft and unmerged. The controlled
 mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
 tasks, hard capability classes must not be deferred for convenient slices, and
 periodic multi-capability system gates remain mandatory.
