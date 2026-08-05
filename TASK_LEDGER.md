@@ -8934,14 +8934,25 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   definitions/calls/loads/stores/returns. Root `./tools/test.sh` passes 155/155 library
   tests, 161/161 CLI tests, every active integration target, formatting, correctness
   Clippy, and doc tests. `git diff --check` passes.
-- Remaining uncertainty and regression risk: this Windows host has no LLVM 22 verifier,
-  so the generated program remains accurately `InternalOnly`. Public stable Linux
-  must still externally verify LLVM, machine-verify, object-lower, link, and execute
-  exact exit 91. Aggregate calling convention validity, especially zero-length array
-  transport, is therefore the principal pending risk; the public checks must also
-  prove no platform or workflow regression.
-- Local candidate status and recommended next action: CORE-046 is locally green but
-  not accepted, committed, or public. Review the exact authorized diff, commit and
-  push one intentional candidate, immediately synchronize draft PR #4 through
-  CORE-046, require all eight checks, and inspect the pinned stable native job. Do not
-  merge, claim acceptance, or begin another slice while public evidence is pending.
+- Remaining uncertainty at local closure: this Windows host had no LLVM 22 verifier,
+  so its generated program remained accurately `InternalOnly`. Aggregate calling
+  convention validity, especially zero-length array transport, and platform/workflow
+  regression remained pending for public stable Linux rather than being inferred.
+- Local candidate publication: exact implementation
+  `056ca334df08176dafac815c1df78f3e90ed660a`, tree
+  `50a2755cb7fe34d5490e6dacdeb62bfd0e6c7a9e`, stable patch ID
+  `509c03213bca3440ffe146a0c56031f6b7ccc534`, was committed and pushed unchanged;
+  draft PR #4's title and front page were immediately synchronized through CORE-046.
+- Public acceptance evidence: push CI `30968327941`, PR CI `30968330538`, stable/
+  nightly Rust CI `30968330548`, CodeQL actions/python/rust `30968328500`, and
+  aggregate CodeQL check `92187139555` pass all eight required checks. Stable Linux
+  job `92187043157` uses pinned LLVM/Clang 22.1.8, resolves and checked-builds the
+  tracked direct module, runs `opt-22` external verification, runs `llc-22
+  -verify-machineinstrs`, object-lowers, links with `clang-22`, and executes exact
+  native exit 91. It independently records 155/155 library and 161/161 CLI passes.
+- Accepted status and recommended next action: CORE-046 is accepted at the immutable
+  implementation above. This records-only sync changes no compiler, test, example,
+  workflow, or capability boundary. Publish it unchanged, require all eight checks,
+  keep PR #4 draft and synchronized, and separately authorize any next semantic class,
+  controlled checkpoint strategy, or structured evidence-manifest work. No merge,
+  release, performance/ABI/GPU claim, or `master` change follows.

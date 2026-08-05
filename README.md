@@ -184,13 +184,14 @@ aero lsp
 > multi-file example composes this with direct-module collection and passes pinned
 > LLVM/Clang 22 verification, lowering, linking, and native exit 77.
 >
-> The current CORE-046 candidate extends only the compiler's existing flat fixed
+> The publicly accepted CORE-046 slice extends only the compiler's existing flat fixed
 > `int`/`float` and all-scalar Copy-struct arrays across non-`main` internal function
 > parameters and returns. Exact element identity, count, and struct schema remain in
 > shared source classification, logical checked IR, verification, and aggregate LLVM
 > definitions, calls, loads, stores, and returns. Caller values remain usable after
-> the by-value call. The full local repository gate passes; all public checks and
-> pinned native execution are still required before acceptance.
+> the by-value call. The full local repository gate and all eight public checks pass;
+> pinned Linux LLVM/Clang 22 externally verifies, lowers, links, and executes the
+> multi-file system example with exact native exit 91.
 >
 > This does not provide non-Copy or destructive move semantics, assignment, general
 > methods beyond the exact array `.len()`/`.iter()` forms,

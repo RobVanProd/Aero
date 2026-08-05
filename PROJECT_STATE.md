@@ -4,8 +4,10 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 65 `CORE-046` is an uncommitted local candidate on accepted CORE-045 records
-head `5a11adfcbbf8b62e465deffbafd69a03a6cf148f`. It extends only the compiler's existing
+Milestone 65 `CORE-046` is accepted through exact public implementation commit
+`056ca334df08176dafac815c1df78f3e90ed660a`, tree
+`50a2755cb7fe34d5490e6dacdeb62bfd0e6c7a9e`, on accepted CORE-045 records head
+`5a11adfcbbf8b62e465deffbafd69a03a6cf148f`. It extends only the compiler's existing
 flat fixed `int`/`float` arrays and exact all-scalar Copy-struct arrays across
 non-`main` internal function parameters, arguments, results, and returns. Exact
 logical element identity, count, and struct schema remain intact for direct values,
@@ -23,12 +25,15 @@ stable ABI.
 
 The exhaustive focused CORE-046 aggregate, shared-classifier unit, checked-IR
 positive/corruption control, and adjacent struct-array, numeric-array, struct-
-transport, and admission suites pass locally. Root `./tools/test.sh` passes 155/155
-library tests, 161/161 CLI tests, every active integration target, formatting,
-correctness Clippy, and doc tests. The authorized multi-file example resolves and
-builds through the checked CLI into 11,115 bytes of typed aggregate LLVM. Committed
-identity, public checks, and pinned Linux LLVM/Clang native exit 91 remain pending;
-therefore CORE-046 is not yet accepted and the Windows host remains internal-only.
+transport, and admission suites pass. Root `./tools/test.sh` passes 155/155 library
+tests, 161/161 CLI tests, every active integration target, formatting, correctness
+Clippy, and doc tests. The multi-file example resolves and checked-builds into 11,115
+bytes of typed aggregate LLVM. Push CI `30968327941`, PR CI `30968330538`, Rust CI
+`30968330548`, CodeQL `30968328500`, and aggregate `92187139555` pass all eight public
+checks. Stable Linux job `92187043157` uses pinned LLVM/Clang 22.1.8 to externally
+verify, machine-verify, object-lower, link, and execute exact native exit 91; it also
+records 155/155 library and 161/161 CLI passes. The Windows host remains accurately
+internal-only rather than supplying invented native evidence.
 
 CORE-043 remains accepted at exact implementation commit
 `92b19cf729daa4e3e90d4591495e493573c89e51` and exact public synchronization head
@@ -64,10 +69,9 @@ composition rather than a module system.
   composed gates; CORE-044 adds an accepted ownership/function-boundary system gate
   backed by pinned native CI. CORE-045's accepted multi-file exit-77 gate composes direct
   modules, structs, Copy function transport, fixed arrays, scalar control flow, and
-  compile-time Strings through pinned native CI. CORE-046's locally green candidate
-  gate adds exact flat-array transport across multiple function boundaries but remains
-  unproven until the public native gate passes. Local slice tests alone never
-  establish whole-language coherence.
+  compile-time Strings through pinned native CI. CORE-046's accepted exit-91 gate adds
+  exact flat-array transport across multiple function boundaries to that composition.
+  Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
 Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
@@ -109,11 +113,12 @@ A flat fixed array of already-executable Copy elements can cross an internal fun
 boundary by value without inventing layout, ownership, stable ABI, or runtime-bounds
 semantics if the shared Copy-function contract retains exact logical element, count,
 and struct schema through semantic analysis, checked admission, logical IR,
-verification, LLVM, and native execution. Focused source/checked-IR evidence and the
-exact root gate support this hypothesis locally. Public checks, external LLVM and
-machine verification, object lowering, linking, and the pinned native sentinel must
-still pass before the hypothesis is accepted. Dynamic bounds, non-Copy storage,
-mutation, nested arrays, and public ABI rules remain outside this class.
+verification, LLVM, and native execution. Exact implementation
+`056ca334df08176dafac815c1df78f3e90ed660a`, the root gate, all eight public checks,
+and stable job `92187043157` satisfy this bounded hypothesis with external and machine
+verification, object lowering, linking, and exact native exit 91. Dynamic bounds,
+non-Copy storage, mutation, nested arrays, and public ABI rules remain outside this
+class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1657,12 +1662,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Review the exact authorized CORE-046 diff, commit and push the locally green candidate,
-and immediately synchronize draft PR #4's title and body through CORE-046. Require all
-eight public checks and inspect the pinned stable Linux LLVM/Clang job for external
-verification, machine verification, object lowering, linking, and exact native exit
-91. Do not merge PR #4, claim acceptance, or begin another implementation slice on
-red or pending evidence.
+CORE-046 is accepted at exact public implementation commit
+`056ca334df08176dafac815c1df78f3e90ed660a`: the exact local gate, all eight public
+checks, and stable Linux LLVM/Clang 22.1.8 native exit 91 pass. Publish this
+records-only acceptance sync unchanged and require its all-eight public checks. While
+that evidence is pending, do not begin another implementation slice. Once green, keep
+draft PR #4's front page synchronized and separately authorize the next semantic
+class; do not merge PR #4.
 
 Separately authorize the next semantic class. Milestone
 selection must continue to weigh harder non-Copy ownership/runtime-layout/ABI/module/

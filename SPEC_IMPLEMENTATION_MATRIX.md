@@ -1013,9 +1013,10 @@ declared compatibility policy and release-level coverage.
   dynamic bounds, mutation, array function transport, non-Copy ownership, runtime,
   accelerator, release, or performance claim moves.
 
-## CORE-046 candidate internal fixed Copy-array transport evidence
+## CORE-046 accepted internal fixed Copy-array transport evidence
 
-- The uncommitted local CORE-046 candidate admits only flat fixed arrays already
+- Accepted CORE-046 implementation `056ca334df08176dafac815c1df78f3e90ed660a`
+  admits only flat fixed arrays already
   executable before this task: `int`/`i32`, `float`/`f64`, or one exact CORE-044
   all-scalar Copy struct. Non-`main` internal parameters, arguments, call results,
   explicit/tail returns, forwarding, mixed signatures, terminating direct recursion,
@@ -1028,13 +1029,15 @@ declared compatibility policy and release-level coverage.
   verifier corruption controls reject unsupported/nested elements and mismatched
   count/schema/value-place identities. Checked LLVM uses internal `[N x double]` and
   `[N x %aero.struct.Name]` aggregates without a stable ABI claim.
-- The exhaustive focused aggregate and adjacent containment suites pass locally. Root
+- The exhaustive focused aggregate and adjacent containment suites pass. Root
   `./tools/test.sh` passes 155/155 library and 161/161 CLI tests plus every active
   integration, formatting, correctness Clippy, and doc gate. The authorized
-  multi-file example checked-builds into exact typed aggregate LLVM, and its pinned
-  stable-CI step is present. Committed identity, all public checks, and external
-  LLVM/machine/native evidence remain pending, so this row is
-  `PARTIAL`/`InternalOnly`, not accepted.
+  multi-file example checked-builds into exact typed aggregate LLVM. Push CI
+  `30968327941`, PR CI `30968330538`, Rust CI `30968330548`, CodeQL `30968328500`,
+  and aggregate `92187139555` pass all eight public checks; stable job `92187043157`
+  externally verifies, machine-verifies, object-lowers, links, and records exact
+  native exit 91. This specific row remains `PARTIAL`/internal-only rather than stable
+  ABI or general array/function support.
   Bool/String/non-Copy/nested arrays, arrays as fields, mutation, dynamic bounds,
   process-entry arrays, separate compilation, ABI/FFI, accelerators, performance,
   release, and stability claims remain excluded.
