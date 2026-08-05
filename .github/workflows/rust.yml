@@ -653,6 +653,25 @@ jobs:
         fi
         echo "recursive CopyData payload enum example passed with exit code 113"
 
+    - name: Test owned enum reassignment integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/owned_enum_reassignment/main.aero -o ../../owned_enum_reassignment.ll
+        opt-22 -passes=verify -disable-output ../../owned_enum_reassignment.ll
+        llc-22 -verify-machineinstrs ../../owned_enum_reassignment.ll -o /dev/null
+        llc-22 -filetype=obj ../../owned_enum_reassignment.ll -o ../../owned_enum_reassignment.o
+        clang-22 -no-pie ../../owned_enum_reassignment.o -o ../../owned_enum_reassignment
+        set +e
+        ../../owned_enum_reassignment
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 131 ]; then
+          echo "Expected exit code 131, got $exit_code"
+          exit 1
+        fi
+        echo "owned enum reassignment example passed with exit code 131"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

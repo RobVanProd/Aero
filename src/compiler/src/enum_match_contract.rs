@@ -136,7 +136,6 @@ pub(crate) enum EnumError {
         expected: Ty,
         actual: Ty,
     },
-    MutableBinding,
     BindingAnnotationMismatch {
         expected: String,
         actual: String,
@@ -201,7 +200,6 @@ impl EnumError {
             } => format!(
                 "enum `{enum_name}` variant `{variant}` payload type mismatch: expected {expected}, actual {actual}"
             ),
-            Self::MutableBinding => "mutable enum bindings are not admitted".to_string(),
             Self::BindingAnnotationMismatch { expected, actual } => {
                 format!("enum binding annotation mismatch: expected {expected}, actual {actual}")
             }
@@ -362,6 +360,11 @@ impl EnumRegistry {
                 Err(EnumError::NoUniqueDefinition(name.to_string()))
             }
         }
+    }
+
+    pub(crate) fn owned_place_logical_type(&self, name: &str) -> Result<LogicalType, EnumError> {
+        self.contract(name)
+            .map(|contract| contract.schema.logical_type())
     }
 
     fn annotation_mentions_declared_enum(&self, annotation: &Type) -> bool {
@@ -537,12 +540,8 @@ impl EnumRegistry {
         &self,
         enum_name: &str,
         annotation: Option<&Type>,
-        mutable: bool,
     ) -> Result<(), EnumError> {
         self.contract(enum_name)?;
-        if mutable {
-            return Err(EnumError::MutableBinding);
-        }
         match annotation {
             None => Ok(()),
             Some(Type::Named(actual)) if actual == enum_name => Ok(()),

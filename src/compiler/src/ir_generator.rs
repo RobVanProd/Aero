@@ -23,7 +23,8 @@ use crate::local_reference::{
     reference_call_source_mode,
 };
 use crate::scalar_assignment::{
-    CopyPlaceAssignmentDisposition, CopyPlaceAssignmentTargetFacts, classify_copy_place_assignment,
+    OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
+    classify_owned_place_assignment, resolve_owned_place_logical_type,
 };
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
@@ -102,6 +103,12 @@ enum ExpressionUse {
     Discarded,
 }
 
+#[derive(Clone)]
+struct GeneratedScopeSnapshot {
+    bindings: HashMap<String, (Value, Ty)>,
+    mutable_owned_enum_places: HashMap<String, Value>,
+}
+
 pub struct IrGenerator {
     functions: HashMap<String, Function>,
     #[allow(dead_code)]
@@ -110,6 +117,7 @@ pub struct IrGenerator {
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
     mutable_reference_sources: HashMap<u32, Value>,
+    mutable_owned_enum_places: HashMap<String, Value>,
     function_return_types: HashMap<String, Ty>,
     copy_function_contracts: HashMap<String, CopyFunctionContract>,
     enum_function_contracts: HashMap<String, EnumFunctionContract>,
@@ -130,6 +138,7 @@ impl IrGenerator {
             next_ptr: 0,
             symbol_table: HashMap::new(),
             mutable_reference_sources: HashMap::new(),
+            mutable_owned_enum_places: HashMap::new(),
             function_return_types: HashMap::new(),
             copy_function_contracts: HashMap::new(),
             enum_function_contracts: HashMap::new(),
@@ -163,6 +172,7 @@ impl IrGenerator {
         self.next_ptr = 0;
         self.symbol_table.clear();
         self.mutable_reference_sources.clear();
+        self.mutable_owned_enum_places.clear();
         self.function_return_types.clear();
         self.copy_function_contracts.clear();
         self.enum_function_contracts.clear();
@@ -385,6 +395,21 @@ impl IrGenerator {
                 unreachable!("checked Copy-place lowering has an admitted context")
             }
         }
+    }
+
+    fn admitted_owned_place_logical_type(&self, ty: &Ty) -> LogicalType {
+        resolve_owned_place_logical_type(ty, &self.struct_registry, &self.enum_registry)
+            .unwrap_or_else(|message| {
+                unreachable!("checked owned-place admission escaped classification: {message}")
+            })
+    }
+
+    fn is_mutable_owned_enum_place(&self, name: &str, storage: &Value, ty: &Ty) -> bool {
+        matches!(ty, Ty::Enum(_))
+            && self
+                .mutable_owned_enum_places
+                .get(name)
+                .is_some_and(|place| place == storage)
     }
 
     fn admission_local_reference_source_facts(
@@ -760,7 +785,7 @@ impl IrGenerator {
                     if let Ty::Enum(enum_name) = &ty {
                         program
                             .enums
-                            .validate_binding(enum_name, type_annotation.as_ref(), *mutable)
+                            .validate_binding(enum_name, type_annotation.as_ref())
                             .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
                     }
                     let reference_annotation = if matches!(ty, Ty::Reference(_, _)) {
@@ -899,7 +924,7 @@ impl IrGenerator {
                 let facts = if let Expression::Identifier(name) = target {
                     bindings
                         .get(name)
-                        .map(|binding| CopyPlaceAssignmentTargetFacts {
+                        .map(|binding| OwnedPlaceAssignmentTargetFacts {
                             ty: binding.ty.clone(),
                             mutable: binding.mutable,
                             initialized: binding.initialized,
@@ -909,18 +934,31 @@ impl IrGenerator {
                 } else {
                     None
                 };
-                match classify_copy_place_assignment(
+                match classify_owned_place_assignment(
                     Some(target),
                     facts.as_ref(),
+                    Some(value),
                     &rhs,
                     inside_admitted_function,
                     &program.structs,
+                    &program.enums,
                 ) {
-                    CopyPlaceAssignmentDisposition::Supported(_) => {}
-                    CopyPlaceAssignmentDisposition::ExplicitlyRejected(message) => {
+                    OwnedPlaceAssignmentDisposition::Supported(contract) => {
+                        if let Some(source) = contract.moved_source {
+                            bindings
+                                .get_mut(&source)
+                                .expect("shared owned-place classifier resolved source binding")
+                                .ownership = OwnershipState::Moved;
+                        }
+                        bindings
+                            .get_mut(&contract.name)
+                            .expect("shared owned-place classifier resolved target binding")
+                            .ownership = OwnershipState::Owned;
+                    }
+                    OwnedPlaceAssignmentDisposition::ExplicitlyRejected(message) => {
                         return Err(IrGenerationError::Admission(message));
                     }
-                    CopyPlaceAssignmentDisposition::PreserveExistingBehavior => {
+                    OwnedPlaceAssignmentDisposition::PreserveExistingBehavior => {
                         unreachable!("explicit assignment must receive a classifier disposition")
                     }
                 }
@@ -1263,6 +1301,11 @@ impl IrGenerator {
                 if binding.ownership == OwnershipState::MutablyBorrowed {
                     return Err(admission_error(&format!(
                         "cannot read `{name}` while it is mutably borrowed"
+                    )));
+                }
+                if binding.ownership == OwnershipState::Moved {
+                    return Err(admission_error(&format!(
+                        "use of moved value `{name}` in checked IR"
                     )));
                 }
                 Ok(binding.ty.clone())
@@ -2172,7 +2215,7 @@ impl IrGenerator {
         for instruction in instructions.iter() {
             match instruction {
                 Inst::Alloca(Value::Reg(register), _)
-                | Inst::CheckedMutableCopyPlaceAlloca {
+                | Inst::CheckedMutableOwnedPlaceAlloca {
                     result: Value::Reg(register),
                     ..
                 }
@@ -2248,10 +2291,10 @@ impl IrGenerator {
         for instruction in instructions {
             match instruction {
                 Inst::Alloca(place, _) => Self::rewrite_place(place, &places),
-                Inst::CheckedMutableCopyPlaceAlloca { result, .. } => {
+                Inst::CheckedMutableOwnedPlaceAlloca { result, .. } => {
                     Self::rewrite_place(result, &places)
                 }
-                Inst::CheckedCopyPlaceAssignment { target, .. } => {
+                Inst::CheckedOwnedPlaceAssignment { target, .. } => {
                     Self::rewrite_place(target, &places)
                 }
                 Inst::AllocaArray { result, .. } => Self::rewrite_place(result, &places),
@@ -2436,7 +2479,7 @@ impl IrGenerator {
             .zip(resolved.payload_bindings)
         {
             function.body.push(Inst::Label(label));
-            let before_scope = self.symbol_table.clone();
+            let before_scope = self.scope_snapshot();
             if let Some(binding) = binding {
                 let payload = Value::Reg(self.next_reg);
                 self.next_reg += 1;
@@ -2459,6 +2502,7 @@ impl IrGenerator {
                     function.body.push(Inst::Store(place.clone(), payload));
                     place
                 };
+                self.mutable_owned_enum_places.remove(&binding.name);
                 self.symbol_table.insert(binding.name, (place, binding.ty));
             }
             let (value, ty) = self.generate_expression_ir(arm.body, function);
@@ -2479,8 +2523,17 @@ impl IrGenerator {
         (result, result_ty)
     }
 
-    fn restore_bindings(&mut self, before_scope: &HashMap<String, (Value, Ty)>) {
-        self.symbol_table.clone_from(before_scope);
+    fn scope_snapshot(&self) -> GeneratedScopeSnapshot {
+        GeneratedScopeSnapshot {
+            bindings: self.symbol_table.clone(),
+            mutable_owned_enum_places: self.mutable_owned_enum_places.clone(),
+        }
+    }
+
+    fn restore_bindings(&mut self, before_scope: &GeneratedScopeSnapshot) {
+        self.symbol_table.clone_from(&before_scope.bindings);
+        self.mutable_owned_enum_places
+            .clone_from(&before_scope.mutable_owned_enum_places);
     }
 
     fn end_new_mutable_references(
@@ -2787,28 +2840,27 @@ impl IrGenerator {
                     (Value::ImmInt(0), Ty::Int)
                 };
 
-                let mutable_copy_place = self.checked_mode
+                let mutable_owned_place = self.checked_mode
                     && mutable
-                    && matches!(
-                        classify_copy_place_type(
-                            &expr_type,
-                            &self.struct_registry,
-                            CopyPlaceExecutionContext::AdmittedOwnedAssignment,
-                        ),
-                        CopyPlaceDisposition::Supported(_)
-                    );
-                if mutable_copy_place {
-                    let initial =
-                        self.load_copy_aggregate_value(expr_value, &expr_type, current_function);
+                    && resolve_owned_place_logical_type(
+                        &expr_type,
+                        &self.struct_registry,
+                        &self.enum_registry,
+                    )
+                    .is_ok();
+                self.mutable_owned_enum_places.remove(&name);
+                if mutable_owned_place {
+                    let initial = if matches!(expr_type, Ty::Enum(_)) {
+                        expr_value
+                    } else {
+                        self.load_copy_aggregate_value(expr_value, &expr_type, current_function)
+                    };
                     let storage = Value::Reg(self.next_ptr);
                     self.next_ptr += 1;
-                    let ty = self.admitted_copy_place_logical_type(
-                        &expr_type,
-                        CopyPlaceExecutionContext::AdmittedOwnedAssignment,
-                    );
+                    let ty = self.admitted_owned_place_logical_type(&expr_type);
                     current_function
                         .body
-                        .push(Inst::CheckedMutableCopyPlaceAlloca {
+                        .push(Inst::CheckedMutableOwnedPlaceAlloca {
                             result: storage.clone(),
                             name: name.clone(),
                             ty,
@@ -2816,6 +2868,10 @@ impl IrGenerator {
                     current_function
                         .body
                         .push(Inst::Store(storage.clone(), initial));
+                    if matches!(expr_type, Ty::Enum(_)) {
+                        self.mutable_owned_enum_places
+                            .insert(name.clone(), storage.clone());
+                    }
                     self.symbol_table.insert(name, (storage, expr_type));
                 } else if matches!(&expr_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
                     let storage = if copies_existing_aggregate {
@@ -2876,13 +2932,10 @@ impl IrGenerator {
                             );
                             current_function
                                 .body
-                                .push(Inst::CheckedCopyPlaceAssignment {
+                                .push(Inst::CheckedOwnedPlaceAssignment {
                                     target: target_place,
                                     value: assigned_value,
-                                    ty: self.admitted_copy_place_logical_type(
-                                        &target_type,
-                                        CopyPlaceExecutionContext::AdmittedOwnedAssignment,
-                                    ),
+                                    ty: self.admitted_owned_place_logical_type(&target_type),
                                 });
                         } else {
                             current_function
@@ -2974,7 +3027,7 @@ impl IrGenerator {
                 self.generate_if_statement_ir(condition, then_block, else_block, current_function);
             }
             Statement::While { condition, body } => {
-                let scope_snapshot = self.symbol_table.clone();
+                let scope_snapshot = self.scope_snapshot();
                 self.generate_while_loop_ir(condition, body, current_function);
                 self.restore_bindings(&scope_snapshot);
             }
@@ -2983,12 +3036,12 @@ impl IrGenerator {
                 iterable,
                 body,
             } => {
-                let scope_snapshot = self.symbol_table.clone();
+                let scope_snapshot = self.scope_snapshot();
                 self.generate_for_loop_ir(variable, iterable, body, current_function);
                 self.restore_bindings(&scope_snapshot);
             }
             Statement::Loop { body } => {
-                let scope_snapshot = self.symbol_table.clone();
+                let scope_snapshot = self.scope_snapshot();
                 self.generate_infinite_loop_ir(body, current_function);
                 self.restore_bindings(&scope_snapshot);
             }
@@ -3003,7 +3056,7 @@ impl IrGenerator {
                 self.generate_expression_ir(expr, current_function);
             }
             Statement::Block(block) => {
-                let scope_snapshot = self.symbol_table.clone();
+                let scope_snapshot = self.scope_snapshot();
                 // Generate IR for block statements
                 for stmt in block.statements {
                     self.generate_statement_ir(stmt, current_function);
@@ -3017,7 +3070,7 @@ impl IrGenerator {
                         .last()
                         .is_some_and(Self::instruction_terminates_block)
                 {
-                    self.end_new_mutable_references(&scope_snapshot, current_function);
+                    self.end_new_mutable_references(&scope_snapshot.bindings, current_function);
                 }
                 self.restore_bindings(&scope_snapshot);
             }
@@ -3045,6 +3098,12 @@ impl IrGenerator {
                     .get(&name)
                     .expect("Undeclared variable")
                     .clone();
+                if self.is_mutable_owned_enum_place(&name, &storage, &var_type) {
+                    let result = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(Inst::Load(result.clone(), storage));
+                    return (result, var_type);
+                }
                 if Self::stores_value_directly(&var_type) {
                     return (storage, var_type);
                 }
@@ -3742,12 +3801,14 @@ impl IrGenerator {
         // Save current state
         let saved_symbol_table = self.symbol_table.clone();
         let saved_mutable_reference_sources = self.mutable_reference_sources.clone();
+        let saved_mutable_owned_enum_places = self.mutable_owned_enum_places.clone();
         let saved_next_reg = self.next_reg;
         let saved_next_ptr = self.next_ptr;
 
         // Reset for function generation
         self.symbol_table.clear();
         self.mutable_reference_sources.clear();
+        self.mutable_owned_enum_places.clear();
         self.next_reg = 0;
         self.next_ptr = 0;
 
@@ -3947,6 +4008,7 @@ impl IrGenerator {
         // Restore state
         self.symbol_table = saved_symbol_table;
         self.mutable_reference_sources = saved_mutable_reference_sources;
+        self.mutable_owned_enum_places = saved_mutable_owned_enum_places;
         self.next_reg = saved_next_reg;
         self.next_ptr = saved_next_ptr;
     }
@@ -4015,6 +4077,12 @@ impl IrGenerator {
                     .get(&name)
                     .expect("Undeclared variable")
                     .clone();
+                if self.is_mutable_owned_enum_place(&name, &storage, &var_type) {
+                    let result = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function_body.push(Inst::Load(result.clone(), storage));
+                    return (result, var_type);
+                }
                 if Self::stores_value_directly(&var_type) {
                     return (storage, var_type);
                 }
@@ -4213,7 +4281,7 @@ impl IrGenerator {
             false_label: else_label.clone(),
         });
 
-        let scope_snapshot = self.symbol_table.clone();
+        let scope_snapshot = self.scope_snapshot();
 
         // Generate then block
         current_function.body.push(Inst::Label(then_label));
@@ -4229,7 +4297,7 @@ impl IrGenerator {
             .is_some_and(Self::instruction_terminates_block);
         if !then_terminates {
             if self.checked_mode {
-                self.end_new_mutable_references(&scope_snapshot, current_function);
+                self.end_new_mutable_references(&scope_snapshot.bindings, current_function);
             }
             current_function.body.push(Inst::Jump(end_label.clone()));
         }

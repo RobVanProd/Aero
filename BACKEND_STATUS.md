@@ -45,6 +45,13 @@ Focused contracts, the complete repository gate, three exact-diff reviews, and a
 required public CI checks pass at head `db349ef`. This does not expand the CPU
 feature or execution classification.
 
+The local `CORE-064` candidate adds no backend or ABI class. For already admitted
+private enum schemas it emits exact typed alloca/load/store operations for mutable
+whole-owner replacement, guarded by generalized checked identities and independent
+schema verification. Its tracked direct-module program is pinned to exit 131, but
+external LLVM verification, machine verification, object lowering, linking, and native
+execution on LLVM/Clang 22 remain public acceptance gates.
+
 ## ROCm path
 
 The CLI can retarget module metadata and invoke `llc` with AMDGPU flags, but it

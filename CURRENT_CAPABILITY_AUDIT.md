@@ -8,6 +8,17 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
+- `CORE-064` is a locally green implementation candidate, not public acceptance. One
+  shared owned-place classifier admits either recursive finite CopyData or an exact
+  CORE-063 enum schema for direct mutable whole-owner replacement. Inferred and exact
+  mutable enum locals accept fresh constructors, exact enum-returning calls, and
+  distinct-local moves; self-replacement and unsupported targets fail closed before
+  trusted LLVM. Generalized checked identities, independent schema/place/value verifier
+  controls, and private typed enum loads/stores cover the target. The focused exhaustive
+  target, formatting, all-target/all-feature checking, correctness Clippy, docs, exact
+  root gate, and complete Rust test surface pass locally at 180/180 library and 186/186
+  binary tests. Public workflows and pinned LLVM/Clang 22 native exit 131 remain
+  pending.
 - `CORE-063` is accepted public at exact implementation
   `2a5c3c58192dc65116c436d6ae76da5829eeba52`, tree
   `8a5cef6b14214e76349a41f6997d5fa19595858f`, and stable patch ID
@@ -1896,6 +1907,27 @@ promise future compatibility.
 - Its fresh and verification exact full gates each exit 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no capability moves.
+
+## CORE-064 local owned-enum reassignment candidate
+
+- The admitted target is an initialized mutable local whose exact logical type is
+  either recursive finite CopyData or one already admitted non-Copy enum schema. One
+  classifier owns this distinction across semantic analysis and checked admission.
+- Enum replacement accepts an exact constructor, exact enum-returning call, or a
+  distinct initialized enum local. The distinct source is moved; the target becomes
+  owned and initialized; direct self-replacement rejects. Existing conservative
+  source-order ownership remains unchanged.
+- `CheckedMutableOwnedPlaceAlloca` and `CheckedOwnedPlaceAssignment` replace the former
+  CopyData-named identities for both classes. Independent verification requires exact
+  type/schema, adjacent one-time initialization, dominance, collision freedom, and
+  checked later writes. Borrow identities continue to accept CopyData only.
+- Verified LLVM uses exact private enum allocas, loads, and stores. It introduces no
+  fallback `i32`, byte layout, bitcast, public discriminant, stable layout, ABI, or FFI.
+- Local candidate evidence is 180 library and 186 binary tests plus formatting,
+  all-target/all-feature checking, correctness Clippy, docs, the exact root gate, and
+  the exhaustive source/IR/verifier/LLVM/CLI target. Public all-eight and pinned
+  LLVM/Clang 22 native exit 131 remain required before this section can be recorded as
+  accepted.
 
 ## CORE-063 accepted unary recursive CopyData enum boundary
 

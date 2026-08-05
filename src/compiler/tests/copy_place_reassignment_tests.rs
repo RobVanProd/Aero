@@ -441,8 +441,8 @@ fn copy_place_reassignment_class_is_complete_checked_and_executable() {
         Ok((checked, llvm)) => {
             let debug = format!("{checked:#?}");
             for marker in [
-                "CheckedMutableCopyPlaceAlloca",
-                "CheckedCopyPlaceAssignment",
+                "CheckedMutableOwnedPlaceAlloca",
+                "CheckedOwnedPlaceAssignment",
                 "Struct {",
                 "Array {",
                 "Tuple {",
@@ -474,22 +474,17 @@ fn copy_place_reassignment_class_is_complete_checked_and_executable() {
         (
             "immutable aggregate owner",
             "struct Row { value: int } fn main() -> int { let row = Row { value: 1 }; row = Row { value: 2 }; row.value }",
-            "mutable local Copy-data binding",
+            "mutable local owned binding",
         ),
         (
             "owned parameter target",
             "struct Row { value: int } fn bad(row: Row) -> Row { row = Row { value: 2 }; row } fn main() -> int { 0 }",
-            "mutable local Copy-data binding",
+            "mutable local owned binding",
         ),
         (
             "String target",
             "fn main() -> int { let mut value = \"a\"; value = \"b\"; 0 }",
             "admitted Copy-data for owned assignment",
-        ),
-        (
-            "enum target",
-            "enum Mode { Off, On } fn main() -> int { let mut value = Mode::Off; value = Mode::On; 0 }",
-            "mutable enum bindings are not admitted",
         ),
         (
             "non-Copy struct target",
@@ -561,8 +556,8 @@ fn copy_place_reassignment_class_is_complete_checked_and_executable() {
         Ok(ast) => {
             let raw = IrGenerator::new().generate_ir(ast);
             let debug = format!("{raw:?}");
-            if debug.contains("CheckedMutableCopyPlaceAlloca")
-                || debug.contains("CheckedCopyPlaceAssignment")
+            if debug.contains("CheckedMutableOwnedPlaceAlloca")
+                || debug.contains("CheckedOwnedPlaceAssignment")
             {
                 failures.push(format!(
                     "deprecated raw generation activated checked Copy-place assignment identities:\n{debug}"
@@ -651,7 +646,7 @@ fn copy_place_reassignment_class_is_complete_checked_and_executable() {
     let rejected_text = output_text(&rejected);
     if rejected.status.success()
         || invalid_output.exists()
-        || !rejected_text.contains("mutable local Copy-data binding")
+        || !rejected_text.contains("mutable local owned binding")
     {
         failures.push(format!(
             "invalid Copy-place reassignment CLI hygiene failed (status={}, artifact={}):\n{}",

@@ -405,7 +405,7 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
         Ok((checked, llvm)) => {
             let debug = format!("{checked:#?}");
             for marker in [
-                "CheckedMutableCopyPlaceAlloca",
+                "CheckedMutableOwnedPlaceAlloca",
                 "CheckedMutableReferenceParameter",
                 "CheckedMutableBorrow",
                 "CheckedMutableDereferenceAssignment",
@@ -516,7 +516,7 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
         Ok(ast) => {
             let raw = IrGenerator::new().generate_ir(ast);
             let debug = format!("{raw:?}");
-            if debug.contains("CheckedMutableCopyPlaceAlloca")
+            if debug.contains("CheckedMutableOwnedPlaceAlloca")
                 || debug.contains("CheckedMutableBorrowEnd")
                 || debug.contains("CheckedMutableReferenceParameter")
             {

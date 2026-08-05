@@ -20,6 +20,12 @@ Accepted CORE-061 keeps closures parsed-only/fail-closed and
 accepted CORE-062 supplies the recursive CopyData classifier. Projected borrows/writes,
 deeper CFG ownership, stable ABI, full module semantics, generic/multi-field enums, and
 real GPU execution remain unresolved.
+`CORE-064` is a locally green candidate that adds exact direct whole-owner replacement
+for that admitted enum class through a shared owned-place classifier, generalized
+checked identities, independent verifier controls, and private typed LLVM loads/stores.
+Public CI and the pinned LLVM/Clang 22 native-exit-131 gate remain outstanding; enum
+borrowing/projection/storage, new CFG ownership, drop/lifetimes, and stable ABI remain
+unsupported.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

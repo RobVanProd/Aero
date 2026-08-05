@@ -330,12 +330,12 @@ fn main() -> int {
         Err(error) => failures.push(format!("checked reassignment IR/LLVM failed: {error}")),
         Ok((checked, llvm)) => {
             let debug = format!("{checked:#?}");
-            if debug.matches("CheckedMutableCopyPlaceAlloca").count() < 5 {
+            if debug.matches("CheckedMutableOwnedPlaceAlloca").count() < 5 {
                 failures.push(format!(
                     "checked IR lost mutable scalar place declarations:\n{debug}"
                 ));
             }
-            if debug.matches("CheckedCopyPlaceAssignment").count() < 9
+            if debug.matches("CheckedOwnedPlaceAssignment").count() < 9
                 || !debug.contains("ty: Int")
                 || !debug.contains("ty: Float")
                 || !debug.contains("ty: Bool")
@@ -356,12 +356,12 @@ fn main() -> int {
         (
             "immutable local",
             "fn main() -> int { let value = 1; value = 2; value }",
-            "assignment target `value` must be a mutable local Copy-data binding",
+            "assignment target `value` must be a mutable local owned binding",
         ),
         (
             "immutable parameter",
             "fn change(value: int) -> int { value = 2; value } fn main() -> int { change(1) }",
-            "assignment target `value` must be a mutable local Copy-data binding",
+            "assignment target `value` must be a mutable local owned binding",
         ),
         (
             "unknown target",
@@ -391,7 +391,7 @@ fn main() -> int {
         (
             "enum target",
             "enum Mode { Off, On } fn main() -> int { let mode = Mode::Off; mode = Mode::On; 0 }",
-            "type Mode is not admitted Copy-data for owned assignment",
+            "assignment target `mode` must be a mutable local owned binding",
         ),
         (
             "immutably borrowed target",
@@ -416,7 +416,7 @@ fn main() -> int {
         (
             "top-level assignment",
             "let mut value = 1; value = 2; fn main() -> int { value }",
-            "Copy-place reassignment is supported only inside admitted function bodies",
+            "owned-place reassignment is supported only inside admitted function bodies",
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, expected) {
@@ -448,8 +448,8 @@ fn main() -> int {
         Ok(ast) => {
             let raw = IrGenerator::new().generate_ir(ast);
             let debug = format!("{raw:#?}");
-            if debug.contains("CheckedMutableCopyPlaceAlloca")
-                || debug.contains("CheckedCopyPlaceAssignment")
+            if debug.contains("CheckedMutableOwnedPlaceAlloca")
+                || debug.contains("CheckedOwnedPlaceAssignment")
             {
                 failures.push(format!(
                     "deprecated raw generation activated checked reassignment:\n{debug}"
@@ -530,8 +530,7 @@ fn main() -> int {
     let diagnostics = output_text(&output);
     if output.status.success()
         || output_path.exists()
-        || !diagnostics
-            .contains("assignment target `value` must be a mutable local Copy-data binding")
+        || !diagnostics.contains("assignment target `value` must be a mutable local owned binding")
     {
         failures.push(format!(
             "invalid scalar-reassignment CLI hygiene failed (status={}, artifact={}):\n{}",

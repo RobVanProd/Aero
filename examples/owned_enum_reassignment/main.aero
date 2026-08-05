@@ -1,0 +1,34 @@
+mod values;
+
+fn main() -> int {
+    let mut phase = Phase::Cold;
+    phase = Phase::Hot;
+
+    let mut measure: Measure = Measure::Count(1);
+    measure = Measure::Flag(1 < 2);
+
+    let mut repeated = Payload::Idle;
+    repeated = Payload::Pair((11, 1 < 2));
+    repeated = Payload::CellValue(make_cell(17));
+
+    let mut called: Payload = Payload::Idle;
+    called = produce_pair(19);
+
+    let mut nested = Payload::Idle;
+    {
+        nested = Payload::Matrix([[20, 21], [23, 24]]);
+    }
+
+    let source = Payload::Cells([make_cell(59), make_cell(64)]);
+    let mut moved = Payload::Idle;
+    moved = source;
+
+    let total = phase_score(phase)
+        + measure_score(measure)
+        + score(repeated)
+        + score(called)
+        + score(nested)
+        + finish(moved);
+    if total == 131 { return 131; }
+    1
+}

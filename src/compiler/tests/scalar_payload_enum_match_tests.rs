@@ -329,11 +329,6 @@ fn main() -> int {
             "enum `Signal` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
-            "mutable payload enum binding",
-            "enum Signal { Count(int) } fn main() { let mut signal = Signal::Count(1); }",
-            "mutable enum bindings are not admitted",
-        ),
-        (
             "missing payload pattern",
             "enum Signal { Idle, Count(int) } fn main() { let value = match Signal::Count(1) { Signal::Idle => 0, Signal::Count => 1 }; }",
             "enum match variant `Count` requires one identifier payload binding",

@@ -2798,3 +2798,42 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   verifier control, externally verifies, machine-verifies, object-lowers, explicitly
   links the private non-PIE executable, and observes exact exit 113; nightly job
   `92363420286` independently observes exit 113.
+
+## DEC-060 - Extend direct owned replacement to admitted enums
+
+- Date: 2026-08-05
+- Status: locally green implementation candidate; public acceptance is pending. The
+  focused exhaustive target, verifier corruption unit, affected compatibility ring,
+  formatting, all-target/all-feature checking, correctness Clippy, docs, the exact root
+  gate, and complete Rust surface pass at 180/180 library and 186/186 binary tests. An
+  immutable commit identity, all eight public checks, and pinned LLVM/Clang 22 native
+  exit 131 remain required.
+- Decision: the direct mutable owned-place universe is the union of DEC-058 recursive
+  finite `CopyData` and the exact non-Copy enum schemas accepted by DEC-059. One shared
+  classifier resolves target type, mutability, initialization, ownership, exact RHS,
+  and supported/rejected/preserved disposition across semantic analysis and checked
+  admission. It must not duplicate enum topology tables or manufacture a scalar type.
+- Source semantics: an inferred or exact annotated `let mut` enum local may be replaced
+  by a fresh exact variant, an exact enum-returning call, or a distinct initialized
+  local of the same enum. The RHS evaluates once. A distinct local source moves and
+  cannot be reused; the target becomes owned and initialized. Direct self-replacement
+  is rejected. Existing conservative source-order/branch/loop ownership remains exact;
+  no new join or path-sensitive behavior is inferred.
+- IR/backend: `CheckedMutableOwnedPlaceAlloca` and
+  `CheckedOwnedPlaceAssignment` supersede the CopyData-named checked identities for
+  both admitted classes. The verifier independently requires valid exact recursive or
+  enum schema, one adjacent initializer, dominance, collision freedom, exact
+  place/value identity, and checked later writes. Only CopyData places may enter the
+  accepted borrow identities. Private LLVM lowers an enum place and replacement with
+  the already accepted exact enum type and typed load/store, without byte storage,
+  fallback `i32`, bitcast, or public representation.
+- Exclusions: enum fields/arrays/general storage, enum or projected borrowing, partial
+  moves, multi-field/generic/recursive enums, new CFG ownership, drop/destructors,
+  lifetimes, aggregate Match results, nested destructuring, stable layout/ABI/FFI,
+  closures, accelerators, performance, release, and stability remain unsupported or
+  separately governed.
+- Scaling boundary: the shared owned-place classifier directly contains the reported
+  topology-rule growth without broadening preserved shapes. This deliberately selects
+  a hard ownership/storage slice. Its tracked multi-capability source-to-native gate is
+  mandatory. PR #4 remains draft/unmerged; controlled checkpoint strategy and
+  structured manifest generation remain separately authorized work.

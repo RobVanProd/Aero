@@ -314,11 +314,6 @@ fn main() -> int {
             "enum binding annotation mismatch: expected Phase, actual Other",
         ),
         (
-            "mutable binding",
-            "enum Phase { Cold } fn main() { let mut value = Phase::Cold; }",
-            "mutable enum bindings are not admitted",
-        ),
-        (
             "missing arm",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1 }; }",
             "enum match must cover every declared variant exactly once",

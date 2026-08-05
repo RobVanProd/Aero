@@ -323,6 +323,18 @@ fn valid_mutable_reference_pointee(ty: &LogicalType) -> bool {
     valid_immutable_reference_pointee(ty)
 }
 
+fn valid_owned_place_type(ty: &LogicalType) -> bool {
+    valid_copy_data_type(ty)
+        || matches!(
+            ty,
+            LogicalType::Enum { name, variants }
+                if valid_enum_schema(&EnumSchema {
+                    name: name.clone(),
+                    variants: variants.clone(),
+                })
+        )
+}
+
 fn valid_enum_schema(schema: &EnumSchema) -> bool {
     let mut unique = BTreeSet::new();
     valid_symbol(&schema.name)
@@ -937,7 +949,7 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
 fn place_definition(instruction: &Inst) -> Option<&Value> {
     match instruction {
         Inst::Alloca(result, _)
-        | Inst::CheckedMutableCopyPlaceAlloca { result, .. }
+        | Inst::CheckedMutableOwnedPlaceAlloca { result, .. }
         | Inst::AllocaArray { result, .. }
         | Inst::GetElementPtr { result, .. }
         | Inst::CheckedCopyStructArrayAlloca { result, .. }
@@ -1069,6 +1081,7 @@ struct FunctionVerifier<'a> {
     places: BTreeMap<PlaceId, PlaceType>,
     place_names: BTreeMap<PlaceId, Option<String>>,
     element_owners: BTreeMap<PlaceId, PlaceId>,
+    mutable_owned_places: BTreeSet<PlaceId>,
     mutable_copy_places: BTreeSet<PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
@@ -1096,6 +1109,7 @@ impl<'a> FunctionVerifier<'a> {
             places: BTreeMap::new(),
             place_names: BTreeMap::new(),
             element_owners: BTreeMap::new(),
+            mutable_owned_places: BTreeSet::new(),
             mutable_copy_places: BTreeSet::new(),
             mutable_reference_origins: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
@@ -1281,8 +1295,8 @@ impl<'a> FunctionVerifier<'a> {
                             Some(&block.label),
                             IrVerificationErrorKind::ExpectedPlaceIdentifier(match instruction {
                                 Inst::Alloca(..) => "alloca",
-                                Inst::CheckedMutableCopyPlaceAlloca { .. } => {
-                                    "checked mutable Copy-place alloca"
+                                Inst::CheckedMutableOwnedPlaceAlloca { .. } => {
+                                    "checked mutable owned-place alloca"
                                 }
                                 Inst::AllocaArray { .. } => "alloca array",
                                 Inst::CheckedStructAlloca { .. } => "checked struct alloca",
@@ -1326,17 +1340,20 @@ impl<'a> FunctionVerifier<'a> {
                         ));
                     }
                     let (place_type, name) = match instruction {
-                        Inst::CheckedMutableCopyPlaceAlloca { name, ty, .. } => {
-                            if !valid_symbol(name) || !valid_mutable_reference_pointee(ty) {
+                        Inst::CheckedMutableOwnedPlaceAlloca { name, ty, .. } => {
+                            if !valid_symbol(name) || !valid_owned_place_type(ty) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(format!(
-                                        "checked mutable Copy place `{name}` requires a valid name and admitted Copy-data metadata"
+                                        "checked mutable owned place `{name}` requires a valid name and admitted CopyData-or-enum metadata"
                                     )),
                                 ));
                             }
-                            self.mutable_copy_places.insert(id);
+                            self.mutable_owned_places.insert(id);
+                            if valid_copy_data_type(ty) {
+                                self.mutable_copy_places.insert(id);
+                            }
                             let place_type = match ty {
                                 LogicalType::Array { element, count } => PlaceType::Array {
                                     logical_element: Some((**element).clone()),
@@ -2289,7 +2306,7 @@ impl<'a> FunctionVerifier<'a> {
                         )?;
                     }
                     Inst::Alloca(..)
-                    | Inst::CheckedMutableCopyPlaceAlloca { .. }
+                    | Inst::CheckedMutableOwnedPlaceAlloca { .. }
                     | Inst::AllocaArray { .. }
                     | Inst::CheckedStructAlloca { .. }
                     | Inst::CheckedTupleAlloca { .. }
@@ -2316,7 +2333,7 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
-                        if self.mutable_copy_places.contains(&id) {
+                        if self.mutable_owned_places.contains(&id) {
                             let definition = self
                                 .place_definitions
                                 .get(&id)
@@ -2398,20 +2415,20 @@ impl<'a> FunctionVerifier<'a> {
                             }
                         }
                     }
-                    Inst::CheckedCopyPlaceAssignment { target, value, ty } => {
+                    Inst::CheckedOwnedPlaceAssignment { target, value, ty } => {
                         let target = self.require_place(
                             target,
-                            "checked Copy-place assignment",
+                            "checked owned-place assignment",
                             block_index,
                             position,
                         )?;
-                        if !valid_mutable_reference_pointee(ty)
-                            || !self.mutable_copy_places.contains(&target)
+                        if !valid_owned_place_type(ty)
+                            || !self.mutable_owned_places.contains(&target)
                         {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(
-                                    "checked Copy-place assignment target is not a declared mutable Copy-data place"
+                                    "checked owned-place assignment target is not a declared mutable CopyData-or-enum place"
                                         .to_string(),
                                 ),
                             ));
@@ -2420,7 +2437,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked Copy-place assignment target {} is not initialized by its adjacent declaration store",
+                                    "checked owned-place assignment target {} is not initialized by its adjacent declaration store",
                                     target.0
                                 )),
                             ));
@@ -2429,7 +2446,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked Copy-place assignment to source place {} is forbidden while its mutable reference is active",
+                                    "checked owned-place assignment to source place {} is forbidden while its mutable reference is active",
                                     target.0
                                 )),
                             ));
@@ -2439,7 +2456,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked Copy-place assignment metadata `{ty}` disagrees with target place {}",
+                                    "checked owned-place assignment metadata `{ty}` disagrees with target place {}",
                                     target.0
                                 )),
                             ));
@@ -2447,7 +2464,7 @@ impl<'a> FunctionVerifier<'a> {
                         self.require_type(
                             value,
                             ty,
-                            "checked Copy-place assignment",
+                            "checked owned-place assignment",
                             "value",
                             block_index,
                             position,
@@ -3325,7 +3342,7 @@ impl<'a> FunctionVerifier<'a> {
             }
         }
 
-        let declared_mutable_places = self.mutable_copy_places.clone();
+        let declared_mutable_places = self.mutable_owned_places.clone();
         if initialized_mutable_places != declared_mutable_places {
             return Err(self.error(
                 0,
@@ -3625,6 +3642,10 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 }
                 Inst::CheckedCopyStructArrayAlloca { element, .. } => {
                     register_type(element, schemas, enum_schemas)?;
+                }
+                Inst::CheckedMutableOwnedPlaceAlloca { ty, .. }
+                | Inst::CheckedOwnedPlaceAssignment { ty, .. } => {
+                    register_type(ty, schemas, enum_schemas)?;
                 }
                 Inst::CheckedTupleAlloca { element_types, .. }
                 | Inst::CheckedTupleFieldPtr { element_types, .. } => {
@@ -5180,13 +5201,13 @@ mod tests {
 
     #[test]
     fn checked_mutable_copy_places_and_assignments_are_fail_closed() {
-        let place = || Inst::CheckedMutableCopyPlaceAlloca {
+        let place = || Inst::CheckedMutableOwnedPlaceAlloca {
             result: Value::Reg(0),
             name: "value".to_string(),
             ty: LogicalType::Int,
         };
         let initialize = || Inst::Store(Value::Reg(0), Value::ImmInt(1));
-        let assign = || Inst::CheckedCopyPlaceAssignment {
+        let assign = || Inst::CheckedOwnedPlaceAssignment {
             target: Value::Reg(0),
             value: Value::ImmInt(2),
             ty: LogicalType::Int,
@@ -5207,7 +5228,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedCopyPlaceAssignment {
+                    Inst::CheckedOwnedPlaceAssignment {
                         target: Value::Reg(9),
                         value: Value::ImmInt(2),
                         ty: LogicalType::Int,
@@ -5220,7 +5241,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedCopyPlaceAssignment {
+                    Inst::CheckedOwnedPlaceAssignment {
                         target: Value::ImmInt(0),
                         value: Value::ImmInt(2),
                         ty: LogicalType::Int,
@@ -5240,7 +5261,7 @@ mod tests {
             (
                 "unsupported place metadata",
                 vec![
-                    Inst::CheckedMutableCopyPlaceAlloca {
+                    Inst::CheckedMutableOwnedPlaceAlloca {
                         result: Value::Reg(0),
                         name: "value".to_string(),
                         ty: LogicalType::String,
@@ -5254,7 +5275,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedCopyPlaceAssignment {
+                    Inst::CheckedOwnedPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::ImmFloat(2.0),
                         ty: LogicalType::Float,
@@ -5267,7 +5288,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedCopyPlaceAssignment {
+                    Inst::CheckedOwnedPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::ImmFloat(2.0),
                         ty: LogicalType::Int,
@@ -5280,7 +5301,7 @@ mod tests {
                 vec![
                     place(),
                     initialize(),
-                    Inst::CheckedCopyPlaceAssignment {
+                    Inst::CheckedOwnedPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::Reg(8),
                         ty: LogicalType::Int,
@@ -5348,7 +5369,7 @@ mod tests {
                     Inst::Add(Value::Reg(1), Value::ImmInt(1), Value::ImmInt(2)),
                     Inst::Jump("use".to_string()),
                     Inst::Label("use".to_string()),
-                    Inst::CheckedCopyPlaceAssignment {
+                    Inst::CheckedOwnedPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::Reg(1),
                         ty: LogicalType::Int,
@@ -5368,7 +5389,7 @@ mod tests {
 
     #[test]
     fn checked_mutable_scalar_borrows_writes_and_ends_are_fail_closed() {
-        let place = |result, name: &str| Inst::CheckedMutableCopyPlaceAlloca {
+        let place = |result, name: &str| Inst::CheckedMutableOwnedPlaceAlloca {
             result: Value::Reg(result),
             name: name.to_string(),
             ty: LogicalType::Int,
@@ -5396,7 +5417,7 @@ mod tests {
             write(1, Value::ImmInt(2)),
             Inst::Load(Value::Reg(2), Value::Reg(1)),
             end(1, 0),
-            Inst::CheckedCopyPlaceAssignment {
+            Inst::CheckedOwnedPlaceAssignment {
                 target: Value::Reg(0),
                 value: Value::ImmInt(3),
                 ty: LogicalType::Int,
@@ -5544,7 +5565,7 @@ mod tests {
                     place(0, "value"),
                     Inst::Store(Value::Reg(0), Value::ImmInt(1)),
                     borrow(1, 0),
-                    Inst::CheckedCopyPlaceAssignment {
+                    Inst::CheckedOwnedPlaceAssignment {
                         target: Value::Reg(0),
                         value: Value::ImmInt(2),
                         ty: LogicalType::Int,
@@ -5617,7 +5638,7 @@ mod tests {
         };
         let caller = || {
             vec![
-                Inst::CheckedMutableCopyPlaceAlloca {
+                Inst::CheckedMutableOwnedPlaceAlloca {
                     result: Value::Reg(0),
                     name: "owner".to_string(),
                     ty: LogicalType::Int,
@@ -5849,7 +5870,7 @@ mod tests {
                     result: LogicalType::Int,
                     body: outer_body(),
                 },
-                Inst::CheckedMutableCopyPlaceAlloca {
+                Inst::CheckedMutableOwnedPlaceAlloca {
                     result: Value::Reg(0),
                     name: "owner".to_string(),
                     ty: LogicalType::Int,
@@ -6350,7 +6371,7 @@ mod tests {
                     field_types: vec![LogicalType::Int, LogicalType::Bool],
                 },
                 Inst::Load(Value::Reg(1), Value::Reg(0)),
-                Inst::CheckedMutableCopyPlaceAlloca {
+                Inst::CheckedMutableOwnedPlaceAlloca {
                     result: Value::Reg(2),
                     name: "owner".to_string(),
                     ty: leaf.clone(),
@@ -6371,7 +6392,7 @@ mod tests {
                     source: Value::Reg(2),
                     pointee: leaf.clone(),
                 },
-                Inst::CheckedCopyPlaceAssignment {
+                Inst::CheckedOwnedPlaceAssignment {
                     target: Value::Reg(2),
                     value: Value::Reg(1),
                     ty: leaf.clone(),
@@ -6384,7 +6405,7 @@ mod tests {
             .expect("exact mutable Copy-place loan and subsequent owned assignment must verify");
 
         let mut wrong_alloca = valid();
-        wrong_alloca[2] = Inst::CheckedMutableCopyPlaceAlloca {
+        wrong_alloca[2] = Inst::CheckedMutableOwnedPlaceAlloca {
             result: Value::Reg(2),
             name: "owner".to_string(),
             ty: LogicalType::String,
@@ -6421,7 +6442,7 @@ mod tests {
         };
 
         let mut wrong_owned_assignment_schema = valid();
-        wrong_owned_assignment_schema[7] = Inst::CheckedCopyPlaceAssignment {
+        wrong_owned_assignment_schema[7] = Inst::CheckedOwnedPlaceAssignment {
             target: Value::Reg(2),
             value: Value::Reg(1),
             ty: LogicalType::Struct {
@@ -6431,7 +6452,7 @@ mod tests {
         };
 
         let mut wrong_owned_assignment_value = valid();
-        wrong_owned_assignment_value[7] = Inst::CheckedCopyPlaceAssignment {
+        wrong_owned_assignment_value[7] = Inst::CheckedOwnedPlaceAssignment {
             target: Value::Reg(2),
             value: Value::ImmInt(1),
             ty: LogicalType::Struct {
@@ -6476,8 +6497,139 @@ mod tests {
                 diagnostic.contains("mutable")
                     || diagnostic.contains("store")
                     || diagnostic.contains("type mismatch")
-                    || diagnostic.contains("copy-place assignment"),
+                    || diagnostic.contains("owned-place assignment")
+                    || diagnostic.contains("schema"),
                 "{label}: {diagnostic}"
+            );
+        }
+    }
+
+    #[test]
+    fn mutable_owned_enum_places_and_assignments_are_fail_closed() {
+        let schema = EnumSchema {
+            name: "E".to_string(),
+            variants: vec![
+                EnumVariantSchema {
+                    name: "Empty".to_string(),
+                    payload: None,
+                },
+                EnumVariantSchema {
+                    name: "Pair".to_string(),
+                    payload: Some(LogicalType::Tuple {
+                        elements: vec![LogicalType::Int, LogicalType::Bool],
+                    }),
+                },
+            ],
+        };
+        let logical = schema.logical_type();
+        let valid = || {
+            vec![
+                Inst::CheckedEnumVariant {
+                    result: Value::Reg(0),
+                    schema: schema.clone(),
+                    variant_index: 0,
+                    payload: None,
+                },
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(5),
+                    name: "owner".to_string(),
+                    ty: logical.clone(),
+                },
+                Inst::Store(Value::Reg(5), Value::Reg(0)),
+                Inst::CheckedEnumVariant {
+                    result: Value::Reg(1),
+                    schema: schema.clone(),
+                    variant_index: 0,
+                    payload: None,
+                },
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(5),
+                    value: Value::Reg(1),
+                    ty: logical.clone(),
+                },
+                Inst::Load(Value::Reg(2), Value::Reg(5)),
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+
+        verify_ir(function(valid())).expect("exact mutable owned enum replacement must verify");
+
+        let mut unsupported_payload = valid();
+        unsupported_payload[1] = Inst::CheckedMutableOwnedPlaceAlloca {
+            result: Value::Reg(5),
+            name: "owner".to_string(),
+            ty: LogicalType::Enum {
+                name: "E".to_string(),
+                variants: vec![EnumVariantSchema {
+                    name: "Bad".to_string(),
+                    payload: Some(LogicalType::String),
+                }],
+            },
+        };
+
+        let mut changed_assignment_schema = valid();
+        changed_assignment_schema[4] = Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(5),
+            value: Value::Reg(1),
+            ty: LogicalType::Enum {
+                name: "E".to_string(),
+                variants: vec![EnumVariantSchema {
+                    name: "Changed".to_string(),
+                    payload: None,
+                }],
+            },
+        };
+
+        let mut wrong_value = valid();
+        wrong_value[4] = Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(5),
+            value: Value::ImmInt(1),
+            ty: logical.clone(),
+        };
+
+        let mut generic_later_store = valid();
+        generic_later_store[4] = Inst::Store(Value::Reg(5), Value::Reg(1));
+
+        let mut generic_alloca = valid();
+        generic_alloca[1] = Inst::Alloca(Value::Reg(5), "owner".to_string());
+
+        let mut missing_initializer = valid();
+        missing_initializer.remove(2);
+
+        let mut non_adjacent_initializer = valid();
+        non_adjacent_initializer.insert(2, Inst::Load(Value::Reg(3), Value::Reg(5)));
+
+        let mut enum_borrow = valid();
+        enum_borrow.insert(
+            4,
+            Inst::CheckedMutableBorrow {
+                result: Value::Reg(6),
+                source: Value::Reg(5),
+                pointee: logical.clone(),
+            },
+        );
+
+        let mut kind_collision = valid();
+        kind_collision[1] = Inst::CheckedMutableOwnedPlaceAlloca {
+            result: Value::Reg(0),
+            name: "owner".to_string(),
+            ty: logical,
+        };
+
+        for (label, body) in [
+            ("unsupported enum payload", unsupported_payload),
+            ("changed assignment schema", changed_assignment_schema),
+            ("wrong assignment value", wrong_value),
+            ("generic later store", generic_later_store),
+            ("generic alloca substitution", generic_alloca),
+            ("missing initializer", missing_initializer),
+            ("non-adjacent initializer", non_adjacent_initializer),
+            ("enum borrow", enum_borrow),
+            ("result/place kind collision", kind_collision),
+        ] {
+            assert!(
+                verify_ir(function(body)).is_err(),
+                "{label} passed mutable owned enum verification"
             );
         }
     }

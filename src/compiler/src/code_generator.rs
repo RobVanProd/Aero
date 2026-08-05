@@ -243,8 +243,8 @@ impl CodeGenerator {
     ) {
         for instruction in instructions {
             match instruction {
-                Inst::CheckedMutableCopyPlaceAlloca { ty, .. }
-                | Inst::CheckedCopyPlaceAssignment { ty, .. } => {
+                Inst::CheckedMutableOwnedPlaceAlloca { ty, .. }
+                | Inst::CheckedOwnedPlaceAssignment { ty, .. } => {
                     Self::collect_logical_struct_schema(ty, schemas);
                 }
                 Inst::CheckedImmutableBorrow { pointee, .. }
@@ -369,7 +369,7 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, rhs);
                 }
                 Inst::Alloca(ptr, _)
-                | Inst::CheckedMutableCopyPlaceAlloca { result: ptr, .. }
+                | Inst::CheckedMutableOwnedPlaceAlloca { result: ptr, .. }
                 | Inst::AllocaArray { result: ptr, .. }
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
@@ -408,7 +408,7 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, value);
                 }
                 Inst::Store(ptr, value)
-                | Inst::CheckedCopyPlaceAssignment {
+                | Inst::CheckedOwnedPlaceAssignment {
                     target: ptr, value, ..
                 }
                 | Inst::CheckedMutableDereferenceAssignment {
@@ -748,8 +748,8 @@ impl CodeGenerator {
                 | Inst::Div(..)
                 | Inst::FDiv(..)
                 | Inst::Alloca(..)
-                | Inst::CheckedMutableCopyPlaceAlloca { .. }
-                | Inst::CheckedCopyPlaceAssignment { .. }
+                | Inst::CheckedMutableOwnedPlaceAlloca { .. }
+                | Inst::CheckedOwnedPlaceAssignment { .. }
                 | Inst::CheckedMutableDereferenceAssignment { .. }
                 | Inst::Store(..)
                 | Inst::Load(..)
@@ -1126,9 +1126,9 @@ impl CodeGenerator {
 
         for inst in instructions {
             match inst {
-                Inst::CheckedMutableCopyPlaceAlloca { result, ty, .. } => {
+                Inst::CheckedMutableOwnedPlaceAlloca { result, ty, .. } => {
                     let Value::Reg(ptr_id) = result else {
-                        panic!("Expected register for checked mutable Copy-place alloca")
+                        panic!("Expected register for checked mutable owned-place alloca")
                     };
                     let copy_type = Self::reference_pointee_to_llvm(ty);
                     let align = if *ty == LogicalType::Bool { 1 } else { 8 };
@@ -1146,7 +1146,8 @@ impl CodeGenerator {
                         Some(
                             logical_type @ (LogicalType::Struct { .. }
                             | LogicalType::Array { .. }
-                            | LogicalType::Tuple { .. }),
+                            | LogicalType::Tuple { .. }
+                            | LogicalType::Enum { .. }),
                         ) => Some(Self::logical_type_to_llvm(logical_type)),
                         _ => None,
                     };
@@ -1227,7 +1228,8 @@ impl CodeGenerator {
                     if let Some(
                         logical_type @ (LogicalType::Struct { .. }
                         | LogicalType::Array { .. }
-                        | LogicalType::Tuple { .. }),
+                        | LogicalType::Tuple { .. }
+                        | LogicalType::Enum { .. }),
                     ) = self.checked_place_type(ptr_reg)
                     {
                         let aggregate_type = Self::logical_type_to_llvm(logical_type);
@@ -1263,14 +1265,14 @@ impl CodeGenerator {
                         val_str, ptr_str
                     ));
                 }
-                Inst::CheckedCopyPlaceAssignment { target, value, ty }
+                Inst::CheckedOwnedPlaceAssignment { target, value, ty }
                 | Inst::CheckedMutableDereferenceAssignment {
                     target,
                     value,
                     pointee: ty,
                 } => {
                     let Value::Reg(ptr_id) = target else {
-                        panic!("Expected register for checked Copy-place assignment target")
+                        panic!("Expected register for checked owned-place assignment target")
                     };
                     match ty {
                         LogicalType::Int | LogicalType::Float => llvm_ir.push_str(&format!(
@@ -1283,21 +1285,23 @@ impl CodeGenerator {
                         )),
                         logical_type @ (LogicalType::Struct { .. }
                         | LogicalType::Array { .. }
-                        | LogicalType::Tuple { .. }) => {
+                        | LogicalType::Tuple { .. }
+                        | LogicalType::Enum { .. }) => {
                             let aggregate_type = Self::logical_type_to_llvm(logical_type);
                             llvm_ir.push_str(&format!(
                                 "  store {aggregate_type} {}, {aggregate_type}* %ptr{ptr_id}, align 8\n",
                                 self.value_to_string(value)
                             ));
                         }
-                        _ => unreachable!("verified assignment has admitted Copy-place metadata"),
+                        _ => unreachable!("verified assignment has admitted owned-place metadata"),
                     }
                 }
                 Inst::Load(result_reg, ptr_reg) => {
                     if let Some(
                         logical_type @ (LogicalType::Struct { .. }
                         | LogicalType::Array { .. }
-                        | LogicalType::Tuple { .. }),
+                        | LogicalType::Tuple { .. }
+                        | LogicalType::Enum { .. }),
                     ) = self.checked_place_type(ptr_reg)
                     {
                         let aggregate_type = Self::logical_type_to_llvm(logical_type);

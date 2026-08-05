@@ -43,6 +43,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
+| Direct mutable owned-enum reassignment | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
@@ -83,6 +84,19 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 | Quantization | Y | Y | — | — | Scalar-double helper transform only | N | N | EXPERIMENTAL |
 
 ## Evidence notes
+
+- `CORE-064` is a locally green implementation candidate, not public acceptance. It
+  generalizes the direct mutable-place classifier and checked identities from the
+  recursive `CopyData` subset to an owned-place class that also contains every enum
+  admitted by CORE-063. Exact inferred/annotated mutable enum locals accept constructor,
+  enum-returning call, and distinct-local replacement; a distinct local is moved,
+  self-replacement rejects, and only CopyData places remain borrowable. The independent
+  verifier requires exact schema/place/value identity, adjacent single initialization,
+  dominance, and checked later writes. Private LLVM uses exact typed enum load/store
+  without scalar fallback or public layout. The exhaustive target, formatting,
+  all-target/all-feature checking, correctness Clippy, docs, exact root gate, and
+  complete Rust test surface pass locally at 180 library and 186 binary tests. Public
+  CI and pinned LLVM/Clang 22 native exit 131 evidence remain pending.
 
 - `CORE-063` is accepted public at exact implementation
   `2a5c3c58192dc65116c436d6ae76da5829eeba52`, tree

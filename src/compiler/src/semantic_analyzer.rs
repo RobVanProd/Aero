@@ -16,7 +16,8 @@ use crate::local_reference::{
     reference_call_fact_subject,
 };
 use crate::scalar_assignment::{
-    CopyPlaceAssignmentDisposition, CopyPlaceAssignmentTargetFacts, classify_copy_place_assignment,
+    OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
+    classify_owned_place_assignment,
 };
 use crate::struct_contract::{CopyArrayIndexDisposition, StructExecutionContext, StructRegistry};
 use crate::tuple_contract::{
@@ -395,6 +396,17 @@ impl ScopeManager {
             }
         }
         Err(format!("Error: Variable `{}` not found.", name))
+    }
+
+    pub fn mark_replaced(&mut self, name: &str) -> Result<(), String> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(var_info) = scope.get_mut(name) {
+                var_info.ownership = OwnershipState::Owned;
+                var_info.initialized = true;
+                return Ok(());
+            }
+        }
+        Err(format!("Error: Variable `{name}` not found."))
     }
 
     /// Check if a variable is in a valid (non-moved) state for use.
@@ -2591,7 +2603,7 @@ impl SemanticAnalyzer {
                     }
                     if let Ty::Enum(enum_name) = &inferred_type {
                         self.enum_registry
-                            .validate_binding(enum_name, type_annotation.as_ref(), *mutable)
+                            .validate_binding(enum_name, type_annotation.as_ref())
                             .map_err(|error| error.diagnostic())?;
                     }
                 }
@@ -2747,7 +2759,7 @@ impl SemanticAnalyzer {
                 }
                 let facts = if let Expression::Identifier(name) = target {
                     self.scope_manager.get_variable(name).map(|variable| {
-                        CopyPlaceAssignmentTargetFacts {
+                        OwnedPlaceAssignmentTargetFacts {
                             ty: variable.var_type.clone(),
                             mutable: variable.mutable,
                             initialized: variable.initialized,
@@ -2758,19 +2770,25 @@ impl SemanticAnalyzer {
                 } else {
                     None
                 };
-                match classify_copy_place_assignment(
+                match classify_owned_place_assignment(
                     Some(target),
                     facts.as_ref(),
+                    Some(value),
                     &rhs,
                     inside_admitted_function,
                     &self.struct_registry,
+                    &self.enum_registry,
                 ) {
-                    CopyPlaceAssignmentDisposition::Supported(_) => {
+                    OwnedPlaceAssignmentDisposition::Supported(contract) => {
+                        if let Some(source) = contract.moved_source {
+                            self.scope_manager.mark_moved(&source)?;
+                        }
                         self.apply_enum_match_moves(value)?;
+                        self.scope_manager.mark_replaced(&contract.name)?;
                         Ok(())
                     }
-                    CopyPlaceAssignmentDisposition::ExplicitlyRejected(message) => Err(message),
-                    CopyPlaceAssignmentDisposition::PreserveExistingBehavior => {
+                    OwnedPlaceAssignmentDisposition::ExplicitlyRejected(message) => Err(message),
+                    OwnedPlaceAssignmentDisposition::PreserveExistingBehavior => {
                         unreachable!("explicit assignment must receive a classifier disposition")
                     }
                 }

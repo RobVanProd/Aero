@@ -120,3 +120,13 @@ complete 175/175 library plus 181/181 binary test surface prove that parsed clos
 fail consistently before checked IR and cannot manufacture callable or LLVM state.
 The exact amended repository-root gate passes. Public workflows and the pinned system
 lane remain acceptance requirements.
+
+The local CORE-064 candidate supplies the next periodic architecture specimen: a
+tracked two-module program composes unit, scalar, array/tuple/struct-payload enums with
+constructor, call-result, and distinct-local replacement, then Match/call/return use.
+Focused tests trace exact source semantics, checked owned-place identities, independent
+corruption controls, private typed LLVM, CLI artifact hygiene, and the pinned exit-131
+workflow. The exact root gate passes locally. Public acceptance still requires all
+eight checks and LLVM/Clang 22 external verification, machine verification,
+object/link, and native execution. This proves only the frozen whole-owner enum
+replacement boundary.

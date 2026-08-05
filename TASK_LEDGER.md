@@ -12580,3 +12580,165 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   checkpoint strategy, hard-capability balance, structured evidence generation, and
   periodic composed system gates explicit. This closure changes records only; its
   successor commit identity is reported externally and must pass all eight checks again.
+
+## CORE-064 - Exact whole-owner reassignment for admitted enums
+
+- Task ID: `CORE-064`.
+- Status: authorized and red-first. This is one class-level authorization record; it is
+  not an implementation, candidate, acceptance, stability, safety, ABI, or release
+  claim.
+- Observed behavior: accepted CORE-049 through CORE-063 parse, type, transport, verify,
+  lower, and execute non-generic unit-or-unary-CopyData enums, including recursive
+  arrays, flat tuples, and named structs as payloads. The same shared `EnumRegistry`
+  nevertheless rejects every mutable enum binding with `mutable enum bindings are not
+  admitted`. If that check were removed in isolation, checked lowering would still
+  route a mutable enum through a direct SSA-value binding, identifier reads could expose
+  a place as an enum value, and the checked mutable-place verifier would reject the enum
+  schema as non-CopyData. The grammar and ownership design already retain direct `=`
+  assignment, source-order execution, ownership transfer to another variable, moved
+  source invalidation, and whole-value replacement; every admitted enum payload is
+  recursively CopyData and therefore has no custom destructor behavior to invent.
+- Hypothesis: closing mutable whole-owner enum replacement as the enum member of one
+  shared owned-place class removes this false-negative boundary without introducing
+  enum projections, borrowing, partial moves, drop/lifetime behavior, public layout, or
+  new control-flow ownership semantics. Generalizing the existing three-way classifier
+  and checked mutable-place identities is smaller and more auditable than duplicating
+  enum topology rules across semantic analysis, checked admission, verification, and
+  codegen.
+- Frozen owned-place classification: an admitted mutable owned place is exactly either
+  recursive finite CopyData already accepted by CORE-061/062, or one uniquely resolved
+  non-generic enum whose variants are unit or carry exactly one recursively admitted
+  CopyData payload under the declaration-ordered `EnumSchema` accepted by CORE-063.
+  The shared classifier returns supported, explicitly rejected, or preserved/quarantined
+  and is consumed by both semantic analysis and checked admission. It must not acquire a
+  second enum-specific topology table or a scalar fallback.
+- Frozen source semantics: inside an admitted non-generic function body, `let mut`
+  may bind an inferred or exact named annotation of any admitted enum schema. A direct
+  `=` statement may replace that initialized mutable local only when the RHS has the
+  exact same enum type. The RHS is evaluated exactly once before replacement. It may be
+  a fresh variant constructor, an exact admitted enum-returning call, or a distinct
+  initialized owned enum local; a distinct local source is moved and cannot be reused.
+  The target remains initialized and owned after replacement and may be replaced again,
+  matched, passed, or returned under the accepted enum transport rules. Direct
+  self-replacement is explicitly rejected for this milestone rather than assigning
+  unapproved move/reinitialization meaning.
+- Frozen control-flow boundary: constructor/call replacement is admitted wherever the
+  existing statement and dominance model already accepts direct assignment. Moves from
+  existing local owners retain the compiler's accepted conservative ownership state;
+  this task does not add branch joins, loop fixed points, NLL, conditional move recovery,
+  or path-sensitive ownership. Programs requiring those semantics remain explicitly
+  rejected/quarantined instead of being approximated as executable.
+- Frozen checked IR and backend: generalize the checked mutable Copy-place allocation
+  and assignment identities into checked mutable owned-place allocation and whole-value
+  assignment. Their exact `LogicalType` may be recursive CopyData or an admitted enum.
+  The verifier independently registers and proves named enum-schema identity, one
+  adjacent initializer, exact target/value type and dominance, later-write exclusivity,
+  and collision freedom. Only the CopyData subset may be borrowed by the accepted
+  reference opcodes. Enum reads load the exact private enum value before construction,
+  Match, call, return, or another assignment. LLVM uses the already accepted private
+  enum type and a typed load/store; no bitcast, byte storage, integer/pointer conversion,
+  fallback `i32`, stable discriminant/layout/calling convention, or public ABI follows.
+- Exhaustive red-first proof: after this record and before production mutation, add one
+  focused target and tracked direct-module program covering unit-only, scalar-only,
+  recursive CopyData, and mixed enum schemas; inferred and annotated mutable bindings;
+  constructor, exact function-result, and distinct-local origins; repeated replacement;
+  moved-source rejection; post-replacement Match/call/return; nested statement scopes;
+  module use; exact checked metadata; corruption controls; deterministic LLVM; requested
+  artifact hygiene; and one exact native sentinel. The target must first fail at the
+  existing mutable-enum binding diagnostic while CORE-043 through CORE-063 and closure
+  containment remain green.
+- Negative completion surface: immutable, uninitialized, nonlocal, moved, borrowed, and
+  projected targets; wrong enum identity; self-replacement; use of a moved source;
+  ambiguous/duplicate/invalid/generic/recursive/multi-field enum declarations; enum
+  fields and arrays; enum references and projected mutation; unsupported payload leaves;
+  new CFG move semantics; generic store bypass; non-adjacent/double initialization;
+  schema/value/place/dominance/collision corruption; raw checked-identity activation;
+  stable ABI/FFI; requested-artifact residue; and every still-unsupported language
+  topology. Invalid source must stop before checked IR and LLVM.
+- Allowed files: this ledger; `src/compiler/src/scalar_assignment.rs`,
+  `enum_match_contract.rs`, `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; one exhaustive
+  `owned_enum_reassignment_tests.rs` target; directly superseded mutable-place and enum
+  expectations; one tracked example tree; `.github/workflows/rust.yml`; and, only after
+  the exact candidate is green, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `FRAMEWORK_ALIGNMENT.md`, `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, README,
+  roadmap, conformance, and backend records required by their consistency gates, plus
+  PR #4. Parser/AST changes are not authorized.
+- Forbidden actions: enum field/array storage, enum or projected borrowing, partial
+  moves, destructors/drop, lifetime inference, new branch/loop ownership, aggregate
+  Match results, nested destructuring, multi-field/generic/recursive enums, stable ABI,
+  FFI, runtime/dependency/accelerator, benchmark, release/package/registry, or
+  claim-verification changes; `master`, PR merge, force-push, history rewrite, and any
+  mutation of `tmp/`.
+- Acceptance gates: focused red/green target; affected scalar/CopyData reassignment,
+  unit/scalar/recursive enum, ownership, reference, module, closure, checked-IR,
+  verifier, and backend suites; verifier corruption controls; rustfmt; all-target and
+  all-feature check; correctness Clippy; docs; exact repository-root `./tools/test.sh`;
+  tracked source to checked IR to externally verified LLVM to machine verification,
+  object/link/native sentinel; one immutable candidate; immediate draft PR #4
+  synchronization; all eight public checks; and the pinned LLVM/Clang 22 stable system
+  lane. Candidate status and public acceptance remain separately identified.
+- Risks and stop conditions: stop rather than narrow or approximate the class if the
+  shared classifier cannot own every already-admitted enum schema, mutable storage
+  changes the accepted enum value representation, source moves require new CFG joins,
+  any trusted path can substitute a scalar or untyped store, the verifier cannot prove
+  exact schema/place/value identity, work crosses the allowed boundary, a test/spec must
+  be weakened, or the baseline becomes red for an unrelated cause.
+- Scaling controls: PR #4 remains a draft integration program needing a separately
+  authorized controlled checkpoint strategy; this hard ownership/storage slice keeps
+  convenient bounded wins from monopolizing selection; one authorization and one
+  exhaustive target bound evidence cost pending structured checkpoint-manifest
+  generation; and the milestone requires a composed source-through-native gate rather
+  than local feature proof alone.
+- Red evidence: after correcting two fixture-only statement-form `if` placements, the
+  one exhaustive target parses and runs 0/1 before any production mutation. The complete
+  in-memory program and tracked two-module `check`/`build` both stop at the exact existing
+  `mutable enum bindings are not admitted` boundary; the requested LLVM artifact is not
+  created. Direct parser retention succeeds. Expected future shared-classifier wording,
+  checked owned-place identities, and all six pinned-workflow anchors are absent. The
+  command was `cargo test --manifest-path src/compiler/Cargo.toml --test
+  owned_enum_reassignment_tests -- --nocapture` after adding the inherited user Cargo
+  bin directory to this PowerShell process. This is the required semantic class red, not
+  a parser, Cargo, subprocess, or Windows Security failure.
+
+### CORE-064 locally green candidate evidence
+
+- Implementation result: `EnumRegistry` now participates in one shared owned-place
+  classifier with recursive CopyData. Mutable enum bindings allocate an exact checked
+  owned place; direct constructor, call-result, and distinct-local assignments preserve
+  exact enum identity; a distinct local moves, self-replacement fails closed, and the
+  target is re-established as initialized/owned. CopyData remains the only borrowable
+  subset. The prior mutable-enum blanket rejection is removed without changing parser
+  syntax or adding a second enum topology table.
+- Checked/back-end result: `CheckedMutableOwnedPlaceAlloca` and
+  `CheckedOwnedPlaceAssignment` supersede the CopyData-named identities for both owned
+  classes. The independent verifier proves valid recursive/enum schema, adjacent
+  one-time initialization, exact place/value identity, dominance, collision freedom,
+  checked later writes, and enum-borrow rejection. Private LLVM uses the already
+  accepted exact enum type for alloca/load/store; no fallback scalar, byte layout,
+  bitcast, pointer/integer conversion, public discriminant, layout, or ABI is added.
+- Focused evidence: `owned_enum_reassignment_tests` passes 1/1 and its verifier
+  corruption unit passes. Positive coverage includes inferred/annotated unit, scalar,
+  array/tuple/struct payload enums; constructor/call/local origins; repeated
+  replacement; source moves; Match/call/return use; nested scopes; direct modules;
+  exact checked identities; deterministic LLVM; and the six pinned workflow anchors.
+  Negative coverage retains immutable/uninitialized/moved/borrowed/projected/wrong-
+  schema/self targets, moved-source reuse, unsupported declarations/payloads/storage,
+  raw/generic-store bypass, malformed initialization, schema/dominance/collision
+  corruptions, and requested-artifact hygiene.
+- Complete local gates: `cargo fmt --all -- --check`, all-target/all-feature
+  `cargo check`, correctness Clippy, and `cargo doc --no-deps` exit 0. The exact Git-
+  Bash repository-root `./tools/test.sh` exits 0 with 180/180 library tests, 186/186
+  binary tests, every integration/claim target, the 22-active/16-quarantined Phase 5
+  split, and doc tests. Pre-root focused and complete `cargo test --tests` runs also
+  pass. Existing warnings are unchanged and do not fail the accepted correctness gate.
+- Native/public boundary: the tracked two-module program composes the admitted enum
+  schemas and expectedly returns 131. This Windows host does not provide the pinned
+  LLVM/Clang 22 toolchain, so no local external/machine/object/link/native result is
+  claimed. The immutable commit, immediate PR #4 synchronization, all eight public
+  checks, and the stable pinned LLVM/Clang 22 exit-131 lane remain acceptance gates.
+- Candidate/claim boundary: this is locally green implementation evidence, not public
+  acceptance. Enum fields/arrays/general storage, enum/projected borrowing, partial
+  moves, new CFG ownership, multi-field/generic/recursive enums, drop/lifetimes, stable
+  layout/ABI/FFI, closure, accelerator, performance, release, merge, and stability
+  remain excluded. The four scaling controls remain active and PR #4 remains draft.
