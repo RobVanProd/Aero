@@ -315,6 +315,10 @@ fn valid_mutable_scalar_type(ty: &LogicalType) -> bool {
     )
 }
 
+fn valid_mutable_reference_pointee(ty: &LogicalType) -> bool {
+    valid_immutable_reference_pointee(ty)
+}
+
 fn valid_enum_schema(schema: &EnumSchema) -> bool {
     let mut unique = BTreeSet::new();
     valid_symbol(&schema.name)
@@ -400,7 +404,7 @@ fn valid_checked_parameter_type(logical_type: &LogicalType) -> bool {
         || matches!(
             logical_type,
             LogicalType::MutableReference { pointee }
-                if valid_mutable_scalar_type(pointee)
+                if valid_mutable_reference_pointee(pointee)
         )
 }
 
@@ -569,7 +573,7 @@ fn checked_signature(
             function,
             None,
             IrVerificationErrorKind::MetadataMismatch(
-                "checked mutable reference transport requires exactly one mutable scalar-reference parameter"
+                "checked mutable reference transport requires exactly one mutable-reference parameter"
                     .to_string(),
             ),
         ));
@@ -952,6 +956,7 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
     match instruction {
         Inst::Alloca(result, _)
         | Inst::CheckedMutableScalarAlloca { result, .. }
+        | Inst::CheckedMutableCopyPlaceAlloca { result, .. }
         | Inst::AllocaArray { result, .. }
         | Inst::GetElementPtr { result, .. }
         | Inst::CheckedCopyStructArrayAlloca { result, .. }
@@ -1084,6 +1089,7 @@ struct FunctionVerifier<'a> {
     place_names: BTreeMap<PlaceId, Option<String>>,
     element_owners: BTreeMap<PlaceId, PlaceId>,
     mutable_scalar_places: BTreeSet<PlaceId>,
+    mutable_copy_places: BTreeSet<PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
     dominators: Vec<BTreeSet<usize>>,
@@ -1111,6 +1117,7 @@ impl<'a> FunctionVerifier<'a> {
             place_names: BTreeMap::new(),
             element_owners: BTreeMap::new(),
             mutable_scalar_places: BTreeSet::new(),
+            mutable_copy_places: BTreeSet::new(),
             mutable_reference_origins: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
             dominators,
@@ -1307,6 +1314,9 @@ impl<'a> FunctionVerifier<'a> {
                                 Inst::CheckedMutableScalarAlloca { .. } => {
                                     "checked mutable scalar alloca"
                                 }
+                                Inst::CheckedMutableCopyPlaceAlloca { .. } => {
+                                    "checked mutable Copy-place alloca"
+                                }
                                 Inst::AllocaArray { .. } => "alloca array",
                                 Inst::CheckedStructAlloca { .. } => "checked struct alloca",
                                 Inst::CheckedStructFieldPtr { .. } => {
@@ -1361,6 +1371,44 @@ impl<'a> FunctionVerifier<'a> {
                             }
                             self.mutable_scalar_places.insert(id);
                             (PlaceType::Known(ty.clone()), Some(name.clone()))
+                        }
+                        Inst::CheckedMutableCopyPlaceAlloca { name, ty, .. } => {
+                            if !valid_symbol(name)
+                                || !valid_mutable_reference_pointee(ty)
+                                || !matches!(
+                                    ty,
+                                    LogicalType::Struct { .. }
+                                        | LogicalType::Array { .. }
+                                        | LogicalType::Tuple { .. }
+                                )
+                            {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked mutable Copy place `{name}` requires a valid name and admitted aggregate Copy-data metadata"
+                                    )),
+                                ));
+                            }
+                            self.mutable_copy_places.insert(id);
+                            let place_type = match ty {
+                                LogicalType::Array { element, count } => PlaceType::Array {
+                                    logical_element: Some((**element).clone()),
+                                    physical_element: match element.as_ref() {
+                                        LogicalType::Struct { name, .. } => {
+                                            format!("%aero.struct.{name}")
+                                        }
+                                        _ => "double".to_string(),
+                                    },
+                                    count: *count,
+                                    checked_copy_struct: matches!(
+                                        element.as_ref(),
+                                        LogicalType::Struct { .. }
+                                    ),
+                                },
+                                _ => PlaceType::Known(ty.clone()),
+                            };
+                            (place_type, Some(name.clone()))
                         }
                         Inst::Alloca(_, name) => {
                             let parameter_type = self
@@ -1788,7 +1836,7 @@ impl<'a> FunctionVerifier<'a> {
                         Inst::CheckedMutableBorrow {
                             source, pointee, ..
                         } => {
-                            if !valid_mutable_scalar_type(pointee) {
+                            if !valid_mutable_reference_pointee(pointee) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
@@ -1807,6 +1855,7 @@ impl<'a> FunctionVerifier<'a> {
                                 ));
                             };
                             if !self.mutable_scalar_places.contains(&source_id)
+                                && !self.mutable_copy_places.contains(&source_id)
                                 && !self.mutable_reference_origins.contains_key(&source_id)
                                 && !self.mutable_reference_parameters.contains(&source_id)
                             {
@@ -1858,12 +1907,12 @@ impl<'a> FunctionVerifier<'a> {
                         Inst::CheckedMutableReferenceParameter {
                             parameter, pointee, ..
                         } => {
-                            if block_index != 0 || !valid_mutable_scalar_type(pointee) {
+                            if block_index != 0 || !valid_mutable_reference_pointee(pointee) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(format!(
-                                        "checked mutable reference parameter `{parameter}` must bind a supported scalar pointee in the entry block"
+                                        "checked mutable reference parameter `{parameter}` must bind a supported Copy-data pointee in the entry block"
                                     )),
                                 ));
                             }
@@ -2249,7 +2298,7 @@ impl<'a> FunctionVerifier<'a> {
         let mut bound_enum_parameters = BTreeSet::new();
         let mut bound_reference_parameters = BTreeSet::new();
         let mut bound_mutable_reference_parameters = BTreeSet::new();
-        let mut initialized_mutable_scalar_places = BTreeSet::new();
+        let mut initialized_mutable_places = BTreeSet::new();
         let mut active_mutable_references = BTreeSet::new();
         let mut active_mutable_sources = BTreeSet::new();
         for block_index in 0..self.blocks.len() {
@@ -2315,6 +2364,7 @@ impl<'a> FunctionVerifier<'a> {
                     }
                     Inst::Alloca(..)
                     | Inst::CheckedMutableScalarAlloca { .. }
+                    | Inst::CheckedMutableCopyPlaceAlloca { .. }
                     | Inst::AllocaArray { .. }
                     | Inst::CheckedStructAlloca { .. }
                     | Inst::CheckedTupleAlloca { .. }
@@ -2341,19 +2391,21 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
-                        if self.mutable_scalar_places.contains(&id) {
+                        if self.mutable_scalar_places.contains(&id)
+                            || self.mutable_copy_places.contains(&id)
+                        {
                             let definition = self
                                 .place_definitions
                                 .get(&id)
-                                .expect("mutable scalar place definition was collected");
+                                .expect("mutable place definition was collected");
                             if definition.block != block_index
                                 || definition.position.checked_add(1) != Some(position)
-                                || !initialized_mutable_scalar_places.insert(id)
+                                || !initialized_mutable_places.insert(id)
                             {
                                 return Err(self.error(
                                     block_index,
                                     IrVerificationErrorKind::MetadataMismatch(format!(
-                                        "generic store to mutable scalar place {} is permitted only once as the adjacent initializer; source reassignment requires CheckedScalarAssignment",
+                                        "generic store to mutable place {} is permitted only once as the adjacent initializer; later writes require a checked assignment",
                                         id.0
                                     )),
                                 ));
@@ -2441,7 +2493,7 @@ impl<'a> FunctionVerifier<'a> {
                                 ),
                             ));
                         }
-                        if !initialized_mutable_scalar_places.contains(&target) {
+                        if !initialized_mutable_places.contains(&target) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
@@ -2961,18 +3013,19 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
-                        let initialized_owner = self.mutable_scalar_places.contains(&source)
-                            && initialized_mutable_scalar_places.contains(&source);
+                        let initialized_owner = (self.mutable_scalar_places.contains(&source)
+                            || self.mutable_copy_places.contains(&source))
+                            && initialized_mutable_places.contains(&source);
                         let active_local_parent = active_mutable_references.contains(&source)
                             && self.mutable_reference_origins.contains_key(&source);
                         let parameter_parent = self.mutable_reference_parameters.contains(&source);
-                        if !valid_mutable_scalar_type(pointee)
+                        if !valid_mutable_reference_pointee(pointee)
                             || (!initialized_owner && !active_local_parent && !parameter_parent)
                         {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked mutable borrow source place {} is not an initialized mutable scalar, active local mutable reference, or mutable-reference parameter",
+                                    "checked mutable borrow source place {} is not an initialized mutable Copy-data owner, active local mutable reference, or mutable-reference parameter",
                                     source.0
                                 )),
                             ));
@@ -3018,7 +3071,7 @@ impl<'a> FunctionVerifier<'a> {
                         )?;
                         let is_active_local_reference = active_mutable_references.contains(&target)
                             && self.mutable_reference_origins.contains_key(&target);
-                        if !valid_mutable_scalar_type(pointee)
+                        if !valid_mutable_reference_pointee(pointee)
                             || (!is_active_local_reference
                                 && !self.mutable_reference_parameters.contains(&target))
                             || active_mutable_sources.contains(&target)
@@ -3070,7 +3123,7 @@ impl<'a> FunctionVerifier<'a> {
                         let reference_type =
                             self.places.get(&reference).and_then(PlaceType::logical);
                         let source_type = self.places.get(&source).and_then(PlaceType::logical);
-                        if !valid_mutable_scalar_type(pointee)
+                        if !valid_mutable_reference_pointee(pointee)
                             || reference_type.as_ref() != Some(pointee)
                             || source_type.as_ref() != Some(pointee)
                             || self.mutable_reference_origins.get(&reference) != Some(&source)
@@ -3128,11 +3181,11 @@ impl<'a> FunctionVerifier<'a> {
                     Inst::CheckedMutableReferenceParameter {
                         parameter, pointee, ..
                     } => {
-                        if block_index != 0 || !valid_mutable_scalar_type(pointee) {
+                        if block_index != 0 || !valid_mutable_reference_pointee(pointee) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked mutable reference parameter `{parameter}` must bind a supported scalar pointee in the entry block"
+                                    "checked mutable reference parameter `{parameter}` must bind a supported Copy-data pointee in the entry block"
                                 )),
                             ));
                         }
@@ -3350,11 +3403,16 @@ impl<'a> FunctionVerifier<'a> {
             }
         }
 
-        if initialized_mutable_scalar_places != self.mutable_scalar_places {
+        let declared_mutable_places = self
+            .mutable_scalar_places
+            .union(&self.mutable_copy_places)
+            .copied()
+            .collect::<BTreeSet<_>>();
+        if initialized_mutable_places != declared_mutable_places {
             return Err(self.error(
                 0,
                 IrVerificationErrorKind::MetadataMismatch(
-                    "checked mutable scalar places must each have one adjacent initializer store"
+                    "checked mutable places must each have one adjacent initializer store"
                         .to_string(),
                 ),
             ));
@@ -6158,6 +6216,106 @@ mod tests {
             assert!(
                 diagnostic.contains("tuple")
                     && (diagnostic.contains("schema") || diagnostic.contains("unsupported")),
+                "{label}: {diagnostic}"
+            );
+        }
+    }
+
+    #[test]
+    fn mutable_copy_place_metadata_and_loan_identity_are_fail_closed() {
+        let leaf = LogicalType::Struct {
+            name: "Leaf".to_string(),
+            fields: vec![LogicalType::Int, LogicalType::Bool],
+        };
+        let valid = || {
+            vec![
+                Inst::CheckedStructAlloca {
+                    result: Value::Reg(0),
+                    struct_name: "Leaf".to_string(),
+                    field_types: vec![LogicalType::Int, LogicalType::Bool],
+                },
+                Inst::Load(Value::Reg(1), Value::Reg(0)),
+                Inst::CheckedMutableCopyPlaceAlloca {
+                    result: Value::Reg(2),
+                    name: "owner".to_string(),
+                    ty: leaf.clone(),
+                },
+                Inst::Store(Value::Reg(2), Value::Reg(1)),
+                Inst::CheckedMutableBorrow {
+                    result: Value::Reg(3),
+                    source: Value::Reg(2),
+                    pointee: leaf.clone(),
+                },
+                Inst::CheckedMutableDereferenceAssignment {
+                    target: Value::Reg(3),
+                    value: Value::Reg(1),
+                    pointee: leaf.clone(),
+                },
+                Inst::CheckedMutableBorrowEnd {
+                    reference: Value::Reg(3),
+                    source: Value::Reg(2),
+                    pointee: leaf.clone(),
+                },
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+
+        verify_ir(function(valid())).expect("exact mutable Copy-place loan must verify");
+
+        let mut wrong_alloca = valid();
+        wrong_alloca[2] = Inst::CheckedMutableCopyPlaceAlloca {
+            result: Value::Reg(2),
+            name: "owner".to_string(),
+            ty: LogicalType::String,
+        };
+
+        let mut missing_initializer = valid();
+        missing_initializer.remove(3);
+
+        let mut wrong_borrow_schema = valid();
+        wrong_borrow_schema[4] = Inst::CheckedMutableBorrow {
+            result: Value::Reg(3),
+            source: Value::Reg(2),
+            pointee: LogicalType::Struct {
+                name: "Leaf".to_string(),
+                fields: vec![LogicalType::Float, LogicalType::Bool],
+            },
+        };
+
+        let mut wrong_write_value = valid();
+        wrong_write_value[5] = Inst::CheckedMutableDereferenceAssignment {
+            target: Value::Reg(3),
+            value: Value::ImmInt(1),
+            pointee: leaf.clone(),
+        };
+
+        let mut generic_store = valid();
+        generic_store[5] = Inst::Store(Value::Reg(3), Value::Reg(1));
+
+        let mut wrong_end_source = valid();
+        wrong_end_source[6] = Inst::CheckedMutableBorrowEnd {
+            reference: Value::Reg(3),
+            source: Value::Reg(0),
+            pointee: leaf,
+        };
+
+        for (label, body) in [
+            ("unsupported mutable owner schema", wrong_alloca),
+            ("missing adjacent initializer", missing_initializer),
+            ("borrow schema mismatch", wrong_borrow_schema),
+            ("whole-write value mismatch", wrong_write_value),
+            ("generic store through reference", generic_store),
+            ("borrow-end provenance mismatch", wrong_end_source),
+        ] {
+            let error = match verify_ir(function(body)) {
+                Err(error) => error,
+                Ok(_) => panic!("{label} passed checked IR verification"),
+            };
+            let diagnostic = error.to_string().to_ascii_lowercase();
+            assert!(
+                diagnostic.contains("mutable")
+                    || diagnostic.contains("store")
+                    || diagnostic.contains("type mismatch"),
                 "{label}: {diagnostic}"
             );
         }

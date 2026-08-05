@@ -371,7 +371,7 @@ fn main() -> int {
         (
             "immutable source",
             "fn main() -> int { let value = 1; let alias = &mut value; *alias }",
-            "mutable scalar borrow source `value` must be declared mutable",
+            "mutable borrow source `value` must be declared mutable",
         ),
         (
             "unknown source",
@@ -436,42 +436,32 @@ fn main() -> int {
         (
             "borrowed literal",
             "fn main() -> int { let alias = &mut 1; 0 }",
-            "local mutable scalar borrow requires an identifier place",
+            "local mutable Copy-data borrow requires an identifier place",
         ),
         (
             "borrowed computation",
             "fn main() -> int { let mut value = 1; let alias = &mut (value + 1); 0 }",
-            "local mutable scalar borrow requires an identifier place",
+            "local mutable Copy-data borrow requires an identifier place",
         ),
         (
             "borrowed dereference",
             "fn main() -> int { let mut value = 1; let first = &mut value; let second = &mut *first; 0 }",
-            "local mutable scalar borrow requires an identifier place",
+            "local mutable Copy-data borrow requires an identifier place",
         ),
         (
             "borrowed field",
             "struct Row { value: int } fn main() -> int { let row = Row { value: 1 }; let alias = &mut row.value; 0 }",
-            "local mutable scalar borrow requires an identifier place",
+            "local mutable Copy-data borrow requires an identifier place",
         ),
         (
             "borrowed index",
             "fn main() -> int { let values = [1, 2]; let alias = &mut values[0]; 0 }",
-            "local mutable scalar borrow requires an identifier place",
+            "local mutable Copy-data borrow requires an identifier place",
         ),
         (
             "String pointee",
             "fn main() -> int { let mut value = \"a\"; let alias = &mut value; 0 }",
-            "local mutable references support only Int, Float, or Bool pointees",
-        ),
-        (
-            "array pointee",
-            "fn main() -> int { let mut value = [1, 2]; let alias = &mut value; 0 }",
-            "local mutable references support only Int, Float, or Bool pointees",
-        ),
-        (
-            "struct pointee",
-            "struct Row { value: int } fn main() -> int { let mut row = Row { value: 1 }; let alias = &mut row; 0 }",
-            "local mutable references support only Int, Float, or Bool pointees",
+            "type String is not admitted Copy-data for mutable reference transport",
         ),
         (
             "nested reference pointee",
@@ -629,7 +619,7 @@ fn main() -> int {
     let diagnostics = output_text(&output);
     if output.status.success()
         || output_path.exists()
-        || !diagnostics.contains("mutable scalar borrow source `value` must be declared mutable")
+        || !diagnostics.contains("mutable borrow source `value` must be declared mutable")
     {
         failures.push(format!(
             "invalid mutable-reference CLI hygiene failed (status={}, artifact={}):\n{}",

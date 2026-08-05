@@ -2913,9 +2913,9 @@ fn typed_empty_numeric_array_capability_class_is_complete_and_ci_executable() {
                     _ => {}
                 }
             }
-            if (int_arrays, float_arrays) != (4, 4) {
+            if (int_arrays, float_arrays) != (6, 6) {
                 failures.push(format!(
-                    "checked metadata did not preserve the complete aliases/mutability product: int={int_arrays}, float={float_arrays}"
+                    "checked metadata did not preserve the complete aliases/mutability product plus distinct mutable owner places: int={int_arrays}, float={float_arrays}"
                 ));
             }
         }

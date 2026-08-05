@@ -107,6 +107,7 @@ impl ReferenceCallContract {
     }
 }
 
+#[cfg(test)]
 fn scalar_contract(ty: &Ty) -> Option<LocalReferenceContract> {
     let logical_pointee = match ty {
         Ty::Int => LogicalType::Int,
@@ -121,23 +122,12 @@ fn scalar_contract(ty: &Ty) -> Option<LocalReferenceContract> {
     })
 }
 
+#[cfg(test)]
 fn scalar_reference_contract(ty: &Ty, mutable: bool) -> Option<LocalReferenceContract> {
     scalar_contract(ty).map(|mut contract| {
         contract.mutable = mutable;
         contract
     })
-}
-
-fn scalar_transport_type(annotation: &Type) -> Option<ReferenceTransportTypeContract> {
-    let (ty, logical_type) = match annotation {
-        Type::Named(name) if matches!(name.as_str(), "int" | "i32") => (Ty::Int, LogicalType::Int),
-        Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
-            (Ty::Float, LogicalType::Float)
-        }
-        Type::Named(name) if name == "bool" => (Ty::Bool, LogicalType::Bool),
-        _ => return None,
-    };
-    Some(ReferenceTransportTypeContract { ty, logical_type })
 }
 
 fn reference_transport_type(
@@ -147,24 +137,23 @@ fn reference_transport_type(
     let Type::Reference(pointee, mutable) = annotation else {
         return Ok(None);
     };
-    let pointee = if *mutable {
-        scalar_transport_type(pointee)
-            .ok_or("mutable reference parameters support only Int, Float, or Bool pointees")?
+    let context = if *mutable {
+        CopyPlaceExecutionContext::AdmittedMutableReference
     } else {
-        match classify_copy_place_annotation(
-            pointee,
-            registry,
-            CopyPlaceExecutionContext::AdmittedImmutableReference,
-        ) {
-            CopyPlaceDisposition::Supported(contract) => ReferenceTransportTypeContract {
-                ty: contract.ty,
-                logical_type: contract.logical_type,
-            },
-            CopyPlaceDisposition::ExplicitlyRejected(_) => {
-                return Err("immutable reference parameter pointee is not admitted Copy-data");
-            }
-            CopyPlaceDisposition::Preserved => unreachable!("reference context is admitted"),
+        CopyPlaceExecutionContext::AdmittedImmutableReference
+    };
+    let pointee = match classify_copy_place_annotation(pointee, registry, context) {
+        CopyPlaceDisposition::Supported(contract) => ReferenceTransportTypeContract {
+            ty: contract.ty,
+            logical_type: contract.logical_type,
+        },
+        CopyPlaceDisposition::ExplicitlyRejected(_) if *mutable => {
+            return Err("mutable reference parameter pointee is not admitted Copy-data");
         }
+        CopyPlaceDisposition::ExplicitlyRejected(_) => {
+            return Err("immutable reference parameter pointee is not admitted Copy-data");
+        }
+        CopyPlaceDisposition::Preserved => unreachable!("reference context is admitted"),
     };
     Ok(Some(ReferenceTransportTypeContract {
         ty: Ty::Reference(Box::new(pointee.ty), *mutable),
@@ -219,7 +208,7 @@ pub(crate) fn classify_reference_function(
         && (parameters.len() != 1 || !matches!(parameters[0].param_type, Type::Reference(_, true)))
     {
         return ReferenceFunctionDisposition::ExplicitlyRejected(
-            "mutable reference transport functions require exactly one mutable scalar-reference parameter by CORE-056"
+            "mutable reference transport functions require exactly one mutable-reference parameter"
                 .to_string(),
         );
     }
@@ -232,23 +221,19 @@ pub(crate) fn classify_reference_function(
                 return ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic.to_string());
             }
             Ok(None) => {
-                let contract = if mutable_parameters > 0 {
-                    scalar_transport_type(&parameter.param_type)
-                } else {
-                    match classify_copy_place_annotation(
-                        &parameter.param_type,
-                        registry,
-                        CopyPlaceExecutionContext::AdmittedImmutableReference,
-                    ) {
-                        CopyPlaceDisposition::Supported(contract) => {
-                            Some(ReferenceTransportTypeContract {
-                                ty: contract.ty,
-                                logical_type: contract.logical_type,
-                            })
-                        }
-                        CopyPlaceDisposition::ExplicitlyRejected(_)
-                        | CopyPlaceDisposition::Preserved => None,
+                let contract = match classify_copy_place_annotation(
+                    &parameter.param_type,
+                    registry,
+                    CopyPlaceExecutionContext::AdmittedImmutableReference,
+                ) {
+                    CopyPlaceDisposition::Supported(contract) => {
+                        Some(ReferenceTransportTypeContract {
+                            ty: contract.ty,
+                            logical_type: contract.logical_type,
+                        })
                     }
+                    CopyPlaceDisposition::ExplicitlyRejected(_)
+                    | CopyPlaceDisposition::Preserved => None,
                 };
                 match contract {
                     Some(contract) => contract,
@@ -266,22 +251,17 @@ pub(crate) fn classify_reference_function(
 
     let result = match return_type {
         Some(annotation) => {
-            let contract = if mutable_parameters > 0 {
-                scalar_transport_type(annotation)
-            } else {
-                match classify_copy_place_annotation(
-                    annotation,
-                    registry,
-                    CopyPlaceExecutionContext::AdmittedImmutableReference,
-                ) {
-                    CopyPlaceDisposition::Supported(contract) => {
-                        Some(ReferenceTransportTypeContract {
-                            ty: contract.ty,
-                            logical_type: contract.logical_type,
-                        })
-                    }
-                    CopyPlaceDisposition::ExplicitlyRejected(_)
-                    | CopyPlaceDisposition::Preserved => None,
+            let contract = match classify_copy_place_annotation(
+                annotation,
+                registry,
+                CopyPlaceExecutionContext::AdmittedImmutableReference,
+            ) {
+                CopyPlaceDisposition::Supported(contract) => Some(ReferenceTransportTypeContract {
+                    ty: contract.ty,
+                    logical_type: contract.logical_type,
+                }),
+                CopyPlaceDisposition::ExplicitlyRejected(_) | CopyPlaceDisposition::Preserved => {
+                    None
                 }
             };
             match contract {
@@ -317,12 +297,12 @@ pub(crate) fn classify_reference_call(
     };
     if arguments.len() != 1 {
         return ReferenceCallDisposition::ExplicitlyRejected(
-            "mutable reference call requires exactly one mutable scalar-reference identifier or direct `&mut` local owner argument".to_string(),
+            "mutable reference call requires exactly one mutable-reference identifier or direct `&mut` local owner argument".to_string(),
         );
     }
     let Some((source_mode, source)) = reference_call_source_topology(arguments) else {
         return ReferenceCallDisposition::ExplicitlyRejected(
-            "mutable reference call requires a mutable scalar-reference identifier or direct `&mut` local owner argument".to_string(),
+            "mutable reference call requires a mutable-reference identifier or direct `&mut` local owner argument".to_string(),
         );
     };
     if source_mode == ReferenceCallSourceMode::MutableReferenceIdentifier {
@@ -346,14 +326,23 @@ pub(crate) fn classify_reference_call(
         }
         let Ty::Reference(actual_pointee, true) = &facts.ty else {
             return ReferenceCallDisposition::ExplicitlyRejected(
-                "mutable reference call requires a mutable scalar-reference identifier or direct `&mut` local owner argument".to_string(),
+                "mutable reference call requires a mutable-reference identifier or direct `&mut` local owner argument".to_string(),
             );
         };
-        let Some(reference) = scalar_reference_contract(actual_pointee, true) else {
-            return ReferenceCallDisposition::ExplicitlyRejected(
-                "mutable reference calls support only Int, Float, or Bool identifier pointees"
-                    .to_string(),
-            );
+        let reference = match classify_copy_place_type(
+            actual_pointee,
+            registry,
+            CopyPlaceExecutionContext::AdmittedMutableReference,
+        ) {
+            CopyPlaceDisposition::Supported(contract) => LocalReferenceContract {
+                pointee: contract.ty,
+                logical_pointee: contract.logical_type,
+                mutable: true,
+            },
+            CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                return ReferenceCallDisposition::ExplicitlyRejected(message);
+            }
+            CopyPlaceDisposition::Preserved => unreachable!("mutable call context is admitted"),
         };
         match facts.ownership {
             OwnershipState::Owned => {}
@@ -441,12 +430,12 @@ pub(crate) fn classify_local_borrow(
     let Expression::Identifier(name) = expression else {
         let qualifier = if mutable { "mutable " } else { "immutable " };
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
-            "a local {qualifier}scalar borrow requires an identifier place"
+            "a local {qualifier}Copy-data borrow requires an identifier place"
         ));
     };
     let Some(facts) = facts else {
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
-            "local scalar borrow source `{name}` is not an initialized local binding"
+            "local Copy-data borrow source `{name}` is not an initialized local binding"
         ));
     };
     if !facts.initialized {
@@ -456,36 +445,28 @@ pub(crate) fn classify_local_borrow(
     }
     if !facts.local {
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
-            "local scalar borrow source `{name}` is not an initialized local binding"
+            "local Copy-data borrow source `{name}` is not an initialized local binding"
         ));
     }
-    let contract = if mutable {
-        let Some(contract) = scalar_reference_contract(&facts.ty, true) else {
-            return LocalReferenceDisposition::ExplicitlyRejected(
-                "local mutable references support only Int, Float, or Bool pointees".to_string(),
-            );
-        };
-        contract
+    let context = if mutable {
+        CopyPlaceExecutionContext::AdmittedMutableReference
     } else {
-        match classify_copy_place_type(
-            &facts.ty,
-            registry,
-            CopyPlaceExecutionContext::AdmittedImmutableReference,
-        ) {
-            CopyPlaceDisposition::Supported(contract) => LocalReferenceContract {
-                pointee: contract.ty,
-                logical_pointee: contract.logical_type,
-                mutable: false,
-            },
-            CopyPlaceDisposition::ExplicitlyRejected(message) => {
-                return LocalReferenceDisposition::ExplicitlyRejected(message);
-            }
-            CopyPlaceDisposition::Preserved => unreachable!("borrow context is admitted"),
+        CopyPlaceExecutionContext::AdmittedImmutableReference
+    };
+    let contract = match classify_copy_place_type(&facts.ty, registry, context) {
+        CopyPlaceDisposition::Supported(contract) => LocalReferenceContract {
+            pointee: contract.ty,
+            logical_pointee: contract.logical_type,
+            mutable,
+        },
+        CopyPlaceDisposition::ExplicitlyRejected(message) => {
+            return LocalReferenceDisposition::ExplicitlyRejected(message);
         }
+        CopyPlaceDisposition::Preserved => unreachable!("borrow context is admitted"),
     };
     if mutable && !facts.mutable {
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
-            "mutable scalar borrow source `{name}` must be declared mutable"
+            "mutable borrow source `{name}` must be declared mutable"
         ));
     }
     let conflict = match (&facts.ownership, mutable) {
@@ -512,12 +493,23 @@ pub(crate) fn classify_local_dereference(
     registry: &StructRegistry,
 ) -> LocalReferenceDisposition {
     match operand {
-        Ty::Reference(pointee, true) => scalar_reference_contract(pointee, true).map_or(
-            LocalReferenceDisposition::ExplicitlyRejected(
-                "local mutable references support only Int, Float, or Bool pointees".to_string(),
-            ),
-            LocalReferenceDisposition::Supported,
-        ),
+        Ty::Reference(pointee, true) => match classify_copy_place_type(
+            pointee,
+            registry,
+            CopyPlaceExecutionContext::AdmittedMutableReference,
+        ) {
+            CopyPlaceDisposition::Supported(contract) => {
+                LocalReferenceDisposition::Supported(LocalReferenceContract {
+                    pointee: contract.ty,
+                    logical_pointee: contract.logical_type,
+                    mutable: true,
+                })
+            }
+            CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                LocalReferenceDisposition::ExplicitlyRejected(message)
+            }
+            CopyPlaceDisposition::Preserved => unreachable!("dereference context is admitted"),
+        },
         Ty::Reference(pointee, false) => match classify_copy_place_type(
             pointee,
             registry,
@@ -553,16 +545,25 @@ pub(crate) fn classify_local_reference_annotation(
         return LocalReferenceDisposition::Preserved;
     }
     if *mutable {
-        let Some(contract) = scalar_transport_type(inner) else {
-            return LocalReferenceDisposition::ExplicitlyRejected(
-                "local mutable references support only Int, Float, or Bool pointees".to_string(),
-            );
+        return match classify_copy_place_annotation(
+            inner,
+            registry,
+            CopyPlaceExecutionContext::AdmittedMutableReference,
+        ) {
+            CopyPlaceDisposition::Supported(contract) => {
+                LocalReferenceDisposition::Supported(LocalReferenceContract {
+                    pointee: contract.ty,
+                    logical_pointee: contract.logical_type,
+                    mutable: true,
+                })
+            }
+            CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                LocalReferenceDisposition::ExplicitlyRejected(message)
+            }
+            CopyPlaceDisposition::Preserved => {
+                unreachable!("reference annotation context is admitted")
+            }
         };
-        return LocalReferenceDisposition::Supported(LocalReferenceContract {
-            pointee: contract.ty,
-            logical_pointee: contract.logical_type,
-            mutable: true,
-        });
     }
     match classify_copy_place_annotation(
         inner,
@@ -588,6 +589,7 @@ pub(crate) fn classify_mutable_reference_assignment(
     facts: Option<&MutableReferenceAssignmentFacts>,
     rhs: &Ty,
     inside_admitted_function: bool,
+    registry: &StructRegistry,
 ) -> MutableReferenceAssignmentDisposition {
     let Expression::Deref(reference) = target else {
         return MutableReferenceAssignmentDisposition::Preserved;
@@ -633,13 +635,23 @@ pub(crate) fn classify_mutable_reference_assignment(
             );
         }
         Ty::Reference(pointee, true) => {
-            let Some(contract) = scalar_reference_contract(pointee, true) else {
-                return MutableReferenceAssignmentDisposition::ExplicitlyRejected(
-                    "local mutable references support only Int, Float, or Bool pointees"
-                        .to_string(),
-                );
-            };
-            contract
+            match classify_copy_place_type(
+                pointee,
+                registry,
+                CopyPlaceExecutionContext::AdmittedMutableReference,
+            ) {
+                CopyPlaceDisposition::Supported(contract) => LocalReferenceContract {
+                    pointee: contract.ty,
+                    logical_pointee: contract.logical_type,
+                    mutable: true,
+                },
+                CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                    return MutableReferenceAssignmentDisposition::ExplicitlyRejected(message);
+                }
+                CopyPlaceDisposition::Preserved => {
+                    unreachable!("mutable assignment context is admitted")
+                }
+            }
         }
         _ => {
             return MutableReferenceAssignmentDisposition::ExplicitlyRejected(
@@ -876,7 +888,7 @@ mod tests {
                 &registry,
             ),
             ReferenceCallDisposition::ExplicitlyRejected(message)
-                if message.contains("mutable scalar-reference identifier")
+                if message.contains("mutable-reference identifier")
         ));
         let moved_alias = LocalReferenceSourceFacts {
             ownership: OwnershipState::Moved,
@@ -895,7 +907,7 @@ mod tests {
                 &registry,
             ),
             ReferenceCallDisposition::ExplicitlyRejected(message)
-                if message.contains("mutable scalar-reference identifier")
+                if message.contains("mutable-reference identifier")
         ));
         assert!(matches!(
             classify_reference_call(&function, &[], None, &registry),

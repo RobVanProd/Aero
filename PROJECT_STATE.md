@@ -4,31 +4,40 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 78 `CORE-059` is the locally green implementation candidate for immutable
-references over the exact already-admitted Copy-data place universe: scalars, flat
-Copy-scalar tuples, fixed numeric arrays, fixed arrays of one exact Copy struct, and
-finite acyclic Copy structs. One `copy_place_contract` classifies each type or
-annotation as supported, explicitly rejected, or preserved, delegating existing tuple
-and struct/array layout identity instead of duplicating topology guards. Local borrows,
-reference annotations and aliases, dereference and whole-value Copy, projection and
-array consumers, CFG, arbitrary immutable-reference/owned-Copy internal signatures,
-forwarding, recursion, and direct modules consume that shared contract.
+Milestone 79 `CORE-060` is the locally green implementation candidate for whole-place
+mutable references over the exact already-admitted Copy-data place universe: scalars,
+flat Copy-scalar tuples, fixed numeric arrays, fixed arrays of one exact Copy struct,
+and finite acyclic Copy structs. The same three-way `copy_place_contract` now owns
+immutable and mutable admission across annotation, local borrow, dereference, whole
+replacement, the retained sole-mutable-reference function topology, direct calls,
+child reborrows, semantic analysis, checked admission, and independent verification.
+No phase retains a mutable scalar-versus-aggregate whitelist.
 
-Checked IR retains the exact recursive pointee `LogicalType`; aggregate dereference
-creates a distinct Copy place. The independent verifier proves source/pointee schema,
-place identity, dominance, and reference-binder integrity before private typed-pointer
-LLVM lowering. Focused CORE-059, classifier, corruption, immutable/mutable reference,
-tuple, array, struct, recursive aggregate, enum compatibility, and complete compiler
-suites are green at 173/173 library and 179/179 binary tests. Visual Studio Clang
-accepts the tracked two-file example and native execution returns exact exit 37. The
-exact repository-root gate passes on the pointer-corrected content. Public checks and
-pinned LLVM/Clang 22 evidence remain required before acceptance.
+Checked IR adds an exact typed mutable Copy-place owner and preserves recursive schema
+through borrow, aggregate Copy read, whole replacement, child loan, and lexical end.
+The verifier rejects forged owner schema, missing initialization, wrong borrow/write
+metadata, generic stores through references, and invalid loan identity before private
+typed-pointer LLVM. The complete Cargo suite is green at 174/174 library and 180/180
+binary tests; all-target check and correctness Clippy pass; Visual Studio Clang 19.1.5
+executes the tracked two-module example at exact exit 59. The exact record-synced root
+gate, immutable commit identity, immediate PR #4 synchronization, all eight public
+checks, and pinned LLVM/Clang 22 evidence remain required before acceptance.
 
-Mutable aggregate references, non-identifier borrow origins, String/enums/references/
-unsupported layouts, reference results, escape/capture, NLL, lifetime inference, drop,
-stable ABI/FFI, accelerator execution, performance, release, stability, and a general
-memory-safety claim remain excluded. The CORE-056/057 mutable-reference product stays
-exactly scalar and is not widened.
+Projected borrow origins, String/enums/references/unsupported layouts, copying or
+escaping mutable aliases, mixed/multiple mutable-reference signatures, reference
+results, partial writes, NLL, lifetime inference, drop, stable ABI/FFI, accelerator
+execution, performance, release, stability, and a general memory-safety claim remain
+excluded.
+
+Milestone 78 `CORE-059` is accepted public at exact implementation commit
+`5a78eb5d670045277532cc3cdc9a6144b1449895`, tree
+`03fbdd58e836532dc8a4f95a0bb3c0402b1e5f1c`, and stable patch ID
+`62a23bef479f22d3d9da22fc4bf753c7610c3e77`. All eight public checks pass. Stable
+job `92291545518` uses LLVM/Clang 22.1.8 for external verification, machine
+verification, object lowering, linking, and exact native exit 37, with 173/173
+library and 179/179 binary tests. CORE-059 accepts immutable references over exact
+admitted Copy-data places without establishing mutable aggregate references, general
+lifetimes, stable ABI/FFI, or memory safety.
 
 Milestone 77 `CORE-058` is accepted public at exact implementation commit
 `421a0a9fe6e4df1f35f703a58e50ec41bea9e148`, tree
@@ -272,9 +281,12 @@ composition rather than a module system.
   dereference writes, lexical release, and checked active-loan verification. Accepted
   CORE-056 carries that exclusive provenance across an internal writable pointer
   boundary with a call-scoped loan and independently verified callee identity.
-  CORE-057 now takes the adjacent hard parent/child provenance class by reborrowing
-  local aliases and mutable-reference parameters across synchronous internal calls.
-  Deeper CFG
+  Accepted CORE-057 takes the adjacent hard parent/child provenance class by
+  reborrowing local aliases and mutable-reference parameters across synchronous
+  internal calls. Accepted CORE-058 adds a heterogeneous private product layout;
+  accepted CORE-059 generalizes immutable provenance over all admitted Copy-data;
+  CORE-060 now takes whole-place mutable aggregate provenance and replacement rather
+  than another convenient compile-time leaf. Deeper CFG
   ownership, runtime representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -310,10 +322,15 @@ composition rather than a module system.
   adds exclusive local mutable aliases, typed dereference loads/stores, lexical owner
   reuse, and Bool/Float/Int loan provenance. CORE-056's accepted exit-251 gate adds
   direct mutable loans across internal calls, writable checked parameter binders, and
-  exact post-call owner reuse. CORE-057's candidate exit-253 gate adds local-alias and
+  exact post-call owner reuse. CORE-057's accepted exit-253 gate adds local-alias and
   parameter child reborrows, multi-hop forwarding, terminating recursion, exact parent
-  restoration, and continued root-owner exclusion; public native acceptance remains
-  mandatory.
+  restoration, and continued root-owner exclusion. CORE-058's accepted exit-23 gate
+  adds flat heterogeneous tuple construction, Copy, projection, transport, and private
+  product LLVM. CORE-059's accepted exit-37 gate composes immutable references over
+  recursive structs, tuples, numeric arrays, Copy-struct arrays, calls, recursion, and
+  modules. CORE-060's candidate exit-59 gate adds exclusive whole-place mutable loans,
+  aggregate writes and reads, child reborrows, exact checked schemas, and native
+  execution; pinned public acceptance remains mandatory.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -352,17 +369,17 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-An initialized local mutable scalar alias or current mutable-reference parameter can be
-reborrowed for one synchronous internal call without moving, copying, ending, or
-escaping its parent. The shared call classifier can own the complete direct-owner versus
-identifier-reborrow topology, while a checked child-borrow/call/end identity gives the
-independent verifier enough provenance to block parent access and reject raw pointer
-substitution. Focused source-to-LLVM, CLI, corruption, compatibility, and full Cargo
-evidence and the record-synced exact root gate are green. Immutable implementation
-identity, all-eight public checks, pinned external and machine verification, object/link
-stages, and native exit 253 remain required before acceptance. Multiple/mixed
-signatures, reference results, NLL, drop, stable ABI/FFI, and memory-safety claims remain
-outside this class.
+The immutable and mutable reference paths can share one exact Copy-place classifier
+without broadening the already accepted value/layout universe or the retained exclusive
+loan topology. A distinct checked mutable owner plus recursive pointee metadata gives
+the independent verifier enough information to prove initialized schema, active-loan
+identity, exact whole writes, child restoration, and typed backend lowering for every
+admitted Copy-data family. Focused source-to-LLVM, CLI, corruption, compatibility,
+complete Cargo, and local native exit-59 evidence are green. The record-synced exact
+root gate, immutable implementation identity, all-eight public checks, pinned external
+and machine verification, object/link stages, and native exit 59 remain required before
+acceptance. Projected origins, mixed/multiple signatures, reference results, NLL, drop,
+stable ABI/FFI, and memory-safety claims remain outside this class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1906,9 +1923,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve the locally green CORE-057 candidate identity, commit and push once, and
+Preserve the locally green CORE-060 candidate identity, commit and push once, and
 immediately resynchronize draft PR #4 to the exact candidate head and current diff
-size. Require all eight checks plus pinned LLVM/Clang 22 native exit 253 before
+size. Require all eight checks plus pinned LLVM/Clang 22 native exit 59 before
 acceptance. Keep the PR draft and unmerged. Then choose the next hard capability
 separately; the controlled mega-PR checkpoint strategy and structured evidence-
 manifest generator remain separate tasks.

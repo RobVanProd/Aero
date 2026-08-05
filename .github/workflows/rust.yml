@@ -577,6 +577,25 @@ jobs:
         fi
         echo "immutable Copy-place reference example passed with exit code 37"
 
+    - name: Test mutable Copy-place reference integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/mutable_copy_place_references/main.aero -o ../../mutable_copy_place_references.ll
+        opt-22 -passes=verify -disable-output ../../mutable_copy_place_references.ll
+        llc-22 -verify-machineinstrs ../../mutable_copy_place_references.ll -o /dev/null
+        llc-22 -filetype=obj ../../mutable_copy_place_references.ll -o ../../mutable_copy_place_references.o
+        clang-22 ../../mutable_copy_place_references.o -o ../../mutable_copy_place_references
+        set +e
+        ../../mutable_copy_place_references
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 59 ]; then
+          echo "mutable Copy-place reference example returned $exit_code, expected 59"
+          exit 1
+        fi
+        echo "mutable Copy-place reference example passed with exit code 59"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

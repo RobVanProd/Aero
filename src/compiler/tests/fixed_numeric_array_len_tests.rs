@@ -528,9 +528,9 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
             failures.push("single-function example LLVM was not byte-identical".to_string())
         }
         (Ok(first), Ok(_)) => {
-            if first.matches("alloca [").count() != 8 {
+            if first.matches("alloca [").count() != 12 {
                 failures.push(format!(
-                    "example did not preserve all eight receiver allocations:\n{first}"
+                    "example did not preserve the eight receiver initializers and four checked mutable-owner allocations:\n{first}"
                 ));
             }
             for count in [0, 1, 2, 3, 4, 5, 6, 16] {

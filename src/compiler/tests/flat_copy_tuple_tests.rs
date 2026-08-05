@@ -310,11 +310,6 @@ fn main() -> int { let value: (int, float, bool) = (1, 2.5, 1 < 2); pair(value).
             "tuple projection requires a flat Copy tuple",
         ),
         (
-            "mutable tuple binding remains excluded",
-            "fn main() -> int { let mut value = (1, 2); value.0 }",
-            "mutable flat Copy tuple bindings are not admitted",
-        ),
-        (
             "tuple binding annotation mismatch",
             "fn main() -> int { let value: (int, bool) = (1, 2.0); value.0 }",
             "tuple binding annotation mismatch: expected (int, bool), actual (int, float)",

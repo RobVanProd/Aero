@@ -2534,13 +2534,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-054 - Generalize immutable references across exact admitted Copy-data places
 
 - Date: 2026-08-05
-- Status: locally green implementation candidate; complete compiler, local native, and
-  exact repository-root evidence passes, while public pinned LLVM/Clang 22 evidence
-  remains pending. DEC-053/CORE-058 is accepted public at exact
-  commit `421a0a9fe6e4df1f35f703a58e50ec41bea9e148`, tree
-  `a2c486de7519b4c71631651e11152e17eb4ebf0b`, stable patch ID
-  `58ebaf3c42cfca1ebc0a3125b4ff01ad946e29a0`, with all eight checks, 171/171
-  library tests, 177/177 binary tests, and pinned native exit 23 green.
+- Status: accepted public at exact commit
+  `5a78eb5d670045277532cc3cdc9a6144b1449895`, tree
+  `03fbdd58e836532dc8a4f95a0bb3c0402b1e5f1c`, and stable patch ID
+  `62a23bef479f22d3d9da22fc4bf753c7610c3e77`. All eight checks pass; stable job
+  `92291545518` uses LLVM/Clang 22.1.8 and records 173/173 library tests, 179/179
+  binary tests, external and machine verification, object/link, and native exit 37.
 - Decision: immutable `&owner` and immutable-reference internal transport may use the
   exact already-admitted Copy-data place universe: `Int`, `Float`, `Bool`, CORE-058
   flat Copy-scalar tuples, fixed numeric arrays, fixed arrays of one exact Copy struct,
@@ -2573,13 +2572,62 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   storage/capture/escape; NLL, explicit or inferred lifetime policy; drop; heap;
   concurrency; stable ABI/FFI; accelerator execution; performance; release; stability;
   and general memory-safety claims remain rejected or preserved.
-- Evidence gate: exhaustive classifier shapes, one full vertical integration target,
+- Accepted evidence: exhaustive classifier shapes, one full vertical integration target,
   verifier corruptions, reference/aggregate/tuple/enum compatibility, raw containment,
   deterministic LLVM, CLI artifact hygiene, direct modules, exact repository-root
   gate, local native exit 37, all eight public checks, and pinned LLVM/Clang 22 verify/
-  machine-verify/object/link/native evidence are mandatory before acceptance.
+  machine-verify/object/link/native evidence pass at the accepted identity above.
 - Scaling boundary: the three-way classifier directly addresses duplicated topology
   growth without broadening semantics. PR #4 remains an unmerged integration program;
   controlled checkpoint/merge strategy, structured checkpoint-manifest generation,
   and periodic broader release-eligibility system gates remain separately authorized
   scaling work and may not be displaced by a sequence of convenient bounded slices.
+
+## DEC-055 - Generalize whole-place mutable references across admitted Copy-data
+
+- Date: 2026-08-05
+- Status: locally green implementation candidate; exact record-synced root, immutable
+  commit identity, public checks, and pinned LLVM/Clang 22 execution remain pending.
+  DEC-054/CORE-059 is accepted public at exact commit
+  `5a78eb5d670045277532cc3cdc9a6144b1449895`, tree
+  `03fbdd58e836532dc8a4f95a0bb3c0402b1e5f1c`, and stable patch ID
+  `62a23bef479f22d3d9da22fc4bf753c7610c3e77`, with all eight checks, 173/173
+  library tests, 179/179 binary tests, and pinned native exit 37 green.
+- Decision: admit mutable references only to initialized mutable whole-owner places in
+  the exact CORE-059 Copy-data universe. Mutable aliases retain the established
+  exclusive lexical-loan model; whole dereference reads produce owned Copy values and
+  whole dereference writes replace one exact pointee after evaluating the RHS once.
+  Field, index, tuple-projection, dereference, temporary, and computed borrow origins
+  remain rejected because projected provenance semantics are not frozen.
+- Shared contract: `copy_place_contract` classifies immutable and mutable execution
+  contexts as `Supported`, `ExplicitlyRejected`, or `Preserved`, delegating tuple and
+  recursive named/array identity to their existing classifiers. Annotation, local
+  borrow, dereference, assignment, the retained sole-mutable-reference signature,
+  direct call, child reborrow, semantic analysis, and checked admission consume that
+  one predicate. Scalar assignment IR remains distinct, but no mutable-reference phase
+  retains a scalar-versus-aggregate pointee whitelist.
+- Function product: retain exactly one mutable-reference parameter and no companions in
+  a non-`main`, non-generic internal function. Its pointee and owned result may be any
+  admitted Copy-data member, with `Void` also allowed as the result. Direct owner loans,
+  alias child reborrows, forwarding, CFG, terminating recursion, and flattened direct
+  modules are included. Reference results and mixed/multiple signatures remain rejected.
+- IR/backend: checked IR introduces an exact typed mutable Copy-place owner and carries
+  recursive schema through borrow, read, whole write, child loan, and end. Independent
+  verification requires adjacent initialization, exact owner/reference/value schemas,
+  active-loan provenance, and checked writes, forbidding generic stores through a
+  reference. LLVM uses the existing private typed scalar/aggregate pointers, loads, and
+  stores without pointer/integer conversion or unrelated bitcast. No stable layout,
+  calling convention, ABI, FFI, or safety claim follows.
+- Evidence gate: the exhaustive CORE-060 target, shared-classifier shape proof,
+  verifier corruptions, adjacent mutable/immutable/tuple/aggregate/enum compatibility,
+  raw containment, CLI no-artifact hygiene, tracked two-module example, full Cargo,
+  exact root gate, all eight public checks, and pinned LLVM/Clang 22 verification,
+  machine verification, object/link, and native exit 59 are mandatory. Locally,
+  rustfmt, all-target check, correctness Clippy, 174/174 library tests, 180/180 binary
+  tests, every integration target, and Visual Studio Clang 19.1.5 native exit 59 pass;
+  the local compiler truthfully reports `InternalOnly` because LLVM 22 is unavailable.
+- Scaling boundary: this hard ownership/layout/IR/backend slice and the shared classifier
+  answer immediate combinatorial guard growth without authorizing projected semantics.
+  PR #4 stays draft and unmerged. Checkpoint/merge strategy, a structured evidence
+  manifest, and broader release-eligibility system design remain separate work, while
+  the exit-59 composition is the required periodic system gate for this checkpoint.

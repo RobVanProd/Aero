@@ -142,7 +142,7 @@ pub(crate) fn classify_tuple_projection(
 pub(crate) fn validate_tuple_binding(
     annotation: Option<&Type>,
     inferred: &Ty,
-    mutable: bool,
+    _mutable: bool,
 ) -> Result<(), TupleBindingValidationError> {
     let inferred_contract = match inferred {
         Ty::Tuple(elements) => match classify_flat_copy_tuple_elements(
@@ -158,12 +158,6 @@ pub(crate) fn validate_tuple_binding(
         _ => None,
     };
     let annotation_contract = annotation.map(classify_flat_copy_tuple_annotation);
-
-    if inferred_contract.is_some() && mutable {
-        return Err(TupleBindingValidationError::Explicit(
-            "mutable flat Copy tuple bindings are not admitted".to_string(),
-        ));
-    }
 
     match (annotation, annotation_contract, inferred_contract) {
         (None, _, _) => Ok(()),

@@ -379,7 +379,7 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
         (
             "borrowed receiver remains excluded",
             "fn main() { let found = (&\"a\").contains(\"a\"); }",
-            "a local immutable scalar borrow requires an identifier place",
+            "a local immutable Copy-data borrow requires an identifier place",
         ),
         (
             "dereferenced receiver remains excluded",

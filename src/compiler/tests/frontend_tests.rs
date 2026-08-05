@@ -570,10 +570,7 @@ fn test_semantic_mutable_borrow_requires_mut() {
         "A mutable reference requires a mutable owner"
     );
     let err = result.unwrap_err();
-    assert_eq!(
-        err,
-        "mutable scalar borrow source `x` must be declared mutable"
-    );
+    assert_eq!(err, "mutable borrow source `x` must be declared mutable");
 }
 
 #[test]

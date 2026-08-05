@@ -90,3 +90,19 @@ IR and mandatory internal verification without depending on an external LLVM too
 A checked-IR failure is recorded in the complete requested report and produces a
 nonzero result. Focused tests, the complete repository gate, three exact-diff
 reviews, and all required public CI checks pass at head `db349ef`.
+
+## Current integration checkpoint
+
+`CORE-059` is accepted public for immutable references over exact admitted Copy-data
+places, with pinned LLVM/Clang 22 verification and exact native exit 37. `CORE-060`
+extends the same classified place universe to exclusive whole-place mutable references
+without admitting projected origins, mixed alias signatures, reference results, stable
+ABI, or general lifetime/memory-safety claims.
+
+The CORE-060 conformance gate traces a tracked two-module program through lexing,
+parsing, semantic ownership, exact recursive checked IR, independent verifier
+corruptions, typed LLVM, external and machine verification, object/link, and exact
+native exit 59. Local Clang execution is supporting evidence only; public acceptance
+requires the pinned LLVM/Clang 22 lane and all eight repository checks. This composed
+gate is periodic architecture evidence, not proof that every Aero language subsystem
+or release criterion is coherent.

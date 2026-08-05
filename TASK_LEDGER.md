@@ -11298,7 +11298,8 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 
 - Task ID: `CORE-059`.
 - Owner: lead compiler engineer; one coupled vertical-slice owner.
-- Status: authorized; exhaustive red evidence is the next mutation.
+- Status: accepted public; the authorization and pre-acceptance evidence below are
+  historical.
 - Starting identity: accepted public CORE-058 commit
   `421a0a9fe6e4df1f35f703a58e50ec41bea9e148`, tree
   `a2c486de7519b4c71631651e11152e17eb4ebf0b`, stable patch ID
@@ -11476,3 +11477,204 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   tests, 179/179 binary tests, every integration target, claims contracts, and doc
   tests. This post-gate line is administrative only; no source, test, workflow,
   capability, decision, or semantic content changed after the observed gate.
+
+## CORE-060 — Whole-place mutable references over the admitted Copy-data universe
+
+- Task ID: `CORE-060`.
+- Owner: lead compiler engineer; one coupled vertical-slice owner.
+- Status: locally green implementation candidate; immutable commit identity, PR
+  synchronization, all eight public checks, and pinned LLVM/Clang 22 evidence remain.
+- Starting identity: accepted public CORE-059 commit
+  `5a78eb5d670045277532cc3cdc9a6144b1449895`, tree
+  `03fbdd58e836532dc8a4f95a0bb3c0402b1e5f1c`, stable patch ID
+  `62a23bef479f22d3d9da22fc4bf753c7610c3e77`; branch
+  `agent/aero-integration`; draft PR #4 remains open and unmerged with all eight
+  checks green and pinned LLVM/Clang 22.1.8 native exit 37.
+- Selection evidence: the normative ownership documents define generic `&mut T`,
+  exclusive mutable borrowing, dereference, and whole-pointee replacement, and the
+  compiler already executes those semantics for scalar places. They do not yet define
+  direct `&aggregate.field`, `&aggregate[index]`, or other projected-origin provenance
+  precisely enough to implement without inventing semantics, so projected origins are
+  not this task. The current compiler nevertheless duplicates a scalar-only mutable
+  guard across annotation, borrow, dereference, assignment, function admission,
+  checked lowering, and verification even though CORE-059 established one complete
+  Copy-data place classifier and exact private layouts. A fresh whole-owner example
+  such as `let mut row = Row { value: 1 }; let alias: &mut Row = &mut row; *alias =
+  Row { value: 2 }; (*alias).value` stops at that artificial scalar boundary before
+  checked IR.
+- Primary hypothesis: the shared Copy-place classifier can classify both immutable
+  and mutable admitted execution contexts without changing the underlying value/layout
+  universe. Replacing the duplicated scalar mutable guards with that one predicate,
+  while retaining the existing exclusive lexical-loan and single-reference function
+  topology, should close every pointee shape through exact checked metadata, independent
+  verification, typed LLVM load/store, direct calls, child reborrows, and execution.
+- Frozen supported pointee class: exactly the CORE-059 Copy-data universe: `Int`,
+  `Float`, `Bool`; every flat arity-two-or-greater tuple whose ordered elements are
+  those scalars; every admitted fixed numeric array; every admitted fixed array of one
+  exact Copy-struct type; and every finite acyclic named Copy struct already resolved
+  by `StructRegistry`, including admitted nested named fields and fixed numeric or
+  Copy-struct-array fields. Zero counts, nonzero counts, tuple order/arity, struct
+  names/fields/order, and complete recursive schemas are exact identity. No new value
+  or layout class is admitted.
+- Frozen local ownership and operation class: `&mut owner` accepts only an initialized,
+  in-scope, mutable identifier place of the supported class with no active immutable or
+  mutable loan. A mutable reference is a non-Copy local alias under the existing lexical
+  loan/release model. While live, the owner remains unavailable and a second conflicting
+  loan is rejected. `*alias` produces an owned Copy value/place; `*alias = rhs` performs
+  one exact-type whole-place replacement after evaluating `rhs`; subsequent whole-value
+  dereference, field/index/tuple projection, array length/iteration, branches, loops,
+  and calls observe the replacement. Exact and inferred annotations, shadowing, all
+  admitted Copy constructors/identifiers, and flattened direct modules are in class.
+  Borrow, dereference, assignment RHS, and call arguments evaluate once.
+- Frozen function product: retain the CORE-056/057 alias topology exactly—one and only
+  one mutable-reference parameter, no other parameter, in a non-`main`, non-generic
+  internal function. Its pointee may be any supported Copy-data member. The owned result
+  may be any supported Copy-data member or `Void`. Direct `callee(&mut owner)`, mutable-
+  reference identifier child reborrow `callee(alias)`, forward chains, branch/loop use,
+  and terminating recursion are in class. The parent loan remains active while a child
+  call loan exists and resumes after the checked child end. Reference results remain
+  rejected.
+- Shared predicate: extend `copy_place_contract` with an admitted mutable-reference
+  execution context while retaining supported, explicitly rejected, and preserved
+  dispositions. Local borrow, exact annotation, dereference, assignment, mutable-
+  reference signature admission, semantic analysis, and checked admission must consume
+  this predicate. No phase may retain or introduce a scalar/aggregate mutable-pointee
+  whitelist. Immutable reference behavior continues to consume the same classifier.
+- Frozen representation: checked mutable-owner allocation/parameter, borrow, whole-
+  value dereference, whole-value assignment, child borrow, and borrow end retain the
+  exact recursive `LogicalType`. Aggregate reads create fresh owned Copy places; writes
+  load an aggregate RHS value exactly once and store it through the exact typed pointer.
+  The verifier independently proves owner/source/target/value schemas, exclusive active
+  loan identity, borrow/end adjacency and provenance, no generic store through a live
+  reference, and distinct aggregate value/place namespaces. LLVM uses exact private
+  aggregate pointers and stores, with no pointer/integer conversion or unrelated bitcast.
+  No public layout, calling-convention, ABI, or FFI contract is created.
+- Explicitly rejected or preserved: String, enum, reference, function, Option/Result,
+  Vec/HashMap, generic/type-parameter, unsupported struct/array, unit/unary/nested/non-
+  scalar tuple, and tuple-containing struct/array pointees; immutable owners used as
+  mutable origins; temporaries, literals, computations, fields, indices, tuple
+  projections, or dereferences as origins; uninitialized, moved, unknown, out-of-scope,
+  nonlocal, or already borrowed origins; copying, relocating, storing, returning,
+  capturing, or escaping mutable references; immutable-reference writes; type-mismatched
+  whole replacements; mixed/multiple mutable-reference or owned-companion signatures;
+  reference results; explicit lifetime syntax, lifetime inference, NLL, partial field
+  moves/writes, projected loans, drop/destruction, heap, concurrency, atomics, unsafe,
+  stable ABI/FFI, accelerators, performance, release, stability, and general memory-
+  safety claims.
+- Complete shape proof required: the shared classifier target must enumerate the
+  mutable context for all scalar aliases; every scalar tuple product through arity six
+  while retaining an arity-generic predicate; zero/nonzero numeric and Copy-struct
+  arrays; arbitrary finite accepted struct depth; every excluded top-level `Ty`/`Type`
+  family; immutable compatibility; and preserved topology. One exhaustive integration
+  target must cover every supported family, local and parameter origins, exact/inferred
+  aliases, whole Copy reads/writes, every listed consumer, direct calls, child reborrow,
+  forwarding, terminating recursion, CFG/shadowing, all rejection topologies, checked
+  metadata, verifier corruption, raw-path containment, deterministic LLVM, CLI artifact
+  hygiene, tracked direct-module sources, and workflow anchors.
+- Red-first acceptance: before production mutation, the exhaustive CORE-060 target must
+  fail because struct, recursive struct, numeric-array, Copy-struct-array, and flat-tuple
+  mutable bindings/signatures reach the existing scalar-only boundary. The tracked
+  example must not checked-build and no native claim exists. Existing scalar mutable,
+  immutable Copy-place, aggregate, tuple, enum, and unsupported-topology targets must
+  remain green after implementation.
+- Positive completion gate: focused CORE-060 target; all scalar mutable-reference and
+  immutable Copy-place compatibility targets; tuple, Copy-struct, fixed-array, acyclic
+  aggregate, and enum targets; rustfmt; `cargo check --all-targets`; correctness Clippy;
+  exact repository-root `./tools/test.sh`; tracked two-file example; LLVM verification;
+  machine verification; object/link; exact native sentinel; one atomic commit/push;
+  immediate PR #4 synchronization; all eight public checks; and pinned LLVM/Clang 22
+  external verification, machine verification, object/link, native execution, and exact
+  test totals.
+- Files allowed: `src/compiler/src/copy_place_contract.rs`, `local_reference.rs`,
+  `tuple_contract.rs`, `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; one new exhaustive integration target plus directly affected
+  mutable/immutable reference, aggregate, tuple, enum, and checked-IR expectations; one
+  tracked example tree; `.github/workflows/rust.yml`; and the five current capability/
+  state/decision documents plus this single authorization record. Minimal test-module
+  registration is allowed only if the Rust target layout requires it.
+- Files and behavior forbidden: lexer/parser grammar; projected borrow semantics;
+  mixed/multiple mutable-reference signature semantics; enum ownership/layout;
+  tuple/struct/array value-layout expansion; module graph or namespace semantics;
+  generic/trait/impl/closure execution; raw IR API activation; compiler options;
+  accelerator code; benchmarks/claims; release/package/registry; `claim-verification/`;
+  PR merge; history rewrite; force-push; and `master`.
+- Risks: aggregate assignment can store a place identifier instead of its Copy value;
+  child reborrow can end the parent loan or permit owner access early; exact schemas can
+  diverge between source, checked IR, verifier, and LLVM; recursive schema collection
+  can omit types reachable only through mutable-reference metadata; admitting aggregate
+  results can accidentally widen the single-parameter product; and duplicated scalar
+  fallbacks can survive in one phase and create semantic/checked disagreement.
+- Stop conditions: any supported result requires a new value layout, partial/projected
+  write or borrow policy, mixed-argument alias/evaluation-order decision, reference
+  return/lifetime decision, parser change, enum Copy decision, module semantic decision,
+  public ABI, or accelerator contract; the shared predicate cannot express the complete
+  class; expected behavior crosses outside the listed files; or the baseline becomes
+  red for an unrelated reason. Stop and amend this authorization rather than inventing
+  semantics or narrowing the class to an easier aggregate family.
+- Exhaustive red evidence: after replacing one unsupported block-expression fixture
+  with the already admitted statement-block form and formatting the new target before
+  any production mutation, `cargo test --test mutable_copy_place_reference_tests --
+  --nocapture` exits 1 with the sole target at 0/1. Struct, recursive-struct, numeric-
+  array (including zero), Copy-struct-array (including zero), and flat-tuple local
+  aliases, whole replacements, exact annotations, owned results, direct calls, child
+  reborrows, forwarding, loops, recursion, and direct modules all stop at the existing
+  `mutable reference parameters support only Int, Float, or Bool pointees`, `local
+  mutable references support only Int, Float, or Bool pointees`, or mutable-tuple-
+  binding guard before checked IR. The tracked example emits no requested LLVM artifact.
+  The negative matrix also shows that unsupported Copy-data shapes still stop at the
+  older scalar guard, rather than the shared classifier diagnostic. This is the expected
+  compiler red; Cargo, parsing, test execution, and CLI subprocess execution succeeded,
+  and Windows Security did not intervene. Status is active implementation against the
+  frozen shared-predicate contract.
+- Pre-implementation allowed-file amendment: the exhaustive red proved that
+  `tuple_contract` has an older explicit ban on mutable flat Copy-tuple bindings,
+  unlike admitted mutable struct and array bindings. A mutable owner binding is
+  required to exercise `&mut owner` over the already frozen tuple pointee family.
+  Add `src/compiler/src/tuple_contract.rs` to the allowed files solely to admit a
+  mutable tuple as a stack owner under the CORE-060 whole-place reference contract.
+  Direct tuple reassignment, projected tuple origins/writes, nested/non-Copy tuples,
+  and every other tuple topology remain unchanged. This amendment precedes production
+  mutation and does not broaden the frozen pointee or alias class.
+- Implementation result: `copy_place_contract` now supplies the admitted mutable
+  execution context used by annotation, borrow, dereference, whole assignment,
+  signature/call/reborrow admission, semantic analysis, and checked lowering. A new
+  `CheckedMutableCopyPlaceAlloca` retains recursive owner schema and exact adjacent
+  initialization. Aggregate reads load one Copy value; aggregate writes load the RHS
+  once and emit one exact checked dereference assignment. The verifier independently
+  checks mutable owner initialization, recursive pointee/write schema, active-loan
+  identity, borrow/end provenance, and rejects generic stores through references.
+  Typed LLVM uses exact private aggregate pointers, loads, and stores.
+- Focused and compatibility evidence: the exhaustive CORE-060 target passes 1/1; the
+  shared classifier proof passes 1/1; the private verifier corruption target passes
+  1/1; binding contracts pass 28/28; CORE-059 immutable references and CORE-058 tuples
+  each pass 1/1. The CORE-055/056/057 mutable reference targets, unsupported tuple
+  suite, aggregate/array/struct/enum transports, scalar reassignment, immutable local
+  references, reference parameters, and the 59-test frontend suite all pass after only
+  directly superseded diagnostic and negative-boundary expectations were updated.
+- Complete local compiler evidence: rustfmt passes; `cargo check --all-targets` and
+  correctness Clippy pass; `cargo test --quiet` passes 174/174 library tests, 180/180
+  binary tests, every integration target, and retains the established 22-active/
+  16-quarantined Phase 5 split. The first full run exposed one stale exact diagnostic
+  in `frontend_tests`; after updating it from the obsolete scalar-only wording, the
+  focused 59/59 target and complete rerun pass.
+- Local native evidence: the tracked two-module example resolves `mutations`, passes
+  semantic analysis, checked IR generation, mandatory internal verification, and typed
+  LLVM generation. Visual Studio Clang 19.1.5 accepts it and the executable returns
+  exact exit 59. The local compiler reports `InternalOnly` because no LLVM 22 verifier
+  is installed; public pinned LLVM/Clang 22 verification, machine verification,
+  object/link, and native execution remain mandatory before acceptance. Windows
+  Security did not intervene.
+- Repository-root gate evidence: the first exact `./tools/test.sh` invocation stopped
+  at rustfmt on the newly updated frontend diagnostic assertion before checking or test
+  execution. Canonical `cargo fmt --all` made that mechanical change. The immediate
+  exact rerun exited 0 in 197.9 seconds with the synchronized capability records: it
+  passed rustfmt, all-target checking, correctness Clippy, 174/174 library tests,
+  180/180 binary tests, every integration target, the exact 22-active/16-quarantined
+  Phase 5 split, claims contracts, and doc tests. A final record-inclusive exact root
+  gate remains required after this evidence line; no acceptance claim is made yet.
+- Final record-inclusive gate: exact repository-root `./tools/test.sh` exited 0 in
+  22.6 seconds with the preceding implementation and evidence record present. It again
+  passed rustfmt, all-target checking, correctness Clippy, 174/174 library tests,
+  180/180 binary tests, every integration target, claims contracts, the established
+  Phase 5 split, and doc tests. This post-gate line is administrative only; no source,
+  test, workflow, capability, decision, or semantic content changed after the gate.

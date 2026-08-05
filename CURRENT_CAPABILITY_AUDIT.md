@@ -8,16 +8,25 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-057` is the current implementation candidate for call-scoped mutable scalar-
-  reference identifier reborrowing. The shared whole-call classifier admits the
-  accepted direct-owner form plus exact initialized local-alias and current mutable-
-  parameter identifiers. Checked IR carries a child borrow/call/end identity; the
-  independent verifier proves active parent provenance, exact pointee and adjacency,
-  parent exclusion during the child, and parent restoration afterward. The exhaustive
-  target, focused compatibility suites, all-target check, full Cargo suite, and exact
-  record-synced root gate pass at 169/169 library and 175/175 binary tests. All eight
-  public checks, pinned LLVM/Clang 22 stages, and native exit 253 remain acceptance
-  gates.
+- `CORE-060` is the current locally green implementation candidate for whole-place
+  mutable references over the exact admitted Copy-data universe. Mutable annotation,
+  local borrow, dereference, whole replacement, single-reference function transport,
+  child reborrow, checked admission, and verification consume the same three-way
+  `copy_place_contract` used by immutable references. Checked IR retains exact mutable
+  owner, reference, value, write, and end schemas; private typed LLVM executes the
+  tracked two-module example locally at exact exit 59. The full Cargo suite passes at
+  174/174 library and 180/180 binary tests. The exact record-synced root gate, immutable
+  commit identity, all eight public checks, and pinned LLVM/Clang 22 stages remain
+  acceptance gates.
+- `CORE-059` is accepted public at exact implementation
+  `5a78eb5d670045277532cc3cdc9a6144b1449895`, tree
+  `03fbdd58e836532dc8a4f95a0bb3c0402b1e5f1c`, and stable patch ID
+  `62a23bef479f22d3d9da22fc4bf753c7610c3e77`. All eight checks pass; stable job
+  `92291545518` uses LLVM/Clang 22.1.8 for external verification, machine
+  verification, object lowering, linking, and exact native exit 37 with 173/173
+  library and 179/179 binary tests. The accepted class is immutable reference
+  transport over existing Copy-data places, not mutable aggregate borrowing, general
+  lifetimes, stable ABI/FFI, or a memory-safety guarantee.
 - `CORE-056` is accepted public at exact implementation
   `e3ff1658039f8b9e20f18981c3d6198a07e79e92`, tree
   `4efca0a523ae60d0d3020f925e0567f430dad9dd`, and stable patch ID

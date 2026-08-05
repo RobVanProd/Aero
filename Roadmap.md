@@ -1,6 +1,6 @@
 # Aero Development Roadmap
 
-Last updated: 2026-08-02 (America/New_York)
+Last updated: 2026-08-05 (America/New_York)
 
 This roadmap translates Aero's founding Design -> Minimal Prototype -> Self-Host
 -> Stabilize -> Optimize path into evidence-gated engineering milestones. A
@@ -11,6 +11,15 @@ capability is defined only by `SPEC_IMPLEMENTATION_MATRIX.md`,
 The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
+
+Current integration work is at `CORE-060`: whole-place mutable references over the
+already admitted Copy-data universe, with exact checked owner/loan/write identity and a
+composed native exit-59 gate. This deliberately advances the harder ownership,
+aggregate representation, and internal pointer-boundary work in Milestone 2 rather than
+optimizing only for convenient compile-time features. Projected borrows, deeper CFG
+ownership, stable ABI, full module semantics, and real GPU execution remain unresolved.
+PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
+structured evidence-manifest automation require separate authorization.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 

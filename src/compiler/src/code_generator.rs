@@ -273,6 +273,7 @@ impl CodeGenerator {
                 }
                 Inst::Alloca(ptr, _)
                 | Inst::CheckedMutableScalarAlloca { result: ptr, .. }
+                | Inst::CheckedMutableCopyPlaceAlloca { result: ptr, .. }
                 | Inst::AllocaArray { result: ptr, .. }
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
@@ -652,6 +653,7 @@ impl CodeGenerator {
                 | Inst::FDiv(..)
                 | Inst::Alloca(..)
                 | Inst::CheckedMutableScalarAlloca { .. }
+                | Inst::CheckedMutableCopyPlaceAlloca { .. }
                 | Inst::CheckedScalarAssignment { .. }
                 | Inst::CheckedMutableDereferenceAssignment { .. }
                 | Inst::Store(..)
@@ -1040,6 +1042,15 @@ impl CodeGenerator {
                         _ => unreachable!("verified mutable scalar alloca has scalar metadata"),
                     }
                 }
+                Inst::CheckedMutableCopyPlaceAlloca { result, ty, .. } => {
+                    let Value::Reg(ptr_id) = result else {
+                        panic!("Expected register for checked mutable Copy-place alloca")
+                    };
+                    let aggregate_type = Self::logical_type_to_llvm(ty);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{ptr_id} = alloca {aggregate_type}, align 8\n"
+                    ));
+                }
                 Inst::Alloca(ptr_reg, name) => {
                     let ptr_id = match ptr_reg {
                         Value::Reg(r) => *r,
@@ -1185,7 +1196,16 @@ impl CodeGenerator {
                             "  store i1 {}, i1* %ptr{ptr_id}, align 1\n",
                             self.bool_value_to_string(value)
                         )),
-                        _ => unreachable!("verified scalar assignment has scalar metadata"),
+                        logical_type @ (LogicalType::Struct { .. }
+                        | LogicalType::Array { .. }
+                        | LogicalType::Tuple { .. }) => {
+                            let aggregate_type = Self::logical_type_to_llvm(logical_type);
+                            llvm_ir.push_str(&format!(
+                                "  store {aggregate_type} {}, {aggregate_type}* %ptr{ptr_id}, align 8\n",
+                                self.value_to_string(value)
+                            ));
+                        }
+                        _ => unreachable!("verified assignment has admitted Copy-place metadata"),
                     }
                 }
                 Inst::Load(result_reg, ptr_reg) => {
@@ -1641,13 +1661,7 @@ impl CodeGenerator {
                     let Value::Reg(result) = result else {
                         panic!("Expected register for checked mutable reference parameter")
                     };
-                    let pointee = match pointee {
-                        LogicalType::Int | LogicalType::Float => "double",
-                        LogicalType::Bool => "i1",
-                        _ => unreachable!(
-                            "verified mutable reference parameters carry scalar pointees"
-                        ),
-                    };
+                    let pointee = Self::reference_pointee_to_llvm(pointee);
                     let parameter = Self::llvm_parameter_name(parameter);
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %{parameter}, i64 0\n"

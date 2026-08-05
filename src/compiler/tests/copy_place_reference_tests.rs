@@ -474,21 +474,6 @@ fn immutable_copy_place_reference_class_is_complete_checked_and_executable() {
             "admitted Copy-data",
         ),
         (
-            "mutable struct reference",
-            "struct Row { value: int } fn main() -> int { let mut row = Row { value: 1 }; let reference = &mut row; 0 }",
-            "mutable reference",
-        ),
-        (
-            "mutable tuple reference",
-            "fn main() -> int { let mut pair = (1, 2); let reference = &mut pair; 0 }",
-            "mutable flat Copy tuple bindings are not admitted",
-        ),
-        (
-            "mutable array reference",
-            "fn main() -> int { let mut values = [1, 2]; let reference = &mut values; 0 }",
-            "mutable reference",
-        ),
-        (
             "borrowed literal",
             "fn main() -> int { let reference = &1; *reference }",
             "identifier place",

@@ -300,7 +300,7 @@ fn static_string_character_len_class_is_complete_and_ci_executable() {
         (
             "borrowed String receiver remains excluded",
             "fn main() { let observed = (&\"a\").len(); }",
-            "a local immutable scalar borrow requires an identifier place",
+            "a local immutable Copy-data borrow requires an identifier place",
         ),
         (
             "dereferenced String receiver remains excluded",

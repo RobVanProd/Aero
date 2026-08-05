@@ -68,6 +68,12 @@ pub enum Inst {
         name: String,
         ty: LogicalType,
     },
+    /// Verified mutable stack place for an admitted aggregate Copy-data binding.
+    CheckedMutableCopyPlaceAlloca {
+        result: Value,
+        name: String,
+        ty: LogicalType,
+    },
     /// Verified reassignment of an existing admitted mutable scalar place.
     CheckedScalarAssignment {
         target: Value,
@@ -80,19 +86,19 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
-    /// Verified exclusive non-escaping alias of a mutable scalar owner or reference place.
+    /// Verified exclusive non-escaping alias of a mutable Copy-data owner or reference place.
     CheckedMutableBorrow {
         result: Value,
         source: Value,
         pointee: LogicalType,
     },
-    /// Verified scalar write through a checked mutable-reference alias.
+    /// Verified whole-value write through a checked mutable-reference alias.
     CheckedMutableDereferenceAssignment {
         target: Value,
         value: Value,
         pointee: LogicalType,
     },
-    /// Verified end of a non-escaping mutable scalar borrow or reborrow.
+    /// Verified end of a non-escaping mutable Copy-data borrow or reborrow.
     CheckedMutableBorrowEnd {
         reference: Value,
         source: Value,

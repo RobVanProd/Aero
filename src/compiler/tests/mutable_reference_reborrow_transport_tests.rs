@@ -337,12 +337,12 @@ fn main() -> int { let mut value = 1; let alias = &mut value; outer(alias); *ali
         (
             "immutable alias argument",
             "fn bump(value: &mut int) -> int { *value } fn main() -> int { let value = 1; let alias = &value; bump(alias) }",
-            "requires a mutable scalar-reference identifier",
+            "requires a mutable-reference identifier",
         ),
         (
             "owned scalar identifier argument",
             "fn bump(value: &mut int) -> int { *value } fn main() -> int { let mut value = 1; bump(value) }",
-            "requires a mutable scalar-reference identifier",
+            "requires a mutable-reference identifier",
         ),
         (
             "uninitialized mutable alias",
@@ -372,17 +372,17 @@ fn main() -> int { let mut value = 1; let alias = &mut value; outer(alias); *ali
         (
             "immutable parameter forwarded to mutable",
             "fn inner(value: &mut int) -> int { *value } fn outer(value: &int) -> int { inner(value) } fn main() -> int { let value = 1; outer(&value) }",
-            "requires a mutable scalar-reference identifier",
+            "requires a mutable-reference identifier",
         ),
         (
             "two mutable parameters remain excluded",
             "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
-            "exactly one mutable scalar-reference parameter",
+            "exactly one mutable-reference parameter",
         ),
         (
             "mixed mutable and scalar parameters remain excluded",
             "fn bad(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { 0 }",
-            "exactly one mutable scalar-reference parameter",
+            "exactly one mutable-reference parameter",
         ),
         (
             "mutable reference result remains excluded",
@@ -392,7 +392,7 @@ fn main() -> int { let mut value = 1; let alias = &mut value; outer(alias); *ali
         (
             "String mutable parameter remains excluded",
             "fn bad(value: &mut String) -> int { 0 } fn main() -> int { 0 }",
-            "mutable reference parameters support only Int, Float, or Bool pointees",
+            "mutable reference parameter pointee is not admitted Copy-data",
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, expected) {
@@ -496,7 +496,7 @@ fn main() -> int { let mut value = 1; let alias = &mut value; outer(alias); *ali
     let diagnostics = output_text(&output);
     if output.status.success()
         || output_path.exists()
-        || !diagnostics.contains("requires a mutable scalar-reference identifier")
+        || !diagnostics.contains("requires a mutable-reference identifier")
     {
         failures.push(format!(
             "invalid mutable reborrow CLI hygiene failed (status={}, artifact={}):\n{}",

@@ -2768,6 +2768,7 @@ impl SemanticAnalyzer {
                     mutable_reference_facts.as_ref(),
                     &rhs,
                     inside_admitted_function,
+                    &self.struct_registry,
                 ) {
                     MutableReferenceAssignmentDisposition::Supported(_) => {
                         self.apply_enum_match_moves(value)?;

@@ -6,6 +6,7 @@ use crate::types::Ty;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CopyPlaceExecutionContext {
     AdmittedImmutableReference,
+    AdmittedMutableReference,
     PreservedContext,
 }
 
@@ -27,13 +28,15 @@ pub(crate) fn classify_copy_place_type(
     registry: &StructRegistry,
     context: CopyPlaceExecutionContext,
 ) -> CopyPlaceDisposition {
-    if context != CopyPlaceExecutionContext::AdmittedImmutableReference {
-        return CopyPlaceDisposition::Preserved;
-    }
+    let transport = match context {
+        CopyPlaceExecutionContext::AdmittedImmutableReference => "immutable reference transport",
+        CopyPlaceExecutionContext::AdmittedMutableReference => "mutable reference transport",
+        CopyPlaceExecutionContext::PreservedContext => return CopyPlaceDisposition::Preserved,
+    };
     registry.resolve_copy_type(ty).map_or_else(
         || {
             CopyPlaceDisposition::ExplicitlyRejected(format!(
-                "type {ty} is not admitted Copy-data for immutable reference transport"
+                "type {ty} is not admitted Copy-data for {transport}"
             ))
         },
         |contract| {
@@ -50,15 +53,16 @@ pub(crate) fn classify_copy_place_annotation(
     registry: &StructRegistry,
     context: CopyPlaceExecutionContext,
 ) -> CopyPlaceDisposition {
-    if context != CopyPlaceExecutionContext::AdmittedImmutableReference {
-        return CopyPlaceDisposition::Preserved;
-    }
+    let transport = match context {
+        CopyPlaceExecutionContext::AdmittedImmutableReference => "immutable reference transport",
+        CopyPlaceExecutionContext::AdmittedMutableReference => "mutable reference transport",
+        CopyPlaceExecutionContext::PreservedContext => return CopyPlaceDisposition::Preserved,
+    };
     registry.resolve_copy_annotation(annotation).map_or_else(
         || {
-            CopyPlaceDisposition::ExplicitlyRejected(
-                "annotation is not admitted Copy-data for immutable reference transport"
-                    .to_string(),
-            )
+            CopyPlaceDisposition::ExplicitlyRejected(format!(
+                "annotation is not admitted Copy-data for {transport}"
+            ))
         },
         |contract| {
             CopyPlaceDisposition::Supported(CopyPlaceContract {
@@ -85,13 +89,9 @@ mod tests {
         StructRegistry::from_top_level_ast(&ast)
     }
 
-    fn supported(ty: Ty, registry: &StructRegistry) -> bool {
+    fn supported(ty: Ty, registry: &StructRegistry, context: CopyPlaceExecutionContext) -> bool {
         matches!(
-            classify_copy_place_type(
-                &ty,
-                registry,
-                CopyPlaceExecutionContext::AdmittedImmutableReference,
-            ),
+            classify_copy_place_type(&ty, registry, context),
             CopyPlaceDisposition::Supported(_)
         )
     }
@@ -99,22 +99,40 @@ mod tests {
     #[test]
     fn classifier_is_exact_for_the_frozen_copy_place_universe() {
         let registry = registry();
-        for ty in [Ty::Int, Ty::Float, Ty::Bool] {
-            assert!(supported(ty, &registry));
-        }
-        for arity in 2..=6 {
-            assert!(supported(Ty::Tuple(vec![Ty::Int; arity]), &registry));
-        }
-        for count in [0, 1, 3] {
-            assert!(supported(Ty::Array(Box::new(Ty::Int), count), &registry));
-            assert!(supported(Ty::Array(Box::new(Ty::Float), count), &registry));
-            assert!(supported(
-                Ty::Array(Box::new(Ty::Struct("Leaf".to_string())), count),
-                &registry
-            ));
-        }
-        for name in ["Leaf", "Frame", "Envelope"] {
-            assert!(supported(Ty::Struct(name.to_string()), &registry));
+        for context in [
+            CopyPlaceExecutionContext::AdmittedImmutableReference,
+            CopyPlaceExecutionContext::AdmittedMutableReference,
+        ] {
+            for ty in [Ty::Int, Ty::Float, Ty::Bool] {
+                assert!(supported(ty, &registry, context));
+            }
+            for arity in 2..=6 {
+                assert!(supported(
+                    Ty::Tuple(vec![Ty::Int; arity]),
+                    &registry,
+                    context
+                ));
+            }
+            for count in [0, 1, 3] {
+                assert!(supported(
+                    Ty::Array(Box::new(Ty::Int), count),
+                    &registry,
+                    context
+                ));
+                assert!(supported(
+                    Ty::Array(Box::new(Ty::Float), count),
+                    &registry,
+                    context
+                ));
+                assert!(supported(
+                    Ty::Array(Box::new(Ty::Struct("Leaf".to_string())), count),
+                    &registry,
+                    context
+                ));
+            }
+            for name in ["Leaf", "Frame", "Envelope"] {
+                assert!(supported(Ty::Struct(name.to_string()), &registry, context));
+            }
         }
 
         let rejected = [
@@ -138,19 +156,20 @@ mod tests {
             Ty::Tuple(vec![Ty::Tuple(vec![Ty::Int, Ty::Int]), Ty::Bool]),
             Ty::Tuple(vec![Ty::Int, Ty::String]),
         ];
-        for ty in rejected {
-            assert!(
-                matches!(
-                    classify_copy_place_type(
-                        &ty,
-                        &registry,
-                        CopyPlaceExecutionContext::AdmittedImmutableReference,
+        for context in [
+            CopyPlaceExecutionContext::AdmittedImmutableReference,
+            CopyPlaceExecutionContext::AdmittedMutableReference,
+        ] {
+            for ty in &rejected {
+                assert!(
+                    matches!(
+                        classify_copy_place_type(ty, &registry, context),
+                        CopyPlaceDisposition::ExplicitlyRejected(message)
+                            if message.contains("admitted Copy-data")
                     ),
-                    CopyPlaceDisposition::ExplicitlyRejected(message)
-                        if message.contains("admitted Copy-data")
-                ),
-                "unexpected classification for {ty}"
-            );
+                    "unexpected classification for {ty} in {context:?}"
+                );
+            }
         }
 
         assert!(matches!(
@@ -174,31 +193,34 @@ mod tests {
                 Type::Named("bool".to_string()),
             ]),
         ];
-        for annotation in annotations {
-            assert!(matches!(
-                classify_copy_place_annotation(
-                    &annotation,
-                    &registry,
-                    CopyPlaceExecutionContext::AdmittedImmutableReference,
-                ),
-                CopyPlaceDisposition::Supported(_)
-            ));
+        for context in [
+            CopyPlaceExecutionContext::AdmittedImmutableReference,
+            CopyPlaceExecutionContext::AdmittedMutableReference,
+        ] {
+            for annotation in &annotations {
+                assert!(matches!(
+                    classify_copy_place_annotation(annotation, &registry, context),
+                    CopyPlaceDisposition::Supported(_)
+                ));
+            }
         }
-        for annotation in [
+        let rejected_annotations = [
             Type::Named("String".to_string()),
             Type::Named("Bad".to_string()),
             Type::Array(Box::new(Type::Named("bool".to_string())), 2),
             Type::Tuple(vec![Type::Named("int".to_string())]),
             Type::Reference(Box::new(Type::Named("int".to_string())), false),
+        ];
+        for context in [
+            CopyPlaceExecutionContext::AdmittedImmutableReference,
+            CopyPlaceExecutionContext::AdmittedMutableReference,
         ] {
-            assert!(matches!(
-                classify_copy_place_annotation(
-                    &annotation,
-                    &registry,
-                    CopyPlaceExecutionContext::AdmittedImmutableReference,
-                ),
-                CopyPlaceDisposition::ExplicitlyRejected(_)
-            ));
+            for annotation in &rejected_annotations {
+                assert!(matches!(
+                    classify_copy_place_annotation(annotation, &registry, context),
+                    CopyPlaceDisposition::ExplicitlyRejected(_)
+                ));
+            }
         }
     }
 }

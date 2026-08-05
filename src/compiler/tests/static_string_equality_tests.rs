@@ -334,7 +334,7 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
         (
             "borrowed String remains excluded",
             "fn main() { let same = (&\"a\") == \"a\"; }",
-            "a local immutable scalar borrow requires an identifier place",
+            "a local immutable Copy-data borrow requires an identifier place",
         ),
         (
             "dereferenced String remains excluded",

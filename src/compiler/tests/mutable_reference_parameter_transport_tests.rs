@@ -295,17 +295,17 @@ fn main() -> int { let mut value = 1; bump(&mut value) }
         (
             "two mutable parameters",
             "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
-            "exactly one mutable scalar-reference parameter",
+            "exactly one mutable-reference parameter",
         ),
         (
             "mixed mutable and scalar parameters",
             "fn bad(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { 0 }",
-            "exactly one mutable scalar-reference parameter",
+            "exactly one mutable-reference parameter",
         ),
         (
             "mixed mutable and immutable references",
             "fn bad(value: &mut int, other: &int) -> int { *value + *other } fn main() -> int { 0 }",
-            "exactly one mutable scalar-reference parameter",
+            "exactly one mutable-reference parameter",
         ),
         (
             "mutable reference result",
@@ -355,7 +355,7 @@ fn main() -> int { let mut value = 1; bump(&mut value) }
         (
             "String mutable parameter",
             "fn bad(value: &mut String) -> int { 0 } fn main() -> int { 0 }",
-            "mutable reference parameters support only Int, Float, or Bool pointees",
+            "mutable reference parameter pointee is not admitted Copy-data",
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, expected) {

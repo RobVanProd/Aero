@@ -382,6 +382,22 @@ impl IrGenerator {
         }
     }
 
+    fn admitted_copy_place_logical_type(
+        &self,
+        ty: &Ty,
+        context: CopyPlaceExecutionContext,
+    ) -> LogicalType {
+        match classify_copy_place_type(ty, &self.struct_registry, context) {
+            CopyPlaceDisposition::Supported(contract) => contract.logical_type,
+            CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                unreachable!("checked Copy-place admission escaped classification: {message}")
+            }
+            CopyPlaceDisposition::Preserved => {
+                unreachable!("checked Copy-place lowering has an admitted context")
+            }
+        }
+    }
+
     fn admission_local_reference_source_facts(
         expression: &Expression,
         bindings: &HashMap<String, AdmissionBinding>,
@@ -870,6 +886,7 @@ impl IrGenerator {
                     mutable_reference_facts.as_ref(),
                     &rhs,
                     inside_admitted_function,
+                    &program.structs,
                 ) {
                     MutableReferenceAssignmentDisposition::Supported(_) => return Ok(()),
                     MutableReferenceAssignmentDisposition::ExplicitlyRejected(message) => {
@@ -2292,6 +2309,10 @@ impl IrGenerator {
                     result: Value::Reg(register),
                     ..
                 }
+                | Inst::CheckedMutableCopyPlaceAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
                 | Inst::AllocaArray {
                     result: Value::Reg(register),
                     ..
@@ -2365,6 +2386,9 @@ impl IrGenerator {
             match instruction {
                 Inst::Alloca(place, _) => Self::rewrite_place(place, &places),
                 Inst::CheckedMutableScalarAlloca { result, .. } => {
+                    Self::rewrite_place(result, &places)
+                }
+                Inst::CheckedMutableCopyPlaceAlloca { result, .. } => {
                     Self::rewrite_place(result, &places)
                 }
                 Inst::CheckedScalarAssignment { target, .. } => {
@@ -2619,8 +2643,10 @@ impl IrGenerator {
                     .get(reference_id)
                     .expect("checked mutable reference retains direct source")
                     .clone();
-                let pointee = Self::scalar_logical_type(pointee)
-                    .expect("checked mutable reference retains scalar pointee");
+                let pointee = self.admitted_copy_place_logical_type(
+                    pointee,
+                    CopyPlaceExecutionContext::AdmittedMutableReference,
+                );
                 Some((*reference_id, reference.clone(), source, pointee))
             })
             .collect::<Vec<_>>();
@@ -2963,7 +2989,38 @@ impl IrGenerator {
                     (Value::ImmInt(0), Ty::Int)
                 };
 
-                if matches!(&expr_type, Ty::Struct(_)) {
+                let mutable_copy_place = self.checked_mode
+                    && mutable
+                    && matches!(&expr_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_))
+                    && matches!(
+                        classify_copy_place_type(
+                            &expr_type,
+                            &self.struct_registry,
+                            CopyPlaceExecutionContext::AdmittedMutableReference,
+                        ),
+                        CopyPlaceDisposition::Supported(_)
+                    );
+                if mutable_copy_place {
+                    let initial =
+                        self.load_copy_aggregate_value(expr_value, &expr_type, current_function);
+                    let storage = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    let ty = self.admitted_copy_place_logical_type(
+                        &expr_type,
+                        CopyPlaceExecutionContext::AdmittedMutableReference,
+                    );
+                    current_function
+                        .body
+                        .push(Inst::CheckedMutableCopyPlaceAlloca {
+                            result: storage.clone(),
+                            name: name.clone(),
+                            ty,
+                        });
+                    current_function
+                        .body
+                        .push(Inst::Store(storage.clone(), initial));
+                    self.symbol_table.insert(name, (storage, expr_type));
+                } else if matches!(&expr_type, Ty::Struct(_)) {
                     let storage = if copies_existing_aggregate {
                         self.copy_struct_place(expr_value, &expr_type, current_function)
                     } else {
@@ -3073,13 +3130,19 @@ impl IrGenerator {
                             unreachable!("checked admission requires a mutable reference target")
                         };
                         debug_assert_eq!(assigned_type, *pointee);
+                        let assigned_value = self.load_copy_aggregate_value(
+                            assigned_value,
+                            &assigned_type,
+                            current_function,
+                        );
                         current_function
                             .body
                             .push(Inst::CheckedMutableDereferenceAssignment {
                                 target: target_place,
                                 value: assigned_value,
-                                pointee: Self::scalar_logical_type(&pointee).expect(
-                                    "checked admission admits only scalar mutable references",
+                                pointee: self.admitted_copy_place_logical_type(
+                                    &pointee,
+                                    CopyPlaceExecutionContext::AdmittedMutableReference,
                                 ),
                             });
                     }
@@ -3313,8 +3376,10 @@ impl IrGenerator {
                         temporary_mutable_borrows.push((
                             arg_value.clone(),
                             source,
-                            Self::scalar_logical_type(&pointee)
-                                .expect("checked direct mutable call retains scalar pointee"),
+                            self.admitted_copy_place_logical_type(
+                                &pointee,
+                                CopyPlaceExecutionContext::AdmittedMutableReference,
+                            ),
                         ));
                     } else if mutable_call_source_mode
                         == Some(ReferenceCallSourceMode::MutableReferenceIdentifier)
@@ -3327,8 +3392,10 @@ impl IrGenerator {
                         let parent = arg_value;
                         let child = Value::Reg(self.next_ptr);
                         self.next_ptr += 1;
-                        let logical_pointee = Self::scalar_logical_type(pointee)
-                            .expect("checked mutable-reference reborrow retains scalar pointee");
+                        let logical_pointee = self.admitted_copy_place_logical_type(
+                            pointee,
+                            CopyPlaceExecutionContext::AdmittedMutableReference,
+                        );
                         function.body.push(Inst::CheckedMutableBorrow {
                             result: child.clone(),
                             source: parent.clone(),
@@ -3645,24 +3712,12 @@ impl IrGenerator {
                     .get(name)
                     .expect("checked borrowed binding exists")
                     .clone();
-                let pointee_contract = if mutable {
-                    Self::scalar_logical_type(&pointee)
-                        .expect("checked mutable-reference admission requires a scalar pointee")
+                let context = if mutable {
+                    CopyPlaceExecutionContext::AdmittedMutableReference
                 } else {
-                    match classify_copy_place_type(
-                        &pointee,
-                        &self.struct_registry,
-                        CopyPlaceExecutionContext::AdmittedImmutableReference,
-                    ) {
-                        CopyPlaceDisposition::Supported(contract) => contract.logical_type,
-                        CopyPlaceDisposition::ExplicitlyRejected(message) => {
-                            unreachable!("checked immutable borrow escaped admission: {message}")
-                        }
-                        CopyPlaceDisposition::Preserved => {
-                            unreachable!("checked immutable borrow has admitted context")
-                        }
-                    }
+                    CopyPlaceExecutionContext::AdmittedImmutableReference
                 };
+                let pointee_contract = self.admitted_copy_place_logical_type(&pointee, context);
                 let result = Value::Reg(self.next_ptr);
                 self.next_ptr += 1;
                 function.body.push(if mutable {
