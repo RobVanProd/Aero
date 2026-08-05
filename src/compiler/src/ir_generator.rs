@@ -80,7 +80,7 @@ pub struct IrGenerator {
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
     function_return_types: HashMap<String, Ty>,
-    struct_copy_function_contracts: HashMap<String, CopyFunctionContract>,
+    copy_function_contracts: HashMap<String, CopyFunctionContract>,
     loop_label_stack: Vec<(String, String)>, // Stack of (loop_start, loop_end) labels
     closure_count: u32,                      // Counter for unique closure names
     checked_mode: bool,
@@ -97,7 +97,7 @@ impl IrGenerator {
             next_ptr: 0,
             symbol_table: HashMap::new(),
             function_return_types: HashMap::new(),
-            struct_copy_function_contracts: HashMap::new(),
+            copy_function_contracts: HashMap::new(),
             loop_label_stack: Vec::new(),
             closure_count: 0,
             checked_mode: false,
@@ -126,7 +126,7 @@ impl IrGenerator {
         self.next_ptr = 0;
         self.symbol_table.clear();
         self.function_return_types.clear();
-        self.struct_copy_function_contracts.clear();
+        self.copy_function_contracts.clear();
         self.loop_label_stack.clear();
         self.closure_count = 0;
         self.checked_place_hints.clear();
@@ -141,7 +141,7 @@ impl IrGenerator {
 
     pub fn generate_ir(&mut self, ast: Vec<AstNode>) -> HashMap<String, Function> {
         self.function_return_types.clear();
-        self.struct_copy_function_contracts.clear();
+        self.copy_function_contracts.clear();
         for node in &ast {
             if let AstNode::Statement(Statement::Function {
                 name,
@@ -152,7 +152,7 @@ impl IrGenerator {
             }) = node
                 && type_params.is_empty()
             {
-                let struct_copy_contract = if self.checked_mode {
+                let copy_contract = if self.checked_mode {
                     self.struct_registry
                         .resolve_copy_function_contract(
                             name,
@@ -164,11 +164,10 @@ impl IrGenerator {
                 } else {
                     None
                 };
-                if let Some(contract) = struct_copy_contract {
+                if let Some(contract) = copy_contract {
                     self.function_return_types
                         .insert(name.clone(), contract.result.ty.clone());
-                    self.struct_copy_function_contracts
-                        .insert(name.clone(), contract);
+                    self.copy_function_contracts.insert(name.clone(), contract);
                 } else if parameters
                     .iter()
                     .all(|parameter| Self::numeric_contract_type(&parameter.param_type).is_some())
@@ -231,7 +230,9 @@ impl IrGenerator {
                 Value::ImmInt(0),
                 Ty::Void,
             ),
-            Some(return_type @ (Ty::Int | Ty::Float | Ty::Bool | Ty::Struct(_))) => {
+            Some(
+                return_type @ (Ty::Int | Ty::Float | Ty::Bool | Ty::Struct(_) | Ty::Array(_, _)),
+            ) => {
                 let result_reg = Value::Reg(self.next_reg);
                 self.next_reg += 1;
                 (
@@ -1926,6 +1927,52 @@ impl IrGenerator {
         target
     }
 
+    fn load_fixed_copy_array_value(&mut self, place: Value, function: &mut Function) -> Value {
+        let value = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(value.clone(), place));
+        value
+    }
+
+    fn allocate_fixed_copy_array_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        if let Some(contract) = self.struct_registry.copy_struct_array_contract(ty) {
+            return self.allocate_copy_struct_array_place(&contract, function);
+        }
+
+        let Ty::Array(element, count) = ty else {
+            unreachable!("fixed Copy-array allocation requires an array type")
+        };
+        let logical_element = match element.as_ref() {
+            Ty::Int => LogicalType::Int,
+            Ty::Float => LogicalType::Float,
+            _ => unreachable!("shared transport contract admits only existing flat arrays"),
+        };
+        let place_id = self.next_ptr;
+        let place = Value::Reg(place_id);
+        self.next_ptr += 1;
+        function.body.push(Inst::AllocaArray {
+            result: place.clone(),
+            elem_type: "double".to_string(),
+            count: *count,
+        });
+        self.checked_place_hints
+            .entry(function.name.clone())
+            .or_default()
+            .insert(PlaceId(place_id), logical_element);
+        place
+    }
+
+    fn store_fixed_copy_array_value(
+        &mut self,
+        value: Value,
+        ty: &Ty,
+        function: &mut Function,
+    ) -> Value {
+        let place = self.allocate_fixed_copy_array_place(ty, function);
+        function.body.push(Inst::Store(place.clone(), value));
+        place
+    }
+
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
         match stmt {
             Statement::Let {
@@ -1989,6 +2036,8 @@ impl IrGenerator {
                 };
                 if matches!(&return_type, Ty::Struct(_)) {
                     return_value = self.load_copy_struct_value(return_value, current_function);
+                } else if matches!(&return_type, Ty::Array(_, _)) {
+                    return_value = self.load_fixed_copy_array_value(return_value, current_function);
                 }
                 if self.checked_mode
                     && current_function.name == "main"
@@ -2169,6 +2218,8 @@ impl IrGenerator {
                     let (arg_value, arg_type) = self.generate_expression_ir(arg, function);
                     let arg_value = if matches!(&arg_type, Ty::Struct(_)) {
                         self.load_copy_struct_value(arg_value, function)
+                    } else if matches!(&arg_type, Ty::Array(_, _)) {
+                        self.load_fixed_copy_array_value(arg_value, function)
                     } else {
                         arg_value
                     };
@@ -2179,6 +2230,9 @@ impl IrGenerator {
                 function.body.push(call_inst);
                 if matches!(&return_type, Ty::Struct(_)) {
                     let place = self.store_copy_struct_value(result, &return_type, function);
+                    (place, return_type)
+                } else if matches!(&return_type, Ty::Array(_, _)) {
+                    let place = self.store_fixed_copy_array_value(result, &return_type, function);
                     (place, return_type)
                 } else {
                     (result, return_type)
@@ -2607,7 +2661,7 @@ impl IrGenerator {
         self.next_reg = 0;
         self.next_ptr = 0;
 
-        let copy_contract = self.struct_copy_function_contracts.get(&name).cloned();
+        let copy_contract = self.copy_function_contracts.get(&name).cloned();
 
         // Create parameter names and types for IR
         let eligible_contract = self.function_return_types.contains_key(&name);
@@ -2678,6 +2732,8 @@ impl IrGenerator {
             let (mut return_value, return_ty) = self.generate_expression_ir(expr, &mut function_ir);
             if matches!(return_ty, Ty::Struct(_)) {
                 return_value = self.load_copy_struct_value(return_value, &mut function_ir);
+            } else if matches!(return_ty, Ty::Array(_, _)) {
+                return_value = self.load_fixed_copy_array_value(return_value, &mut function_ir);
             }
             function_ir.body.push(Inst::Return(return_value));
         } else if !function_ir

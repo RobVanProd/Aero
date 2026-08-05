@@ -1,0 +1,26 @@
+mod arrays;
+
+struct RootValue { field: int, ready: bool }
+
+fn root_roundtrip(values: [int; 3]) -> [int; 3] { return values; }
+fn root_struct_roundtrip(values: [RootValue; 2]) -> [RootValue; 2] { values }
+
+fn main() -> int {
+    let original = [10, 11, 12];
+    let root_values = [
+        RootValue { field: 20, ready: 1 < 2 },
+        RootValue { field: 21, ready: 2 < 3 }
+    ];
+    let returned = root_roundtrip(original);
+    let copied = root_struct_roundtrip(root_values);
+    let module_values = module_roundtrip(module_make(30));
+    let empty: [float; 0] = [];
+    let returned_empty = module_empty(empty);
+    if original[0] == 10 && returned[1] == 11 && copied[1].ready
+        && module_values[0].field == 30 && module_values[1].field == 31
+        && returned_empty.len() == 0 && module_scan(module_values) == 2
+        && "aero".starts_with("ae") {
+        return 91;
+    }
+    return 1;
+}

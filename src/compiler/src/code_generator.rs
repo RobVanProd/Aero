@@ -84,9 +84,38 @@ impl CodeGenerator {
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Void => "void".to_string(),
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
-            LogicalType::String | LogicalType::Array { .. } => {
-                unreachable!("verified call signatures exclude String and array values")
+            LogicalType::Array { element, count } => {
+                let element = match element.as_ref() {
+                    LogicalType::Int | LogicalType::Float => "double".to_string(),
+                    LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+                    _ => unreachable!(
+                        "verified function transport admits only existing flat fixed arrays"
+                    ),
+                };
+                format!("[{count} x {element}]")
             }
+            LogicalType::String => {
+                unreachable!("verified call signatures exclude String values")
+            }
+        }
+    }
+
+    fn collect_logical_struct_schema(
+        logical_type: &LogicalType,
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
+    ) {
+        match logical_type {
+            LogicalType::Array { element, .. } => {
+                Self::collect_logical_struct_schema(element, schemas)
+            }
+            LogicalType::Struct { name, fields } => {
+                if let Some(existing) = schemas.get(name) {
+                    assert_eq!(existing, fields, "verified struct schema is stable");
+                } else {
+                    schemas.insert(name.clone(), fields.clone());
+                }
+            }
+            _ => {}
         }
     }
 
@@ -133,21 +162,9 @@ impl CodeGenerator {
                     ..
                 } => {
                     for (_, parameter) in parameters {
-                        if let LogicalType::Struct { name, fields } = parameter {
-                            if let Some(existing) = schemas.get(name) {
-                                assert_eq!(existing, fields, "verified struct schema is stable");
-                            } else {
-                                schemas.insert(name.clone(), fields.clone());
-                            }
-                        }
+                        Self::collect_logical_struct_schema(parameter, schemas);
                     }
-                    if let LogicalType::Struct { name, fields } = result {
-                        if let Some(existing) = schemas.get(name) {
-                            assert_eq!(existing, fields, "verified struct schema is stable");
-                        } else {
-                            schemas.insert(name.clone(), fields.clone());
-                        }
-                    }
+                    Self::collect_logical_struct_schema(result, schemas);
                     Self::collect_struct_schemas(body, schemas);
                 }
                 _ => {}
@@ -901,15 +918,16 @@ impl CodeGenerator {
                         _ => panic!("Expected register for alloca"),
                     };
                     let bool_place = self.is_checked_bool_place(ptr_reg);
-                    let struct_place = match self.checked_place_type(ptr_reg) {
-                        Some(logical_type @ LogicalType::Struct { .. }) => {
-                            Some(Self::logical_type_to_llvm(logical_type))
-                        }
+                    let aggregate_place = match self.checked_place_type(ptr_reg) {
+                        Some(
+                            logical_type @ (LogicalType::Struct { .. } | LogicalType::Array { .. }),
+                        ) => Some(Self::logical_type_to_llvm(logical_type)),
                         _ => None,
                     };
-                    if let Some(struct_type) = &struct_place {
-                        llvm_ir
-                            .push_str(&format!("  %ptr{ptr_id} = alloca {struct_type}, align 8\n"));
+                    if let Some(aggregate_type) = &aggregate_place {
+                        llvm_ir.push_str(&format!(
+                            "  %ptr{ptr_id} = alloca {aggregate_type}, align 8\n"
+                        ));
                     } else if bool_place {
                         llvm_ir.push_str(&format!("  %ptr{} = alloca i1, align 1\n", ptr_id));
                     } else {
@@ -921,9 +939,9 @@ impl CodeGenerator {
                         .filter(|_| initialized_parameters.insert(name.clone()))
                     {
                         let parameter = Self::llvm_parameter_name(name);
-                        if let Some(struct_type) = &struct_place {
+                        if let Some(aggregate_type) = &aggregate_place {
                             llvm_ir.push_str(&format!(
-                                "  store {struct_type} %{parameter}, {struct_type}* %ptr{ptr_id}, align 8\n"
+                                "  store {aggregate_type} %{parameter}, {aggregate_type}* %ptr{ptr_id}, align 8\n"
                             ));
                             continue;
                         }
@@ -980,16 +998,17 @@ impl CodeGenerator {
                     }
                 }
                 Inst::Store(ptr_reg, value) => {
-                    if let Some(logical_type @ LogicalType::Struct { .. }) =
-                        self.checked_place_type(ptr_reg)
+                    if let Some(
+                        logical_type @ (LogicalType::Struct { .. } | LogicalType::Array { .. }),
+                    ) = self.checked_place_type(ptr_reg)
                     {
-                        let struct_type = Self::logical_type_to_llvm(logical_type);
+                        let aggregate_type = Self::logical_type_to_llvm(logical_type);
                         let ptr_id = match ptr_reg {
                             Value::Reg(register) => *register,
                             _ => panic!("Expected register for store pointer"),
                         };
                         llvm_ir.push_str(&format!(
-                            "  store {struct_type} {}, {struct_type}* %ptr{ptr_id}, align 8\n",
+                            "  store {aggregate_type} {}, {aggregate_type}* %ptr{ptr_id}, align 8\n",
                             self.value_to_string(value)
                         ));
                         continue;
@@ -1017,10 +1036,11 @@ impl CodeGenerator {
                     ));
                 }
                 Inst::Load(result_reg, ptr_reg) => {
-                    if let Some(logical_type @ LogicalType::Struct { .. }) =
-                        self.checked_place_type(ptr_reg)
+                    if let Some(
+                        logical_type @ (LogicalType::Struct { .. } | LogicalType::Array { .. }),
+                    ) = self.checked_place_type(ptr_reg)
                     {
-                        let struct_type = Self::logical_type_to_llvm(logical_type);
+                        let aggregate_type = Self::logical_type_to_llvm(logical_type);
                         let result_id = match result_reg {
                             Value::Reg(register) => *register,
                             _ => panic!("Expected register for load result"),
@@ -1030,7 +1050,7 @@ impl CodeGenerator {
                             _ => panic!("Expected register for load pointer"),
                         };
                         llvm_ir.push_str(&format!(
-                            "  %reg{result_id} = load {struct_type}, {struct_type}* %ptr{ptr_id}, align 8\n"
+                            "  %reg{result_id} = load {aggregate_type}, {aggregate_type}* %ptr{ptr_id}, align 8\n"
                         ));
                         continue;
                     }
@@ -1552,6 +1572,11 @@ impl CodeGenerator {
                         "  %{result_str} = call {struct_type} @{function}({args_str})\n"
                     ));
                 }
+                array_type if array_type.starts_with('[') => {
+                    llvm_ir.push_str(&format!(
+                        "  %{result_str} = call {array_type} @{function}({args_str})\n"
+                    ));
+                }
                 _ => llvm_ir.push_str(&format!(
                     "  %{} = call double @{}({})\n",
                     result_str, function, args_str
@@ -1633,9 +1658,9 @@ impl CodeGenerator {
     }
 
     fn emit_return(&mut self, llvm_ir: &mut String, value: &Value, return_llvm_type: &str) {
-        if return_llvm_type.starts_with("%aero.struct.") {
+        if return_llvm_type.starts_with("%aero.struct.") || return_llvm_type.starts_with('[') {
             let Value::Reg(register) = value else {
-                panic!("verified struct return must use an aggregate result register");
+                panic!("verified aggregate return must use an aggregate result register");
             };
             llvm_ir.push_str(&format!("  ret {return_llvm_type} %reg{register}\n"));
             return;

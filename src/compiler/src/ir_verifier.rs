@@ -309,6 +309,18 @@ fn valid_copy_struct_type(logical_type: &LogicalType) -> bool {
     )
 }
 
+fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
+    match logical_type {
+        LogicalType::Int | LogicalType::Float | LogicalType::Bool => true,
+        logical_type @ LogicalType::Struct { .. } => valid_copy_struct_type(logical_type),
+        LogicalType::Array { element, .. } => {
+            matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
+                || valid_copy_struct_type(element)
+        }
+        LogicalType::Void | LogicalType::String => false,
+    }
+}
+
 fn collides_with_generated_local(name: &str) -> bool {
     ["reg", "ptr"].into_iter().any(|prefix| {
         name.strip_prefix(prefix).is_some_and(|suffix| {
@@ -422,12 +434,6 @@ fn checked_signature(
             },
         ));
     }
-    let valid_transport_type = |ty: &LogicalType| {
-        matches!(
-            ty,
-            LogicalType::Int | LogicalType::Float | LogicalType::Bool
-        ) || matches!(ty, LogicalType::Struct { name, fields } if valid_symbol(name) && valid_struct_schema(fields))
-    };
     let mut parameter_names = BTreeSet::new();
     for (name, ty) in parameters {
         if !valid_symbol(name) {
@@ -449,7 +455,7 @@ fn checked_signature(
                 )),
             ));
         }
-        if !valid_transport_type(ty) {
+        if !valid_checked_transport_type(ty) {
             return Err(IrVerificationError::new(
                 function,
                 None,
@@ -459,23 +465,26 @@ fn checked_signature(
             ));
         }
     }
-    if *result != LogicalType::Void && !valid_transport_type(result) {
+    if *result != LogicalType::Void && !valid_checked_transport_type(result) {
         return Err(IrVerificationError::new(
             function,
             None,
             IrVerificationErrorKind::UnsupportedType(format!("checked function return {result}")),
         ));
     }
-    let mentions_struct = parameters
+    let mentions_aggregate = parameters
         .iter()
-        .any(|(_, ty)| matches!(ty, LogicalType::Struct { .. }))
-        || matches!(result, LogicalType::Struct { .. });
-    if !mentions_struct {
+        .any(|(_, ty)| matches!(ty, LogicalType::Struct { .. } | LogicalType::Array { .. }))
+        || matches!(
+            result,
+            LogicalType::Struct { .. } | LogicalType::Array { .. }
+        );
+    if !mentions_aggregate {
         return Err(IrVerificationError::new(
             function,
             None,
             IrVerificationErrorKind::MetadataMismatch(
-                "checked function definition requires a struct-bearing signature".to_string(),
+                "checked function definition requires an aggregate-bearing signature".to_string(),
             ),
         ));
     }
@@ -1196,10 +1205,31 @@ impl<'a> FunctionVerifier<'a> {
                                 .and_then(|(_, ty)| {
                                     claimed_parameters.insert(name.clone()).then(|| ty.clone())
                                 });
-                            (
-                                parameter_type.map_or(PlaceType::Numeric, PlaceType::Known),
-                                Some(name.clone()),
-                            )
+                            let place_type = parameter_type.map_or(PlaceType::Numeric, |ty| {
+                                match ty {
+                                    LogicalType::Array { element, count } => PlaceType::Array {
+                                        physical_element: match element.as_ref() {
+                                            LogicalType::Int | LogicalType::Float => {
+                                                "double".to_string()
+                                            }
+                                            LogicalType::Struct { name, .. } => {
+                                                format!("%aero.struct.{name}")
+                                            }
+                                            _ => unreachable!(
+                                                "checked signature validation admits only flat executable arrays"
+                                            ),
+                                        },
+                                        checked_copy_struct: matches!(
+                                            element.as_ref(),
+                                            LogicalType::Struct { .. }
+                                        ),
+                                        logical_element: Some(*element),
+                                        count,
+                                    },
+                                    ty => PlaceType::Known(ty),
+                                }
+                            });
+                            (place_type, Some(name.clone()))
                         }
                         Inst::AllocaArray {
                             elem_type, count, ..
@@ -1311,7 +1341,9 @@ impl<'a> FunctionVerifier<'a> {
                                     },
                                 ));
                             }
-                            let element_place = if physical_element == "double" {
+                            let element_place = if let Some(logical_element) = logical_element {
+                                PlaceType::Known(logical_element.clone())
+                            } else if physical_element == "double" {
                                 PlaceType::Numeric
                             } else {
                                 PlaceType::Known(
@@ -1926,16 +1958,21 @@ impl<'a> FunctionVerifier<'a> {
                                     ));
                                 }
                             }
-                            PlaceType::Array { .. } => {
-                                return Err(self.error(
-                                    block_index,
-                                    IrVerificationErrorKind::TypeMismatch {
-                                        operation: "store",
-                                        role: "value",
-                                        expected: "array element place".to_string(),
-                                        actual,
-                                    },
-                                ));
+                            array @ PlaceType::Array { .. } => {
+                                let expected = array
+                                    .logical()
+                                    .expect("checked array places retain exact logical type");
+                                if actual != expected {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::TypeMismatch {
+                                            operation: "store",
+                                            role: "aggregate value",
+                                            expected: expected.to_string(),
+                                            actual,
+                                        },
+                                    ));
+                                }
                             }
                         }
                     }
@@ -2355,6 +2392,9 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
         logical_type: &LogicalType,
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
     ) -> Result<(), IrVerificationError> {
+        if let LogicalType::Array { element, .. } = logical_type {
+            return register_type(element, schemas);
+        }
         let LogicalType::Struct { name, fields } = logical_type else {
             return Ok(());
         };

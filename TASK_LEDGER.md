@@ -8784,3 +8784,164 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   controls. This records-only successor changes no compiler, test, example, workflow,
   or capability boundary; it must be pushed unchanged, pass all eight checks, and
   become the exact PR front-page records head.
+
+## CORE-046 - Internal by-value transport of existing flat fixed Copy arrays
+
+- Task ID: `CORE-046`.
+- Observed behavior: the accepted compiler executes fixed numeric arrays and fixed
+  arrays of one exact all-scalar Copy struct as local values, while every array in a
+  function parameter or return annotation still falls outside the admitted scalar/
+  struct function contract. Consequently an otherwise-supported array cannot cross
+  an internal call boundary, even though checked IR already carries exact logical
+  array element/count metadata and LLVM already emits exact local aggregate storage.
+- Specification basis: the ownership design says tuples/arrays of Copy components are
+  Copy and are copied when passed to functions; a type is Copy when every component is
+  Copy. The formal language specification requires argument types to match parameter
+  types and return expressions to unify with declared result types. This task applies
+  those existing rules only to the compiler's already-executable flat fixed-array
+  value universe; it does not define new element, mutation, nesting, ownership, or
+  external ABI semantics.
+- Hypothesis: exact internal by-value function transport can be added without a stable
+  ABI claim if one shared signature classifier retains source `Ty`, logical element,
+  exact count, and exact struct schema through semantic analysis, checked admission,
+  checked IR verification, LLVM definition/call/return generation, and native
+  execution. Aggregate LLVM loads/stores then realize the specified Copy boundary
+  while caller and callee retain independent source values.
+- Frozen admitted element class: one-level fixed arrays whose element is an existing
+  executable atomic Copy value: `int`/`i32`, `float`/`f64`, or one exact CORE-044
+  all-scalar named Copy struct. Every parser-representable count is in class, including
+  zero. `[bool; N]`, nested arrays, arrays of String, unknown/custom non-Copy structs,
+  tuples, enums, generics, references, and recursive aggregates are not members of
+  this class because they are not existing executable fixed-array values.
+- Frozen transport product: supported arrays may appear in non-`main` internal
+  function parameters and declared results; exact-type arguments may be local arrays,
+  literals, repeats, typed empty arrays, forwarded parameters, or supported call
+  results. Explicit and tail returns, direct pass-through, multiple and mixed scalar/
+  struct/array signatures, forward calls, terminating direct recursion, and the
+  existing flattened one-level direct-module route are in class. Returned or
+  parameter arrays may feed existing exact `.len()`, compile-time constant in-bounds
+  indexing/projection, and compiler-bounded iteration forms. Copy behavior must leave
+  the caller's original usable after a call and must not alias callee-local storage.
+- Exact identity and diagnostics: argument and return checks require identical logical
+  element type, count, and—where applicable—struct name and field schema. Count,
+  numeric-kind, struct-name, or schema mismatch must fail before IR. Unsupported array
+  annotations must be explicitly rejected rather than silently routed as scalars,
+  structs, or legacy `double`; `main` remains exact `i32 @main()` with no parameters.
+- Shared predicate constraint: generalize the existing Copy function contract into
+  the single authority for all admitted aggregate-bearing internal signatures. It
+  must classify aggregate candidate annotations, resolve every parameter/result to
+  one exact `CopyTypeContract`, and distinguish admitted, explicitly unsupported, and
+  preserved legacy topology. Semantic analysis, checked admission, lowering, and
+  verifier metadata consume this result; no phase may add a second array-transport
+  shape guard or reconstruct the decision from AST topology.
+- Checked IR/backend contract: `CheckedFunctionDef` may carry only scalars, exact
+  CORE-044 structs, and the frozen array class, and must contain at least one admitted
+  aggregate so legacy scalar definitions cannot spoof the checked route. Parameter
+  storage, aggregate loads/stores, call results, and returns retain exact logical
+  array type. LLVM uses internal `[N x double]` values for the existing numeric-array
+  representation and `[N x %aero.struct.Name]` for Copy-struct arrays. The verifier
+  must reject unsupported/nested elements, descriptor/count/schema conflicts,
+  aggregate/scalar crossover, wrong loads/stores/calls/returns, undefined or
+  non-dominating values, and forged checked signatures before code generation.
+- Explicit exclusions: mutation/assignment, destructive or partial moves, dynamic
+  indexing and runtime bounds checks, arrays as struct fields, Bool/string/tuple/enum/
+  reference/generic/nested arrays, process-entry arrays, closures with array
+  signatures, visibility and recursive module graphs, separate compilation, C/FFI or
+  stable source/LLVM layout/ABI, heap/Vec storage, drop/lifetimes/provenance, optimizer
+  or performance claims, accelerator execution, release eligibility, PR merge, and
+  `master` changes.
+- Tests-first acceptance: add one exhaustive focused aggregate that first proves the
+  frozen boundary red, then covers all admitted element families, zero/nonzero counts,
+  every parameter/argument/result/return origin, mixed/multiple signatures, original
+  reuse, forwarding/recursion, existing array operations on transported values,
+  exact mismatch and unsupported-topology rejection, checked-IR corruption, LLVM
+  definition/call/load/store/return markers, raw-path containment, and direct-module
+  CLI check/build. Move only the two now-obsolete array parameter/return rejection
+  cells from CORE-045; preserve all neighboring exclusions.
+- System-level/end-to-end acceptance: add one tracked multi-file example composing
+  numeric arrays, Copy-struct arrays, existing scalar/struct function transport,
+  module flattening, compile-time Strings, array length/index/projection/iteration,
+  control flow, and one exact native sentinel. Add one unconditional stable/nightly
+  Rust-CI step using checked build, pinned `opt-22`, `llc-22
+  -verify-machineinstrs`, object lowering, `clang-22` linking, native execution, and
+  that sentinel. A classifier-only, rejection-only, metadata-only, LLVM-text-only,
+  records-only, or non-executed result cannot close CORE-046.
+- Allowed files: this ledger; `src/compiler/src/struct_contract.rs`,
+  `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs`; one new
+  `src/compiler/tests/fixed_copy_array_transport_tests.rs`; exact obsolete cells in
+  `fixed_copy_struct_array_tests.rs`; checked-IR contract tests only for corruption
+  cases not expressible through source; one new tracked example directory;
+  `.github/workflows/rust.yml`; and only `README.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md` where accepted facts
+  change. No lexer/parser/AST, module resolver/cache, runtime/stdlib, optimizer,
+  dependency, target, design/ownership specification, benchmark, claim-verification,
+  release, `master`, PR merge, or history rewrite is authorized.
+- Risks and stop conditions: stop rather than invent behavior if the shared classifier
+  cannot own all phase decisions; exact logical element/count/schema cannot survive;
+  aggregate value and place identities cannot be distinguished; array parameters
+  require reference semantics or caller aliasing; return lowering needs an external
+  ABI decision; zero-length aggregate transport is rejected by pinned LLVM; existing
+  local array semantics, evaluation order, module flattening, numeric physical
+  representation, or CORE-044 struct transport would change; mutation/nesting/Bool
+  arrays become necessary; an unsupported source reaches LLVM; a third-party
+  dependency or baseline regression appears. Parser-to-native work across more than
+  two compiler phases is expected, bounded, and explicitly lead-owned; unexpected
+  semantic expansion remains a stop.
+- Status at authorization: the only CORE-046 mutation is this single authorization
+  record on the clean accepted CORE-045 records head. No CORE-046 test, production
+  behavior, example, workflow anchor, capability claim, commit, or public artifact
+  exists. The next allowed mutation is the one exhaustive failing aggregate, followed
+  by proof that the frozen product is red before production changes.
+- Tests-first red evidence: the new focused integration target builds and executes but
+  fails 0/1 before any production, example, workflow, or capability-document change.
+  Supported numeric and Copy-struct array parameters/results stop at the admitted-
+  scalar boundary; call results lose array type and therefore cannot be indexed;
+  exact count/kind/schema mismatch diagnostics cannot yet be produced; no checked
+  array signature metadata or aggregate LLVM definition/call/load/store/return exists.
+  Direct-module `check` and `build` fail, the requested artifact is absent, and the
+  tracked example plus unique stable-CI anchors do not exist. Unsupported Bool,
+  nested, String, and process-entry array signatures remain rejected, but only by the
+  old generic scalar diagnostics. No compiler source, generated output, public branch,
+  PR, or claim changed.
+- Scaling disposition: this is a hard ownership/internal-ABI integration slice, not a
+  convenient compile-time leaf. It uses one normalized classifier to arrest
+  topology-specific guard multiplication, requires a composed system-level native
+  gate, and keeps evidence in this single task record. The mega-PR remains draft and
+  requires a separately authorized controlled checkpoint strategy before merge;
+  structured evidence-manifest generation remains separate and must not become a new
+  semantic source of truth.
+- Local implementation result: the generalized Copy-function contract now resolves
+  scalars, exact Copy structs, and the frozen flat fixed-array class once for both
+  semantic analysis and checked admission. Exact array signatures, parameter places,
+  aggregate loads/stores, calls, results, explicit/tail returns, and struct schemas
+  survive checked IR verification. Checked LLVM emits internal `[N x double]` or
+  `[N x %aero.struct.Name]` aggregates. Unsupported Bool, String, nested, unknown,
+  non-Copy, and process-entry array signatures stop before IR with explicit
+  disposition; no stable ABI or broader array class is implied.
+- Files changed: `src/compiler/src/struct_contract.rs`, `semantic_analyzer.rs`,
+  `ir_generator.rs`, `ir_verifier.rs`, and `code_generator.rs`; checked-IR corruption
+  tests; the new exhaustive `fixed_copy_array_transport_tests.rs`; exactly two
+  obsolete CORE-045 rejection cells; the exact tracked
+  `examples/fixed_copy_array_transport/` pair; the Rust workflow; this record; and
+  the four authorized capability/state documents. `ir.rs` required no change because
+  existing exact logical types and aggregate load/store instructions were sufficient.
+- Commands and local evidence: the shared classifier, checked raw-IR positive and
+  corruption control, exhaustive CORE-046 aggregate, checked-admission suite,
+  CORE-045 array, numeric-array-length, and CORE-044 transport suites all pass. The
+  checked CLI resolves and builds the tracked direct module into 11,115 bytes of LLVM
+  containing exact numeric, zero-length, and named Copy-struct array aggregate
+  definitions/calls/loads/stores/returns. Root `./tools/test.sh` passes 155/155 library
+  tests, 161/161 CLI tests, every active integration target, formatting, correctness
+  Clippy, and doc tests. `git diff --check` passes.
+- Remaining uncertainty and regression risk: this Windows host has no LLVM 22 verifier,
+  so the generated program remains accurately `InternalOnly`. Public stable Linux
+  must still externally verify LLVM, machine-verify, object-lower, link, and execute
+  exact exit 91. Aggregate calling convention validity, especially zero-length array
+  transport, is therefore the principal pending risk; the public checks must also
+  prove no platform or workflow regression.
+- Local candidate status and recommended next action: CORE-046 is locally green but
+  not accepted, committed, or public. Review the exact authorized diff, commit and
+  push one intentional candidate, immediately synchronize draft PR #4 through
+  CORE-046, require all eight checks, and inspect the pinned stable native job. Do not
+  merge, claim acceptance, or begin another slice while public evidence is pending.

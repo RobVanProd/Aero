@@ -673,21 +673,19 @@ impl SemanticAnalyzer {
             }) = node
             {
                 let admitted_contract = if type_params.is_empty() {
-                    let struct_copy_contract = match self
-                        .struct_registry
-                        .resolve_copy_function_contract(
-                            name,
-                            parameters,
-                            return_type.as_ref(),
-                            type_params,
-                        ) {
+                    let copy_contract = match self.struct_registry.resolve_copy_function_contract(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                    ) {
                         Ok(contract) => contract,
                         Err(
                             crate::struct_contract::StructContractError::PreserveExistingBehavior,
                         ) => None,
                         Err(error) => return Err(error.diagnostic()),
                     };
-                    if let Some(contract) = struct_copy_contract {
+                    if let Some(contract) = copy_contract {
                         Some(AdmittedFunctionContract {
                             name: contract.name,
                             parameters: contract

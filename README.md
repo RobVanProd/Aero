@@ -184,14 +184,23 @@ aero lsp
 > multi-file example composes this with direct-module collection and passes pinned
 > LLVM/Clang 22 verification, lowering, linking, and native exit 77.
 >
+> The current CORE-046 candidate extends only the compiler's existing flat fixed
+> `int`/`float` and all-scalar Copy-struct arrays across non-`main` internal function
+> parameters and returns. Exact element identity, count, and struct schema remain in
+> shared source classification, logical checked IR, verification, and aggregate LLVM
+> definitions, calls, loads, stores, and returns. Caller values remain usable after
+> the by-value call. The full local repository gate passes; all public checks and
+> pinned native execution are still required before acceptance.
+>
 > This does not provide non-Copy or destructive move semantics, assignment, general
 > methods beyond the exact array `.len()`/`.iter()` forms,
-> destructuring, Match, nested arrays, arrays as fields or function values, dynamic
+> destructuring, Match, nested arrays, arrays as fields, dynamic
 > bounds, runtime checks, recursive aggregates, generics, visibility, separate
 > compilation, stable layout/ABI/FFI, general ownership/drop/lifetimes, heap storage,
-> accelerator execution, or performance guarantees. LLVM owns internal padding and
-> alignment. `main` retains exact `i32 @main()`, and other method calls remain a distinct
-> AST form.
+> accelerator execution, or performance guarantees. Bool, String, non-Copy, nested,
+> and otherwise unsupported arrays do not gain function transport. LLVM owns internal
+> padding and alignment. `main` retains exact `i32 @main()`, and other method calls
+> remain a distinct AST form.
 
 > **Pattern matching status:** `match` syntax, arms, and patterns are recognized,
 > but Match value evaluation is not executable yet. Trusted parsed source bodies,

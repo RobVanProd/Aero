@@ -152,8 +152,13 @@ pub(crate) enum StructContractError {
     UnsupportedFunctionParameter {
         parameter_name: String,
     },
+    UnsupportedFunctionArrayParameter {
+        parameter_name: String,
+    },
     UnsupportedFunctionReturn,
+    UnsupportedFunctionArrayReturn,
     ProcessEntryStructTransport,
+    ProcessEntryArrayTransport,
     CopyStructArrayElementMismatch {
         expected: String,
         actual: String,
@@ -189,12 +194,21 @@ impl StructContractError {
             Self::UnsupportedFunctionParameter { parameter_name } => format!(
                 "function parameter `{parameter_name}` is not an admitted scalar or Copy-struct type"
             ),
+            Self::UnsupportedFunctionArrayParameter { parameter_name } => format!(
+                "function parameter `{parameter_name}` uses an unsupported fixed-array element type"
+            ),
             Self::UnsupportedFunctionReturn => {
                 "function return type is not an admitted scalar, Copy-struct, or Void type"
                     .to_string()
             }
+            Self::UnsupportedFunctionArrayReturn => {
+                "function return uses an unsupported fixed-array element type".to_string()
+            }
             Self::ProcessEntryStructTransport => {
                 "process entry `main` cannot use struct parameters or returns".to_string()
+            }
+            Self::ProcessEntryArrayTransport => {
+                "process entry `main` cannot use aggregate parameters or returns".to_string()
             }
             Self::CopyStructArrayElementMismatch { expected, actual } => format!(
                 "fixed Copy-struct arrays require one exact element type: expected {expected}, actual {actual}"
@@ -500,15 +514,23 @@ impl StructRegistry {
         return_type: Option<&Type>,
         type_params: &[String],
     ) -> Result<Option<CopyFunctionContract>, StructContractError> {
-        let mentions_supported_struct = parameters
+        let mentions_aggregate_candidate = parameters
             .iter()
-            .any(|parameter| self.annotation_is_copy_struct(&parameter.param_type))
-            || return_type.is_some_and(|result| self.annotation_is_copy_struct(result));
-        if !mentions_supported_struct {
+            .any(|parameter| self.annotation_is_aggregate_candidate(&parameter.param_type))
+            || return_type.is_some_and(|result| self.annotation_is_aggregate_candidate(result));
+        if !mentions_aggregate_candidate {
             return Ok(None);
         }
         if name == "main" {
-            return Err(StructContractError::ProcessEntryStructTransport);
+            let mentions_array = parameters
+                .iter()
+                .any(|parameter| matches!(parameter.param_type, Type::Array(_, _)))
+                || return_type.is_some_and(|result| matches!(result, Type::Array(_, _)));
+            return Err(if mentions_array {
+                StructContractError::ProcessEntryArrayTransport
+            } else {
+                StructContractError::ProcessEntryStructTransport
+            });
         }
         if !type_params.is_empty() || !admitted_symbol(name) {
             return Err(StructContractError::PreserveExistingBehavior);
@@ -522,17 +544,27 @@ impl StructRegistry {
                 return Err(StructContractError::PreserveExistingBehavior);
             }
             let Some(contract) = self.resolve_copy_annotation(&parameter.param_type) else {
-                return Err(StructContractError::UnsupportedFunctionParameter {
-                    parameter_name: parameter.name.clone(),
+                return Err(if matches!(parameter.param_type, Type::Array(_, _)) {
+                    StructContractError::UnsupportedFunctionArrayParameter {
+                        parameter_name: parameter.name.clone(),
+                    }
+                } else {
+                    StructContractError::UnsupportedFunctionParameter {
+                        parameter_name: parameter.name.clone(),
+                    }
                 });
             };
             resolved_parameters.push((parameter.name.clone(), contract));
         }
 
         let result = match return_type {
-            Some(result) => self
-                .resolve_copy_annotation(result)
-                .ok_or(StructContractError::UnsupportedFunctionReturn)?,
+            Some(result) => self.resolve_copy_annotation(result).ok_or_else(|| {
+                if matches!(result, Type::Array(_, _)) {
+                    StructContractError::UnsupportedFunctionArrayReturn
+                } else {
+                    StructContractError::UnsupportedFunctionReturn
+                }
+            })?,
             None => CopyTypeContract {
                 ty: Ty::Void,
                 logical_type: LogicalType::Void,
@@ -582,6 +614,10 @@ impl StructRegistry {
         matches!(annotation, Type::Named(name) if self.is_copy_struct_name(name))
     }
 
+    fn annotation_is_aggregate_candidate(&self, annotation: &Type) -> bool {
+        matches!(annotation, Type::Array(_, _)) || self.annotation_is_copy_struct(annotation)
+    }
+
     fn resolve_copy_annotation(&self, annotation: &Type) -> Option<CopyTypeContract> {
         match annotation {
             Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Some(CopyTypeContract {
@@ -607,6 +643,41 @@ impl StructRegistry {
                 Some(CopyTypeContract {
                     ty: Ty::Struct(name.clone()),
                     logical_type: contract.logical_type(),
+                })
+            }
+            Type::Array(element, count) => {
+                let element = match element.as_ref() {
+                    Type::Named(name) if matches!(name.as_str(), "int" | "i32") => {
+                        CopyTypeContract {
+                            ty: Ty::Int,
+                            logical_type: LogicalType::Int,
+                        }
+                    }
+                    Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
+                        CopyTypeContract {
+                            ty: Ty::Float,
+                            logical_type: LogicalType::Float,
+                        }
+                    }
+                    Type::Named(name) => {
+                        let Some(StructDefinitionDisposition::Supported(contract)) =
+                            self.definitions.get(name)
+                        else {
+                            return None;
+                        };
+                        CopyTypeContract {
+                            ty: Ty::Struct(name.clone()),
+                            logical_type: contract.logical_type(),
+                        }
+                    }
+                    _ => return None,
+                };
+                Some(CopyTypeContract {
+                    ty: Ty::Array(Box::new(element.ty), *count),
+                    logical_type: LogicalType::Array {
+                        element: Box::new(element.logical_type),
+                        count: *count,
+                    },
                 })
             }
             _ => None,
@@ -896,7 +967,7 @@ mod tests {
     }
 
     #[test]
-    fn copy_function_classifier_closes_scalar_struct_signature_product() {
+    fn copy_function_classifier_closes_scalar_struct_and_flat_array_signature_product() {
         let registry = StructRegistry::from_top_level_ast(&[
             definition(
                 "Packet",
@@ -992,6 +1063,84 @@ mod tests {
                 )
                 .expect("scalar signature preserves existing classifier"),
             None
+        );
+
+        let array_parameters = vec![
+            crate::ast::Parameter {
+                name: "integers".to_string(),
+                param_type: Type::Array(Box::new(Type::Named("i32".to_string())), 0),
+            },
+            crate::ast::Parameter {
+                name: "floats".to_string(),
+                param_type: Type::Array(Box::new(Type::Named("float".to_string())), 2),
+            },
+            crate::ast::Parameter {
+                name: "packets".to_string(),
+                param_type: Type::Array(Box::new(Type::Named("Packet".to_string())), 3),
+            },
+        ];
+        let array_contract = registry
+            .resolve_copy_function_contract(
+                "array_transport",
+                &array_parameters,
+                Some(&Type::Array(Box::new(Type::Named("Packet".to_string())), 3)),
+                &[],
+            )
+            .expect("flat existing array signature is classifiable")
+            .expect("array signature activates the shared aggregate classifier");
+        assert_eq!(
+            array_contract.parameters[0].1.ty,
+            Ty::Array(Box::new(Ty::Int), 0)
+        );
+        assert_eq!(
+            array_contract.parameters[1].1.logical_type,
+            LogicalType::Array {
+                element: Box::new(LogicalType::Float),
+                count: 2,
+            }
+        );
+        assert_eq!(
+            array_contract.result.logical_type,
+            LogicalType::Array {
+                element: Box::new(LogicalType::Struct {
+                    name: "Packet".to_string(),
+                    fields: vec![LogicalType::Int, LogicalType::Bool],
+                }),
+                count: 3,
+            }
+        );
+
+        for unsupported in [
+            Type::Array(Box::new(Type::Named("bool".to_string())), 1),
+            Type::Array(Box::new(Type::Named("String".to_string())), 1),
+            Type::Array(
+                Box::new(Type::Array(Box::new(Type::Named("int".to_string())), 1)),
+                1,
+            ),
+        ] {
+            assert_eq!(
+                registry.resolve_copy_function_contract(
+                    "unsupported_array",
+                    &[crate::ast::Parameter {
+                        name: "values".to_string(),
+                        param_type: unsupported,
+                    }],
+                    Some(&Type::Named("int".to_string())),
+                    &[],
+                ),
+                Err(StructContractError::UnsupportedFunctionArrayParameter {
+                    parameter_name: "values".to_string(),
+                })
+            );
+        }
+        assert_eq!(
+            registry.resolve_copy_function_contract(
+                "main",
+                &array_parameters[..1],
+                Some(&Type::Named("int".to_string())),
+                &[],
+            ),
+            Err(StructContractError::ProcessEntryArrayTransport)
         );
     }
 

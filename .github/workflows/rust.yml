@@ -323,6 +323,24 @@ jobs:
         fi
         echo "fixed Copy-struct array example passed with exit code 77"
 
+    - name: Test fixed Copy-array transport integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/fixed_copy_array_transport/main.aero -o ../../fixed_copy_array_transport.ll
+        opt-22 -passes=verify -disable-output ../../fixed_copy_array_transport.ll
+        llc-22 -verify-machineinstrs ../../fixed_copy_array_transport.ll -o /dev/null
+        llc-22 -filetype=obj ../../fixed_copy_array_transport.ll -o ../../fixed_copy_array_transport.o
+        clang-22 ../../fixed_copy_array_transport.o -o ../../fixed_copy_array_transport
+        set +e
+        ../../fixed_copy_array_transport
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 91 ]; then
+          echo "Expected exit code 91, got $exit_code"
+          exit 1
+        fi
+        echo "fixed Copy-array transport example passed with exit code 91"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

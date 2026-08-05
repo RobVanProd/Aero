@@ -313,16 +313,6 @@ fn fixed_copy_struct_array_class_is_complete_and_executable() {
             "array index type mismatch",
         ),
         (
-            "array function parameter remains excluded",
-            "struct Value { field: int } fn inspect(values: [Value; 1]) -> int { return 0; } fn main() -> int { return 0; }",
-            "function parameter `values` is not an admitted scalar type",
-        ),
-        (
-            "array function return remains excluded",
-            "struct Value { field: int } fn make() -> [Value; 1] { return [Value { field: 1 }]; } fn main() -> int { return 0; }",
-            "function return type is not an admitted scalar or Void type",
-        ),
-        (
             "String-bearing struct remains excluded",
             "struct Value { field: String } fn main() { let values = [Value { field: \"x\" }]; }",
             "Struct construction expressions are not supported.",

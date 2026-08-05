@@ -319,8 +319,59 @@ fn invalid_ir_cases() -> Vec<InvalidIrCase> {
             ),
         },
         InvalidIrCase {
+            name: "checked function signature rejects a Bool array parameter",
+            expected_fragments: &["unsupported", "checked", "function", "parameter", "Bool"],
+            ir: program_with_checked_definition(
+                "identity",
+                vec![(
+                    "values".to_string(),
+                    LogicalType::Array {
+                        element: Box::new(LogicalType::Bool),
+                        count: 1,
+                    },
+                )],
+                LogicalType::Int,
+                vec![Inst::Return(Value::ImmInt(0))],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked function signature rejects a nested array result",
+            expected_fragments: &["unsupported", "checked", "function", "return", "Array"],
+            ir: program_with_checked_definition(
+                "identity",
+                Vec::new(),
+                LogicalType::Array {
+                    element: Box::new(LogicalType::Array {
+                        element: Box::new(LogicalType::Int),
+                        count: 1,
+                    }),
+                    count: 1,
+                },
+                vec![Inst::Return(Value::ImmInt(0))],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked function signature rejects a String array parameter",
+            expected_fragments: &["unsupported", "checked", "function", "parameter", "String"],
+            ir: program_with_checked_definition(
+                "identity",
+                vec![(
+                    "values".to_string(),
+                    LogicalType::Array {
+                        element: Box::new(LogicalType::String),
+                        count: 1,
+                    },
+                )],
+                LogicalType::Int,
+                vec![Inst::Return(Value::ImmInt(0))],
+                vec![Inst::Return(Value::ImmInt(0))],
+            ),
+        },
+        InvalidIrCase {
             name: "checked function definition cannot replace a scalar-only legacy signature",
-            expected_fragments: &["metadata", "checked", "function", "struct", "signature"],
+            expected_fragments: &["metadata", "checked", "function", "aggregate", "signature"],
             ir: program_with_checked_definition(
                 "identity",
                 vec![("value".to_string(), LogicalType::Int)],
@@ -1296,6 +1347,135 @@ fn checked_struct_instructions_verify_schema_field_identity_and_scalar_storage()
                     },
                     Inst::Return(Value::ImmInt(0)),
                 ],
+            ),
+        },
+    ];
+    for case in invalid {
+        assert_both_checked_codegen_entrypoints_reject(case);
+    }
+}
+
+#[test]
+fn checked_flat_copy_array_function_transport_verifies_value_place_and_count_identity() {
+    let array_two = LogicalType::Array {
+        element: Box::new(LogicalType::Int),
+        count: 2,
+    };
+    let admitted = program_with_checked_definition(
+        "identity",
+        vec![("values".to_string(), array_two.clone())],
+        array_two.clone(),
+        vec![
+            Inst::Alloca(Value::Reg(0), "values".to_string()),
+            Inst::Load(Value::Reg(1), Value::Reg(0)),
+            Inst::Return(Value::Reg(1)),
+        ],
+        vec![
+            Inst::AllocaArray {
+                result: Value::Reg(0),
+                elem_type: "double".to_string(),
+                count: 2,
+            },
+            Inst::GetElementPtr {
+                result: Value::Reg(1),
+                base: Value::Reg(0),
+                index: Value::ImmInt(0),
+                elem_type: "[2 x double]".to_string(),
+            },
+            Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+            Inst::GetElementPtr {
+                result: Value::Reg(2),
+                base: Value::Reg(0),
+                index: Value::ImmInt(1),
+                elem_type: "[2 x double]".to_string(),
+            },
+            Inst::Store(Value::Reg(2), Value::ImmInt(8)),
+            Inst::Load(Value::Reg(3), Value::Reg(0)),
+            Inst::Call {
+                function: "identity".to_string(),
+                arguments: vec![Value::Reg(3)],
+                result: Some(Value::Reg(4)),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ],
+    );
+    let llvm = try_generate_code(admitted).expect("checked flat Copy-array transport must verify");
+    for anchor in [
+        "define [2 x double] @identity([2 x double] %aero.arg.values)",
+        "load [2 x double], [2 x double]*",
+        "call [2 x double] @identity([2 x double]",
+        "ret [2 x double]",
+    ] {
+        assert!(llvm.contains(anchor), "missing `{anchor}`:\n{llvm}");
+    }
+
+    let invalid = [
+        InvalidIrCase {
+            name: "checked array call rejects count mismatch",
+            expected_fragments: &[
+                "type",
+                "mismatch",
+                "argument",
+                "Array<Int; 2>",
+                "Array<Int; 1>",
+            ],
+            ir: program_with_checked_definition(
+                "identity",
+                vec![("values".to_string(), array_two.clone())],
+                array_two.clone(),
+                vec![
+                    Inst::Alloca(Value::Reg(0), "values".to_string()),
+                    Inst::Load(Value::Reg(1), Value::Reg(0)),
+                    Inst::Return(Value::Reg(1)),
+                ],
+                vec![
+                    Inst::AllocaArray {
+                        result: Value::Reg(0),
+                        elem_type: "double".to_string(),
+                        count: 1,
+                    },
+                    Inst::GetElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        elem_type: "[1 x double]".to_string(),
+                    },
+                    Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+                    Inst::Load(Value::Reg(2), Value::Reg(0)),
+                    Inst::Call {
+                        function: "identity".to_string(),
+                        arguments: vec![Value::Reg(2)],
+                        result: Some(Value::Reg(3)),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked array return rejects count mismatch",
+            expected_fragments: &[
+                "type",
+                "mismatch",
+                "return",
+                "Array<Int; 2>",
+                "Array<Int; 1>",
+            ],
+            ir: program_with_checked_definition(
+                "identity",
+                vec![(
+                    "values".to_string(),
+                    LogicalType::Array {
+                        element: Box::new(LogicalType::Int),
+                        count: 1,
+                    },
+                )],
+                array_two,
+                vec![
+                    Inst::Alloca(Value::Reg(0), "values".to_string()),
+                    Inst::Load(Value::Reg(1), Value::Reg(0)),
+                    Inst::Return(Value::Reg(1)),
+                ],
+                vec![Inst::Return(Value::ImmInt(0))],
             ),
         },
     ];

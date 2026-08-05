@@ -1012,3 +1012,29 @@ declared compatibility policy and release-level coverage.
   specific row and broader Fixed arrays/struct rows remain `PARTIAL`; no stable ABI/layout,
   dynamic bounds, mutation, array function transport, non-Copy ownership, runtime,
   accelerator, release, or performance claim moves.
+
+## CORE-046 candidate internal fixed Copy-array transport evidence
+
+- The uncommitted local CORE-046 candidate admits only flat fixed arrays already
+  executable before this task: `int`/`i32`, `float`/`f64`, or one exact CORE-044
+  all-scalar Copy struct. Non-`main` internal parameters, arguments, call results,
+  explicit/tail returns, forwarding, mixed signatures, terminating direct recursion,
+  zero-length arrays, direct modules, and existing length/index/projection/iteration
+  operations retain exact element identity, count, and struct schema. Caller values
+  remain usable after the by-value call.
+- The generalized Copy-function contract is the shared source authority for supported,
+  explicitly rejected, and preserved signature topology. Exact logical arrays survive
+  checked signatures, parameter places, aggregate loads/stores, calls, and returns;
+  verifier corruption controls reject unsupported/nested elements and mismatched
+  count/schema/value-place identities. Checked LLVM uses internal `[N x double]` and
+  `[N x %aero.struct.Name]` aggregates without a stable ABI claim.
+- The exhaustive focused aggregate and adjacent containment suites pass locally. Root
+  `./tools/test.sh` passes 155/155 library and 161/161 CLI tests plus every active
+  integration, formatting, correctness Clippy, and doc gate. The authorized
+  multi-file example checked-builds into exact typed aggregate LLVM, and its pinned
+  stable-CI step is present. Committed identity, all public checks, and external
+  LLVM/machine/native evidence remain pending, so this row is
+  `PARTIAL`/`InternalOnly`, not accepted.
+  Bool/String/non-Copy/nested arrays, arrays as fields, mutation, dynamic bounds,
+  process-entry arrays, separate compilation, ABI/FFI, accelerators, performance,
+  release, and stability claims remain excluded.

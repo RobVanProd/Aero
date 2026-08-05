@@ -454,53 +454,65 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
         "generic function IR is not admitted in CORE-010",
         "generic signature remains ineligible",
     );
-    for (label, parameter_type) in [
-        (
-            "composite signature remains ineligible",
-            Type::Array(Box::new(named("int")), 1),
-        ),
-        (
-            "reference signature remains ineligible",
-            Type::Reference(Box::new(named("int")), false),
-        ),
-    ] {
-        assert_admission(
-            vec![
-                main_function(vec![Statement::Expression(call("ineligible", Vec::new()))]),
-                int_function("ineligible", vec![parameter("value", parameter_type)]),
-            ],
-            "function parameter `value` is not an admitted scalar type",
-            label,
-        );
-    }
-    for (label, return_type) in [
-        (
-            "composite result remains ineligible",
-            Type::Array(Box::new(named("int")), 1),
-        ),
-        (
-            "reference result remains ineligible",
-            Type::Reference(Box::new(named("int")), false),
-        ),
-    ] {
-        assert_admission(
-            vec![
-                main_function(vec![Statement::Expression(call(
-                    "ineligible_result",
-                    vec![Expression::IntegerLiteral(1)],
-                ))]),
-                function(
-                    "ineligible_result",
-                    Vec::new(),
-                    Some(return_type),
-                    Vec::new(),
-                    vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
-                ),
-            ],
-            "function return type is not an admitted scalar or Void type",
-            label,
-        );
-    }
+    assert_admission(
+        vec![
+            main_function(vec![Statement::Expression(call("ineligible", Vec::new()))]),
+            int_function(
+                "ineligible",
+                vec![parameter("value", Type::Array(Box::new(named("int")), 1))],
+            ),
+        ],
+        "call to `ineligible` has 0 arguments but its signature requires 1",
+        "fixed numeric array signature now participates in exact arity admission",
+    );
+    assert_admission(
+        vec![
+            main_function(vec![Statement::Expression(call("ineligible", Vec::new()))]),
+            int_function(
+                "ineligible",
+                vec![parameter(
+                    "value",
+                    Type::Reference(Box::new(named("int")), false),
+                )],
+            ),
+        ],
+        "function parameter `value` is not an admitted scalar type",
+        "reference signature remains ineligible",
+    );
+    assert_admission(
+        vec![
+            main_function(vec![Statement::Expression(call(
+                "ineligible_result",
+                vec![Expression::IntegerLiteral(1)],
+            ))]),
+            function(
+                "ineligible_result",
+                Vec::new(),
+                Some(Type::Array(Box::new(named("int")), 1)),
+                Vec::new(),
+                vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
+            ),
+        ],
+        "call to `ineligible_result` has 1 arguments but its signature requires 0",
+        "fixed numeric array result now participates in exact arity admission",
+    );
+    assert_admission(
+        vec![
+            main_function(vec![Statement::Expression(call(
+                "ineligible_result",
+                vec![Expression::IntegerLiteral(1)],
+            ))]),
+            function(
+                "ineligible_result",
+                Vec::new(),
+                Some(Type::Reference(Box::new(named("int")), false)),
+                Vec::new(),
+                vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
+            ),
+        ],
+        "function return type is not an admitted scalar or Void type",
+        "reference result remains ineligible",
+    );
 
     let wrong_arity = [
         (
