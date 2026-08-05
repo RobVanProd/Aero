@@ -328,9 +328,9 @@ fn fixed_copy_struct_array_class_is_complete_and_executable() {
             "Struct construction expressions are not supported.",
         ),
         (
-            "closure context remains excluded",
+            "closure context fails closed before aggregate classification",
             "struct Value { field: int } fn main() { let make = |ignored: int| [Value { field: ignored }]; }",
-            "Struct construction expressions are not supported.",
+            "closure expressions are parsed but unsupported in executable code",
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, expected) {

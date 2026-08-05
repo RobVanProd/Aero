@@ -248,9 +248,9 @@ fn static_string_character_len_class_is_complete_and_ci_executable() {
             EXISTING_METHOD_REJECTION,
         ),
         (
-            "closure boundary",
+            "closure boundary fails closed before string length classification",
             "fn main() { let probe = |ignored: int| \"a\".len(); let observed = probe(0); }",
-            "array construction, iteration, and indexing are not admitted in closure bodies",
+            "Error: closure expressions are parsed but unsupported in executable code at 1:25.",
         ),
         (
             "receiver child precedes classification",

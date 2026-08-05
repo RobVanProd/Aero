@@ -3,6 +3,7 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, BindingContractKind, classify_binding_annotation,
     is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
+use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::copy_place_contract::{
     CopyPlaceDisposition, CopyPlaceExecutionContext, classify_copy_place_type,
 };
@@ -114,7 +115,6 @@ pub struct IrGenerator {
     enum_function_contracts: HashMap<String, EnumFunctionContract>,
     reference_function_contracts: HashMap<String, ReferenceFunctionContract>,
     loop_label_stack: Vec<(String, String)>, // Stack of (loop_start, loop_end) labels
-    closure_count: u32,                      // Counter for unique closure names
     checked_mode: bool,
     checked_place_hints: PlaceTypeHints,
     struct_registry: StructRegistry,
@@ -135,7 +135,6 @@ impl IrGenerator {
             enum_function_contracts: HashMap::new(),
             reference_function_contracts: HashMap::new(),
             loop_label_stack: Vec::new(),
-            closure_count: 0,
             checked_mode: false,
             checked_place_hints: BTreeMap::new(),
             struct_registry: StructRegistry::default(),
@@ -169,7 +168,6 @@ impl IrGenerator {
         self.enum_function_contracts.clear();
         self.reference_function_contracts.clear();
         self.loop_label_stack.clear();
-        self.closure_count = 0;
         self.checked_place_hints.clear();
         self.checked_mode = true;
         let mut functions = self.generate_ir(ast);
@@ -1722,56 +1720,8 @@ impl IrGenerator {
                     _ => Err(admission_error("indexing requires an admitted fixed array")),
                 }
             }
-            Expression::Closure { params, body } => {
-                if expression_use != ExpressionUse::Binding {
-                    return Err(admission_error(
-                        "closures are admitted only as compile-time callable bindings",
-                    ));
-                }
-                if Self::closure_body_needs_aggregate_lowering(body) {
-                    return Err(admission_error(
-                        "array construction, iteration, and indexing are not admitted in closure bodies",
-                    ));
-                }
-                let mut closure_bindings = HashMap::new();
-                let mut parameter_types = Vec::new();
-                for parameter in params {
-                    let parameter_ty = Self::admission_type(&parameter.param_type);
-                    if !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool) {
-                        return Err(admission_error(
-                            "closure parameters must be admitted scalar types",
-                        ));
-                    }
-                    parameter_types.push(parameter_ty.clone());
-                    closure_bindings.insert(
-                        parameter.name.clone(),
-                        AdmissionBinding {
-                            ty: parameter_ty,
-                            mutable: false,
-                            initialized: true,
-                            ownership: OwnershipState::Owned,
-                            callable: false,
-                            static_string: None,
-                        },
-                    );
-                }
-                let result_ty = Self::validate_expression(
-                    body,
-                    &closure_bindings,
-                    program,
-                    ExpressionUse::Value,
-                    inside_impl,
-                    false,
-                )?;
-                if !matches!(result_ty, Ty::Int | Ty::Float | Ty::Bool) {
-                    return Err(admission_error(
-                        "closure results must be admitted scalar types",
-                    ));
-                }
-                Ok(Ty::Fn(Self::encode_callable_signature(
-                    &parameter_types,
-                    &result_ty,
-                )))
+            Expression::Closure { location, .. } => {
+                Err(admission_error(&unsupported_closure_diagnostic(location)))
             }
             Expression::EnumVariant {
                 enum_name,
@@ -2066,55 +2016,6 @@ impl IrGenerator {
         }
     }
 
-    fn closure_body_needs_aggregate_lowering(expression: &Expression) -> bool {
-        match expression {
-            Expression::ArrayLiteral(_)
-            | Expression::ArrayRepeat { .. }
-            | Expression::IndexAccess { .. }
-            | Expression::MethodCall { .. } => true,
-            Expression::Binary { left, right, .. }
-            | Expression::Comparison { left, right, .. }
-            | Expression::Logical { left, right, .. } => {
-                Self::closure_body_needs_aggregate_lowering(left)
-                    || Self::closure_body_needs_aggregate_lowering(right)
-            }
-            Expression::FunctionCall { arguments, .. }
-            | Expression::Print { arguments, .. }
-            | Expression::Println { arguments, .. }
-            | Expression::TupleLiteral(arguments) => arguments
-                .iter()
-                .any(Self::closure_body_needs_aggregate_lowering),
-            Expression::Unary { operand, .. }
-            | Expression::FieldAccess {
-                object: operand, ..
-            }
-            | Expression::TupleIndex {
-                object: operand, ..
-            }
-            | Expression::Borrow { expr: operand, .. }
-            | Expression::Deref(operand)
-            | Expression::Closure { body: operand, .. } => {
-                Self::closure_body_needs_aggregate_lowering(operand)
-            }
-            Expression::StructLiteral { fields, .. } => fields
-                .iter()
-                .any(|(_, value)| Self::closure_body_needs_aggregate_lowering(value)),
-            Expression::EnumVariant { data, .. } => data
-                .as_deref()
-                .is_some_and(Self::closure_body_needs_aggregate_lowering),
-            Expression::Match { expr, arms } => {
-                Self::closure_body_needs_aggregate_lowering(expr)
-                    || arms
-                        .iter()
-                        .any(|arm| Self::closure_body_needs_aggregate_lowering(&arm.body))
-            }
-            Expression::IntegerLiteral(_)
-            | Expression::FloatLiteral(_)
-            | Expression::StringLiteral(_)
-            | Expression::Identifier(_) => false,
-        }
-    }
-
     fn static_string_value(
         expression: &Expression,
         bindings: &HashMap<String, AdmissionBinding>,
@@ -2171,24 +2072,6 @@ impl IrGenerator {
             }
             _ => None,
         }
-    }
-
-    fn encode_callable_signature(parameters: &[Ty], result: &Ty) -> String {
-        let type_name = |ty: &Ty| match ty {
-            Ty::Int => "int",
-            Ty::Float => "float",
-            Ty::Bool => "bool",
-            _ => "unsupported",
-        };
-        format!(
-            "({})->{}",
-            parameters
-                .iter()
-                .map(type_name)
-                .collect::<Vec<_>>()
-                .join(","),
-            type_name(result)
-        )
     }
 
     fn callable_result_type(signature: &str) -> Result<Ty, IrGenerationError> {
@@ -3886,7 +3769,7 @@ impl IrGenerator {
                 // Stub: these will be implemented as remaining Phase 4/5 tasks progress
                 (Value::ImmInt(0), Ty::Int)
             }
-            Expression::Closure { params, body } => self.lower_closure_expression(params, *body),
+            Expression::Closure { .. } => Self::quarantine_closure_expression(),
         }
     }
 
@@ -4378,7 +4261,7 @@ impl IrGenerator {
             | Expression::Match { .. }
             | Expression::Borrow { .. }
             | Expression::Deref(_) => (Value::ImmInt(0), Ty::Int),
-            Expression::Closure { params, body } => self.lower_closure_expression(params, *body),
+            Expression::Closure { .. } => Self::quarantine_closure_expression(),
         }
     }
 
@@ -4944,87 +4827,10 @@ impl IrGenerator {
         name.to_string()
     }
 
-    fn lower_closure_expression(
-        &mut self,
-        params: Vec<crate::ast::Parameter>,
-        body: Expression,
-    ) -> (Value, Ty) {
-        let (closure_id, closure_name) = loop {
-            let closure_id = self.closure_count;
-            let candidate = format!("__closure_{closure_id}");
-            self.closure_count += 1;
-            if !self.function_return_types.contains_key(&candidate)
-                && !self.functions.contains_key(&candidate)
-            {
-                break (i64::from(closure_id), candidate);
-            }
-        };
-
-        let ir_params: Vec<(String, String)> = params
-            .iter()
-            .map(|p| {
-                let ty_str = match &p.param_type {
-                    Type::Named(n) => match n.as_str() {
-                        "i32" | "int" => "i32".to_string(),
-                        "f64" | "float" => "double".to_string(),
-                        "bool" => "i1".to_string(),
-                        _ => "i32".to_string(),
-                    },
-                    _ => "i32".to_string(),
-                };
-                (p.name.clone(), ty_str)
-            })
-            .collect();
-
-        // Closures currently do not capture outer variables; compile them as plain
-        // standalone functions with their own symbol table/register space.
-        let saved_symbol_table = self.symbol_table.clone();
-        let saved_next_reg = self.next_reg;
-        let saved_next_ptr = self.next_ptr;
-
-        self.symbol_table.clear();
-        self.next_reg = 0;
-        self.next_ptr = 0;
-
-        let mut closure_body = Vec::new();
-        for p in &params {
-            let ptr = Value::Reg(self.next_ptr);
-            self.next_ptr += 1;
-            closure_body.push(Inst::Alloca(ptr.clone(), p.name.clone()));
-            let ty = self.ast_type_to_ty(&p.param_type);
-            self.symbol_table.insert(p.name.clone(), (ptr, ty));
-        }
-
-        let (body_val, body_ty) = self.generate_expression_ir_for_function(body, &mut closure_body);
-        closure_body.push(Inst::Return(body_val));
-
-        let return_type = match &body_ty {
-            Ty::Int => Some("i32".to_string()),
-            Ty::Float => Some("double".to_string()),
-            Ty::Bool => Some("i1".to_string()),
-            _ => Some("i32".to_string()),
-        };
-        self.function_return_types
-            .insert(closure_name.clone(), body_ty.clone());
-
-        let closure_fn = Function {
-            name: closure_name.clone(),
-            body: vec![Inst::FunctionDef {
-                name: closure_name.clone(),
-                parameters: ir_params,
-                return_type,
-                body: closure_body,
-            }],
-            next_reg: self.next_reg,
-            next_ptr: self.next_ptr,
-        };
-        self.functions.insert(closure_name.clone(), closure_fn);
-
-        self.symbol_table = saved_symbol_table;
-        self.next_reg = saved_next_reg;
-        self.next_ptr = saved_next_ptr;
-
-        (Value::ImmInt(closure_id), Ty::Fn(closure_name))
+    fn quarantine_closure_expression() -> (Value, Ty) {
+        // Deprecated unchecked generation keeps the parsed node inert. It must not
+        // synthesize a callable type, signature, environment, layout, or symbol.
+        (Value::ImmInt(0), Ty::Void)
     }
 
     // I/O and enhanced expression IR generation methods
@@ -5498,6 +5304,7 @@ impl IrGenerator {
 mod tests {
     use super::*;
     use crate::ast::{AstNode, BinaryOp, Block, Expression, Parameter, Statement, Type};
+    use crate::errors::SourceLocation;
     use crate::types::Ty;
     use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -5598,53 +5405,44 @@ mod tests {
     }
 
     #[test]
-    fn closure_call_uses_generated_function_symbol() {
+    fn unchecked_closure_is_quarantined_without_a_function_symbol() {
         let mut ir_gen = IrGenerator::new();
-        let ast = vec![
-            AstNode::Statement(Statement::Let {
-                name: "add".to_string(),
-                mutable: false,
-                type_annotation: None,
-                value: Some(Expression::Closure {
-                    params: vec![
-                        Parameter {
-                            name: "x".to_string(),
-                            param_type: Type::Named("i32".to_string()),
-                        },
-                        Parameter {
-                            name: "y".to_string(),
-                            param_type: Type::Named("i32".to_string()),
-                        },
-                    ],
-                    body: Box::new(Expression::Binary {
-                        op: BinaryOp::Add,
-                        left: Box::new(Expression::Identifier("x".to_string())),
-                        right: Box::new(Expression::Identifier("y".to_string())),
-                        ty: Some(Ty::Int),
-                    }),
+        let ast = vec![AstNode::Statement(Statement::Let {
+            name: "add".to_string(),
+            mutable: false,
+            type_annotation: None,
+            value: Some(Expression::Closure {
+                params: vec![
+                    Parameter {
+                        name: "x".to_string(),
+                        param_type: Type::Named("i32".to_string()),
+                    },
+                    Parameter {
+                        name: "y".to_string(),
+                        param_type: Type::Named("i32".to_string()),
+                    },
+                ],
+                body: Box::new(Expression::Binary {
+                    op: BinaryOp::Add,
+                    left: Box::new(Expression::Identifier("x".to_string())),
+                    right: Box::new(Expression::Identifier("y".to_string())),
+                    ty: Some(Ty::Int),
                 }),
+                location: SourceLocation::new(1, 1),
             }),
-            AstNode::Statement(Statement::Expression(Expression::FunctionCall {
-                name: "add".to_string(),
-                arguments: vec![Expression::IntegerLiteral(1), Expression::IntegerLiteral(2)],
-            })),
-        ];
+        })];
 
         let ir = ir_gen.generate_ir(ast);
         let main = &ir["main"].body;
 
+        assert!(main.iter().all(|inst| !matches!(
+            inst,
+            crate::ir::Inst::Call { function, .. } if function.starts_with("__closure_")
+        )));
         assert!(
-            main.iter()
-                .any(|inst| matches!(inst, crate::ir::Inst::Call { function, .. } if function == "__closure_0"))
-        );
-        assert!(ir.contains_key("__closure_0"));
-
-        let closure_func = &ir["__closure_0"];
-        assert!(
-            closure_func
-                .body
-                .iter()
-                .any(|inst| matches!(inst, crate::ir::Inst::FunctionDef { body, .. } if body.iter().any(|i| matches!(i, crate::ir::Inst::Return(_)))))
+            ir.keys().all(|name| !name.starts_with("__closure_")),
+            "unchecked closure lowering manufactured a closure symbol: {:?}",
+            ir.keys().collect::<Vec<_>>()
         );
     }
 

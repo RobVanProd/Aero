@@ -2498,10 +2498,10 @@ mod tests {
     fn test_typed_function_call_uses_signature_and_converts_result() {
         let mut generator = CodeGenerator::new();
 
-        let closure_like_function = Function {
-            name: "__closure_0".to_string(),
+        let typed_helper = Function {
+            name: "typed_helper".to_string(),
             body: vec![Inst::FunctionDef {
-                name: "__closure_0".to_string(),
+                name: "typed_helper".to_string(),
                 parameters: vec![
                     ("x".to_string(), "i32".to_string()),
                     ("y".to_string(), "i32".to_string()),
@@ -2524,7 +2524,7 @@ mod tests {
             name: "main".to_string(),
             body: vec![
                 Inst::Call {
-                    function: "__closure_0".to_string(),
+                    function: "typed_helper".to_string(),
                     arguments: vec![Value::ImmInt(1), Value::ImmInt(2)],
                     result: Some(Value::Reg(0)),
                 },
@@ -2535,12 +2535,12 @@ mod tests {
         };
 
         let mut functions = HashMap::new();
-        functions.insert("__closure_0".to_string(), closure_like_function);
+        functions.insert("typed_helper".to_string(), typed_helper);
         functions.insert("main".to_string(), main);
 
         let llvm_ir = generator.generate_code(functions);
 
-        assert!(llvm_ir.contains("call i32 @__closure_0(i32 1, i32 2)"));
+        assert!(llvm_ir.contains("call i32 @typed_helper(i32 1, i32 2)"));
         assert!(llvm_ir.contains("sitofp i32 %"));
     }
 

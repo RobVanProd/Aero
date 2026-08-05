@@ -25,6 +25,17 @@ open until a regression test and the applicable full gate prove closure.
 | R-016 | Stable Rust/LLVM drift breaks reproducibility | MEDIUM | MEDIUM | CI tracks floating stable/nightly and no repository toolchain pin was found | Declare supported toolchains; capture lock/environment and platform gates | OPEN |
 | R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | Accepted CORE-012 at `6780a23` guards every live function and CLI live branch before auth/I/O/transport while keeping local search and dry-run plans credential/network-free; focused/full gates, exact review, and all public CI checks pass | Preserve quarantine; later specify and adversarially test paths, payload, response, auth, overwrite, dependencies, and transport before separate re-enablement | CONTROLLED — live transport fail closed; protocol remains unimplemented |
 
+The local `CORE-061-CLOSURE` amendment adds a pending R-002/R-003 control: closure
+syntax remains parsed, but both semantic inference paths and independent checked
+admission now reject executable closure expressions with one source-located
+diagnostic. The callable lowerer and its unknown parameter/result-to-`i32` fallback are
+removed, and raw quarantine creates no closure type, layout, symbol, or LLVM function.
+The 175/175 library and 181/181 binary surfaces and amended exact root gate are green
+locally; the commit containing this record becomes the immutable candidate, while
+public workflows and the pinned system lane remain required before this control is
+publicly accepted. Captures, calls, transport, ABI, lifetime, and other positive
+closure semantics remain open.
+
 ## Priority order
 
 1. Stop silent source corruption and invented semantics at phase boundaries.

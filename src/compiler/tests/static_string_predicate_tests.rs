@@ -327,9 +327,9 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
             EXISTING_METHOD_REJECTION,
         ),
         (
-            "closure boundary remains aggregate-preflight controlled",
+            "closure boundary fails closed before predicate classification",
             "fn main() { let probe = |ignored: int| \"a\".ends_with(\"a\"); let found = probe(0); }",
-            "array construction, iteration, and indexing are not admitted in closure bodies",
+            "Error: closure expressions are parsed but unsupported in executable code at 1:25.",
         ),
         (
             "receiver child precedes classification",

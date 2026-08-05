@@ -384,9 +384,9 @@ fn main() -> int { return 0; }
             "enum match arm reuses consumed scrutinee `phase`",
         ),
         (
-            "closure transport context",
+            "closure transport context fails closed before enum transport",
             "enum Phase { Cold } fn main() -> int { let f = |value: Phase| value; 0 }",
-            "closure parameters must be admitted scalar types",
+            "closure expressions are parsed but unsupported in executable code",
         ),
         (
             "nested function transport context",

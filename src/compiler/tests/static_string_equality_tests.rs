@@ -292,19 +292,19 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
             EXISTING_COMPARISON_REJECTION,
         ),
         (
-            "closure boundary",
+            "closure boundary fails closed before equality classification",
             "fn main() { let probe = |ignored: int| \"a\" == \"a\"; let same = probe(0); }",
-            EXISTING_COMPARISON_REJECTION,
+            "Error: closure expressions are parsed but unsupported in executable code at 1:25.",
         ),
         (
-            "closure parameter diagnostic precedes equality quarantine",
+            "closure parameter topology does not activate equality semantics",
             "fn main() { let probe = |text: String| \"a\" == \"a\"; }",
-            "closure parameters must be admitted scalar types",
+            "Error: closure expressions are parsed but unsupported in executable code at 1:25.",
         ),
         (
-            "closure left child diagnostic precedes nested equality quarantine",
+            "closure parent precedes nested equality children",
             "fn main() { let probe = |ignored: int| missing + (\"a\" == \"a\"); let same = probe(0); }",
-            "checked IR has no binding for `missing`",
+            "Error: closure expressions are parsed but unsupported in executable code at 1:25.",
         ),
         (
             "left child precedes classification",
@@ -465,11 +465,20 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
         "named-function raw route",
         "fn probe() -> bool { return \"a\" == \"a\"; }",
     );
-    expect_same_raw_panic(
-        &mut failures,
-        "closure raw route",
-        "let probe = |ignored: int| \"a\" == \"a\"; return 0;",
-    );
+    match catch_unwind(AssertUnwindSafe(|| {
+        IrGenerator::new().generate_ir(parsed(
+            "let probe = |ignored: int| \"a\" == \"a\"; return 0;",
+        ))
+    })) {
+        Err(payload) => failures.push(format!(
+            "closure raw quarantine unwound: {:?}",
+            panic_text(payload)
+        )),
+        Ok(ir) if format!("{ir:#?}").contains("__closure_") => {
+            failures.push("closure raw quarantine manufactured a closure symbol".to_string())
+        }
+        Ok(_) => {}
+    }
 
     let workflow_path =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.github/workflows/rust.yml");

@@ -145,51 +145,6 @@ fn llvm_function_body<'a>(llvm: &'a str, signature: &str) -> Option<&'a str> {
     Some(&body[..close])
 }
 
-#[derive(Debug)]
-struct LlvmFunctionSignature {
-    name: String,
-    result: String,
-    parameters: Vec<String>,
-}
-
-fn llvm_function_signatures(llvm: &str) -> Vec<LlvmFunctionSignature> {
-    llvm.lines()
-        .filter_map(|line| {
-            let header = line.trim().strip_prefix("define ")?;
-            let (before_name, after_at) = header.split_once('@')?;
-            let result = before_name.split_whitespace().last()?.to_string();
-            let (name, after_name) = after_at.split_once('(')?;
-            let (parameters, _) = after_name.split_once(')')?;
-            let parameters = parameters
-                .split(',')
-                .filter_map(|parameter| parameter.split_whitespace().next())
-                .map(str::to_string)
-                .collect();
-            Some(LlvmFunctionSignature {
-                name: name.to_string(),
-                result,
-                parameters,
-            })
-        })
-        .collect()
-}
-
-fn llvm_call_parameter_types(body: &str, result: &str, function: &str) -> Option<Vec<String>> {
-    let needle = format!("call {result} @{function}(");
-    let line = body
-        .lines()
-        .map(str::trim)
-        .find(|line| line.contains(&needle))?;
-    let arguments = line.split_once(&needle)?.1.split_once(')')?.0;
-    Some(
-        arguments
-            .split(',')
-            .filter_map(|argument| argument.split_whitespace().next())
-            .map(str::to_string)
-            .collect(),
-    )
-}
-
 fn llvm_double_literal_matches(literal: &str, expected: f64) -> bool {
     literal
         .strip_prefix("0x")
@@ -693,32 +648,37 @@ fn zero_length_numeric_repeats_preserve_explicit_element_types() {
 }
 
 #[test]
-fn generated_closure_symbols_skip_user_function_names() {
-    let source = r#"
+fn closure_containment_does_not_reserve_user_function_names() {
+    let closure_source = r#"
 fn main() { let callback = | | 1; let value = callback(); }
 fn __closure_0() -> int { return 99; }
 "#;
     let mut failures = Vec::new();
-    if let Some(llvm) = compile_without_unwind("closure symbol collision", source, &mut failures) {
-        for marker in ["define i32 @__closure_0()", "define i32 @__closure_1()"] {
+    match compile_program(closure_source, CompilerOptions::default()) {
+        Err(error)
+            if error
+                .contains("closure expressions are parsed but unsupported in executable code") => {}
+        result => failures.push(format!(
+            "closure source did not fail closed before symbol generation: {result:?}"
+        )),
+    }
+
+    let control = "fn __closure_0() -> int { return 99; } fn main() -> int { __closure_0() }";
+    if let Some(llvm) = compile_without_unwind("user closure-like name", control, &mut failures) {
+        for marker in ["define i32 @__closure_0()", "call i32 @__closure_0()"] {
             if !llvm.contains(marker) {
-                failures.push(format!(
-                    "closure symbol collision missed `{marker}`:\n{llvm}"
-                ));
+                failures.push(format!("ordinary user symbol missed `{marker}`:\n{llvm}"));
             }
         }
-        let main = llvm_function_body(&llvm, "define i32 @main(").unwrap_or_default();
-        if !main.contains("call i32 @__closure_1()") || main.contains("call i32 @__closure_0()") {
-            failures.push(format!(
-                "closure alias did not target the collision-free generated symbol:\n{main}"
-            ));
+        if llvm.contains("@__closure_1") {
+            failures.push(format!("compiler manufactured a closure symbol:\n{llvm}"));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }
 
 #[test]
-fn scalar_closure_bindings_are_compile_time_aliases_without_runtime_values() {
+fn scalar_closure_bindings_and_calls_fail_before_ir_or_runtime_values() {
     let cases = [
         (
             "shadowing Int closure",
@@ -726,130 +686,38 @@ fn scalar_closure_bindings_are_compile_time_aliases_without_runtime_values() {
 fn compute(value: int) -> int { return value; }
 fn main() { let compute = |value: int| value + 1; }
 "#,
-            r#"
-fn compute(value: int) -> int { return value; }
-fn main() { let compute = |value: int| value + 1; compute(7); }
-"#,
-            "i32",
-            &["i32"][..],
-            Some("compute"),
         ),
         (
             "Float closure",
             "fn main() { let project = |value: float| value + 0.5; }",
-            "fn main() { let project = |value: float| value + 0.5; project(1.5); }",
-            "double",
-            &["double"][..],
-            None,
         ),
         (
             "Bool closure",
             "fn main() { let predicate = |value: bool| value; }",
+        ),
+        (
+            "Int closure call",
+            "fn main() { let project = |value: int| value + 1; project(7); }",
+        ),
+        (
+            "Float closure call",
+            "fn main() { let project = |value: float| value + 0.5; project(1.5); }",
+        ),
+        (
+            "Bool closure call",
             "fn main() { let predicate = |value: bool| value; predicate(1 < 2); }",
-            "i1",
-            &["i1"][..],
-            None,
         ),
     ];
     let mut failures = Vec::new();
-    for (
-        name,
-        binding_source,
-        call_source,
-        expected_result,
-        expected_parameters,
-        shadowed_function,
-    ) in cases
-    {
-        if let Some(binding_llvm) =
-            compile_without_unwind(&format!("{name} binding"), binding_source, &mut failures)
-        {
-            let candidates = llvm_function_signatures(&binding_llvm)
-                .into_iter()
-                .filter(|signature| {
-                    signature.name != "main"
-                        && shadowed_function.is_none_or(|name| signature.name != name)
-                        && signature.result == expected_result
-                        && signature.parameters == expected_parameters
-                })
-                .collect::<Vec<_>>();
-            if candidates.len() != 1 {
-                failures.push(format!(
-                    "{name}: binding-only source expected exactly one generated callable with signature {expected_result}({expected_parameters:?}), got {candidates:?}:\n{binding_llvm}"
-                ));
-            }
-            if let Some(main) = llvm_function_body(&binding_llvm, "define i32 @main(") {
-                let runtime_binding_instructions = main
-                    .lines()
-                    .map(str::trim)
-                    .filter(|line| {
-                        (line.starts_with('%') && line.contains(" = "))
-                            || line.starts_with("store ")
-                            || line.starts_with("call ")
-                    })
-                    .collect::<Vec<_>>();
-                if !runtime_binding_instructions.is_empty() {
-                    failures.push(format!(
-                        "{name}: binding-only source emitted a runtime place/store/fabricated value: {runtime_binding_instructions:?}\n{main}"
-                    ));
-                }
-            } else {
-                failures.push(format!(
-                    "{name}: binding-only source missed synthesized main:\n{binding_llvm}"
-                ));
-            }
-            for mismatch in obvious_bool_type_mismatches(&binding_llvm) {
-                failures.push(format!("{name} binding: {mismatch}"));
-            }
-        }
-
-        if let Some(call_llvm) =
-            compile_without_unwind(&format!("{name} call"), call_source, &mut failures)
-        {
-            let Some(main) = llvm_function_body(&call_llvm, "define i32 @main(") else {
-                failures.push(format!(
-                    "{name}: call source missed synthesized main:\n{call_llvm}"
-                ));
-                continue;
-            };
-            let candidates = llvm_function_signatures(&call_llvm)
-                .into_iter()
-                .filter(|signature| {
-                    signature.name != "main"
-                        && shadowed_function.is_none_or(|name| signature.name != name)
-                        && signature.result == expected_result
-                        && signature.parameters == expected_parameters
-                })
-                .collect::<Vec<_>>();
-            let [callable] = candidates.as_slice() else {
-                failures.push(format!(
-                    "{name}: call source expected exactly one generated callable with signature {expected_result}({expected_parameters:?}), got {candidates:?}:\n{call_llvm}"
-                ));
-                continue;
-            };
-            let call_parameters = llvm_call_parameter_types(main, expected_result, &callable.name);
-            let call_signature_matches = call_parameters.as_ref().is_some_and(|actual| {
-                actual
-                    .iter()
-                    .map(String::as_str)
-                    .eq(expected_parameters.iter().copied())
-            });
-            if !call_signature_matches {
-                failures.push(format!(
-                    "{name}: main did not call @{} with signature {expected_result}({expected_parameters:?}); observed {call_parameters:?}:\n{main}",
-                    callable.name
-                ));
-            }
-            if shadowed_function.is_some_and(|shadowed| {
-                main.contains(&format!("call {expected_result} @{shadowed}("))
-            }) {
-                failures.push(format!(
-                    "{name}: lexical closure shadowing called the top-level function:\n{main}"
-                ));
-            }
-            for mismatch in obvious_bool_type_mismatches(&call_llvm) {
-                failures.push(format!("{name}: {mismatch}"));
-            }
+    for (name, source) in cases {
+        match compile_program(source, CompilerOptions::default()) {
+            Err(error)
+                if error.contains(
+                    "closure expressions are parsed but unsupported in executable code",
+                ) => {}
+            result => failures.push(format!(
+                "{name}: closure did not fail before checked IR/runtime fabrication: {result:?}"
+            )),
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
@@ -861,49 +729,49 @@ fn checked_admission_rejects_closure_capture_escape_and_rich_signatures() {
         RejectionCase {
             name: "closure capture",
             source: "fn main() { let outer = 7; let callback = | | outer; callback(); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code",
             check_cli: true,
         },
         RejectionCase {
             name: "closure passed as value",
             source: "fn consume(value: int) -> int { return value; } fn main() { let callback = | | 1; let result = consume(callback); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code",
             check_cli: false,
         },
         RejectionCase {
             name: "closure returned as value",
             source: "fn make() -> int { let callback = | | 1; return callback; } fn main() { let value = make(); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code",
             check_cli: true,
         },
         RejectionCase {
             name: "closure string result",
             source: r#"fn main() { let callback = | | "ready"; callback(); }"#,
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code",
             check_cli: false,
         },
         RejectionCase {
             name: "closure string parameter",
             source: r#"fn main() { let callback = |value: string| 1; callback("ready"); }"#,
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code",
             check_cli: false,
         },
         RejectionCase {
             name: "closure composite parameter",
             source: "struct Point { x: int } fn main() { let callback = |value: Point| 1; }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code",
             check_cli: false,
         },
         RejectionCase {
             name: "closure array index fallback",
             source: "fn main() { let callback = | | [7][0]; let value = callback(); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code",
             check_cli: true,
         },
         RejectionCase {
             name: "closure assignment",
             source: "fn main() { let mut callback = | | 1; callback = | | 2; }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code",
             check_cli: true,
         },
     ];

@@ -148,7 +148,7 @@ aero lsp
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
 | **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references over the exact admitted Copy-data universe. CORE-061 is a locally green candidate for direct whole-owner reassignment of that same universe through the shared three-way classifier and unified checked place/write proof. Projected writes/borrows and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
-| **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
+| **Control Flow** | Functions, if/else, while/for loops, break/continue. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
@@ -156,6 +156,13 @@ aero lsp
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
+
+> **Closure status:** closures are parsed but unsupported in executable code. The
+> opening `|` location is retained and `check`, `build`, and `run` reject closure use
+> with one source-located diagnostic before checked IR. The legacy lowering fallback
+> that manufactured callable identities and mapped unknown parameter/result types to
+> `i32` is removed. Captures, calls, storage/transport, callable ABI, lifetime behavior,
+> generics, and closure LLVM generation are not implemented.
 
 > **Tuple status:** CORE-058 is publicly accepted for flat
 > immutable tuples of arity two or greater whose elements are exactly `Int`,
@@ -321,8 +328,12 @@ aero lsp
 > classification to `copy_place_contract`; one checked mutable Copy-place allocation
 > and one checked Copy-place assignment now cover scalars and aggregates. The exhaustive
 > target and adjacent compatibility suites pass, and the tracked two-module source is
-> pinned to native exit 83. The exact local repository-root gate passes; immutable
-> commit identity and public LLVM/Clang 22 evidence remain required before acceptance.
+> pinned to native exit 83. With the closure-containment amendment, the complete Rust
+> surface passes at 175 library and 181 binary tests; formatting, all-target checking,
+> and correctness Clippy are green. The exact amended record-inclusive repository-root
+> gate passes, and the tracked program again executes locally at exact exit 83. The
+> commit containing this record becomes the immutable candidate; public LLVM/Clang 22
+> evidence remains required before acceptance.
 > Immutable locals/parameters, unknown or uninitialized
 > targets, borrowed targets, String/enums/references/unsupported layouts, projected or
 > non-identifier targets, assignment values/chaining/compound syntax, NLL, drop, stable

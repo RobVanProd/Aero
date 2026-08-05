@@ -274,7 +274,7 @@ fn public_compile_rejects_tuple_in_non_first_array_element_without_unwinding() {
 fn public_compile_rejects_tuple_in_closure_body_without_unwinding() {
     assert_public_tuple_rejection(
         "fn main() { let make_tuple = |value: int| (value, 2); let result: int = make_tuple(1); }",
-        PRESERVED_TUPLE_DIAGNOSTIC,
+        "closure expressions are parsed but unsupported in executable code",
     );
 }
 

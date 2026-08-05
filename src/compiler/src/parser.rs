@@ -761,6 +761,7 @@ impl Parser {
 
     /// Parse closure expression: `|x: i32, y: i32| x + y` or `|x| { ... }`
     fn parse_closure(&mut self) -> CompilerResult<Expression> {
+        let location = self.peek().location.clone();
         self.consume(Token::Pipe, "Expected '|' to start closure")?;
 
         let mut params = Vec::new();
@@ -821,6 +822,7 @@ impl Parser {
         Ok(Expression::Closure {
             params,
             body: Box::new(body),
+            location,
         })
     }
 

@@ -379,9 +379,9 @@ fn main() -> int {
             "enum `phase` is consumed more than once in one expression",
         ),
         (
-            "closure context",
+            "closure context fails closed before match classification",
             "enum Phase { Cold, Warm } fn main() { let choose = |seed: int| match Phase::Cold { Phase::Cold => seed, Phase::Warm => 2 }; let value = choose(1); }",
-            "Match expressions are not supported",
+            "closure expressions are parsed but unsupported in executable code",
         ),
         (
             "numeric match remains excluded",

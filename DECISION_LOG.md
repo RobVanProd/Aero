@@ -2669,3 +2669,38 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   structured evidence-manifest generation, and broader release-eligibility design
   remain separate tasks, while the composed exit-83 lane supplies the periodic system
   trace for this checkpoint.
+
+## DEC-057 - Keep closures parsed-only and fail closed before checked IR
+
+- Date: 2026-08-05
+- Status: locally green amendment to the CORE-061 candidate; the exact
+  record-inclusive root gate and local native exit 83 pass. The commit containing this
+  decision becomes the immutable amended candidate; public checks and pinned
+  LLVM/Clang 22 system evidence remain pending. Pushed `a85f47b` is intermediate only.
+- Decision: retain current closure tokens, AST parameter/body shape, and the opening
+  `|` source location, but reject every executable closure expression with exactly
+  `closure expressions are parsed but unsupported in executable code` at that
+  location. The outer encountered closure wins deterministically without activating
+  body semantics. Both semantic inference paths and an independent checked-admission
+  guard consume one shared diagnostic contract.
+- Lowering boundary: remove the legacy closure lowerer, generated `__closure_*`
+  functions, compile-time callable-binding exception, and every unknown closure
+  parameter/result-to-`i32` fallback. The deprecated raw API may quarantine a closure
+  only as an inert unsupported value and may not manufacture `Ty::Fn`, a signature,
+  capture environment, layout, call target, symbol, or LLVM definition. Trusted paths
+  reject before checked IR.
+- Negative product: inferred/explicit bindings, comparisons, function arguments and
+  returns, arrays/struct storage, captures, binding calls, unknown annotations, nested
+  source positions, direct modules, and `check`/`build`/`run` no-artifact behavior are
+  covered. Parser retention and ordinary function/reference/enum/Match/tuple/array/
+  module plus CORE-043 through CORE-060 behavior remain positive controls.
+- Exclusions: captures, capture analysis, callable ABI, storage/transport, invocation,
+  ownership/lifetimes, generic/trait closure integration, heap/runtime behavior,
+  accelerator execution, and all positive closure semantics remain unfrozen and
+  unsupported. This amendment is a false-success closure, not a closure capability;
+  CORE-061 still ends in the executable direct-assignment/native-exit-83 slice.
+- Scaling boundary: PR #4 stays draft and unmerged; controlled checkpoint/merge work,
+  structured evidence-manifest generation, and broader release-eligibility gates
+  remain separately authorized. The current composed native gate remains mandatory,
+  and future selection must not avoid harder ownership/module/ABI/GPU work in favor of
+  convenient bounded leaves.

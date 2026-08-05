@@ -1,6 +1,7 @@
 mod accelerator;
 mod ast;
 mod binding_annotation;
+mod closure_contract;
 mod code_generator;
 mod compatibility;
 mod conformance;

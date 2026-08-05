@@ -14,7 +14,10 @@ self-hosted, or release-ready.
 
 Current integration work is at `CORE-061`: direct mutable whole-owner reassignment over
 the already admitted Copy-data universe, with one shared schema predicate, unified
-checked scalar/aggregate place identity, and a composed native exit-83 gate. This
+checked scalar/aggregate place identity, and a composed native exit-83 gate. Its
+authorized closure amendment preserves closure parsing while rejecting executable
+closure use before checked IR and removes all callable/unknown-type-to-`i32` lowering
+fallbacks; it does not add closure semantics. This
 continues the harder ownership, aggregate representation, and mutation work in
 Milestone 2 rather than optimizing only for convenient compile-time features. CORE-060
 whole-place mutable references are accepted public. Projected borrows/writes, deeper CFG

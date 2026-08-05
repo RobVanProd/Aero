@@ -448,7 +448,7 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
         checked_parsed_source(
             "fn main() { let probe = |ignored: int| [1, 2].len(); let observed = probe(0); }",
         ),
-        "array construction, iteration, and indexing are not admitted in closure bodies",
+        "Error: closure expressions are parsed but unsupported in executable code at 1:25.",
     );
 
     const TRAIT_DEFAULT: &str =

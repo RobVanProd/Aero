@@ -341,9 +341,9 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
             "Struct construction expressions are not supported.",
         ),
         (
-            "closure construction",
+            "closure parent fails closed before struct construction",
             "struct Value { field: int } fn main() { let make = |x: int| Value { field: x }; }",
-            "Struct construction expressions are not supported.",
+            "closure expressions are parsed but unsupported in executable code",
         ),
         (
             "struct condition",

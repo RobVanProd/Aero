@@ -11904,3 +11904,166 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   claims contracts, the established Phase 5 split, and doc tests. This line is the only
   post-gate change and is administrative evidence; implementation, tests, workflow,
   capability, decision, and semantics are unchanged after the gate.
+
+## CORE-061 amendment - Closure false-success containment
+
+- Task ID: `CORE-061-CLOSURE` (authorized as a required amendment to CORE-061).
+- Starting candidate: commit `a85f47b236ebe87c3299c1d37086a6bb9a470dce`
+  is a pushed intermediate checkpoint only. Its public checks, if green, cannot accept
+  CORE-061 after this amendment. The exact amended candidate and public acceptance
+  identity remain unset until all closure-containment evidence is green.
+- Observed behavior: both mutable and immutable semantic expression-inference paths
+  return `Ty::Int` for every parsed `Expression::Closure`. Checked-IR admission then
+  admits a scalar closure binding and manufactures `Ty::Fn`; the legacy lowerer emits
+  a standalone `__closure_*` function, defaults every unknown parameter annotation and
+  every unsupported result to `i32`, and manufactures a function identity/layout.
+- Hypothesis: one source-located semantic rejection shared by both inference paths,
+  backed by an independent checked-admission rejection and removal of executable
+  closure lowering, will close the false-success boundary without defining closure
+  semantics or discarding future syntax.
+- Frozen semantics: closure syntax remains lexed and parsed into the AST, including
+  parameters, optional annotations, body syntax, and the location of the opening `|`.
+  Every executable closure expression is unsupported. Semantic analysis must return
+  exactly one deterministic diagnostic identifying that source location before any
+  checked IR exists. `check`, `build`, and `run` must expose the same source-located
+  cause and must not leave a build/native artifact. No closure value, callable type,
+  environment, layout, symbol, call target, or LLVM definition is admitted.
+- Frozen rejection surface: inferred and explicitly annotated bindings; comparisons;
+  function arguments and returns; fixed arrays and struct fields; closures with and
+  without captures; binding calls; direct closure calls where syntax permits; direct
+  and flattened-module compilation; and nested appearances under already-admitted
+  expression topology. Rejection is at the outermost encountered closure and does not
+  inspect or activate body semantics first.
+- Shared contract: a small closure-containment module owns the one public semantic
+  message and its source-location rendering. Both semantic inference paths and checked
+  admission consume it. The admission check is an independent fail-closed guard for
+  manually constructed or otherwise unanalyzed AST. It must not classify supported
+  closure forms or encode parameters/results.
+- Lowerer quarantine: remove the closure arms from both raw lowering paths and remove
+  the legacy lowerer that maps unknown parameters/results to `i32`. A raw/untrusted
+  AST containing a closure may be deterministically quarantined as an inert unsupported
+  value only if it creates no `Ty::Fn`, closure symbol, signature, environment, layout,
+  call target, or LLVM function; the trusted `try_generate_ir` path must reject first.
+- Explicitly forbidden: captures, capture analysis, environment allocation, callable
+  ABI, closure transport/storage, lifetime or ownership behavior, invocation semantics,
+  parameter/result inference, generic closures, trait integration, heap/runtime work,
+  accelerator behavior, or any claim that closures are partially executable.
+- Red-first acceptance: after this ledger entry and before production mutation, add a
+  focused regression proving `fn main() -> int { |x: int| 7 }` currently passes semantic
+  analysis because the closure is fabricated as `Int`, and that the trusted pipeline
+  can reach checked IR/LLVM. The test must instead require the frozen source-located
+  unsupported diagnostic and absence of generated closure code.
+- Positive compatibility: ordinary functions, references, enums, matches, tuples,
+  arrays, modules, and all CORE-043 through CORE-060 behavior stay unchanged. Existing
+  closure-positive tests are legacy false-success evidence and must become parser
+  retention, deterministic rejection, or raw-path quarantine tests; they may not be
+  deleted merely to make the gate green.
+- Allowed files: this amendment in `TASK_LEDGER.md`; `ast.rs`, `parser.rs`, a minimal
+  shared closure-containment module and its `lib.rs`/`main.rs` registrations;
+  `semantic_analyzer.rs`, `ir_generator.rs`; focused closure tests and directly
+  superseded legacy closure expectations; only after the exact candidate is green,
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, framework-alignment records,
+  other current capability records required by their consistency contracts, and PR #4.
+  Existing public workflows may receive exact candidate/evidence anchors only when the
+  local candidate is otherwise final.
+- Forbidden files/actions: unrelated language/runtime/compiler semantics; dependency
+  changes; benchmark or performance claims; `claim-verification/`; releases, packages,
+  registry publication, PR merge, history rewriting, force-push, and `master`.
+- Acceptance gates: focused red/green closure matrix; parser-location retention;
+  semantic and checked-admission independence; verifier corruption controls; LLVM
+  no-symbol/no-artifact controls; `check`/`build`/`run`; focused CORE-043-060 and named
+  ordinary-language compatibility; rustfmt; all-target check; correctness Clippy;
+  docs; exact repository-root `./tools/test.sh`; all public workflows; and the pinned
+  LLVM/Clang 22 native system gate. Candidate evidence and public acceptance evidence
+  must remain separately identified.
+- Scaling controls retained: PR #4 remains an integration program requiring a later
+  separately authorized controlled checkpoint/merge strategy; capability selection
+  must not optimize indefinitely for bounded array/string wins; evidence administration
+  remains a candidate for a separately authorized structured manifest; and periodic
+  source-to-native system gates remain mandatory. This amendment authorizes none of
+  those architectural/process changes.
+- Risks: body preflight could mask the closure diagnostic; AST location addition could
+  perturb parsing compatibility; a hand-built AST could bypass semantics; raw lowering
+  could retain a hidden `Ty::Fn` or `__closure_*`; call tracking could continue to mark
+  rejected bindings callable; CLI caching could reuse prior LLVM; or public records
+  could mistake an intermediate green run for amended acceptance.
+- Stop conditions: any solution needs a closure type/layout/capture/lifetime/callable
+  decision, a general span retrofit beyond the closure node, more than the explicitly
+  authorized frontend-semantic-IR containment boundary, a weakened unrelated test, or
+  an unexpected file outside this amendment. Stop and amend the contract rather than
+  infer semantics.
+- Pre-red parser correction: the initially proposed empty-parameter fixture `|| 7`
+  does not parse because the lexer preserves contiguous pipes as logical-or. This task
+  does not authorize changing that existing grammar. The red fixture therefore uses
+  the currently retained `|x: int| 7` form at the same opening-pipe column. No
+  production file was changed before this correction.
+- Red evidence: with the retained `|x: int| 7` syntax, `cargo test --test
+  closure_containment_tests -- --nocapture` exits 1 at 0/1 before production mutation.
+  Semantic analysis accepts the closure as the result of an `int` function, directly
+  proving fabrication of `Ty::Int`. The public trusted compiler advances past semantics
+  and currently rejects only at checked admission with `closures are admitted only as
+  compile-time callable bindings`, rather than the required source-located semantic
+  diagnostic. A separate binding-and-call fixture is required to retain the known
+  checked-IR/LLVM false-success proof. The initial PowerShell invocation did not start
+  because Cargo was absent from inherited `PATH`; prepending
+  `%USERPROFILE%\.cargo\bin` corrected the host environment. Windows Security did not
+  intervene.
+- Implementation result: `closure_contract` now owns the exact unsupported message and
+  source-location rendering. The parser retains the opening-pipe location. Both
+  semantic inference paths return the shared diagnostic, semantic preflight gives the
+  containing closure deterministic precedence, and checked admission independently
+  rejects an unanalyzed closure. Legacy closure-callable binding tracking and the
+  `__closure_*` lowerer are removed. Deprecated raw generation quarantines a closure
+  without creating `Ty::Fn`, a signature, environment, layout, call target, symbol, or
+  LLVM function; the unknown parameter/result-to-`i32` fallbacks no longer exist.
+- Focused green evidence: `cargo test --test closure_containment_tests -- --nocapture`
+  passes 7/7. It covers parser location retention; the original semantic/public red;
+  inferred and explicit bindings; comparisons; arguments and returns; array and struct
+  storage; captures; binding calls; unknown parameter annotation; deterministic outer
+  closure precedence; independent checked admission; raw quarantine; identical located
+  `check`/`build`/`run` rejection with no artifact; and direct-module location/artifact
+  behavior. Direct closure-call syntax using `||` remains outside the current grammar
+  and was not invented.
+- Compatibility evidence: all directly superseded legacy closure-success fixtures now
+  assert parser retention, parent containment, or raw quarantine rather than being
+  deleted. `cargo test --tests --no-fail-fast` passes the full 175/175 library and
+  181/181 binary unit surfaces plus every integration target. Ordinary functions,
+  references, enums, matches, tuples, arrays, modules, and CORE-043 through CORE-060
+  controls remain green; Phase 5 remains 22 passed/16 ignored.
+- Static gates: `cargo fmt --all -- --check`, `cargo check --all-targets`,
+  `cargo clippy --all-targets -- -D clippy::correctness`, and `git diff --check` pass.
+  An earlier exploratory `cargo test --all-targets` included benchmark targets and
+  timed out after 124 seconds, so it is not evidence and is not a substitute for the
+  prescribed exact root gate.
+- Candidate/public separation: this working-tree amendment is locally implementation-
+  and compatibility-green, which authorizes the consistency-record updates. The exact
+  amended record-inclusive `./tools/test.sh`, immutable commit/tree/patch identity,
+  PR #4 synchronization, all eight public workflows, and pinned LLVM/Clang 22 native
+  system evidence remain pending. No public acceptance is claimed, and pushed
+  `a85f47b` remains an intermediate checkpoint only.
+- First amended record-root attempt: the exact Git-Bash `./tools/test.sh` command was
+  started with `%USERPROFILE%\.cargo\bin` inherited, but the command wrapper reached
+  its 184-second timeout while all-target Clippy still had active responsive `rustc`
+  workers. That invocation is discarded as evidence. After those workers exited, the
+  unchanged exact command was rerun with a sufficient timeout.
+- Amended record-inclusive root evidence: the unchanged exact repository-root
+  `./tools/test.sh` rerun exited 0 in 33.8 seconds. It passed rustfmt, all-target/all-
+  feature correctness Clippy, 175/175 library tests, 181/181 binary tests, every
+  integration target including the 7/7 closure matrix and verifier controls, claims
+  contracts, the established 22-active/16-quarantined Phase 5 split, and doc tests.
+- Post-amendment system composition: the tracked two-module
+  `examples/copy_place_reassignment/main.aero` again passed lexing, direct-module
+  resolution, semantics, checked IR, internal verification, and LLVM generation.
+  Visual Studio x64 Clang 19.1.5 linked it and the executable returned exact exit 83.
+  The local compiler accurately reported `InternalOnly` because LLVM 22 is absent;
+  pinned LLVM/Clang 22 external verification, machine verification, object/link, and
+  exit 83 remain public acceptance requirements. The closure matrix supplies the
+  complementary pre-IR/no-artifact negative system control.
+- Final pre-freeze record gate: the unchanged exact repository-root `./tools/test.sh`
+  command exited 0 in 27.5 seconds over the complete preceding record set, again
+  passing rustfmt, all-target/all-feature correctness Clippy, 175/175 library tests,
+  181/181 binary tests, every integration and claim target, Phase 5 controls, and doc
+  tests. This line is the sole post-gate administrative evidence addition;
+  implementation, tests, workflows, capability classification, and semantics are
+  unchanged. The commit containing this record becomes the one immutable amended
+  candidate; only then push and synchronize PR #4.

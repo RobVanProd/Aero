@@ -10,22 +10,36 @@ Copy-data universe: scalars, flat Copy-scalar tuples, fixed numeric arrays, fixe
 of one exact Copy struct, and finite acyclic Copy structs. The owned-assignment context
 delegates schema identity to the same three-way `copy_place_contract` used by immutable
 and mutable references. Semantic analysis and checked admission no longer retain a
-scalar-versus-aggregate assignment whitelist.
+scalar-versus-aggregate assignment whitelist. The authorized `CORE-061-CLOSURE`
+amendment also closes the remaining closure false-success boundary without adding a
+closure capability.
 
 Checked IR now uses one exact typed mutable Copy-place owner and one checked Copy-place
 assignment for every admitted scalar or aggregate. The verifier independently proves
 schema, adjacent initialization, exact assignment metadata/RHS type, dominance,
 collision freedom, and active-loan exclusion before private typed LLVM. The exhaustive
-CORE-061 target, 174/174 library tests, 180/180 binary tests, every integration target,
-the exact repository-root gate, and local native exit 83 are green. Immutable commit
-identity, immediate PR #4 synchronization, all eight public checks, and pinned
-LLVM/Clang 22 evidence remain required before acceptance.
+CORE-061 assignment target and local native exit 83 remain green. Closure syntax,
+parameters, body, and opening-pipe location are retained, but every executable closure
+expression now returns one shared source-located unsupported diagnostic in both
+semantic inference paths. Independent checked admission rejects an unanalyzed closure;
+the legacy closure lowerer and its unknown parameter/result-to-`i32` fallbacks are
+removed, and the deprecated raw path creates no callable type, environment, layout,
+symbol, or LLVM function. The focused closure matrix passes 7/7, the complete Rust
+test surface passes at 175/175 library and 181/181 binary tests, and formatting,
+all-target checking, and correctness Clippy are green. The exact amended
+record-inclusive repository-root gate passes, and the tracked assignment program again
+builds and executes locally at exact exit 83. The commit containing this record becomes
+the immutable amended candidate; immediate PR #4 synchronization, all eight public
+checks, and pinned LLVM/Clang 22 evidence remain required before acceptance. Pushed
+`a85f47b` is only an intermediate checkpoint and cannot accept this amended candidate.
 
 Projected assignment targets or borrow origins, String/enums/references/unsupported
 layouts, copying or escaping mutable aliases, mixed/multiple mutable-reference
 signatures, reference results, partial writes, assignment expressions/chaining/compound
 forms, NLL, lifetime inference, drop, stable ABI/FFI, accelerator execution,
 performance, release, stability, and a general memory-safety claim remain excluded.
+Captures, callable ABI, closure transport/storage, lifetime behavior, invocation,
+generic closures, and every other executable closure semantic remain unsupported.
 
 Milestone 79 `CORE-060` is accepted public at exact implementation commit
 `7c7a47a471460dfe2276ea63cc4964fa59ad54be`, tree
@@ -1936,9 +1950,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve one immutable CORE-061 candidate identity, commit and push once, and immediately resynchronize
-draft PR #4 to the exact candidate head and current diff size. Require all eight checks
-plus pinned LLVM/Clang 22 native exit 83 before
+Preserve the exact amended record-inclusive repository-root pass, freeze one immutable
+CORE-061 candidate identity in the commit containing this record, push once, and
+immediately resynchronize draft PR #4 to the exact candidate head and current diff
+size. Require all eight checks plus
+pinned LLVM/Clang 22 native exit 83 and the closure no-artifact controls before
 acceptance. Keep the PR draft and unmerged. Then choose the next hard capability
 separately; the controlled mega-PR checkpoint strategy and structured evidence-
 manifest generator remain separate tasks.

@@ -421,14 +421,14 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
         semantic_result("fn main() { let values = [1, 2]; let item = values.unknown([1, 2.5]); }"),
     );
     for (label, source) in [(
-        "closure body retains strict unsupported-child preflight",
+        "closure parent retains fail-closed precedence over body preflight",
         "fn main() { let callback = |value: int| [1, (2, 3)]; }",
     )] {
         expect_rejection(
             &mut failures,
             label,
             semantic_result(source),
-            &["Tuple expressions are not supported"],
+            &["closure expressions are parsed but unsupported in executable code"],
         );
     }
     expect_acceptance(

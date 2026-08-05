@@ -479,7 +479,24 @@ fn public_compile_rejects_match_matrix_without_unwinding() {
 
     let failures = cases
         .iter()
-        .filter_map(|(label, source)| public_match_rejection_failure(label, source))
+        .filter_map(|(label, source)| {
+            if *label == "closure-body" {
+                match compile_program(source, CompilerOptions::default()) {
+                    Err(error)
+                        if error.contains(
+                            "closure expressions are parsed but unsupported in executable code",
+                        ) =>
+                    {
+                        None
+                    }
+                    result => Some(format!(
+                        "{label}: closure parent did not retain fail-closed precedence: {result:?}"
+                    )),
+                }
+            } else {
+                public_match_rejection_failure(label, source)
+            }
+        })
         .collect::<Vec<_>>();
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }

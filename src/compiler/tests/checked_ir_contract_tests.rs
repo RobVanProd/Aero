@@ -1,4 +1,5 @@
 use compiler::ast::{AstNode, Block, ComparisonOp, Expression, Parameter, Statement, Type};
+use compiler::errors::SourceLocation;
 use compiler::{
     CodeGenerationError, CodeGenerator, CompilerOptions, IrGenerationError, IrGenerator,
     SemanticAnalyzer, compile_program, generate_code, parse_with_locations, try_generate_code,
@@ -100,9 +101,8 @@ fn checked_apis_are_additive_and_keep_structured_error_types() {
 
 #[test]
 fn checked_ir_generator_reuse_starts_from_a_clean_module_state() {
-    let first = analyzed_ast(
-        "fn helper(value: int) -> int { return value; } fn main() { let callback = |value: int| value + 1; callback(helper(1)); }",
-    );
+    let first =
+        analyzed_ast("fn helper(value: int) -> int { return value; } fn main() { helper(1); }");
     let second = analyzed_ast("fn main() { let value: int = 7; }");
     let mut generator = IrGenerator::new();
 
@@ -244,7 +244,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
         "surplus child precedence",
     );
 
-    assert_checked(
+    assert_admission(
         vec![
             int_function("shadowed", vec![parameter("value", named("int"))]),
             main_function(vec![
@@ -255,12 +255,14 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                     value: Some(Expression::Closure {
                         params: Vec::new(),
                         body: Box::new(Expression::IntegerLiteral(9)),
+                        location: SourceLocation::new(8, 17),
                     }),
                 },
                 Statement::Expression(call("shadowed", Vec::new())),
             ]),
         ],
-        "local callable precedence",
+        "Error: closure expressions are parsed but unsupported in executable code at 8:17.",
+        "local closure containment precedence",
     );
 
     assert_admission(

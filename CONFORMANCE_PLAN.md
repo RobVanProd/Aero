@@ -41,6 +41,12 @@
   children in source order, preserve established child diagnostics, cover ordinary
   and default/nested source containers, and prove public/direct-module/CLI rejection
   without unwind, panic, or requested artifact.
+- Until closure typing, capture, callable ABI, transport, lifetime, and invocation
+  semantics are frozen, closure expressions are a required source-located compile-fail
+  category. Retain parser shape and opening-pipe locations, reject before checked IR,
+  independently reject unanalyzed AST, and prove no closure symbol/layout/LLVM or CLI
+  artifact for inferred/explicit bindings, comparisons, arguments, returns,
+  array/struct storage, captures, and calls.
 - Runtime-output tests with exact stdout, stderr, exit code, and declared sources
   of nondeterminism.
 - Diagnostic snapshots normalized only for unstable machine paths or equivalent
@@ -100,10 +106,17 @@ whole-owner reassignment across that same classified universe, without admitting
 projected targets, mixed alias signatures, reference results, stable ABI, or general
 lifetime/memory-safety claims.
 
-The CORE-061 conformance gate traces a tracked two-module program through lexing,
+The CORE-061 conformance gate traces a tracked two-module assignment program through lexing,
 parsing, semantic ownership, exact recursive checked IR, independent verifier
 corruptions, typed LLVM, external and machine verification, object/link, and exact
 native exit 83. Local Clang execution is supporting evidence only; public acceptance
 requires the pinned LLVM/Clang 22 lane and all eight repository checks. This composed
 gate is periodic architecture evidence, not proof that every Aero language subsystem
 or release criterion is coherent.
+
+The authorized CORE-061 closure amendment is a negative architecture control within
+the same milestone, not its executable capability. The focused 7-test matrix and the
+complete 175/175 library plus 181/181 binary test surface prove that parsed closures
+fail consistently before checked IR and cannot manufacture callable or LLVM state.
+The exact amended repository-root gate passes. Public workflows and the pinned system
+lane remain acceptance requirements.

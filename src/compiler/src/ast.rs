@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::errors::SourceLocation;
 use crate::types::Ty;
 
 #[derive(Debug, Clone)]
@@ -87,6 +88,7 @@ pub enum Expression {
     Closure {
         params: Vec<Parameter>,
         body: Box<Expression>,
+        location: SourceLocation,
     },
 }
 

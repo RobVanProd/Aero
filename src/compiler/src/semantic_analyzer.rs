@@ -5,6 +5,7 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
     typed_empty_numeric_array_contract,
 };
+use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::enum_match_contract::{EnumExecutionContext, EnumFunctionContract, EnumRegistry};
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
@@ -26,7 +27,7 @@ use crate::tuple_contract::{
 };
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 type ArrayInferenceCache = HashMap<*const Expression, Ty>;
 
@@ -557,7 +558,6 @@ pub struct SemanticAnalyzer {
     symbol_table: HashMap<String, VariableInfo>,
     compatibility_scope_snapshots: Vec<HashMap<String, VariableInfo>>,
     function_table: FunctionTable,
-    closure_binding_scopes: Vec<HashSet<String>>,
     return_contract_stack: Vec<Option<AdmittedFunctionContract>>,
     scope_manager: ScopeManager,
     /// Stack of active generic type parameter sets (e.g., ["T", "U"] for fn<T, U>)
@@ -588,7 +588,6 @@ impl SemanticAnalyzer {
             symbol_table: HashMap::new(),
             compatibility_scope_snapshots: Vec::new(),
             function_table: FunctionTable::new(),
-            closure_binding_scopes: vec![HashSet::new()],
             return_contract_stack: Vec::new(),
             scope_manager: ScopeManager::new(),
             type_param_scopes: Vec::new(),
@@ -800,14 +799,10 @@ impl SemanticAnalyzer {
         self.compatibility_scope_snapshots
             .push(self.symbol_table.clone());
         self.scope_manager.enter_scope();
-        self.closure_binding_scopes.push(HashSet::new());
     }
 
     fn exit_scope(&mut self) {
         self.scope_manager.exit_scope();
-        if self.closure_binding_scopes.len() > 1 {
-            self.closure_binding_scopes.pop();
-        }
         self.restore_compatibility_scope();
     }
 
@@ -815,14 +810,10 @@ impl SemanticAnalyzer {
         self.compatibility_scope_snapshots
             .push(self.symbol_table.clone());
         self.scope_manager.enter_function(name);
-        self.closure_binding_scopes.push(HashSet::new());
     }
 
     fn exit_function_scope(&mut self) {
         self.scope_manager.exit_function();
-        if self.closure_binding_scopes.len() > 1 {
-            self.closure_binding_scopes.pop();
-        }
         self.restore_compatibility_scope();
     }
 
@@ -830,14 +821,10 @@ impl SemanticAnalyzer {
         self.compatibility_scope_snapshots
             .push(self.symbol_table.clone());
         self.scope_manager.enter_loop();
-        self.closure_binding_scopes.push(HashSet::new());
     }
 
     fn exit_loop_scope(&mut self) {
         self.scope_manager.exit_loop();
-        if self.closure_binding_scopes.len() > 1 {
-            self.closure_binding_scopes.pop();
-        }
         self.restore_compatibility_scope();
     }
 
@@ -847,20 +834,6 @@ impl SemanticAnalyzer {
             .pop()
             .expect("compatibility scope snapshot must match semantic scope");
         self.symbol_table = bindings;
-    }
-
-    fn is_closure_callable(&self, name: &str) -> bool {
-        self.scope_manager
-            .scopes
-            .iter()
-            .zip(self.closure_binding_scopes.iter())
-            .rev()
-            .find_map(|(variables, closures)| {
-                variables
-                    .contains_key(name)
-                    .then_some(closures.contains(name))
-            })
-            .unwrap_or(false)
     }
 }
 
@@ -874,8 +847,6 @@ impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
         self.function_table.clear();
         self.compatibility_scope_snapshots.clear();
-        self.closure_binding_scopes.clear();
-        self.closure_binding_scopes.push(HashSet::new());
         self.return_contract_stack.clear();
         self.type_param_scopes.clear();
         self.inside_impl = false;
@@ -1611,8 +1582,7 @@ impl SemanticAnalyzer {
                     ),
                 }
             }
-            // Phase 7: Closures
-            Expression::Closure { .. } => Ok(Ty::Int), // Closure type inference stub
+            Expression::Closure { location, .. } => Err(unsupported_closure_diagnostic(location)),
         }
     }
 
@@ -1672,11 +1642,10 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::FunctionCall { name, arguments } => {
-                if !self.is_closure_callable(name)
-                    && self
-                        .function_table
-                        .get_admitted_contract(name)
-                        .is_some_and(|contract| contract.return_type == Ty::Void)
+                if self
+                    .function_table
+                    .get_admitted_contract(name)
+                    .is_some_and(|contract| contract.return_type == Ty::Void)
                 {
                     return Err(format!(
                         "Error: void function `{}` cannot be used as a value.",
@@ -1892,13 +1861,8 @@ impl SemanticAnalyzer {
             | Expression::FloatLiteral(_)
             | Expression::StringLiteral(_)
             | Expression::Identifier(_) => {}
-            Expression::Closure { body, .. } => {
-                self.preflight_expression_with_array_mode(
-                    body,
-                    false,
-                    array_types,
-                    StructExecutionContext::PreservedContext,
-                )?;
+            Expression::Closure { location, .. } => {
+                return Err(unsupported_closure_diagnostic(location));
             }
         }
 
@@ -1998,7 +1962,6 @@ impl SemanticAnalyzer {
 
     fn infer_discarded_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
         if let Expression::FunctionCall { name, .. } = expr
-            && !self.is_closure_callable(name)
             && self
                 .function_table
                 .get_admitted_contract(name)
@@ -2051,9 +2014,7 @@ impl SemanticAnalyzer {
                     }
                 }
 
-                if self.is_closure_callable(name) {
-                    Ok(Ty::Int)
-                } else if self.function_table.get_admitted_contract(name).is_some() {
+                if self.function_table.get_admitted_contract(name).is_some() {
                     self.function_table
                         .validate_admitted_call(name, &argument_types)
                 } else if self.function_table.get_function(name).is_some() {
@@ -2385,8 +2346,7 @@ impl SemanticAnalyzer {
                     ),
                 }
             }
-            // Phase 7: Closures
-            Expression::Closure { .. } => Ok(Ty::Int), // Closure type inference stub
+            Expression::Closure { location, .. } => Err(unsupported_closure_diagnostic(location)),
         }
     }
 
@@ -2733,13 +2693,6 @@ impl SemanticAnalyzer {
                     initialized: value.is_some(),
                 };
                 self.symbol_table.insert(name.clone(), var_info);
-
-                if matches!(value, Some(Expression::Closure { .. })) {
-                    self.closure_binding_scopes
-                        .last_mut()
-                        .expect("global closure-binding scope must exist")
-                        .insert(name.clone());
-                }
 
                 Ok(())
             }

@@ -13,10 +13,15 @@ Branch: `agent/aero-integration`
   Copy-data universe. The owned-assignment classifier delegates data shape to the same
   `copy_place_contract` used by immutable and mutable references; one checked mutable
   Copy-place allocation and assignment identity covers scalar and aggregate owners.
-  The exhaustive product, 174/174 library tests, 180/180 binary tests, every integration
-  target, local native exit 83, and the exact repository-root gate pass. Immutable
-  commit identity, all eight public checks, and pinned LLVM/Clang 22 native exit 83
-  remain acceptance gates.
+  The exhaustive product and local native exit 83 pass. Its authorized closure
+  amendment preserves syntax but rejects every executable closure with one shared
+  source-located diagnostic before checked IR, independently guards unanalyzed AST,
+  and removes the lowerer's fabricated callable/`i32` fallback. The complete Rust
+  surface passes at 175/175 library and 181/181 binary tests; formatting, all-target
+  checking, correctness Clippy, the exact amended record-inclusive root gate, and local
+  native exit 83 are green. The commit containing this record becomes the immutable
+  amended candidate; all eight public checks and pinned LLVM/Clang 22 native exit 83
+  remain acceptance gates. Pushed `a85f47b` is intermediate only.
 - `CORE-060` is accepted public at exact implementation
   `7c7a47a471460dfe2276ea63cc4964fa59ad54be`, tree
   `e9863de79a69766114020060a138c94357005351`, and stable patch ID
@@ -174,9 +179,13 @@ correctness gates.
   declarations are enforced at `8d5d8e7`; generic/composite function contracts and
   reassignment remain open. Unknown named types are assumed to be structs, and
   unknown backend type strings lower as LLVM `double`.
-- Field access, tuples, struct/enum construction, matches, closures, and unknown
-  methods can bypass subtree validation and acquire `Int`. IR lowering replaces
-  several of these forms, including borrow/deref, with integer zero.
+- At the initial audit, field access, tuples, struct/enum construction, matches,
+  closures, and unknown methods could bypass subtree validation and acquire `Int`; IR
+  lowering replaced several forms with integer zero. Subsequent bounded slices closed
+  several named classes. The current CORE-061 closure amendment specifically removes
+  both `Closure => Int` inference stubs, rejects before checked IR, and removes the
+  callable/unknown-type-to-`i32` lowerer. Other independently listed historical classes
+  retain their own current records.
 - Array semantics checks only the first element and discards index type. Checked IR
   now rejects non-int indexes and the internal verifier rejects mixed logical stores,
   so reproduced cases fail without artifacts but after semantic success. Backend

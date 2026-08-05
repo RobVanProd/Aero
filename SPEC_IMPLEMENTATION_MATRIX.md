@@ -43,7 +43,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Closures | P | P | P | N | N | N | P | P | ? | P | N | N | P | PARSED_ONLY |
+| Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
 | C/foreign-function interface | P | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | P | DESIGNED |
@@ -93,6 +93,16 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   targets, unsupported layouts, assignment
   expressions/chaining/compound forms, new lifetime/drop/ABI/safety semantics, and
   accelerator or performance claims remain absent.
+
+- The `CORE-061-CLOSURE` amendment keeps closure syntax and its opening source
+  location parsed, but executable closures are unsupported. One shared diagnostic is
+  consumed by both semantic inference paths and an independent checked-admission
+  guard. The former lowerer that manufactured callable identities and defaulted
+  unknown parameter/result types to `i32` is removed; the deprecated raw path produces
+  no closure type, signature, environment, layout, symbol, call target, or LLVM
+  definition. Negative coverage includes inferred and explicit bindings, comparisons,
+  arguments, returns, array/struct storage, captures, calls, direct modules, and CLI
+  no-artifact behavior. This is `PARSED_ONLY`, not partial closure execution.
 
 - `CORE-059` and `CORE-060` are accepted public for immutable and exclusive mutable
   whole-place references over the exact previously admitted Copy-data universe:

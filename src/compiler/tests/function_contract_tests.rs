@@ -150,9 +150,9 @@ fn rejects_undefined_duplicate_and_invalid_numeric_calls() {
             &["missing"],
         ),
         (
-            "closure binding does not leak across functions",
+            "closure is rejected before callable binding can leak across functions",
             "fn define_local() { let local = | | 1; local(); } fn use_local() { local(); }",
-            &["local"],
+            &["closure expressions are parsed but unsupported in executable code"],
         ),
         (
             "duplicate function",
@@ -277,9 +277,9 @@ fn rejects_invalid_explicit_tail_missing_and_void_returns() {
             &["notify", "void", "value"],
         ),
         (
-            "void call used as closure body value",
+            "closure parent precedes void call body diagnostics",
             "fn notify() {} fn main() { let callback = | | notify(); }",
-            &["notify", "void", "value"],
+            &["closure expressions are parsed but unsupported in executable code"],
         ),
     ];
 
@@ -316,7 +316,7 @@ fn notify() {
 }
 
 #[test]
-fn local_closure_shadows_a_top_level_function_contract() {
+fn local_closure_is_rejected_before_it_can_shadow_a_top_level_function_contract() {
     let source = r#"
 fn compute(value: i32) -> i32 {
     return value;
@@ -328,15 +328,14 @@ fn main() {
 }
 "#;
 
-    let llvm = compile_program(source, CompilerOptions::default())
-        .expect("in-scope closure should shadow the top-level function");
-    let main = llvm_function(&llvm, "define i32 @main(");
-    assert!(main.contains("call i32 @__closure_"), "{main}");
-    assert!(!main.contains("call i32 @compute()"), "{main}");
+    assert_eq!(
+        compile_program(source, CompilerOptions::default()),
+        Err("Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code at 7:19.".to_string())
+    );
 }
 
 #[test]
-fn llvm_restores_top_level_callable_after_nested_closure_scope() {
+fn nested_closure_is_rejected_before_callable_scope_tracking() {
     let source = r#"
 fn compute() -> i32 {
     return 1;
@@ -350,12 +349,10 @@ fn main() {
     let outer = compute();
 }
 "#;
-    let llvm = compile_program(source, CompilerOptions::default()).expect("compile closure scope");
-    let main = llvm_function(&llvm, "define i32 @main(");
-    let closure_call = main.find("call i32 @__closure_").expect("closure call");
-    let top_level_call = main.find("call i32 @compute()").expect("top-level call");
-
-    assert!(closure_call < top_level_call, "{main}");
+    assert_eq!(
+        compile_program(source, CompilerOptions::default()),
+        Err("Semantic Analysis Error: Error: closure expressions are parsed but unsupported in executable code at 8:23.".to_string())
+    );
 }
 
 #[test]

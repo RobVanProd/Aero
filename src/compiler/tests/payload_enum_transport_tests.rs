@@ -453,9 +453,9 @@ fn main() -> int { return 0; }
             "Use of moved value `first`",
         ),
         (
-            "closure transport context",
+            "closure transport context fails closed before enum transport",
             "enum Value { Int(int) } fn main() -> int { let f = |value: Value| value; 0 }",
-            "closure parameters must be admitted scalar types",
+            "closure expressions are parsed but unsupported in executable code",
         ),
         (
             "nested function transport context",

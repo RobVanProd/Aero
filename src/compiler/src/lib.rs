@@ -1,6 +1,7 @@
 pub mod accelerator;
 pub mod ast;
 mod binding_annotation;
+mod closure_contract;
 mod code_generator;
 pub mod conformance;
 mod copy_place_contract;
