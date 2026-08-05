@@ -83,7 +83,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- `CORE-062` is the locally green candidate for recursive finite CopyData composition.
+- `CORE-062` is accepted public for recursive finite CopyData composition at exact
+  implementation `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree
+  `d2aff21a54c42d1ce649ef6668d50a4908315738`, and stable patch ID
+  `458feb5ebc1355d83793084009e5ea7895a22129`.
   One registry-backed least-fixed-point classifier owns annotation and semantic-type
   admission for scalars, fixed arrays, arity-at-least-two tuples, and finite acyclic
   unique nongeneric nonempty named structs. Semantic analysis, checked IR, Copy-place
@@ -93,8 +96,9 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   immutable/mutable whole-place references, calls/results/recursion, dynamic fixed-
   array indices, chained projections, and direct modules pass the exhaustive target
   and local native exit 109. The exact root gate passes 178 library and 184 binary
-  tests plus every integration/claim/doc target. Immutable candidate identity,
-  all-eight public checks, and pinned LLVM/Clang 22 native evidence remain required.
+  tests plus every integration/claim/doc target. All eight public checks pass; stable
+  job `92344809072` uses LLVM/Clang 22.1.8 for external and machine verification,
+  object/link gates, the known-invalid verifier control, and exact native exit 109.
   Unsupported leaves/topologies, aggregate comparison/destructuring, projected loans/
   writes, new lifetime/drop/ABI/safety semantics, and accelerator or performance claims
   remain absent.

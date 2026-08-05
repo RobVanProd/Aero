@@ -4,16 +4,18 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 81 `CORE-062` is the locally green implementation candidate for recursive
-finite Copy-aggregate composition. One shared `StructRegistry` classifier now resolves
-both parsed annotations and semantic types into the least-fixed-point grammar
+Milestone 81 `CORE-062` is accepted public at exact implementation commit
+`e62fd7470d8cb929d57d0c063815d7a99005d768`, tree
+`d2aff21a54c42d1ce649ef6668d50a4908315738`, and stable patch ID
+`458feb5ebc1355d83793084009e5ea7895a22129`. One shared `StructRegistry` classifier
+resolves both parsed annotations and semantic types into the least-fixed-point grammar
 `Int | Float | Bool | [CopyData; N] | tuple(CopyData, ...) | finite acyclic named
 struct(CopyData fields)`. It replaces executable scalar/flat-tuple/numeric-array/
 Copy-struct-array topology whitelists across semantic analysis, checked admission,
 Copy-place ownership operations, function transport, independent verification, and
 private LLVM lowering.
 
-The candidate admits Bool arrays, nested arrays, arrays of tuples, tuples containing
+The accepted slice admits Bool arrays, nested arrays, arrays of tuples, tuples containing
 arrays/tuples/structs, and structs containing every admitted aggregate constructor.
 Exact recursive schema survives inferred and annotated bindings, whole Copy aliases,
 direct owner reassignment, immutable/mutable whole-place references, internal calls and
@@ -24,10 +26,11 @@ arrays, and private identified named structs with no fallback `i32`, pointer/int
 conversion, or unrelated bitcast. The focused exhaustive target and local native exit
 109 pass. The exact repository-root gate passes rustfmt, all-target/all-feature
 correctness Clippy, 178/178 library tests, 184/184 binary tests, every integration and
-claim target, the 22-active/16-quarantined Phase 5 split, and doc tests. The commit
-containing the complete records becomes the immutable candidate; PR #4 synchronization,
-all eight public checks, and pinned LLVM/Clang 22 external verification, machine
-verification, object/link, and exact exit 109 remain required before acceptance.
+claim target, the 22-active/16-quarantined Phase 5 split, and doc tests. All eight public
+checks pass through CodeQL run `31017349668`, push CI `31017352912`, PR Rust CI
+`31017357342`, and PR CI `31017358299`. Stable job `92344809072` installs LLVM/Clang
+22.1.8, rejects the known-invalid verifier control, externally verifies LLVM,
+machine-verifies, object-lowers, links, and executes exact native exit 109.
 
 Unit/unary tuples; String, references as stored data, closures, enums, generics, traits,
 Option/Result/collections, empty/duplicate/unresolved/generic/cyclic structs, dynamic
@@ -364,9 +367,9 @@ composition rather than a module system.
   execution. CORE-061's accepted exit-83 gate composes direct mutable whole-owner
   replacement across scalars, tuples, arrays, recursive structs, borrow boundaries,
   CFG, calls, enums, Strings, and direct modules under one checked place/write identity.
-  CORE-062's candidate exit-109 gate composes recursive arrays, tuples, and named structs
+  CORE-062's accepted exit-109 gate composes recursive arrays, tuples, and named structs
   through source, semantics, checked IR, independent verification, LLVM, direct modules,
-  ownership operations, and native execution; pinned public acceptance remains mandatory.
+  ownership operations, and native execution under the pinned public LLVM/Clang 22 lane.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -403,20 +406,14 @@ and the fixed-array-length class 1/1 plus every downstream suite. Push CI
 built, LLVM-verified, machine-verified, object-lowered, linked, and executed the
 fixed-array-length example with exact exit 37.
 
-## Active hypothesis
+## Completed CORE-062 hypothesis
 
-Direct owned assignment can consume the same exact Copy-place schema classifier as the
-accepted immutable and mutable reference paths without broadening the value/layout or
-exclusive-loan universe. One checked mutable place/allocation identity for scalar and
-aggregate owners gives the verifier enough information to prove initialization, exact
-whole replacement, active-loan exclusion, and typed backend lowering without parallel
-topology guards. Focused source-to-LLVM, CLI, corruption, and compatibility evidence is
-green, and the exact repository-root gate plus local native exit 83 pass. Immutable
-implementation identity, all-eight public checks, pinned external and machine
-verification, object/link stages, and native exit 83 remain required before acceptance.
-Projected targets/origins, new signature or
-lifetime policy, reference results, NLL, drop, stable ABI/FFI, and memory-safety claims
-remain outside this class.
+One recursive CopyData contract can replace scalar/flat/numeric/container-specific
+topology guards without broadening unsupported leaves or ownership semantics. Exact
+source, semantic, checked-IR, verifier, LLVM, CLI, and pinned native evidence accepts
+that hypothesis at `e62fd747`. Projected targets/origins, new signature or lifetime
+policy, reference results, NLL, drop, stable ABI/FFI, memory-safety, and accelerator
+claims remain outside the accepted class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1960,12 +1957,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve the exact record-inclusive repository-root pass, freeze one immutable CORE-062
-candidate identity in the commit containing this record, push once, and immediately
-resynchronize draft PR #4 to the exact candidate head, milestone, test totals, and diff
-size. Require all eight checks plus pinned LLVM/Clang 22 external verification, machine
-verification, object/link, and exact native exit 109 before acceptance. Keep the PR
-draft and unmerged. Then choose the next hard capability separately; the controlled
+Preserve accepted CORE-062 identity `e62fd747` and keep draft PR #4 synchronized. Begin
+no new behavior until a separately authorized task freezes its semantics, red evidence,
+files, stop conditions, and system gate. Selection must balance bounded work with hard
+ownership, module, runtime-layout/ABI, and accelerator classes instead of optimizing
+only for convenient compile-time leaves. Keep the PR draft and unmerged. The controlled
 mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
 tasks, and periodic multi-capability system gates remain mandatory.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,

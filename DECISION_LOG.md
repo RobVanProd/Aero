@@ -2708,9 +2708,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-058 - Classify finite CopyData composition by one recursive contract
 
 - Date: 2026-08-05
-- Status: locally green CORE-062 implementation candidate; immutable commit identity,
-  PR #4 synchronization, all eight public checks, and pinned LLVM/Clang 22 native exit
-  109 remain pending. DEC-056/057 and CORE-061 are accepted public at `de6fc0d`.
+- Status: accepted public at exact implementation
+  `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree
+  `d2aff21a54c42d1ce649ef6668d50a4908315738`, and stable patch ID
+  `458feb5ebc1355d83793084009e5ea7895a22129`. All eight checks pass; stable job
+  `92344809072` uses LLVM/Clang 22.1.8 and executes exact native exit 109.
 - Decision: define executable `CopyData` as the least fixed point of `Int`, `Float`,
   `Bool`, fixed arrays of CopyData at any parsed count, tuples with at least two ordered
   CopyData elements, and unique nongeneric nonempty named structs whose declaration-
@@ -2740,9 +2742,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   the complete source product, fail-closed negatives, direct modules, checked metadata,
   verifier corruptions, deterministic LLVM, CLI artifact hygiene, and native exit 109.
   The local exact root gate passes 178/178 library and 184/184 binary tests, every
-  integration/claim target, Phase 5 controls, and docs. Public acceptance still requires
-  the immutable pushed identity, all eight checks, and LLVM/Clang 22 external/machine
-  verification, object/link, and exact exit 109.
+  integration/claim target, Phase 5 controls, and docs. CodeQL `31017349668`, push CI
+  `31017352912`, PR Rust CI `31017357342`, and PR CI `31017358299` pass on the immutable
+  implementation; the stable lane externally verifies, machine-verifies, object-lowers,
+  links, and executes exact exit 109.
 - Scaling boundary: this task directly addresses combinatorial aggregate topology rules
   through one shared classification without broadening unrelated semantics. PR #4 stays
   draft and unmerged; controlled checkpoint/merge strategy and structured evidence-

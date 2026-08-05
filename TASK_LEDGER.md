@@ -12326,3 +12326,29 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   structured evidence-manifest generation remains separate; hard ownership/module/
   runtime/accelerator classes must not be avoided indefinitely; and periodic composed
   source-to-native system gates remain mandatory.
+
+### CORE-062 public acceptance closure
+
+- Exact identity: implementation commit
+  `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree
+  `d2aff21a54c42d1ce649ef6668d50a4908315738`, stable patch ID
+  `458feb5ebc1355d83793084009e5ea7895a22129`.
+- Public checks: all eight PR checks pass. CodeQL run `31017349668` supplies jobs
+  `92344788810` (actions), `92344789068` (python), `92344788775` (rust), and aggregate
+  check `92345047762`; push CI `31017352912` / job `92344793553`, PR Rust CI
+  `31017357342` / stable job `92344809072` and nightly job `92344809081`, and PR CI
+  `31017358299` / job `92344811920` are green on the exact implementation commit.
+- Pinned system evidence: stable job `92344809072` installs LLVM/Clang 22.1.8,
+  confirms `opt-22` rejects known-invalid IR, builds the tracked two-module source,
+  externally verifies it with `opt-22`, machine-verifies and object-lowers it with
+  `llc-22`, links with `clang-22`, and records exact native exit 109. The same job
+  passes the exhaustive 1/1 target and complete repository checks.
+- Acceptance boundary: CORE-062 is accepted public for the frozen recursive finite
+  CopyData class. Candidate wording in the implementation commit is historical and is
+  superseded by this evidence-only closure. No stable ABI/layout, general ownership or
+  lifetime safety, projected loan/write, generic/enum/closure, accelerator, benchmark,
+  release, merge, or stability claim follows.
+- PR/scaling state: PR #4 is synchronized to CORE-062 and remains draft/open/unmerged.
+  Its front page leads with the current exact identity and keeps the controlled
+  checkpoint strategy, hard-capability balance, structured evidence generation, and
+  periodic composed system gates explicit.

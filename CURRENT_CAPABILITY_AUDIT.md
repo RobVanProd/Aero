@@ -8,18 +8,21 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-062` is the current locally green implementation candidate for recursive finite
-  CopyData composition. A single registry-backed classifier resolves parsed annotations
-  and semantic types across scalars, fixed arrays, arity-at-least-two tuples, and finite
+- `CORE-062` is accepted public at exact implementation
+  `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree
+  `d2aff21a54c42d1ce649ef6668d50a4908315738`, and stable patch ID
+  `458feb5ebc1355d83793084009e5ea7895a22129`. A single registry-backed classifier
+  resolves parsed annotations and semantic types across scalars, fixed arrays,
+  arity-at-least-two tuples, and finite
   acyclic unique nongeneric nonempty named structs. Semantics, checked IR, Copy-place
   ownership operations, exact internal function transport, independent verification,
   and private LLVM consume the recursive schema. The exhaustive product, verifier
   corruptions, direct module, no-artifact controls, local native exit 109, 178/178
   library tests, 184/184 binary tests, every integration/claim target, Phase 5 controls,
   docs, formatting, all-target checking, correctness Clippy, and exact root gate pass.
-  The record-inclusive commit becomes the immutable candidate; all eight public checks
-  and pinned LLVM/Clang 22 verification/object/link/exit-109 evidence remain acceptance
-  gates.
+  All eight public checks pass; stable job `92344809072` uses LLVM/Clang 22.1.8 for the
+  known-invalid verifier control, external and machine verification, object/link gates,
+  and exact native exit 109.
 - `CORE-061` is accepted public at exact implementation
   `de6fc0d5c503d2dcb03944d58312a130bac1ba05`, tree
   `9ad23f5ad5cff17d3b69fdef31b9a4c7289ade42`, and patch ID
@@ -1880,7 +1883,7 @@ promise future compatibility.
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no capability moves.
 
-## CORE-062 recursive CopyData candidate boundary
+## CORE-062 accepted recursive CopyData boundary
 
 - The exact admitted grammar is `Int | Float | Bool | [CopyData; N] | tuple` of at
   least two CopyData elements `|` finite acyclic named struct with unique admitted
@@ -1903,8 +1906,8 @@ promise future compatibility.
   generic/trait/collection leaves, malformed or cyclic structs, aggregate comparison,
   projected borrowing/writing, exact mismatches, constant out-of-bounds indexing, raw
   checked-IR bypass, schema corruption, and requested-artifact hygiene fail closed.
-- This candidate establishes neither stable layout/ABI/FFI nor general ownership,
+- This accepted slice establishes neither stable layout/ABI/FFI nor general ownership,
   lifetime/drop, memory safety, accelerator execution, performance, release, or
-  stability. Public acceptance remains separate and requires the immutable pushed
-  identity, PR #4 synchronization, all eight checks, and the pinned LLVM/Clang 22
-  external/machine verification, object/link, and exact exit-109 system lane.
+  stability. Exact implementation `e62fd747` passes all eight public checks and the
+  pinned LLVM/Clang 22 external/machine verification, object/link, and exact exit-109
+  system lane; PR #4 remains draft and unmerged.
