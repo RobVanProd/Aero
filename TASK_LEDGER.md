@@ -8541,3 +8541,227 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   the four integration-scaling controls. This records-only successor changes no
   compiler, test, example, workflow, or capability boundary; it must be pushed
   unchanged, pass all eight checks, and become the exact PR front-page records head.
+
+## CORE-045 - Executable fixed arrays of scalar-Copy structs
+
+- Task ID/date/owner: `CORE-045`, 2026-08-04, lead-owned tests-first compiler
+  vertical slice. This is one nested aggregate/runtime-layout class, not separate
+  literal, repeat, empty, alias, length, index, iteration, metadata, verifier,
+  backend, module, or diagnostic tasks. It deliberately takes the harder aggregate
+  frontier after CORE-044 rather than selecting another easy scalar-only win.
+- Public basis and observed behavior: exact clean local/remote/draft-PR head is
+  `e6bf154137600eacfbcd033f1219214e05b21f29`; behavior head is
+  `da21a76cf92f2faf680a6284b4789fc401fed8fe`. PR #4 is open/draft, leads with
+  CORE-044, and all eight final-head public checks are green. A fresh exact-root
+  `./tools/test.sh` passes 152/152 library tests, 160/160 CLI tests, every active
+  integration target, formatting, correctness Clippy, and doc tests. Aero already
+  represents fixed arrays as `Ty::Array`, defines an array as Copy when its element
+  is Copy, admits numeric literal/repeat/typed-empty arrays, static `.len()`, Int
+  indexing except zero-length arrays, Copy aliases, and indexed for-iteration. It
+  also now admits exact all-scalar Copy structs. The remaining boundary is explicit:
+  checked admission rejects a struct array with `only fixed numeric arrays are
+  admitted`; array lowering hard-codes every element and aggregate descriptor as
+  LLVM `double`; checked verification accepts only physical `double` arrays; and no
+  exact nested struct schema can reach array metadata or LLVM.
+- Framework/specification basis: the founding framework requires typed aggregates,
+  source-order evaluation, ownership-aware values, checked IR, LLVM lowering, and
+  native execution. Its ownership rule, the visually reviewed founding PDF, and
+  `docs/language/aero_ownership_borrowing.md` agree that an array is Copy when every
+  element is Copy and that a composite may be Copy only when all components are
+  Copy. CORE-043/044 already freeze the only supported struct element class: a
+  unique non-generic nonempty flattened struct whose fields are exclusively
+  `int`/`i32`, `float`/`f64`, or `bool`. No new field, destructor, ownership, or
+  public layout rule is invented here.
+- Complete supported source product: an admitted function may create a fixed array
+  whose element is one exact CORE-044 Copy struct through (1) a nonempty literal of
+  homogeneous exact-name struct values, including direct literals, local/copy
+  aliases, and struct-valued calls; (2) `[value; N]` for every parser-representable
+  count including zero; or (3) exact typed empty `let value: [Struct; 0] = []`.
+  Exact `[Struct; N]` annotations, absent annotations, immutable/mutable bindings,
+  local Copy aliases and repeated aliases, original reuse, immediate and bound
+  `.len()`, normalized `.iter()` chains, constant in-bounds indexing, immediate or
+  bound field projection, and left-to-right for-iteration are all cells of this one
+  class. The same forms work in root and one-level flattened direct-module source,
+  and inside scalar- or struct-bearing admitted functions. Existing CORE-044 calls
+  may produce array elements, but the array itself never crosses a function
+  boundary in this task.
+- Frozen value/evaluation/bounds semantics: literal elements evaluate exactly once
+  from left to right. A repeat operand evaluates exactly once, including count zero,
+  and that Copy value initializes every element independently. Array aliasing copies
+  every element into distinct array storage; the original and all aliases remain
+  valid. Indexing an admitted struct array is intentionally narrower than Aero's
+  unresolved general array-bounds surface: only a compile-time integer constant in
+  `0..N` is admitted, and negative, out-of-range, nonconstant, non-Int, and every
+  index into `N == 0` fail before IR. Generated for-iteration is allowed because its
+  internal index is compiler-owned and control-flow-bounded by the exact fixed
+  count; each loop variable receives a Copy value in source order. `.len()` returns
+  the exact static count only when representable as Aero `Int`, retaining the
+  existing count-range failure. Existing numeric-array outcomes do not change.
+- One shared classification boundary: extend the existing shared classification
+  architecture, principally `StructRegistry`, with one pure fixed-Copy-struct-array
+  contract carrying exact `Ty`, `LogicalType`, schema, and count plus one shared
+  classification for annotation/initializer, literal/repeat element identity, and
+  source index disposition. Semantic analysis, checked admission, lowering, static
+  length selection, and typed-empty handling must consume this contract; they may
+  not restate `Ty::Struct`, named-type, field-schema, count, or index-topology guards.
+  The existing `BindingAnnotationDisposition` remains authoritative for its older
+  supported/rejected/preserved topologies and may be composed with, but not
+  duplicated by, the new contract. Phase-local traversal, symbol tables, dominance,
+  and diagnostics remain permitted.
+- Checked IR and backend boundary: add distinct checked array allocation and element
+  pointer forms carrying the exact logical struct schema and fixed count; do not
+  smuggle a named aggregate through legacy `AllocaArray`/`GetElementPtr` string
+  fields or the numeric `double` fallback. Checked metadata must publish
+  `Array<Struct<exact-name; exact-fields>; N>` for every array place and exact Struct
+  types for element places/results. Verification must reject malformed/empty or
+  conflicting schemas, mismatched element/count descriptors, non-array bases,
+  wrong store/load types, illegal aggregate values, duplicate place/result IDs,
+  use-before-definition, and dominance failures. LLVM generation must derive
+  deterministic `[N x %aero.struct.Name]` types, collect a schema even for typed
+  empty arrays, emit exact aggregate element stores/loads and GEPs, and preserve the
+  CORE-043 scalar-field physical representation without claiming a stable layout.
+- Explicit exclusions: array parameters, arguments, call results, returns, process
+  entry arrays, stable ABI/FFI/separate compilation, nested arrays, arrays as struct
+  fields, tuples/enums/Match, String/custom/non-Copy/generic/nested/recursive struct
+  elements, heterogeneous or cross-name elements, destructuring, array/element/field
+  mutation or assignment, dynamic indexing, runtime bounds checks or panics,
+  references/borrows/lifetimes/provenance, partial/destructive moves, drop,
+  heap/Vec representation, methods other than existing exact `.iter()` and `.len()`,
+  recursive module graphs, optimizer/performance claims, CPU layout/ABI promises,
+  ROCm/CUDA execution, package/release/registry changes, and broad safety/stability
+  claims. Unsupported types may not become Int, Float, Bool, `double`, or an invented
+  aggregate schema.
+- Tests-first completeness contract: before production edits, add one focused
+  integration aggregate whose positive Cartesian product covers every scalar field
+  spelling; one/many and distinct struct schemas; literal/repeat/typed-empty origins;
+  zero/one/many counts; absent/exact annotations; immutable/mutable bindings; direct,
+  aliased, call-returned, and reordered-field elements; repeated aliases and original
+  reuse; immediate/bound length; immediate/bound constant indexing and projection;
+  iterator normalization; loop order; scalar/struct function-body contexts; and
+  root/module composition. Its negative matrix must preserve the exact old numeric
+  class and every exclusion, including heterogeneous names, unsupported schemas,
+  annotation/count/type mismatches, empty/dynamic/negative/out-of-range indexes,
+  forbidden function transport, closure/impl/generic/top-level boundaries, raw
+  compatibility, invalid-build no-artifact behavior, metadata corruption, global
+  schema conflicts, deterministic LLVM, and checked-codegen rejection. Amend an
+  older suite only to move the exact `struct array` rejection cell into this positive
+  aggregate while preserving every neighboring assertion.
+- System-level/end-to-end acceptance: add one tracked example that composes struct
+  construction, Copy function returns, heterogeneous scalar fields, literal/repeat/
+  empty fixed struct arrays, Copy aliases, length, indexing/projection, for-iteration,
+  numeric and Bool calls, compile-time String behavior, and direct-module collection,
+  ending in one exact native sentinel. Add one unconditional stable/nightly Rust-CI
+  step using checked build, pinned `opt-22`, `llc-22 -verify-machineinstrs`, object
+  lowering, `clang-22` linking, native execution, and that exact sentinel. Run the
+  focused red/green aggregate, adjacent containment/corruption suites, formatting,
+  Clippy, exact root gate, exact-diff review, unchanged push, all eight public checks,
+  stable-job log inspection, and immediate PR title/body synchronization. A
+  rejection-only, helper-only, records-only, raw-only, LLVM-text-only, or
+  non-executed result cannot close CORE-045.
+- Allowed files: this `TASK_LEDGER.md`; `src/compiler/src/binding_annotation.rs`,
+  `fixed_array_method.rs`, `struct_contract.rs`, `semantic_analyzer.rs`, `ir.rs`,
+  `ir_generator.rs`, `ir_verifier.rs`, and `code_generator.rs`; one new focused
+  `src/compiler/tests/fixed_copy_struct_array_tests.rs`; the exact old struct-array
+  cell in `struct_execution_tests.rs`; `fixed_numeric_array_len_tests.rs` only for
+  explicit non-regression if shared length classification changes; checked-IR unit
+  or contract tests only for corruption controls not expressible through source; one
+  new tracked example; `.github/workflows/rust.yml`; and only `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and `README.md` where
+  accepted facts change. No lexer, parser, AST shape, resolver/cache, runtime/stdlib,
+  optimizer, dependency, backend-target, formal/design/ownership spec,
+  claim-verification, benchmark, release, `master`, PR merge, or history rewrite is
+  authorized.
+- Risks and stop conditions: stop rather than invent behavior if syntax cannot
+  represent a frozen cell; Copy-array semantics conflict with the framework; the
+  array needs a non-Copy element; source evaluation order changes; aliases cannot be
+  demonstrated as distinct storage; the shared classifier cannot serve semantic and
+  checked trust boundaries; exact schema/count cannot survive metadata; the verifier
+  cannot distinguish array, element, struct, and scalar values; typed empty arrays
+  need a fabricated initializer schema; an unsupported source reaches numeric LLVM;
+  safe generated iteration cannot be shown; LLVM requires a public ABI choice; raw
+  compatibility changes; a second semantic family, third-party dependency, or
+  baseline regression appears. Parser-to-native work across more than two compiler
+  phases is expected, bounded, and explicitly lead-owned; unexpected phase or
+  semantic expansion remains a stop.
+- Status at authorization: the only worktree mutation is this authorization record.
+  No CORE-045 test, production behavior, example, workflow anchor, capability record,
+  commit, public check, or claim exists. The next allowed mutation is one exhaustive
+  failing regression aggregate, followed by proof that it is red for the frozen
+  implementation boundary before any production change.
+- Tests-first red evidence: the new focused integration target compiles and runs but
+  fails 0/1 before any production, example, workflow, or capability-document edit.
+  Literal/repeat/typed-empty products stop at the existing `local struct moves and
+  copies are not admitted`, `Field access expressions are not supported.`, and `only
+  fixed numeric arrays are admitted` boundaries; the intended exact-name,
+  annotation, and constant-bounds diagnostics do not yet exist; checked metadata and
+  deterministic LLVM cannot be produced; direct-module check/build fails without an
+  artifact; and the tracked example plus four unique workflow anchors are absent.
+  The old CORE-043 blanket `struct array` rejection cell moved into this positive
+  aggregate while every neighboring exclusion remains asserted. No compiler source,
+  generated output, public branch, PR, or claim changed.
+- Implementation result: `StructRegistry` now supplies one exact
+  `CopyStructArrayContract` and shared annotation, initializer-element, Copy, and
+  constant-index dispositions. Semantic analysis and checked admission consume that
+  contract; normalized fixed-array length classification uses one kind-tagged result
+  for existing numeric and new Copy-struct receivers rather than duplicating method/
+  arity/count topologies. Lowering allocates each array and alias independently,
+  evaluates literal elements left-to-right exactly once, evaluates repeat operands
+  exactly once, copies elements aggregate-by-aggregate, and permits only compiler-
+  bounded dynamic indexes inside generated iteration. The distinct checked array
+  allocation and element-pointer forms carry exact `LogicalType::Struct` plus count;
+  verifier and code generator never route them through legacy numeric array strings.
+- Checked/backend evidence: verification pre-registers exact array and element places,
+  rejects scalar/empty/conflicting schemas, descriptor/base/count mismatches, checked/
+  legacy GEP crossover, wrong stores and indexes, constant out-of-range access,
+  use-before-definition, and global conflicts. Both checked code-generation entry
+  points reject every corruption specimen. Valid lowering emits deterministic named
+  struct definitions, `[N x %aero.struct.Name]` allocas, exact GEPs, and aggregate
+  loads/stores, including a zero-count typed array whose schema remains present. The
+  deprecated unchecked compatibility probe does not activate the checked forms.
+- Files changed: production changes are limited to `struct_contract.rs`,
+  `fixed_array_method.rs`, `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; corruption controls are in
+  `checked_ir_contract_test.rs`; the exhaustive aggregate is
+  `fixed_copy_struct_array_tests.rs`; only the obsolete exact blanket struct-array
+  rejection was removed from `struct_execution_tests.rs`; the system example is
+  `examples/fixed_copy_struct_arrays/{main,shapes}.aero`; the pinned native step is in
+  `.github/workflows/rust.yml`; and this ledger plus `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and `README.md` record
+  the candidate boundary. No parser, AST, resolver, runtime, dependency, target,
+  formal/design/ownership specification, benchmark, claim-verification, release, or
+  `master` file changed.
+- Local test and command evidence: the shared classifier/checked corruption selection
+  passes 2/2; its normalized length table passes 1/1 across numeric and Copy-struct
+  zero/positive/maximum/wrong-arity/overflow cells; the exhaustive source/metadata/
+  module/raw/workflow aggregate passes 1/1. Adjacent struct execution, struct Copy
+  transport, numeric-array length, binding contracts, and checked-IR contracts pass
+  1/1, 1/1, 1/1, 28/28, and 8/8. Exact repository-root `bash ./tools/test.sh` after
+  the multi-file example correction exits 0 with 154/154 library and 161/161 CLI
+  tests, every active integration target, formatting, correctness Clippy, and doc
+  tests. `cargo run -- build ../../examples/fixed_copy_struct_arrays/main.aero -o
+  target/core045-fixed-copy-struct-arrays.ll` resolves `shapes.aero`, exits 0, and
+  writes 18,081 bytes containing exact `Packet` and `ModuleValue` schemas, zero/two/
+  three-element typed allocations, aggregate stores/loads, `module_score`, and the
+  cross-file call. `git diff --check` reports no whitespace error.
+- System/scaling disposition: this is the scheduled hard nested-aggregate/runtime-
+  layout slice, not another scalar convenience win. The tracked exit-77 gate composes
+  direct-module collection, exact struct construction and Copy function transport,
+  fixed arrays and aliases, numeric/Bool control flow, and compile-time String length/
+  predicate behavior. The shared kind-tagged array classification is the bounded
+  response to topology-rule growth; it preserves unsupported forms rather than
+  broadening them. PR checkpoint strategy and structured evidence-manifest generation
+  remain separately authorized future controls, and this implementation does not
+  merge the mega-PR or create a second administrative source of truth.
+- Remaining uncertainty, regression risk, and next action: the Windows host lacks
+  LLVM/Clang 22 and accurately reports `InternalOnly`; no local native or external-
+  verifier claim is made. Risk remains concentrated in aggregate Copy storage,
+  checked place typing, numeric-array containment, direct-module flattening, and
+  source/generated-index separation, all covered by the named tests. Commit SHA is
+  pending. Publication is authorized only after one fresh exact root gate on these
+  final records, exact diff/status review, and an intentional commit. The unchanged
+  commit must then be pushed, pass all eight checks, and show pinned `opt-22`,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22` link, and exact native
+  exit 77 in the stable Linux log. Draft PR #4 must immediately be retitled and
+  rewritten to lead with CORE-045 and immutable evidence. Until then CORE-045 remains
+  a local `PARTIAL` candidate, with no stable ABI/layout, general ownership, dynamic
+  bounds, accelerator, performance, release, merge, or stability claim.

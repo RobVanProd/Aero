@@ -127,6 +127,21 @@ pub enum Inst {
         index: Value,      // element index
         elem_type: String, // LLVM element type
     },
+    /// Verified storage for a fixed array whose element is an admitted
+    /// all-component-Copy struct.
+    CheckedCopyStructArrayAlloca {
+        result: Value,
+        element: LogicalType,
+        count: usize,
+    },
+    /// Verified pointer to one element in a CheckedCopyStructArrayAlloca place.
+    CheckedCopyStructArrayElementPtr {
+        result: Value,
+        base: Value,
+        index: Value,
+        element: LogicalType,
+        count: usize,
+    },
     AllocaStruct {
         result: Value,       // pointer to struct
         struct_type: String, // LLVM struct type name

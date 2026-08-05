@@ -245,6 +245,7 @@ enum PlaceType {
         logical_element: Option<LogicalType>,
         physical_element: String,
         count: usize,
+        checked_copy_struct: bool,
     },
 }
 
@@ -298,6 +299,14 @@ fn valid_struct_schema(fields: &[LogicalType]) -> bool {
                 LogicalType::Int | LogicalType::Float | LogicalType::Bool
             )
         })
+}
+
+fn valid_copy_struct_type(logical_type: &LogicalType) -> bool {
+    matches!(
+        logical_type,
+        LogicalType::Struct { name, fields }
+            if valid_symbol(name) && valid_struct_schema(fields)
+    )
 }
 
 fn collides_with_generated_local(name: &str) -> bool {
@@ -818,6 +827,8 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
         Inst::Alloca(result, _)
         | Inst::AllocaArray { result, .. }
         | Inst::GetElementPtr { result, .. }
+        | Inst::CheckedCopyStructArrayAlloca { result, .. }
+        | Inst::CheckedCopyStructArrayElementPtr { result, .. }
         | Inst::CheckedStructAlloca { result, .. }
         | Inst::CheckedStructFieldPtr { result, .. } => Some(result),
         _ => None,
@@ -962,9 +973,13 @@ impl<'a> FunctionVerifier<'a> {
                         logical_element: Some((**element).clone()),
                         physical_element: match element.as_ref() {
                             LogicalType::Bool => "i1".to_string(),
+                            LogicalType::Struct { name, .. } => {
+                                format!("%aero.struct.{name}")
+                            }
                             _ => "double".to_string(),
                         },
                         count: *count,
+                        checked_copy_struct: matches!(element.as_ref(), LogicalType::Struct { .. }),
                     },
                     ty => PlaceType::Known(ty.clone()),
                 };
@@ -1033,6 +1048,50 @@ impl<'a> FunctionVerifier<'a> {
                             logical_element: hinted_element.cloned(),
                             physical_element: elem_type.clone(),
                             count: *count,
+                            checked_copy_struct: false,
+                        },
+                    );
+                    self.place_names.insert(id, None);
+                }
+            }
+            for block in &self.blocks {
+                for (_, instruction) in &block.instructions {
+                    let Inst::CheckedCopyStructArrayAlloca {
+                        result,
+                        element,
+                        count,
+                    } = instruction
+                    else {
+                        continue;
+                    };
+                    let Some(id) = reg(result).map(PlaceId) else {
+                        return Err(IrVerificationError::new(
+                            &self.body.name,
+                            Some(&block.label),
+                            IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                "checked Copy-struct array alloca",
+                            ),
+                        ));
+                    };
+                    if !valid_copy_struct_type(element) {
+                        return Err(IrVerificationError::new(
+                            &self.body.name,
+                            Some(&block.label),
+                            IrVerificationErrorKind::UnsupportedType(format!(
+                                "checked Copy-struct array element `{element}`"
+                            )),
+                        ));
+                    }
+                    let LogicalType::Struct { name, .. } = element else {
+                        unreachable!("validated above")
+                    };
+                    self.places.insert(
+                        id,
+                        PlaceType::Array {
+                            logical_element: Some(element.clone()),
+                            physical_element: format!("%aero.struct.{name}"),
+                            count: *count,
+                            checked_copy_struct: true,
                         },
                     );
                     self.place_names.insert(id, None);
@@ -1188,6 +1247,7 @@ impl<'a> FunctionVerifier<'a> {
                                         .or_else(|| (elem_type != "double").then_some(element)),
                                     physical_element: elem_type.clone(),
                                     count: *count,
+                                    checked_copy_struct: false,
                                 },
                                 None,
                             )
@@ -1218,6 +1278,7 @@ impl<'a> FunctionVerifier<'a> {
                                 logical_element,
                                 physical_element,
                                 count,
+                                checked_copy_struct,
                                 ..
                             } = base_type
                             else {
@@ -1229,6 +1290,16 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             };
+                            if *checked_copy_struct {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(
+                                        "legacy getelementptr cannot address a checked Copy-struct array"
+                                            .to_string(),
+                                    ),
+                                ));
+                            }
                             let aggregate_descriptor = format!("[{count} x {physical_element}]");
                             if aggregate_descriptor != *elem_type {
                                 return Err(IrVerificationError::new(
@@ -1249,6 +1320,81 @@ impl<'a> FunctionVerifier<'a> {
                             };
                             self.element_owners.insert(id, PlaceId(base_id));
                             (element_place, None)
+                        }
+                        Inst::CheckedCopyStructArrayAlloca { element, count, .. } => {
+                            if !valid_copy_struct_type(element) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::UnsupportedType(format!(
+                                        "checked Copy-struct array element `{element}`"
+                                    )),
+                                ));
+                            }
+                            let LogicalType::Struct { name, .. } = element else {
+                                unreachable!("validated above")
+                            };
+                            (
+                                PlaceType::Array {
+                                    logical_element: Some(element.clone()),
+                                    physical_element: format!("%aero.struct.{name}"),
+                                    count: *count,
+                                    checked_copy_struct: true,
+                                },
+                                None,
+                            )
+                        }
+                        Inst::CheckedCopyStructArrayElementPtr {
+                            base,
+                            element,
+                            count,
+                            ..
+                        } => {
+                            if !valid_copy_struct_type(element) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::UnsupportedType(format!(
+                                        "checked Copy-struct array element `{element}`"
+                                    )),
+                                ));
+                            }
+                            let Some(base_id) = reg(base).map(PlaceId) else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked Copy-struct array base",
+                                    ),
+                                ));
+                            };
+                            let Some(PlaceType::Array {
+                                logical_element: Some(actual_element),
+                                count: actual_count,
+                                checked_copy_struct: true,
+                                ..
+                            }) = self.places.get(&base_id)
+                            else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked Copy-struct array base",
+                                    ),
+                                ));
+                            };
+                            if actual_element != element || actual_count != count {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(
+                                        "checked Copy-struct array element pointer schema/count mismatch"
+                                            .to_string(),
+                                    ),
+                                ));
+                            }
+                            self.element_owners.insert(id, base_id);
+                            (PlaceType::Known(element.clone()), None)
                         }
                         Inst::CheckedStructAlloca {
                             struct_name,
@@ -2063,6 +2209,49 @@ impl<'a> FunctionVerifier<'a> {
                             error
                         })?;
                     }
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        base, index, count, ..
+                    } => {
+                        let base = self.require_place(
+                            base,
+                            "checked Copy-struct array base",
+                            block_index,
+                            position,
+                        )?;
+                        if !matches!(
+                            self.places.get(&base),
+                            Some(PlaceType::Array {
+                                checked_copy_struct: true,
+                                ..
+                            })
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                    "checked Copy-struct array base",
+                                ),
+                            ));
+                        }
+                        self.require_type(
+                            index,
+                            &LogicalType::Int,
+                            "checked Copy-struct array element pointer",
+                            "index",
+                            block_index,
+                            position,
+                        )?;
+                        if let Value::ImmInt(constant) = index
+                            && usize::try_from(*constant)
+                                .map_or(true, |constant| constant >= *count)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked Copy-struct array constant index {constant} is outside 0..{count}"
+                                )),
+                            ));
+                        }
+                    }
                     Inst::CheckedStructFieldPtr { base, .. } => {
                         self.require_place(
                             base,
@@ -2210,6 +2399,9 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                         },
                         schemas,
                     )?;
+                }
+                Inst::CheckedCopyStructArrayAlloca { element, .. } => {
+                    register_type(element, schemas)?;
                 }
                 Inst::FunctionDef { body, .. } => visit(body, schemas)?,
                 Inst::CheckedFunctionDef {

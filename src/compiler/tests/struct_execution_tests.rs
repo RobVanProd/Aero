@@ -356,11 +356,6 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
             "Struct construction expressions are not supported.",
         ),
         (
-            "struct array",
-            "struct Value { field: int } fn main() { let values = [Value { field: 1 }]; }",
-            "only fixed numeric arrays are admitted",
-        ),
-        (
             "struct condition",
             "struct Value { field: int } fn main() { if Value { field: 1 } { return; } }",
             "Error: If condition must be boolean, found: Value",

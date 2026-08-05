@@ -67,6 +67,39 @@ pub(crate) struct CopyTypeContract {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CopyStructArrayContract {
+    pub(crate) element: StructContract,
+    pub(crate) count: usize,
+}
+
+impl CopyStructArrayContract {
+    pub(crate) fn ty(&self) -> Ty {
+        Ty::Array(Box::new(Ty::Struct(self.element.name.clone())), self.count)
+    }
+
+    pub(crate) fn logical_type(&self) -> LogicalType {
+        LogicalType::Array {
+            element: Box::new(self.element.logical_type()),
+            count: self.count,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CopyStructArrayIndexDisposition {
+    PreserveExistingBehavior,
+    Accepted {
+        contract: CopyStructArrayContract,
+        index: usize,
+    },
+    NonConstant,
+    OutOfBounds {
+        index: i64,
+        count: usize,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CopyFunctionContract {
     pub(crate) name: String,
     pub(crate) parameters: Vec<(String, CopyTypeContract)>,
@@ -121,6 +154,14 @@ pub(crate) enum StructContractError {
     },
     UnsupportedFunctionReturn,
     ProcessEntryStructTransport,
+    CopyStructArrayElementMismatch {
+        expected: String,
+        actual: String,
+    },
+    CopyStructArrayAnnotationMismatch {
+        expected: String,
+        actual: String,
+    },
 }
 
 impl StructContractError {
@@ -155,6 +196,12 @@ impl StructContractError {
             Self::ProcessEntryStructTransport => {
                 "process entry `main` cannot use struct parameters or returns".to_string()
             }
+            Self::CopyStructArrayElementMismatch { expected, actual } => format!(
+                "fixed Copy-struct arrays require one exact element type: expected {expected}, actual {actual}"
+            ),
+            Self::CopyStructArrayAnnotationMismatch { expected, actual } => format!(
+                "fixed Copy-struct array annotation mismatch: expected {expected}, actual {actual}"
+            ),
         }
     }
 }
@@ -306,13 +353,134 @@ impl StructRegistry {
         match initializer {
             Expression::StructLiteral { .. }
             | Expression::Identifier(_)
-            | Expression::FunctionCall { .. } => Ok(()),
+            | Expression::FunctionCall { .. }
+            | Expression::IndexAccess { .. } => Ok(()),
             _ => Err(StructContractError::LocalMoveOrCopy),
         }
     }
 
     pub(crate) fn is_copy_struct_ty(&self, ty: &Ty) -> bool {
         matches!(ty, Ty::Struct(name) if self.is_copy_struct_name(name))
+    }
+
+    pub(crate) fn is_copy_type(&self, ty: &Ty) -> bool {
+        match ty {
+            Ty::Array(element, _) => self.is_copy_type(element),
+            _ => ty.is_copy_type() || self.is_copy_struct_ty(ty),
+        }
+    }
+
+    pub(crate) fn copy_struct_array_contract(&self, ty: &Ty) -> Option<CopyStructArrayContract> {
+        let Ty::Array(element, count) = ty else {
+            return None;
+        };
+        self.copy_struct_contract(element)
+            .map(|element| CopyStructArrayContract {
+                element,
+                count: *count,
+            })
+    }
+
+    pub(crate) fn copy_struct_array_annotation_contract(
+        &self,
+        annotation: &Type,
+    ) -> Option<CopyStructArrayContract> {
+        let Type::Array(element, count) = annotation else {
+            return None;
+        };
+        let Type::Named(name) = element.as_ref() else {
+            return None;
+        };
+        self.copy_struct_contract(&Ty::Struct(name.clone()))
+            .map(|element| CopyStructArrayContract {
+                element,
+                count: *count,
+            })
+    }
+
+    pub(crate) fn typed_empty_copy_struct_array_contract(
+        &self,
+        annotation: &Type,
+        initializer: &Expression,
+    ) -> Option<CopyStructArrayContract> {
+        let contract = self.copy_struct_array_annotation_contract(annotation)?;
+        (contract.count == 0
+            && matches!(initializer, Expression::ArrayLiteral(elements) if elements.is_empty()))
+        .then_some(contract)
+    }
+
+    pub(crate) fn validate_copy_struct_array_binding(
+        &self,
+        annotation: Option<&Type>,
+        inferred: &Ty,
+    ) -> Result<(), StructContractError> {
+        let inferred_contract = self.copy_struct_array_contract(inferred);
+        let annotated_contract = annotation
+            .and_then(|annotation| self.copy_struct_array_annotation_contract(annotation));
+        match (annotation, inferred_contract, annotated_contract) {
+            (None, _, _) | (Some(_), None, None) => Ok(()),
+            (Some(_), Some(_), Some(expected)) if expected.ty() == *inferred => Ok(()),
+            (Some(_), _, Some(expected)) => {
+                Err(StructContractError::CopyStructArrayAnnotationMismatch {
+                    expected: expected.ty().to_string(),
+                    actual: inferred.to_string(),
+                })
+            }
+            (Some(annotation), Some(expected), None) => {
+                Err(StructContractError::CopyStructArrayAnnotationMismatch {
+                    expected: expected.ty().to_string(),
+                    actual: annotation_name(annotation),
+                })
+            }
+        }
+    }
+
+    pub(crate) fn validate_copy_struct_array_elements(
+        &self,
+        expected: &Ty,
+        actual_types: impl IntoIterator<Item = Ty>,
+    ) -> Result<(), StructContractError> {
+        if !self.is_copy_struct_ty(expected) {
+            return Ok(());
+        }
+        for actual in actual_types {
+            if actual != *expected {
+                return Err(StructContractError::CopyStructArrayElementMismatch {
+                    expected: expected.to_string(),
+                    actual: actual.to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn classify_copy_struct_array_index(
+        &self,
+        receiver: &Ty,
+        index: &Expression,
+    ) -> CopyStructArrayIndexDisposition {
+        let Some(contract) = self.copy_struct_array_contract(receiver) else {
+            return CopyStructArrayIndexDisposition::PreserveExistingBehavior;
+        };
+        let Some(index) = constant_integer(index) else {
+            return CopyStructArrayIndexDisposition::NonConstant;
+        };
+        let Ok(index_usize) = usize::try_from(index) else {
+            return CopyStructArrayIndexDisposition::OutOfBounds {
+                index,
+                count: contract.count,
+            };
+        };
+        if index_usize >= contract.count {
+            return CopyStructArrayIndexDisposition::OutOfBounds {
+                index,
+                count: contract.count,
+            };
+        }
+        CopyStructArrayIndexDisposition::Accepted {
+            contract,
+            index: index_usize,
+        }
     }
 
     pub(crate) fn copy_struct_contract(&self, ty: &Ty) -> Option<StructContract> {
@@ -443,6 +611,17 @@ impl StructRegistry {
             }
             _ => None,
         }
+    }
+}
+
+fn constant_integer(expression: &Expression) -> Option<i64> {
+    match expression {
+        Expression::IntegerLiteral(value) => Some(*value),
+        Expression::Unary {
+            op: crate::ast::UnaryOp::Negate,
+            operand,
+        } => constant_integer(operand).and_then(i64::checked_neg),
+        _ => None,
     }
 }
 
@@ -813,6 +992,119 @@ mod tests {
                 )
                 .expect("scalar signature preserves existing classifier"),
             None
+        );
+    }
+
+    #[test]
+    fn fixed_copy_struct_array_classifier_closes_type_annotation_element_and_index_product() {
+        let registry = StructRegistry::from_top_level_ast(&[definition(
+            "Packet",
+            vec![
+                field("count", Type::Named("int".to_string())),
+                field("ready", Type::Named("bool".to_string())),
+            ],
+            vec![],
+        )]);
+        let packet = Ty::Struct("Packet".to_string());
+        let array = Ty::Array(Box::new(packet.clone()), 2);
+        let contract = registry
+            .copy_struct_array_contract(&array)
+            .expect("supported Copy struct array");
+        assert_eq!(contract.ty(), array);
+        assert_eq!(
+            contract.logical_type(),
+            LogicalType::Array {
+                element: Box::new(LogicalType::Struct {
+                    name: "Packet".to_string(),
+                    fields: vec![LogicalType::Int, LogicalType::Bool],
+                }),
+                count: 2,
+            }
+        );
+        assert!(registry.is_copy_type(&array));
+
+        let annotation = Type::Array(Box::new(Type::Named("Packet".to_string())), 2);
+        assert_eq!(
+            registry
+                .copy_struct_array_annotation_contract(&annotation)
+                .expect("exact annotation")
+                .ty(),
+            array
+        );
+        assert!(
+            registry
+                .validate_copy_struct_array_binding(Some(&annotation), &array)
+                .is_ok()
+        );
+        assert!(matches!(
+            registry.validate_copy_struct_array_binding(
+                Some(&Type::Array(Box::new(Type::Named("Packet".to_string())), 1,)),
+                &array,
+            ),
+            Err(StructContractError::CopyStructArrayAnnotationMismatch { .. })
+        ));
+        assert!(
+            registry
+                .validate_copy_struct_array_elements(&packet, [packet.clone(), packet.clone()],)
+                .is_ok()
+        );
+        assert!(matches!(
+            registry
+                .validate_copy_struct_array_elements(&packet, [Ty::Struct("Other".to_string())],),
+            Err(StructContractError::CopyStructArrayElementMismatch { .. })
+        ));
+
+        let empty_annotation = Type::Array(Box::new(Type::Named("Packet".to_string())), 0);
+        assert!(
+            registry
+                .typed_empty_copy_struct_array_contract(
+                    &empty_annotation,
+                    &Expression::ArrayLiteral(Vec::new()),
+                )
+                .is_some()
+        );
+        assert!(
+            registry
+                .typed_empty_copy_struct_array_contract(
+                    &empty_annotation,
+                    &Expression::ArrayRepeat {
+                        value: Box::new(literal("Packet", &["count", "ready"])),
+                        count: 0,
+                    },
+                )
+                .is_none()
+        );
+
+        assert!(matches!(
+            registry.classify_copy_struct_array_index(&array, &Expression::IntegerLiteral(1),),
+            CopyStructArrayIndexDisposition::Accepted { index: 1, .. }
+        ));
+        assert_eq!(
+            registry.classify_copy_struct_array_index(
+                &array,
+                &Expression::Identifier("index".to_string()),
+            ),
+            CopyStructArrayIndexDisposition::NonConstant
+        );
+        assert_eq!(
+            registry.classify_copy_struct_array_index(
+                &array,
+                &Expression::Unary {
+                    op: crate::ast::UnaryOp::Negate,
+                    operand: Box::new(Expression::IntegerLiteral(1)),
+                },
+            ),
+            CopyStructArrayIndexDisposition::OutOfBounds {
+                index: -1,
+                count: 2
+            }
+        );
+        assert_eq!(
+            registry.classify_copy_struct_array_index(
+                &Ty::Array(Box::new(Ty::Int), 2),
+                &Expression::IntegerLiteral(0),
+            ),
+            CopyStructArrayIndexDisposition::PreserveExistingBehavior
         );
     }
 }

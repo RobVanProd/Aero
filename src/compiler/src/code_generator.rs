@@ -115,6 +115,16 @@ impl CodeGenerator {
                         schemas.insert(struct_name.clone(), field_types.clone());
                     }
                 }
+                Inst::CheckedCopyStructArrayAlloca { element, .. } => {
+                    let LogicalType::Struct { name, fields } = element else {
+                        unreachable!("verified Copy-struct arrays carry a struct element")
+                    };
+                    if let Some(existing) = schemas.get(name) {
+                        assert_eq!(existing, fields, "verified struct schema is stable");
+                    } else {
+                        schemas.insert(name.clone(), fields.clone());
+                    }
+                }
                 Inst::FunctionDef { body, .. } => Self::collect_struct_schemas(body, schemas),
                 Inst::CheckedFunctionDef {
                     parameters,
@@ -195,7 +205,9 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, lhs);
                     Self::bump_seed_from_value(&mut seed, rhs);
                 }
-                Inst::Alloca(ptr, _) | Inst::AllocaArray { result: ptr, .. } => {
+                Inst::Alloca(ptr, _)
+                | Inst::AllocaArray { result: ptr, .. }
+                | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
                 }
                 Inst::Store(ptr, value)
@@ -247,6 +259,16 @@ impl CodeGenerator {
                     }
                 }
                 Inst::GetElementPtr {
+                    result,
+                    base,
+                    index,
+                    ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, base);
+                    Self::bump_seed_from_value(&mut seed, index);
+                }
+                Inst::CheckedCopyStructArrayElementPtr {
                     result,
                     base,
                     index,
@@ -531,6 +553,8 @@ impl CodeGenerator {
                 | Inst::Neg { .. }
                 | Inst::AllocaArray { .. }
                 | Inst::GetElementPtr { .. }
+                | Inst::CheckedCopyStructArrayAlloca { .. }
+                | Inst::CheckedCopyStructArrayElementPtr { .. }
                 | Inst::CheckedStructAlloca { .. }
                 | Inst::CheckedStructFieldPtr { .. } => {}
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
@@ -1271,6 +1295,39 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!(
                         "  %{} = getelementptr inbounds {}, {}* %{}, i64 0, i64 {}\n",
                         result_str, elem_type, elem_type, base_str, index_str
+                    ));
+                }
+                Inst::CheckedCopyStructArrayAlloca {
+                    result,
+                    element,
+                    count,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked Copy-struct array alloca")
+                    };
+                    let element = Self::logical_type_to_llvm(element);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = alloca [{count} x {element}], align 8\n"
+                    ));
+                }
+                Inst::CheckedCopyStructArrayElementPtr {
+                    result,
+                    base,
+                    index,
+                    element,
+                    count,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked Copy-struct array element")
+                    };
+                    let Value::Reg(base) = base else {
+                        panic!("Expected register for checked Copy-struct array base")
+                    };
+                    let element = Self::logical_type_to_llvm(element);
+                    let aggregate = format!("[{count} x {element}]");
+                    let index = self.value_to_i64_operand(llvm_ir, index);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {aggregate}, {aggregate}* %ptr{base}, i64 0, i64 {index}\n"
                     ));
                 }
                 Inst::AllocaStruct {

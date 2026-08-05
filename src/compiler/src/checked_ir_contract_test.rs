@@ -1305,6 +1305,325 @@ fn checked_struct_instructions_verify_schema_field_identity_and_scalar_storage()
 }
 
 #[test]
+fn checked_copy_struct_array_instructions_verify_schema_count_base_and_storage() {
+    let value = copy_struct("Value", vec![LogicalType::Int]);
+    let admitted = single_function(
+        "main",
+        vec![
+            Inst::CheckedCopyStructArrayAlloca {
+                result: Value::Reg(10),
+                element: value.clone(),
+                count: 2,
+            },
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(11),
+                struct_name: "Value".to_string(),
+                field_types: vec![LogicalType::Int],
+            },
+            Inst::CheckedStructFieldPtr {
+                result: Value::Reg(12),
+                base: Value::Reg(11),
+                struct_name: "Value".to_string(),
+                field_index: 0,
+                field_type: LogicalType::Int,
+            },
+            Inst::Store(Value::Reg(12), Value::ImmInt(7)),
+            Inst::Load(Value::Reg(0), Value::Reg(11)),
+            Inst::CheckedCopyStructArrayElementPtr {
+                result: Value::Reg(13),
+                base: Value::Reg(10),
+                index: Value::ImmInt(0),
+                element: value.clone(),
+                count: 2,
+            },
+            Inst::Store(Value::Reg(13), Value::Reg(0)),
+            Inst::Load(Value::Reg(1), Value::Reg(13)),
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(14),
+                struct_name: "Value".to_string(),
+                field_types: vec![LogicalType::Int],
+            },
+            Inst::Store(Value::Reg(14), Value::Reg(1)),
+            Inst::CheckedStructFieldPtr {
+                result: Value::Reg(15),
+                base: Value::Reg(14),
+                struct_name: "Value".to_string(),
+                field_index: 0,
+                field_type: LogicalType::Int,
+            },
+            Inst::Load(Value::Reg(2), Value::Reg(15)),
+            Inst::Return(Value::Reg(2)),
+        ],
+    );
+    let llvm = try_generate_code(admitted)
+        .expect("schema-carrying fixed Copy-struct array IR must verify");
+    for anchor in [
+        "%aero.struct.Value = type { double }",
+        "alloca [2 x %aero.struct.Value]",
+        "getelementptr inbounds [2 x %aero.struct.Value]",
+        "store %aero.struct.Value",
+        "load %aero.struct.Value",
+    ] {
+        assert!(llvm.contains(anchor), "missing `{anchor}`:\n{llvm}");
+    }
+
+    let invalid = [
+        InvalidIrCase {
+            name: "checked Copy-struct array scalar element",
+            expected_fragments: &["unsupported", "array", "element", "Int"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: LogicalType::Int,
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array empty schema",
+            expected_fragments: &["unsupported", "struct", "schema", "Value"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: copy_struct("Value", Vec::new()),
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array pointer count mismatch",
+            expected_fragments: &["metadata", "array", "schema", "count", "mismatch"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: value.clone(),
+                        count: 2,
+                    },
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array pointer schema mismatch",
+            expected_fragments: &["metadata", "array", "schema", "count", "mismatch"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        element: copy_struct("Other", vec![LogicalType::Int]),
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array pointer wrong base",
+            expected_fragments: &["requires", "place", "array", "base"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "Value".to_string(),
+                        field_types: vec![LogicalType::Int],
+                    },
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "legacy GEP cannot address checked Copy-struct array",
+            expected_fragments: &["metadata", "legacy", "getelementptr", "array"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::GetElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        elem_type: "[1 x %aero.struct.Value]".to_string(),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct pointer cannot address numeric array",
+            expected_fragments: &["requires", "place", "array", "base"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::AllocaArray {
+                        result: Value::Reg(0),
+                        elem_type: "double".to_string(),
+                        count: 1,
+                    },
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array rejects scalar store",
+            expected_fragments: &["type", "mismatch", "store", "Struct", "Int"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array rejects Float index",
+            expected_fragments: &["type", "mismatch", "index", "Int", "Float"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmFloat(0.0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array rejects constant out-of-bounds index",
+            expected_fragments: &["metadata", "array", "index", "outside", "0..1"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(1),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array global schema conflict",
+            expected_fragments: &["metadata", "conflicting", "schema", "Value"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: value.clone(),
+                        count: 0,
+                    },
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(1),
+                        struct_name: "Value".to_string(),
+                        field_types: vec![LogicalType::Bool],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+        InvalidIrCase {
+            name: "checked Copy-struct array base use before definition",
+            expected_fragments: &["place", "use", "before", "definition"],
+            ir: single_function(
+                "main",
+                vec![
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        element: value.clone(),
+                        count: 1,
+                    },
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: value,
+                        count: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        },
+    ];
+    for case in invalid {
+        assert_both_checked_codegen_entrypoints_reject(case);
+    }
+}
+
+#[test]
 fn checked_codegen_emits_verified_copy_struct_function_transport() {
     let value = copy_struct("Value", vec![LogicalType::Int]);
     let admitted = program_with_checked_definition(

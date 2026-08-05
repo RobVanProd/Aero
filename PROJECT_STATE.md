@@ -4,33 +4,34 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 63 `CORE-044` is accepted through exact public implementation commit
-`da21a76cf92f2faf680a6284b4789fc401fed8fe`, on accepted CORE-043 basis
-`ef2d41b71e6509ec7c1464af53eedb0685d9a123`. It extends only
-CORE-043's unique flattened, non-generic, nonempty scalar structs: because every
-field is `Int`, `Float`, or `Bool` and has no admitted destruction, those values are
-Copy. Local aliases, by-value internal function parameters and returns, original
-reuse, forwarding, direct recursion, immediate returned-value projection, and
-one-level flattened direct-module composition now retain exact struct identity.
-One shared registry classifies the supported source schema and struct-bearing
-function signature for semantic analysis and checked admission.
+Milestone 64 `CORE-045` is a green local candidate on accepted public records head
+`e6bf154137600eacfbcd033f1219214e05b21f29` and accepted CORE-044 behavior head
+`da21a76cf92f2faf680a6284b4789fc401fed8fe`. It extends only CORE-044's exact
+all-scalar Copy structs into fixed local arrays. Nonempty literals, single-evaluation
+repeat values including zero, exact typed empty arrays, element-wise Copy aliases,
+static length, compile-time constant in-bounds indexing, projection, and compiler-
+bounded iteration retain exact struct name, fields, and count. Arrays remain excluded
+from function parameters, arguments, returns, ABI, mutation, runtime bounds, and
+non-Copy/general aggregate semantics.
 
-The implementation adds a schema-carrying checked-function definition and verifies exact
-aggregate call arguments/results, returns, places, global schemas, and process-entry
-exclusion before LLVM. Checked code generation emits named aggregate parameters,
-loads/stores, calls, and returns; the deprecated unchecked route remains unchanged.
-The exhaustive CORE-044 aggregate, CORE-043 containment suite, shared-classifier
-unit, and adversarial checked-IR controls pass. Exact root `./tools/test.sh` passes
-152/152 library tests, 160/160 CLI tests, every active integration target,
-formatting, correctness Clippy, and doc tests. The exact tracked example also builds
-through the CLI into typed aggregate LLVM. Push CI `30963297077`, PR CI
-`30963298874`, Rust CI `30963298877`, CodeQL analysis `30963297658`, and aggregate
-CodeQL check `92171836058` pass all eight public checks. Stable Linux job
-`92171725623` uses Ubuntu LLVM/Clang 22.1.8 to checked-build, `opt-22` verify,
-`llc-22` machine-verify and object-lower, `clang-22` link, and execute the exact
-tracked program with native exit 63. The Windows host has no LLVM/Clang 22 and
-accurately reports internal-only verification; the accepted pinned Linux job supplies
-the external/native evidence rather than inferring it locally.
+One shared `StructRegistry` contract classifies the supported element, annotation,
+initializer, and source-index product for semantic analysis and checked admission;
+one normalized fixed-array method disposition covers numeric and Copy-struct length
+without multiplying topology-specific rules. Distinct schema-carrying checked array
+allocation and element-pointer instructions prevent fallback to legacy numeric
+`double` arrays. The verifier proves schema/count/base/storage consistency and checked
+LLVM emits `[N x %aero.struct.Name]` allocation, aggregate load/store, and exact GEPs.
+
+The exhaustive CORE-045 aggregate, shared-classifier unit, checked-IR corruption
+controls, and adjacent struct/numeric/binding suites pass. Exact root
+`./tools/test.sh` passes 154/154 library tests, 161/161 CLI tests, every active
+integration target, formatting, correctness Clippy, and doc tests. The exact
+multi-file tracked example resolves a direct module and builds through the CLI into
+18,081 bytes of typed aggregate LLVM. The Windows host still has no LLVM/Clang 22 and
+accurately reports internal-only verification. Exact review, unchanged publication,
+all eight public checks, pinned Linux LLVM/Clang 22 verification/lowering/linking,
+native exit 77, and immediate draft-PR front-page synchronization remain acceptance
+boundaries; no public CORE-045 acceptance is claimed yet.
 
 CORE-043 remains accepted at exact implementation commit
 `92b19cf729daa4e3e90d4591495e493573c89e51` and exact public synchronization head
@@ -49,8 +50,9 @@ composition rather than a module system.
   to the accepted head, and design a separately authorized checkpoint/merge strategy
   before normal reviewability is lost. This does not authorize merging to `master`.
 - Milestone selection must not optimize indefinitely for convenient compile-time
-  slices. CORE-043 took the first aggregate/layout/IR vertical step and CORE-044
-  takes a bounded ownership and internal by-value function-boundary step. Non-Copy
+  slices. CORE-043 took the first aggregate/layout/IR vertical step, CORE-044 took a
+  bounded ownership and internal by-value function-boundary step, and CORE-045 takes
+  nested aggregate storage through checked IR and LLVM. Non-Copy
   ownership, runtime representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -61,8 +63,10 @@ composition rather than a module system.
   semantics, logical checked IR, verification, LLVM, native execution, documentation,
   and release-eligibility classification. CORE-042 and CORE-043 provide accepted
   composed gates; CORE-044 adds an accepted ownership/function-boundary system gate
-  backed by pinned native CI. Local slice tests alone never establish whole-language
-  coherence.
+  backed by pinned native CI. CORE-045's multi-file exit-77 candidate composes direct
+  modules, structs, Copy function transport, fixed arrays, scalar control flow, and
+  compile-time Strings; it becomes system evidence only after pinned native CI.
+  Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
 Its exact local gate passed 146/146 library, 156/156 CLI, 7/7 claim, 28/28 binding,
@@ -100,15 +104,14 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-The shared direct-module collector already resolves and strictly parses both physical
-layouts before trusted analysis, and the compiler's existing flattened top-level
-signature collection should make unique scalar/Void functions visible across all
-three call-edge directions independent of source order. A single mixed-layout example
-can therefore expose whether the current checked pipeline is architecturally coherent
-across module collection, accepted arrays and compile-time Strings, logical functions,
-verified LLVM, and native execution. The class remains deliberately below normative
-module semantics: a failure requiring namespaces, `use`, `pub`, recursion, a module
-graph, or a changed ABI disproves this bounded hypothesis and stops the task.
+An exact CORE-044 Copy struct can inhabit a fixed local array without inventing layout,
+ownership, ABI, or runtime-bounds semantics if one shared contract retains exact
+element identity and count through semantic analysis, checked admission, logical IR,
+verification, LLVM, and native execution. The local candidate supports that hypothesis.
+It is accepted only if the unchanged public commit passes every check and the pinned
+Linux job externally verifies, machine-verifies, object-lowers, links, and executes the
+multi-file tracked example with exact exit 77. Any need for array function transport,
+dynamic bounds, non-Copy storage, or public ABI rules disproves this bounded class.
 
 The completed `AUDIT-032` hypothesis was:
 

@@ -1,0 +1,57 @@
+
+mod shapes;
+
+struct Packet {
+    total: int,
+    alias: i32,
+    ratio: float,
+    precise: f64,
+    ready: bool
+}
+struct Stamp { value: int }
+
+fn make_packet(total: int, alias: int) -> Packet {
+    return Packet {
+        ready: 1 < 2,
+        precise: 4.5,
+        ratio: 3.5,
+        alias: alias,
+        total: total
+    };
+}
+
+fn identity(packet: Packet) -> Packet { packet }
+
+fn iteration_score() -> int {
+    let values = [make_packet(4, 6), make_packet(5, 7)];
+    for item in values.iter().iter() {
+        if item.ready && item.total > 4 {
+            return item.alias;
+        }
+    }
+    return 0;
+}
+
+fn main() -> int {
+    let original = make_packet(6, 1);
+    let returned = identity(make_packet(20, 2));
+    let literal: [Packet; 3] = [
+        original,
+        returned,
+        Packet { total: 30, alias: 3, ratio: 6.5, precise: 7.5, ready: 2 > 1 }
+    ];
+    let copied = literal;
+    let mut second: [Packet; 3] = copied;
+    let repeated: [Packet; 2] = [original; 2];
+    let empty: [Packet; 0] = [];
+    let stamp = [Stamp { value: 9 }][0];
+
+    if original.ready && returned.ready && second[2].ready
+        && repeated[0].ready && stamp.value == 9
+        && "aero".starts_with("ae") {
+        return second[0].total + copied[1].total + literal[2].total
+            + repeated[1].alias + literal.len() + repeated.len()
+            + empty.len() + "aero".len() + iteration_score() + module_score();
+    }
+    return 1;
+}

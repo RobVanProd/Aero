@@ -176,11 +176,21 @@ aero lsp
 > recursion, and the flattened one-level direct-module route. Unsupported definitions,
 > shapes, annotations, and contexts remain rejected before LLVM.
 >
-> This does not provide non-Copy or destructive move semantics, assignment, methods,
-> destructuring, Match, nested/recursive aggregates, generics, visibility, separate
+> The current CORE-045 local candidate also permits fixed local arrays of one exact
+> admitted all-scalar Copy struct. It covers literal, repeat, and typed-empty origins;
+> element-wise Copy aliases; static length; compile-time constant in-bounds indexing
+> and projection; and compiler-bounded iteration. Exact struct schema and count survive
+> distinct checked array IR into typed `[N x %aero.struct.Name]` LLVM. The tracked
+> multi-file exit-77 example composes this with direct-module collection, but public
+> LLVM/Clang 22 native evidence is still required before CORE-045 acceptance.
+>
+> This does not provide non-Copy or destructive move semantics, assignment, general
+> methods beyond the exact array `.len()`/`.iter()` forms,
+> destructuring, Match, nested arrays, arrays as fields or function values, dynamic
+> bounds, runtime checks, recursive aggregates, generics, visibility, separate
 > compilation, stable layout/ABI/FFI, general ownership/drop/lifetimes, heap storage,
 > accelerator execution, or performance guarantees. LLVM owns internal padding and
-> alignment. `main` retains exact `i32 @main()`, and method calls remain a distinct
+> alignment. `main` retains exact `i32 @main()`, and other method calls remain a distinct
 > AST form.
 
 > **Pattern matching status:** `match` syntax, arms, and patterns are recognized,

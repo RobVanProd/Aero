@@ -1,39 +1,80 @@
+use crate::struct_contract::StructRegistry;
 use crate::types::Ty;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum FixedNumericArrayLenDisposition {
-    StaticLength(i32),
-    WrongArity { actual: usize },
-    LengthOutsideIntRange { count: usize },
+pub(crate) enum FixedArrayKind {
+    Numeric,
+    CopyStruct,
+}
+
+impl FixedArrayKind {
+    pub(crate) fn diagnostic_subject(self) -> &'static str {
+        match self {
+            Self::Numeric => "fixed numeric array",
+            Self::CopyStruct => "fixed Copy-struct array",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FixedArrayLenDisposition {
+    StaticLength { kind: FixedArrayKind, count: i32 },
+    WrongArity { kind: FixedArrayKind, actual: usize },
+    LengthOutsideIntRange { kind: FixedArrayKind, count: usize },
     PreserveExistingBehavior,
 }
 
-pub(crate) fn classify_fixed_numeric_array_len(
+pub(crate) fn classify_fixed_array_len(
     receiver: &Ty,
     method: &str,
     argument_count: usize,
-) -> FixedNumericArrayLenDisposition {
+    structs: &StructRegistry,
+) -> FixedArrayLenDisposition {
     let Ty::Array(element, count) = receiver else {
-        return FixedNumericArrayLenDisposition::PreserveExistingBehavior;
+        return FixedArrayLenDisposition::PreserveExistingBehavior;
     };
-    if method != "len" || !matches!(element.as_ref(), Ty::Int | Ty::Float) {
-        return FixedNumericArrayLenDisposition::PreserveExistingBehavior;
+    if method != "len" {
+        return FixedArrayLenDisposition::PreserveExistingBehavior;
     }
+    let kind = if structs.is_copy_struct_ty(element) {
+        FixedArrayKind::CopyStruct
+    } else if matches!(element.as_ref(), Ty::Int | Ty::Float) {
+        FixedArrayKind::Numeric
+    } else {
+        return FixedArrayLenDisposition::PreserveExistingBehavior;
+    };
     if argument_count != 0 {
-        return FixedNumericArrayLenDisposition::WrongArity {
+        return FixedArrayLenDisposition::WrongArity {
+            kind,
             actual: argument_count,
         };
     }
     match i32::try_from(*count) {
-        Ok(count) => FixedNumericArrayLenDisposition::StaticLength(count),
-        Err(_) => FixedNumericArrayLenDisposition::LengthOutsideIntRange { count: *count },
+        Ok(count) => FixedArrayLenDisposition::StaticLength { kind, count },
+        Err(_) => FixedArrayLenDisposition::LengthOutsideIntRange {
+            kind,
+            count: *count,
+        },
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{FixedNumericArrayLenDisposition, classify_fixed_numeric_array_len};
+    use super::{FixedArrayKind, FixedArrayLenDisposition, classify_fixed_array_len};
+    use crate::ast::{AstNode, FieldDecl, Statement, Type};
+    use crate::struct_contract::StructRegistry;
     use crate::types::Ty;
+
+    fn structs() -> StructRegistry {
+        StructRegistry::from_top_level_ast(&[AstNode::Statement(Statement::StructDef {
+            name: "Value".to_string(),
+            fields: vec![FieldDecl {
+                name: "number".to_string(),
+                field_type: Type::Named("int".to_string()),
+            }],
+            type_params: vec![],
+        })])
+    }
 
     fn array(element: Ty, count: usize) -> Ty {
         Ty::Array(Box::new(element), count)
@@ -54,23 +95,84 @@ mod tests {
             ),
         ] {
             assert_eq!(
-                classify_fixed_numeric_array_len(&receiver, "len", 0),
-                FixedNumericArrayLenDisposition::StaticLength(count),
+                classify_fixed_array_len(&receiver, "len", 0, &structs()),
+                FixedArrayLenDisposition::StaticLength {
+                    kind: FixedArrayKind::Numeric,
+                    count,
+                },
                 "{label}"
             );
         }
 
         for actual in [1, 2, usize::MAX] {
             assert_eq!(
-                classify_fixed_numeric_array_len(&array(Ty::Int, 3), "len", actual),
-                FixedNumericArrayLenDisposition::WrongArity { actual }
+                classify_fixed_array_len(&array(Ty::Int, 3), "len", actual, &structs(),),
+                FixedArrayLenDisposition::WrongArity {
+                    kind: FixedArrayKind::Numeric,
+                    actual,
+                }
             );
         }
 
+        for (label, receiver, count) in [
+            (
+                "Copy struct zero",
+                array(Ty::Struct("Value".to_string()), 0),
+                0,
+            ),
+            (
+                "Copy struct positive",
+                array(Ty::Struct("Value".to_string()), 9),
+                9,
+            ),
+            (
+                "Copy struct maximum",
+                array(Ty::Struct("Value".to_string()), i32::MAX as usize),
+                i32::MAX,
+            ),
+        ] {
+            assert_eq!(
+                classify_fixed_array_len(&receiver, "len", 0, &structs()),
+                FixedArrayLenDisposition::StaticLength {
+                    kind: FixedArrayKind::CopyStruct,
+                    count,
+                },
+                "{label}"
+            );
+        }
+
+        assert_eq!(
+            classify_fixed_array_len(
+                &array(Ty::Struct("Value".to_string()), 3),
+                "len",
+                2,
+                &structs(),
+            ),
+            FixedArrayLenDisposition::WrongArity {
+                kind: FixedArrayKind::CopyStruct,
+                actual: 2,
+            }
+        );
+
         let outside = i32::MAX as usize + 1;
         assert_eq!(
-            classify_fixed_numeric_array_len(&array(Ty::Float, outside), "len", 0),
-            FixedNumericArrayLenDisposition::LengthOutsideIntRange { count: outside }
+            classify_fixed_array_len(&array(Ty::Float, outside), "len", 0, &structs(),),
+            FixedArrayLenDisposition::LengthOutsideIntRange {
+                kind: FixedArrayKind::Numeric,
+                count: outside,
+            }
+        );
+        assert_eq!(
+            classify_fixed_array_len(
+                &array(Ty::Struct("Value".to_string()), outside),
+                "len",
+                0,
+                &structs(),
+            ),
+            FixedArrayLenDisposition::LengthOutsideIntRange {
+                kind: FixedArrayKind::CopyStruct,
+                count: outside,
+            }
         );
 
         for (label, receiver, method, arity) in [
@@ -84,8 +186,8 @@ mod tests {
             ("unknown arity", array(Ty::Int, 3), "missing", 2),
         ] {
             assert_eq!(
-                classify_fixed_numeric_array_len(&receiver, method, arity),
-                FixedNumericArrayLenDisposition::PreserveExistingBehavior,
+                classify_fixed_array_len(&receiver, method, arity, &structs()),
+                FixedArrayLenDisposition::PreserveExistingBehavior,
                 "{label}"
             );
         }

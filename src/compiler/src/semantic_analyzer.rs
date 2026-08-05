@@ -5,7 +5,9 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
     typed_empty_numeric_array_contract,
 };
-use crate::struct_contract::{StructExecutionContext, StructRegistry};
+use crate::struct_contract::{
+    CopyStructArrayIndexDisposition, StructExecutionContext, StructRegistry,
+};
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::collections::{HashMap, HashSet};
 
@@ -550,12 +552,15 @@ impl SemanticAnalyzer {
                 .function_table
                 .get_admitted_contract(name)
                 .is_some_and(|contract| matches!(&contract.return_type, Ty::Struct(_))),
+            // Exact array/index eligibility is resolved after both children have
+            // been traversed and typed through StructRegistry's shared contract.
+            Expression::IndexAccess { .. } => true,
             _ => false,
         }
     }
 
     fn is_copy_type(&self, ty: &Ty) -> bool {
-        ty.is_copy_type() || self.struct_registry.is_copy_struct_ty(ty)
+        self.struct_registry.is_copy_type(ty)
     }
 
     fn infer_into_iterator_item_type(&self, iterable_type: &Ty) -> Option<Ty> {
@@ -822,6 +827,16 @@ impl SemanticAnalyzer {
                 );
             }
             self.require_homogeneous_numeric_array(&elem_type, remaining_types)?;
+        } else if self.struct_registry.is_copy_struct_ty(&elem_type) {
+            let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
+            for element in elements.iter().skip(1) {
+                remaining_types.push(
+                    self.infer_and_validate_expression_immutable_with_cache(element, array_types)?,
+                );
+            }
+            self.struct_registry
+                .validate_copy_struct_array_elements(&elem_type, remaining_types)
+                .map_err(|error| error.diagnostic())?;
         } else {
             for element in elements.iter().skip(1) {
                 self.preflight_expression(element)?;
@@ -1071,6 +1086,17 @@ impl SemanticAnalyzer {
                             .push(self.infer_and_validate_expression(&mut element.clone())?);
                     }
                     self.require_homogeneous_numeric_array(&elem_type, remaining_types)?;
+                } else if self.type_param_scopes.is_empty()
+                    && self.struct_registry.is_copy_struct_ty(&elem_type)
+                {
+                    let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
+                    for element in elements.iter().skip(1) {
+                        remaining_types
+                            .push(self.infer_and_validate_expression(&mut element.clone())?);
+                    }
+                    self.struct_registry
+                        .validate_copy_struct_array_elements(&elem_type, remaining_types)
+                        .map_err(|error| error.diagnostic())?;
                 }
                 Ok(Ty::Array(Box::new(elem_type), elements.len()))
             }
@@ -1082,7 +1108,7 @@ impl SemanticAnalyzer {
                 let obj_type = self.infer_and_validate_expression(object)?;
                 let index_type = self.infer_and_validate_expression(index)?;
                 if self.type_param_scopes.is_empty()
-                    && matches!(&obj_type, Ty::Array(element, _) if Self::is_numeric_type(element))
+                    && matches!(&obj_type, Ty::Array(element, _) if Self::is_numeric_type(element) || self.struct_registry.is_copy_struct_ty(element))
                     && index_type != Ty::Int
                 {
                     return Err(format!(
@@ -1092,6 +1118,24 @@ impl SemanticAnalyzer {
                 }
                 if is_statically_empty_fixed_array(&obj_type) {
                     return Err("Error: cannot index a zero-length fixed array.".to_string());
+                }
+                match self
+                    .struct_registry
+                    .classify_copy_struct_array_index(&obj_type, index)
+                {
+                    CopyStructArrayIndexDisposition::PreserveExistingBehavior
+                    | CopyStructArrayIndexDisposition::Accepted { .. } => {}
+                    CopyStructArrayIndexDisposition::NonConstant => {
+                        return Err(
+                            "fixed Copy-struct array index must be a compile-time integer constant"
+                                .to_string(),
+                        );
+                    }
+                    CopyStructArrayIndexDisposition::OutOfBounds { index, count } => {
+                        return Err(format!(
+                            "fixed Copy-struct array index {index} is outside 0..{count}"
+                        ));
+                    }
                 }
                 match obj_type {
                     Ty::Array(elem, _) => Ok(*elem),
@@ -1683,7 +1727,7 @@ impl SemanticAnalyzer {
                 let index_type =
                     self.infer_and_validate_expression_immutable_with_cache(index, array_types)?;
                 if self.type_param_scopes.is_empty()
-                    && matches!(&obj_type, Ty::Array(element, _) if Self::is_numeric_type(element))
+                    && matches!(&obj_type, Ty::Array(element, _) if Self::is_numeric_type(element) || self.struct_registry.is_copy_struct_ty(element))
                     && index_type != Ty::Int
                 {
                     return Err(format!(
@@ -1693,6 +1737,24 @@ impl SemanticAnalyzer {
                 }
                 if is_statically_empty_fixed_array(&obj_type) {
                     return Err("Error: cannot index a zero-length fixed array.".to_string());
+                }
+                match self
+                    .struct_registry
+                    .classify_copy_struct_array_index(&obj_type, index)
+                {
+                    CopyStructArrayIndexDisposition::PreserveExistingBehavior
+                    | CopyStructArrayIndexDisposition::Accepted { .. } => {}
+                    CopyStructArrayIndexDisposition::NonConstant => {
+                        return Err(
+                            "fixed Copy-struct array index must be a compile-time integer constant"
+                                .to_string(),
+                        );
+                    }
+                    CopyStructArrayIndexDisposition::OutOfBounds { index, count } => {
+                        return Err(format!(
+                            "fixed Copy-struct array index {index} is outside 0..{count}"
+                        ));
+                    }
                 }
                 match obj_type {
                     Ty::Array(elem, _) => Ok(*elem),
@@ -1979,12 +2041,19 @@ impl SemanticAnalyzer {
                     self.check_expression_initialization(val)?;
                     let inferred = self.require_value(val)?;
                     if self.type_param_scopes.is_empty() && !self.inside_impl {
-                        type_annotation
-                            .as_ref()
-                            .and_then(|annotation| {
-                                typed_empty_numeric_array_contract(annotation, val)
-                            })
-                            .map_or(inferred, |contract| contract.ty())
+                        if let Some(contract) = type_annotation.as_ref().and_then(|annotation| {
+                            self.struct_registry
+                                .typed_empty_copy_struct_array_contract(annotation, val)
+                        }) {
+                            contract.ty()
+                        } else {
+                            type_annotation
+                                .as_ref()
+                                .and_then(|annotation| {
+                                    typed_empty_numeric_array_contract(annotation, val)
+                                })
+                                .map_or(inferred, |contract| contract.ty())
+                        }
                     } else {
                         inferred
                     }
@@ -1993,6 +2062,12 @@ impl SemanticAnalyzer {
                 };
 
                 if let Some(initializer) = value {
+                    self.struct_registry
+                        .validate_copy_struct_array_binding(
+                            type_annotation.as_ref(),
+                            &inferred_type,
+                        )
+                        .map_err(|error| error.diagnostic())?;
                     self.struct_registry
                         .validate_direct_binding_initializer(initializer, &inferred_type)
                         .map_err(|error| error.diagnostic())?;
