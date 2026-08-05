@@ -357,14 +357,14 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
         Ok(()) => failures
             .push("non-numeric-first preflight precedence: unexpectedly accepted".to_string()),
         Err(error) => {
-            if !error.contains("Tuple expressions are not supported") {
+            if !error.contains("Function `missing_function` is not defined") {
                 failures.push(format!(
-                    "non-numeric-first preflight precedence: diagnostic {error:?} missed the preserved later preflight error"
+                    "non-numeric-first inference precedence: diagnostic {error:?} missed the first failing child"
                 ));
             }
-            if error.contains("Function `missing_function` is not defined") {
+            if error.contains("Tuple expressions are not supported") {
                 failures.push(format!(
-                    "non-numeric-first preflight precedence: diagnostic {error:?} incorrectly activated numeric-first ordering"
+                    "non-numeric-first inference precedence: diagnostic {error:?} retained the superseded flat-tuple boundary"
                 ));
             }
         }
@@ -377,10 +377,10 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
             "Tuple expressions are not supported",
         ),
         (
-            "nested unselected array retains preflight precedence",
+            "nested unselected array admits flat tuple before first-child inference",
             "fn main() { let item = [missing_function(), (2, 3)][0]; }",
-            "Tuple expressions are not supported",
             "Function `missing_function` is not defined",
+            "Tuple expressions are not supported",
         ),
     ] {
         match semantic_result(source) {
@@ -403,9 +403,9 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
         Ok(()) => failures
             .push("nested array precedes later parent sibling: unexpectedly accepted".to_string()),
         Err(error) => {
-            if !error.contains("Tuple expressions are not supported") {
+            if !error.contains("array element type mismatch: expected int, actual (int, int)") {
                 failures.push(format!(
-                    "nested array precedes later parent sibling: diagnostic {error:?} missed the earlier array child"
+                    "nested array precedes later parent sibling: diagnostic {error:?} missed the tuple-array mismatch"
                 ));
             }
             if error.contains("Field access expressions are not supported") {
@@ -420,16 +420,10 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
         "stub-only method argument retains pre-task numeric-array quarantine",
         semantic_result("fn main() { let values = [1, 2]; let item = values.unknown([1, 2.5]); }"),
     );
-    for (label, source) in [
-        (
-            "closure body retains strict unsupported-child preflight",
-            "fn main() { let callback = |value: int| [1, (2, 3)]; }",
-        ),
-        (
-            "method argument retains strict unsupported-child preflight",
-            "fn main() { let text = \"x\"; let value = text.unknown([1, (2, 3)]); }",
-        ),
-    ] {
+    for (label, source) in [(
+        "closure body retains strict unsupported-child preflight",
+        "fn main() { let callback = |value: int| [1, (2, 3)]; }",
+    )] {
         expect_rejection(
             &mut failures,
             label,
@@ -437,6 +431,11 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
             &["Tuple expressions are not supported"],
         );
     }
+    expect_acceptance(
+        &mut failures,
+        "admitted tuple method argument advances to checked method classification",
+        semantic_result("fn main() { let text = \"x\"; let value = text.unknown([1, (2, 3)]); }"),
+    );
     match semantic_result("fn main() { println!(\"\", [1, 2.5]); }") {
         Ok(()) => failures
             .push("format count precedes argument inference: unexpectedly accepted".to_string()),
@@ -485,14 +484,14 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
         Ok(()) => failures
             .push("first preflight error remains immediate: unexpectedly accepted".to_string()),
         Err(error) => {
-            if !error.contains("Tuple expressions are not supported") {
+            if !error.contains("Field access expressions are not supported") {
                 failures.push(format!(
-                    "first preflight error remains immediate: diagnostic {error:?} missed the first tuple"
+                    "admitted first flat tuple advances to later field: diagnostic {error:?} missed the field rejection"
                 ));
             }
-            if error.contains("Field access expressions are not supported") {
+            if error.contains("Tuple expressions are not supported") {
                 failures.push(format!(
-                    "first preflight error remains immediate: diagnostic {error:?} advanced to the later field"
+                    "admitted first flat tuple retained its superseded rejection: {error:?}"
                 ));
             }
         }
@@ -503,7 +502,7 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
         semantic_result(
             "enum Choice { Number(int) } fn main() { let choice = Choice::Number([1, (2, 3)]); }",
         ),
-        &["Tuple expressions are not supported"],
+        &["array element type mismatch: expected int, actual (int, int)"],
     );
     assert!(
         !failures
@@ -709,15 +708,15 @@ fn tuple_annotations_fail_closed_before_binding_insertion_or_generation() {
 
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS semantic child precedence",
+        "tuple RHS semantic annotation mismatch",
         semantic_result("fn main() { let value: (int, float) = (1, 2); }"),
-        "Tuple expressions are not supported.",
+        "tuple binding annotation mismatch: expected (int, float), actual (int, int)",
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS checked child precedence",
+        "tuple RHS checked annotation mismatch",
         checked_source("fn main() { let value: (int, float) = (1, 2); }"),
-        "aggregate expression is not admitted in checked IR",
+        "tuple binding annotation mismatch: expected (int, float), actual (int, int)",
     );
     expect_exact_rejection(
         &mut failures,
@@ -1074,15 +1073,15 @@ fn initialized_immediate_reference_to_tuple_annotations_fail_closed_after_value_
     }
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS semantic child precedence",
+        "tuple RHS semantic preserved annotation topology",
         semantic_result("fn main() { let value: &(int, float) = (1, 2); }"),
-        "Tuple expressions are not supported.",
+        SEMANTIC_ERROR,
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS checked child precedence",
+        "tuple RHS checked preserved annotation topology",
         checked_source("fn main() { let value: &(int, float) = (1, 2); }"),
-        "aggregate expression is not admitted in checked IR",
+        CHECKED_ERROR,
     );
     expect_rejection(
         &mut failures,
@@ -1418,15 +1417,15 @@ fn initialized_positive_count_reference_array_tuple_annotations_fail_closed_afte
     }
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS semantic child precedence",
+        "tuple RHS semantic preserved annotation topology",
         semantic_result("fn main() { let value: &[(int, float); 1] = (1, 2); }"),
-        "Tuple expressions are not supported.",
+        SEMANTIC_ERROR,
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS checked child precedence",
+        "tuple RHS checked preserved annotation topology",
         checked_source("fn main() { let value: &[(int, float); 1] = (1, 2); }"),
-        "aggregate expression is not admitted in checked IR",
+        CHECKED_ERROR,
     );
     expect_rejection(
         &mut failures,
@@ -2140,15 +2139,15 @@ fn initialized_immediate_array_of_tuple_annotation_fails_closed_after_value_vali
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS semantic child precedence",
+        "tuple RHS semantic preserved annotation topology",
         semantic_result("fn main() { let value: [(int, float); 1] = (1, 2); }"),
-        "Tuple expressions are not supported.",
+        SEMANTIC_ERROR,
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS checked child precedence",
+        "tuple RHS checked preserved annotation topology",
         checked_source("fn main() { let value: [(int, float); 1] = (1, 2); }"),
-        "aggregate expression is not admitted in checked IR",
+        CHECKED_ERROR,
     );
 
     for (label, source, semantic_error, checked_error) in [
@@ -2338,15 +2337,15 @@ fn initialized_immediate_array_of_array_of_tuple_annotation_fails_closed_after_v
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS semantic child precedence",
+        "tuple RHS semantic preserved annotation topology",
         semantic_result("fn main() { let value: [[(int, float); 1]; 1] = (1, 2); }"),
-        "Tuple expressions are not supported.",
+        SEMANTIC_ERROR,
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS checked child precedence",
+        "tuple RHS checked preserved annotation topology",
         checked_source("fn main() { let value: [[(int, float); 1]; 1] = (1, 2); }"),
-        "aggregate expression is not admitted in checked IR",
+        CHECKED_ERROR,
     );
     const INITIALIZED_THREE_ARRAY_SOURCE: &str =
         "fn main() { let value: [[[(int, float); 1]; 1]; 1] = 1; }";
@@ -3721,15 +3720,15 @@ fn binding_annotation_disposition_characterization_is_exhaustive_and_behavior_ne
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS semantic precedence",
+        "tuple RHS semantic annotation mismatch",
         semantic_result("fn main() { let value: (int, float) = (1, 2); }"),
-        "Tuple expressions are not supported.",
+        "tuple binding annotation mismatch: expected (int, float), actual (int, int)",
     );
     expect_exact_rejection(
         &mut failures,
-        "tuple RHS checked precedence",
+        "tuple RHS checked annotation mismatch",
         checked_source("fn main() { let value: (int, float) = (1, 2); }"),
-        "aggregate expression is not admitted in checked IR",
+        "tuple binding annotation mismatch: expected (int, float), actual (int, int)",
     );
     const VOID_SOURCE: &str = "fn notify() {} fn main() { let value: (int, float) = notify(); }";
     expect_rejection(

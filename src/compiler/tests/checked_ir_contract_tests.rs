@@ -240,7 +240,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 ],
             ))]),
         ],
-        "aggregate expression is not admitted in checked IR",
+        "flat Copy tuples require at least two elements",
         "surplus child precedence",
     );
 

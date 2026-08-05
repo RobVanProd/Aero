@@ -317,14 +317,14 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
             "checked IR has no binding for `missing`",
         ),
         (
-            "tuple left child remains excluded",
+            "admitted tuple left child reaches comparison classification",
             "fn main() { let same = (1, 2) == \"a\"; }",
-            "aggregate expression is not admitted in checked IR",
+            "comparison operand types are not admitted; expected numeric operands or Bool with Bool",
         ),
         (
-            "tuple right child remains excluded",
+            "admitted tuple right child reaches comparison classification",
             "fn main() { let same = \"a\" == (1, 2); }",
-            "aggregate expression is not admitted in checked IR",
+            "comparison operand types are not admitted; expected numeric operands or Bool with Bool",
         ),
         (
             "indexed String remains excluded",

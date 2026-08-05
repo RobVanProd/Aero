@@ -1,5 +1,6 @@
 use crate::ast::{AstNode, Expression, FieldDecl, Statement, Type};
 use crate::ir::LogicalType;
+use crate::tuple_contract::{TupleContractDisposition, classify_flat_copy_tuple_annotation};
 use crate::types::Ty;
 use std::collections::{BTreeMap, HashSet};
 
@@ -154,8 +155,16 @@ pub(crate) enum StructContractError {
     },
     UnsupportedFunctionReturn,
     UnsupportedFunctionArrayReturn,
+    TupleFunctionMixedParameter {
+        function_name: String,
+        parameter_name: String,
+    },
+    TupleFunctionMixedReturn {
+        function_name: String,
+    },
     ProcessEntryStructTransport,
     ProcessEntryArrayTransport,
+    ProcessEntryTupleTransport,
     CopyStructArrayElementMismatch {
         expected: String,
         actual: String,
@@ -201,11 +210,23 @@ impl StructContractError {
             Self::UnsupportedFunctionArrayReturn => {
                 "function return uses an unsupported fixed-array element type".to_string()
             }
+            Self::TupleFunctionMixedParameter {
+                function_name,
+                parameter_name,
+            } => format!(
+                "tuple-bearing function `{function_name}` parameter `{parameter_name}` is outside the scalar/flat-tuple product"
+            ),
+            Self::TupleFunctionMixedReturn { function_name } => format!(
+                "tuple-bearing function `{function_name}` result is outside the scalar/flat-tuple product"
+            ),
             Self::ProcessEntryStructTransport => {
                 "process entry `main` cannot use struct parameters or returns".to_string()
             }
             Self::ProcessEntryArrayTransport => {
                 "process entry `main` cannot use aggregate parameters or returns".to_string()
+            }
+            Self::ProcessEntryTupleTransport => {
+                "process entry `main` cannot use tuple parameters or returns".to_string()
             }
             Self::CopyStructArrayElementMismatch { expected, actual } => format!(
                 "fixed Copy-struct arrays require one exact element type: expected {expected}, actual {actual}"
@@ -633,12 +654,18 @@ impl StructRegistry {
         if !mentions_aggregate_candidate {
             return Ok(None);
         }
+        let mentions_tuple = parameters
+            .iter()
+            .any(|parameter| matches!(parameter.param_type, Type::Tuple(_)))
+            || return_type.is_some_and(|result| matches!(result, Type::Tuple(_)));
         if name == "main" {
             let mentions_array = parameters
                 .iter()
                 .any(|parameter| matches!(parameter.param_type, Type::Array(_, _)))
                 || return_type.is_some_and(|result| matches!(result, Type::Array(_, _)));
-            return Err(if mentions_array {
+            return Err(if mentions_tuple {
+                StructContractError::ProcessEntryTupleTransport
+            } else if mentions_array {
                 StructContractError::ProcessEntryArrayTransport
             } else {
                 StructContractError::ProcessEntryStructTransport
@@ -646,6 +673,21 @@ impl StructRegistry {
         }
         if !type_params.is_empty() || !admitted_symbol(name) {
             return Err(StructContractError::PreserveExistingBehavior);
+        }
+        if mentions_tuple {
+            for parameter in parameters {
+                if !Self::tuple_signature_member(&parameter.param_type) {
+                    return Err(StructContractError::TupleFunctionMixedParameter {
+                        function_name: name.to_string(),
+                        parameter_name: parameter.name.clone(),
+                    });
+                }
+            }
+            if return_type.is_some_and(|result| !Self::tuple_signature_member(result)) {
+                return Err(StructContractError::TupleFunctionMixedReturn {
+                    function_name: name.to_string(),
+                });
+            }
         }
 
         let mut seen_parameters = HashSet::new();
@@ -727,7 +769,20 @@ impl StructRegistry {
     }
 
     fn annotation_is_aggregate_candidate(&self, annotation: &Type) -> bool {
-        matches!(annotation, Type::Array(_, _)) || self.annotation_is_copy_struct(annotation)
+        matches!(annotation, Type::Array(_, _) | Type::Tuple(_))
+            || self.annotation_is_copy_struct(annotation)
+    }
+
+    fn tuple_signature_member(annotation: &Type) -> bool {
+        match classify_flat_copy_tuple_annotation(annotation) {
+            TupleContractDisposition::Supported(_)
+            | TupleContractDisposition::ExplicitlyRejected(_) => true,
+            TupleContractDisposition::Preserved => matches!(
+                annotation,
+                Type::Named(name)
+                    if matches!(name.as_str(), "int" | "i32" | "float" | "f64" | "bool")
+            ),
+        }
     }
 
     pub(crate) fn resolve_copy_annotation(&self, annotation: &Type) -> Option<CopyTypeContract> {
@@ -792,6 +847,14 @@ impl StructRegistry {
                     },
                 })
             }
+            Type::Tuple(_) => match classify_flat_copy_tuple_annotation(annotation) {
+                TupleContractDisposition::Supported(contract) => Some(CopyTypeContract {
+                    ty: contract.ty(),
+                    logical_type: contract.logical_type(),
+                }),
+                TupleContractDisposition::ExplicitlyRejected(_)
+                | TupleContractDisposition::Preserved => None,
+            },
             _ => None,
         }
     }

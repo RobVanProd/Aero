@@ -258,9 +258,9 @@ fn static_string_character_len_class_is_complete_and_ci_executable() {
             "checked IR has no binding for `missing`",
         ),
         (
-            "argument child precedes arity classification",
+            "admitted tuple argument reaches arity classification",
             "fn main() { let observed = \"a\".len((1, 2)); }",
-            "aggregate expression is not admitted in checked IR",
+            WRONG_ARITY_ONE,
         ),
         (
             "one-argument exact len arity",

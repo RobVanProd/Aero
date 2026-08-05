@@ -325,6 +325,16 @@ fn valid_struct_schema(fields: &[LogicalType]) -> bool {
     !fields.is_empty() && fields.iter().all(valid_copy_struct_field_type)
 }
 
+fn valid_flat_copy_tuple(elements: &[LogicalType]) -> bool {
+    elements.len() >= 2
+        && elements.iter().all(|element| {
+            matches!(
+                element,
+                LogicalType::Int | LogicalType::Float | LogicalType::Bool
+            )
+        })
+}
+
 fn valid_copy_struct_field_type(logical_type: &LogicalType) -> bool {
     match logical_type {
         LogicalType::Int | LogicalType::Float | LogicalType::Bool => true,
@@ -333,6 +343,7 @@ fn valid_copy_struct_field_type(logical_type: &LogicalType) -> bool {
             matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
                 || valid_copy_struct_type(element)
         }
+        LogicalType::Tuple { .. } => false,
         LogicalType::Void
         | LogicalType::String
         | LogicalType::ImmutableReference { .. }
@@ -357,6 +368,7 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
             matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
                 || valid_copy_struct_type(element)
         }
+        LogicalType::Tuple { elements } => valid_flat_copy_tuple(elements),
         LogicalType::Enum { name, variants } => valid_enum_schema(&EnumSchema {
             name: name.clone(),
             variants: variants.clone(),
@@ -557,13 +569,17 @@ fn checked_signature(
             ty,
             LogicalType::Struct { .. }
                 | LogicalType::Array { .. }
+                | LogicalType::Tuple { .. }
                 | LogicalType::Enum { .. }
                 | LogicalType::ImmutableReference { .. }
                 | LogicalType::MutableReference { .. }
         )
     }) || matches!(
         result,
-        LogicalType::Struct { .. } | LogicalType::Array { .. } | LogicalType::Enum { .. }
+        LogicalType::Struct { .. }
+            | LogicalType::Array { .. }
+            | LogicalType::Tuple { .. }
+            | LogicalType::Enum { .. }
     );
     if !mentions_checked_transport {
         return Err(IrVerificationError::new(
@@ -932,6 +948,8 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedCopyStructArrayElementPtr { result, .. }
         | Inst::CheckedStructAlloca { result, .. }
         | Inst::CheckedStructFieldPtr { result, .. }
+        | Inst::CheckedTupleAlloca { result, .. }
+        | Inst::CheckedTupleFieldPtr { result, .. }
         | Inst::CheckedImmutableBorrow { result, .. }
         | Inst::CheckedMutableBorrow { result, .. }
         | Inst::CheckedImmutableReferenceParameter { result, .. }
@@ -1284,6 +1302,8 @@ impl<'a> FunctionVerifier<'a> {
                                 Inst::CheckedStructFieldPtr { .. } => {
                                     "checked struct field pointer"
                                 }
+                                Inst::CheckedTupleAlloca { .. } => "checked tuple alloca",
+                                Inst::CheckedTupleFieldPtr { .. } => "checked tuple field pointer",
                                 Inst::CheckedImmutableBorrow { .. } => "checked immutable borrow",
                                 Inst::CheckedMutableBorrow { .. } => "checked mutable borrow",
                                 Inst::CheckedImmutableReferenceParameter { .. } => {
@@ -1642,6 +1662,65 @@ impl<'a> FunctionVerifier<'a> {
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(format!(
                                         "checked struct field pointer schema mismatch for `{struct_name}` field {field_index}"
+                                    )),
+                                ));
+                            }
+                            (PlaceType::Known(field_type.clone()), None)
+                        }
+                        Inst::CheckedTupleAlloca { element_types, .. } => {
+                            if !valid_flat_copy_tuple(element_types) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::UnsupportedType(
+                                        "checked flat tuple schema".to_string(),
+                                    ),
+                                ));
+                            }
+                            (
+                                PlaceType::Known(LogicalType::Tuple {
+                                    elements: element_types.clone(),
+                                }),
+                                None,
+                            )
+                        }
+                        Inst::CheckedTupleFieldPtr {
+                            base,
+                            element_types,
+                            field_index,
+                            field_type,
+                            ..
+                        } => {
+                            if !valid_flat_copy_tuple(element_types) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::UnsupportedType(
+                                        "checked flat tuple field schema".to_string(),
+                                    ),
+                                ));
+                            }
+                            let Some(base_id) = reg(base).map(PlaceId) else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked tuple field base",
+                                    ),
+                                ));
+                            };
+                            let expected = LogicalType::Tuple {
+                                elements: element_types.clone(),
+                            };
+                            if self.places.get(&base_id).and_then(PlaceType::logical)
+                                != Some(expected)
+                                || element_types.get(*field_index) != Some(field_type)
+                            {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked tuple field pointer schema mismatch at index {field_index}"
                                     )),
                                 ));
                             }
@@ -2211,6 +2290,7 @@ impl<'a> FunctionVerifier<'a> {
                     | Inst::CheckedMutableScalarAlloca { .. }
                     | Inst::AllocaArray { .. }
                     | Inst::CheckedStructAlloca { .. }
+                    | Inst::CheckedTupleAlloca { .. }
                     | Inst::Label(_) => {}
                     Inst::Store(place, value) => {
                         let id = self.require_place(place, "store", block_index, position)?;
@@ -2794,6 +2874,14 @@ impl<'a> FunctionVerifier<'a> {
                         self.require_place(
                             base,
                             "checked struct field base",
+                            block_index,
+                            position,
+                        )?;
+                    }
+                    Inst::CheckedTupleFieldPtr { base, .. } => {
+                        self.require_place(
+                            base,
+                            "checked tuple field base",
                             block_index,
                             position,
                         )?;
@@ -3390,6 +3478,21 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
         if let LogicalType::Array { element, .. } = logical_type {
             return register_type(element, schemas, enum_schemas);
         }
+        if let LogicalType::Tuple { elements } = logical_type {
+            if !valid_flat_copy_tuple(elements) {
+                return Err(IrVerificationError::new(
+                    "<module>",
+                    None,
+                    IrVerificationErrorKind::UnsupportedType(
+                        "checked flat Copy tuple schema".to_string(),
+                    ),
+                ));
+            }
+            for element in elements {
+                register_type(element, schemas, enum_schemas)?;
+            }
+            return Ok(());
+        }
         if let LogicalType::Enum { name, variants } = logical_type {
             return register_enum(
                 &EnumSchema {
@@ -3503,6 +3606,16 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 }
                 Inst::CheckedCopyStructArrayAlloca { element, .. } => {
                     register_type(element, schemas, enum_schemas)?;
+                }
+                Inst::CheckedTupleAlloca { element_types, .. }
+                | Inst::CheckedTupleFieldPtr { element_types, .. } => {
+                    register_type(
+                        &LogicalType::Tuple {
+                            elements: element_types.clone(),
+                        },
+                        schemas,
+                        enum_schemas,
+                    )?;
                 }
                 Inst::CheckedEnumVariant { schema, .. }
                 | Inst::CheckedEnumPayload { schema, .. }
@@ -5798,6 +5911,101 @@ mod tests {
             let diagnostic = error.to_string().to_ascii_lowercase();
             assert!(
                 diagnostic.contains("schema") || diagnostic.contains("unsupported"),
+                "{label}: {diagnostic}"
+            );
+        }
+    }
+
+    #[test]
+    fn flat_copy_tuple_schema_integrity_is_fail_closed() {
+        let schema = vec![LogicalType::Int, LogicalType::Bool];
+        verify_ir(function(vec![
+            Inst::CheckedTupleAlloca {
+                result: Value::Reg(0),
+                element_types: schema.clone(),
+            },
+            Inst::CheckedTupleFieldPtr {
+                result: Value::Reg(1),
+                base: Value::Reg(0),
+                element_types: schema.clone(),
+                field_index: 1,
+                field_type: LogicalType::Bool,
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect("one exact flat Copy tuple schema is valid");
+
+        for (label, body) in [
+            (
+                "unary schema",
+                vec![
+                    Inst::CheckedTupleAlloca {
+                        result: Value::Reg(0),
+                        element_types: vec![LogicalType::Int],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "field type mismatch",
+                vec![
+                    Inst::CheckedTupleAlloca {
+                        result: Value::Reg(0),
+                        element_types: schema.clone(),
+                    },
+                    Inst::CheckedTupleFieldPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        element_types: schema.clone(),
+                        field_index: 1,
+                        field_type: LogicalType::Float,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "base schema mismatch",
+                vec![
+                    Inst::CheckedTupleAlloca {
+                        result: Value::Reg(0),
+                        element_types: schema.clone(),
+                    },
+                    Inst::CheckedTupleFieldPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        element_types: vec![LogicalType::Float, LogicalType::Bool],
+                        field_index: 1,
+                        field_type: LogicalType::Bool,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "out of range field",
+                vec![
+                    Inst::CheckedTupleAlloca {
+                        result: Value::Reg(0),
+                        element_types: schema.clone(),
+                    },
+                    Inst::CheckedTupleFieldPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        element_types: schema.clone(),
+                        field_index: 2,
+                        field_type: LogicalType::Bool,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        ] {
+            let error = match verify_ir(function(body)) {
+                Err(error) => error,
+                Ok(_) => panic!("{label} passed checked IR verification"),
+            };
+            let diagnostic = error.to_string().to_ascii_lowercase();
+            assert!(
+                diagnostic.contains("tuple")
+                    && (diagnostic.contains("schema") || diagnostic.contains("unsupported")),
                 "{label}: {diagnostic}"
             );
         }

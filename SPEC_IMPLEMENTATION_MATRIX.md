@@ -29,7 +29,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Fixed arrays | Y | Y | Y | P | P | P | P | P | ? | Y | P | P | Y | PARTIAL |
 | Fixed arrays of all-scalar Copy structs | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Tuples | Y | Y | Y | P | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
+| Tuples | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Struct declarations | Y | Y | P | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Struct construction | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Named field access | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
@@ -80,6 +80,17 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 | Quantization | Y | Y | — | — | Scalar-double helper transform only | N | N | EXPERIMENTAL |
 
 ## Evidence notes
+
+- `CORE-058` moves only the bounded flat Copy-scalar tuple slice from parser-only to
+  partial execution: arity at least two; exact ordered `Int`/`Float`/`Bool` elements;
+  immutable binding and whole-value Copy; constant projection; scalar/tuple-only
+  internal calls/returns; direct modules; checked tuple identities; independent
+  verification; typed literal-aggregate LLVM; and local native exit 23. Public pinned
+  evidence remains pending. Unit/unary/nested/non-scalar, mutable, destructured,
+  contained, generic/impl/closure, process-entry, public ABI/FFI, drop, accelerator,
+  performance, release, and stability surfaces remain absent or quarantined. This
+  bounded move supersedes DEC-010 only for the listed product; its other tuple
+  rejection boundaries remain active.
 
 - The lexer cannot return errors and currently converts some invalid input into
   valid tokens, so otherwise present lexical cells remain partial.

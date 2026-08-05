@@ -1,0 +1,9 @@
+fn make_tuple(seed: int) -> (int, float, bool) {
+    (seed, 2.5, 1 < 2)
+}
+
+fn tuple_roundtrip(value: (int, float, bool), offset: int) -> (int, float, bool) {
+    (value.0 + offset, value.1, value.2)
+}
+
+fn bump(value: &mut int) { *value = *value + 1; }

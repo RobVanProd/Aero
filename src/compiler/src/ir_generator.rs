@@ -32,6 +32,11 @@ use crate::struct_contract::{
     CopyFunctionContract, CopyStructArrayIndexDisposition, StructContractError,
     StructExecutionContext, StructRegistry,
 };
+use crate::tuple_contract::{
+    FlatCopyTupleContract, TupleBindingValidationError, TupleContractDisposition,
+    TupleExecutionContext, classify_flat_copy_tuple_elements, classify_tuple_projection,
+    validate_tuple_binding,
+};
 use crate::types::{OwnershipState, Ty, needs_promotion};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
@@ -319,6 +324,7 @@ impl IrGenerator {
                 | Ty::Bool
                 | Ty::Struct(_)
                 | Ty::Array(_, _)
+                | Ty::Tuple(_)
                 | Ty::Enum(_)),
             ) => {
                 let result_reg = Value::Reg(self.next_reg);
@@ -355,6 +361,7 @@ impl IrGenerator {
             Ty::String
                 | Ty::Array(_, _)
                 | Ty::Struct(_)
+                | Ty::Tuple(_)
                 | Ty::Enum(_)
                 | Ty::Reference(_, _)
                 | Ty::Vec(_)
@@ -696,6 +703,22 @@ impl IrGenerator {
                         return Err(IrGenerationError::Admission(
                             "Void expressions cannot be stored in a binding".to_string(),
                         ));
+                    }
+                    if !matches!(
+                        disposition,
+                        BindingAnnotationDisposition::ExistingExplicitRejection(_)
+                    ) {
+                        match validate_tuple_binding(type_annotation.as_ref(), &ty, *mutable) {
+                            Ok(()) => {}
+                            Err(TupleBindingValidationError::Explicit(message)) => {
+                                return Err(IrGenerationError::Admission(message));
+                            }
+                            Err(TupleBindingValidationError::PreserveInitializedDirectAnnotationRejection) => {
+                                return Err(IrGenerationError::Admission(format!(
+                                    "checked IR binding `{name}` uses an unsupported tuple type annotation for an initialized binding"
+                                )));
+                            }
+                        }
                     }
                     program
                         .structs
@@ -1965,9 +1988,57 @@ impl IrGenerator {
                     .map(|resolved| resolved.result)
                     .map_err(|error| admission_error(&error.diagnostic()))
             }
-            Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => Err(admission_error(
-                "aggregate expression is not admitted in checked IR",
-            )),
+            Expression::TupleLiteral(elements) => {
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl {
+                    TupleExecutionContext::AdmittedFunction
+                } else {
+                    TupleExecutionContext::PreservedContext
+                };
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element in elements {
+                    element_types.push(Self::validate_expression(
+                        element,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?);
+                }
+                match classify_flat_copy_tuple_elements(&element_types, context) {
+                    TupleContractDisposition::Supported(contract) => Ok(contract.ty()),
+                    TupleContractDisposition::ExplicitlyRejected(message) => {
+                        Err(admission_error(&message))
+                    }
+                    TupleContractDisposition::Preserved => Err(admission_error(
+                        "aggregate expression is not admitted in checked IR",
+                    )),
+                }
+            }
+            Expression::TupleIndex { object, index } => {
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl {
+                    TupleExecutionContext::AdmittedFunction
+                } else {
+                    TupleExecutionContext::PreservedContext
+                };
+                let receiver = Self::validate_expression(
+                    object,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                match classify_tuple_projection(&receiver, *index, context) {
+                    TupleContractDisposition::Supported(contract) => Ok(contract.element),
+                    TupleContractDisposition::ExplicitlyRejected(message) => {
+                        Err(admission_error(&message))
+                    }
+                    TupleContractDisposition::Preserved => Err(admission_error(
+                        "aggregate expression is not admitted in checked IR",
+                    )),
+                }
+            }
         }
     }
 
@@ -2230,6 +2301,14 @@ impl IrGenerator {
                     result: Value::Reg(register),
                     ..
                 }
+                | Inst::CheckedTupleAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedTupleFieldPtr {
+                    result: Value::Reg(register),
+                    ..
+                }
                 | Inst::CheckedImmutableBorrow {
                     result: Value::Reg(register),
                     ..
@@ -2290,6 +2369,11 @@ impl IrGenerator {
                 }
                 Inst::CheckedStructAlloca { result, .. } => Self::rewrite_place(result, &places),
                 Inst::CheckedStructFieldPtr { result, base, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(base, &places);
+                }
+                Inst::CheckedTupleAlloca { result, .. } => Self::rewrite_place(result, &places),
+                Inst::CheckedTupleFieldPtr { result, base, .. } => {
                     Self::rewrite_place(result, &places);
                     Self::rewrite_place(base, &places);
                 }
@@ -2617,6 +2701,71 @@ impl IrGenerator {
         self.store_copy_struct_value(value, ty, function)
     }
 
+    fn flat_tuple_contract(ty: &Ty) -> FlatCopyTupleContract {
+        let Ty::Tuple(elements) = ty else {
+            unreachable!("flat tuple lowering requires a tuple type")
+        };
+        match classify_flat_copy_tuple_elements(elements, TupleExecutionContext::AdmittedFunction) {
+            TupleContractDisposition::Supported(contract) => contract,
+            _ => unreachable!("checked admission retains a supported flat tuple contract"),
+        }
+    }
+
+    fn allocate_flat_tuple_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        let contract = Self::flat_tuple_contract(ty);
+        let LogicalType::Tuple { elements } = contract.logical_type() else {
+            unreachable!("flat tuple contract has tuple logical type")
+        };
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedTupleAlloca {
+            result: place.clone(),
+            element_types: elements,
+        });
+        place
+    }
+
+    fn flat_tuple_field_ptr(
+        &mut self,
+        base: Value,
+        contract: &FlatCopyTupleContract,
+        index: usize,
+        function: &mut Function,
+    ) -> Value {
+        let LogicalType::Tuple { elements } = contract.logical_type() else {
+            unreachable!("flat tuple contract has tuple logical type")
+        };
+        let field_type = elements[index].clone();
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedTupleFieldPtr {
+            result: place.clone(),
+            base,
+            element_types: elements,
+            field_index: index,
+            field_type,
+        });
+        place
+    }
+
+    fn load_flat_tuple_value(&mut self, place: Value, function: &mut Function) -> Value {
+        let value = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(value.clone(), place));
+        value
+    }
+
+    fn store_flat_tuple_value(&mut self, value: Value, ty: &Ty, function: &mut Function) -> Value {
+        let place = self.allocate_flat_tuple_place(ty, function);
+        function.body.push(Inst::Store(place.clone(), value));
+        place
+    }
+
+    fn copy_flat_tuple_place(&mut self, source: Value, ty: &Ty, function: &mut Function) -> Value {
+        let value = self.load_flat_tuple_value(source, function);
+        self.store_flat_tuple_value(value, ty, function)
+    }
+
     fn allocate_copy_struct_array_place(
         &mut self,
         contract: &crate::struct_contract::CopyStructArrayContract,
@@ -2700,6 +2849,7 @@ impl IrGenerator {
         match ty {
             Ty::Struct(_) => self.load_copy_struct_value(place, function),
             Ty::Array(_, _) => self.load_fixed_copy_array_value(place, function),
+            Ty::Tuple(_) => self.load_flat_tuple_value(place, function),
             _ => place,
         }
     }
@@ -2752,6 +2902,7 @@ impl IrGenerator {
         match ty {
             Ty::Struct(_) => self.store_copy_struct_value(value, ty, function),
             Ty::Array(_, _) => self.store_fixed_copy_array_value(value, ty, function),
+            Ty::Tuple(_) => self.store_flat_tuple_value(value, ty, function),
             _ => value,
         }
     }
@@ -2800,6 +2951,13 @@ impl IrGenerator {
                 if matches!(&expr_type, Ty::Struct(_)) {
                     let storage = if copies_existing_aggregate {
                         self.copy_struct_place(expr_value, &expr_type, current_function)
+                    } else {
+                        expr_value
+                    };
+                    self.symbol_table.insert(name, (storage, expr_type));
+                } else if matches!(&expr_type, Ty::Tuple(_)) {
+                    let storage = if copies_existing_aggregate {
+                        self.copy_flat_tuple_place(expr_value, &expr_type, current_function)
                     } else {
                         expr_value
                     };
@@ -2923,6 +3081,8 @@ impl IrGenerator {
                     return_value = self.load_copy_struct_value(return_value, current_function);
                 } else if matches!(&return_type, Ty::Array(_, _)) {
                     return_value = self.load_fixed_copy_array_value(return_value, current_function);
+                } else if matches!(&return_type, Ty::Tuple(_)) {
+                    return_value = self.load_flat_tuple_value(return_value, current_function);
                 }
                 if self.checked_mode
                     && current_function.name == "main"
@@ -3166,6 +3326,8 @@ impl IrGenerator {
                         self.load_copy_struct_value(arg_value, function)
                     } else if matches!(&arg_type, Ty::Array(_, _)) {
                         self.load_fixed_copy_array_value(arg_value, function)
+                    } else if matches!(&arg_type, Ty::Tuple(_)) {
+                        self.load_flat_tuple_value(arg_value, function)
                     } else {
                         arg_value
                     };
@@ -3186,6 +3348,9 @@ impl IrGenerator {
                     (place, return_type)
                 } else if matches!(&return_type, Ty::Array(_, _)) {
                     let place = self.store_fixed_copy_array_value(result, &return_type, function);
+                    (place, return_type)
+                } else if matches!(&return_type, Ty::Tuple(_)) {
+                    let place = self.store_flat_tuple_value(result, &return_type, function);
                     (place, return_type)
                 } else {
                     (result, return_type)
@@ -3590,6 +3755,46 @@ impl IrGenerator {
                 }
                 (base, Ty::Struct(resolved.contract.name))
             }
+            Expression::TupleLiteral(elements) if self.checked_mode => {
+                let mut values = Vec::with_capacity(elements.len());
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let (value, ty) = self.generate_expression_ir(element, function);
+                    values.push(value);
+                    element_types.push(ty);
+                }
+                let contract = match classify_flat_copy_tuple_elements(
+                    &element_types,
+                    TupleExecutionContext::AdmittedFunction,
+                ) {
+                    TupleContractDisposition::Supported(contract) => contract,
+                    _ => unreachable!("checked tuple literal was admitted"),
+                };
+                let tuple_ty = contract.ty();
+                let base = self.allocate_flat_tuple_place(&tuple_ty, function);
+                for (index, value) in values.into_iter().enumerate() {
+                    let field = self.flat_tuple_field_ptr(base.clone(), &contract, index, function);
+                    function.body.push(Inst::Store(field, value));
+                }
+                (base, tuple_ty)
+            }
+            Expression::TupleIndex { object, index } if self.checked_mode => {
+                let (base, receiver) = self.generate_expression_ir(*object, function);
+                let projection = match classify_tuple_projection(
+                    &receiver,
+                    index,
+                    TupleExecutionContext::AdmittedFunction,
+                ) {
+                    TupleContractDisposition::Supported(contract) => contract,
+                    _ => unreachable!("checked tuple projection was admitted"),
+                };
+                let field =
+                    self.flat_tuple_field_ptr(base, &projection.tuple, projection.index, function);
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::Load(result.clone(), field));
+                (result, projection.element)
+            }
             Expression::FieldAccess { .. }
             | Expression::TupleLiteral(_)
             | Expression::TupleIndex { .. }
@@ -3831,6 +4036,8 @@ impl IrGenerator {
                 return_value = self.load_copy_struct_value(return_value, &mut function_ir);
             } else if matches!(return_ty, Ty::Array(_, _)) {
                 return_value = self.load_fixed_copy_array_value(return_value, &mut function_ir);
+            } else if matches!(return_ty, Ty::Tuple(_)) {
+                return_value = self.load_flat_tuple_value(return_value, &mut function_ir);
             }
             function_ir.body.push(Inst::Return(return_value));
         } else if !function_ir

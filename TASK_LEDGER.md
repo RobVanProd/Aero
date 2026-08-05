@@ -11090,3 +11090,206 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   formatting, correctness-Clippy, and documentation gate green. The final immutable-
   content gate must pass after this evidence entry; then one commit/push and public
   pinned-native acceptance may proceed.
+
+## CORE-058 - Flat heterogeneous Copy-scalar tuple layout and internal transport
+
+- Task ID and observed behavior: `CORE-058`. Publicly accepted CORE-057 closes the
+  bounded child-reborrow class at exact commit `7c108ff0ae0e9686209378deec5ce1de61bff17b`,
+  but every tuple literal and tuple-index expression still stops at the predecessor
+  `Tuple expressions are not supported.` boundary before checked IR. The parser and
+  type model retain tuple literal, constant projection, tuple annotation, and
+  all-elements-`Copy` topology, while semantic inference still contains tuple-to-Int
+  stubs. Thus Aero has no executable anonymous product layout and no tuple-bearing
+  internal function boundary despite the founding type-system and ownership material.
+- Authority and hypothesis: the grammar defines tuple literals, positional constant
+  projection, and tuple types; the type-system document defines heterogeneous fixed
+  products and function tuple results; the ownership document identifies tuples of
+  Copy elements as Copy; and the roadmap requires aggregates with defined layout,
+  evaluation order, ABI behavior, and destruction boundaries. A flat tuple containing
+  only exact `Int`, `Float`, and `Bool` values needs no ownership or drop decision:
+  written elements evaluate exactly once in source order, the whole value copies by
+  value, and an internal LLVM literal struct can carry the checked logical identity.
+- Complete admitted source class: inside a unique non-generic top-level admitted
+  function, a tuple has arity two or greater and every element is exactly `Int`,
+  `Float`, or `Bool`, in arbitrary heterogeneous order and finite arity. Included are
+  literal construction, inferred or exact tuple-annotated immutable local binding,
+  repeated whole-value reads, whole-value local Copy aliases, compile-time literal
+  in-bounds `.N` projection, immediate literal/call-result projection, explicit and
+  tail returns, forward calls, call chains, branches, loops without tuple mutation,
+  terminating direct recursion, and flattened one-level direct modules. Internal
+  non-`main` functions may have any number and order of already-admitted by-value
+  scalar or flat-tuple parameters and may return `Void`, a scalar, or one flat tuple;
+  this closes the mixed signature product instead of recognizing selected shapes.
+- Frozen layout, evaluation, Copy, and ABI semantics: tuple element order is source
+  order and projection index is zero-based. Each literal element evaluates once from
+  left to right before storage. Logical tuple identity retains the exact ordered
+  element types through checked places, loads, calls, and returns. Immutable binding
+  aliases copy the whole tuple and leave the source usable. Verified LLVM uses a
+  private literal aggregate whose ordered fields are `double` for Aero `Int`/`Float`
+  physical scalar compatibility and `i1` for `Bool`; construction/projection uses
+  typed aggregate storage and GEP. This is an internal compiler contract only, not a
+  stable source layout, calling convention, ABI, FFI, or zero-cost claim.
+- Frozen rejected and preserved class: `()`/unit and one-element tuple spellings;
+  nested tuples; String, array, struct, enum, reference, generic, closure, function,
+  Option/Result, or other element types; mutable tuple bindings, whole or field
+  assignment, dynamic or out-of-range projection, tuple destructuring/patterns,
+  tuple structs, tuple enum variants, tuple arrays/fields/payloads/references, generic
+  and impl/closure-local tuple execution, tuple-bearing `main` signatures, public ABI/
+  FFI, drop/destruction, heap, accelerator execution, performance, release, stability,
+  and general aggregate-safety claims remain explicitly rejected or preserved.
+  Grouping, scalar/array/struct/enum/reference/string behavior and diagnostic
+  precedence outside the directly superseded flat tuple class remain unchanged.
+- Shared classification contract: add one `tuple_contract` source predicate that
+  classifies exact tuple annotations, inferred element lists, binding annotation
+  equality, and projection receiver/index into `Supported`, `ExplicitlyRejected`, or
+  `Preserved` outcomes. Semantic inference and checked admission must consume that
+  predicate. Existing Copy-function signature resolution may compose the exact tuple
+  annotation contract, but no phase may add a second arity/element/topology table.
+  Direct initialized tuple annotations are delegated from the older binding-annotation
+  rejection table; nested array/reference annotation quarantines remain untouched.
+- Checked IR and backend contract: add distinct ordered `LogicalType::Tuple`, checked
+  tuple allocation, and checked tuple field-pointer identities. The generator must
+  construct, copy, project, pass, return, and receive only classifier-admitted values.
+  The independent verifier must prove arity, exact scalar element schema, field index
+  and field metadata, place/result dominance, call/return equality, parameter coverage,
+  and metadata stability, and must reject empty/unary/nested/non-scalar schemas,
+  mismatched element order/type/index, forged raw aggregate operations, wrong call or
+  return transport, and checked-metadata corruption before LLVM. The backend consumes
+  verified logical IR only and emits typed literal aggregates without integer/pointer
+  reinterpretation.
+- Tests first and completion proof: add one exhaustive CORE-058 integration target
+  proving parser retention; all scalar permutations and arities; inferred/exact
+  binding, whole Copy, repeated read, every projection position, immediate projection;
+  mixed scalar/tuple parameters, tuple results, forwarding, CFG, forward declaration,
+  terminating recursion, direct module; exact source-order effects through admitted
+  calls; all frozen rejections; checked identity/counts; independent verifier
+  corruption; deprecated raw-path containment; CLI failure/no-artifact hygiene; and
+  exact typed LLVM anchors. Reclassify only predecessor tests directly superseded by
+  this class. Add one tracked direct-module system example and stable lane composing
+  tuples with accepted modules, Copy aggregates/arrays, enums/Match, Strings, scalar
+  and reference capabilities, verification, object/link, and exact native exit 23.
+  Focused tests, exact root `./tools/test.sh`, all eight public checks, and pinned
+  LLVM/Clang native execution on one immutable identity are mandatory.
+- Allowed files: this ledger; a new `src/compiler/src/tuple_contract.rs` and module
+  registration; direct initialized tuple routing in `binding_annotation.rs`; semantic
+  inference/binding validation; Copy-signature composition in `struct_contract.rs`;
+  `ir.rs`, checked admission/generator, verifier, and code generator; the exhaustive
+  CORE-058 target and only directly superseded tuple expectations; one tracked example
+  and direct module; `.github/workflows/rust.yml`; and README plus the four current
+  capability/state/decision/alignment documents. No lexer/parser/AST grammar change,
+  optimizer, runtime/stdlib, dependency, target, public ABI, accelerator, benchmark,
+  claim-verification artifact, package/release, `master`, merge, downstream repository,
+  PR checkpoint/merge implementation, or structured evidence generator is authorized.
+- Risks and stop conditions: stop rather than broaden if flat scalar tuples require a
+  move/drop/lifetime choice, mutable or destructuring semantics, unit meaning, nested
+  layout, a public ABI, parser/AST change, runtime support, more than the frozen
+  semantic/checked-IR/verifier/backend phases, duplicated source topology guards, or
+  weakening a test. Stop if mixed function transport cannot preserve exact ordered
+  logical types or verified aggregate operands, or if unsupported tuple topology can
+  reach LLVM. This is the required hard runtime-layout/internal-ABI class; it must not
+  collapse into parser retention or isolated local literals. PR #4 remains draft and
+  unmerged. Its controlled checkpoint strategy, structured evidence manifest, and a
+  later broader system-level release-eligibility gate remain separate scaling work.
+- Starting evidence and next allowed mutation: the branch is clean and identical to
+  origin at public CORE-057 `7c108ff0`; PR #4 is synchronized through CORE-057 and all
+  eight checks plus pinned native exit 253 are green. The founding PDFs, tracked
+  framework, formal specification, roadmap, grammar/type/ownership documents, parser,
+  tuple rejection tests, module resolver, checked IR, verifier, aggregate function
+  transport, and LLVM emitter were inspected. A nested-module candidate was rejected
+  because it would preserve flattened compatibility without namespace/import/public
+  semantics. This ledger record is the sole CORE-058 authorization. The next permitted
+  mutation is the exhaustive failing test and absent example/workflow anchors before
+  any compiler behavior change.
+- Tests-first red evidence: with no compiler behavior mutation after authorization,
+  `C:\Users\usa50\.cargo\bin\cargo.exe test --quiet --manifest-path
+  src/compiler/Cargo.toml --test flat_copy_tuple_tests -- --nocapture` compiles the
+  new exhaustive target and fails 0/1. Parser retention and grouping, fixed-array,
+  struct, reference, enum, String, and module setup controls pass. Every intended
+  construction, exact annotation, Copy alias, projection, source-order, mixed
+  scalar/tuple signature, tuple result, forwarding, CFG, recursion, checked identity,
+  raw-containment setup, tracked example, and valid direct-module case stops at the
+  one existing `Tuple expressions are not supported.` boundary (the tracked exact
+  annotation first reaches its older initialized tuple-annotation rejection). Every
+  new topology-specific rejection still reports the predecessor boundary; the invalid
+  CLI build exits nonzero and creates no artifact. The tracked example files and five
+  workflow anchors are present and exact. This is the complete red product. The next
+  permitted mutation is the shared tuple classifier and vertical checked aggregate
+  implementation, not a semantic-only tuple exception.
+- Compatibility amendment before mutation: the integration suite exposed that the
+  enum transport resolver composes `StructRegistry::resolve_copy_annotation`; adding
+  the admitted tuple result there would otherwise broaden an enum-bearing signature
+  to enum-plus-tuple transport, outside the frozen scalar/tuple-only product. Add
+  `src/compiler/src/enum_match_contract.rs` to the allowed files solely to consume
+  the shared tuple classifier in `PreservedContext` and retain the enum resolver's
+  existing unsupported-result/parameter boundary. No enum payload, layout, ownership,
+  match, or transport semantics are added. The observed red is the existing
+  `payload_enum_transport_tests` case `tuple mixed result`, which compiled before this
+  amendment but must retain its exact enum-transport rejection.
+- Implementation and focused verification: `tuple_contract` now owns the finite
+  scalar-product, direct annotation, binding, context, and projection classification.
+  Semantics and checked admission consume it; initialized direct tuple annotations
+  delegate from the older annotation table while every nested array/reference guard
+  remains unchanged. Checked IR, independent verification, and LLVM lowering retain
+  ordered tuple identity through allocation, projection, Copy, calls, and returns.
+  Enum-bearing signatures consume the shared classifier as preserved and retain their
+  old rejection. No tuple field, container, reference, generic/impl/closure, process-
+  entry, or public ABI route was admitted.
+- Focused green evidence: the exhaustive CORE-058 target passes 1/1; the classifier
+  and verifier corruption tests pass inside 171/171 library tests; all compiler unit
+  and integration targets pass with 177/177 binary tests and every directly
+  superseded tuple-precedence expectation reclassified. `unsupported_tuple_tests`
+  passes 16/16, `binding_type_contract_tests` 28/28, and the payload-enum transport
+  quarantine remains green. The tracked two-file example checked-builds, Visual Studio
+  Clang accepts the generated typed LLVM, and native execution returns exact exit 23.
+  Invalid tuple CLI input remains nonzero with no requested artifact. The local Aero
+  verifier truthfully reports `InternalOnly` because LLVM 22 tools are not installed;
+  pinned external verification is a public-gate requirement, not locally claimed.
+- Compatibility corrections: admitted tuple children now advance to their enclosing
+  comparison, method-arity, field, Match, struct-field, and array classifications;
+  affected tests were changed only from the superseded blanket tuple diagnostic to
+  those existing downstream boundaries. The tracked example's initial seed computed
+  exit 24 despite a frozen sentinel of 23; the seed and its exact-source assertion were
+  corrected to produce 23 without changing the exercised tuple class.
+- Remaining gates: rustfmt, all-target check, correctness Clippy, exact root
+  `./tools/test.sh`, final diff/evidence review, one commit/push, PR-front-page sync,
+  all eight public checks, and pinned LLVM/Clang 22 native exit 23 remain required.
+- First complete repository gate: after the implementation, compatibility corrections,
+  records, and tracked example were synchronized, exact repository-root
+  `./tools/test.sh` exited 0 in 206.7 seconds with 171/171 library tests, 177/177
+  binary tests, every integration target, rustfmt, all-target checking, correctness
+  Clippy, and doc tests green. A final diagnostic-only correction now reports non-
+  tuple annotations in natural expected/actual order (`expected int, actual (int,
+  int)`); the final immutable-content root gate remains required after this ledger
+  entry and before commit.
+- Final-review red amendment before mutation: a signature-product audit found that
+  composing tuple resolution into the older Copy aggregate function resolver admitted
+  tuple-plus-struct and tuple-plus-array signatures, outside the frozen scalar/tuple-
+  only class. Three new exhaustive-target cases were added first (struct parameter,
+  fixed-array parameter, and struct result); the focused CORE-058 target then failed
+  0/1 because all three compiled. The next mutation is limited to one centralized
+  tuple-bearing signature-product check in `struct_contract`, using the shared tuple
+  annotation classifier and stable explicit diagnostics. Existing pure struct/array
+  products and enum transport remain unchanged.
+- Signature-product closure: the centralized resolver now recognizes tuple-bearing
+  signatures once, admits only primitive scalar or classifier-owned flat tuple members,
+  and returns explicit parameter/result diagnostics for any struct or array mixture.
+  The expanded CORE-058 target passes 1/1, while payload-enum, Copy-struct, and fixed-
+  array transport compatibility targets each pass 1/1. The shared classifier unit
+  proof now enumerates every `Int`/`Float`/`Bool` product through arity six plus all
+  scalar annotation aliases; the source predicate remains arity-generic. A final exact
+  repository-root gate is required on this immutable candidate content.
+- Final candidate gate: after the signature-product closure, diagnostic correction,
+  example, workflow, tests, and five current public records were synchronized, exact
+  repository-root `./tools/test.sh` exited 0 in 99.3 seconds with 171/171 library
+  tests, 177/177 binary tests, every integration target, rustfmt, all-target checking,
+  correctness Clippy, and doc tests green. The next permitted actions are one final
+  record-inclusive root gate, intentional staging/commit, push to
+  `agent/aero-integration`, PR #4 front-page synchronization, all-eight public check
+  observation, and pinned LLVM/Clang 22 native-exit-23 acceptance. PR #4 stays draft,
+  open, and unmerged; no release or claim-verification artifact is authorized.
+- Final record-inclusive gate: exact repository-root `./tools/test.sh` exited 0 in
+  21.7 seconds after the preceding candidate result and its ledger record were both
+  present. It again passed 171/171 library tests, 177/177 binary tests, every
+  integration target, rustfmt, all-target checking, correctness Clippy, and doc
+  tests. This post-gate evidence line is administrative only; no source, test,
+  workflow, capability, or semantic content changed after the observed gate.

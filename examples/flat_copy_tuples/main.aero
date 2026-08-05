@@ -1,0 +1,23 @@
+mod tuples;
+
+enum Mode { Off, On }
+struct Packet { value: int, ready: bool }
+
+fn read(value: &int) -> int { *value }
+fn mode_score(value: Mode) -> int { match value { Mode::Off => 1, Mode::On => 7 } }
+
+fn main() -> int {
+    let base = 0;
+    let original: (int, float, bool) = make_tuple(5);
+    let copied = original;
+    let transported = tuple_roundtrip(copied, 1);
+    let packet = Packet { value: 3, ready: transported.2 };
+    let rows = [packet, packet];
+    let mut total = transported.0;
+    bump(&mut total);
+    if original.0 == 5 && copied.1 == 2.5 && rows[1].ready
+        && "aero".len() == 4 && read(&base) == 0 {
+        return total + packet.value + rows.len() + mode_score(Mode::On) + "aero".len();
+    }
+    1
+}

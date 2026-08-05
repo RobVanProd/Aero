@@ -266,6 +266,19 @@ pub enum Inst {
         field_index: u32,
         field_type: LogicalType,
     },
+    /// Verified storage for one admitted flat heterogeneous Copy-scalar tuple.
+    CheckedTupleAlloca {
+        result: Value,
+        element_types: Vec<LogicalType>,
+    },
+    /// Verified pointer to one ordered field in a `CheckedTupleAlloca` place.
+    CheckedTupleFieldPtr {
+        result: Value,
+        base: Value,
+        element_types: Vec<LogicalType>,
+        field_index: usize,
+        field_type: LogicalType,
+    },
 
     // Phase 6: Vec/Collection IR operations
     VecAlloca {
@@ -363,6 +376,9 @@ pub enum LogicalType {
         name: String,
         fields: Vec<LogicalType>,
     },
+    Tuple {
+        elements: Vec<LogicalType>,
+    },
     Enum {
         name: String,
         variants: Vec<EnumVariantSchema>,
@@ -393,6 +409,16 @@ impl fmt::Display for LogicalType {
                         write!(f, ", ")?;
                     }
                     write!(f, "{field}")?;
+                }
+                write!(f, "]>")
+            }
+            Self::Tuple { elements } => {
+                write!(f, "Tuple<[")?;
+                for (index, element) in elements.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{element}")?;
                 }
                 write!(f, "]>")
             }

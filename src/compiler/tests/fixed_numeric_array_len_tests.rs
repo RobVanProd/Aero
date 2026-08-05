@@ -352,17 +352,17 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
     );
     expect_exact_rejection(
         &mut failures,
-        "receiver child precedes method classification",
+        "admitted tuple receiver reaches method classification",
         checked_parsed_source("fn main() { let observed = (1, 2).len(); }"),
-        "aggregate expression is not admitted in checked IR",
+        "method calls other than exact zero-argument array/Vec .iter() are not admitted",
     );
     expect_exact_rejection(
         &mut failures,
-        "argument child precedes arity classification",
+        "admitted tuple argument reaches arity classification",
         checked_parsed_source(
             "fn main() { let values = [1, 2]; let observed = values.len((1, 2)); }",
         ),
-        "aggregate expression is not admitted in checked IR",
+        WRONG_ARITY_ONE,
     );
     expect_exact_rejection(
         &mut failures,

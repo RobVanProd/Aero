@@ -385,9 +385,9 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
 
     let child_precedence = [
         (
-            "first field tuple child",
+            "admitted first tuple field advances to second source child",
             "struct Pair { first: int, second: int } fn main() { let value = Pair { first: (1, 2), second: missing }; }",
-            "Tuple expressions are not supported.",
+            "Error: Use of undeclared variable `missing`.",
         ),
         (
             "written second field is first evaluated child",

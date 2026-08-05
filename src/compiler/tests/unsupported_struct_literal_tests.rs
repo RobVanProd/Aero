@@ -12,7 +12,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const EXPECTED_INNER_DIAGNOSTIC: &str = "Struct construction expressions are not supported.";
 const FIELD_DIAGNOSTIC: &str = "Field access expressions are not supported.";
 const MATCH_DIAGNOSTIC: &str = "Match expressions are not supported.";
-const TUPLE_DIAGNOSTIC: &str = "Tuple expressions are not supported.";
 const VOID_DIAGNOSTIC: &str = "Error: void function `sink` cannot be used as a value.";
 
 const PUBLIC_DECLARATION_AND_SCALAR_CONTROL_SOURCE: &str = r#"
@@ -405,7 +404,7 @@ fn established_child_diagnostics_and_field_source_order_retain_precedence() {
     for (source, expected) in [
         (
             "struct Point { x: int } fn main() { let point = Point { x: (1, 2) }; }",
-            TUPLE_DIAGNOSTIC,
+            "struct `Point` field `x` type mismatch: expected int, actual (int, int)",
         ),
         (
             "struct Point { x: int } fn main() { let point = Point { x: 7.field }; }",
@@ -425,7 +424,7 @@ fn established_child_diagnostics_and_field_source_order_retain_precedence() {
         ),
         (
             "struct Pair { first: int, second: int } fn main() { let value = Pair { first: (1, 2), second: 7.field }; }",
-            TUPLE_DIAGNOSTIC,
+            FIELD_DIAGNOSTIC,
         ),
         (
             "struct Inner { x: int } struct Outer { first: int, second: Inner } fn main() { let value = Outer { first: 7.field, second: Inner { x: 1 } }; }",
@@ -433,11 +432,11 @@ fn established_child_diagnostics_and_field_source_order_retain_precedence() {
         ),
         (
             "struct Inner { x: int } struct Outer { first: int, second: Inner } fn main() { let value = Outer { first: (1, 2), second: Inner { x: 1 } }; }",
-            TUPLE_DIAGNOSTIC,
+            "struct `Outer` field `first` type mismatch: expected int, actual (int, int)",
         ),
         (
             "struct Point { x: int } fn main() { let values = (Point { x: 7 }, 1); }",
-            TUPLE_DIAGNOSTIC,
+            "flat Copy tuple element 1 has unsupported type Point; expected Int, Float, or Bool",
         ),
     ] {
         assert_public_semantic_error(source, expected);

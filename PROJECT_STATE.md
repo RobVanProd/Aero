@@ -4,26 +4,42 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 76 `CORE-057` is the implementation candidate for call-scoped mutable
-scalar-reference identifier reborrowing. The exact accepted CORE-056 sole
-`&mut Int`/`Float`/`Bool` parameter may now receive either direct `&mut owner`, an
-initialized in-scope CORE-055 local mutable scalar alias, or the current function's
-mutable-reference parameter. An identifier argument creates a fresh child reborrow for
-the exact call without moving or copying its parent. The parent is unavailable during
-the adjacent child-borrow/call/end interval, usable again afterward, and a local
-parent's root owner remains borrowed until the parent's existing lexical end.
+Milestone 77 `CORE-058` is the implementation candidate for flat heterogeneous
+Copy-scalar tuple layout and internal transport. Inside admitted non-generic top-level
+functions, an immutable tuple has arity at least two and every ordered element is exact
+`Int`, `Float`, or `Bool`. The bounded class includes construction, inferred/exact
+bindings, whole-value Copy aliases, repeated reads, constant in-bounds projection,
+immediate projection, scalar/tuple-only internal parameters and returns, forwarding,
+CFG, terminating recursion, and flattened direct modules.
 
-One shared reference-call classifier owns direct-owner versus identifier-reborrow
-topology, exact pointee, initialization, locality, and ownership across semantic and
-checked-admission consumers. Checked IR reuses the existing mutable borrow/end identity
-for child reborrows; independent verification admits only active local-alias or mutable-
-parameter parents, enforces exact adjacency, and rejects forged, ended, overlapping,
-wrong-pointee, parent-access, raw-call, and release substitutions. LLVM reuses the
-private typed `double*`/`i1*` path without pointer/integer conversion. The exhaustive
-CORE-057 target, focused compatibility suites, `cargo check --all-targets`, the full
-Cargo suite, and the exact record-synced repository-root gate are green at 169/169
-library and 175/175 binary tests. Public checks and pinned native exit 253 remain
-required.
+One `tuple_contract` classifier owns annotation, inferred element, binding, execution-
+context, and projection decisions across semantics and checked admission. Checked IR
+retains `LogicalType::Tuple`, checked allocation, and checked field-pointer identities;
+the independent verifier proves scalar schema, arity, ordered field metadata, place/
+result separation, dominance, signature equality, and metadata stability before LLVM.
+The backend uses a private literal aggregate with `double` physical fields for Aero
+`Int`/`Float` compatibility and `i1` for `Bool`; this is not a stable layout or ABI.
+The exhaustive CORE-058 target, all compiler unit/integration targets, direct-module
+CLI checks, invalid-artifact hygiene, and a local Visual Studio Clang native execution
+at exact exit 23 are green. The exact repository-root gate, public checks, and pinned
+LLVM/Clang 22 execution remain required.
+
+Unit/unary/nested/non-scalar tuples, mutation, destructuring, dynamic/out-of-range
+projection, tuple containers/fields/payloads/references, generic/impl/closure execution,
+tuple-bearing `main`, public ABI/FFI, drop, accelerator execution, performance, release,
+and stability remain excluded. Enum-bearing signatures explicitly retain their prior
+tuple rejection rather than inheriting this scalar/tuple-only function product.
+
+Milestone 76 `CORE-057` is accepted public at exact implementation commit
+`7c108ff0ae0e9686209378deec5ce1de61bff17b`, tree
+`ba4d4987cdc2986e5ce4f7ed252b2a25b9602ad1`, and stable patch ID
+`e699e8cae16a708d745ac400548d07a622ed71c7`. All eight public checks pass, and the
+pinned LLVM/Clang 22 lane externally verifies, machine-verifies, object-lowers, links,
+and records exact native exit 253 with 169/169 library and 175/175 binary tests.
+CORE-057 accepts call-scoped child reborrows from an initialized CORE-055 local mutable
+scalar alias or the current mutable-reference parameter into the exact CORE-056 sole
+mutable-reference signature. It does not establish general reborrowing, NLL, lifetimes,
+stable ABI/FFI, or memory safety.
 
 Milestone 75 `CORE-056` is accepted public at exact implementation commit
 `e3ff1658039f8b9e20f18981c3d6198a07e79e92`, tree

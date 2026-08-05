@@ -539,6 +539,25 @@ jobs:
         fi
         echo "mutable scalar-reference identifier reborrow example passed with exit code 253"
 
+    - name: Test flat Copy-scalar tuple integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/flat_copy_tuples/main.aero -o ../../flat_copy_tuples.ll
+        opt-22 -passes=verify -disable-output ../../flat_copy_tuples.ll
+        llc-22 -verify-machineinstrs ../../flat_copy_tuples.ll -o /dev/null
+        llc-22 -filetype=obj ../../flat_copy_tuples.ll -o ../../flat_copy_tuples.o
+        clang-22 ../../flat_copy_tuples.o -o ../../flat_copy_tuples
+        set +e
+        ../../flat_copy_tuples
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 23 ]; then
+          echo "flat Copy-scalar tuple example returned $exit_code, expected 23"
+          exit 1
+        fi
+        echo "flat Copy-scalar tuple example passed with exit code 23"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

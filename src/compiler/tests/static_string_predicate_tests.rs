@@ -337,9 +337,9 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
             "checked IR has no binding for `missing`",
         ),
         (
-            "first argument child precedes arity classification",
+            "admitted tuple argument reaches arity classification",
             "fn main() { let found = \"a\".contains((1, 2), \"a\"); }",
-            "aggregate expression is not admitted in checked IR",
+            "compile-time string .contains() expects exactly 1 argument, got 2",
         ),
         (
             "earlier missing argument precedes later nested predicate",

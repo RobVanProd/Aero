@@ -90,6 +90,18 @@ impl CodeGenerator {
                 _ => unreachable!("verified immutable references carry scalar pointees"),
             },
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::Tuple { elements } => format!(
+                "{{ {} }}",
+                elements
+                    .iter()
+                    .map(|element| match element {
+                        LogicalType::Int | LogicalType::Float => "double".to_string(),
+                        LogicalType::Bool => "i1".to_string(),
+                        _ => unreachable!("verified flat tuple elements are scalar"),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             LogicalType::Enum { variants, .. }
                 if variants.iter().all(|variant| variant.payload.is_none()) =>
             {
@@ -130,6 +142,11 @@ impl CodeGenerator {
                     Self::collect_logical_struct_schema(field, schemas);
                 }
             }
+            LogicalType::Tuple { elements } => {
+                for element in elements {
+                    Self::collect_logical_struct_schema(element, schemas);
+                }
+            }
             _ => {}
         }
     }
@@ -140,6 +157,9 @@ impl CodeGenerator {
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
             LogicalType::Array { .. } => Self::logical_type_to_llvm(logical_type),
+            LogicalType::Tuple { .. } => {
+                unreachable!("flat tuples are not admitted inside Copy-struct schemas")
+            }
             LogicalType::Void
             | LogicalType::String
             | LogicalType::ImmutableReference { .. }
@@ -359,8 +379,12 @@ impl CodeGenerator {
                 Inst::AllocaStruct { result, .. } | Inst::CheckedStructAlloca { result, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
+                Inst::CheckedTupleAlloca { result, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                }
                 Inst::GetFieldPtr { result, base, .. }
-                | Inst::CheckedStructFieldPtr { result, base, .. } => {
+                | Inst::CheckedStructFieldPtr { result, base, .. }
+                | Inst::CheckedTupleFieldPtr { result, base, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, base);
                 }
@@ -645,6 +669,8 @@ impl CodeGenerator {
                 | Inst::CheckedCopyStructArrayElementPtr { .. }
                 | Inst::CheckedStructAlloca { .. }
                 | Inst::CheckedStructFieldPtr { .. }
+                | Inst::CheckedTupleAlloca { .. }
+                | Inst::CheckedTupleFieldPtr { .. }
                 | Inst::CheckedImmutableBorrow { .. }
                 | Inst::CheckedMutableBorrow { .. }
                 | Inst::CheckedMutableBorrowEnd { .. }
@@ -1014,7 +1040,9 @@ impl CodeGenerator {
                     let bool_place = self.is_checked_bool_place(ptr_reg);
                     let aggregate_place = match self.checked_place_type(ptr_reg) {
                         Some(
-                            logical_type @ (LogicalType::Struct { .. } | LogicalType::Array { .. }),
+                            logical_type @ (LogicalType::Struct { .. }
+                            | LogicalType::Array { .. }
+                            | LogicalType::Tuple { .. }),
                         ) => Some(Self::logical_type_to_llvm(logical_type)),
                         _ => None,
                     };
@@ -1093,7 +1121,9 @@ impl CodeGenerator {
                 }
                 Inst::Store(ptr_reg, value) => {
                     if let Some(
-                        logical_type @ (LogicalType::Struct { .. } | LogicalType::Array { .. }),
+                        logical_type @ (LogicalType::Struct { .. }
+                        | LogicalType::Array { .. }
+                        | LogicalType::Tuple { .. }),
                     ) = self.checked_place_type(ptr_reg)
                     {
                         let aggregate_type = Self::logical_type_to_llvm(logical_type);
@@ -1152,7 +1182,9 @@ impl CodeGenerator {
                 }
                 Inst::Load(result_reg, ptr_reg) => {
                     if let Some(
-                        logical_type @ (LogicalType::Struct { .. } | LogicalType::Array { .. }),
+                        logical_type @ (LogicalType::Struct { .. }
+                        | LogicalType::Array { .. }
+                        | LogicalType::Tuple { .. }),
                     ) = self.checked_place_type(ptr_reg)
                     {
                         let aggregate_type = Self::logical_type_to_llvm(logical_type);
@@ -1526,6 +1558,38 @@ impl CodeGenerator {
                         "  %ptr{result} = getelementptr inbounds %aero.struct.{struct_name}, %aero.struct.{struct_name}* %ptr{base}, i32 0, i32 {field_index}\n"
                     ));
                 }
+                Inst::CheckedTupleAlloca {
+                    result,
+                    element_types,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked tuple alloca")
+                    };
+                    let tuple_type = Self::logical_type_to_llvm(&LogicalType::Tuple {
+                        elements: element_types.clone(),
+                    });
+                    llvm_ir.push_str(&format!("  %ptr{result} = alloca {tuple_type}, align 8\n"));
+                }
+                Inst::CheckedTupleFieldPtr {
+                    result,
+                    base,
+                    element_types,
+                    field_index,
+                    ..
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked tuple field pointer")
+                    };
+                    let Value::Reg(base) = base else {
+                        panic!("Expected register for checked tuple base")
+                    };
+                    let tuple_type = Self::logical_type_to_llvm(&LogicalType::Tuple {
+                        elements: element_types.clone(),
+                    });
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {tuple_type}, {tuple_type}* %ptr{base}, i32 0, i32 {field_index}\n"
+                    ));
+                }
                 Inst::CheckedImmutableBorrow {
                     result,
                     source,
@@ -1892,9 +1956,9 @@ impl CodeGenerator {
                         "  %{result_str} = call {array_type} @{function}({args_str})\n"
                     ));
                 }
-                enum_type if enum_type == "{ i32, double, i1 }" => {
+                aggregate_type if aggregate_type.starts_with('{') => {
                     llvm_ir.push_str(&format!(
-                        "  %{result_str} = call {enum_type} @{function}({args_str})\n"
+                        "  %{result_str} = call {aggregate_type} @{function}({args_str})\n"
                     ));
                 }
                 _ => llvm_ir.push_str(&format!(
@@ -1988,7 +2052,7 @@ impl CodeGenerator {
     fn emit_return(&mut self, llvm_ir: &mut String, value: &Value, return_llvm_type: &str) {
         if return_llvm_type.starts_with("%aero.struct.")
             || return_llvm_type.starts_with('[')
-            || return_llvm_type == "{ i32, double, i1 }"
+            || return_llvm_type.starts_with('{')
         {
             let Value::Reg(register) = value else {
                 panic!("verified aggregate return must use an aggregate result register");

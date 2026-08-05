@@ -86,7 +86,7 @@ fn numeric_kind(annotation: &Type) -> Option<NumericBindingKind> {
 
 fn explicit_rejection(annotation: &Type, initialized: bool) -> Option<BindingAnnotationRejectKind> {
     match annotation {
-        Type::Tuple(_) => Some(BindingAnnotationRejectKind::Tuple),
+        Type::Tuple(_) if !initialized => Some(BindingAnnotationRejectKind::Tuple),
         Type::Array(inner, _) if matches!(inner.as_ref(), Type::Tuple(_)) => {
             Some(BindingAnnotationRejectKind::ArrayTuple)
         }
@@ -181,9 +181,13 @@ mod tests {
         for initialized in [false, true] {
             assert_eq!(
                 classify_binding_annotation(&tuple(0), initialized),
-                BindingAnnotationDisposition::ExistingExplicitRejection(
-                    BindingAnnotationRejectKind::Tuple
-                )
+                if initialized {
+                    BindingAnnotationDisposition::PreserveExistingBehavior
+                } else {
+                    BindingAnnotationDisposition::ExistingExplicitRejection(
+                        BindingAnnotationRejectKind::Tuple,
+                    )
+                }
             );
             for count in [0, 1] {
                 assert_eq!(

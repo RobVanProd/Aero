@@ -31,6 +31,7 @@ mod static_string_equality;
 mod static_string_method;
 mod static_string_predicate;
 mod struct_contract;
+mod tuple_contract;
 mod types;
 
 #[cfg(test)]

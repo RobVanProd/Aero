@@ -9,7 +9,7 @@ use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const EXPECTED_INNER_DIAGNOSTIC: &str = "Tuple expressions are not supported.";
+const PRESERVED_TUPLE_DIAGNOSTIC: &str = "Tuple expressions are not supported.";
 
 const ADJACENT_CONTROLS_SOURCE: &str = r#"
 fn main() {
@@ -69,20 +69,27 @@ impl Drop for TestWorkspace {
     }
 }
 
-fn assert_public_tuple_rejection(source: &str) {
+fn assert_public_tuple_rejection(source: &str, expected: &str) {
     match catch_unwind(|| compile_program(source, CompilerOptions::default())) {
         Err(_) => panic!("compile_program unwound instead of returning the tuple diagnostic"),
         Ok(Ok(llvm)) => panic!(
             "compile_program unexpectedly accepted tuple; fabricated-zero evidence: {}\n{llvm}",
             llvm.contains("0x0000000000000000") || llvm.contains("ret i32 0")
         ),
-        Ok(Err(error)) => {
-            let inner = error
-                .strip_prefix("Semantic Analysis Error: ")
-                .unwrap_or_else(|| panic!("unexpected public error category: {error}"));
-            assert_eq!(inner, EXPECTED_INNER_DIAGNOSTIC);
-        }
+        Ok(Err(error)) => assert!(
+            error.contains(expected),
+            "diagnostic {error:?} missing {expected:?}"
+        ),
     }
+}
+
+fn assert_public_tuple_success(source: &str, expected_llvm: &str) {
+    let llvm = compile_program(source, CompilerOptions::default())
+        .unwrap_or_else(|error| panic!("admitted flat tuple source failed: {error}"));
+    assert!(
+        llvm.contains(expected_llvm),
+        "tuple LLVM missing {expected_llvm:?}:\n{llvm}"
+    );
 }
 
 fn run_check(workspace: &TestWorkspace, input: &Path) -> Output {
@@ -113,7 +120,7 @@ fn combined_output(output: &Output) -> String {
     )
 }
 
-fn assert_cli_tuple_rejection(output: &Output, artifact: Option<&Path>) {
+fn assert_cli_tuple_rejection(output: &Output, artifact: Option<&Path>, expected: &str) {
     let diagnostics = combined_output(output);
     let mut failures = Vec::new();
     if output.status.success() {
@@ -122,10 +129,8 @@ fn assert_cli_tuple_rejection(output: &Output, artifact: Option<&Path>) {
     if diagnostics.to_ascii_lowercase().contains("panicked") {
         failures.push(format!("tuple source reached a panic: {diagnostics}"));
     }
-    if !diagnostics.contains(EXPECTED_INNER_DIAGNOSTIC) {
-        failures.push(format!(
-            "diagnostic `{diagnostics}` missing `{EXPECTED_INNER_DIAGNOSTIC}`"
-        ));
+    if !diagnostics.contains(expected) {
+        failures.push(format!("diagnostic `{diagnostics}` missing `{expected}`"));
     }
     if let Some(artifact) = artifact
         && artifact.exists()
@@ -209,18 +214,25 @@ fn cli_check_and_build_preserve_array_iter_control() {
 
 #[test]
 fn public_compile_rejects_direct_tuple_literal_without_unwinding() {
-    assert_public_tuple_rejection("fn main() { let value: int = (11, 22); }");
+    assert_public_tuple_rejection(
+        "fn main() { let value: int = (11, 22); }",
+        "tuple binding annotation mismatch: expected int, actual (int, int)",
+    );
 }
 
 #[test]
-fn public_compile_rejects_tuple_projection_without_unwinding() {
-    assert_public_tuple_rejection("fn main() { let value: int = (11, 22).1; }");
+fn public_compile_accepts_flat_tuple_projection() {
+    assert_public_tuple_success(
+        "fn main() { let value: int = (11, 22).1; }",
+        "getelementptr inbounds { double, double }",
+    );
 }
 
 #[test]
 fn public_compile_rejects_tuple_explicit_return_without_unwinding() {
     assert_public_tuple_rejection(
         "fn tuple_value() -> int { return (11, 22); } fn main() { let value: int = tuple_value(); }",
+        "return type mismatch: expected int, actual (int, int)",
     );
 }
 
@@ -228,33 +240,41 @@ fn public_compile_rejects_tuple_explicit_return_without_unwinding() {
 fn public_compile_rejects_tuple_tail_return_without_unwinding() {
     assert_public_tuple_rejection(
         "fn tuple_value() -> int { (11, 22) } fn main() { let value: int = tuple_value(); }",
+        "return type mismatch: expected int, actual (int, int)",
     );
 }
 
 #[test]
-fn public_compile_rejects_discarded_tuple_without_unwinding() {
-    assert_public_tuple_rejection("fn main() { (11, 22); }");
+fn public_compile_accepts_discarded_flat_tuple() {
+    assert_public_tuple_success("fn main() { (11, 22); }", "alloca { double, double }");
 }
 
 #[test]
 fn public_compile_rejects_root_tuple_without_unwinding() {
-    assert_public_tuple_rejection("let value: int = (11, 22);");
+    assert_public_tuple_rejection("let value: int = (11, 22);", PRESERVED_TUPLE_DIAGNOSTIC);
 }
 
 #[test]
-fn tuple_diagnostic_precedes_analysis_of_tuple_children() {
-    assert_public_tuple_rejection("fn main() { let value: int = (missing, 22); }");
+fn tuple_children_are_analyzed_before_flat_tuple_classification() {
+    assert_public_tuple_rejection(
+        "fn main() { let value: int = (missing, 22); }",
+        "Use of undeclared variable `missing`",
+    );
 }
 
 #[test]
 fn public_compile_rejects_tuple_in_non_first_array_element_without_unwinding() {
-    assert_public_tuple_rejection("fn main() { let values = [1, (2, 3)]; }");
+    assert_public_tuple_rejection(
+        "fn main() { let values = [1, (2, 3)]; }",
+        "array element type mismatch: expected int, actual (int, int)",
+    );
 }
 
 #[test]
 fn public_compile_rejects_tuple_in_closure_body_without_unwinding() {
     assert_public_tuple_rejection(
         "fn main() { let make_tuple = |value: int| (value, 2); let result: int = make_tuple(1); }",
+        PRESERVED_TUPLE_DIAGNOSTIC,
     );
 }
 
@@ -266,11 +286,15 @@ fn cli_check_rejects_root_tuple() {
         .expect("write root tuple source");
 
     let output = run_check(&workspace, &source);
-    assert_cli_tuple_rejection(&output, None);
+    assert_cli_tuple_rejection(
+        &output,
+        None,
+        "tuple binding annotation mismatch: expected int, actual (int, int)",
+    );
 }
 
 #[test]
-fn cli_build_rejects_root_tuple_without_panicking_or_artifact() {
+fn cli_build_accepts_root_flat_tuple_projection() {
     let workspace = TestWorkspace::new("root-build");
     let source = workspace.path("main.aero");
     let artifact = workspace.path("program.ll");
@@ -278,11 +302,20 @@ fn cli_build_rejects_root_tuple_without_panicking_or_artifact() {
         .expect("write root tuple source");
 
     let output = run_build(&workspace, &source, &artifact);
-    assert_cli_tuple_rejection(&output, Some(&artifact));
+    assert!(
+        output.status.success() && artifact.is_file(),
+        "flat tuple projection build failed: {}",
+        combined_output(&output)
+    );
+    let llvm = fs::read_to_string(&artifact).expect("read tuple projection artifact");
+    assert!(
+        llvm.contains("getelementptr inbounds { double, double }"),
+        "{llvm}"
+    );
 }
 
 #[test]
-fn cli_check_rejects_direct_module_tuple() {
+fn cli_check_accepts_direct_module_flat_tuple_projection() {
     let workspace = TestWorkspace::new("module-check");
     let root = workspace.path("main.aero");
     let module = workspace.path("tuple_values.aero");
@@ -291,7 +324,11 @@ fn cli_check_rejects_direct_module_tuple() {
         .expect("write direct module with tuple");
 
     let output = run_check(&workspace, &root);
-    assert_cli_tuple_rejection(&output, None);
+    assert!(
+        output.status.success(),
+        "direct-module flat tuple check failed: {}",
+        combined_output(&output)
+    );
 }
 
 #[test]
@@ -305,5 +342,9 @@ fn cli_build_rejects_direct_module_tuple_without_panicking_or_artifact() {
         .expect("write direct module with tuple");
 
     let output = run_build(&workspace, &root, &artifact);
-    assert_cli_tuple_rejection(&output, Some(&artifact));
+    assert_cli_tuple_rejection(
+        &output,
+        Some(&artifact),
+        "return type mismatch: expected int, actual (int, int)",
+    );
 }

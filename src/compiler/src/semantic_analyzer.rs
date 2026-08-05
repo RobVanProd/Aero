@@ -20,6 +20,10 @@ use crate::scalar_assignment::{
 use crate::struct_contract::{
     CopyStructArrayIndexDisposition, StructExecutionContext, StructRegistry,
 };
+use crate::tuple_contract::{
+    TupleBindingValidationError, TupleContractDisposition, TupleExecutionContext,
+    classify_flat_copy_tuple_elements, classify_tuple_projection, validate_tuple_binding,
+};
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -619,6 +623,33 @@ impl SemanticAnalyzer {
         match self.struct_execution_context() {
             StructExecutionContext::AdmittedFunction => EnumExecutionContext::AdmittedFunction,
             StructExecutionContext::PreservedContext => EnumExecutionContext::PreservedContext,
+        }
+    }
+
+    fn tuple_execution_context(&self) -> TupleExecutionContext {
+        match self.struct_execution_context() {
+            StructExecutionContext::AdmittedFunction => TupleExecutionContext::AdmittedFunction,
+            StructExecutionContext::PreservedContext => TupleExecutionContext::PreservedContext,
+        }
+    }
+
+    fn admitted_tuple_type(&self, elements: Vec<Ty>) -> Result<Ty, String> {
+        match classify_flat_copy_tuple_elements(&elements, self.tuple_execution_context()) {
+            TupleContractDisposition::Supported(contract) => Ok(contract.ty()),
+            TupleContractDisposition::ExplicitlyRejected(message) => Err(message),
+            TupleContractDisposition::Preserved => {
+                Err("Tuple expressions are not supported.".to_string())
+            }
+        }
+    }
+
+    fn admitted_tuple_projection(&self, receiver: &Ty, index: usize) -> Result<Ty, String> {
+        match classify_tuple_projection(receiver, index, self.tuple_execution_context()) {
+            TupleContractDisposition::Supported(contract) => Ok(contract.element),
+            TupleContractDisposition::ExplicitlyRejected(message) => Err(message),
+            TupleContractDisposition::Preserved => {
+                Err("Tuple expressions are not supported.".to_string())
+            }
         }
     }
 
@@ -1436,9 +1467,18 @@ impl SemanticAnalyzer {
                     _ => Err("Cannot index into non-array type".to_string()),
                 }
             }
-            Expression::FieldAccess { .. }
-            | Expression::TupleLiteral(_)
-            | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
+            Expression::FieldAccess { .. } => Ok(Ty::Int), // Stub
+            Expression::TupleLiteral(elements) => {
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element in elements {
+                    element_types.push(self.infer_and_validate_expression(element)?);
+                }
+                self.admitted_tuple_type(element_types)
+            }
+            Expression::TupleIndex { object, index } => {
+                let receiver = self.infer_and_validate_expression(object)?;
+                self.admitted_tuple_projection(&receiver, *index)
+            }
             Expression::StructLiteral { name, .. } => Ok(Ty::Struct(name.clone())),
             // Phase 6: Special handling for Option and Result constructors
             Expression::EnumVariant {
@@ -1606,8 +1646,29 @@ impl SemanticAnalyzer {
         struct_context: StructExecutionContext,
     ) -> Result<(), String> {
         match expr {
-            Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => {
-                return Err("Tuple expressions are not supported.".to_string());
+            Expression::TupleLiteral(elements) => {
+                for element in elements {
+                    self.preflight_expression_with_array_mode(
+                        element,
+                        interleave_array_inference,
+                        array_types,
+                        struct_context,
+                    )?;
+                }
+                if struct_context != StructExecutionContext::AdmittedFunction {
+                    return Err("Tuple expressions are not supported.".to_string());
+                }
+            }
+            Expression::TupleIndex { object, .. } => {
+                self.preflight_expression_with_array_mode(
+                    object,
+                    interleave_array_inference,
+                    array_types,
+                    struct_context,
+                )?;
+                if struct_context != StructExecutionContext::AdmittedFunction {
+                    return Err("Tuple expressions are not supported.".to_string());
+                }
             }
             Expression::FunctionCall { name, arguments } => {
                 if !self.is_closure_callable(name)
@@ -2152,7 +2213,21 @@ impl SemanticAnalyzer {
             Expression::FieldAccess { object, field } => {
                 self.infer_supported_field_type(object, field, array_types)
             }
-            Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
+            Expression::TupleLiteral(elements) => {
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element in elements {
+                    element_types.push(self.infer_and_validate_expression_immutable_with_cache(
+                        element,
+                        array_types,
+                    )?);
+                }
+                self.admitted_tuple_type(element_types)
+            }
+            Expression::TupleIndex { object, index } => {
+                let receiver =
+                    self.infer_and_validate_expression_immutable_with_cache(object, array_types)?;
+                self.admitted_tuple_projection(&receiver, *index)
+            }
             Expression::StructLiteral { name, fields } => {
                 let resolved = self
                     .struct_registry
@@ -2506,6 +2581,26 @@ impl SemanticAnalyzer {
                 };
 
                 if let Some(initializer) = value {
+                    if !matches!(
+                        disposition,
+                        BindingAnnotationDisposition::ExistingExplicitRejection(_)
+                    ) {
+                        match validate_tuple_binding(
+                            type_annotation.as_ref(),
+                            &inferred_type,
+                            *mutable,
+                        ) {
+                            Ok(()) => {}
+                            Err(TupleBindingValidationError::Explicit(message)) => {
+                                return Err(message);
+                            }
+                            Err(TupleBindingValidationError::PreserveInitializedDirectAnnotationRejection) => {
+                                return Err(format!(
+                                    "Error: Variable `{name}` uses an unsupported tuple type annotation for an initialized binding."
+                                ));
+                            }
+                        }
+                    }
                     self.struct_registry
                         .validate_copy_struct_array_binding(
                             type_annotation.as_ref(),

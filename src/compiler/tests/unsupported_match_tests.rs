@@ -378,7 +378,7 @@ fn cli_check_and_build_preserve_zero_argument_array_iter_control() {
 fn established_child_diagnostics_retain_match_precedence() {
     assert_public_semantic_error(
         "fn main() { let value: int = match (1, 2) { _ => 0 }; }",
-        TUPLE_DIAGNOSTIC,
+        EXPECTED_INNER_DIAGNOSTIC,
     );
     assert_public_semantic_error(
         "fn main() { let value: int = match 1 { 1 => 7.field, _ => 0 }; }",
@@ -390,7 +390,7 @@ fn established_child_diagnostics_retain_match_precedence() {
     );
     assert_public_semantic_error(
         "fn main() { let value: int = (match 1 { 1 => 7, _ => 0 }, 2); }",
-        TUPLE_DIAGNOSTIC,
+        EXPECTED_INNER_DIAGNOSTIC,
     );
 }
 

@@ -2,6 +2,7 @@ use crate::ast::{
     AstNode, Expression, MatchArm, Parameter, Pattern, Statement, Type, VariantDeclKind,
 };
 use crate::ir::{EnumSchema, EnumVariantSchema, LogicalType};
+use crate::tuple_contract::{TupleContractDisposition, classify_flat_copy_tuple_annotation};
 use crate::types::Ty;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -382,6 +383,12 @@ impl EnumRegistry {
     where
         F: FnMut(&Type) -> Option<(Ty, LogicalType)>,
     {
+        if !matches!(
+            classify_flat_copy_tuple_annotation(annotation),
+            TupleContractDisposition::Preserved
+        ) {
+            return Ok(None);
+        }
         if let Type::Named(name) = annotation
             && self.definitions.contains_key(name)
         {

@@ -10,7 +10,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const EXPECTED_INNER_DIAGNOSTIC: &str = "Field access expressions are not supported.";
-const TUPLE_DIAGNOSTIC: &str = "Tuple expressions are not supported.";
 const VOID_RECEIVER_DIAGNOSTIC: &str = "Error: void function `sink` cannot be used as a value.";
 
 const ADJACENT_CONTROLS_SOURCE: &str = r#"
@@ -282,10 +281,10 @@ fn cli_check_and_build_preserve_array_iter_control() {
 }
 
 #[test]
-fn tuple_receiver_diagnostic_retains_precedence() {
+fn admitted_tuple_receiver_reaches_field_classification() {
     assert_public_semantic_error(
         "fn main() { let value: int = (1, 2).field; }",
-        TUPLE_DIAGNOSTIC,
+        EXPECTED_INNER_DIAGNOSTIC,
     );
 }
 

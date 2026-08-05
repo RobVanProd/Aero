@@ -2486,3 +2486,47 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   binary tests. CORE-056 remains accepted.
   PR #4 stays draft and unmerged; checkpoint strategy and structured evidence generation
   remain separate scaling work.
+
+## DEC-053 - Admit flat heterogeneous Copy-scalar tuples as a private product layout
+
+- Date: 2026-08-05
+- Status: locally green implementation candidate; public checks and pinned LLVM/Clang
+  22 execution remain pending. DEC-052/CORE-057 is accepted public at exact commit
+  `7c108ff0ae0e9686209378deec5ce1de61bff17b` with all eight checks and native exit
+  253 green.
+- Decision: inside admitted non-generic top-level functions, admit immutable tuples of
+  arity two or greater whose ordered elements are exactly `Int`, `Float`, or `Bool`.
+  The complete bounded class includes literal construction, inferred or exact binding,
+  whole-value Copy aliases, repeated reads, constant in-bounds projection, immediate
+  projection, scalar/tuple-only internal parameters and returns, forwarding, CFG,
+  terminating direct recursion, and flattened direct modules.
+- Shared contract: `tuple_contract` is the only source classifier for annotation,
+  inferred element product, direct binding equality/mutability, execution context, and
+  projection. The older binding-annotation table delegates initialized direct tuples;
+  nested array/reference quarantines retain their established classifications. Enum-
+  bearing function transport explicitly consumes the shared classifier in preserved
+  context so tuple results or parameters do not broaden that ownership class.
+- IR/backend: checked IR retains ordered `LogicalType::Tuple`, checked tuple allocation,
+  and checked tuple field-pointer identities. The independent verifier proves minimum
+  arity, exact scalar schema/order, field index/type, place/result separation,
+  dominance, signature equality, and metadata stability. LLVM uses a private literal
+  aggregate with `double` for Aero `Int`/`Float` physical compatibility and `i1` for
+  `Bool`, with typed GEP/load/store and no pointer/integer conversion. This is not a
+  stable source layout, calling convention, ABI, FFI, or zero-cost claim.
+- Exclusions: unit/unary/nested/non-scalar tuples, mutable bindings or assignment,
+  destructuring/patterns, dynamic/out-of-range projection, tuple arrays/fields/payloads/
+  references, generic/impl/closure execution, tuple-bearing `main`, drop/destruction,
+  heap, accelerator execution, performance, release, stability, and general aggregate-
+  safety claims remain unsupported or preserved.
+- Evidence gate: the exhaustive CORE-058 integration target proves parser retention,
+  arbitrary scalar product shapes, binding/Copy/projection, source-order effects,
+  calls/returns/CFG/recursion/modules, exact negative boundaries, checked identities,
+  verifier corruptions, raw containment, CLI no-artifact hygiene, and LLVM anchors.
+  All compiler unit and integration targets pass. The tracked composed module example
+  builds and executes locally through Visual Studio Clang at exact exit 23. The exact
+  repository-root gate, all eight public checks, and pinned external LLVM/Clang 22
+  verification/object/link/native evidence are still mandatory before acceptance.
+- Scaling boundary: PR #4 remains draft and unmerged. A controlled checkpoint/merge
+  strategy, structured evidence manifest, and periodic broader release-eligibility
+  system gate remain separately scoped work; this hard layout slice does not silently
+  convert them into capability claims.
