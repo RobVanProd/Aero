@@ -237,7 +237,8 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, source);
                 }
-                Inst::CheckedUnitEnumVariant { result, .. } => {
+                Inst::CheckedUnitEnumParameter { result, .. }
+                | Inst::CheckedUnitEnumVariant { result, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
                 Inst::CheckedUnitEnumDispatch { value, .. } => {
@@ -519,6 +520,13 @@ impl CodeGenerator {
         matches!(self.checked_result_type(value), Some(LogicalType::Bool))
     }
 
+    fn is_checked_enum_result(&self, value: &Value) -> bool {
+        matches!(
+            self.checked_result_type(value),
+            Some(LogicalType::Enum { .. })
+        )
+    }
+
     fn is_checked_bool_place(&self, value: &Value) -> bool {
         matches!(self.checked_place_type(value), Some(LogicalType::Bool))
     }
@@ -591,6 +599,7 @@ impl CodeGenerator {
                 | Inst::CheckedStructAlloca { .. }
                 | Inst::CheckedStructFieldPtr { .. }
                 | Inst::CheckedImmutableBorrow { .. }
+                | Inst::CheckedUnitEnumParameter { .. }
                 | Inst::CheckedUnitEnumVariant { .. }
                 | Inst::CheckedUnitEnumDispatch { .. } => {}
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
@@ -1452,6 +1461,17 @@ impl CodeGenerator {
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
                     ));
                 }
+                Inst::CheckedUnitEnumParameter {
+                    result, parameter, ..
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked unit-enum parameter")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = add i32 %{}, 0\n",
+                        Self::llvm_parameter_name(parameter)
+                    ));
+                }
                 Inst::CheckedUnitEnumVariant {
                     result,
                     variant_index,
@@ -1588,15 +1608,22 @@ impl CodeGenerator {
                     result_str, function, args_str
                 )),
                 "i32" => {
-                    let call_reg = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = call i32 @{}({})\n",
-                        call_reg, function, args_str
-                    ));
-                    llvm_ir.push_str(&format!(
-                        "  %{} = sitofp i32 %{} to double\n",
-                        result_str, call_reg
-                    ));
+                    if self.is_checked_enum_result(result_reg) {
+                        llvm_ir.push_str(&format!(
+                            "  %{} = call i32 @{}({})\n",
+                            result_str, function, args_str
+                        ));
+                    } else {
+                        let call_reg = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = call i32 @{}({})\n",
+                            call_reg, function, args_str
+                        ));
+                        llvm_ir.push_str(&format!(
+                            "  %{} = sitofp i32 %{} to double\n",
+                            result_str, call_reg
+                        ));
+                    }
                 }
                 "i64" => {
                     let call_reg = self.fresh_reg();
@@ -1669,9 +1696,13 @@ impl CodeGenerator {
                 Value::ImmInt(n) => n.to_string(),
                 Value::ImmFloat(f) => (*f as i64).to_string(),
                 Value::Reg(r) => {
-                    let tmp = self.fresh_reg();
-                    llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
-                    format!("%{}", tmp)
+                    if self.is_checked_enum_result(value) {
+                        format!("%reg{}", r)
+                    } else {
+                        let tmp = self.fresh_reg();
+                        llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
+                        format!("%{}", tmp)
+                    }
                 }
                 Value::ImmString(_) => {
                     panic!("Cannot cast string argument to i32 in function call")
@@ -1774,9 +1805,13 @@ impl CodeGenerator {
                 Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i32 {}\n", n)),
                 Value::ImmFloat(f) => llvm_ir.push_str(&format!("  ret i32 {}\n", *f as i64)),
                 Value::Reg(r) => {
-                    let tmp = self.fresh_reg();
-                    llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
-                    llvm_ir.push_str(&format!("  ret i32 %{}\n", tmp));
+                    if self.is_checked_enum_result(value) {
+                        llvm_ir.push_str(&format!("  ret i32 %reg{}\n", r));
+                    } else {
+                        let tmp = self.fresh_reg();
+                        llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
+                        llvm_ir.push_str(&format!("  ret i32 %{}\n", tmp));
+                    }
                 }
                 Value::ImmString(_) => panic!("Cannot return string value as i32"),
             },

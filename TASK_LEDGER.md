@@ -9661,3 +9661,170 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   complete active baseline, formatting, correctness Clippy, and documentation. Because
   this result is now recorded in the candidate tree, the exact committed records tree
   must pass the same root gate again before push.
+
+## CORE-050 - Internal owned transport of admitted unit enums
+
+- Task ID: `CORE-050`. Observed behavior: accepted CORE-049 gives unique non-generic
+  unit enums exact source identity, non-`Copy` local moves, exhaustive scalar-result
+  Match, schema-bearing checked IR, verification, and native `switch i32` execution,
+  but deliberately excludes every enum parameter, argument, call result, and function
+  return. Consequently an exact enum parameter still falls outside the admitted
+  function context, an exact enum return is rejected as non-scalar/non-Copy transport,
+  and a call-produced enum cannot be matched directly. The legacy raw path must remain
+  inert. No new audit is authorized: this task closes the already-enumerated unit-enum
+  function-transport class rather than re-ranking repository residuals.
+- Authoritative semantics: the formal specification requires globally visible function
+  signatures, exact argument arity/types, return-expression unification, single-owner
+  values, and invalidation after move. The ownership design states explicitly that
+  passing to a function and returning from a function transfer ownership, and that the
+  same rules apply to enums. The founding framework requires exhaustive enum Match but
+  defines neither implicit enum `Copy` nor a stable enum ABI. CORE-049 already freezes
+  admitted unit enums as non-`Copy`. CORE-050 applies those existing rules; it does not
+  invent copying, discriminants, drop, layout, or ABI.
+- Hypothesis: exact internal by-value transport can preserve the CORE-049 logical enum
+  schema through semantic checking, checked call/return metadata, independent
+  verification, and internal LLVM `i32` parameters/results without making the physical
+  index source-visible or stable. A direct SSA parameter binder can keep enum values out
+  of generic numeric places and avoid silently treating them as `Int`.
+- Frozen signature class: after module linking, a supported signature is one unique
+  top-level, non-generic, non-`main` function whose parameters or declared result contain
+  at least one exact admitted CORE-049 unit-enum annotation. Every other parameter and
+  result must be an already-admitted checked by-value type: `Int`, `Float`, `Bool`, an
+  accepted finite acyclic all-components-`Copy` struct, or an accepted flat fixed Copy
+  array. Mixed/multiple parameters, multiple admitted enum names, zero parameters for an
+  enum-producing function, and `Void` result for an enum-consuming function are in the
+  class. Parameter names are unique valid symbols; arity and all logical types are exact.
+  One resolver in `enum_match_contract.rs` must classify the whole signature and delegate
+  non-enum annotations to the existing Copy-type resolver. No semantic, admission,
+  verifier, or backend phase may add a second enum-signature topology guard.
+- Frozen value/ownership class: an enum argument may be a direct payload-free constructor,
+  an initialized owned local or parameter identifier, or the exact result of another
+  admitted enum-transport call. An enum result may be returned explicitly or as a tail
+  expression from a constructor, owned local/parameter, or admitted call. Call results
+  may initialize inferred/exact immutable bindings, move through aliases, feed another
+  admitted call, be returned, or serve directly as an exhaustive Match scrutinee. Passing
+  a named enum transfers ownership and invalidates it; call-result temporaries acquire a
+  new owner. Source-order nested calls, argument lists, Match scrutinees/arms, scalar
+  parent expressions, conditions, array elements, and discarded calls share one recursive
+  consumed-name classifier. Duplicate consumption in one expression, reuse after a call,
+  or arm reuse of a name consumed while evaluating its Match scrutinee is rejected before
+  checked IR. Existing conservative possible-arm consumption remains unchanged.
+- Checked IR/backend contract: `CheckedFunctionDef` may carry exact unit-enum logical
+  parameter/results only when its signature contains an enum and otherwise retains the
+  existing Copy types. Add one bounded `CheckedUnitEnumParameter` instruction that binds
+  an exact signature parameter to a fresh enum result; enum parameters, constructors,
+  locals, calls, and returns remain SSA results and never enter generic `Alloca`/`Load`/
+  `Store`. The verifier independently validates symbols, schemas, signature membership,
+  parameter identity/type/uniqueness, result identity/dominance, exact call arguments and
+  results, returns, cross-function/global schema consistency, and struct/enum name
+  collisions. LLVM lowers only verified enum signature values to internal `i32`, emits
+  direct `i32` argument/call/return flow, and retains checked exhaustive `switch i32`.
+  This establishes no public discriminant, layout, calling convention, FFI, or stable ABI.
+- Complete exclusions: payload/struct/generic/mixed enums; Option/Result; wildcard,
+  binding, guard, or literal Match patterns; enum arrays, struct fields, references,
+  mutation, borrowing, equality, casts, printing, copying, heap/drop behavior, external/
+  variadic functions, `main` enum transport, closures, nested functions, trait defaults,
+  impl methods, generic functions, recursive enum ownership through CFG joins, enum loop
+  state, stable ABI/FFI, accelerators, performance, release, and stability. Unsupported
+  definitions and contexts retain their existing exact fail-closed precedence.
+- Tests-first completeness contract: add one focused target that first proves parser
+  retention, then enumerates one/two/many-variant and multiple-enum signatures; every
+  enum argument/result origin; inferred/exact binding, forwarding, forward calls,
+  direct call-result Match, nested calls, multiple/mixed existing scalar/struct/array
+  signatures, explicit/tail/Void returns, and `Int`/`Float`/`Bool` consumers. Enumerate
+  every frozen invalid signature, annotation, arity/type, result, ownership, direct-Match
+  arm-reuse, unsupported context, and transport topology. Require semantic-before-IR
+  ownership failures, exact checked metadata/instructions, raw-path containment, CLI
+  check/build artifact hygiene, and all stable workflow anchors. Run this target once red
+  before production, example, workflow, capability-state, or claim mutation. Move only
+  the two now-obsolete enum parameter/result negative cells from the CORE-049 target.
+- System-level gate: add one tracked direct-module example composing enum construction,
+  owned argument/result forwarding, direct call-result exhaustive Match, modules,
+  compile-time Strings, fixed arrays, acyclic Copy aggregates and their transport,
+  immutable scalar references, scalar control flow, checked verification, LLVM,
+  object/link, and exact native exit `173`. Stable/nightly CI must unconditionally use
+  pinned LLVM/Clang 22, `opt-22`, `llc-22 -verify-machineinstrs`, object lowering,
+  `clang-22` linking, execution, and exact exit. Parser-only, rejection-only, LLVM-text-
+  only, unchecked, or unexecuted evidence cannot close this milestone.
+- Allowed files: this ledger; `src/compiler/src/enum_match_contract.rs`,
+  `struct_contract.rs`, `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; one new
+  `src/compiler/tests/unit_enum_transport_tests.rs`; only the exact obsolete transport
+  cells in `unit_enum_match_tests.rs` and exact verifier/checked-admission expectations
+  made stale by this class; one new tracked `examples/unit_enum_transport/` module pair;
+  `.github/workflows/rust.yml`; and, only after executable acceptance, `README.md`,
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md`.
+  No lexer/parser/AST, dependency, optimizer, runtime, stdlib simulation, general pattern
+  engine, generic ownership architecture, claim-verification, benchmark, release,
+  `master`, PR merge, force-push, or history rewrite is authorized.
+- Risks and stop conditions: stop rather than broaden if exact enum identity cannot
+  survive calls/returns; an enum can enter numeric or generic storage; verifier metadata
+  cannot prove the direct parameter/result identities and schemas; call lowering needs a
+  public ABI decision; ownership effects require unsound CFG approximation; raw or an
+  excluded context activates; unsupported source reaches LLVM; selected-arm-only behavior
+  changes; a test must be weakened; existing Copy transport changes; or the change needs
+  parser/AST/runtime/dependency work. Parser-to-native work crosses multiple phases by
+  design and is explicitly lead-owned; unexpected semantics remain a stop.
+- Starting evidence: exact clean accepted CORE-049 records head
+  `f44e8742c7e209489fa7b9ad38741eadeb3a8ae0` equals
+  `origin/agent/aero-integration`; all eight public records checks and stable native exit
+  `149` pass. Draft PR #4 remains unmerged. The only CORE-050 mutation at authorization
+  is this one ledger record. The next allowed mutation is the exhaustive focused red
+  contract; no CORE-050 compiler behavior, example, workflow, capability claim, commit,
+  or public artifact exists.
+- Tests-first red evidence: `cargo test --manifest-path src/compiler/Cargo.toml --test
+  unit_enum_transport_tests -- --nocapture` builds and runs the exhaustive target but
+  fails 0/1 before any production, example, workflow, or capability-state mutation.
+  The complete positive source stops at the existing semantic scalar/Copy-struct
+  parameter boundary; enum results stop at checked scalar/Void return admission; direct
+  call-result Match remains unsupported; use-after-call and duplicate-call consumption
+  cannot yet reach their intended ownership diagnostics. Checked enum parameter binders,
+  enum-bearing checked definitions, direct `i32` calls/returns, both tracked module files,
+  and all six workflow anchors are absent. The existing raw path emits none of the new
+  checked forms, parser retention passes, and the invalid CLI build publishes no
+  artifact. This is the required behavioral red state; no test was weakened and no
+  public branch or PR state changed.
+- Pre-publication corrections: before any commit or push, correct the focused fixture's
+  native arithmetic from 170 to the frozen 173, count the exact nine emitted enum
+  parameter binders rather than an assumed ten, and scope the LLVM no-conversion check
+  to the instructions adjacent to enum calls rather than unrelated scalar conversions.
+  Remove only the two CORE-049 negative cells made obsolete by the new positive class.
+  These corrections amend the one task contract before publication; they do not weaken
+  a rejection, broaden a signature, or add a records-only chronology checkpoint.
+- Local implementation result: one shared `UnitEnumRegistry` signature resolver now
+  classifies the complete enum-bearing function signature and delegates every non-enum
+  annotation to the existing Copy resolver. The same registry owns one recursive
+  consumed-name classifier used by semantic move analysis, checked admission, calls,
+  and direct call-result Match. Exact enum signatures and direct
+  `CheckedUnitEnumParameter` SSA binders survive checked IR; independent verifier
+  corruption cases reject missing, alloca, wrong-name, wrong-schema, duplicate,
+  non-entry, wrong-return, and wrong-call forms. Verified backend lowering uses direct
+  internal `i32` parameters, arguments, call results, and returns without numeric
+  conversion or generic enum storage.
+- Local test evidence: `cargo fmt --all` is clean. The exhaustive CORE-050 target,
+  CORE-049 Match target, unsupported-Match containment, Copy-struct/Copy-array
+  transport, typed admission, checked-IR contracts, and the new private verifier cases
+  all pass. The first repository-root `./tools/test.sh` invocation was externally
+  terminated at the 60-second command ceiling after reaching doc tests, producing a
+  synthetic Windows broken pipe; the unchanged rerun exits 0 and passes formatting,
+  correctness Clippy, 161/161 library tests, 167/167 binary tests, every integration
+  target, and doc tests. This was a command-lifetime correction, not a red build.
+- Local system trace: a fresh CLI build of
+  `examples/unit_enum_transport/main.aero` resolves `phases`, completes semantic
+  analysis, checked IR, internal verification, and LLVM generation. The artifact has
+  one direct `module_forward(i32)` definition, one direct `root_forward(i32)`
+  definition, one direct enum-bearing `module_score` call, three `switch i32`
+  terminators, and SHA-256
+  `450F5E991937DBE42F1A5681F8DFF6A202CE9FD0F5844116B22F9BFE3CE89588`.
+  The ignored artifact remains under Cargo `target`; no repository output was added.
+  Local verification truthfully reports `InternalOnly` because LLVM 22 is absent.
+  Public stable/nightly LLVM/Clang 22 verification, machine verification, object/link,
+  exact native exit 173, and all eight checks remain mandatory for acceptance.
+- Remaining uncertainty and regression risk: public native calling behavior is not yet
+  proven; enum loop/CFG ownership, recursive calls, aggregate enum storage, payloads,
+  ABI, and all frozen exclusions remain unsupported. The principal regression risks are
+  an enum leaking into numeric places, semantic/admission move drift, or schema drift
+  across calls. Shared classification, checked metadata, independent verifier
+  corruption tests, adjacent capability suites, and the root gate are the controls.
+  Next action is one intentional candidate commit and push, immediate PR-front-page
+  synchronization, and exact public acceptance inspection without merging or release.

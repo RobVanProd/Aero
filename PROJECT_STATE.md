@@ -1,8 +1,36 @@
 # Aero Project State
 
-Last updated: 2026-08-04 (America/New_York)
+Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
+
+Milestone 69 `CORE-050` is the locally green candidate for internal owned transport of
+the exact unit enums accepted by CORE-049. One shared enum registry now classifies the
+complete enum-bearing function signature and delegates all non-enum annotations to the
+existing Copy resolver. Parameters, arguments, call results, and returns retain exact
+enum identity; named arguments move and become unusable. A single recursive consumed-
+name classifier is shared by semantic analysis and checked admission, including nested
+calls and direct call-result Match scrutinees.
+
+Checked IR carries exact enum-bearing function schemas and direct
+`CheckedUnitEnumParameter` SSA binders. Enum values never enter generic numeric places.
+The verifier independently rejects missing, duplicate, misplaced, mismatched, or alloca
+parameter binders plus wrong enum calls/returns and global schema conflicts. LLVM lowers
+only verified internal transport to direct `i32` parameters, calls, and returns; this
+defines no source integer identity, layout, ABI, or FFI contract.
+
+The exact local root gate passes formatting, correctness Clippy, 161 library tests, 167
+binary tests, every integration target, and doc tests. A fresh composed module build
+resolves `phases`, completes semantics through LLVM, and contains direct enum transport
+plus three exhaustive switches. The tracked stable/nightly gate requires pinned LLVM/
+Clang 22 external verification, machine verification, object lowering, linking, and
+exact native exit 173. CORE-050 is accepted only when the pushed candidate passes that
+native gate and all eight public checks; the PR front page is the live public identity.
+
+Payload/generic/mixed enums, Option/Result, enum aggregates/references/mutation/equality/
+printing, `main` transport, closures/nested functions/traits, recursive CFG ownership,
+loop state, stable ABI/FFI, accelerators, performance, release, and stability remain
+excluded.
 
 Milestone 68 `CORE-049` is accepted public for explicit exhaustive matches over owned
 local unit enums. The admitted definition is exactly one unique top-level non-generic,
@@ -136,7 +164,9 @@ composition rather than a module system.
   takes immutable ownership/provenance and typed pointer representation through
   checked verification and native execution. CORE-049 takes an owned non-Copy ADT,
   exhaustive control flow, schema-bearing checked IR, and internal backend
-  representation through native execution. Deeper non-Copy ownership, runtime
+  representation through native execution. CORE-050 deliberately takes the harder
+  ownership/function-boundary class by moving that non-Copy identity through exact
+  internal calls and returns. Deeper CFG ownership, runtime
   representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -157,7 +187,10 @@ composition rather than a module system.
   scalar-reference provenance and typed alias/load lowering to the same composition.
   CORE-049's accepted exit-149 gate adds owned unit-enum identity, conservative move
   effects, exhaustive nested dispatch, independent enum/CFG verification, and native
-  selected-arm execution to that system trace.
+  selected-arm execution to that system trace. CORE-050's exit-173 candidate adds exact
+  enum-bearing signatures, cross-function ownership transfer, direct checked SSA
+  binding, call/return verification, and module-composed execution; public native
+  acceptance remains mandatory.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -1749,10 +1782,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push this records-only CORE-049 acceptance synchronization unchanged,
-immediately resynchronize draft PR #4 to the records head, and require all eight
-records-head checks. Then separately choose the next hard capability or authorize the
-controlled mega-PR checkpoint strategy or structured evidence-manifest generator.
+Commit and push the bounded CORE-050 candidate once, immediately resynchronize draft
+PR #4 to the exact candidate head and current diff size, and require all eight checks
+plus pinned LLVM/Clang 22 native exit 173 before acceptance. Keep the PR draft and
+unmerged. Then choose the next hard capability separately; the controlled mega-PR
+checkpoint strategy and structured evidence-manifest generator remain separate tasks.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.
 

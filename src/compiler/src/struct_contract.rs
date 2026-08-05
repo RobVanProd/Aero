@@ -730,7 +730,7 @@ impl StructRegistry {
         matches!(annotation, Type::Array(_, _)) || self.annotation_is_copy_struct(annotation)
     }
 
-    fn resolve_copy_annotation(&self, annotation: &Type) -> Option<CopyTypeContract> {
+    pub(crate) fn resolve_copy_annotation(&self, annotation: &Type) -> Option<CopyTypeContract> {
         match annotation {
             Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Some(CopyTypeContract {
                 ty: Ty::Int,

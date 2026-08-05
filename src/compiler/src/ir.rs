@@ -41,6 +41,13 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
+    /// Verified direct SSA binding of an owned unit-enum function parameter.
+    CheckedUnitEnumParameter {
+        result: Value,
+        parameter: String,
+        enum_name: String,
+        variants: Vec<String>,
+    },
     /// Verified construction of one payload-free variant in a closed local enum.
     CheckedUnitEnumVariant {
         result: Value,

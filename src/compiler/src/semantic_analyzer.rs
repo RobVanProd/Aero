@@ -5,7 +5,9 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
     typed_empty_numeric_array_contract,
 };
-use crate::enum_match_contract::{EnumExecutionContext, UnitEnumRegistry};
+use crate::enum_match_contract::{
+    EnumExecutionContext, UnitEnumFunctionContract, UnitEnumRegistry,
+};
 use crate::local_reference::{
     LocalReferenceDisposition, classify_local_borrow, classify_local_dereference,
     classify_local_reference_annotation,
@@ -489,6 +491,7 @@ pub struct SemanticAnalyzer {
     inside_impl: bool,
     struct_registry: StructRegistry,
     unit_enum_registry: UnitEnumRegistry,
+    unit_enum_function_contracts: HashMap<String, UnitEnumFunctionContract>,
     struct_execution_stack: Vec<StructExecutionContext>,
     /// Trait registry: trait name -> list of required method names
     trait_registry: HashMap<String, Vec<String>>,
@@ -515,6 +518,7 @@ impl SemanticAnalyzer {
             inside_impl: false,
             struct_registry: StructRegistry::default(),
             unit_enum_registry: UnitEnumRegistry::default(),
+            unit_enum_function_contracts: HashMap::new(),
             struct_execution_stack: vec![StructExecutionContext::PreservedContext],
             trait_registry,
             trait_impls: HashMap::new(),
@@ -554,11 +558,22 @@ impl SemanticAnalyzer {
             })
     }
 
+    fn unit_enum_consumed_names(&self, expression: &Expression) -> Result<Vec<String>, String> {
+        self.unit_enum_registry
+            .consumed_owned_values(
+                expression,
+                |name| self.local_binding_type(name),
+                |name| {
+                    self.unit_enum_function_contracts
+                        .get(name)
+                        .map(UnitEnumFunctionContract::parameter_types)
+                },
+            )
+            .map_err(|error| error.diagnostic())
+    }
+
     fn apply_unit_enum_match_moves(&mut self, expression: &Expression) -> Result<(), String> {
-        let consumed = self
-            .unit_enum_registry
-            .consumed_scrutinees(expression)
-            .map_err(|error| error.diagnostic())?;
+        let consumed = self.unit_enum_consumed_names(expression)?;
         for name in consumed {
             self.scope_manager.mark_moved(&name)?;
         }
@@ -689,6 +704,7 @@ impl SemanticAnalyzer {
         self.inside_impl = false;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
         self.unit_enum_registry = UnitEnumRegistry::from_top_level_ast(&ast);
+        self.unit_enum_function_contracts.clear();
         self.struct_execution_stack.clear();
         self.struct_execution_stack
             .push(StructExecutionContext::PreservedContext);
@@ -704,7 +720,33 @@ impl SemanticAnalyzer {
                 ..
             }) = node
             {
-                let admitted_contract = if type_params.is_empty() {
+                let enum_transport = self
+                    .unit_enum_registry
+                    .resolve_function_contract(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                        |annotation| {
+                            self.struct_registry
+                                .resolve_copy_annotation(annotation)
+                                .map(|contract| (contract.ty, contract.logical_type))
+                        },
+                    )
+                    .map_err(|error| error.diagnostic())?;
+                let admitted_contract = if let Some(contract) = enum_transport {
+                    self.unit_enum_function_contracts
+                        .insert(name.clone(), contract.clone());
+                    Some(AdmittedFunctionContract {
+                        name: contract.name,
+                        parameters: contract
+                            .parameters
+                            .into_iter()
+                            .map(|(parameter, contract)| (parameter, contract.ty))
+                            .collect(),
+                        return_type: contract.result.ty,
+                    })
+                } else if type_params.is_empty() {
                     let copy_contract = match self.struct_registry.resolve_copy_function_contract(
                         name,
                         parameters,
@@ -996,6 +1038,11 @@ impl SemanticAnalyzer {
                     expr,
                     self.enum_execution_context(),
                     |name| self.local_binding_type(name),
+                    |name| {
+                        self.function_table
+                            .get_admitted_contract(name)
+                            .map(|contract| contract.return_type.clone())
+                    },
                 ) {
                     self.check_expression_initialization(expr)?;
                     for arm in arms {
@@ -1270,12 +1317,14 @@ impl SemanticAnalyzer {
                     .iter_mut()
                     .map(|arm| self.infer_and_validate_expression(&mut arm.body))
                     .collect::<Result<Vec<_>, _>>()?;
+                let consumed = self.unit_enum_consumed_names(expr)?;
                 self.unit_enum_registry
-                    .resolve_match(
+                    .resolve_match_with_consumed(
                         &scrutinee,
                         expr,
                         arms,
                         &result_types,
+                        &consumed,
                         self.enum_execution_context(),
                     )
                     .map(|resolved| resolved.result)
@@ -1541,12 +1590,16 @@ impl SemanticAnalyzer {
                         EnumExecutionContext::PreservedContext
                     }
                 };
-                if !self
-                    .unit_enum_registry
-                    .is_candidate_match_scrutinee(expr, context, |name| {
-                        self.local_binding_type(name)
-                    })
-                {
+                if !self.unit_enum_registry.is_candidate_match_scrutinee(
+                    expr,
+                    context,
+                    |name| self.local_binding_type(name),
+                    |name| {
+                        self.function_table
+                            .get_admitted_contract(name)
+                            .map(|contract| contract.return_type.clone())
+                    },
+                ) {
                     return Err("Match expressions are not supported.".to_string());
                 }
             }
@@ -1981,12 +2034,14 @@ impl SemanticAnalyzer {
                         )
                     })
                     .collect::<Result<Vec<_>, _>>()?;
+                let consumed = self.unit_enum_consumed_names(expr)?;
                 self.unit_enum_registry
-                    .resolve_match(
+                    .resolve_match_with_consumed(
                         &scrutinee,
                         expr,
                         arms,
                         &result_types,
+                        &consumed,
                         self.enum_execution_context(),
                     )
                     .map(|resolved| resolved.result)
@@ -2408,8 +2463,11 @@ impl SemanticAnalyzer {
 
                 let body_result = (|| {
                     // Declare parameters as variables in the function scope
-                    for param in parameters {
-                        let param_type = self.ast_type_to_ty(&param.param_type);
+                    for (index, param) in parameters.iter().enumerate() {
+                        let param_type = return_contract.as_ref().map_or_else(
+                            || self.ast_type_to_ty(&param.param_type),
+                            |contract| contract.parameters[index].1.clone(),
+                        );
                         self.scope_manager.define_variable(
                             param.name.clone(),
                             param_type.clone(),
@@ -2792,7 +2850,7 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     if let Expression::Identifier(arg_name) = arg {
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;
-                        if !self.is_copy_type(&arg_type) {
+                        if !matches!(arg_type, Ty::Enum(_)) && !self.is_copy_type(&arg_type) {
                             self.scope_manager.mark_moved(arg_name)?;
                         }
                     }
@@ -2802,7 +2860,7 @@ impl SemanticAnalyzer {
                 for arg in arguments {
                     if let Expression::Identifier(arg_name) = arg {
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;
-                        if !self.is_copy_type(&arg_type) {
+                        if !matches!(arg_type, Ty::Enum(_)) && !self.is_copy_type(&arg_type) {
                             self.scope_manager.mark_moved(arg_name)?;
                         }
                     }

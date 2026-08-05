@@ -339,7 +339,8 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
             matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
                 || valid_copy_struct_type(element)
         }
-        LogicalType::Void | LogicalType::String | LogicalType::Enum { .. } => false,
+        LogicalType::Enum { name, variants } => valid_unit_enum_schema(name, variants),
+        LogicalType::Void | LogicalType::String => false,
     }
 }
 
@@ -494,19 +495,22 @@ fn checked_signature(
             IrVerificationErrorKind::UnsupportedType(format!("checked function return {result}")),
         ));
     }
-    let mentions_aggregate = parameters
-        .iter()
-        .any(|(_, ty)| matches!(ty, LogicalType::Struct { .. } | LogicalType::Array { .. }))
-        || matches!(
-            result,
-            LogicalType::Struct { .. } | LogicalType::Array { .. }
-        );
+    let mentions_aggregate = parameters.iter().any(|(_, ty)| {
+        matches!(
+            ty,
+            LogicalType::Struct { .. } | LogicalType::Array { .. } | LogicalType::Enum { .. }
+        )
+    }) || matches!(
+        result,
+        LogicalType::Struct { .. } | LogicalType::Array { .. } | LogicalType::Enum { .. }
+    );
     if !mentions_aggregate {
         return Err(IrVerificationError::new(
             function,
             None,
             IrVerificationErrorKind::MetadataMismatch(
-                "checked function definition requires an aggregate-bearing signature".to_string(),
+                "checked function definition requires an aggregate- or enum-bearing signature"
+                    .to_string(),
             ),
         ));
     }
@@ -846,6 +850,7 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::Load(result, _)
         | Inst::SIToFP(result, _)
         | Inst::FPToSI(result, _)
+        | Inst::CheckedUnitEnumParameter { result, .. }
         | Inst::CheckedUnitEnumVariant { result, .. } => Some(result),
         Inst::Call { result, .. } => result.as_ref(),
         Inst::ICmp { result, .. }
@@ -901,6 +906,14 @@ fn definition_type(
             .and_then(PlaceType::logical),
         Inst::Call { function, .. } => signatures.get(function).map(|sig| sig.result.clone()),
         Inst::CheckedUnitEnumVariant {
+            enum_name,
+            variants,
+            ..
+        } => Some(LogicalType::Enum {
+            name: enum_name.clone(),
+            variants: variants.clone(),
+        }),
+        Inst::CheckedUnitEnumParameter {
             enum_name,
             variants,
             ..
@@ -1242,6 +1255,15 @@ impl<'a> FunctionVerifier<'a> {
                                 .and_then(|(_, ty)| {
                                     claimed_parameters.insert(name.clone()).then(|| ty.clone())
                                 });
+                            if matches!(parameter_type.as_ref(), Some(LogicalType::Enum { .. })) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "unit-enum parameter `{name}` requires a direct checked parameter binder"
+                                    )),
+                                ));
+                            }
                             let place_type = parameter_type.map_or(PlaceType::Numeric, |ty| {
                                 match ty {
                                     LogicalType::Array { element, count } => PlaceType::Array {
@@ -1914,6 +1936,7 @@ impl<'a> FunctionVerifier<'a> {
     }
 
     fn verify(mut self) -> Result<FunctionMetadata, IrVerificationError> {
+        let mut bound_enum_parameters = BTreeSet::new();
         for block_index in 0..self.blocks.len() {
             let instructions = self.blocks[block_index].instructions.clone();
             for (position, instruction) in instructions {
@@ -2386,6 +2409,48 @@ impl<'a> FunctionVerifier<'a> {
                             ));
                         }
                     }
+                    Inst::CheckedUnitEnumParameter {
+                        parameter,
+                        enum_name,
+                        variants,
+                        ..
+                    } => {
+                        if block_index != 0 || !valid_unit_enum_schema(enum_name, variants) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked unit-enum parameter `{parameter}` must bind a valid schema in the entry block"
+                                )),
+                            ));
+                        }
+                        let actual = LogicalType::Enum {
+                            name: enum_name.clone(),
+                            variants: variants.clone(),
+                        };
+                        let expected = self
+                            .body
+                            .signature
+                            .parameters
+                            .iter()
+                            .find(|(name, _)| name == parameter)
+                            .map(|(_, ty)| ty);
+                        if expected != Some(&actual) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked unit-enum parameter `{parameter}` disagrees with its function signature"
+                                )),
+                            ));
+                        }
+                        if !bound_enum_parameters.insert(parameter.clone()) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked unit-enum parameter `{parameter}` is bound more than once"
+                                )),
+                            ));
+                        }
+                    }
                     Inst::CheckedUnitEnumVariant {
                         enum_name,
                         variants,
@@ -2450,6 +2515,23 @@ impl<'a> FunctionVerifier<'a> {
                     _ => {}
                 }
             }
+        }
+
+        let expected_enum_parameters = self
+            .body
+            .signature
+            .parameters
+            .iter()
+            .filter_map(|(name, ty)| matches!(ty, LogicalType::Enum { .. }).then_some(name.clone()))
+            .collect::<BTreeSet<_>>();
+        if bound_enum_parameters != expected_enum_parameters {
+            return Err(self.error(
+                0,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "checked unit-enum parameter binders do not exactly cover the enum signature"
+                        .to_string(),
+                ),
+            ));
         }
 
         for id in self.places.keys() {
@@ -2540,10 +2622,13 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn register_type(
         logical_type: &LogicalType,
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &BTreeMap<String, Vec<String>>,
+        enum_schemas: &mut BTreeMap<String, Vec<String>>,
     ) -> Result<(), IrVerificationError> {
         if let LogicalType::Array { element, .. } = logical_type {
             return register_type(element, schemas, enum_schemas);
+        }
+        if let LogicalType::Enum { name, variants } = logical_type {
+            return register_enum(name, variants, schemas, enum_schemas);
         }
         let LogicalType::Struct { name, fields } = logical_type else {
             return Ok(());
@@ -2648,6 +2733,11 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                     register_type(element, schemas, enum_schemas)?;
                 }
                 Inst::CheckedUnitEnumVariant {
+                    enum_name,
+                    variants,
+                    ..
+                }
+                | Inst::CheckedUnitEnumParameter {
                     enum_name,
                     variants,
                     ..
@@ -2758,12 +2848,216 @@ mod tests {
         )])
     }
 
+    fn checked_enum_transport_program(forward_body: Vec<Inst>, main_runtime: Vec<Inst>) -> RawIr {
+        let variants = vec!["Cold".to_string(), "Warm".to_string()];
+        let enum_type = LogicalType::Enum {
+            name: "Phase".to_string(),
+            variants,
+        };
+        let mut main_body = vec![Inst::CheckedFunctionDef {
+            name: "forward".to_string(),
+            parameters: vec![("value".to_string(), enum_type.clone())],
+            result: enum_type,
+            body: forward_body,
+        }];
+        main_body.extend(main_runtime);
+        HashMap::from([
+            (
+                "main".to_string(),
+                Function {
+                    name: "main".to_string(),
+                    body: main_body,
+                    next_reg: 8,
+                    next_ptr: 8,
+                },
+            ),
+            (
+                "forward".to_string(),
+                Function {
+                    name: "forward".to_string(),
+                    body: Vec::new(),
+                    next_reg: 8,
+                    next_ptr: 8,
+                },
+            ),
+        ])
+    }
+
     #[test]
     fn verifies_a_minimal_typed_numeric_function() {
         let checked = verify_ir(function(vec![Inst::Return(Value::ImmInt(0))])).unwrap();
         assert_eq!(
             checked.metadata().functions["main"].signature.result,
             LogicalType::Int
+        );
+    }
+
+    #[test]
+    fn checked_unit_enum_transport_signatures_and_binders_are_fail_closed() {
+        let variants = vec!["Cold".to_string(), "Warm".to_string()];
+        let enum_type = LogicalType::Enum {
+            name: "Phase".to_string(),
+            variants: variants.clone(),
+        };
+        let binder = || Inst::CheckedUnitEnumParameter {
+            result: Value::Reg(0),
+            parameter: "value".to_string(),
+            enum_name: "Phase".to_string(),
+            variants: variants.clone(),
+        };
+        let valid_main = vec![
+            Inst::CheckedUnitEnumVariant {
+                result: Value::Reg(0),
+                enum_name: "Phase".to_string(),
+                variants: variants.clone(),
+                variant_index: 1,
+            },
+            Inst::Call {
+                function: "forward".to_string(),
+                arguments: vec![Value::Reg(0)],
+                result: Some(Value::Reg(1)),
+            },
+            Inst::CheckedUnitEnumDispatch {
+                value: Value::Reg(1),
+                enum_name: "Phase".to_string(),
+                variants: variants.clone(),
+                targets: vec!["cold".to_string(), "warm".to_string()],
+            },
+            Inst::Label("cold".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("warm".to_string()),
+            Inst::Return(Value::ImmInt(1)),
+        ];
+        let checked = verify_ir(checked_enum_transport_program(
+            vec![binder(), Inst::Return(Value::Reg(0))],
+            valid_main,
+        ))
+        .expect("exact enum signature, direct binder, call, and return are valid");
+        assert_eq!(
+            checked.metadata().functions["forward"].signature.parameters,
+            vec![("value".to_string(), enum_type.clone())]
+        );
+        assert_eq!(
+            checked.metadata().functions["forward"].signature.result,
+            enum_type.clone()
+        );
+        assert_eq!(
+            checked.metadata().functions["main"].results[&ResultId(1)],
+            enum_type
+        );
+
+        let invalid_forward_bodies = [
+            (
+                "missing direct binder",
+                vec![
+                    Inst::CheckedUnitEnumVariant {
+                        result: Value::Reg(0),
+                        enum_name: "Phase".to_string(),
+                        variants: variants.clone(),
+                        variant_index: 0,
+                    },
+                    Inst::Return(Value::Reg(0)),
+                ],
+            ),
+            (
+                "alloca binder",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "value".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "wrong binder parameter",
+                vec![
+                    Inst::CheckedUnitEnumParameter {
+                        result: Value::Reg(0),
+                        parameter: "other".to_string(),
+                        enum_name: "Phase".to_string(),
+                        variants: variants.clone(),
+                    },
+                    Inst::Return(Value::Reg(0)),
+                ],
+            ),
+            (
+                "wrong binder schema",
+                vec![
+                    Inst::CheckedUnitEnumParameter {
+                        result: Value::Reg(0),
+                        parameter: "value".to_string(),
+                        enum_name: "Phase".to_string(),
+                        variants: vec!["Cold".to_string(), "Hot".to_string()],
+                    },
+                    Inst::Return(Value::Reg(0)),
+                ],
+            ),
+            (
+                "duplicate binder",
+                vec![
+                    binder(),
+                    Inst::CheckedUnitEnumParameter {
+                        result: Value::Reg(1),
+                        parameter: "value".to_string(),
+                        enum_name: "Phase".to_string(),
+                        variants: variants.clone(),
+                    },
+                    Inst::Return(Value::Reg(1)),
+                ],
+            ),
+            (
+                "binder outside entry block",
+                vec![
+                    Inst::Jump("later".to_string()),
+                    Inst::Label("later".to_string()),
+                    binder(),
+                    Inst::Return(Value::Reg(0)),
+                ],
+            ),
+            (
+                "wrong enum return",
+                vec![
+                    binder(),
+                    Inst::CheckedUnitEnumVariant {
+                        result: Value::Reg(1),
+                        enum_name: "Other".to_string(),
+                        variants: vec!["Cold".to_string(), "Warm".to_string()],
+                        variant_index: 0,
+                    },
+                    Inst::Return(Value::Reg(1)),
+                ],
+            ),
+        ];
+        for (label, body) in invalid_forward_bodies {
+            assert!(
+                verify_ir(checked_enum_transport_program(
+                    body,
+                    vec![Inst::Return(Value::ImmInt(0))]
+                ))
+                .is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+
+        let wrong_call = vec![
+            Inst::CheckedUnitEnumVariant {
+                result: Value::Reg(0),
+                enum_name: "Other".to_string(),
+                variants: vec!["Cold".to_string(), "Warm".to_string()],
+                variant_index: 0,
+            },
+            Inst::Call {
+                function: "forward".to_string(),
+                arguments: vec![Value::Reg(0)],
+                result: Some(Value::Reg(1)),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        assert!(
+            verify_ir(checked_enum_transport_program(
+                vec![binder(), Inst::Return(Value::Reg(0))],
+                wrong_call,
+            ))
+            .is_err(),
+            "wrong enum call argument passed checked IR verification"
         );
     }
 

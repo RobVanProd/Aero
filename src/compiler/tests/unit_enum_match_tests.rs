@@ -389,16 +389,6 @@ fn main() -> int {
             "Match expressions are not supported",
         ),
         (
-            "enum parameter transport",
-            "enum Phase { Cold, Warm } fn choose(phase: Phase) -> int { match phase { Phase::Cold => 1, Phase::Warm => 2 } } fn main() {}",
-            "Match expressions are not supported",
-        ),
-        (
-            "enum return transport",
-            "enum Phase { Cold, Warm } fn choose() -> Phase { Phase::Cold } fn main() {}",
-            "function return type is not an admitted scalar or Void type",
-        ),
-        (
             "numeric match remains excluded",
             "fn main() { let value = match 1 { 1 => 2, _ => 3 }; }",
             "Match expressions are not supported",

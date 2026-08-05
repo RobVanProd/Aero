@@ -1137,3 +1137,35 @@ declared compatibility policy and release-level coverage.
   literal patterns, enum parameters/results/calls/aggregates/references, mutation,
   borrowing, public discriminants, stable layout/ABI/FFI, heap/drop behavior,
   accelerators, performance, release, and stability remain excluded.
+
+## CORE-050 candidate internal owned unit-enum transport
+
+- CORE-050 admits enum-bearing signatures only for unique top-level non-generic
+  non-`main` functions and exact CORE-049 unit-enum annotations. Other parameters and
+  results are restricted to already-admitted by-value scalars, finite acyclic Copy
+  structs, and flat fixed Copy arrays. Multiple/mixed parameters, multiple enum names,
+  enum producers, and Void enum consumers are covered by one shared signature resolver;
+  unsupported annotation topologies fail before IR.
+- Constructors, owned locals/parameters, and admitted call results may cross exact
+  internal function boundaries. Passing a named enum transfers ownership. Call results
+  may bind, move, feed another call, return, or serve directly as an exhaustive Match
+  scrutinee. One recursive consumed-name classifier closes nested calls, argument lists,
+  Match evaluation, duplicate consumption, use-after-call, and arm reuse across semantic
+  analysis and checked admission.
+- Checked enum-bearing functions retain exact `LogicalType::Enum` schemas and use direct
+  `CheckedUnitEnumParameter` SSA binders rather than generic storage. Independent
+  verification proves binder/signature coverage and identity, call argument/result and
+  return types, dominance, and global enum-schema consistency. LLVM lowers only verified
+  enum parameters/calls/returns to direct internal `i32`; no source `Int`, public
+  discriminant, layout, calling convention, stable ABI, or FFI is established.
+- The exhaustive target, verifier corruption cases, CORE-049/unsupported-Match controls,
+  adjacent Copy transport and checked-admission suites, and the exact root gate pass
+  locally: 161 library and 167 binary tests plus formatting, correctness Clippy, every
+  integration target, and docs. The composed `phases` example reaches LLVM with direct
+  transport and three switches. Public acceptance remains conditional on all eight
+  checks and pinned LLVM/Clang 22 external/machine verification, object/link, and exact
+  native exit 173. The broader enum/function/ownership rows remain `PARTIAL`.
+- Payload/struct/generic/mixed enums, Option/Result, enum arrays/struct fields/references,
+  mutation, borrowing, equality, casts, printing, `main`, closures/nested functions,
+  traits, recursive CFG ownership, loop state, stable ABI/FFI, accelerators, performance,
+  release, and stability remain excluded.

@@ -1,0 +1,41 @@
+mod phases;
+
+enum Switch { Off, On }
+struct Envelope { row: ModuleRow, rows: [ModuleRow; 2] }
+
+fn root_forward(value: Phase) -> Phase { module_forward(value) }
+
+fn root_pick(flag: bool) -> Phase {
+    if flag { return Phase::Hot; }
+    Phase::Cold
+}
+
+fn roundtrip(value: Envelope) -> Envelope { value }
+
+fn main() -> int {
+    let phase = module_phase();
+    let forwarded: Phase = phase;
+    let row = module_make(20);
+    let enum_score = module_score(root_forward(forwarded), row, [2, 3]);
+    let direct = match root_forward(root_pick(2 > 1)) {
+        Phase::Cold => 1,
+        Phase::Warm => 5,
+        Phase::Hot => 13
+    };
+    let switch_score = match Switch::On {
+        Switch::Off => 4,
+        Switch::On => 12
+    };
+    let envelope = roundtrip(Envelope {
+        row: row,
+        rows: [module_make(30), module_make(31)]
+    });
+    let integer_ref: &int = &enum_score;
+    let integer_alias = integer_ref;
+    if *integer_alias == 30 && direct == 13 && switch_score == 12
+        && envelope.row.value == 20 && module_scan(envelope.rows) == 2
+        && "aero".len() == 4 {
+        return *integer_ref + 143;
+    }
+    return 1;
+}

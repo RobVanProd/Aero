@@ -1,4 +1,7 @@
-use crate::ast::{AstNode, Expression, MatchArm, Pattern, Statement, Type, VariantDeclKind};
+use crate::ast::{
+    AstNode, Expression, MatchArm, Parameter, Pattern, Statement, Type, VariantDeclKind,
+};
+use crate::ir::LogicalType;
 use crate::types::Ty;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -23,6 +26,28 @@ impl UnitEnumContract {
         self.variants
             .iter()
             .position(|candidate| candidate == variant)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UnitEnumTransportType {
+    pub(crate) ty: Ty,
+    pub(crate) logical_type: LogicalType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UnitEnumFunctionContract {
+    pub(crate) name: String,
+    pub(crate) parameters: Vec<(String, UnitEnumTransportType)>,
+    pub(crate) result: UnitEnumTransportType,
+}
+
+impl UnitEnumFunctionContract {
+    pub(crate) fn parameter_types(&self) -> Vec<Ty> {
+        self.parameters
+            .iter()
+            .map(|(_, parameter)| parameter.ty.clone())
+            .collect()
     }
 }
 
@@ -81,6 +106,12 @@ pub(crate) enum UnitEnumError {
     ResultMismatch { expected: Ty, actual: Ty },
     ArmReusesConsumedScrutinee(String),
     DuplicateConsumption(String),
+    ProcessEntryTransport,
+    GenericTransportFunction,
+    InvalidTransportFunction,
+    InvalidTransportParameter(String),
+    UnsupportedTransportParameter { function: String, parameter: String },
+    UnsupportedTransportResult(String),
 }
 
 impl UnitEnumError {
@@ -127,6 +158,27 @@ impl UnitEnumError {
             Self::DuplicateConsumption(name) => {
                 format!("unit enum `{name}` is consumed more than once in one expression")
             }
+            Self::ProcessEntryTransport => {
+                "process entry cannot transport unit enums".to_string()
+            }
+            Self::GenericTransportFunction => {
+                "generic unit-enum transport functions are not admitted".to_string()
+            }
+            Self::InvalidTransportFunction => {
+                "unit-enum transport function name is not admitted".to_string()
+            }
+            Self::InvalidTransportParameter(parameter) => format!(
+                "unit-enum transport function defines invalid or duplicate parameter `{parameter}`"
+            ),
+            Self::UnsupportedTransportParameter {
+                function,
+                parameter,
+            } => format!(
+                "unit-enum transport function `{function}` parameter `{parameter}` is not an admitted by-value type"
+            ),
+            Self::UnsupportedTransportResult(function) => format!(
+                "unit-enum transport function `{function}` result is not an admitted by-value type"
+            ),
         }
     }
 }
@@ -215,6 +267,108 @@ impl UnitEnumRegistry {
         }
     }
 
+    fn annotation_mentions_declared_enum(&self, annotation: &Type) -> bool {
+        match annotation {
+            Type::Named(name) => self.definitions.contains_key(name),
+            Type::Array(element, _) | Type::Reference(element, _) => {
+                self.annotation_mentions_declared_enum(element)
+            }
+            Type::Tuple(elements) => elements
+                .iter()
+                .any(|element| self.annotation_mentions_declared_enum(element)),
+            Type::Generic(_, arguments) => arguments
+                .iter()
+                .any(|argument| self.annotation_mentions_declared_enum(argument)),
+        }
+    }
+
+    fn resolve_transport_annotation<F>(
+        &self,
+        annotation: &Type,
+        resolve_existing: &mut F,
+    ) -> Result<Option<UnitEnumTransportType>, UnitEnumError>
+    where
+        F: FnMut(&Type) -> Option<(Ty, LogicalType)>,
+    {
+        if let Type::Named(name) = annotation
+            && self.definitions.contains_key(name)
+        {
+            let contract = self.contract(name)?;
+            return Ok(Some(UnitEnumTransportType {
+                ty: contract.ty(),
+                logical_type: LogicalType::Enum {
+                    name: contract.name,
+                    variants: contract.variants,
+                },
+            }));
+        }
+        Ok(resolve_existing(annotation)
+            .map(|(ty, logical_type)| UnitEnumTransportType { ty, logical_type }))
+    }
+
+    pub(crate) fn resolve_function_contract<F>(
+        &self,
+        name: &str,
+        parameters: &[Parameter],
+        return_type: Option<&Type>,
+        type_params: &[String],
+        mut resolve_existing: F,
+    ) -> Result<Option<UnitEnumFunctionContract>, UnitEnumError>
+    where
+        F: FnMut(&Type) -> Option<(Ty, LogicalType)>,
+    {
+        let mentions_enum = parameters
+            .iter()
+            .any(|parameter| self.annotation_mentions_declared_enum(&parameter.param_type))
+            || return_type.is_some_and(|result| self.annotation_mentions_declared_enum(result));
+        if !mentions_enum {
+            return Ok(None);
+        }
+        if name == "main" {
+            return Err(UnitEnumError::ProcessEntryTransport);
+        }
+        if !type_params.is_empty() {
+            return Err(UnitEnumError::GenericTransportFunction);
+        }
+        if !valid_symbol(name) || name == "printf" {
+            return Err(UnitEnumError::InvalidTransportFunction);
+        }
+
+        let mut seen = BTreeSet::new();
+        let mut resolved_parameters = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            if !valid_symbol(&parameter.name) || !seen.insert(parameter.name.as_str()) {
+                return Err(UnitEnumError::InvalidTransportParameter(
+                    parameter.name.clone(),
+                ));
+            }
+            let Some(contract) =
+                self.resolve_transport_annotation(&parameter.param_type, &mut resolve_existing)?
+            else {
+                return Err(UnitEnumError::UnsupportedTransportParameter {
+                    function: name.to_string(),
+                    parameter: parameter.name.clone(),
+                });
+            };
+            resolved_parameters.push((parameter.name.clone(), contract));
+        }
+
+        let result = match return_type {
+            Some(result) => self
+                .resolve_transport_annotation(result, &mut resolve_existing)?
+                .ok_or_else(|| UnitEnumError::UnsupportedTransportResult(name.to_string()))?,
+            None => UnitEnumTransportType {
+                ty: Ty::Void,
+                logical_type: LogicalType::Void,
+            },
+        };
+        Ok(Some(UnitEnumFunctionContract {
+            name: name.to_string(),
+            parameters: resolved_parameters,
+            result,
+        }))
+    }
+
     pub(crate) fn resolve_constructor(
         &self,
         enum_name: &str,
@@ -266,14 +420,16 @@ impl UnitEnumRegistry {
         }
     }
 
-    pub(crate) fn is_candidate_match_scrutinee<F>(
+    pub(crate) fn is_candidate_match_scrutinee<F, G>(
         &self,
         expression: &Expression,
         context: EnumExecutionContext,
-        lookup: F,
+        lookup_binding: F,
+        lookup_call_result: G,
     ) -> bool
     where
         F: FnOnce(&str) -> Option<Ty>,
+        G: FnOnce(&str) -> Option<Ty>,
     {
         if context != EnumExecutionContext::AdmittedFunction {
             return false;
@@ -282,7 +438,12 @@ impl UnitEnumRegistry {
             Expression::EnumVariant { enum_name, .. } => {
                 !matches!(enum_name.as_str(), "Option" | "Result")
             }
-            Expression::Identifier(name) => matches!(lookup(name), Some(Ty::Enum(_))),
+            Expression::Identifier(name) => {
+                matches!(lookup_binding(name), Some(Ty::Enum(_)))
+            }
+            Expression::FunctionCall { name, .. } => {
+                matches!(lookup_call_result(name), Some(Ty::Enum(_)))
+            }
             _ => false,
         }
     }
@@ -291,7 +452,7 @@ impl UnitEnumRegistry {
         &self,
         contract: &UnitEnumContract,
         arms: &[MatchArm],
-        consumed_scrutinee: Option<&str>,
+        consumed_scrutinees: &[String],
     ) -> Result<Vec<usize>, UnitEnumError> {
         let mut arm_for_variant = vec![usize::MAX; contract.variants.len()];
         for (arm_index, arm) in arms.iter().enumerate() {
@@ -318,10 +479,11 @@ impl UnitEnumRegistry {
             if arm_for_variant[variant_index] != usize::MAX {
                 return Err(UnitEnumError::DuplicateArm(variant.clone()));
             }
-            if let Some(name) = consumed_scrutinee
-                && expression_mentions_identifier(&arm.body, name)
+            if let Some(name) = consumed_scrutinees
+                .iter()
+                .find(|name| expression_mentions_identifier(&arm.body, name))
             {
-                return Err(UnitEnumError::ArmReusesConsumedScrutinee(name.to_string()));
+                return Err(UnitEnumError::ArmReusesConsumedScrutinee(name.clone()));
             }
             arm_for_variant[variant_index] = arm_index;
         }
@@ -346,23 +508,36 @@ impl UnitEnumRegistry {
         };
         let contract = self.contract(enum_name)?;
         let consumed = match scrutinee_expression {
-            Expression::Identifier(name) => Some(name.as_str()),
-            _ => None,
+            Expression::Identifier(name) => vec![name.clone()],
+            _ => Vec::new(),
         };
-        let mapping = self.resolve_arms(&contract, arms, consumed)?;
+        let mapping = self.resolve_arms(&contract, arms, &consumed)?;
         Ok((contract, mapping))
     }
 
-    pub(crate) fn resolve_match(
+    pub(crate) fn resolve_match_with_consumed(
         &self,
         scrutinee: &Ty,
         scrutinee_expression: &Expression,
         arms: &[MatchArm],
         result_types: &[Ty],
+        externally_consumed: &[String],
         context: EnumExecutionContext,
     ) -> Result<ResolvedUnitEnumMatch, UnitEnumError> {
-        let (contract, arm_for_variant) =
-            self.resolve_match_patterns(scrutinee, scrutinee_expression, arms, context)?;
+        if context != EnumExecutionContext::AdmittedFunction {
+            return Err(UnitEnumError::PreserveExistingBehavior);
+        }
+        let Ty::Enum(enum_name) = scrutinee else {
+            return Err(UnitEnumError::PreserveExistingBehavior);
+        };
+        let contract = self.contract(enum_name)?;
+        let mut consumed = externally_consumed.to_vec();
+        if let Expression::Identifier(name) = scrutinee_expression
+            && !consumed.contains(name)
+        {
+            consumed.push(name.clone());
+        }
+        let arm_for_variant = self.resolve_arms(&contract, arms, &consumed)?;
         let Some(result) = result_types.first().cloned() else {
             return Err(UnitEnumError::IncompleteCoverage);
         };
@@ -384,12 +559,24 @@ impl UnitEnumRegistry {
         })
     }
 
-    pub(crate) fn consumed_scrutinees(
+    pub(crate) fn consumed_owned_values<F, G>(
         &self,
         expression: &Expression,
-    ) -> Result<Vec<String>, UnitEnumError> {
+        lookup_binding: F,
+        lookup_function_parameters: G,
+    ) -> Result<Vec<String>, UnitEnumError>
+    where
+        F: Fn(&str) -> Option<Ty>,
+        G: Fn(&str) -> Option<Vec<Ty>>,
+    {
         let mut names = Vec::new();
-        collect_consumed_scrutinees(expression, &mut names);
+        collect_consumed_owned_values(
+            self,
+            expression,
+            &mut names,
+            &lookup_binding,
+            &lookup_function_parameters,
+        );
         let mut unique = BTreeSet::new();
         for name in &names {
             if !unique.insert(name.clone()) {
@@ -400,37 +587,110 @@ impl UnitEnumRegistry {
     }
 }
 
-fn collect_consumed_scrutinees(expression: &Expression, names: &mut Vec<String>) {
+fn collect_consumed_owned_values<F, G>(
+    registry: &UnitEnumRegistry,
+    expression: &Expression,
+    names: &mut Vec<String>,
+    lookup_binding: &F,
+    lookup_function_parameters: &G,
+) where
+    F: Fn(&str) -> Option<Ty>,
+    G: Fn(&str) -> Option<Vec<Ty>>,
+{
     match expression {
         Expression::Match { expr, arms } => {
-            if let Expression::Identifier(name) = expr.as_ref() {
+            collect_consumed_owned_values(
+                registry,
+                expr,
+                names,
+                lookup_binding,
+                lookup_function_parameters,
+            );
+            if let Expression::Identifier(name) = expr.as_ref()
+                && matches!(lookup_binding(name), Some(Ty::Enum(enum_name)) if registry.contract(&enum_name).is_ok())
+            {
                 names.push(name.clone());
             }
-            collect_consumed_scrutinees(expr, names);
             for arm in arms {
-                collect_consumed_scrutinees(&arm.body, names);
+                collect_consumed_owned_values(
+                    registry,
+                    &arm.body,
+                    names,
+                    lookup_binding,
+                    lookup_function_parameters,
+                );
             }
         }
         Expression::Binary { left, right, .. }
         | Expression::Comparison { left, right, .. }
         | Expression::Logical { left, right, .. } => {
-            collect_consumed_scrutinees(left, names);
-            collect_consumed_scrutinees(right, names);
+            collect_consumed_owned_values(
+                registry,
+                left,
+                names,
+                lookup_binding,
+                lookup_function_parameters,
+            );
+            collect_consumed_owned_values(
+                registry,
+                right,
+                names,
+                lookup_binding,
+                lookup_function_parameters,
+            );
         }
-        Expression::FunctionCall { arguments, .. }
-        | Expression::Print { arguments, .. }
+        Expression::FunctionCall { name, arguments } => {
+            for argument in arguments {
+                collect_consumed_owned_values(
+                    registry,
+                    argument,
+                    names,
+                    lookup_binding,
+                    lookup_function_parameters,
+                );
+            }
+            if let Some(parameters) = lookup_function_parameters(name) {
+                for (argument, expected) in arguments.iter().zip(parameters) {
+                    if let (Expression::Identifier(name), Ty::Enum(expected_name)) =
+                        (argument, expected)
+                        && matches!(lookup_binding(name), Some(Ty::Enum(actual_name)) if actual_name == expected_name)
+                    {
+                        names.push(name.clone());
+                    }
+                }
+            }
+        }
+        Expression::Print { arguments, .. }
         | Expression::Println { arguments, .. }
         | Expression::TupleLiteral(arguments) => {
             for argument in arguments {
-                collect_consumed_scrutinees(argument, names);
+                collect_consumed_owned_values(
+                    registry,
+                    argument,
+                    names,
+                    lookup_binding,
+                    lookup_function_parameters,
+                );
             }
         }
         Expression::MethodCall {
             object, arguments, ..
         } => {
-            collect_consumed_scrutinees(object, names);
+            collect_consumed_owned_values(
+                registry,
+                object,
+                names,
+                lookup_binding,
+                lookup_function_parameters,
+            );
             for argument in arguments {
-                collect_consumed_scrutinees(argument, names);
+                collect_consumed_owned_values(
+                    registry,
+                    argument,
+                    names,
+                    lookup_binding,
+                    lookup_function_parameters,
+                );
             }
         }
         Expression::Unary { operand, .. }
@@ -442,25 +702,67 @@ fn collect_consumed_scrutinees(expression: &Expression, names: &mut Vec<String>)
         }
         | Expression::Borrow { expr: operand, .. }
         | Expression::Deref(operand)
-        | Expression::Closure { body: operand, .. } => collect_consumed_scrutinees(operand, names),
+        | Expression::Closure { body: operand, .. } => collect_consumed_owned_values(
+            registry,
+            operand,
+            names,
+            lookup_binding,
+            lookup_function_parameters,
+        ),
         Expression::IndexAccess { object, index } => {
-            collect_consumed_scrutinees(object, names);
-            collect_consumed_scrutinees(index, names);
+            collect_consumed_owned_values(
+                registry,
+                object,
+                names,
+                lookup_binding,
+                lookup_function_parameters,
+            );
+            collect_consumed_owned_values(
+                registry,
+                index,
+                names,
+                lookup_binding,
+                lookup_function_parameters,
+            );
         }
         Expression::ArrayLiteral(elements) => {
             for element in elements {
-                collect_consumed_scrutinees(element, names);
+                collect_consumed_owned_values(
+                    registry,
+                    element,
+                    names,
+                    lookup_binding,
+                    lookup_function_parameters,
+                );
             }
         }
-        Expression::ArrayRepeat { value, .. } => collect_consumed_scrutinees(value, names),
+        Expression::ArrayRepeat { value, .. } => collect_consumed_owned_values(
+            registry,
+            value,
+            names,
+            lookup_binding,
+            lookup_function_parameters,
+        ),
         Expression::StructLiteral { fields, .. } => {
             for (_, value) in fields {
-                collect_consumed_scrutinees(value, names);
+                collect_consumed_owned_values(
+                    registry,
+                    value,
+                    names,
+                    lookup_binding,
+                    lookup_function_parameters,
+                );
             }
         }
         Expression::EnumVariant { data, .. } => {
             if let Some(data) = data {
-                collect_consumed_scrutinees(data, names);
+                collect_consumed_owned_values(
+                    registry,
+                    data,
+                    names,
+                    lookup_binding,
+                    lookup_function_parameters,
+                );
             }
         }
         Expression::IntegerLiteral(_)

@@ -239,10 +239,17 @@ aero lsp
 > or ABI. Exact implementation `b38a6b0` passes 160 library and 166 binary tests plus all
 > eight public checks; pinned Linux LLVM/Clang 22.1.8 externally verifies, machine-verifies,
 > object-lowers, links, and executes the composed module with exact native exit 149.
-> Payload/generic enums, Option/Result matching, wildcard/binding/guard patterns, enum
-> function or aggregate transport, borrowing, mutation, stable layout/ABI, and general
-> pattern matching remain unsupported. Other Match topologies retain the established
-> fail-closed boundary.
+> CORE-050's locally green candidate extends only those exact enums through internal
+> owned parameters, arguments, call results, and returns. One shared signature resolver
+> and consumed-name classifier serve semantics and checked admission; checked IR uses
+> direct enum SSA parameter binders, the verifier proves exact call/return schemas, and
+> LLVM uses direct internal `i32` flow without generic numeric storage or conversion.
+> The local root gate passes 161 library and 167 binary tests. The tracked public gate
+> must still externally verify, machine-verify, object-lower, link, and execute the
+> composed module at exact exit 173 before acceptance. Payload/generic enums,
+> Option/Result matching, wildcard/binding/guard patterns, enum aggregate transport,
+> borrowing, mutation, stable layout/ABI, and general pattern matching remain
+> unsupported. Other Match topologies retain the established fail-closed boundary.
 
 Formal spec: `docs/language/aero_formal_language_specification.md`
 

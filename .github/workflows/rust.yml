@@ -395,6 +395,24 @@ jobs:
         fi
         echo "owned unit-enum match example passed with exit code 149"
 
+    - name: Test owned unit-enum transport integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/unit_enum_transport/main.aero -o ../../unit_enum_transport.ll
+        opt-22 -passes=verify -disable-output ../../unit_enum_transport.ll
+        llc-22 -verify-machineinstrs ../../unit_enum_transport.ll -o /dev/null
+        llc-22 -filetype=obj ../../unit_enum_transport.ll -o ../../unit_enum_transport.o
+        clang-22 ../../unit_enum_transport.o -o ../../unit_enum_transport
+        set +e
+        ../../unit_enum_transport
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 173 ]; then
+          echo "Expected exit code 173, got $exit_code"
+          exit 1
+        fi
+        echo "owned unit-enum transport example passed with exit code 173"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
