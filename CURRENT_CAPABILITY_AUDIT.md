@@ -8,6 +8,20 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
+- `CORE-067` has a green local candidate, not public acceptance. A single
+  stage-aware intrinsic-method classifier now supplies semantic result types, checked
+  admission, and trusted lowering; unsupported receiver/method/arity/provenance
+  products reject through one diagnostic rather than semantic fallback types. Exact
+  recursive CopyData fixed-array `.len()` and `.is_empty()` are admitted as static
+  `int`/`bool`, while established static String queries and Array/Vec `.iter()` remain
+  compatible. Four leaf/shared classifier units, the exhaustive target, 29 affected
+  integration targets, and the exact root gate pass at 183/183 library tests. The
+  direct-module program links with local Clang 19.1.5 and executes exit 167, and the
+  matching pinned workflow is tracked. Immutable identity, public checks,
+  pinned LLVM/Clang 22 execution, and acceptance evidence remain pending; no general
+  dispatch, collection, String runtime, ABI, ownership, safety, or stability claim
+  follows.
+
 - `CORE-066` is accepted public at exact implementation
   `e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree
   `6cea8bbf63aa7aafb43fbb25152dd860f6684aae`, and stable patch ID

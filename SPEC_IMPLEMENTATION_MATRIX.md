@@ -27,6 +27,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | If/else | Y | Y | P | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | While/for/loop/break/continue | Y | Y | P | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
+| Shared intrinsic method classification | P | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fixed arrays | Y | Y | Y | P | P | P | P | P | ? | Y | P | P | Y | PARTIAL |
 | Fixed arrays of all-scalar Copy structs | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Tuples | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
@@ -86,6 +87,21 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 | Quantization | Y | Y | — | — | Scalar-double helper transform only | N | N | EXPERIMENTAL |
 
 ## Evidence notes
+
+- Local green `CORE-067` candidate evidence removes both duplicate semantic method
+  tables and routes semantic inference, checked admission, and trusted lowering
+  through one stage-aware supported/explicitly-rejected/preserved classifier. Unknown
+  or unimplemented methods no longer acquire fabricated `Int`, `Bool`, `String`,
+  `Void`, `Option`, or `Vec` results, and the checked lowering path has no scalar-zero
+  fallback. Normalized leaf helpers compute only fixed-array or static-String values.
+  Exact zero-argument `.len()` and `.is_empty()` execute for fixed arrays of any
+  already admitted recursive CopyData element; established static String queries and
+  Array/Vec `.iter()` compatibility remain exact. The focused aggregate, classifier
+  units, 29-target compatibility ring, and exact root gate pass at 183/183 library
+  tests. The tracked direct-module specimen links with local Clang 19.1.5 and executes
+  exit 167; the stable LLVM 22 workflow requires the same result after external and
+  machine verification. Commit identity, public checks, pinned native evidence, and acceptance remain
+  pending, so no row becomes `END_TO_END` or `STABLE`.
 
 - Accepted `CORE-066` at exact implementation
   `e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree

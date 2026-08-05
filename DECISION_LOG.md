@@ -2924,3 +2924,44 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   drifting toward only convenient compile-time values. It uses one class target and
   one authorization record, adds a composed source-to-native gate, and leaves PR #4
   checkpoint strategy and evidence-manifest automation for separate authorization.
+
+## DEC-063 - Centralize intrinsic methods and admit recursive CopyData array queries
+
+- Date: 2026-08-05
+- Status: exact green local CORE-067 candidate; immutable commit identity, public
+  workflows, pinned LLVM/Clang 22 native exit 167, and acceptance remain pending.
+- Decision: one stage-aware classifier is the sole receiver/method/arity/static-
+  provenance/context authority for intrinsic method semantic result types, checked
+  admission, and trusted lowering. Its dispositions are supported, explicitly
+  rejected, or preserved/quarantined. Specialized fixed-array and static-String
+  helpers receive normalized query kinds and compute values only; they do not repeat
+  method topology. Unsupported methods cannot acquire a fabricated semantic result or
+  trusted scalar-zero value.
+- Positive contract: exact zero-argument `.len()` and `.is_empty()` are admitted for
+  any fixed array whose element resolves through the existing recursive finite
+  CopyData classifier and whose count fits Aero `int`. Results are exact compile-time
+  `int` and `bool`. Established immutable compile-time String `.len()`, `.is_empty()`,
+  `.contains()`, `.starts_with()`, and `.ends_with()`, plus exact zero-argument
+  Array/Vec `.iter()` compatibility, retain their accepted behavior.
+- Rejection/quarantine: unknown or case-mismatched methods, wrong arity, unsupported
+  receiver families, non-static String provenance, other collections, and nested
+  scalar-result calls reject deterministically before checked IR. Generic/impl/trait
+  syntax remains parser-retained or quarantined, not executable. The legacy unchecked
+  IR helpers retain explicitly marked compatibility placeholders, but public checked
+  compilation cannot reach them.
+- Evidence: red-first proof reproduced semantic fabrication and missing recursive
+  queries. Four classifier units, the exhaustive source/semantic/checked-IR/LLVM/CLI
+  target, 29-target compatibility ring, formatting, all-target/all-feature correctness
+  Clippy, docs, all integration targets, and exact root gate pass at 183/183 library
+  tests. The tracked two-file system specimen links with local Clang 19.1.5 and executes
+  exit 167; the pinned stable workflow still requires external and machine verification,
+  object lowering, link, and the same native result.
+- Exclusions: runtime/dynamic String operations, Option/Result/Vec/Map method
+  semantics beyond established `.iter()`, heap allocation, callable or iterator ABI,
+  general dispatch, generic/trait dispatch, closures, captures, new ownership or
+  lifetime behavior, layout changes, new IR opcodes, stable ABI/FFI, accelerators,
+  performance, release, stability, and PR merge remain unsupported or separate.
+- Scaling boundary: this implements the requested shared supported/rejected/preserved
+  classification before topology rules grow further. It follows a hard CFG/runtime
+  milestone and includes a composed system gate, while PR checkpoint strategy and
+  structured evidence-manifest generation remain separately authorized controls.

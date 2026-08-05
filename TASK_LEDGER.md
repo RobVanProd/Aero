@@ -13182,3 +13182,180 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   rustfmt, all-target/all-feature checking, correctness Clippy, and doc tests. This
   post-gate evidence sentence is administrative only; no executable source, test,
   workflow, dependency, semantics, or claim boundary changed.
+
+## CORE-067 - Shared intrinsic-method classification and recursive CopyData array queries
+
+- Task ID/date/owner: `CORE-067`, 2026-08-05, lead-owned tests-first vertical slice.
+  Starting identity is accepted CORE-066 records head
+  `3df9dc682a959b2c48429da71c6f4d901ec09f38` on
+  `agent/aero-integration`; local and remote heads match, draft PR #4 is open and
+  unmerged, and all eight closure-head public checks pass. Pre-existing untracked
+  `tmp/` remains user state and is outside this task.
+- Selection and specification evidence: the hard recursive-module class remains
+  stopped because founding/RFC controls and DEC-016 do not freeze nested namespace,
+  base-path, duplicate, `use`, or `pub` semantics. Outer-owner loop transport,
+  closures, public aggregate ABI, generic/trait execution, heap collections, and real
+  accelerator execution likewise require separately frozen semantics or hardware.
+  Method-call syntax is specified, legacy framework/task material explicitly names
+  fixed-array `len` and `is_empty`, and accepted CORE-036/038/039 already freeze exact
+  compile-time fixed-array length and static-string query behavior. After the hard
+  CORE-066 CFG/runtime slice, CORE-067 selects the complete specification-backed
+  intrinsic method classification rather than inventing any blocked architecture.
+- Observed behavior: both semantic inference implementations contain parallel nested
+  receiver/method tables whose unknown arms return `Ty::Int`, while several named
+  methods return `Bool`, `String`, `Void`, `Option`, or `Vec` despite having no checked
+  executable contract. Checked admission independently recognizes fixed numeric/
+  Copy-struct `.len()`, exact static-string queries, and zero-argument Array/Vec
+  `.iter()`, then rejects everything else. The legacy function-level lowerer retains
+  an `ImmInt(0), Ty::Int` method fallback. Thus unsupported methods acquire fabricated
+  semantic types before later rejection and the topology rules are duplicated across
+  semantic analysis and checked admission. Separately, fixed arrays whose elements are
+  admitted Bool, tuple, or nested-array CopyData cannot use `.len()`, and every fixed
+  array `.is_empty()` is rejected despite a fully static count and explicit project
+  documentation.
+- Primary hypothesis: one shared, stage-aware intrinsic-method classifier can close
+  the normalized receiver/method/arity/static-provenance product, supply the only
+  semantic result types, drive checked admission, and drive trusted lowering. Reusing
+  the existing recursive `StructRegistry::resolve_copy_type` authority should extend
+  fixed-array queries to every admitted CopyData element without adding layout,
+  ownership, iterator, collection, or string-runtime semantics.
+- Frozen positive array contract: for any checked `Ty::Array(T, N)` whose element `T`
+  is in the already admitted recursive CopyData universe and whose count fits Aero
+  `int`, exact zero-argument `.len()` returns `N: int`, and exact zero-argument
+  `.is_empty()` returns `N == 0: bool`. Cover Int, Float, Bool, flat and recursive
+  tuples, nested fixed arrays, named recursive CopyData structs, mixed compositions,
+  zero/one/multiple/max representable counts, immediate/repeated/inferred/exact/
+  mutable/immutable values, aliases, parameters, call results, projections, direct
+  modules, nested control flow, comparisons, calls, returns, and array/struct storage
+  of scalar query results. This adds no array value, layout, mutation, indexing,
+  iterator, or ownership rule.
+- Frozen preserved capabilities: exact compile-time static-string `.len()`,
+  `.is_empty()`, `.contains()`, `.starts_with()`, and `.ends_with()` retain their
+  accepted Unicode-scalar/content behavior and immutable literal/alias provenance;
+  exact zero-argument Array/Vec `.iter()` retains only its existing checked
+  compatibility behavior. The classifier may mark potential static-string queries at
+  semantic type time, but checked admission must still require exact static receiver/
+  argument provenance. Generic/impl/trait-default syntax and other parser-retained
+  contexts remain preserved or quarantined; they do not become executable.
+- Frozen rejection contract: any unknown/case-mismatched method; wrong arity; method
+  on Int/Float/Bool/tuple/struct/enum/reference/function/closure/unresolved receiver;
+  runtime or mutable String query; non-static String argument; Option/Result/Vec/
+  HashMap/HashSet/Slice operation beyond the one established `.iter()` compatibility;
+  unsupported array element topology; chained method on a scalar result; or method
+  nested in binding, annotation, arithmetic/logical/comparison, condition, argument,
+  return, array/tuple/struct, Match, loop, or module position must receive one
+  deterministic shared diagnostic before checked IR. No unsupported method may obtain
+  a fabricated scalar/composite type or trusted zero value.
+- Shared-authority contract: add one classifier with explicit supported,
+  explicitly-rejected, and preserved/quarantined dispositions. Both semantic inference
+  paths and checked admission must consume it; specialized fixed-array/static-string
+  helpers may remain leaf computations but must not become independent topology
+  guards. Trusted checked lowering consumes only the supported disposition and has no
+  scalar fallback. Unchecked legacy compatibility may be quarantined explicitly but
+  cannot be reachable from `check`, `build`, `run`, or public `compile_program`.
+- Red-first proof: before production mutation, add one exhaustive focused target that
+  proves `[1 < 2].is_empty()` and recursive Bool/tuple/nested/struct query forms are
+  rejected today, and that direct semantic analysis currently returns fabricated
+  result types for representative unknown methods on every receiver family. The red
+  must also require the absent shared classifier, tracked direct-module example,
+  workflow/native sentinel, semantic-phase rejection, deterministic checked IR/LLVM,
+  and no-artifact CLI behavior. Existing fixed-array length, static-string query, and
+  `.iter()` suites are mandatory positive controls.
+- Negative/corruption closure: enumerate receiver family x method family x arity x
+  static-trust x parent topology, including child-diagnostic precedence, unresolved
+  names, nested/chained methods, top-level/direct-AST entry, generic/impl/trait/closure
+  quarantine, and raw checked-admission attempts. Invalid public `check`, `build`, and
+  `run` must fail without requested artifacts or native execution. No new checked IR
+  opcode is authorized, so existing verifier corruption controls must remain green.
+- Allowed files: this ledger; one shared intrinsic-method classifier plus the existing
+  fixed-array/static-string leaf classifiers; `src/compiler/src/{lib,main}.rs` module
+  declarations; `semantic_analyzer.rs`; `ir_generator.rs`; one exhaustive
+  `intrinsic_method_contract_tests.rs`; one tracked direct-module example tree;
+  `.github/workflows/rust.yml`; directly superseded method expectations; and, only
+  after the exact candidate is green, current project/capability/framework/decision/
+  audit/README/roadmap/conformance/backend records plus draft PR #4. Parser, AST,
+  types, ownership, enum/struct/tuple representation, checked IR opcodes, verifier,
+  code generator, runtime, dependencies, and `master` are frozen.
+- Stop conditions: stop rather than approximate if the positive class needs runtime
+  String/Vec/Option/Result/collection representation, heap allocation, iterator ABI,
+  new ownership or lifetime behavior, array layout changes, a new IR opcode, parser/
+  AST changes, generic/trait method dispatch, a semantic choice not stated above, a
+  duplicated receiver/method guard, a weakened test, or an unrelated red baseline. A
+  rejection-only result cannot close CORE-067; recursive CopyData array `.is_empty()`
+  plus the broadened exact `.len()` class must execute natively.
+- Acceptance gates: focused red/green and shared-classifier unit product; existing
+  fixed-array length, static-string length/predicate/equality, array/struct/tuple/
+  reference/enum/loop/module/closure/checked-IR compatibility ring; formatting,
+  all-target/all-feature check, correctness Clippy, docs, exact root `./tools/test.sh`;
+  tracked source through semantics, checked IR, verification, LLVM, `opt-22`,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22` link, and exact native
+  sentinel; one immutable candidate, immediate PR #4 synchronization, all eight
+  public checks, pinned stable native evidence, then one records-only acceptance
+  closure and a second all-eight public set.
+- Scaling controls: PR #4 remains an integration program requiring separately
+  authorized checkpoint strategy; CORE-066 supplied the preceding hard CFG/runtime
+  milestone so this bounded compile-time query slice does not establish an easy-win-
+  only loop; one classifier and one exhaustive class target directly cap topology and
+  evidence growth; the pinned composed native example remains the system-level gate;
+  structured checkpoint-manifest generation remains separate authorized work.
+- Status at authorization: no CORE-067 production mutation, focused test, example,
+  workflow step, capability record, or candidate exists. The next action is the exact
+  exhaustive behavioral red on accepted head `3df9dc6`.
+- First red before production: the focused target compiles and runs 0/1. The complete
+  recursive CopyData array program reaches checked admission and fails at the current
+  catch-all method rejection. Direct semantic analysis demonstrably fabricates method
+  results for unknown scalar, Bool, array, String-transform, struct, tuple, nested
+  comparison, return, array-element, and chained-result shapes; the call-argument form
+  consequently reports a later `expected int, actual String` mismatch. Array
+  `.is_empty()` lacks its arity contract, the shared classifier and both consumers are
+  absent, invalid CLI `check` reaches the old IR diagnostic, and the tracked example
+  plus six workflow anchors are absent. Two runtime-String probes correctly fail first
+  at the existing unsupported function-parameter contract, so amend only those two
+  expected fragments as receiver/child diagnostic-precedence controls and rerun the
+  same focused command. No production mutation is yet authorized until the corrected
+  red preserves every intended method finding.
+- Corrected red before production: after changing only the two runtime-String
+  precedence expectations to the existing function-parameter diagnostic, the same
+  focused target again runs 0/1. It preserves every intended positive rejection,
+  fabricated semantic result, old checked-admission diagnostic, absent shared-
+  classifier/consumer, absent example, and absent workflow-anchor finding. That exact
+  red authorizes the smallest production classifier and consumer change; candidate
+  status remains pending.
+- Green local candidate: one shared `method_call_contract` classifier now supplies
+  both semantic inference paths, independent checked admission, and trusted checked
+  lowering. The prior semantic tables and their fabricated `Int`/other result arms are
+  removed. The checked lowering path has no unsupported-method zero fallback; two
+  legacy unchecked helpers are explicitly quarantined. Fixed-array and static-String
+  leaf helpers now consume normalized query kinds rather than duplicating method
+  topology.
+- Positive evidence: recursive CopyData arrays of Bool, tuples, nested arrays, and
+  named/mixed structs execute exact `.len()`/`.is_empty()` results through direct,
+  repeated, inferred, exact, alias, parameter, call-result, projection, nested-parent,
+  and direct-module shapes. Established static-String queries and Array/Vec `.iter()`
+  controls remain green. The tracked two-file program is pinned to exit 167 and the
+  stable workflow contains external verify, machine verify, object, link, and native
+  checks.
+- Local gates: the exhaustive target and four classifier units pass. The directly
+  affected compatibility ring passes 29/29 targets after updating only superseded
+  diagnostic and newly-positive nested/tuple-array expectations. The exact repository-
+  root `bash ./tools/test.sh` exits 0 in 31.4 seconds with 183/183 library tests, every
+  binary/integration target, rustfmt, all-target/all-feature correctness Clippy, and
+  doc tests. The earlier identical gate attempt was terminated solely by the caller's
+  120-second command timeout and is not evidence. Candidate documentation is now
+  authorized; immutable identity, public checks, pinned LLVM 22 evidence, and
+  acceptance remain pending.
+- Local system gate: the public CLI resolves tracked `queries.aero`, completes lexing,
+  parsing, semantic analysis, checked IR, internal verification, and deterministic
+  Windows LLVM generation. It truthfully reports `InternalOnly` because no LLVM 22
+  verifier is installed. Visual Studio x64 Clang 19.1.5 links that LLVM and the
+  executable returns exact exit 167. Immutable identity, all eight public checks, and
+  pinned LLVM/Clang 22 external verification, machine verification, object lowering,
+  link, and exit 167 remain mandatory before acceptance.
+- Final documented-candidate gate: after normalizing String query kind exactly once in
+  the shared classifier and updating only authorized capability records, the exact
+  repository-root `bash ./tools/test.sh` exits 0 in 259.3 seconds. It again passes
+  183/183 library tests, every binary/integration target, rustfmt, all-target/all-
+  feature correctness Clippy, and doc tests. The longer duration is explained by the
+  active Windows LLVM-verifier CLI timeout fixture, whose fake tool deliberately ran a
+  61-second delay; process inspection showed Cargo actively waiting on that controlled
+  test, not a deadlock or Windows Security intervention.

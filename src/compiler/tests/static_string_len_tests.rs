@@ -6,11 +6,11 @@ use compiler::{
 use std::fs;
 use std::path::PathBuf;
 
-const EXISTING_METHOD_REJECTION: &str =
-    "method calls other than exact zero-argument array/Vec .iter() are not admitted";
-const PUBLIC_EXISTING_METHOD_REJECTION: &str = "IR Generation Error: method calls other than exact zero-argument array/Vec .iter() are not admitted";
-const WRONG_ARITY_ONE: &str = "compile-time string .len() expects exactly 0 arguments, got 1";
-const WRONG_ARITY_TWO: &str = "compile-time string .len() expects exactly 0 arguments, got 2";
+const PRESERVED_IMPL_REJECTION: &str = "Unsupported intrinsic method call `String.len()`: syntax is preserved in a generic/impl context, but executable method semantics are not admitted.";
+const STATIC_PROVENANCE_REJECTION: &str = "Unsupported intrinsic method call `String.len()`: an immutable compile-time String receiver is required.";
+const PUBLIC_STATIC_PROVENANCE_REJECTION: &str = "IR Generation Error: Unsupported intrinsic method call `String.len()`: an immutable compile-time String receiver is required.";
+const WRONG_ARITY_ONE: &str = "Unsupported intrinsic method call `String.len()`: compile-time string .len() expects exactly 0 arguments, got 1.";
+const WRONG_ARITY_TWO: &str = "Unsupported intrinsic method call `String.len()`: compile-time string .len() expects exactly 0 arguments, got 2.";
 
 fn parsed(source: &str) -> Vec<AstNode> {
     let tokens = try_tokenize_with_locations(source, None).expect("fixture must lex");
@@ -240,12 +240,12 @@ fn static_string_character_len_class_is_complete_and_ci_executable() {
         (
             "non-generic impl boundary",
             "impl Widget { fn probe() { let observed = \"a\".len(); } }",
-            EXISTING_METHOD_REJECTION,
+            PRESERVED_IMPL_REJECTION,
         ),
         (
             "generic impl boundary",
             "impl<T> Widget { fn probe() { let observed = \"a\".len(); } }",
-            EXISTING_METHOD_REJECTION,
+            PRESERVED_IMPL_REJECTION,
         ),
         (
             "closure boundary fails closed before string length classification",
@@ -275,17 +275,17 @@ fn static_string_character_len_class_is_complete_and_ci_executable() {
         (
             "unknown String method",
             "fn main() { let observed = \"a\".missing(); }",
-            EXISTING_METHOD_REJECTION,
+            "Unsupported intrinsic method call `String.missing()`: no executable compile-time String method contract exists.",
         ),
         (
             "case-variant String method",
             "fn main() { let observed = \"a\".Len(); }",
-            EXISTING_METHOD_REJECTION,
+            "Unsupported intrinsic method call `String.Len()`: no executable compile-time String method contract exists.",
         ),
         (
             "String-producing method chain remains excluded",
             "fn main() { let observed = \"a\".trim().len(); }",
-            EXISTING_METHOD_REJECTION,
+            "Unsupported intrinsic method call `String.trim()`: no executable compile-time String method contract exists.",
         ),
         (
             "field receiver remains excluded",
@@ -315,12 +315,12 @@ fn static_string_character_len_class_is_complete_and_ci_executable() {
         (
             "len result used as receiver",
             "fn main() { let observed = \"a\".len().len(); }",
-            EXISTING_METHOD_REJECTION,
+            "Unsupported intrinsic method call `int.len()`: receiver type has no executable intrinsic method contract.",
         ),
         (
             "len result iterated",
             "fn main() { let observed = \"a\".len().iter(); }",
-            EXISTING_METHOD_REJECTION,
+            "Unsupported intrinsic method call `int.iter()`: receiver type has no executable intrinsic method contract.",
         ),
     ] {
         expect_exact_rejection(
@@ -374,13 +374,13 @@ fn static_string_character_len_class_is_complete_and_ci_executable() {
             &mut failures,
             &format!("{label} checked provenance quarantine"),
             checked_source(source),
-            EXISTING_METHOD_REJECTION,
+            STATIC_PROVENANCE_REJECTION,
         );
         expect_exact_rejection(
             &mut failures,
             &format!("{label} public provenance quarantine"),
             compile_program(source, CompilerOptions::default()),
-            PUBLIC_EXISTING_METHOD_REJECTION,
+            PUBLIC_STATIC_PROVENANCE_REJECTION,
         );
     }
 

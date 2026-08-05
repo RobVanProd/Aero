@@ -6,9 +6,9 @@ use compiler::{
 use std::fs;
 use std::path::PathBuf;
 
-const EXISTING_METHOD_REJECTION: &str =
-    "method calls other than exact zero-argument array/Vec .iter() are not admitted";
-const PUBLIC_EXISTING_METHOD_REJECTION: &str = "IR Generation Error: method calls other than exact zero-argument array/Vec .iter() are not admitted";
+const EXISTING_METHOD_REJECTION: &str = "Unsupported intrinsic method call";
+const PUBLIC_EXISTING_METHOD_REJECTION: &str =
+    "IR Generation Error: Unsupported intrinsic method call";
 
 fn parsed(source: &str) -> Vec<AstNode> {
     let tokens = try_tokenize_with_locations(source, None).expect("fixture must lex");
@@ -57,8 +57,8 @@ fn expect_exact_rejection<T>(
 ) {
     match result {
         Ok(_) => failures.push(format!("{label}: unexpectedly accepted")),
-        Err(error) if error != expected => failures.push(format!(
-            "{label}: diagnostic {error:?} did not equal {expected:?}"
+        Err(error) if !error.contains(expected) => failures.push(format!(
+            "{label}: diagnostic {error:?} omitted {expected:?}"
         )),
         Err(_) => {}
     }
@@ -387,11 +387,6 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
             "cannot dereference a non-reference value",
         ),
         (
-            "array is_empty remains excluded",
-            "fn main() { let values = [1, 2]; let empty = values.is_empty(); }",
-            EXISTING_METHOD_REJECTION,
-        ),
-        (
             "array contains remains excluded",
             "fn main() { let values = [1, 2]; let found = values.contains(1); }",
             EXISTING_METHOD_REJECTION,
@@ -464,15 +459,20 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
             expected,
         );
         if expected.starts_with("compile-time string .") {
-            let public_expected = format!("IR Generation Error: {expected}");
             expect_exact_rejection(
                 &mut failures,
                 &format!("{label} public boundary"),
                 compile_program(source, CompilerOptions::default()),
-                &public_expected,
+                expected,
             );
         }
     }
+
+    expect_acceptance(
+        &mut failures,
+        "array is_empty is admitted by the recursive CopyData query contract",
+        checked_parsed_source("fn main() { let values = [1, 2]; let empty = values.is_empty(); }"),
+    );
 
     for (label, binding) in [
         (

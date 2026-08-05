@@ -1,0 +1,81 @@
+struct Leaf { value: int, active: bool }
+struct Holder {
+    flags: [bool; 2],
+    pairs: [(int, bool); 2],
+    matrix: [[int; 2]; 2],
+    leaves: [Leaf; 2],
+    empty: [[bool; 2]; 0]
+}
+
+fn leaf(value: int) -> Leaf {
+    Leaf { value: value, active: value > 0 }
+}
+
+fn make_flags() -> [bool; 2] {
+    [1 < 2, 2 < 1]
+}
+
+fn inspect_arrays(
+    empty: [bool; 0],
+    pairs: [(int, bool); 2],
+    matrix: [[int; 2]; 2],
+    leaves: [Leaf; 2]
+) -> int {
+    if empty.is_empty()
+        && !pairs.is_empty()
+        && !matrix.is_empty()
+        && !leaves.is_empty()
+    {
+        return empty.len() + pairs.len() + matrix.len() + leaves.len();
+    }
+    0
+}
+
+fn inspect_holder(value: Holder) -> int {
+    if value.empty.is_empty()
+        && !value.flags.is_empty()
+        && !value.pairs.is_empty()
+        && !value.matrix.is_empty()
+        && !value.leaves.is_empty()
+    {
+        return value.empty.len()
+            + value.flags.len()
+            + value.pairs.len()
+            + value.matrix.len()
+            + value.leaves.len();
+    }
+    0
+}
+
+fn run_intrinsic_method_program() -> int {
+    let first = leaf(5);
+    let second = leaf(6);
+    let pairs = [(3, 1 < 2), (4, 2 < 1)];
+    let matrix = [[1, 2], [3, 4]];
+    let leaves = [first, second];
+    let holder = Holder {
+        flags: make_flags(),
+        pairs: pairs,
+        matrix: matrix,
+        leaves: leaves,
+        empty: []
+    };
+    let empty: [bool; 0] = [];
+    let total = inspect_arrays(empty, pairs, matrix, leaves)
+        + inspect_holder(holder)
+        + make_flags().len()
+        + [[1, 2]].len();
+    let text: String = "Aero 🚀";
+    if total == 17
+        && !make_flags().is_empty()
+        && [1 < 2; 0].is_empty()
+        && !text.is_empty()
+        && text.contains("ero")
+        && text.starts_with("Aero")
+        && text.ends_with("🚀")
+        && text.len() == 6
+    {
+        return 167;
+    }
+    1
+}

@@ -15,6 +15,7 @@ use crate::local_reference::{
     classify_mutable_reference_binding, classify_reference_call, classify_reference_function,
     reference_call_fact_subject,
 };
+use crate::method_call_contract::{IntrinsicMethodPhase, classify_intrinsic_method};
 use crate::ownership_flow::{
     ConditionalOwnershipArm, OwnershipFlowDisposition, classify_conditional_ownership,
     classify_loop_ownership, maybe_moved_diagnostic,
@@ -784,6 +785,26 @@ impl SemanticAnalyzer {
         }
     }
 
+    fn intrinsic_method_result_type(
+        &self,
+        receiver: &Ty,
+        method: &str,
+        argument_count: usize,
+    ) -> Result<Ty, String> {
+        let static_arguments = vec![None; argument_count];
+        classify_intrinsic_method(
+            receiver,
+            method,
+            argument_count,
+            None,
+            &static_arguments,
+            &self.struct_registry,
+            IntrinsicMethodPhase::Semantic,
+            !self.type_param_scopes.is_empty() || self.inside_impl,
+        )
+        .result_type()
+    }
+
     fn local_binding_type(&self, name: &str) -> Option<Ty> {
         self.scope_manager
             .get_variable(name)
@@ -1419,54 +1440,13 @@ impl SemanticAnalyzer {
             }
             // Phase 4 expressions
             Expression::StringLiteral(_) => Ok(Ty::String),
-            Expression::MethodCall { object, method, .. } => {
+            Expression::MethodCall {
+                object,
+                method,
+                arguments,
+            } => {
                 let obj_ty = self.infer_and_validate_expression(object)?;
-                // Phase 6: Option, Result, Vec, HashMap methods
-                match &obj_ty {
-                    Ty::Option(inner) => match method.as_str() {
-                        "is_some" | "is_none" => Ok(Ty::Bool),
-                        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*inner.clone()),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::Result(ok_ty, err_ty) => match method.as_str() {
-                        "is_ok" | "is_err" => Ok(Ty::Bool),
-                        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*ok_ty.clone()),
-                        "unwrap_err" | "expect_err" => Ok(*err_ty.clone()),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::Vec(elem) => match method.as_str() {
-                        "len" => Ok(Ty::Int),
-                        "is_empty" => Ok(Ty::Bool),
-                        "push" | "clear" => Ok(Ty::Void),
-                        "pop" | "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
-                        "iter" => Ok(Ty::Vec(elem.clone())),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::Array(elem, size) => match method.as_str() {
-                        "len" => Ok(Ty::Int),
-                        "is_empty" => Ok(Ty::Bool),
-                        "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
-                        "iter" => Ok(Ty::Array(elem.clone(), *size)),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::HashMap(_, val) => match method.as_str() {
-                        "len" => Ok(Ty::Int),
-                        "is_empty" | "contains_key" => Ok(Ty::Bool),
-                        "insert" | "remove" | "clear" => Ok(Ty::Void),
-                        "get" => Ok(Ty::Option(val.clone())),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::String => match method.as_str() {
-                        "len" => Ok(Ty::Int),
-                        "is_empty" | "contains" | "starts_with" | "ends_with" => Ok(Ty::Bool),
-                        "to_uppercase" | "to_lowercase" | "trim" | "trim_start" | "trim_end" => {
-                            Ok(Ty::String)
-                        }
-                        "chars" => Ok(Ty::Vec(Box::new(Ty::Int))), // char as int
-                        _ => Ok(Ty::Int),                          // Unknown method
-                    },
-                    _ => Ok(Ty::Int), // Other method calls - stub
-                }
+                self.intrinsic_method_result_type(&obj_ty, method, arguments.len())
             }
             Expression::ArrayLiteral(elements) => {
                 let Some(first) = elements.first() else {
@@ -2175,55 +2155,14 @@ impl SemanticAnalyzer {
             }
             // Phase 4 expressions
             Expression::StringLiteral(_) => Ok(Ty::String),
-            Expression::MethodCall { object, method, .. } => {
+            Expression::MethodCall {
+                object,
+                method,
+                arguments,
+            } => {
                 let obj_ty =
                     self.infer_and_validate_expression_immutable_with_cache(object, array_types)?;
-                // Phase 6: Option, Result, Vec, HashMap methods
-                match &obj_ty {
-                    Ty::Option(inner) => match method.as_str() {
-                        "is_some" | "is_none" => Ok(Ty::Bool),
-                        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*inner.clone()),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::Result(ok_ty, err_ty) => match method.as_str() {
-                        "is_ok" | "is_err" => Ok(Ty::Bool),
-                        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" => Ok(*ok_ty.clone()),
-                        "unwrap_err" | "expect_err" => Ok(*err_ty.clone()),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::Vec(elem) => match method.as_str() {
-                        "len" => Ok(Ty::Int),
-                        "is_empty" => Ok(Ty::Bool),
-                        "push" | "clear" => Ok(Ty::Void),
-                        "pop" | "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
-                        "iter" => Ok(Ty::Vec(elem.clone())),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::Array(elem, size) => match method.as_str() {
-                        "len" => Ok(Ty::Int),
-                        "is_empty" => Ok(Ty::Bool),
-                        "first" | "last" | "get" => Ok(Ty::Option(elem.clone())),
-                        "iter" => Ok(Ty::Array(elem.clone(), *size)),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::HashMap(_, val) => match method.as_str() {
-                        "len" => Ok(Ty::Int),
-                        "is_empty" | "contains_key" => Ok(Ty::Bool),
-                        "insert" | "remove" | "clear" => Ok(Ty::Void),
-                        "get" => Ok(Ty::Option(val.clone())),
-                        _ => Ok(Ty::Int), // Unknown method
-                    },
-                    Ty::String => match method.as_str() {
-                        "len" => Ok(Ty::Int),
-                        "is_empty" | "contains" | "starts_with" | "ends_with" => Ok(Ty::Bool),
-                        "to_uppercase" | "to_lowercase" | "trim" | "trim_start" | "trim_end" => {
-                            Ok(Ty::String)
-                        }
-                        "chars" => Ok(Ty::Vec(Box::new(Ty::Int))), // char as int
-                        _ => Ok(Ty::Int),                          // Unknown method
-                    },
-                    _ => Ok(Ty::Int), // Other method calls - stub
-                }
+                self.intrinsic_method_result_type(&obj_ty, method, arguments.len())
             }
             Expression::ArrayLiteral(elements) => {
                 if self.type_param_scopes.is_empty() {

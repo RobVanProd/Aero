@@ -1,8 +1,34 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StaticStringPredicateKind {
+    IsEmpty,
+    Contains,
+    StartsWith,
+    EndsWith,
+}
+
+impl StaticStringPredicateKind {
+    pub(crate) fn method(self) -> &'static str {
+        match self {
+            Self::IsEmpty => "is_empty",
+            Self::Contains => "contains",
+            Self::StartsWith => "starts_with",
+            Self::EndsWith => "ends_with",
+        }
+    }
+
+    fn expected_arguments(self) -> usize {
+        match self {
+            Self::IsEmpty => 0,
+            Self::Contains | Self::StartsWith | Self::EndsWith => 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StaticStringPredicateDisposition {
     StaticBool(bool),
     WrongArity {
-        method: &'static str,
+        kind: StaticStringPredicateKind,
         expected: usize,
         actual: usize,
     },
@@ -11,110 +37,102 @@ pub(crate) enum StaticStringPredicateDisposition {
 
 pub(crate) fn classify_static_string_predicate(
     receiver: Option<&str>,
-    method: &str,
+    kind: StaticStringPredicateKind,
     arguments: &[Option<&str>],
 ) -> StaticStringPredicateDisposition {
-    let (method, expected) = match method {
-        "is_empty" => ("is_empty", 0),
-        "contains" => ("contains", 1),
-        "starts_with" => ("starts_with", 1),
-        "ends_with" => ("ends_with", 1),
-        _ => return StaticStringPredicateDisposition::PreserveExistingBehavior,
-    };
     let Some(receiver) = receiver else {
         return StaticStringPredicateDisposition::PreserveExistingBehavior;
     };
+    let expected = kind.expected_arguments();
     if arguments.len() != expected {
         return StaticStringPredicateDisposition::WrongArity {
-            method,
+            kind,
             expected,
             actual: arguments.len(),
         };
     }
 
-    let value = match method {
-        "is_empty" => receiver.is_empty(),
-        "contains" => {
+    let value = match kind {
+        StaticStringPredicateKind::IsEmpty => receiver.is_empty(),
+        StaticStringPredicateKind::Contains => {
             let Some(needle) = arguments[0] else {
                 return StaticStringPredicateDisposition::PreserveExistingBehavior;
             };
             receiver.contains(needle)
         }
-        "starts_with" => {
+        StaticStringPredicateKind::StartsWith => {
             let Some(prefix) = arguments[0] else {
                 return StaticStringPredicateDisposition::PreserveExistingBehavior;
             };
             receiver.starts_with(prefix)
         }
-        "ends_with" => {
+        StaticStringPredicateKind::EndsWith => {
             let Some(suffix) = arguments[0] else {
                 return StaticStringPredicateDisposition::PreserveExistingBehavior;
             };
             receiver.ends_with(suffix)
         }
-        _ => unreachable!("method names were normalized above"),
     };
     StaticStringPredicateDisposition::StaticBool(value)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{StaticStringPredicateDisposition, classify_static_string_predicate};
+    use super::{
+        StaticStringPredicateDisposition, StaticStringPredicateKind,
+        classify_static_string_predicate,
+    };
 
     #[test]
-    fn classifier_closes_method_arity_trust_and_content_product() {
+    fn classifier_closes_arity_trust_and_content_product() {
         use StaticStringPredicateDisposition::{PreserveExistingBehavior, StaticBool, WrongArity};
+        use StaticStringPredicateKind::{Contains, EndsWith, IsEmpty, StartsWith};
 
         for (receiver, expected) in [("", true), ("Aero", false), ("🚀", false)] {
             assert_eq!(
-                classify_static_string_predicate(Some(receiver), "is_empty", &[]),
+                classify_static_string_predicate(Some(receiver), IsEmpty, &[]),
                 StaticBool(expected)
             );
         }
 
-        for (method, receiver, argument, expected) in [
-            ("contains", "", "", true),
-            ("contains", "", "a", false),
-            ("contains", "abc", "", true),
-            ("contains", "abcabc", "bca", true),
-            ("contains", "abc", "abcd", false),
-            ("contains", "é🚀中", "🚀", true),
-            ("contains", "é", "é", false),
-            ("contains", "\n\t\r\\\"\0\\q", "\\q", true),
-            ("starts_with", "", "", true),
-            ("starts_with", "", "a", false),
-            ("starts_with", "abc", "ab", true),
-            ("starts_with", "abc", "bc", false),
-            ("starts_with", "é🚀中", "é🚀", true),
-            ("ends_with", "", "", true),
-            ("ends_with", "", "a", false),
-            ("ends_with", "abc", "bc", true),
-            ("ends_with", "abc", "ab", false),
-            ("ends_with", "é🚀中", "🚀中", true),
+        for (kind, receiver, argument, expected) in [
+            (Contains, "", "", true),
+            (Contains, "", "a", false),
+            (Contains, "abc", "", true),
+            (Contains, "abcabc", "bca", true),
+            (Contains, "abc", "abcd", false),
+            (Contains, "é🚀中", "🚀", true),
+            (Contains, "é", "e\u{301}", false),
+            (Contains, "\n\t\r\\\"\0\\q", "\\q", true),
+            (StartsWith, "", "", true),
+            (StartsWith, "", "a", false),
+            (StartsWith, "abc", "ab", true),
+            (StartsWith, "abc", "bc", false),
+            (StartsWith, "é🚀中", "é🚀", true),
+            (EndsWith, "", "", true),
+            (EndsWith, "", "a", false),
+            (EndsWith, "abc", "bc", true),
+            (EndsWith, "abc", "ab", false),
+            (EndsWith, "é🚀中", "🚀中", true),
         ] {
             assert_eq!(
-                classify_static_string_predicate(Some(receiver), method, &[Some(argument)]),
+                classify_static_string_predicate(Some(receiver), kind, &[Some(argument)]),
                 StaticBool(expected),
-                "{method}({argument:?}) on {receiver:?}"
+                "{}({argument:?}) on {receiver:?}",
+                kind.method()
             );
         }
 
-        for (method, expected) in [
-            ("is_empty", 0),
-            ("contains", 1),
-            ("starts_with", 1),
-            ("ends_with", 1),
-        ] {
+        for (kind, expected) in [(IsEmpty, 0), (Contains, 1), (StartsWith, 1), (EndsWith, 1)] {
             for actual in [0, 1, 2, 3] {
                 if actual == expected {
                     continue;
                 }
                 let arguments = vec![Some("a"); actual];
-                let disposition = classify_static_string_predicate(Some("a"), method, &arguments);
                 assert_eq!(
-                    disposition,
+                    classify_static_string_predicate(Some("a"), kind, &arguments),
                     WrongArity {
-                        method,
+                        kind,
                         expected,
                         actual,
                     }
@@ -122,40 +140,21 @@ mod tests {
             }
         }
 
-        for (method, arguments) in [
-            ("is_empty", Vec::new()),
-            ("contains", vec![Some("a")]),
-            ("starts_with", vec![Some("a")]),
-            ("ends_with", vec![Some("a")]),
+        for (kind, arguments) in [
+            (IsEmpty, Vec::new()),
+            (Contains, vec![Some("a")]),
+            (StartsWith, vec![Some("a")]),
+            (EndsWith, vec![Some("a")]),
         ] {
             assert_eq!(
-                classify_static_string_predicate(None, method, &arguments),
+                classify_static_string_predicate(None, kind, &arguments),
                 PreserveExistingBehavior
             );
         }
 
-        for (method, arguments) in [
-            ("is_empty", vec![Some("a")]),
-            ("contains", Vec::new()),
-            ("starts_with", vec![Some("a"), Some("b")]),
-            ("ends_with", vec![Some("a"), Some("b")]),
-        ] {
+        for kind in [Contains, StartsWith, EndsWith] {
             assert_eq!(
-                classify_static_string_predicate(None, method, &arguments),
-                PreserveExistingBehavior
-            );
-        }
-
-        for method in ["contains", "starts_with", "ends_with"] {
-            assert_eq!(
-                classify_static_string_predicate(Some("a"), method, &[None]),
-                PreserveExistingBehavior
-            );
-        }
-
-        for method in ["Contains", "IS_EMPTY", "len", "trim", "missing"] {
-            assert_eq!(
-                classify_static_string_predicate(Some("a"), method, &[Some("a")]),
+                classify_static_string_predicate(Some("a"), kind, &[None]),
                 PreserveExistingBehavior
             );
         }

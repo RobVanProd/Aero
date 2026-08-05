@@ -8,12 +8,8 @@ pub(crate) enum StaticStringLenDisposition {
 
 pub(crate) fn classify_static_string_len(
     receiver: Option<&str>,
-    method: &str,
     argument_count: usize,
 ) -> StaticStringLenDisposition {
-    if method != "len" {
-        return StaticStringLenDisposition::PreserveExistingBehavior;
-    }
     let Some(receiver) = receiver else {
         return StaticStringLenDisposition::PreserveExistingBehavior;
     };
@@ -51,7 +47,7 @@ mod tests {
             ("mixed", "Aé🚀中z", 5),
         ] {
             assert_eq!(
-                classify_static_string_len(Some(receiver), "len", 0),
+                classify_static_string_len(Some(receiver), 0),
                 StaticStringLenDisposition::StaticLength(expected),
                 "{label}"
             );
@@ -59,7 +55,7 @@ mod tests {
 
         for actual in [1, 2, usize::MAX] {
             assert_eq!(
-                classify_static_string_len(Some("Aero"), "len", actual),
+                classify_static_string_len(Some("Aero"), actual),
                 StaticStringLenDisposition::WrongArity { actual }
             );
         }
@@ -74,14 +70,12 @@ mod tests {
             StaticStringLenDisposition::LengthOutsideIntRange { count: outside }
         );
 
-        for (label, receiver, method, arity) in [
-            ("untrusted value", None, "len", 0),
-            ("untrusted wrong arity", None, "len", 1),
-            ("wrong method", Some("Aero"), "Len", 0),
-            ("unknown method", Some("Aero"), "missing", 2),
+        for (label, receiver, arity) in [
+            ("untrusted value", None, 0),
+            ("untrusted wrong arity", None, 1),
         ] {
             assert_eq!(
-                classify_static_string_len(receiver, method, arity),
+                classify_static_string_len(receiver, arity),
                 StaticStringLenDisposition::PreserveExistingBehavior,
                 "{label}"
             );

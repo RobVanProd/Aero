@@ -19,6 +19,7 @@ mod lexer;
 mod llvm_verifier;
 mod local_reference;
 mod lsp;
+mod method_call_contract;
 mod module_resolver;
 mod optimizations;
 mod ownership_flow;

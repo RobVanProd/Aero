@@ -6,12 +6,10 @@ use compiler::{
 use std::fs;
 use std::path::PathBuf;
 
-const EXISTING_METHOD_REJECTION: &str =
-    "method calls other than exact zero-argument array/Vec .iter() are not admitted";
-const WRONG_ARITY_ONE: &str = "fixed numeric array .len() expects exactly 0 arguments, got 1";
-const WRONG_ARITY_TWO: &str = "fixed numeric array .len() expects exactly 0 arguments, got 2";
-const OUTSIDE_INT_RANGE: &str =
-    "fixed numeric array .len() count 2147483648 is outside the admitted i32 range";
+const WRONG_ARITY_ONE: &str = "Unsupported intrinsic method call `[int; 2].len()`: fixed numeric array .len() expects exactly 0 arguments, got 1.";
+const WRONG_ARITY_TWO: &str = "Unsupported intrinsic method call `[int; 2].len()`: fixed numeric array .len() expects exactly 0 arguments, got 2.";
+const OUTSIDE_INT_RANGE: &str = "Unsupported intrinsic method call `[int; 2147483648].len()`: fixed numeric array .len() count 2147483648 is outside the admitted i32 range.";
+const PRESERVED_IMPL_REJECTION: &str = "Unsupported intrinsic method call `[int; 2].len()`: syntax is preserved in a generic/impl context, but executable method semantics are not admitted.";
 
 fn parsed(source: &str) -> Vec<AstNode> {
     let tokens = try_tokenize_with_locations(source, None).expect("fixture must lex");
@@ -289,11 +287,6 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
             "fn main() { let values = [\"a\", \"b\"]; let observed = values.len(); }",
             "fixed arrays require recursively admitted Copy-data elements",
         ),
-        (
-            "nested array receiver",
-            "fn main() { let values = [[1], [2]]; let observed = values.len(); }",
-            "method calls other than exact zero-argument array/Vec .iter() are not admitted",
-        ),
     ] {
         expect_rejection_fragments(
             &mut failures,
@@ -303,30 +296,46 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
         );
     }
 
-    for (label, source) in [
-        ("scalar receiver", "fn main() { let observed = 1.len(); }"),
+    expect_acceptance(
+        &mut failures,
+        "nested CopyData array receiver",
+        checked_parsed_source(
+            "fn main() { let values = [[1], [2]]; let observed = values.len(); }",
+        ),
+    );
+
+    for (label, source, method) in [
+        (
+            "scalar receiver",
+            "fn main() { let observed = 1.len(); }",
+            "len",
+        ),
         (
             "unknown array method",
             "fn main() { let values = [1, 2]; let observed = values.first(); }",
+            "first",
         ),
         (
             "case-variant method",
             "fn main() { let values = [1, 2]; let observed = values.Len(); }",
+            "Len",
         ),
         (
             "len result used as receiver",
             "fn main() { let values = [1, 2]; let observed = values.len().len(); }",
+            "len",
         ),
         (
             "len result iterated",
             "fn main() { let values = [1, 2]; let observed = values.len().iter(); }",
+            "iter",
         ),
     ] {
-        expect_exact_rejection(
+        expect_rejection_fragments(
             &mut failures,
             label,
             checked_parsed_source(source),
-            EXISTING_METHOD_REJECTION,
+            &["Unsupported intrinsic method call", method],
         );
     }
 
@@ -354,7 +363,7 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
         &mut failures,
         "admitted tuple receiver reaches method classification",
         checked_parsed_source("fn main() { let observed = (1, 2).len(); }"),
-        "method calls other than exact zero-argument array/Vec .iter() are not admitted",
+        "Unsupported intrinsic method call `(int, int).len()`: receiver type has no executable intrinsic method contract.",
     );
     expect_exact_rejection(
         &mut failures,
@@ -439,7 +448,7 @@ fn fixed_numeric_array_static_len_class_is_complete_and_ci_executable() {
             &mut failures,
             label,
             checked_parsed_source(source),
-            EXISTING_METHOD_REJECTION,
+            PRESERVED_IMPL_REJECTION,
         );
     }
     expect_exact_rejection(

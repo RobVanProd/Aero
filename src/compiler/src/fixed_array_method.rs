@@ -5,6 +5,7 @@ use crate::types::Ty;
 pub(crate) enum FixedArrayKind {
     Numeric,
     CopyStruct,
+    RecursiveCopyData,
 }
 
 impl FixedArrayKind {
@@ -12,55 +13,96 @@ impl FixedArrayKind {
         match self {
             Self::Numeric => "fixed numeric array",
             Self::CopyStruct => "fixed Copy-struct array",
+            Self::RecursiveCopyData => "fixed recursive CopyData array",
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum FixedArrayLenDisposition {
-    StaticLength { kind: FixedArrayKind, count: i32 },
-    WrongArity { kind: FixedArrayKind, actual: usize },
-    LengthOutsideIntRange { kind: FixedArrayKind, count: usize },
+pub(crate) enum FixedArrayQueryKind {
+    Length,
+    IsEmpty,
+}
+
+impl FixedArrayQueryKind {
+    pub(crate) fn method(self) -> &'static str {
+        match self {
+            Self::Length => "len",
+            Self::IsEmpty => "is_empty",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FixedArrayQueryValue {
+    Length(i32),
+    IsEmpty(bool),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FixedArrayQueryDisposition {
+    StaticValue {
+        kind: FixedArrayKind,
+        value: FixedArrayQueryValue,
+    },
+    WrongArity {
+        kind: FixedArrayKind,
+        query: FixedArrayQueryKind,
+        actual: usize,
+    },
+    CountOutsideIntRange {
+        kind: FixedArrayKind,
+        query: FixedArrayQueryKind,
+        count: usize,
+    },
     PreserveExistingBehavior,
 }
 
-pub(crate) fn classify_fixed_array_len(
+pub(crate) fn classify_fixed_array_query(
     receiver: &Ty,
-    method: &str,
+    query: FixedArrayQueryKind,
     argument_count: usize,
     structs: &StructRegistry,
-) -> FixedArrayLenDisposition {
+) -> FixedArrayQueryDisposition {
     let Ty::Array(element, count) = receiver else {
-        return FixedArrayLenDisposition::PreserveExistingBehavior;
+        return FixedArrayQueryDisposition::PreserveExistingBehavior;
     };
-    if method != "len" {
-        return FixedArrayLenDisposition::PreserveExistingBehavior;
-    }
-    let kind = if structs.is_copy_struct_ty(element) {
-        FixedArrayKind::CopyStruct
-    } else if matches!(element.as_ref(), Ty::Int | Ty::Float) {
+    let kind = if matches!(element.as_ref(), Ty::Int | Ty::Float) {
         FixedArrayKind::Numeric
+    } else if structs.is_copy_struct_ty(element) {
+        FixedArrayKind::CopyStruct
+    } else if structs.resolve_copy_type(element).is_some() {
+        FixedArrayKind::RecursiveCopyData
     } else {
-        return FixedArrayLenDisposition::PreserveExistingBehavior;
+        return FixedArrayQueryDisposition::PreserveExistingBehavior;
     };
     if argument_count != 0 {
-        return FixedArrayLenDisposition::WrongArity {
+        return FixedArrayQueryDisposition::WrongArity {
             kind,
+            query,
             actual: argument_count,
         };
     }
-    match i32::try_from(*count) {
-        Ok(count) => FixedArrayLenDisposition::StaticLength { kind, count },
-        Err(_) => FixedArrayLenDisposition::LengthOutsideIntRange {
+    let Ok(int_count) = i32::try_from(*count) else {
+        return FixedArrayQueryDisposition::CountOutsideIntRange {
             kind,
+            query,
             count: *count,
-        },
-    }
+        };
+    };
+    let value = match query {
+        FixedArrayQueryKind::Length => FixedArrayQueryValue::Length(int_count),
+        FixedArrayQueryKind::IsEmpty => FixedArrayQueryValue::IsEmpty(*count == 0),
+    };
+    FixedArrayQueryDisposition::StaticValue { kind, value }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{FixedArrayKind, FixedArrayLenDisposition, classify_fixed_array_len};
+    use super::{
+        FixedArrayKind, FixedArrayQueryDisposition, FixedArrayQueryKind, FixedArrayQueryValue,
+        classify_fixed_array_query,
+    };
     use crate::ast::{AstNode, FieldDecl, Statement, Type};
     use crate::struct_contract::StructRegistry;
     use crate::types::Ty;
@@ -81,114 +123,87 @@ mod tests {
     }
 
     #[test]
-    fn classifier_closes_the_normalized_type_method_arity_count_product() {
-        for (label, receiver, count) in [
-            ("Int zero", array(Ty::Int, 0), 0),
-            ("Int positive", array(Ty::Int, 7), 7),
-            ("Int maximum", array(Ty::Int, i32::MAX as usize), i32::MAX),
-            ("Float zero", array(Ty::Float, 0), 0),
-            ("Float positive", array(Ty::Float, 11), 11),
+    fn classifier_closes_recursive_copydata_query_arity_and_count_product() {
+        let registry = structs();
+        for (label, receiver, kind, count) in [
+            ("Int", array(Ty::Int, 0), FixedArrayKind::Numeric, 0),
+            ("Float", array(Ty::Float, 7), FixedArrayKind::Numeric, 7),
             (
-                "Float maximum",
-                array(Ty::Float, i32::MAX as usize),
-                i32::MAX,
+                "Bool",
+                array(Ty::Bool, 1),
+                FixedArrayKind::RecursiveCopyData,
+                1,
+            ),
+            (
+                "tuple",
+                array(Ty::Tuple(vec![Ty::Int, Ty::Bool]), 2),
+                FixedArrayKind::RecursiveCopyData,
+                2,
+            ),
+            (
+                "nested array",
+                array(array(Ty::Int, 2), 3),
+                FixedArrayKind::RecursiveCopyData,
+                3,
+            ),
+            (
+                "Copy struct",
+                array(Ty::Struct("Value".to_string()), 4),
+                FixedArrayKind::CopyStruct,
+                4,
             ),
         ] {
             assert_eq!(
-                classify_fixed_array_len(&receiver, "len", 0, &structs()),
-                FixedArrayLenDisposition::StaticLength {
-                    kind: FixedArrayKind::Numeric,
-                    count,
+                classify_fixed_array_query(&receiver, FixedArrayQueryKind::Length, 0, &registry,),
+                FixedArrayQueryDisposition::StaticValue {
+                    kind,
+                    value: FixedArrayQueryValue::Length(count),
                 },
-                "{label}"
+                "{label} length"
+            );
+            assert_eq!(
+                classify_fixed_array_query(&receiver, FixedArrayQueryKind::IsEmpty, 0, &registry,),
+                FixedArrayQueryDisposition::StaticValue {
+                    kind,
+                    value: FixedArrayQueryValue::IsEmpty(count == 0),
+                },
+                "{label} emptiness"
             );
         }
 
-        for actual in [1, 2, usize::MAX] {
+        for query in [FixedArrayQueryKind::Length, FixedArrayQueryKind::IsEmpty] {
+            for actual in [1, 2, usize::MAX] {
+                assert_eq!(
+                    classify_fixed_array_query(&array(Ty::Bool, 3), query, actual, &registry),
+                    FixedArrayQueryDisposition::WrongArity {
+                        kind: FixedArrayKind::RecursiveCopyData,
+                        query,
+                        actual,
+                    }
+                );
+            }
+            let outside = i32::MAX as usize + 1;
             assert_eq!(
-                classify_fixed_array_len(&array(Ty::Int, 3), "len", actual, &structs(),),
-                FixedArrayLenDisposition::WrongArity {
+                classify_fixed_array_query(&array(Ty::Int, outside), query, 0, &registry),
+                FixedArrayQueryDisposition::CountOutsideIntRange {
                     kind: FixedArrayKind::Numeric,
-                    actual,
+                    query,
+                    count: outside,
                 }
             );
         }
 
-        for (label, receiver, count) in [
-            (
-                "Copy struct zero",
-                array(Ty::Struct("Value".to_string()), 0),
-                0,
-            ),
-            (
-                "Copy struct positive",
-                array(Ty::Struct("Value".to_string()), 9),
-                9,
-            ),
-            (
-                "Copy struct maximum",
-                array(Ty::Struct("Value".to_string()), i32::MAX as usize),
-                i32::MAX,
-            ),
+        for receiver in [
+            Ty::Int,
+            Ty::String,
+            Ty::Vec(Box::new(Ty::Int)),
+            array(Ty::String, 2),
+            array(Ty::Reference(Box::new(Ty::Int), false), 2),
+            array(Ty::Fn("f".to_string()), 2),
         ] {
             assert_eq!(
-                classify_fixed_array_len(&receiver, "len", 0, &structs()),
-                FixedArrayLenDisposition::StaticLength {
-                    kind: FixedArrayKind::CopyStruct,
-                    count,
-                },
-                "{label}"
-            );
-        }
-
-        assert_eq!(
-            classify_fixed_array_len(
-                &array(Ty::Struct("Value".to_string()), 3),
-                "len",
-                2,
-                &structs(),
-            ),
-            FixedArrayLenDisposition::WrongArity {
-                kind: FixedArrayKind::CopyStruct,
-                actual: 2,
-            }
-        );
-
-        let outside = i32::MAX as usize + 1;
-        assert_eq!(
-            classify_fixed_array_len(&array(Ty::Float, outside), "len", 0, &structs(),),
-            FixedArrayLenDisposition::LengthOutsideIntRange {
-                kind: FixedArrayKind::Numeric,
-                count: outside,
-            }
-        );
-        assert_eq!(
-            classify_fixed_array_len(
-                &array(Ty::Struct("Value".to_string()), outside),
-                "len",
-                0,
-                &structs(),
-            ),
-            FixedArrayLenDisposition::LengthOutsideIntRange {
-                kind: FixedArrayKind::CopyStruct,
-                count: outside,
-            }
-        );
-
-        for (label, receiver, method, arity) in [
-            ("scalar", Ty::Int, "len", 0),
-            ("String", Ty::String, "len", 0),
-            ("Vec", Ty::Vec(Box::new(Ty::Int)), "len", 0),
-            ("Bool array", array(Ty::Bool, 3), "len", 0),
-            ("nested array", array(array(Ty::Int, 1), 2), "len", 0),
-            ("wrong method", array(Ty::Int, 3), "Len", 0),
-            ("iter", array(Ty::Float, 3), "iter", 0),
-            ("unknown arity", array(Ty::Int, 3), "missing", 2),
-        ] {
-            assert_eq!(
-                classify_fixed_array_len(&receiver, method, arity, &structs()),
-                FixedArrayLenDisposition::PreserveExistingBehavior,
-                "{label}"
+                classify_fixed_array_query(&receiver, FixedArrayQueryKind::Length, 0, &registry,),
+                FixedArrayQueryDisposition::PreserveExistingBehavior
             );
         }
     }

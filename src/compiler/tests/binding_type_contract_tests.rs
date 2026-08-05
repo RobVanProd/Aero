@@ -415,10 +415,11 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
             }
         }
     }
-    expect_acceptance(
+    expect_rejection(
         &mut failures,
-        "stub-only method argument retains pre-task numeric-array quarantine",
+        "unsupported array method fails closed before its untrusted argument",
         semantic_result("fn main() { let values = [1, 2]; let item = values.unknown([1, 2.5]); }"),
+        &["Unsupported intrinsic method call", "unknown"],
     );
     for (label, source) in [(
         "closure parent retains fail-closed precedence over body preflight",
@@ -431,10 +432,11 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
             &["closure expressions are parsed but unsupported in executable code"],
         );
     }
-    expect_acceptance(
+    expect_rejection(
         &mut failures,
-        "admitted tuple method argument advances to checked method classification",
+        "unsupported String method fails closed before its tuple-array argument",
         semantic_result("fn main() { let text = \"x\"; let value = text.unknown([1, (2, 3)]); }"),
+        &["Unsupported intrinsic method call", "unknown"],
     );
     match semantic_result("fn main() { println!(\"\", [1, 2.5]); }") {
         Ok(()) => failures

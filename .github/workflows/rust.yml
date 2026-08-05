@@ -710,6 +710,25 @@ jobs:
         fi
         echo "loop-local enum ownership example passed with exit code 149"
 
+    - name: Test intrinsic method contract integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/intrinsic_method_contract/main.aero -o ../../intrinsic_method_contract.ll
+        opt-22 -passes=verify -disable-output ../../intrinsic_method_contract.ll
+        llc-22 -verify-machineinstrs ../../intrinsic_method_contract.ll -o /dev/null
+        llc-22 -filetype=obj ../../intrinsic_method_contract.ll -o ../../intrinsic_method_contract.o
+        clang-22 -no-pie ../../intrinsic_method_contract.o -o ../../intrinsic_method_contract
+        set +e
+        ../../intrinsic_method_contract
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 167 ]; then
+          echo "Expected exit code 167, got $exit_code"
+          exit 1
+        fi
+        echo "intrinsic method contract example passed with exit code 167"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

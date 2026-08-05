@@ -304,11 +304,6 @@ fn main() -> int { let value: (int, float, bool) = (1, 2.5, 1 < 2); pair(value).
             "Copy tuples require at least two recursively admitted CopyData elements",
         ),
         (
-            "tuple array legacy len method remains excluded",
-            "fn main() -> int { let values = [(1, 2), (3, 4)]; values.len() }",
-            "method calls other than exact zero-argument array/Vec .iter() are not admitted",
-        ),
-        (
             "out of range projection",
             "fn main() -> int { let value = (1, 2); value.2 }",
             "tuple projection index 2 is outside 0..2",
@@ -352,6 +347,7 @@ fn main() -> int { let value: (int, float, bool) = (1, 2.5, 1 < 2); pair(value).
     for source in [
         "fn main() -> int { let grouped: int = (7); grouped }",
         "fn main() -> int { let values = [1, 2]; values[1] }",
+        "fn main() -> int { let values = [(1, 2), (3, 4)]; values.len() }",
         "struct Pair { left: int, right: bool } fn main() -> int { let value = Pair { left: 3, right: 1 < 2 }; value.left }",
     ] {
         if let Err(error) = compile_program(source, CompilerOptions::default()) {

@@ -10,7 +10,6 @@ use crate::copy_place_contract::{
 use crate::enum_match_contract::{
     EnumError, EnumExecutionContext, EnumFunctionContract, EnumRegistry,
 };
-use crate::fixed_array_method::{FixedArrayLenDisposition, classify_fixed_array_len};
 use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::local_reference::{
@@ -21,6 +20,10 @@ use crate::local_reference::{
     classify_mutable_reference_assignment, classify_mutable_reference_binding,
     classify_reference_call, classify_reference_function, reference_call_fact_subject,
     reference_call_source_mode,
+};
+use crate::method_call_contract::{
+    IntrinsicMethodDisposition, IntrinsicMethodLowering, IntrinsicMethodPhase,
+    classify_intrinsic_method,
 };
 use crate::ownership_flow::{
     ConditionalOwnershipArm, OwnershipFlowDisposition, block_definitely_returns,
@@ -33,10 +36,6 @@ use crate::scalar_assignment::{
 };
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
-};
-use crate::static_string_method::{StaticStringLenDisposition, classify_static_string_len};
-use crate::static_string_predicate::{
-    StaticStringPredicateDisposition, classify_static_string_predicate,
 };
 use crate::struct_contract::{
     CopyArrayIndexDisposition, CopyFunctionContract, StructContractError, StructExecutionContext,
@@ -1644,87 +1643,30 @@ impl IrGenerator {
                         admit_static_string_equality,
                     )?;
                 }
-                if !inside_impl {
-                    match classify_fixed_array_len(
-                        &object_ty,
-                        method,
-                        arguments.len(),
-                        &program.structs,
-                    ) {
-                        FixedArrayLenDisposition::StaticLength { .. } => return Ok(Ty::Int),
-                        FixedArrayLenDisposition::WrongArity { kind, actual } => {
-                            return Err(admission_error(&format!(
-                                "{} .len() expects exactly 0 arguments, got {actual}",
-                                kind.diagnostic_subject()
-                            )));
-                        }
-                        FixedArrayLenDisposition::LengthOutsideIntRange { kind, count } => {
-                            return Err(admission_error(&format!(
-                                "{} .len() count {count} is outside the admitted i32 range",
-                                kind.diagnostic_subject()
-                            )));
-                        }
-                        FixedArrayLenDisposition::PreserveExistingBehavior => {}
+                let static_string = Self::static_string_value(object, bindings);
+                let static_arguments = arguments
+                    .iter()
+                    .map(|argument| Self::static_string_value(argument, bindings))
+                    .collect::<Vec<_>>();
+                let static_argument_refs = static_arguments
+                    .iter()
+                    .map(|argument| argument.as_deref())
+                    .collect::<Vec<_>>();
+                match classify_intrinsic_method(
+                    &object_ty,
+                    method,
+                    arguments.len(),
+                    static_string.as_deref(),
+                    &static_argument_refs,
+                    &program.structs,
+                    IntrinsicMethodPhase::Checked,
+                    inside_impl,
+                ) {
+                    IntrinsicMethodDisposition::Supported { result, .. } => Ok(result),
+                    IntrinsicMethodDisposition::ExplicitlyRejected(diagnostic)
+                    | IntrinsicMethodDisposition::PreservedContext(diagnostic) => {
+                        Err(admission_error(&diagnostic))
                     }
-                    let static_string = Self::static_string_value(object, bindings);
-                    match classify_static_string_len(
-                        static_string.as_deref(),
-                        method,
-                        arguments.len(),
-                    ) {
-                        StaticStringLenDisposition::StaticLength(_) => return Ok(Ty::Int),
-                        StaticStringLenDisposition::WrongArity { actual } => {
-                            return Err(admission_error(&format!(
-                                "compile-time string .len() expects exactly 0 arguments, got {actual}"
-                            )));
-                        }
-                        StaticStringLenDisposition::LengthOutsideIntRange { count } => {
-                            return Err(admission_error(&format!(
-                                "compile-time string .len() count {count} is outside the admitted i32 range"
-                            )));
-                        }
-                        StaticStringLenDisposition::PreserveExistingBehavior => {}
-                    }
-                    let static_arguments = arguments
-                        .iter()
-                        .map(|argument| Self::static_string_value(argument, bindings))
-                        .collect::<Vec<_>>();
-                    let static_argument_refs = static_arguments
-                        .iter()
-                        .map(|argument| argument.as_deref())
-                        .collect::<Vec<_>>();
-                    match classify_static_string_predicate(
-                        static_string.as_deref(),
-                        method,
-                        &static_argument_refs,
-                    ) {
-                        StaticStringPredicateDisposition::StaticBool(_) => return Ok(Ty::Bool),
-                        StaticStringPredicateDisposition::WrongArity {
-                            method,
-                            expected,
-                            actual,
-                        } => {
-                            let argument_label = if expected == 1 {
-                                "argument"
-                            } else {
-                                "arguments"
-                            };
-                            return Err(admission_error(&format!(
-                                "compile-time string .{method}() expects exactly {expected} {argument_label}, got {actual}"
-                            )));
-                        }
-                        StaticStringPredicateDisposition::PreserveExistingBehavior => {}
-                    }
-                }
-                if method == "iter"
-                    && arguments.is_empty()
-                    && matches!(object_ty, Ty::Array(_, _) | Ty::Vec(_))
-                {
-                    Ok(object_ty)
-                } else {
-                    Err(admission_error(
-                        "method calls other than exact zero-argument array/Vec .iter() are not admitted",
-                    ))
                 }
             }
             Expression::Print { arguments, .. } | Expression::Println { arguments, .. } => {
@@ -3458,26 +3400,10 @@ impl IrGenerator {
             } => {
                 let (object_value, object_ty) = self.generate_expression_ir(*object, function);
                 if self.checked_mode {
-                    match classify_fixed_array_len(
-                        &object_ty,
-                        &method,
-                        arguments.len(),
-                        &self.struct_registry,
-                    ) {
-                        FixedArrayLenDisposition::StaticLength { count, .. } => {
-                            return (Value::ImmInt(i64::from(count)), Ty::Int);
-                        }
-                        _ => {}
-                    }
                     let static_string = match (&object_value, &object_ty) {
                         (Value::ImmString(value), Ty::String) => Some(value.as_str()),
                         _ => None,
                     };
-                    if let StaticStringLenDisposition::StaticLength(count) =
-                        classify_static_string_len(static_string, &method, arguments.len())
-                    {
-                        return (Value::ImmInt(i64::from(count)), Ty::Int);
-                    }
                     let static_arguments = arguments
                         .iter()
                         .cloned()
@@ -3493,23 +3419,40 @@ impl IrGenerator {
                         .iter()
                         .map(|argument| argument.as_deref())
                         .collect::<Vec<_>>();
-                    if let StaticStringPredicateDisposition::StaticBool(value) =
-                        classify_static_string_predicate(
-                            static_string,
-                            &method,
-                            &static_argument_refs,
-                        )
+                    let disposition = classify_intrinsic_method(
+                        &object_ty,
+                        &method,
+                        arguments.len(),
+                        static_string,
+                        &static_argument_refs,
+                        &self.struct_registry,
+                        IntrinsicMethodPhase::Checked,
+                        false,
+                    );
+                    if let IntrinsicMethodDisposition::Supported { result, lowering } = disposition
                     {
-                        let result_reg = Value::Reg(self.next_reg);
-                        self.next_reg += 1;
-                        function.body.push(Inst::ICmp {
-                            op: if value { "eq" } else { "ne" }.to_string(),
-                            result: result_reg.clone(),
-                            left: Value::ImmInt(0),
-                            right: Value::ImmInt(0),
-                        });
-                        return (result_reg, Ty::Bool);
+                        return match lowering {
+                            Some(IntrinsicMethodLowering::ConstantInt(value)) => {
+                                (Value::ImmInt(i64::from(value)), result)
+                            }
+                            Some(IntrinsicMethodLowering::ConstantBool(value)) => {
+                                let result_reg = Value::Reg(self.next_reg);
+                                self.next_reg += 1;
+                                function.body.push(Inst::ICmp {
+                                    op: if value { "eq" } else { "ne" }.to_string(),
+                                    result: result_reg.clone(),
+                                    left: Value::ImmInt(0),
+                                    right: Value::ImmInt(0),
+                                });
+                                (result_reg, result)
+                            }
+                            Some(IntrinsicMethodLowering::Receiver) => (object_value, result),
+                            None => unreachable!(
+                                "checked intrinsic method classification must include lowering"
+                            ),
+                        };
                     }
+                    unreachable!("checked admission must reject unsupported intrinsic methods");
                 }
                 if method == "iter"
                     && arguments.is_empty()
@@ -3518,7 +3461,8 @@ impl IrGenerator {
                     // Minimal iterator protocol lowering: `.iter()` reuses the collection value.
                     (object_value, object_ty)
                 } else {
-                    // Method calls will be resolved to function calls as method lowering expands.
+                    // Quarantined legacy unchecked path. Checked IR admission cannot reach this
+                    // compatibility placeholder.
                     (Value::ImmInt(0), Ty::Int)
                 }
             }
@@ -4366,6 +4310,8 @@ impl IrGenerator {
                 {
                     (object_value, object_ty)
                 } else {
+                    // Quarantined legacy function-level stub. Checked generation uses the
+                    // shared intrinsic-method classifier in `generate_expression_ir`.
                     (Value::ImmInt(0), Ty::Int)
                 }
             }

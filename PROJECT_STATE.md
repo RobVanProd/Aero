@@ -4,6 +4,32 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
+Milestone 86 `CORE-067` has an exact green local implementation candidate; immutable
+commit identity, public workflows, pinned LLVM/Clang 22 execution, and public
+acceptance remain pending. One shared intrinsic-method classifier now owns receiver,
+method, arity, static-String provenance, phase, and preserved-context classification
+for both semantic inference paths and checked admission/lowering. Unknown and
+unimplemented methods no longer fabricate semantic scalar/composite types, and trusted
+checked lowering has no zero-value fallback. The specialized fixed-array and String
+helpers receive normalized query kinds and do not independently decide method
+topology.
+
+The executable positive slice admits exact zero-argument `.len()` and `.is_empty()`
+for every fixed array whose element is already in the recursive finite CopyData
+universe. Length lowers to the exact static Aero `int`; emptiness lowers to the exact
+static `bool`. Existing compile-time immutable String queries and exact Array/Vec
+`.iter()` compatibility remain unchanged. Runtime/dynamic Strings, collection
+methods, general dispatch, generics/impl execution, closures, iterator ABI, heap
+storage, new ownership, layout, and stable ABI remain unsupported or quarantined.
+Red-first evidence reproduced the old fabricated method results and missing recursive
+queries. The focused aggregate, four classifier unit products, 29-target compatibility
+ring, formatting, correctness Clippy, docs, all integration targets, and exact root
+gate pass at 183/183 library tests. The tracked two-file system specimen resolves its
+direct module, emits Windows LLVM, links with Visual Studio Clang 19.1.5, and executes
+exact exit 167. This host accurately reports `InternalOnly` because LLVM 22 is absent;
+all pinned/public evidence remains pending. Candidate status must not be described as
+accepted public.
+
 Milestone 85 `CORE-066` is accepted public at exact implementation commit
 `e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree
 `6cea8bbf63aa7aafb43fbb25152dd860f6684aae`, and stable patch ID
@@ -2065,10 +2091,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve accepted CORE-065 implementation identity `f4daeea`, commit and push this
-records-only acceptance closure on `agent/aero-integration`, immediately synchronize
-draft PR #4 to the closure head, and require all eight fresh checks on that head. Keep
-the PR draft and unmerged. The controlled
+Create one immutable CORE-067 implementation commit from the documented exact green
+root-gated candidate on `agent/aero-integration`, push it,
+immediately synchronize draft PR #4 to that exact candidate, and require all eight
+public checks plus pinned stable LLVM/Clang 22 native exit 167 before any acceptance
+record moves. Keep the PR draft and unmerged. The controlled
 mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
 tasks, hard capability classes must not be deferred for convenient slices, and
 periodic multi-capability system gates remain mandatory.

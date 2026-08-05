@@ -16,6 +16,7 @@ mod ir_verifier;
 pub mod lexer;
 mod llvm_verifier;
 mod local_reference;
+mod method_call_contract;
 pub mod module_resolver;
 mod ownership_flow;
 pub mod parser;
