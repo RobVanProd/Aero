@@ -1,37 +1,22 @@
-use crate::ast::{AstNode, Expression, Statement, Type};
+use crate::ast::{AstNode, Expression, FieldDecl, Statement, Type};
 use crate::ir::LogicalType;
 use crate::types::Ty;
 use std::collections::{BTreeMap, HashSet};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ScalarStructFieldKind {
-    Int,
-    Float,
-    Bool,
-}
-
-impl ScalarStructFieldKind {
-    pub(crate) fn ty(self) -> Ty {
-        match self {
-            Self::Int => Ty::Int,
-            Self::Float => Ty::Float,
-            Self::Bool => Ty::Bool,
-        }
-    }
-
-    pub(crate) fn logical_type(self) -> LogicalType {
-        match self {
-            Self::Int => LogicalType::Int,
-            Self::Float => LogicalType::Float,
-            Self::Bool => LogicalType::Bool,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct StructFieldContract {
     pub(crate) name: String,
-    pub(crate) kind: ScalarStructFieldKind,
+    copy_type: CopyTypeContract,
+}
+
+impl StructFieldContract {
+    pub(crate) fn ty(&self) -> Ty {
+        self.copy_type.ty.clone()
+    }
+
+    pub(crate) fn logical_type(&self) -> LogicalType {
+        self.copy_type.logical_type.clone()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,7 +32,7 @@ impl StructContract {
             fields: self
                 .fields
                 .iter()
-                .map(|field| field.kind.logical_type())
+                .map(StructFieldContract::logical_type)
                 .collect(),
         }
     }
@@ -110,6 +95,18 @@ pub(crate) struct CopyFunctionContract {
 enum StructDefinitionDisposition {
     Supported(StructContract),
     Unsupported,
+    Ambiguous,
+}
+
+#[derive(Debug, Clone)]
+struct RawStructDefinition {
+    fields: Vec<FieldDecl>,
+    type_params: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+enum RawStructDefinitionDisposition {
+    Unique(RawStructDefinition),
     Ambiguous,
 }
 
@@ -222,7 +219,7 @@ impl StructContractError {
 
 impl StructRegistry {
     pub(crate) fn from_top_level_ast(ast: &[AstNode]) -> Self {
-        let mut registry = Self::default();
+        let mut raw_definitions = BTreeMap::new();
         for node in ast {
             let AstNode::Statement(Statement::StructDef {
                 name,
@@ -233,47 +230,161 @@ impl StructRegistry {
                 continue;
             };
 
-            let disposition = Self::classify_definition(name, fields, type_params);
-            match registry.definitions.entry(name.clone()) {
+            let definition = RawStructDefinitionDisposition::Unique(RawStructDefinition {
+                fields: fields.clone(),
+                type_params: type_params.clone(),
+            });
+            match raw_definitions.entry(name.clone()) {
                 std::collections::btree_map::Entry::Vacant(entry) => {
-                    entry.insert(disposition);
+                    entry.insert(definition);
                 }
                 std::collections::btree_map::Entry::Occupied(mut entry) => {
-                    entry.insert(StructDefinitionDisposition::Ambiguous);
+                    entry.insert(RawStructDefinitionDisposition::Ambiguous);
                 }
             }
         }
-        registry
+
+        let mut definitions = BTreeMap::new();
+        let mut visiting = HashSet::new();
+        for name in raw_definitions.keys() {
+            Self::resolve_definition(name, &raw_definitions, &mut definitions, &mut visiting);
+        }
+        Self { definitions }
     }
 
-    fn classify_definition(
+    fn resolve_definition(
         name: &str,
-        fields: &[crate::ast::FieldDecl],
-        type_params: &[String],
+        raw_definitions: &BTreeMap<String, RawStructDefinitionDisposition>,
+        resolved: &mut BTreeMap<String, StructDefinitionDisposition>,
+        visiting: &mut HashSet<String>,
     ) -> StructDefinitionDisposition {
-        if !admitted_symbol(name) || !type_params.is_empty() || fields.is_empty() {
+        if let Some(disposition) = resolved.get(name) {
+            return disposition.clone();
+        }
+
+        let Some(raw) = raw_definitions.get(name) else {
             return StructDefinitionDisposition::Unsupported;
+        };
+        let RawStructDefinitionDisposition::Unique(raw) = raw else {
+            let disposition = StructDefinitionDisposition::Ambiguous;
+            resolved.insert(name.to_string(), disposition.clone());
+            return disposition;
+        };
+        if !admitted_symbol(name)
+            || !raw.type_params.is_empty()
+            || raw.fields.is_empty()
+            || !visiting.insert(name.to_string())
+        {
+            let disposition = StructDefinitionDisposition::Unsupported;
+            resolved.insert(name.to_string(), disposition.clone());
+            return disposition;
         }
 
         let mut seen = HashSet::new();
-        let mut contracts = Vec::with_capacity(fields.len());
-        for field in fields {
-            let Some(kind) = scalar_kind(&field.field_type) else {
-                return StructDefinitionDisposition::Unsupported;
-            };
+        let mut contracts = Vec::with_capacity(raw.fields.len());
+        let mut supported = true;
+        for field in &raw.fields {
             if !admitted_symbol(&field.name) || !seen.insert(field.name.as_str()) {
-                return StructDefinitionDisposition::Unsupported;
-            }
+                supported = false;
+                break;
+            };
+            let Some(copy_type) = Self::resolve_field_copy_type(
+                &field.field_type,
+                raw_definitions,
+                resolved,
+                visiting,
+            ) else {
+                supported = false;
+                break;
+            };
             contracts.push(StructFieldContract {
                 name: field.name.clone(),
-                kind,
+                copy_type,
             });
         }
+        visiting.remove(name);
 
-        StructDefinitionDisposition::Supported(StructContract {
-            name: name.to_string(),
-            fields: contracts,
-        })
+        let disposition = if supported {
+            StructDefinitionDisposition::Supported(StructContract {
+                name: name.to_string(),
+                fields: contracts,
+            })
+        } else {
+            StructDefinitionDisposition::Unsupported
+        };
+        resolved.insert(name.to_string(), disposition.clone());
+        disposition
+    }
+
+    fn resolve_field_copy_type(
+        annotation: &Type,
+        raw_definitions: &BTreeMap<String, RawStructDefinitionDisposition>,
+        resolved: &mut BTreeMap<String, StructDefinitionDisposition>,
+        visiting: &mut HashSet<String>,
+    ) -> Option<CopyTypeContract> {
+        match annotation {
+            Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Some(CopyTypeContract {
+                ty: Ty::Int,
+                logical_type: LogicalType::Int,
+            }),
+            Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
+                Some(CopyTypeContract {
+                    ty: Ty::Float,
+                    logical_type: LogicalType::Float,
+                })
+            }
+            Type::Named(name) if name == "bool" => Some(CopyTypeContract {
+                ty: Ty::Bool,
+                logical_type: LogicalType::Bool,
+            }),
+            Type::Named(name) => {
+                let StructDefinitionDisposition::Supported(contract) =
+                    Self::resolve_definition(name, raw_definitions, resolved, visiting)
+                else {
+                    return None;
+                };
+                Some(CopyTypeContract {
+                    ty: Ty::Struct(name.clone()),
+                    logical_type: contract.logical_type(),
+                })
+            }
+            Type::Array(element, count) => {
+                let element = match element.as_ref() {
+                    Type::Named(name) if matches!(name.as_str(), "int" | "i32") => {
+                        CopyTypeContract {
+                            ty: Ty::Int,
+                            logical_type: LogicalType::Int,
+                        }
+                    }
+                    Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
+                        CopyTypeContract {
+                            ty: Ty::Float,
+                            logical_type: LogicalType::Float,
+                        }
+                    }
+                    Type::Named(name) => {
+                        let StructDefinitionDisposition::Supported(contract) =
+                            Self::resolve_definition(name, raw_definitions, resolved, visiting)
+                        else {
+                            return None;
+                        };
+                        CopyTypeContract {
+                            ty: Ty::Struct(name.clone()),
+                            logical_type: contract.logical_type(),
+                        }
+                    }
+                    _ => return None,
+                };
+                Some(CopyTypeContract {
+                    ty: Ty::Array(Box::new(element.ty), *count),
+                    logical_type: LogicalType::Array {
+                        element: Box::new(element.logical_type),
+                        count: *count,
+                    },
+                })
+            }
+            Type::Tuple(_) | Type::Reference(_, _) | Type::Generic(_, _) => None,
+        }
     }
 
     pub(crate) fn resolve_construction(
@@ -325,7 +436,7 @@ impl StructRegistry {
         for (actual, declaration_index) in actual_types.iter().zip(&resolved.source_to_declaration)
         {
             let field = &resolved.contract.fields[*declaration_index];
-            let expected = field.kind.ty();
+            let expected = field.ty();
             if actual != &expected {
                 return Err(StructContractError::FieldTypeMismatch {
                     struct_name: resolved.contract.name.clone(),
@@ -368,7 +479,8 @@ impl StructRegistry {
             Expression::StructLiteral { .. }
             | Expression::Identifier(_)
             | Expression::FunctionCall { .. }
-            | Expression::IndexAccess { .. } => Ok(()),
+            | Expression::IndexAccess { .. }
+            | Expression::FieldAccess { .. } => Ok(()),
             _ => Err(StructContractError::LocalMoveOrCopy),
         }
     }
@@ -696,19 +808,6 @@ fn constant_integer(expression: &Expression) -> Option<i64> {
     }
 }
 
-fn scalar_kind(annotation: &Type) -> Option<ScalarStructFieldKind> {
-    match annotation {
-        Type::Named(name) if matches!(name.as_str(), "int" | "i32") => {
-            Some(ScalarStructFieldKind::Int)
-        }
-        Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
-            Some(ScalarStructFieldKind::Float)
-        }
-        Type::Named(name) if name == "bool" => Some(ScalarStructFieldKind::Bool),
-        _ => None,
-    }
-}
-
 fn annotation_name(annotation: &Type) -> String {
     match annotation {
         Type::Named(name) => name.clone(),
@@ -808,7 +907,6 @@ mod tests {
         let unsupported_types = [
             Type::Named("String".to_string()),
             Type::Named("Custom".to_string()),
-            Type::Array(Box::new(Type::Named("int".to_string())), 1),
             Type::Tuple(vec![Type::Named("int".to_string())]),
             Type::Reference(Box::new(Type::Named("int".to_string())), false),
             Type::Generic("Box".to_string(), vec![Type::Named("int".to_string())]),
@@ -830,6 +928,89 @@ mod tests {
                     StructExecutionContext::AdmittedFunction,
                 ),
                 Err(StructContractError::PreserveExistingBehavior)
+            );
+        }
+    }
+
+    #[test]
+    fn acyclic_definition_graph_is_resolved_once_with_forward_dependencies() {
+        let registry = StructRegistry::from_top_level_ast(&[
+            definition(
+                "Outer",
+                vec![
+                    field("inner", Type::Named("Inner".to_string())),
+                    field(
+                        "values",
+                        Type::Array(Box::new(Type::Named("Inner".to_string())), 2),
+                    ),
+                ],
+                vec![],
+            ),
+            definition(
+                "Inner",
+                vec![field("value", Type::Named("int".to_string()))],
+                vec![],
+            ),
+        ]);
+        let contract = registry
+            .copy_struct_contract(&Ty::Struct("Outer".to_string()))
+            .expect("forward acyclic aggregate is Copy");
+        assert_eq!(
+            contract.logical_type(),
+            LogicalType::Struct {
+                name: "Outer".to_string(),
+                fields: vec![
+                    LogicalType::Struct {
+                        name: "Inner".to_string(),
+                        fields: vec![LogicalType::Int],
+                    },
+                    LogicalType::Array {
+                        element: Box::new(LogicalType::Struct {
+                            name: "Inner".to_string(),
+                            fields: vec![LogicalType::Int],
+                        }),
+                        count: 2,
+                    },
+                ],
+            }
+        );
+
+        for ast in [
+            vec![definition(
+                "SelfCycle",
+                vec![field("value", Type::Named("SelfCycle".to_string()))],
+                vec![],
+            )],
+            vec![
+                definition(
+                    "Left",
+                    vec![field("right", Type::Named("Right".to_string()))],
+                    vec![],
+                ),
+                definition(
+                    "Right",
+                    vec![field("left", Type::Named("Left".to_string()))],
+                    vec![],
+                ),
+            ],
+            vec![definition(
+                "ArrayCycle",
+                vec![field(
+                    "values",
+                    Type::Array(Box::new(Type::Named("ArrayCycle".to_string())), 0),
+                )],
+                vec![],
+            )],
+        ] {
+            let registry = StructRegistry::from_top_level_ast(&ast);
+            let AstNode::Statement(Statement::StructDef { name, .. }) = &ast[0] else {
+                unreachable!()
+            };
+            assert!(
+                registry
+                    .copy_struct_contract(&Ty::Struct(name.clone()))
+                    .is_none(),
+                "cyclic definition {name} activated"
             );
         }
     }

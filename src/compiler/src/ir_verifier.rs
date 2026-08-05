@@ -292,13 +292,19 @@ fn valid_symbol(name: &str) -> bool {
 }
 
 fn valid_struct_schema(fields: &[LogicalType]) -> bool {
-    !fields.is_empty()
-        && fields.iter().all(|field| {
-            matches!(
-                field,
-                LogicalType::Int | LogicalType::Float | LogicalType::Bool
-            )
-        })
+    !fields.is_empty() && fields.iter().all(valid_copy_struct_field_type)
+}
+
+fn valid_copy_struct_field_type(logical_type: &LogicalType) -> bool {
+    match logical_type {
+        LogicalType::Int | LogicalType::Float | LogicalType::Bool => true,
+        logical_type @ LogicalType::Struct { .. } => valid_copy_struct_type(logical_type),
+        LogicalType::Array { element, .. } => {
+            matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
+                || valid_copy_struct_type(element)
+        }
+        LogicalType::Void | LogicalType::String => false,
+    }
 }
 
 fn valid_copy_struct_type(logical_type: &LogicalType) -> bool {
@@ -2418,6 +2424,9 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
         } else {
             schemas.insert(name.clone(), fields.clone());
         }
+        for field in fields {
+            register_type(field, schemas)?;
+        }
         Ok(())
     }
 
@@ -2661,5 +2670,121 @@ mod tests {
                 count: 1,
             }
         );
+    }
+
+    #[test]
+    fn recursive_copy_aggregate_schema_integrity_is_fail_closed() {
+        let inner = LogicalType::Struct {
+            name: "Inner".to_string(),
+            fields: vec![LogicalType::Int],
+        };
+        let outer_fields = vec![
+            inner.clone(),
+            LogicalType::Array {
+                element: Box::new(inner.clone()),
+                count: 2,
+            },
+            LogicalType::Array {
+                element: Box::new(LogicalType::Float),
+                count: 0,
+            },
+        ];
+        verify_ir(function(vec![
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(0),
+                struct_name: "Outer".to_string(),
+                field_types: outer_fields.clone(),
+            },
+            Inst::CheckedStructFieldPtr {
+                result: Value::Reg(1),
+                base: Value::Reg(0),
+                struct_name: "Outer".to_string(),
+                field_index: 0,
+                field_type: inner.clone(),
+            },
+            Inst::Load(Value::Reg(2), Value::Reg(1)),
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(3),
+                struct_name: "Inner".to_string(),
+                field_types: vec![LogicalType::Int],
+            },
+            Inst::Store(Value::Reg(3), Value::Reg(2)),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect("one exact acyclic recursive schema is valid");
+
+        for (label, body) in [
+            (
+                "conflicting dependency schema",
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "Outer".to_string(),
+                        field_types: vec![inner.clone()],
+                    },
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(1),
+                        struct_name: "Inner".to_string(),
+                        field_types: vec![LogicalType::Bool],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "self dependency schema",
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "Cycle".to_string(),
+                        field_types: vec![LogicalType::Struct {
+                            name: "Cycle".to_string(),
+                            fields: vec![LogicalType::Int],
+                        }],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "direct nested array field",
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "NestedArray".to_string(),
+                        field_types: vec![LogicalType::Array {
+                            element: Box::new(LogicalType::Array {
+                                element: Box::new(LogicalType::Int),
+                                count: 1,
+                            }),
+                            count: 1,
+                        }],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "Bool array field",
+                vec![
+                    Inst::CheckedStructAlloca {
+                        result: Value::Reg(0),
+                        struct_name: "BoolArray".to_string(),
+                        field_types: vec![LogicalType::Array {
+                            element: Box::new(LogicalType::Bool),
+                            count: 1,
+                        }],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        ] {
+            let error = match verify_ir(function(body)) {
+                Err(error) => error,
+                Ok(_) => panic!("{label} passed checked IR verification"),
+            };
+            let diagnostic = error.to_string().to_ascii_lowercase();
+            assert!(
+                diagnostic.contains("schema") || diagnostic.contains("unsupported"),
+                "{label}: {diagnostic}"
+            );
+        }
     }
 }

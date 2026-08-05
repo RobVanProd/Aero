@@ -4,36 +4,41 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
-Milestone 65 `CORE-046` is accepted through exact public implementation commit
-`056ca334df08176dafac815c1df78f3e90ed660a`, tree
-`50a2755cb7fe34d5490e6dacdeb62bfd0e6c7a9e`, on accepted CORE-045 records head
-`5a11adfcbbf8b62e465deffbafd69a03a6cf148f`. It extends only the compiler's existing
-flat fixed `int`/`float` arrays and exact all-scalar Copy-struct arrays across
-non-`main` internal function parameters, arguments, results, and returns. Exact
-logical element identity, count, and struct schema remain intact for direct values,
-forwarding, terminating recursion, mixed signatures, zero-length arrays, direct
-modules, existing length/index/projection/iteration operations, and caller reuse.
+Milestone 66 `CORE-047` is an unpublished local candidate on accepted CORE-046 records
+head `77c6095f3878883978f9afa2f0064656106945ca`. It replaces the scalar-only struct
+definition decision with one recursive, memoized graph classifier. Unique,
+non-generic, nonempty top-level definitions are admitted when their field graph is
+acyclic and every field is an admitted scalar, another admitted named struct, or a
+flat fixed numeric/struct array. Forward references and arbitrary finite named depth
+are supported; ambiguous, unknown, non-Copy, empty, generic, direct-nested-array,
+Bool-array, self-cycle, mutual-cycle, zero-array-mediated-cycle, and dependent
+definitions remain fail-closed before IR.
 
-The generalized Copy-function contract is the single source classifier for scalar,
-Copy-struct, and supported array signatures. Unsupported Bool, String, nested,
-non-Copy, process-entry, and other array topologies receive explicit disposition
-before IR instead of multiplying semantic and checked-admission guards. Logical
-checked signatures and places preserve exact arrays; verifier rules reject forged
-element/count/schema and value/place identities; checked LLVM uses internal
-`[N x double]` or `[N x %aero.struct.Name]` aggregate values without claiming a
-stable ABI.
+The candidate carries exact recursive `Ty` and `LogicalType` contracts through
+construction, contextual empty fields, independent Copy aliases, chained projection,
+array length/index/iteration through fields, internal parameters/results, and flat
+arrays of the newly admitted structs. Aggregate field children are evaluated once in
+written order, loaded as whole values, and stored by declaration index. Semantic
+preflight and checked admission no longer maintain enumerated receiver-topology lists;
+both recursively type the receiver and consume the same registry decision. Checked IR
+and LLVM preserve exact named/array schemas without claiming stable layout or ABI.
 
-The exhaustive focused CORE-046 aggregate, shared-classifier unit, checked-IR
-positive/corruption control, and adjacent struct-array, numeric-array, struct-
-transport, and admission suites pass. Root `./tools/test.sh` passes 155/155 library
-tests, 161/161 CLI tests, every active integration target, formatting, correctness
-Clippy, and doc tests. The multi-file example resolves and checked-builds into 11,115
-bytes of typed aggregate LLVM. Push CI `30968327941`, PR CI `30968330538`, Rust CI
-`30968330548`, CodeQL `30968328500`, and aggregate `92187139555` pass all eight public
-checks. Stable Linux job `92187043157` uses pinned LLVM/Clang 22.1.8 to externally
-verify, machine-verify, object-lower, link, and execute exact native exit 91; it also
-records 155/155 library and 161/161 CLI passes. The Windows host remains accurately
-internal-only rather than supplying invented native evidence.
+The exhaustive CORE-047 target, graph-classifier unit, recursive checked-IR positive/
+corruption controls, and adjacent CORE-043 through CORE-046 suites pass locally. The
+exact repository-root gate is formatting and correctness-Clippy clean and passes 157
+library tests, 163 binary tests, every integration target, and doc tests. The tracked
+direct-module example checked-builds into typed LLVM and the stable/nightly workflow
+is prepared to run pinned LLVM/Clang 22 verification, machine verification, object
+lowering, linking, and exact native exit 107. Exact implementation identity, public
+review/checks, and the native Linux result are still pending; no public acceptance or
+release claim is made.
+
+CORE-046 remains accepted through exact public implementation commit
+`056ca334df08176dafac815c1df78f3e90ed660a` and records head
+`77c6095f3878883978f9afa2f0064656106945ca`. Push CI `30968327941`, PR CI
+`30968330538`, Rust CI `30968330548`, CodeQL `30968328500`, and aggregate
+`92187139555` pass all eight checks. Stable Linux job `92187043157` uses pinned
+LLVM/Clang 22.1.8 and records exact native exit 91.
 
 CORE-043 remains accepted at exact implementation commit
 `92b19cf729daa4e3e90d4591495e493573c89e51` and exact public synchronization head
@@ -56,7 +61,8 @@ composition rather than a module system.
   bounded ownership and internal by-value function-boundary step, and CORE-045 takes
   nested aggregate storage through checked IR and LLVM. CORE-046 deliberately takes
   a harder ownership/internal-ABI boundary by moving those arrays through internal
-  calls. Non-Copy
+  calls. CORE-047 now takes recursive named aggregate classification, layout, field
+  Copy behavior, and transport rather than selecting another scalar leaf. Non-Copy
   ownership, runtime representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -71,6 +77,9 @@ composition rather than a module system.
   modules, structs, Copy function transport, fixed arrays, scalar control flow, and
   compile-time Strings through pinned native CI. CORE-046's accepted exit-91 gate adds
   exact flat-array transport across multiple function boundaries to that composition.
+  CORE-047 prepares an exit-107 gate that adds forward/deep acyclic aggregate graphs,
+  array fields, chained projection, and arrays of the resulting structs; it is not an
+  accepted system gate until public stable Linux executes it.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -109,16 +118,15 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-A flat fixed array of already-executable Copy elements can cross an internal function
-boundary by value without inventing layout, ownership, stable ABI, or runtime-bounds
-semantics if the shared Copy-function contract retains exact logical element, count,
-and struct schema through semantic analysis, checked admission, logical IR,
-verification, LLVM, and native execution. Exact implementation
-`056ca334df08176dafac815c1df78f3e90ed660a`, the root gate, all eight public checks,
-and stable job `92187043157` satisfy this bounded hypothesis with external and machine
-verification, object lowering, linking, and exact native exit 91. Dynamic bounds,
-non-Copy storage, mutation, nested arrays, and public ABI rules remain outside this
-class.
+Already-executable Copy components can compose into arbitrary finite acyclic named
+aggregate graphs without inventing move/drop or stable ABI semantics if one graph
+classifier resolves all definitions and publishes exact recursive contracts to every
+source consumer. Whole-value checked loads/stores can preserve field Copy identity,
+while recursive schema verification prevents unsupported or conflicting metadata from
+reaching LLVM. The focused source-to-LLVM evidence satisfies the local portion of this
+hypothesis. Root-gate, pinned LLVM, native exit-107, and all-eight public evidence are
+still required before acceptance. Direct nested/Bool arrays, cycles, non-Copy storage,
+mutation, dynamic bounds, and public layout/ABI rules remain outside this class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1662,20 +1670,17 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-CORE-046 is accepted at exact public implementation commit
-`056ca334df08176dafac815c1df78f3e90ed660a`: the exact local gate, all eight public
-checks, and stable Linux LLVM/Clang 22.1.8 native exit 91 pass. Publish this
-records-only acceptance sync unchanged and require its all-eight public checks. While
-that evidence is pending, do not begin another implementation slice. Once green, keep
-draft PR #4's front page synchronized and separately authorize the next semantic
-class; do not merge PR #4.
+Freeze the locally green CORE-047 tree as one exact implementation identity, publish
+that candidate unchanged, and immediately synchronize draft PR #4's title/body through
+CORE-047. Require all eight public checks plus pinned stable Linux LLVM/Clang 22 exact
+native exit 107, then record acceptance only after that immutable evidence exists.
 
-Separately authorize the next semantic class. Milestone
-selection must continue to weigh harder non-Copy ownership/runtime-layout/ABI/module/
-GPU boundaries and periodic cross-capability gates. The controlled mega-PR checkpoint
-strategy and structured evidence-manifest generator also require separate
-authorization. Do not merge PR #4, publish releases/packages/benchmarks/claims,
-rewrite history, force-push, or touch `master`.
+Milestone selection after CORE-047 must continue to weigh harder non-Copy ownership,
+runtime layout/ABI, full module semantics, and real accelerator execution, with
+periodic cross-capability gates. The controlled mega-PR checkpoint strategy and
+structured evidence-manifest generator require separate authorization. Do not merge
+PR #4, publish releases/packages/benchmarks/claims, rewrite history, force-push, or
+touch `master`.
 
 ## Unauthorized actions
 

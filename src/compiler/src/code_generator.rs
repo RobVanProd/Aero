@@ -114,16 +114,23 @@ impl CodeGenerator {
                 } else {
                     schemas.insert(name.clone(), fields.clone());
                 }
+                for field in fields {
+                    Self::collect_logical_struct_schema(field, schemas);
+                }
             }
             _ => {}
         }
     }
 
-    fn struct_field_type_to_llvm(logical_type: &LogicalType) -> &'static str {
+    fn struct_field_type_to_llvm(logical_type: &LogicalType) -> String {
         match logical_type {
-            LogicalType::Int | LogicalType::Float => "double",
-            LogicalType::Bool => "i1",
-            _ => unreachable!("verified struct schemas contain only scalar fields"),
+            LogicalType::Int | LogicalType::Float => "double".to_string(),
+            LogicalType::Bool => "i1".to_string(),
+            LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::Array { .. } => Self::logical_type_to_llvm(logical_type),
+            LogicalType::Void | LogicalType::String => {
+                unreachable!("verified Copy-aggregate schemas exclude Void and String")
+            }
         }
     }
 
@@ -138,21 +145,19 @@ impl CodeGenerator {
                     field_types,
                     ..
                 } => {
-                    if let Some(existing) = schemas.get(struct_name) {
-                        assert_eq!(existing, field_types, "verified struct schema is stable");
-                    } else {
-                        schemas.insert(struct_name.clone(), field_types.clone());
-                    }
+                    Self::collect_logical_struct_schema(
+                        &LogicalType::Struct {
+                            name: struct_name.clone(),
+                            fields: field_types.clone(),
+                        },
+                        schemas,
+                    );
                 }
                 Inst::CheckedCopyStructArrayAlloca { element, .. } => {
-                    let LogicalType::Struct { name, fields } = element else {
+                    let LogicalType::Struct { .. } = element else {
                         unreachable!("verified Copy-struct arrays carry a struct element")
                     };
-                    if let Some(existing) = schemas.get(name) {
-                        assert_eq!(existing, fields, "verified struct schema is stable");
-                    } else {
-                        schemas.insert(name.clone(), fields.clone());
-                    }
+                    Self::collect_logical_struct_schema(element, schemas);
                 }
                 Inst::FunctionDef { body, .. } => Self::collect_struct_schemas(body, schemas),
                 Inst::CheckedFunctionDef {

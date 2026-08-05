@@ -341,6 +341,24 @@ jobs:
         fi
         echo "fixed Copy-array transport example passed with exit code 91"
 
+    - name: Test acyclic Copy-aggregate integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/acyclic_copy_aggregates/main.aero -o ../../acyclic_copy_aggregates.ll
+        opt-22 -passes=verify -disable-output ../../acyclic_copy_aggregates.ll
+        llc-22 -verify-machineinstrs ../../acyclic_copy_aggregates.ll -o /dev/null
+        llc-22 -filetype=obj ../../acyclic_copy_aggregates.ll -o ../../acyclic_copy_aggregates.o
+        clang-22 ../../acyclic_copy_aggregates.o -o ../../acyclic_copy_aggregates
+        set +e
+        ../../acyclic_copy_aggregates
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 107 ]; then
+          echo "Expected exit code 107, got $exit_code"
+          exit 1
+        fi
+        echo "acyclic Copy-aggregate example passed with exit code 107"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

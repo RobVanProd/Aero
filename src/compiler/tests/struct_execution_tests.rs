@@ -261,11 +261,6 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
             "Struct construction expressions are not supported.",
         ),
         (
-            "array field",
-            "struct Value { field: [int; 1] } fn main() { let value = Value { field: [1] }; }",
-            "Struct construction expressions are not supported.",
-        ),
-        (
             "tuple field",
             "struct Value { field: (int, int) } fn main() { let value = Value { field: (1, 2) }; }",
             "Tuple expressions are not supported.",
@@ -273,11 +268,6 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
         (
             "reference field",
             "struct Value { field: &int } fn main() { let base: int = 1; let value = Value { field: &base }; }",
-            "Struct construction expressions are not supported.",
-        ),
-        (
-            "nested field",
-            "struct Inner { field: int } struct Outer { inner: Inner } fn main() { let value = Outer { inner: Inner { field: 1 } }; }",
             "Struct construction expressions are not supported.",
         ),
         (

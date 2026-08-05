@@ -529,38 +529,33 @@ impl SemanticAnalyzer {
             .unwrap_or(StructExecutionContext::PreservedContext)
     }
 
-    fn is_potential_struct_receiver(
-        &self,
-        expression: &Expression,
-        context: StructExecutionContext,
-    ) -> bool {
-        match expression {
-            Expression::StructLiteral { name, fields } => self
-                .struct_registry
-                .resolve_construction(name, fields, context)
-                .is_ok(),
-            Expression::Identifier(name) => {
-                self.scope_manager
-                    .get_variable(name)
-                    .is_some_and(|variable| matches!(&variable.var_type, Ty::Struct(_)))
-                    || self
-                        .symbol_table
-                        .get(name)
-                        .is_some_and(|variable| matches!(&variable.ty, Ty::Struct(_)))
-            }
-            Expression::FunctionCall { name, .. } => self
-                .function_table
-                .get_admitted_contract(name)
-                .is_some_and(|contract| matches!(&contract.return_type, Ty::Struct(_))),
-            // Exact array/index eligibility is resolved after both children have
-            // been traversed and typed through StructRegistry's shared contract.
-            Expression::IndexAccess { .. } => true,
-            _ => false,
-        }
-    }
-
     fn is_copy_type(&self, ty: &Ty) -> bool {
         self.struct_registry.is_copy_type(ty)
+    }
+
+    fn infer_supported_field_type(
+        &self,
+        object: &Expression,
+        field: &str,
+        array_types: &mut ArrayInferenceCache,
+    ) -> Result<Ty, String> {
+        let receiver = self
+            .infer_and_validate_expression_immutable_with_cache(object, array_types)
+            .map_err(|_| "Field access expressions are not supported.".to_string())?;
+        let (_, _, field_contract) = self
+            .struct_registry
+            .resolve_field(&receiver, field, self.struct_execution_context())
+            .map_err(|error| {
+                if matches!(
+                    error,
+                    crate::struct_contract::StructContractError::PreserveExistingBehavior
+                ) {
+                    "Field access expressions are not supported.".to_string()
+                } else {
+                    error.diagnostic()
+                }
+            })?;
+        Ok(field_contract.ty())
     }
 
     fn infer_into_iterator_item_type(&self, iterable_type: &Ty) -> Option<Ty> {
@@ -1364,18 +1359,17 @@ impl SemanticAnalyzer {
                     struct_context,
                 )?;
             }
-            Expression::FieldAccess { object, .. } => {
+            Expression::FieldAccess { object, field } => {
                 self.preflight_expression_with_array_mode(
                     object,
                     false,
                     array_types,
                     struct_context,
                 )?;
-                if struct_context != StructExecutionContext::AdmittedFunction
-                    || !self.is_potential_struct_receiver(object, struct_context)
-                {
+                if struct_context != StructExecutionContext::AdmittedFunction {
                     return Err("Field access expressions are not supported.".to_string());
                 }
+                self.infer_supported_field_type(object, field, array_types)?;
             }
             Expression::StructLiteral { name, fields } => {
                 if self
@@ -1760,22 +1754,7 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::FieldAccess { object, field } => {
-                let receiver =
-                    self.infer_and_validate_expression_immutable_with_cache(object, array_types)?;
-                let (_, _, field_contract) = self
-                    .struct_registry
-                    .resolve_field(&receiver, field, self.struct_execution_context())
-                    .map_err(|error| {
-                        if matches!(
-                            error,
-                            crate::struct_contract::StructContractError::PreserveExistingBehavior
-                        ) {
-                            "Field access expressions are not supported.".to_string()
-                        } else {
-                            error.diagnostic()
-                        }
-                    })?;
-                Ok(field_contract.kind.ty())
+                self.infer_supported_field_type(object, field, array_types)
             }
             Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => Ok(Ty::Int), // Stub
             Expression::StructLiteral { name, fields } => {
@@ -1784,13 +1763,18 @@ impl SemanticAnalyzer {
                     .resolve_construction(name, fields, self.struct_execution_context())
                     .map_err(|error| error.diagnostic())?;
                 let mut actual_types = Vec::with_capacity(fields.len());
-                for (_, value) in fields {
-                    actual_types.push(
-                        self.infer_and_validate_expression_immutable_with_cache(
-                            value,
-                            array_types,
-                        )?,
-                    );
+                for (source_index, (_, value)) in fields.iter().enumerate() {
+                    let expected =
+                        resolved.contract.fields[resolved.source_to_declaration[source_index]].ty();
+                    let actual = if matches!(
+                        (value, &expected),
+                        (Expression::ArrayLiteral(elements), Ty::Array(_, 0)) if elements.is_empty()
+                    ) {
+                        expected
+                    } else {
+                        self.infer_and_validate_expression_immutable_with_cache(value, array_types)?
+                    };
+                    actual_types.push(actual);
                 }
                 self.struct_registry
                     .validate_construction_types(&resolved, &actual_types)

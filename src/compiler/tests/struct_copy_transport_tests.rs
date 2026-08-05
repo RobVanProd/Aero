@@ -271,11 +271,6 @@ fn scalar_struct_copy_transport_class_is_complete_and_executable() {
             "function parameter `value` is not an admitted scalar type",
         ),
         (
-            "unsupported nested-struct parameter",
-            "struct Inner { field: int } struct Outer { inner: Inner } fn consume(value: Outer) -> int { return 1; } fn main() -> int { return 0; }",
-            "function parameter `value` is not an admitted scalar type",
-        ),
-        (
             "unknown struct parameter",
             "fn consume(value: Missing) -> int { return 1; } fn main() -> int { return 0; }",
             "function parameter `value` is not an admitted scalar type",

@@ -359,17 +359,11 @@ fn public_compile_rejects_ordinary_struct_construction_matrix_without_unwinding(
 }
 
 #[test]
-fn public_compile_rejects_recursive_parent_matrix_without_unwinding() {
-    let cases = [
-        (
-            "closure-body",
-            "struct Point { x: int } fn main() { let make = |x: int| Point { x: x }; }",
-        ),
-        (
-            "nested-StructLiteral",
-            "struct Inner { x: int } struct Outer { inner: Inner } fn main() { let value = Outer { inner: Inner { x: 7 } }; }",
-        ),
-    ];
+fn public_compile_rejects_closure_parent_without_unwinding() {
+    let cases = [(
+        "closure-body",
+        "struct Point { x: int } fn main() { let make = |x: int| Point { x: x }; }",
+    )];
 
     let failures = cases
         .iter()
@@ -454,9 +448,9 @@ fn established_child_diagnostics_and_field_source_order_retain_precedence() {
 fn admitted_children_retain_written_source_order_inside_preserved_outer_shapes() {
     let cases = [
         (
-            "nested-Struct-first",
+            "admitted-nested-Copy-first",
             "struct Inner { x: int } struct Outer { first: Inner, second: int } fn main() { let value = Outer { first: Inner { x: 1 }, second: 7.field }; }",
-            EXPECTED_INNER_DIAGNOSTIC,
+            FIELD_DIAGNOSTIC,
         ),
         (
             "modulo-field-child",

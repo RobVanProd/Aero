@@ -1376,28 +1376,6 @@ impl IrGenerator {
                 } else {
                     StructExecutionContext::PreservedContext
                 };
-                let potential_struct_receiver = match object.as_ref() {
-                    Expression::StructLiteral { name, fields } => program
-                        .structs
-                        .resolve_construction(name, fields, context)
-                        .is_ok(),
-                    Expression::Identifier(name) => bindings
-                        .get(name)
-                        .is_some_and(|binding| matches!(&binding.ty, Ty::Struct(_))),
-                    Expression::FunctionCall { name, .. } => program
-                        .functions
-                        .get(name)
-                        .is_some_and(|function| matches!(&function.result, Ty::Struct(_))),
-                    // Exact receiver eligibility is resolved below after checked
-                    // validation of the array and its shared index contract.
-                    Expression::IndexAccess { .. } => true,
-                    _ => false,
-                };
-                if !potential_struct_receiver {
-                    return Err(admission_error(
-                        "aggregate expression is not admitted in checked IR",
-                    ));
-                }
                 let receiver = Self::validate_expression(
                     object,
                     bindings,
@@ -1405,7 +1383,13 @@ impl IrGenerator {
                     ExpressionUse::Value,
                     inside_impl,
                     admit_static_string_equality,
-                )?;
+                )
+                .map_err(|_| {
+                    // Field access is one aggregate operation. Preserve its established
+                    // fail-closed boundary without enumerating receiver expression shapes;
+                    // exact admitted receiver types are decided below by StructRegistry.
+                    admission_error("aggregate expression is not admitted in checked IR")
+                })?;
                 let (_, _, field) = program
                     .structs
                     .resolve_field(&receiver, field, context)
@@ -1415,7 +1399,7 @@ impl IrGenerator {
                         }
                         _ => IrGenerationError::Admission(error.diagnostic()),
                     })?;
-                Ok(field.kind.ty())
+                Ok(field.ty())
             }
             Expression::StructLiteral { name, fields } => {
                 let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
@@ -1445,15 +1429,25 @@ impl IrGenerator {
                     }
                 };
                 let mut actual_types = Vec::with_capacity(fields.len());
-                for (_, value) in fields {
-                    actual_types.push(Self::validate_expression(
-                        value,
-                        bindings,
-                        program,
-                        ExpressionUse::Value,
-                        inside_impl,
-                        admit_static_string_equality,
-                    )?);
+                for (source_index, (_, value)) in fields.iter().enumerate() {
+                    let expected =
+                        resolved.contract.fields[resolved.source_to_declaration[source_index]].ty();
+                    let actual = if matches!(
+                        (value, &expected),
+                        (Expression::ArrayLiteral(elements), Ty::Array(_, 0)) if elements.is_empty()
+                    ) {
+                        expected
+                    } else {
+                        Self::validate_expression(
+                            value,
+                            bindings,
+                            program,
+                            ExpressionUse::Value,
+                            inside_impl,
+                            admit_static_string_equality,
+                        )?
+                    };
+                    actual_types.push(actual);
                 }
                 program
                     .structs
@@ -1836,7 +1830,7 @@ impl IrGenerator {
             field_types: contract
                 .fields
                 .iter()
-                .map(|field| field.kind.logical_type())
+                .map(crate::struct_contract::StructFieldContract::logical_type)
                 .collect(),
         });
         place
@@ -1934,6 +1928,19 @@ impl IrGenerator {
         value
     }
 
+    fn load_copy_aggregate_value(
+        &mut self,
+        place: Value,
+        ty: &Ty,
+        function: &mut Function,
+    ) -> Value {
+        match ty {
+            Ty::Struct(_) => self.load_copy_struct_value(place, function),
+            Ty::Array(_, _) => self.load_fixed_copy_array_value(place, function),
+            _ => place,
+        }
+    }
+
     fn allocate_fixed_copy_array_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
         if let Some(contract) = self.struct_registry.copy_struct_array_contract(ty) {
             return self.allocate_copy_struct_array_place(&contract, function);
@@ -1971,6 +1978,19 @@ impl IrGenerator {
         let place = self.allocate_fixed_copy_array_place(ty, function);
         function.body.push(Inst::Store(place.clone(), value));
         place
+    }
+
+    fn store_copy_aggregate_value(
+        &mut self,
+        value: Value,
+        ty: &Ty,
+        function: &mut Function,
+    ) -> Value {
+        match ty {
+            Ty::Struct(_) => self.store_copy_struct_value(value, ty, function),
+            Ty::Array(_, _) => self.store_fixed_copy_array_value(value, ty, function),
+            _ => value,
+        }
     }
 
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
@@ -2504,12 +2524,14 @@ impl IrGenerator {
                     base,
                     struct_name: contract.name,
                     field_index: field_index as u32,
-                    field_type: field_contract.kind.logical_type(),
+                    field_type: field_contract.logical_type(),
                 });
                 let result = Value::Reg(self.next_reg);
                 self.next_reg += 1;
                 function.body.push(Inst::Load(result.clone(), field_ptr));
-                (result, field_contract.kind.ty())
+                let field_type = field_contract.ty();
+                let result = self.store_copy_aggregate_value(result, &field_type, function);
+                (result, field_type)
             }
             Expression::StructLiteral { name, fields } if self.checked_mode => {
                 let resolved = self
@@ -2517,8 +2539,21 @@ impl IrGenerator {
                     .resolve_construction(&name, &fields, StructExecutionContext::AdmittedFunction)
                     .expect("checked struct construction was admitted");
                 let mut values = Vec::with_capacity(fields.len());
-                for (_, expression) in fields {
-                    values.push(self.generate_expression_ir(expression, function).0);
+                for (source_index, (_, expression)) in fields.into_iter().enumerate() {
+                    let declaration_index = resolved.source_to_declaration[source_index];
+                    let expected = resolved.contract.fields[declaration_index].ty();
+                    let (value, actual) = if matches!(
+                        (&expression, &expected),
+                        (Expression::ArrayLiteral(elements), Ty::Array(_, 0)) if elements.is_empty()
+                    ) {
+                        (
+                            self.allocate_fixed_copy_array_place(&expected, function),
+                            expected.clone(),
+                        )
+                    } else {
+                        self.generate_expression_ir(expression, function)
+                    };
+                    values.push(self.load_copy_aggregate_value(value, &actual, function));
                 }
                 let base = Value::Reg(self.next_ptr);
                 self.next_ptr += 1;
@@ -2529,7 +2564,7 @@ impl IrGenerator {
                         .contract
                         .fields
                         .iter()
-                        .map(|field| field.kind.logical_type())
+                        .map(crate::struct_contract::StructFieldContract::logical_type)
                         .collect(),
                 });
                 for (value, declaration_index) in
@@ -2543,7 +2578,7 @@ impl IrGenerator {
                         base: base.clone(),
                         struct_name: resolved.contract.name.clone(),
                         field_index: declaration_index as u32,
-                        field_type: declaration_field.kind.logical_type(),
+                        field_type: declaration_field.logical_type(),
                     });
                     function.body.push(Inst::Store(field_ptr, value));
                 }

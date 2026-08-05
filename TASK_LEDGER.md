@@ -8956,3 +8956,216 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   keep PR #4 draft and synchronized, and separately authorize any next semantic class,
   controlled checkpoint strategy, or structured evidence-manifest work. No merge,
   release, performance/ABI/GPU claim, or `master` change follows.
+
+## CORE-047 - Acyclic named Copy-aggregate closure
+
+- Task ID: `CORE-047`.
+- Observed behavior: the accepted compiler executes all-scalar named Copy structs,
+  flat fixed numeric arrays, fixed arrays of one exact all-scalar Copy struct, and
+  internal by-value transport of those values. It still rejects a struct merely
+  because one field is an otherwise-executable fixed array or another Copy struct.
+  That depth-one definition test prevents the existing Copy universe from composing
+  into named aggregate graphs and leaves obsolete topology-specific rejection cells
+  in semantic analysis, checked admission, verification, and backend schema handling.
+- Specification basis: the ownership design states that tuples/arrays of Copy
+  components are copied and that a type can be Copy when every component is Copy. It
+  applies ownership and copying consistently to structs and other data structures.
+  The type-system design defines `[T; N]` as a compile-time-sized contiguous value and
+  explicitly permits arrays as part of a struct. This task closes only the composition
+  of already-executable components; it does not define move/drop, recursive-layout,
+  mutation, tuple, enum, generic, reference, or external ABI semantics.
+- Hypothesis: one recursive, memoized definition classifier can resolve the complete
+  admitted named-aggregate graph before semantic use, including forward references,
+  and can publish exact `Ty` plus recursive `LogicalType` metadata to every consumer.
+  Aggregate field construction and projection can then use whole-value Copy loads and
+  stores while the existing checked-place model preserves source value independence.
+- Frozen definition predicate: collect all flattened top-level struct declarations
+  before classifying any of them. A definition is supported exactly when its name and
+  every field name are admitted symbols, it is unique, non-generic, nonempty, has no
+  duplicate field names, every field annotation belongs to the frozen field grammar,
+  and the transitive named-struct dependency graph is acyclic. Forward references are
+  admitted. A duplicate/ambiguous, unknown, unsupported, or cyclic dependency makes
+  every definition depending on it unsupported. Self-cycles and mutual cycles are
+  rejected even through zero-length arrays; count zero does not erase source topology.
+- Frozen field grammar: an admitted field is `int`/`i32`, `float`/`f64`, `bool`, one
+  exact supported named struct, or `[E; N]` for any parser-representable count `N`
+  including zero, where `E` is `int`/`i32`, `float`/`f64`, or one exact supported named
+  struct. Struct elements may themselves contain admitted struct and array fields, so
+  arbitrary finite acyclic depth is in class. Direct array elements that are arrays,
+  Bool, String, tuple, enum, reference, generic, unknown, or non-Copy remain outside
+  this checkpoint because they are not members of the existing executable fixed-array
+  element class. No fixed source depth or topology list may approximate this grammar.
+- Frozen value product: admitted definitions support construction in admitted
+  functions with fields written in any order, each child evaluated exactly once in
+  written source order and stored at its declaration index. Field values may be nested
+  struct literals, local/call/projection values, and admitted array literal, repeat,
+  typed-empty, local, call, projection, or index values. Bindings may use exact named
+  annotations; Copy aliases leave the original usable. Field projection returns the
+  exact scalar or an independent Copy aggregate place, enabling arbitrary chained
+  struct projections and existing `.len()`, constant in-bounds indexing/projection,
+  and compiler-bounded iteration on array fields. Repeated projections are independent
+  values and do not introduce aliasing or mutation.
+- Frozen transport product: admitted aggregate structs may appear in non-`main`
+  internal parameters and results, as may flat fixed arrays whose element is any newly
+  admitted aggregate struct. Literal/local/projection/index/call arguments, explicit
+  and tail returns, forwarding, mixed and multiple signatures, forward calls,
+  terminating direct recursion, zero/nonzero array counts, and flattened one-level
+  direct modules are in class. Exact type identity includes struct name, recursively
+  identical field schema, element type, and count. `main` remains exact `i32 @main()`.
+- Shared-classifier constraint: replace the scalar-only struct-definition decision
+  with one graph classifier in `StructRegistry`; its supported/unsupported/ambiguous
+  result and exact recursive contracts are the sole source admission authority for
+  construction, projection, Copy binding, array element eligibility, and function
+  transport. Semantic analysis and checked admission must consume the same result.
+  `binding_annotation.rs` must not gain another topology guard. The checked-IR verifier
+  independently validates metadata integrity but may not reconstruct AST admission or
+  introduce a second source-shape policy.
+- Evaluation and representation contract: `StructFieldContract` carries one exact
+  `CopyTypeContract` rather than a scalar-kind proxy. Construction loads aggregate
+  children from their checked places before whole-field stores; scalar fields retain
+  scalar values. Aggregate projection loads the exact field value and materializes a
+  fresh checked place before returning it to source-level consumers. LLVM uses named
+  `%aero.struct.Name` types with exact recursive field types, `[N x double]` for the
+  existing numeric array representation, and `[N x %aero.struct.Name]` for admitted
+  struct arrays. Named schemas are emitted deterministically in dependency-safe form;
+  no padding, C layout, stable ABI, or separate-compilation claim follows.
+- Checked IR/backend contract: exact recursive schemas must survive checked struct
+  allocations/field pointers, aggregate array allocations/element pointers, loads,
+  stores, calls, parameters, returns, and definitions. The verifier must reject empty,
+  invalid-symbol, conflicting, missing, cyclic, unsupported-leaf, nested-array, Bool-
+  array, wrong-field, wrong-element/count, scalar/aggregate crossover, undefined or
+  non-dominating, and forged checked metadata before LLVM. Schema collection must
+  recursively discover every named dependency, and code generation must never infer an
+  unsupported source type as `double` or emit an opaque fallback.
+- Explicit exclusions: direct nested arrays, Bool/String/tuple/enum/reference/generic
+  arrays or fields; empty/generic/ambiguous/unknown/cyclic/non-Copy structs; mutation,
+  assignment, partial/destructive moves, dynamic indexing or runtime bounds checks;
+  resource ownership/drop/destructors/lifetimes/provenance; aggregate `main`
+  parameters/results; closure/trait/impl/nested-function aggregate execution;
+  visibility or recursive module graphs, separate compilation, C/FFI or stable layout/
+  ABI, heap/Vec storage, optimizer/performance/accelerator claims, release eligibility,
+  PR merge, `master` changes, or history rewrite.
+- Tests-first acceptance: add one exhaustive focused aggregate and run it before any
+  production mutation. It must cover forward and deep acyclic definitions, scalar/
+  direct-struct/array fields, zero counts, declaration-versus-written field order,
+  nested construction, every admitted field origin, contextual typed-empty fields,
+  deep Copy aliases and original reuse, chained projections, array operations through
+  fields, internal transport, arrays of newly admitted structs, mixed/forward/recursive
+  calls, flattened modules, exact mismatches, all excluded leaves, dependency
+  propagation, self/mutual/array-mediated cycles, checked-IR corruption, LLVM type/
+  GEP/load/store/call/return markers, raw-path containment, and CLI artifact hygiene.
+  Move only the now-obsolete array-field, nested-field, nested-struct-parameter, and
+  nested-StructLiteral rejection cells; preserve every neighboring negative contract.
+- System-level/end-to-end acceptance: add one tracked direct-module example composing
+  compile-time Strings, numeric arrays, nested Copy structs with array fields, arrays
+  of those structs, construction order, Copy reuse, internal aggregate transport,
+  field/index/length/iteration operations, and control flow into exact native exit
+  `107`. Add one unconditional stable/nightly Rust-CI step that checked-builds the
+  example, runs pinned `opt-22`, `llc-22 -verify-machineinstrs`, object-lowers, links
+  with `clang-22`, executes it, and asserts `107`. A classifier-only, rejection-only,
+  metadata-only, LLVM-text-only, records-only, or non-executed result cannot close.
+- Allowed files: this ledger; `src/compiler/src/struct_contract.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs`; one new
+  `src/compiler/tests/acyclic_copy_aggregate_tests.rs`; exact obsolete cells in
+  `struct_execution_tests.rs`, `struct_copy_transport_tests.rs`, and
+  `unsupported_struct_literal_tests.rs`; exact recursive-schema corruption additions
+  in `checked_ir_contract_tests.rs`; one new tracked
+  `examples/acyclic_copy_aggregates/` direct module; `.github/workflows/rust.yml`; and
+  only `README.md`, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and
+  `FRAMEWORK_ALIGNMENT.md` where accepted facts change. `ir.rs` may change only if an
+  existing checked instruction cannot carry the frozen exact recursive metadata. No
+  lexer/parser/AST, `binding_annotation.rs`, module resolver/cache, runtime/stdlib,
+  optimizer, dependency, target, design/ownership specification, benchmark, claim-
+  verification, release, `master`, PR merge, or history rewrite is authorized.
+- Risks and stop conditions: stop rather than invent behavior if the graph predicate
+  cannot own every source decision; aggregate field values cannot preserve written
+  evaluation order and independent Copy identity; contextual empty arrays require new
+  general inference semantics; dependency-safe LLVM types require recursive-layout or
+  external ABI decisions; cycles can reach checked IR; newly admitted values require
+  mutation, references, moves, drop, direct nested/Bool arrays, or parser/AST changes;
+  existing scalar/array/struct behavior changes; an unsupported source reaches LLVM; a
+  third-party dependency or baseline regression appears. Parser-to-native work across
+  more than two compiler phases is expected, bounded, and explicitly lead-owned;
+  unexpected semantic expansion remains a stop.
+- Scaling disposition: this is a harder ownership/layout/function-transport slice,
+  selected so the program does not optimize indefinitely for convenient leaves. One
+  recursive classifier arrests per-depth guard growth, one task record bounds evidence
+  administration, and the composed stable native gate is the periodic architecture
+  check. PR #4 remains a draft integration program; controlled checkpoint/merge design
+  and structured manifest generation remain separately authorized future work and may
+  not become a new semantic truth source.
+- Status at authorization: the clean accepted CORE-046 records head is
+  `77c6095f3878883978f9afa2f0064656106945ca`. The only CORE-047 mutation is this
+  authorization record. No CORE-047 test, production behavior, example, workflow
+  anchor, capability claim, commit, or public artifact exists. The next allowed
+  mutation is the one exhaustive failing aggregate, followed by captured proof that
+  the frozen product is red before production changes.
+- Tests-first red evidence: with `%USERPROFILE%\.cargo\bin` prepended to this
+  PowerShell session's inherited `PATH`, `cargo test --test
+  acyclic_copy_aggregate_tests -- --nocapture` builds and executes the new target but
+  fails 0/1 before any production, example, workflow, or capability-document change.
+  Direct/deep and forward-referenced Copy fields, numeric/struct array fields,
+  contextual empty fields, exact mismatch diagnostics, aggregate field origins,
+  internal nested transport, arrays of the new aggregates, recursive checked metadata,
+  and direct-module check/build all stop at the existing scalar-only struct boundary.
+  The requested LLVM schemas/loads/stores/calls/returns are absent, the tracked example
+  pair does not exist, and the unique stable-CI anchors do not exist. The self, mutual,
+  zero-array-mediated, and dependent cycles plus direct nested arrays, Bool arrays,
+  String, unknown, generic, ambiguous, and empty dependencies remain rejected; the
+  invalid CLI build publishes no artifact. No compiler source, generated output,
+  public branch, PR, or capability claim changed.
+- Implementation result: `StructRegistry` now collects the complete flattened
+  definition set and resolves each unique definition once through a memoized graph
+  classifier. One exact recursive `CopyTypeContract` per field drives construction,
+  binding, field projection, function/array transport, checked metadata, verification,
+  and LLVM schema emission. Forward acyclic dependencies compose at arbitrary finite
+  named depth; self, mutual, zero-array-mediated, invalid-leaf, ambiguous, unknown,
+  empty, and dependent definitions remain unsupported. Aggregate construction loads
+  child values before declaration-index stores, and aggregate projection materializes
+  an independent checked place. The old semantic and checked-admission receiver-shape
+  lists are removed. Semantic field handling uses one helper that recursively types
+  the receiver and delegates exact support to `StructRegistry`; checked admission
+  likewise recursively types then delegates, with one topology-agnostic field error
+  boundary preserving the established unsupported-operation diagnostic.
+- Root-gate correction chronology: the first exact root run passed all 157 library
+  tests and CORE-047 but stopped at 0/1 static String equality because direct checked
+  admission exposed an undeclared receiver child instead of the established aggregate
+  quarantine. The topology-agnostic checked field boundary corrected that without an
+  AST list. The second run passed that target and stopped at 6/8 unsupported field-
+  access tests because semantic inference exposed the same undeclared child. The third
+  run passed field access and stopped at 14/15 unsupported Match tests because a
+  `7.field` arm no longer preceded its preserved Match parent. Centralizing semantic
+  field inference and invoking that shared registry-backed helper from preflight
+  restores tuple/void child precedence, the field quarantine, and preserved-container
+  precedence without duplicating receiver topology. Focused reruns pass CORE-047 1/1,
+  checked IR 8/8, static String equality/length/predicates 1/1 each, unsupported field
+  access 8/8, unsupported Match 15/15, unsupported struct literals 10/10, and typed IR
+  admission 13/13. No failing test was weakened, skipped, or deleted.
+- Local gate and artifact evidence: the final exact repository-root `./tools/test.sh`
+  exits 0 with formatting and correctness Clippy clean, 157/157 library tests,
+  163/163 binary tests, every integration target, and doc tests. A checked CLI build
+  of `examples/acyclic_copy_aggregates/main.aero` resolves `shapes.aero` and emits
+  recursive `%aero.struct.ModuleEnvelope`, `%aero.struct.ModuleLeaf`, and
+  `%aero.struct.RootEnvelope` schemas, zero/nonzero struct-array fields, exact aggregate
+  GEP/load/store/call forms, and `i32 @main()`; its reviewed temporary LLVM has SHA-256
+  `6171F249B3CBCE59B3D49CF55D27C5231004EED2DBD89D725AB74AEF734DB2B1` and was removed.
+  This Windows host accurately reports `InternalOnly` because no LLVM 22 verifier is
+  installed, so no local native or external-verification claim is made.
+- Files changed: `struct_contract.rs`, `semantic_analyzer.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; the new exhaustive aggregate target;
+  only the exact obsolete cells in the three authorized struct tests; the two-file
+  tracked direct-module example; the Rust workflow; this ledger; and the four
+  capability/state documents. Recursive raw-IR corruption controls live beside the
+  private verifier in `ir_verifier.rs` rather than exposing private raw IR through the
+  authorized external checked-IR target. `binding_annotation.rs`, parser/AST/module
+  resolver/runtime/dependencies, `master`, claims, releases, and benchmarks are
+  unchanged.
+- Remaining uncertainty and next action: exact implementation commit/tree/patch
+  identity is pending. After one final diff/status check, commit and push the unchanged
+  candidate, immediately synchronize draft PR #4 through CORE-047, wait for all eight
+  public checks, and inspect stable Linux for pinned LLVM/Clang 22 verification,
+  machine verification, object lowering, link, and exact native exit 107. Aggregate
+  calling conventions, zero-length aggregate behavior on the public toolchain, and
+  workflow integration remain unaccepted until that evidence exists. No merge,
+  release, ABI/layout, performance, accelerator, or general ownership claim follows.

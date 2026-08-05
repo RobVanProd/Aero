@@ -1,0 +1,19 @@
+mod shapes;
+
+struct RootEnvelope { leaf: ModuleLeaf, leaves: [ModuleLeaf; 2], none: [ModuleLeaf; 0] }
+
+fn root_roundtrip(value: RootEnvelope) -> RootEnvelope { value }
+fn root_array_roundtrip(values: [RootEnvelope; 2]) -> [RootEnvelope; 2] { values }
+
+fn main() -> int {
+    let module = module_roundtrip(module_make(20));
+    let root = RootEnvelope { none: [], leaves: module.leaves, leaf: module.leaf };
+    let copied = root_roundtrip(root);
+    let values = root_array_roundtrip([copied; 2]);
+    if root.leaf.value == 20 && copied.leaves[1].value == 21
+        && values[1].leaf.ready && values[0].none.len() == 0
+        && module_scan(module) == 2 && "aero".len() == 4 {
+        return 107;
+    }
+    return 1;
+}
