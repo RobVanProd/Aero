@@ -2892,9 +2892,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-062 - Admit only freshly defined enum owners on statement-loop cycles
 
 - Date: 2026-08-05
-- Status: green local CORE-066 candidate; public acceptance and immutable identity are
-  pending. The serialized exact root gate and local native exit 149 pass; LLVM/Clang
-  22 and all eight public checks have not yet run on a published candidate.
+- Status: accepted public for CORE-066 at exact implementation
+  `e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree
+  `6cea8bbf63aa7aafb43fbb25152dd860f6684aae`, and stable patch ID
+  `7c4e6ac77db90dc7c83048922382903958c09632`. The serialized exact root gate, all
+  eight public checks, pinned LLVM/Clang 22.1.8, and stable/nightly native exit 149
+  pass.
 - Decision: every currently admitted unit-or-unary-CopyData enum may be freshly
   constructed or returned, locally bound, and consumed once per dynamic iteration of
   checked `while`, fixed-array `for`, or `loop`. Freshness is exact IR identity, not a

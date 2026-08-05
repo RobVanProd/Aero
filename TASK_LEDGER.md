@@ -13155,3 +13155,30 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   administrative evidence line does not alter executable behavior; immutable
   identity, publication, all eight public checks, and pinned LLVM/Clang 22 native
   exit 149 remain pending.
+- Public implementation acceptance: exact candidate
+  `e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree
+  `6cea8bbf63aa7aafb43fbb25152dd860f6684aae`, stable patch ID
+  `7c4e6ac77db90dc7c83048922382903958c09632`, and parent
+  `b55407836a3d76b05c7c8b8b2514fd4354e66b2b` are public on
+  `agent/aero-integration`. Draft PR #4 was synchronized immediately to the rendered
+  CORE-066 candidate identity and exclusions. All eight candidate-head checks pass:
+  CodeQL run `31052706872` with Actions job `92463333788`, Python job `92463333657`,
+  Rust job `92463333741`, and aggregate check `92463471487`; push CI run
+  `31052709971` / job `92463340804`; PR CI run `31052709348` / job `92463338821`;
+  and PR Rust CI run `31052708605` with stable job `92463336662` and nightly job
+  `92463336701`.
+- Pinned system acceptance: stable installed LLVM/Clang 22.1.8, rejected the known-
+  invalid LLVM fixture, reported `ExternalVerified`, completed `opt-22` verification,
+  `llc-22 -verify-machineinstrs`, object lowering, explicit private non-PIE
+  `clang-22` linking, and exact native exit 149 for the tracked two-file CORE-066
+  program. Nightly independently compiled and executed exact exit 149. CORE-066 is
+  therefore accepted public only for its frozen fresh-iteration owner class and exact
+  `for` continue/increment correction. All exclusions and four scaling controls remain
+  active. This additive records-only closure must now be committed, pushed, reflected
+  on PR #4, and pass a fresh all-eight public set before administrative closure.
+- Records-only local gate: with the accepted identities and public evidence present,
+  the exact serialized repository-root `bash ./tools/test.sh` exits 0 in 35.3 seconds.
+  It again passes 182/182 library tests, every binary and integration target,
+  rustfmt, all-target/all-feature checking, correctness Clippy, and doc tests. This
+  post-gate evidence sentence is administrative only; no executable source, test,
+  workflow, dependency, semantics, or claim boundary changed.

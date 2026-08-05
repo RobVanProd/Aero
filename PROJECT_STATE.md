@@ -4,9 +4,12 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 85 `CORE-066` is a green local candidate, not public acceptance. Starting
-from accepted records head `b55407836a3d76b05c7c8b8b2514fd4354e66b2b`, it
-certifies fresh per-iteration owners of every already-admitted enum schema across
+Milestone 85 `CORE-066` is accepted public at exact implementation commit
+`e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree
+`6cea8bbf63aa7aafb43fbb25152dd860f6684aae`, and stable patch ID
+`7c4e6ac77db90dc7c83048922382903958c09632`. Starting from accepted records head
+`b55407836a3d76b05c7c8b8b2514fd4354e66b2b`, it certifies fresh per-iteration owners
+of every already-admitted enum schema across
 `while`, checked fixed-array `for`, and `loop` statement CFGs. Exact constructor and
 function-result definitions reset verifier ownership only when every path to a
 consumption executes that definition. Pre-loop owners still may not change across a
@@ -22,11 +25,12 @@ targets. The exhaustive target, new fresh-result/place fixed-point corruption co
 gate pass. The first unconstrained Windows root attempt exhausted concurrent linker/
 rustc memory; the exact retry with one Cargo build job passed and is the only gate
 evidence. The tracked direct-module example builds deterministically, and local Visual
-Studio Clang 19.1.5 executes exact exit 149. Local LLVM 22 is absent, so external/
-machine verification, all eight public checks, and pinned stable/nightly native exit
-149 remain required before acceptance. Branch publication and PR #4 synchronization
-are the next actions; no merge, release, ABI, general loop ownership, or safety claim
-is authorized.
+Studio Clang 19.1.5 executes exact exit 149. All eight candidate-head public checks
+pass. Stable job `92463336662` installs LLVM/Clang 22.1.8, rejects the invalid fixture,
+externally verifies, machine-verifies, object-lowers, explicitly links, and executes
+exact exit 149; nightly job `92463336701` independently repeats exit 149. A records-
+only acceptance closure and its fresh all-eight checks are the next administrative
+actions; no merge, release, ABI, general loop ownership, or safety claim is authorized.
 
 Milestone 84 `CORE-065` is accepted public at exact implementation commit
 `f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree

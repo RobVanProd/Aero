@@ -87,7 +87,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- `CORE-066` is a green local candidate, not public acceptance. It admits exact fresh
+- Accepted `CORE-066` at exact implementation
+  `e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree
+  `6cea8bbf63aa7aafb43fbb25152dd860f6684aae`, and stable patch ID
+  `7c4e6ac77db90dc7c83048922382903958c09632` admits exact fresh
   enum constructors and enum-returning call results inside every currently checked
   statement-loop form, with inferred/exact and immutable/mutable locals, all accepted
   recursive CopyData payload schemas, every accepted consuming operation, nested
@@ -99,8 +102,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   bypassed definition, two consumptions per iteration, and unreset outer-owner cycles.
   The focused target, affected compatibility ring, formatting, exact serialized root
   gate, deterministic direct-module LLVM, and local Clang 19.1.5 native exit 149 pass.
-  LLVM/Clang 22, all eight public checks, and immutable commit identity remain pending;
-  no general loop ownership, moved-target reinitialization, ABI, or safety claim moves.
+  All eight public checks pass; pinned LLVM/Clang 22.1.8 rejects invalid IR, externally
+  verifies, machine-verifies, object-lowers, links, and executes stable/nightly exit
+  149. No general loop ownership, moved-target reinitialization, ABI, or safety claim
+  moves.
 
 - `CORE-065` is accepted public at exact implementation
   `f4daeea6d7b032e686b4c7d184fe80ef38076665`, tree

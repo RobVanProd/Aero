@@ -33,11 +33,11 @@ rejects double consumption after partial merges or across cycles. Loop fixed poi
 break/continue transport, and general CFG ownership remain unsupported. The
 182-library/188-binary/root gates, all eight public checks, and pinned LLVM/Clang 22
 native-exit-137 lane pass.
-`CORE-066` is a green local candidate for fresh per-iteration enum owners across
+Accepted `CORE-066` adds fresh per-iteration enum owners across
 checked `while`, fixed-array `for`, and `loop`. Red-first evidence closed the admitted
 `for` continue nontermination defect by routing continue through an explicit shared
-increment block. The exhaustive/verifier/compatibility/root gates and local Windows
-Clang exit 149 pass; pinned LLVM/Clang 22 and all eight public checks remain required.
+increment block. The exhaustive/verifier/compatibility/root gates, all eight public
+checks, and pinned LLVM/Clang 22.1.8 external/machine/object/link/native exit 149 pass.
 Outer-owner backedge/exit joins, moved-target reinitialization, loop labels/expressions,
 and general CFG ownership remain unsupported.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and

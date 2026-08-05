@@ -62,14 +62,15 @@ verification, object lowering, explicit private non-PIE linking, and native exit
 in stable job `92454648190`; nightly job `92454648318` repeats exit 137. No loop
 ownership, public layout, backend stability, or ABI claim follows.
 
-The `CORE-066` local candidate also changes no enum representation or ABI. It adds an
+Accepted `CORE-066` also changes no enum representation or ABI. It adds an
 exact `for` continue/increment CFG block and certifies fresh per-iteration enum
-definitions under the existing private types. The two-file candidate builds to
-Windows-target LLVM and Visual Studio Clang 19.1.5 links and executes exact exit 149.
-The local compiler accurately reports `InternalOnly` because LLVM 22 tools are absent;
-therefore external verification, machine verification, and public native evidence are
-pending the pinned stable lane. This local result is supporting evidence, not public
-backend acceptance or a general loop/ownership claim.
+definitions under the existing private types. The implementation candidate
+`e40804ea86888b38548fd5bf42926be2be7eb5ed` builds the two-file source to LLVM;
+pinned stable job `92463336662` installs LLVM/Clang 22.1.8, rejects the known-invalid
+fixture, externally verifies, machine-verifies, object-lowers, explicitly links, and
+executes exact exit 149. Nightly job `92463336701` independently repeats exit 149.
+This is exact public evidence for the bounded loop-local class, not a general loop,
+ownership, representation, ABI, or backend-stability claim.
 
 ## ROCm path
 
