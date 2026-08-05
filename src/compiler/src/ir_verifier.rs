@@ -326,7 +326,10 @@ fn valid_copy_struct_field_type(logical_type: &LogicalType) -> bool {
             matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
                 || valid_copy_struct_type(element)
         }
-        LogicalType::Void | LogicalType::String | LogicalType::Enum { .. } => false,
+        LogicalType::Void
+        | LogicalType::String
+        | LogicalType::ImmutableReference { .. }
+        | LogicalType::Enum { .. } => false,
     }
 }
 
@@ -350,8 +353,17 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
             name: name.clone(),
             variants: variants.clone(),
         }),
-        LogicalType::Void | LogicalType::String => false,
+        LogicalType::Void | LogicalType::String | LogicalType::ImmutableReference { .. } => false,
     }
+}
+
+fn valid_checked_parameter_type(logical_type: &LogicalType) -> bool {
+    valid_checked_transport_type(logical_type)
+        || matches!(
+            logical_type,
+            LogicalType::ImmutableReference { pointee }
+                if valid_immutable_reference_pointee(pointee)
+        )
 }
 
 fn collides_with_generated_local(name: &str) -> bool {
@@ -488,7 +500,7 @@ fn checked_signature(
                 )),
             ));
         }
-        if !valid_checked_transport_type(ty) {
+        if !valid_checked_parameter_type(ty) {
             return Err(IrVerificationError::new(
                 function,
                 None,
@@ -505,21 +517,24 @@ fn checked_signature(
             IrVerificationErrorKind::UnsupportedType(format!("checked function return {result}")),
         ));
     }
-    let mentions_aggregate = parameters.iter().any(|(_, ty)| {
+    let mentions_checked_transport = parameters.iter().any(|(_, ty)| {
         matches!(
             ty,
-            LogicalType::Struct { .. } | LogicalType::Array { .. } | LogicalType::Enum { .. }
+            LogicalType::Struct { .. }
+                | LogicalType::Array { .. }
+                | LogicalType::Enum { .. }
+                | LogicalType::ImmutableReference { .. }
         )
     }) || matches!(
         result,
         LogicalType::Struct { .. } | LogicalType::Array { .. } | LogicalType::Enum { .. }
     );
-    if !mentions_aggregate {
+    if !mentions_checked_transport {
         return Err(IrVerificationError::new(
             function,
             None,
             IrVerificationErrorKind::MetadataMismatch(
-                "checked function definition requires an aggregate- or enum-bearing signature"
+                "checked function definition requires an aggregate-, enum-, or immutable-reference-bearing signature"
                     .to_string(),
             ),
         ));
@@ -880,7 +895,8 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedCopyStructArrayElementPtr { result, .. }
         | Inst::CheckedStructAlloca { result, .. }
         | Inst::CheckedStructFieldPtr { result, .. }
-        | Inst::CheckedImmutableBorrow { result, .. } => Some(result),
+        | Inst::CheckedImmutableBorrow { result, .. }
+        | Inst::CheckedImmutableReferenceParameter { result, .. } => Some(result),
         _ => None,
     }
 }
@@ -1221,6 +1237,9 @@ impl<'a> FunctionVerifier<'a> {
                                     "checked struct field pointer"
                                 }
                                 Inst::CheckedImmutableBorrow { .. } => "checked immutable borrow",
+                                Inst::CheckedImmutableReferenceParameter { .. } => {
+                                    "checked immutable reference parameter"
+                                }
                                 _ => "getelementptr",
                             }),
                         ));
@@ -1264,6 +1283,18 @@ impl<'a> FunctionVerifier<'a> {
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(format!(
                                         "enum parameter `{name}` requires a direct checked parameter binder"
+                                    )),
+                                ));
+                            }
+                            if matches!(
+                                parameter_type.as_ref(),
+                                Some(LogicalType::ImmutableReference { .. })
+                            ) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "immutable reference parameter `{name}` requires a direct checked parameter binder"
                                     )),
                                 ));
                             }
@@ -1582,6 +1613,40 @@ impl<'a> FunctionVerifier<'a> {
                                 ));
                             }
                             (PlaceType::Known(pointee.clone()), None)
+                        }
+                        Inst::CheckedImmutableReferenceParameter {
+                            parameter, pointee, ..
+                        } => {
+                            if block_index != 0 || !valid_immutable_reference_pointee(pointee) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked immutable reference parameter `{parameter}` must bind a supported pointee in the entry block"
+                                    )),
+                                ));
+                            }
+                            let expected = self
+                                .body
+                                .signature
+                                .parameters
+                                .iter()
+                                .find(|(name, _)| name == parameter)
+                                .map(|(_, ty)| ty);
+                            if !matches!(
+                                expected,
+                                Some(LogicalType::ImmutableReference { pointee: expected })
+                                    if expected.as_ref() == pointee
+                            ) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked immutable reference parameter `{parameter}` disagrees with its function signature"
+                                    )),
+                                ));
+                            }
+                            (PlaceType::Known(pointee.clone()), Some(parameter.clone()))
                         }
                         _ => unreachable!(),
                     };
@@ -1940,6 +2005,7 @@ impl<'a> FunctionVerifier<'a> {
 
     fn verify(mut self) -> Result<FunctionMetadata, IrVerificationError> {
         let mut bound_enum_parameters = BTreeSet::new();
+        let mut bound_reference_parameters = BTreeSet::new();
         for block_index in 0..self.blocks.len() {
             let instructions = self.blocks[block_index].instructions.clone();
             for (position, instruction) in instructions {
@@ -2142,23 +2208,44 @@ impl<'a> FunctionVerifier<'a> {
                         for (index, (argument, (_, expected))) in
                             arguments.iter().zip(&signature.parameters).enumerate()
                         {
-                            self.require_type(
-                                argument,
-                                expected,
-                                "call",
-                                "argument",
-                                block_index,
-                                position,
-                            )
-                            .map_err(|mut error| {
-                                if let IrVerificationErrorKind::TypeMismatch { role, .. } =
-                                    &mut error.kind
-                                {
-                                    *role = "argument type";
+                            if let LogicalType::ImmutableReference { pointee } = expected {
+                                let place = self.require_place(
+                                    argument,
+                                    "call immutable reference argument",
+                                    block_index,
+                                    position,
+                                )?;
+                                let actual = self.places.get(&place).and_then(PlaceType::logical);
+                                if actual.as_ref() != Some(pointee.as_ref()) {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::TypeMismatch {
+                                            operation: "call",
+                                            role: "argument type",
+                                            expected: expected.to_string(),
+                                            actual: actual.unwrap_or(LogicalType::Void),
+                                        },
+                                    ));
                                 }
-                                let _ = index;
-                                error
-                            })?;
+                            } else {
+                                self.require_type(
+                                    argument,
+                                    expected,
+                                    "call",
+                                    "argument",
+                                    block_index,
+                                    position,
+                                )
+                                .map_err(|mut error| {
+                                    if let IrVerificationErrorKind::TypeMismatch { role, .. } =
+                                        &mut error.kind
+                                    {
+                                        *role = "argument type";
+                                    }
+                                    let _ = index;
+                                    error
+                                })?;
+                            }
                         }
                         match (&signature.result, result) {
                             (LogicalType::Void, Some(_)) => {
@@ -2412,6 +2499,45 @@ impl<'a> FunctionVerifier<'a> {
                             ));
                         }
                     }
+                    Inst::CheckedImmutableReferenceParameter {
+                        parameter, pointee, ..
+                    } => {
+                        if block_index != 0 || !valid_immutable_reference_pointee(pointee) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked immutable reference parameter `{parameter}` must bind a supported pointee in the entry block"
+                                )),
+                            ));
+                        }
+                        let expected = self
+                            .body
+                            .signature
+                            .parameters
+                            .iter()
+                            .find(|(name, _)| name == parameter)
+                            .map(|(_, ty)| ty);
+                        if !matches!(
+                            expected,
+                            Some(LogicalType::ImmutableReference { pointee: expected })
+                                if expected.as_ref() == pointee
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked immutable reference parameter `{parameter}` disagrees with its function signature"
+                                )),
+                            ));
+                        }
+                        if !bound_reference_parameters.insert(parameter.clone()) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked immutable reference parameter `{parameter}` is bound more than once"
+                                )),
+                            ));
+                        }
+                    }
                     Inst::CheckedEnumParameter {
                         parameter, schema, ..
                     } => {
@@ -2610,6 +2736,24 @@ impl<'a> FunctionVerifier<'a> {
                 0,
                 IrVerificationErrorKind::MetadataMismatch(
                     "checked enum parameter binders do not exactly cover the enum signature"
+                        .to_string(),
+                ),
+            ));
+        }
+        let expected_reference_parameters = self
+            .body
+            .signature
+            .parameters
+            .iter()
+            .filter_map(|(name, ty)| {
+                matches!(ty, LogicalType::ImmutableReference { .. }).then_some(name.clone())
+            })
+            .collect::<BTreeSet<_>>();
+        if bound_reference_parameters != expected_reference_parameters {
+            return Err(self.error(
+                0,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "checked immutable reference parameter binders do not exactly cover the reference signature"
                         .to_string(),
                 ),
             ));
@@ -3797,6 +3941,287 @@ mod tests {
             non_dominating.kind,
             IrVerificationErrorKind::PlaceDoesNotDominateUse(PlaceId(0))
         ));
+    }
+
+    #[test]
+    fn immutable_reference_parameter_signatures_binders_and_calls_are_fail_closed() {
+        let reference = LogicalType::ImmutableReference {
+            pointee: Box::new(LogicalType::Int),
+        };
+        let reader = |body| Inst::CheckedFunctionDef {
+            name: "read".to_string(),
+            parameters: vec![("value".to_string(), reference.clone())],
+            result: LogicalType::Int,
+            body,
+        };
+        let program = |definition: Inst, mut main_runtime: Vec<Inst>| {
+            let name = match &definition {
+                Inst::CheckedFunctionDef { name, .. } => name.clone(),
+                _ => panic!("reference verifier fixture requires a checked definition"),
+            };
+            let mut main_body = vec![definition];
+            main_body.append(&mut main_runtime);
+            HashMap::from([
+                (
+                    "main".to_string(),
+                    Function {
+                        name: "main".to_string(),
+                        body: main_body,
+                        next_reg: 8,
+                        next_ptr: 8,
+                    },
+                ),
+                (
+                    name.clone(),
+                    Function {
+                        name,
+                        body: Vec::new(),
+                        next_reg: 8,
+                        next_ptr: 8,
+                    },
+                ),
+            ])
+        };
+        let checked = verify_ir(program(
+            reader(vec![
+                Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Load(Value::Reg(1), Value::Reg(0)),
+                Inst::Return(Value::Reg(1)),
+            ]),
+            vec![
+                Inst::Alloca(Value::Reg(0), "owner".to_string()),
+                Inst::Store(Value::Reg(0), Value::ImmInt(7)),
+                Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(1),
+                    source: Value::Reg(0),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Call {
+                    function: "read".to_string(),
+                    arguments: vec![Value::Reg(1)],
+                    result: Some(Value::Reg(2)),
+                },
+                Inst::Return(Value::Reg(2)),
+            ],
+        ))
+        .expect("exact reference signature, binder, place call, load, and return are valid");
+        let read = &checked.metadata().functions["read"];
+        assert_eq!(read.signature.parameters[0].1, reference);
+        assert_eq!(read.places[&PlaceId(0)].pointee, LogicalType::Int);
+
+        let invalid_readers = [
+            (
+                "missing binder",
+                reader(vec![Inst::Return(Value::ImmInt(0))]),
+            ),
+            (
+                "duplicate binder",
+                reader(vec![
+                    Inst::CheckedImmutableReferenceParameter {
+                        result: Value::Reg(0),
+                        parameter: "value".to_string(),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::CheckedImmutableReferenceParameter {
+                        result: Value::Reg(1),
+                        parameter: "value".to_string(),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ]),
+            ),
+            (
+                "wrong binder name",
+                reader(vec![
+                    Inst::CheckedImmutableReferenceParameter {
+                        result: Value::Reg(0),
+                        parameter: "other".to_string(),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ]),
+            ),
+            (
+                "wrong binder pointee",
+                reader(vec![
+                    Inst::CheckedImmutableReferenceParameter {
+                        result: Value::Reg(0),
+                        parameter: "value".to_string(),
+                        pointee: LogicalType::Float,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ]),
+            ),
+            (
+                "scalar alloca binder",
+                reader(vec![
+                    Inst::Alloca(Value::Reg(0), "value".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ]),
+            ),
+            (
+                "binder result collision",
+                reader(vec![
+                    Inst::Add(Value::Reg(0), Value::ImmInt(1), Value::ImmInt(2)),
+                    Inst::CheckedImmutableReferenceParameter {
+                        result: Value::Reg(0),
+                        parameter: "value".to_string(),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ]),
+            ),
+            (
+                "misplaced binder",
+                reader(vec![
+                    Inst::ICmp {
+                        op: "eq".to_string(),
+                        result: Value::Reg(0),
+                        left: Value::ImmInt(1),
+                        right: Value::ImmInt(1),
+                    },
+                    Inst::Branch {
+                        condition: Value::Reg(0),
+                        true_label: "bind".to_string(),
+                        false_label: "done".to_string(),
+                    },
+                    Inst::Label("bind".to_string()),
+                    Inst::CheckedImmutableReferenceParameter {
+                        result: Value::Reg(1),
+                        parameter: "value".to_string(),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("done".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ]),
+            ),
+        ];
+        for (label, definition) in invalid_readers {
+            assert!(
+                verify_ir(program(definition, vec![Inst::Return(Value::ImmInt(0))])).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+
+        let scalar_call_argument = verify_ir(program(
+            reader(vec![
+                Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Load(Value::Reg(1), Value::Reg(0)),
+                Inst::Return(Value::Reg(1)),
+            ]),
+            vec![
+                Inst::Add(Value::Reg(0), Value::ImmInt(1), Value::ImmInt(2)),
+                Inst::Call {
+                    function: "read".to_string(),
+                    arguments: vec![Value::Reg(0)],
+                    result: Some(Value::Reg(1)),
+                },
+                Inst::Return(Value::Reg(1)),
+            ],
+        ));
+        assert!(
+            scalar_call_argument.is_err(),
+            "scalar result passed as a reference place"
+        );
+
+        let wrong_place_pointee = verify_ir(program(
+            reader(vec![
+                Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Load(Value::Reg(1), Value::Reg(0)),
+                Inst::Return(Value::Reg(1)),
+            ]),
+            vec![
+                Inst::Alloca(Value::Reg(0), "owner".to_string()),
+                Inst::Store(Value::Reg(0), Value::ImmFloat(1.5)),
+                Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(1),
+                    source: Value::Reg(0),
+                    pointee: LogicalType::Float,
+                },
+                Inst::Call {
+                    function: "read".to_string(),
+                    arguments: vec![Value::Reg(1)],
+                    result: Some(Value::Reg(2)),
+                },
+                Inst::Return(Value::Reg(2)),
+            ],
+        ));
+        assert!(
+            wrong_place_pointee.is_err(),
+            "wrong-pointee place passed reference call verification"
+        );
+
+        let non_dominating_argument = verify_ir(program(
+            reader(vec![
+                Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Load(Value::Reg(1), Value::Reg(0)),
+                Inst::Return(Value::Reg(1)),
+            ]),
+            vec![
+                Inst::ICmp {
+                    op: "eq".to_string(),
+                    result: Value::Reg(3),
+                    left: Value::ImmInt(1),
+                    right: Value::ImmInt(1),
+                },
+                Inst::Branch {
+                    condition: Value::Reg(3),
+                    true_label: "define".to_string(),
+                    false_label: "use".to_string(),
+                },
+                Inst::Label("define".to_string()),
+                Inst::Alloca(Value::Reg(0), "owner".to_string()),
+                Inst::Store(Value::Reg(0), Value::ImmInt(7)),
+                Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(1),
+                    source: Value::Reg(0),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Jump("use".to_string()),
+                Inst::Label("use".to_string()),
+                Inst::Call {
+                    function: "read".to_string(),
+                    arguments: vec![Value::Reg(1)],
+                    result: Some(Value::Reg(2)),
+                },
+                Inst::Return(Value::Reg(2)),
+            ],
+        ));
+        assert!(
+            non_dominating_argument.is_err(),
+            "non-dominating reference place passed call verification"
+        );
+
+        let reference_result = verify_ir(program(
+            Inst::CheckedFunctionDef {
+                name: "escape".to_string(),
+                parameters: vec![("value".to_string(), reference.clone())],
+                result: reference,
+                body: vec![Inst::Return(Value::ImmInt(0))],
+            },
+            vec![Inst::Return(Value::ImmInt(0))],
+        ));
+        assert!(
+            reference_result.is_err(),
+            "reference result escaped checked signature validation"
+        );
     }
 
     #[test]

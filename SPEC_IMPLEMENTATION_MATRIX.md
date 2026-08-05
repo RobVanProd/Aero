@@ -1209,7 +1209,7 @@ declared compatibility policy and release-level coverage.
   performance, release, and stability remain excluded. The broad enum and Match rows
   remain `PARTIAL`.
 
-## CORE-052 candidate owned scalar-payload enum transport
+## CORE-052 accepted owned scalar-payload enum transport
 
 - CORE-052 removes the final unit-only condition from the one shared enum transport
   annotation resolver. Every exact schema already admitted by `EnumRegistry`—unit or
@@ -1237,10 +1237,48 @@ declared compatibility policy and release-level coverage.
   module example reaches LLVM with seven aggregate-returning definitions, ten aggregate
   calls, eight aggregate returns, seven switches, 48 extractions, 45 insertions, and
   SHA-256 `AD23CC66B1579D18870F05E3C63481C781209033F63F5A653872FB88B77160B5`.
-  Public acceptance requires all eight checks and pinned LLVM/Clang 22 external/machine
-  verification, object/link, and exact native exit 197.
+  Exact implementation `93a4a29e0b50f8d16ce6e2f845306b4ffcb37738`, tree
+  `eefd479e97754f1f069b67c640c2c27d179e28fe`, and stable patch ID
+  `8b0d7132e75ca8010fee3a39da021b320383565e` pass all eight public checks. Stable job
+  `92227409386` uses LLVM/Clang 22.1.8 for external/machine verification, object/link,
+  exact native exit 197, and 162/168 test passes.
 - Enum arrays/fields/references, aggregate/non-scalar/multi-field/struct/generic/
   recursive payloads, Option/Result transport or Match, process-entry/closure/nested/
   trait/impl contexts, mutation, borrowing, equality, printing, heap/drop, recursive
   CFG ownership, stable ABI/FFI, accelerators, performance, release, and stability
   remain excluded. The enum, pattern, function, and ownership rows remain `PARTIAL`.
+
+## CORE-053 candidate immutable scalar-reference parameter transport
+
+- CORE-053 admits reference-bearing signatures only for unique top-level non-generic
+  non-`main` functions. Any number and declaration order of immutable `&int`, `&float`,
+  or `&bool` parameters may mix only with by-value `Int`/`Float`/`Bool`; the result is
+  `Int`, `Float`, `Bool`, or `Void`. One whole-signature classifier gives each topology
+  a supported, explicitly rejected, or preserved disposition across semantic analysis
+  and checked admission, preventing duplicated phase-local guard products.
+- Exact arguments are direct borrows of supported places, supported local aliases or
+  copied aliases, or admitted immutable-reference parameters forwarded through calls.
+  Multiple shared borrows, arbitrary parameter order, call chains, module calls, and
+  terminating direct recursion are covered. Mutable references, reference results,
+  temporary or non-scalar pointees, aggregate companions, storage/capture, escaping,
+  NLL, drop, and lifetime-sensitive forms remain fail-closed.
+- Checked IR adds `LogicalType::ImmutableReference` and one explicit
+  `CheckedImmutableReferenceParameter` entry-block place binder. Independent
+  verification proves exact signature/binder coverage, uniqueness, name and pointee
+  identity, dominance, and pointer-bearing call arguments. Verified LLVM uses internal
+  `double*` for `Int`/`Float` and `i1*` for `Bool`, typed zero-offset pointer derivation,
+  and scalar loads without pointer/integer conversions. No public pointer identity,
+  stable calling convention, layout, ABI, FFI, or memory-safety claim is established.
+- The exhaustive target, binder/call corruption matrix, CORE-048 and enum/aggregate
+  controls, and exact root gate pass locally: 163 library and 169 binary tests plus
+  formatting, correctness Clippy, every integration target, and docs. The composed
+  `borrows` module example reaches LLVM with four `double*` definitions, one `i1*`
+  definition, five typed pointer calls, seven parameter GEPs, zero pointer/integer
+  casts, and SHA-256
+  `5EA298FBD6CB9A96F525EC680AA250EB93F46D19DAD0763733C9C17726924685`.
+  Public acceptance requires all eight checks and pinned LLVM/Clang 22 external/machine
+  verification, object/link, and exact native exit 211.
+- General reference transport, mutable loans, reference results, aggregate/storage
+  references, lifetime inference, NLL, drop/destruction, stable ABI/FFI, accelerators,
+  performance, release, and stability remain excluded. Function, ownership, and
+  reference rows remain `PARTIAL`.

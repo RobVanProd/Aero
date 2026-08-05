@@ -449,6 +449,24 @@ jobs:
         fi
         echo "owned scalar-payload enum transport example passed with exit code 197"
 
+    - name: Test reference-parameter transport integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/reference_parameter_transport/main.aero -o ../../reference_parameter_transport.ll
+        opt-22 -passes=verify -disable-output ../../reference_parameter_transport.ll
+        llc-22 -verify-machineinstrs ../../reference_parameter_transport.ll -o /dev/null
+        llc-22 -filetype=obj ../../reference_parameter_transport.ll -o ../../reference_parameter_transport.o
+        clang-22 ../../reference_parameter_transport.o -o ../../reference_parameter_transport
+        set +e
+        ../../reference_parameter_transport
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 211 ]; then
+          echo "Expected exit code 211, got $exit_code"
+          exit 1
+        fi
+        echo "reference-parameter transport example passed with exit code 211"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

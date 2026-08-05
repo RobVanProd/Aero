@@ -10171,3 +10171,234 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   commit and push, immediate draft PR front-page synchronization, then all eight public
   checks plus pinned LLVM/Clang 22 external/machine verification, object/link, and exact
   native exit `197`. Keep PR #4 draft and unmerged.
+- Public acceptance: exact implementation
+  `93a4a29e0b50f8d16ce6e2f845306b4ffcb37738`, tree
+  `eefd479e97754f1f069b67c640c2c27d179e28fe`, and stable patch ID
+  `8b0d7132e75ca8010fee3a39da021b320383565e` are accepted on draft PR #4.
+  All eight public checks pass. Actions run `30981733632`, stable job
+  `92227409386`, uses LLVM/Clang 22.1.8, reports `ExternalVerified: opt
+  22.1.8`, runs `llc-22 -verify-machineinstrs`, emits an object, links with
+  `clang-22`, executes exact native exit `197`, and records 162/162 library plus
+  168/168 binary tests. PR #4 is synchronized through CORE-052 at 240 commits,
+  64,682 additions, 1,432 deletions, and 136 files; it remains draft, open, and
+  unmerged. No release, benchmark, stable ABI/layout, accelerator, merge, or
+  `master` claim follows.
+
+## CORE-053 - Non-escaping immutable scalar-reference parameter transport
+
+- Task ID: `CORE-053`. Observed behavior: accepted CORE-048 creates verified
+  read-only aliases for local `Int`/`Float`/`Bool` places and permits their exact
+  local copying and dereference, but its containment contract explicitly rejects
+  all reference parameters, arguments, and results. The founding ownership text
+  explicitly passes immutable references into functions and separately identifies
+  reference returns as requiring lifetime relationships. The parser, AST, semantic
+  type, and local reference classifier already preserve those shapes. This task
+  closes the non-escaping parameter half only; it is one audit of reference function
+  transport, not a per-pointee residual ranking or an approximation of return
+  lifetimes.
+- Authoritative semantics and hypothesis: an immutable reference is a Copy,
+  read-only alias that does not transfer ownership, multiple immutable aliases may
+  coexist, and a callee may read through a borrowed parameter while the caller keeps
+  ownership. When the reference can enter only a synchronous admitted call and no
+  admitted result or storage can carry it out, the owner's lifetime strictly contains
+  every use without NLL, explicit lifetime parameters, runtime loan state, or a public
+  pointer contract. One shared signature classifier plus one checked parameter binder
+  should preserve the existing alias place across calls and let the verifier prove
+  exact pointer provenance before LLVM.
+- Frozen signature class: a supported function is one unique valid top-level,
+  non-generic, non-`main` function whose signature contains at least one immutable
+  `&int`/`&i32`, `&float`/`&f64`, or `&bool` parameter. It may contain any number and
+  declaration order of those reference parameters mixed with existing by-value
+  `Int`/`Float`/`Bool` parameters, and returns exactly `Int`, `Float`, `Bool`, or
+  `Void`. The class includes zero-value consumers, multiple aliases to one owner,
+  multiple owners/pointees, scalar companion parameters, direct and recursive calls,
+  reference-forwarding call chains, and source-order permutations. A single
+  reference-transport classifier must return supported, explicitly rejected, or
+  preserved/quarantined for the whole signature and must supply the exact semantic
+  and logical parameter/result contract to both semantic analysis and checked
+  admission. No phase may duplicate a reference-topology list or substitute `Int`
+  for an unsupported annotation.
+- Frozen value, ownership, and lifetime class: an admitted reference argument is
+  exactly a direct supported borrow `&x`, a supported local immutable reference
+  binding or copied alias, or an immutable scalar-reference parameter forwarded by a
+  callee. The referenced owner remains an initialized, non-moved local or scalar
+  parameter place of the exact pointee type. Reference arguments are Copy aliases and
+  never consume either alias or owner. Callee parameters may be copied to local
+  aliases, dereferenced in every already-admitted scalar context, and forwarded to
+  another admitted reference parameter. No admitted operation writes, moves, drops,
+  returns, aggregates, captures, or globally stores the alias, so every call-local use
+  remains bounded by the caller owner and requires no inferred lifetime relationship.
+- Explicit exclusions and containment: reference results or returned reference
+  expressions; `&mut` parameters/arguments/results; String, array, tuple, struct,
+  enum, reference, generic, function, void, field, index, temporary, or heap
+  pointees; borrowing non-identifier places; aggregate or enum by-value companions in
+  a reference-bearing signature; arrays/structs/enums containing references;
+  uninitialized reference declarations; mutation through or while borrowed;
+  assignment, globals, statics, closures, nested functions, trait defaults, impl
+  methods, generics, explicit lifetimes, NLL, drop, FFI, callbacks, process-entry
+  parameters, stable calling convention, public ABI, accelerator transport, and
+  release/stability claims remain rejected or preserved behind existing boundaries.
+  Reference-return diagnostics must remain explicitly lifetime-sensitive rather than
+  being accidentally admitted by the parameter classifier.
+- Checked IR and backend contract: add one logical immutable-reference signature type
+  carrying the exact scalar pointee and one `CheckedImmutableReferenceParameter`
+  place binder carrying result place, source parameter name, and exact pointee.
+  Reference parameters must be covered exactly once in the entry block and may not be
+  represented by scalar `Alloca`, value results, immediates, or enum binders. Calls
+  must require a dominating checked place with the exact pointee rather than treating
+  a pointer ID as a scalar result. The verifier independently proves valid signature
+  position, exact binder/name/pointee identity, unique coverage, place/result kind
+  separation, dominance, call argument place/type identity, dereference loads, and
+  rejection of reference results before code generation. LLVM uses the compiler's
+  existing local storage representation: `double*` for `&Int`/`&Float` and `i1*` for
+  `&Bool`; binders derive an exact zero-offset alias from the incoming pointer and
+  calls pass verified `%ptr` identities with no `inttoptr`, `ptrtoint`, pointee copy,
+  integer erasure, or runtime check. This is an internal compiler-selected convention,
+  not a stable or externally supported ABI.
+- Tests-first completeness contract: add one exhaustive focused target covering
+  parser/AST retention; all three pointees; every direct-borrow/local-alias/parameter-
+  forwarding origin; one and many reference parameters; all parameter orders and
+  scalar companions; scalar/Bool/Void consumers; recursion and multi-hop forwarding;
+  multiple shared borrows; alias/owner reuse after calls; module calls; exact arity and
+  type failures; every excluded pointee/mutability/result/signature/container/origin/
+  escape topology; raw-path containment; and independent missing, duplicate,
+  misplaced, wrong-name, wrong-pointee, wrong-kind, wrong-call-place, non-dominating,
+  and forged-result verifier corruptions. Require semantic-before-IR rejection, exact
+  checked signature/place metadata, typed LLVM definitions/calls/binders/loads,
+  absence of pointer/integer casts, CLI artifact hygiene, and tracked example/workflow
+  anchors. Run it red before any compiler, example, workflow, capability-state, or
+  claim mutation. Only the exact CORE-048 reference-parameter negative cell may become
+  positive after this contract passes; reference-result and escape controls remain.
+- System-level gate: add one tracked direct-module example that composes all three
+  reference pointees, copied and forwarded aliases, scalar companion arguments,
+  modules and call chains with accepted payload-enum transport/Match, unit enums,
+  fixed arrays, finite Copy aggregates/transport, compile-time Strings, and scalar
+  control flow into exact native exit `211`. Stable/nightly CI must unconditionally
+  checked-build it, use pinned LLVM/Clang 22, run `opt-22`,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking, execution, and
+  assert the exact exit. Parser-only, rejection-only, pointer-text-only, unchecked,
+  unlinked, or unexecuted evidence cannot close CORE-053.
+- Allowed files: this ledger; `src/compiler/src/local_reference.rs`,
+  `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs`; one new
+  `src/compiler/tests/reference_parameter_transport_tests.rs`; the exact CORE-048
+  reference-parameter expectation in `local_scalar_reference_tests.rs`; only exact
+  verifier/unit expectations made stale by the new logical type and binder; one new
+  tracked `examples/reference_parameter_transport/` direct module pair;
+  `.github/workflows/rust.yml`; and, only after executable acceptance, `README.md`,
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md`.
+  No lexer/parser/AST, dependency, optimizer, runtime, stdlib simulation, mutable-loan
+  engine, general lifetime/ownership architecture, aggregate contract, enum schema,
+  module resolver, claim-verification, benchmark, release, `master`, PR merge,
+  force-push, history rewrite, or controlled mega-PR checkpoint is authorized.
+- Risks and stop conditions: stop rather than broaden if a reference can escape its
+  owner; calls require reference results, lifetime inference, mutation, runtime loan
+  state, public ABI stability, aggregate reference layout, or AST/parser changes; the
+  verifier cannot distinguish pointer places from scalar results or cannot prove exact
+  signature/binder/call identity; recursion creates an unbounded provenance rule;
+  unsupported references reach LLVM; local reference, aggregate, enum, or scalar
+  behavior regresses; a test must be weakened; or the work crosses semantics,
+  checked IR, and backend beyond this explicitly lead-owned vertical slice.
+  Unexpected semantic expansion remains a stop.
+- Scaling controls and starting evidence: this is a hard ownership/provenance and
+  internal calling-convention slice, not an easy compile-time residual. Its one shared
+  whole-signature classifier prevents topology-specific guard multiplication. One
+  focused exhaustive target and one composed native trace cap evidence overhead; the
+  exit-211 gate is the next periodic system-level architecture proof. Draft PR #4 is
+  an integration program at 240 commits and remains open, draft, and unmerged; a
+  controlled merge/checkpoint and structured evidence manifest each require separate
+  authorization. Exact clean accepted CORE-052 head
+  `93a4a29e0b50f8d16ce6e2f845306b4ffcb37738` equals
+  `origin/agent/aero-integration`. The only CORE-053 mutation at authorization is this
+  ledger record. The next allowed mutation is the exhaustive failing target; no
+  CORE-053 compiler behavior, example, workflow anchor, capability claim, commit, or
+  public artifact exists.
+- Tests-first red evidence: with `%USERPROFILE%\.cargo\bin` prepended to inherited
+  `PATH`, `cargo test --manifest-path src/compiler/Cargo.toml --test
+  reference_parameter_transport_tests -- --nocapture` builds and executes the new
+  exhaustive target but fails 0/1 before any compiler, example, workflow, or
+  capability-state mutation. Parser retention passes for declaration-ordered
+  `&int`/`&float`/`&bool` plus scalar parameters; nested `&&int` remains parser-level
+  quarantined. All valid direct-borrow, local-alias, multi-reference, Void/Bool,
+  forwarding, recursion, and mixed scalar forms stop because reference-bearing
+  function contracts are absent: checked admission reports the existing non-scalar
+  parameter boundary, and calls whose intended result is Bool retain the legacy
+  unadmitted-call `Int` fallback. Intended whole-signature diagnostics, exact logical
+  reference metadata, `CheckedImmutableReferenceParameter`, pointer-bearing checked
+  calls, tracked example files, and all five workflow anchors are absent. Existing
+  mutable/reference-result/unsupported-pointee/generic/process-entry exclusions fail
+  closed under older neighboring diagnostics; invalid CLI output remains artifact-free.
+  The deprecated raw path cannot activate the missing binder. This proves the
+  executable capability and verifier evidence are red without weakening an existing
+  test or changing a public branch/PR artifact.
+- Adjacent diagnostic correction: after the focused implementation and independent
+  verifier corruption test passed, the CORE-048 suite reached its preserved
+  reference-result rejection. The source still fails before checked IR, but the old
+  generic `function return type is not an admitted scalar or Void type` expectation
+  is superseded by the shared whole-signature classifier's exact
+  `reference results require lifetime semantics and are not supported by CORE-053`
+  boundary. Updating only that expectation in
+  `src/compiler/tests/local_scalar_reference_tests.rs` is authorized in addition to
+  removing the now-positive parameter cell. No reference result, return lifetime,
+  mutable reference, or escape topology is admitted.
+- Root-gate admission correction: the first exact repository gate passed all 163
+  library tests and reached `checked_ir_contract_tests`, where two deliberately
+  centralized reference-signature precedence cells retained CORE-048 expectations.
+  The immutable scalar-reference parameter case must now fail on its intentionally
+  wrong call arity because the signature is admitted, while the reference-result case
+  remains rejected earlier by the exact lifetime-sensitive classifier diagnostic.
+  Updating only those two expected strings/labels is authorized; no call, result,
+  lifetime, or topology is relaxed. Every preceding root-gate test passed unchanged.
+- Second root-gate diagnostic correction: the rerun passed the corrected admission
+  suite and every subsequent target through `payload_enum_transport_tests`, whose one
+  enum-reference-parameter exclusion retained the enum transport classifier's older
+  by-value diagnostic. The source remains rejected before checked IR, now by the
+  whole-signature reference classifier because an enum is not an admitted immutable
+  scalar pointee. Updating only that expected diagnostic in
+  `src/compiler/tests/payload_enum_transport_tests.rs` is authorized. Enum references,
+  enum borrowing, aggregate reference transport, and every payload-enum rule remain
+  unchanged.
+- Final root-gate diagnostic correction: the next rerun passed through the new
+  CORE-053 target and every later suite until the final unit-enum transport target
+  exposed the exact unit-enum twin of the payload-enum reference-parameter cell. Its
+  source remains rejected before checked IR by the same unsupported immutable scalar
+  pointee diagnostic. Updating only that one expectation in
+  `src/compiler/tests/unit_enum_transport_tests.rs` is authorized. Repository search
+  identifies these two enum transport cells as the complete copies of the superseded
+  by-value message for enum reference parameters.
+- Local implementation and verifier evidence: the whole-signature classifier now owns
+  reference-bearing function admission once in `local_reference.rs` and is consumed by
+  semantic analysis and checked admission. Supported signatures receive exact logical
+  immutable-reference parameters, explicit entry-block parameter-place binders, and
+  place-normalized forwarded call arguments. The independent verifier corruption
+  matrix rejects missing, duplicate, misplaced, name/pointee-mismatched, colliding,
+  scalar-substituted, wrong-pointee, and non-dominating binders/arguments. Verified
+  lowering emits `double*` for `Int`/`Float`, `i1*` for `Bool`, typed GEP/load paths,
+  and no pointer/integer conversions. The exhaustive CORE-053 target, CORE-048 local
+  reference suite, checked-IR contract suite, payload-enum transport suite, and
+  unit-enum transport suite each pass after only the preregistered diagnostic updates.
+- Local system trace and complete gate: the tracked `reference_parameter_transport`
+  example composes direct modules, direct/aliased/forwarded scalar borrows, multiple
+  shared borrows, recursive and mixed calls, accepted payload and unit enums, Copy
+  structs/arrays, compile-time String length, and control flow. A fresh Windows build
+  resolves `borrows`, passes source semantics, checked-IR generation and verification,
+  and emits LLVM SHA-256
+  `5EA298FBD6CB9A96F525EC680AA250EB93F46D19DAD0763733C9C17726924685` with four
+  `double*` definitions, one `i1*` definition, five typed pointer calls, seven parameter
+  GEPs, and zero pointer/integer casts. The host truthfully reports `InternalOnly`
+  because LLVM/Clang 22 is absent. With `%USERPROFILE%\.cargo\bin` inherited, the exact
+  repository-root `bash ./tools/test.sh` passes formatting, correctness Clippy, all
+  163 library tests, all 169 binary tests, every integration target, and doc tests.
+  The candidate is not public or accepted yet; one intentional commit/push, immediate
+  draft-PR front-page synchronization, all eight public checks, and pinned Linux
+  LLVM/Clang 22 external/machine verification, object/link, and exact native exit 211
+  remain mandatory. PR #4 remains draft and unmerged; no checkpoint merge, release,
+  package, benchmark, force-push, or history rewrite is authorized.
+- Claim-contract wording correction: the post-documentation exact root gate passed all
+  compiler and integration targets through `version_claim_contract_tests`, where its
+  safety tripwire requires the established README sentence `No general borrow checker,
+  mutable references, lifetime analysis, drop model, or memory-safety guarantee.`
+  CORE-053's added `reference results` phrase had been inserted inside that exact
+  sentence. Restore the unchanged disclaimer verbatim and state reference-result
+  exclusion separately. This is a wording-preservation correction only; no capability,
+  test weakness, lifetime behavior, or memory-safety claim changes.

@@ -146,7 +146,7 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus an accepted bounded subset for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places through checked IR, verification, LLVM, and native execution. No general borrow checker, mutable references, lifetime analysis, drop model, or memory-safety guarantee. |
+| **Memory** | Shallow move tracking plus an accepted bounded subset for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places, and a locally green candidate for transporting those aliases through exact internal function parameters. Both use checked IR, verification, and typed LLVM. No general borrow checker, mutable references, lifetime analysis, drop model, or memory-safety guarantee. Reference results remain unsupported. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
@@ -219,13 +219,24 @@ aero lsp
 > local or parameter `Int`, `Float`, or `Bool`; inferred/exact local aliases may be
 > copied and dereferenced into already-supported scalar contexts. Checked IR records a
 > fresh read-only alias place, verifies its exact pointee and dominance, and lowers it
-> as a typed zero-offset pointer derivation plus scalar load. Mutable references,
-> temporary/non-scalar pointees, reference parameters/results, escaping or aggregate
-> references, assignment/mutation, NLL, drop, stable pointer ABI, and any memory-safety
-> guarantee remain unsupported. Exact implementation commit `98c21b9` passes 159
-> library and 165 binary tests plus every downstream gate and all eight public checks.
-> Stable Linux used LLVM/Clang 22.1.8 for external verification, machine verification,
-> object lowering, linking, and exact native exit 127. The Windows host accurately
+> as a typed zero-offset pointer derivation plus scalar load. Exact implementation
+> `98c21b9` passes 159 library and 165 binary tests plus every downstream gate and all
+> eight public checks. Stable Linux used LLVM/Clang 22.1.8 for external verification,
+> machine verification, object lowering, linking, and exact native exit 127.
+>
+> CORE-053 is the locally green candidate for passing those same non-escaping immutable
+> scalar references into unique non-generic internal functions. One whole-signature
+> classifier admits arbitrary declaration order and count mixed only with by-value
+> `Int`/`Float`/`Bool`; checked parameter-place binders and the independent verifier
+> preserve exact pointee, dominance, coverage, and pointer-bearing calls. LLVM uses
+> internal `double*` for `Int`/`Float` and `i1*` for `Bool` with no pointer/integer
+> conversion. The local root gate passes 163 library and 169 binary tests. Public
+> acceptance still requires all eight checks and pinned LLVM/Clang 22 external and
+> machine verification, object/link, and exact native exit 211.
+>
+> Mutable references, temporary/non-scalar pointees, reference results, escaping or
+> aggregate references, storage/capture, assignment/mutation, NLL, drop, stable pointer
+> ABI, and any memory-safety guarantee remain unsupported. The Windows host accurately
 > remains `InternalOnly` because LLVM 22 is absent locally.
 
 > **Pattern matching status:** CORE-049 accepts one bounded owned unit-enum class:
@@ -262,15 +273,16 @@ aero lsp
 > guard/nested destructuring, mutation, stable layout/ABI, and general pattern
 > matching remain unsupported. Other Match topologies retain the fail-closed boundary.
 >
-> CORE-052 is the locally green candidate that carries every supported unit or unary
+> CORE-052 is publicly accepted and carries every supported unit or unary
 > scalar-payload enum schema through exact internal parameters, arguments, call results,
 > and returns. One shared transport annotation resolver admits the complete schema class;
 > `CheckedEnumParameter` and the independent verifier preserve exact binder/signature/
 > call/return identity and ownership transfer. Unit enums remain private `i32`; payload
-> enums remain private `{ i32, double, i1 }` SSA values. The full local gate passes 162
-> library and 168 binary tests. Public acceptance requires all eight checks plus pinned
-> LLVM/Clang 22 external verification, machine verification, object/link, and exact
-> native exit 197. This creates no stable layout, public calling convention, ABI, FFI,
+> enums remain private `{ i32, double, i1 }` SSA values. Exact implementation
+> `93a4a29e` passes 162 library and 168 binary tests plus all eight public checks;
+> stable job `92227409386` uses LLVM/Clang 22.1.8 for external and machine verification,
+> object/link, and exact native exit 197. This creates no stable layout, public calling
+> convention, ABI, FFI,
 > aggregate enum storage, borrowing, mutation, drop, or general CFG ownership claim.
 
 Formal spec: `docs/language/aero_formal_language_specification.md`

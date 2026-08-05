@@ -294,14 +294,9 @@ fn local_immutable_scalar_reference_class_is_complete_and_executable() {
             "mutable references are not supported",
         ),
         (
-            "reference parameter ABI",
-            "fn read(value: &int) -> int { *value } fn main() -> int { let x = 1; read(&x) }",
-            "function parameter `value` is not an admitted scalar type",
-        ),
-        (
             "reference result ABI",
             "fn bad() -> &int { let x = 1; &x } fn main() -> int { 0 }",
-            "function return type is not an admitted scalar or Void type",
+            "reference results require lifetime semantics and are not supported by CORE-053",
         ),
         (
             "reference argument escape",

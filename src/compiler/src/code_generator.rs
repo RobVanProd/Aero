@@ -83,6 +83,11 @@ impl CodeGenerator {
             LogicalType::Float => "double".to_string(),
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Void => "void".to_string(),
+            LogicalType::ImmutableReference { pointee } => match pointee.as_ref() {
+                LogicalType::Int | LogicalType::Float => "double*".to_string(),
+                LogicalType::Bool => "i1*".to_string(),
+                _ => unreachable!("verified immutable references carry scalar pointees"),
+            },
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
             LogicalType::Enum { variants, .. }
                 if variants.iter().all(|variant| variant.payload.is_none()) =>
@@ -134,7 +139,10 @@ impl CodeGenerator {
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
             LogicalType::Array { .. } => Self::logical_type_to_llvm(logical_type),
-            LogicalType::Void | LogicalType::String | LogicalType::Enum { .. } => {
+            LogicalType::Void
+            | LogicalType::String
+            | LogicalType::ImmutableReference { .. }
+            | LogicalType::Enum { .. } => {
                 unreachable!("verified Copy-aggregate schemas exclude Void and String")
             }
         }
@@ -241,6 +249,9 @@ impl CodeGenerator {
                 Inst::CheckedImmutableBorrow { result, source, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedImmutableReferenceParameter { result, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
                 }
                 Inst::CheckedEnumParameter { result, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
@@ -615,6 +626,7 @@ impl CodeGenerator {
                 | Inst::CheckedStructAlloca { .. }
                 | Inst::CheckedStructFieldPtr { .. }
                 | Inst::CheckedImmutableBorrow { .. }
+                | Inst::CheckedImmutableReferenceParameter { .. }
                 | Inst::CheckedEnumParameter { .. }
                 | Inst::CheckedEnumVariant { .. }
                 | Inst::CheckedEnumPayload { .. }
@@ -1478,6 +1490,26 @@ impl CodeGenerator {
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
                     ));
                 }
+                Inst::CheckedImmutableReferenceParameter {
+                    result,
+                    parameter,
+                    pointee,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked immutable reference parameter")
+                    };
+                    let pointee = match pointee {
+                        LogicalType::Int | LogicalType::Float => "double",
+                        LogicalType::Bool => "i1",
+                        _ => unreachable!(
+                            "verified immutable reference parameters carry scalar pointees"
+                        ),
+                    };
+                    let parameter = Self::llvm_parameter_name(parameter);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %{parameter}, i64 0\n"
+                    ));
+                }
                 Inst::CheckedEnumParameter {
                     result,
                     parameter,
@@ -1801,6 +1833,10 @@ impl CodeGenerator {
         target_type: &str,
     ) -> String {
         match target_type {
+            "double*" | "i1*" => match value {
+                Value::Reg(register) => format!("%ptr{register}"),
+                _ => panic!("verified immutable reference arguments use place identifiers"),
+            },
             "double" => self.value_to_string(value),
             "i32" => match value {
                 Value::ImmInt(n) => n.to_string(),

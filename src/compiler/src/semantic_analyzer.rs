@@ -7,8 +7,8 @@ use crate::binding_annotation::{
 };
 use crate::enum_match_contract::{EnumExecutionContext, EnumFunctionContract, EnumRegistry};
 use crate::local_reference::{
-    LocalReferenceDisposition, classify_local_borrow, classify_local_dereference,
-    classify_local_reference_annotation,
+    LocalReferenceDisposition, ReferenceFunctionDisposition, classify_local_borrow,
+    classify_local_dereference, classify_local_reference_annotation, classify_reference_function,
 };
 use crate::struct_contract::{
     CopyStructArrayIndexDisposition, StructExecutionContext, StructRegistry,
@@ -740,21 +740,46 @@ impl SemanticAnalyzer {
                 ..
             }) = node
             {
-                let enum_transport = self
-                    .enum_registry
-                    .resolve_function_contract(
-                        name,
-                        parameters,
-                        return_type.as_ref(),
-                        type_params,
-                        |annotation| {
-                            self.struct_registry
-                                .resolve_copy_annotation(annotation)
-                                .map(|contract| (contract.ty, contract.logical_type))
-                        },
-                    )
-                    .map_err(|error| error.diagnostic())?;
-                let admitted_contract = if let Some(contract) = enum_transport {
+                let reference_transport = match classify_reference_function(
+                    name,
+                    parameters,
+                    return_type.as_ref(),
+                    type_params,
+                ) {
+                    ReferenceFunctionDisposition::Supported(contract) => Some(contract),
+                    ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
+                        return Err(diagnostic);
+                    }
+                    ReferenceFunctionDisposition::Preserved => None,
+                };
+                let enum_transport = if reference_transport.is_none() {
+                    self.enum_registry
+                        .resolve_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                            |annotation| {
+                                self.struct_registry
+                                    .resolve_copy_annotation(annotation)
+                                    .map(|contract| (contract.ty, contract.logical_type))
+                            },
+                        )
+                        .map_err(|error| error.diagnostic())?
+                } else {
+                    None
+                };
+                let admitted_contract = if let Some(contract) = reference_transport {
+                    Some(AdmittedFunctionContract {
+                        name: contract.name,
+                        parameters: contract
+                            .parameters
+                            .into_iter()
+                            .map(|(parameter, contract)| (parameter, contract.ty))
+                            .collect(),
+                        return_type: contract.result.ty,
+                    })
+                } else if let Some(contract) = enum_transport {
                     self.enum_function_contracts
                         .insert(name.clone(), contract.clone());
                     Some(AdmittedFunctionContract {

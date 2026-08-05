@@ -1,0 +1,35 @@
+mod borrows;
+
+enum Signal { Idle, Count(int), Ready(bool) }
+enum Mode { Off, On }
+struct Packet { value: int, ready: bool }
+struct Envelope { packet: Packet, rows: [Packet; 2] }
+
+fn roundtrip(value: Envelope) -> Envelope { value }
+fn signal_score(value: Signal) -> int {
+    match value {
+        Signal::Idle => 1,
+        Signal::Count(inner) => inner,
+        Signal::Ready(inner) => 3
+    }
+}
+fn make_signal(value: int) -> Signal { Signal::Count(value) }
+fn mode_score(value: Mode) -> int { match value { Mode::Off => 1, Mode::On => 6 } }
+
+fn main() -> int {
+    let base = 100;
+    let ratio = 2.5;
+    let ready = base > 0;
+    let base_ref: &int = &base;
+    let alias = base_ref;
+    let packet = Packet { value: 10, ready: ready };
+    let envelope = roundtrip(Envelope { packet: packet, rows: [packet, packet] });
+    let borrowed = module_chain(alias, &ratio, &ready, 3);
+    let signal = signal_score(make_signal(40));
+    let mode = mode_score(Mode::On);
+    if envelope.packet.ready && envelope.rows[1].value == 10
+        && "aero".len() == 4 && borrowed == 163 && *base_ref == 100 {
+        return borrowed + signal + mode + envelope.rows.len();
+    }
+    1
+}

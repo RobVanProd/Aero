@@ -10,8 +10,9 @@ use crate::fixed_array_method::{FixedArrayLenDisposition, classify_fixed_array_l
 use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::local_reference::{
-    LocalReferenceDisposition, classify_local_borrow, classify_local_dereference,
-    classify_local_reference_annotation,
+    LocalReferenceDisposition, ReferenceFunctionContract, ReferenceFunctionDisposition,
+    classify_local_borrow, classify_local_dereference, classify_local_reference_annotation,
+    classify_reference_function,
 };
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
@@ -91,6 +92,7 @@ pub struct IrGenerator {
     function_return_types: HashMap<String, Ty>,
     copy_function_contracts: HashMap<String, CopyFunctionContract>,
     enum_function_contracts: HashMap<String, EnumFunctionContract>,
+    reference_function_contracts: HashMap<String, ReferenceFunctionContract>,
     loop_label_stack: Vec<(String, String)>, // Stack of (loop_start, loop_end) labels
     closure_count: u32,                      // Counter for unique closure names
     checked_mode: bool,
@@ -110,6 +112,7 @@ impl IrGenerator {
             function_return_types: HashMap::new(),
             copy_function_contracts: HashMap::new(),
             enum_function_contracts: HashMap::new(),
+            reference_function_contracts: HashMap::new(),
             loop_label_stack: Vec::new(),
             closure_count: 0,
             checked_mode: false,
@@ -142,6 +145,7 @@ impl IrGenerator {
         self.function_return_types.clear();
         self.copy_function_contracts.clear();
         self.enum_function_contracts.clear();
+        self.reference_function_contracts.clear();
         self.loop_label_stack.clear();
         self.closure_count = 0;
         self.checked_place_hints.clear();
@@ -158,6 +162,7 @@ impl IrGenerator {
         self.function_return_types.clear();
         self.copy_function_contracts.clear();
         self.enum_function_contracts.clear();
+        self.reference_function_contracts.clear();
         for node in &ast {
             if let AstNode::Statement(Statement::Function {
                 name,
@@ -167,7 +172,25 @@ impl IrGenerator {
                 ..
             }) = node
             {
-                let enum_contract = if self.checked_mode {
+                let reference_contract = if self.checked_mode {
+                    match classify_reference_function(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                    ) {
+                        ReferenceFunctionDisposition::Supported(contract) => Some(contract),
+                        ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
+                            panic!(
+                                "checked admission accepted rejected reference signature: {diagnostic}"
+                            )
+                        }
+                        ReferenceFunctionDisposition::Preserved => None,
+                    }
+                } else {
+                    None
+                };
+                let enum_contract = if self.checked_mode && reference_contract.is_none() {
                     self.enum_registry
                         .resolve_function_contract(
                             name,
@@ -184,20 +207,28 @@ impl IrGenerator {
                 } else {
                     None
                 };
-                let copy_contract =
-                    if self.checked_mode && enum_contract.is_none() && type_params.is_empty() {
-                        self.struct_registry
-                            .resolve_copy_function_contract(
-                                name,
-                                parameters,
-                                return_type.as_ref(),
-                                type_params,
-                            )
-                            .expect("checked admission resolved struct Copy function contracts")
-                    } else {
-                        None
-                    };
-                if let Some(contract) = enum_contract {
+                let copy_contract = if self.checked_mode
+                    && reference_contract.is_none()
+                    && enum_contract.is_none()
+                    && type_params.is_empty()
+                {
+                    self.struct_registry
+                        .resolve_copy_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                        )
+                        .expect("checked admission resolved struct Copy function contracts")
+                } else {
+                    None
+                };
+                if let Some(contract) = reference_contract {
+                    self.function_return_types
+                        .insert(name.clone(), contract.result.ty.clone());
+                    self.reference_function_contracts
+                        .insert(name.clone(), contract);
+                } else if let Some(contract) = enum_contract {
                     self.function_return_types
                         .insert(name.clone(), contract.result.ty.clone());
                     self.enum_function_contracts.insert(name.clone(), contract);
@@ -331,20 +362,39 @@ impl IrGenerator {
                 ..
             }) = node
             {
-                let enum_contract = enums
-                    .resolve_function_contract(
-                        name,
-                        parameters,
-                        return_type.as_ref(),
-                        type_params,
-                        |annotation| {
-                            structs
-                                .resolve_copy_annotation(annotation)
-                                .map(|contract| (contract.ty, contract.logical_type))
-                        },
-                    )
-                    .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
-                let copy_contract = if enum_contract.is_none() && type_params.is_empty() {
+                let reference_contract = match classify_reference_function(
+                    name,
+                    parameters,
+                    return_type.as_ref(),
+                    type_params,
+                ) {
+                    ReferenceFunctionDisposition::Supported(contract) => Some(contract),
+                    ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
+                        return Err(IrGenerationError::Admission(diagnostic));
+                    }
+                    ReferenceFunctionDisposition::Preserved => None,
+                };
+                let enum_contract = if reference_contract.is_none() {
+                    enums
+                        .resolve_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                            |annotation| {
+                                structs
+                                    .resolve_copy_annotation(annotation)
+                                    .map(|contract| (contract.ty, contract.logical_type))
+                            },
+                        )
+                        .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?
+                } else {
+                    None
+                };
+                let copy_contract = if reference_contract.is_none()
+                    && enum_contract.is_none()
+                    && type_params.is_empty()
+                {
                     match structs.resolve_copy_function_contract(
                         name,
                         parameters,
@@ -360,7 +410,18 @@ impl IrGenerator {
                 } else {
                     None
                 };
-                let (result, arity, parameter_types) = if let Some(contract) = enum_contract {
+                let (result, arity, parameter_types) = if let Some(contract) = reference_contract {
+                    let parameter_types = contract
+                        .parameters
+                        .iter()
+                        .map(|(_, parameter)| parameter.ty.clone())
+                        .collect::<Vec<_>>();
+                    (
+                        contract.result.ty,
+                        Some(parameter_types.len()),
+                        Some(parameter_types),
+                    )
+                } else if let Some(contract) = enum_contract {
                     enum_functions.insert(name.clone(), contract.clone());
                     let parameter_types = contract.parameter_types();
                     (
@@ -725,7 +786,19 @@ impl IrGenerator {
                 body,
                 ..
             } => {
-                if !type_params.is_empty() {
+                let reference_contract = match classify_reference_function(
+                    name,
+                    parameters,
+                    return_type.as_ref(),
+                    type_params,
+                ) {
+                    ReferenceFunctionDisposition::Supported(contract) => Some(contract),
+                    ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
+                        return Err(IrGenerationError::Admission(diagnostic));
+                    }
+                    ReferenceFunctionDisposition::Preserved => None,
+                };
+                if reference_contract.is_none() && !type_params.is_empty() {
                     return Err(IrGenerationError::Admission(
                         "generic function IR is not admitted in CORE-010".to_string(),
                     ));
@@ -741,22 +814,26 @@ impl IrGenerator {
                         },
                     );
                 }
-                let enum_contract = program
-                    .enums
-                    .resolve_function_contract(
-                        name,
-                        parameters,
-                        return_type.as_ref(),
-                        type_params,
-                        |annotation| {
-                            program
-                                .structs
-                                .resolve_copy_annotation(annotation)
-                                .map(|contract| (contract.ty, contract.logical_type))
-                        },
-                    )
-                    .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
-                let copy_contract = if enum_contract.is_none() {
+                let enum_contract = if reference_contract.is_none() {
+                    program
+                        .enums
+                        .resolve_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                            |annotation| {
+                                program
+                                    .structs
+                                    .resolve_copy_annotation(annotation)
+                                    .map(|contract| (contract.ty, contract.logical_type))
+                            },
+                        )
+                        .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?
+                } else {
+                    None
+                };
+                let copy_contract = if reference_contract.is_none() && enum_contract.is_none() {
                     match program.structs.resolve_copy_function_contract(
                         name,
                         parameters,
@@ -773,7 +850,9 @@ impl IrGenerator {
                     None
                 };
                 for (index, parameter) in parameters.iter().enumerate() {
-                    let parameter_ty = if let Some(contract) = &enum_contract {
+                    let parameter_ty = if let Some(contract) = &reference_contract {
+                        contract.parameters[index].1.ty.clone()
+                    } else if let Some(contract) = &enum_contract {
                         contract.parameters[index].1.ty.clone()
                     } else {
                         copy_contract.as_ref().map_or_else(
@@ -781,7 +860,8 @@ impl IrGenerator {
                             |contract| contract.parameters[index].1.ty.clone(),
                         )
                     };
-                    if enum_contract.is_none()
+                    if reference_contract.is_none()
+                        && enum_contract.is_none()
                         && copy_contract.is_none()
                         && !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool)
                     {
@@ -799,7 +879,8 @@ impl IrGenerator {
                         },
                     );
                 }
-                if enum_contract.is_none()
+                if reference_contract.is_none()
+                    && enum_contract.is_none()
                     && copy_contract.is_none()
                     && return_type.as_ref().is_some_and(|return_type| {
                         !matches!(
@@ -1843,8 +1924,53 @@ impl IrGenerator {
         functions: &mut HashMap<String, Function>,
         place_hints: &mut PlaceTypeHints,
     ) {
+        let mut reference_parameter_indices = HashMap::<String, Vec<usize>>::new();
+        for function in functions.values() {
+            Self::collect_reference_parameter_indices(
+                &function.body,
+                &mut reference_parameter_indices,
+            );
+        }
         for function in functions.values_mut() {
-            Self::normalize_instruction_places(&mut function.body, &function.name, place_hints);
+            Self::normalize_instruction_places(
+                &mut function.body,
+                &function.name,
+                place_hints,
+                &reference_parameter_indices,
+            );
+        }
+    }
+
+    fn collect_reference_parameter_indices(
+        instructions: &[Inst],
+        indices: &mut HashMap<String, Vec<usize>>,
+    ) {
+        for instruction in instructions {
+            match instruction {
+                Inst::CheckedFunctionDef {
+                    name,
+                    parameters,
+                    body,
+                    ..
+                } => {
+                    indices.insert(
+                        name.clone(),
+                        parameters
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(index, (_, ty))| {
+                                matches!(ty, LogicalType::ImmutableReference { .. })
+                                    .then_some(index)
+                            })
+                            .collect(),
+                    );
+                    Self::collect_reference_parameter_indices(body, indices);
+                }
+                Inst::FunctionDef { body, .. } => {
+                    Self::collect_reference_parameter_indices(body, indices)
+                }
+                _ => {}
+            }
         }
     }
 
@@ -1871,6 +1997,7 @@ impl IrGenerator {
         instructions: &mut [Inst],
         function_name: &str,
         place_hints: &mut PlaceTypeHints,
+        reference_parameter_indices: &HashMap<String, Vec<usize>>,
     ) {
         let mut maximum_result = None::<u32>;
         for instruction in instructions.iter() {
@@ -1909,6 +2036,10 @@ impl IrGenerator {
                     ..
                 }
                 | Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedImmutableReferenceParameter {
                     result: Value::Reg(register),
                     ..
                 } => {
@@ -1957,11 +2088,32 @@ impl IrGenerator {
                     Self::rewrite_place(result, &places);
                     Self::rewrite_place(source, &places);
                 }
+                Inst::CheckedImmutableReferenceParameter { result, .. } => {
+                    Self::rewrite_place(result, &places);
+                }
                 Inst::Store(place, _) => Self::rewrite_place(place, &places),
                 Inst::Load(_, place) => Self::rewrite_place(place, &places),
+                Inst::Call {
+                    function,
+                    arguments,
+                    ..
+                } => {
+                    if let Some(indices) = reference_parameter_indices.get(function) {
+                        for index in indices {
+                            if let Some(argument) = arguments.get_mut(*index) {
+                                Self::rewrite_place(argument, &places);
+                            }
+                        }
+                    }
+                }
                 Inst::FunctionDef { name, body, .. }
                 | Inst::CheckedFunctionDef { name, body, .. } => {
-                    Self::normalize_instruction_places(body, name, place_hints)
+                    Self::normalize_instruction_places(
+                        body,
+                        name,
+                        place_hints,
+                        reference_parameter_indices,
+                    )
                 }
                 _ => {}
             }
@@ -3113,6 +3265,7 @@ impl IrGenerator {
 
         let copy_contract = self.copy_function_contracts.get(&name).cloned();
         let enum_contract = self.enum_function_contracts.get(&name).cloned();
+        let reference_contract = self.reference_function_contracts.get(&name).cloned();
 
         // Create parameter names and types for IR
         let eligible_contract = self.function_return_types.contains_key(&name);
@@ -3144,7 +3297,9 @@ impl IrGenerator {
 
         // Set up parameter variables in symbol table
         for (index, param) in parameters.iter().enumerate() {
-            let param_type = if let Some(contract) = &enum_contract {
+            let param_type = if let Some(contract) = &reference_contract {
+                contract.parameters[index].1.ty.clone()
+            } else if let Some(contract) = &enum_contract {
                 contract.parameters[index].1.ty.clone()
             } else {
                 copy_contract.as_ref().map_or_else(
@@ -3177,7 +3332,19 @@ impl IrGenerator {
         // Allocate parameters
         for (index, param) in parameters.iter().enumerate() {
             let (storage, parameter_ty) = self.symbol_table.get(&param.name).unwrap().clone();
-            if let Some(contract) = &enum_contract
+            if let Some(contract) = &reference_contract
+                && let LogicalType::ImmutableReference { pointee } =
+                    &contract.parameters[index].1.logical_type
+            {
+                function_ir
+                    .body
+                    .push(Inst::CheckedImmutableReferenceParameter {
+                        result: storage,
+                        parameter: param.name.clone(),
+                        pointee: pointee.as_ref().clone(),
+                    });
+                debug_assert!(matches!(parameter_ty, Ty::Reference(_, false)));
+            } else if let Some(contract) = &enum_contract
                 && let LogicalType::Enum {
                     name: enum_name,
                     variants,
@@ -3225,7 +3392,18 @@ impl IrGenerator {
 
         // Create a schema-carrying checked definition only for an admitted Copy or
         // enum transport contract; legacy/raw definitions keep their old shape.
-        let func_def = if let Some(contract) = enum_contract {
+        let func_def = if let Some(contract) = reference_contract {
+            Inst::CheckedFunctionDef {
+                name: name.clone(),
+                parameters: contract
+                    .parameters
+                    .into_iter()
+                    .map(|(parameter, contract)| (parameter, contract.logical_type))
+                    .collect(),
+                result: contract.result.logical_type,
+                body: function_ir.body.clone(),
+            }
+        } else if let Some(contract) = enum_contract {
             Inst::CheckedFunctionDef {
                 name: name.clone(),
                 parameters: contract

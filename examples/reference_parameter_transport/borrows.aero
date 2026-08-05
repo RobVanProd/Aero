@@ -1,0 +1,11 @@
+fn module_read(value: &int, bias: int) -> int { *value + bias }
+fn module_bool(value: &bool) -> bool { *value }
+fn module_ratio(value: &float) -> int { if *value > 2.0 { return 20; } 0 }
+fn module_forward(value: &int, bias: int) -> int { module_read(value, bias) }
+fn module_chain(value: &int, ratio: &float, ready: &bool, bias: int) -> int {
+    let alias = value;
+    if module_bool(ready) {
+        return module_forward(alias, bias) + module_ratio(ratio) + 40;
+    }
+    0
+}

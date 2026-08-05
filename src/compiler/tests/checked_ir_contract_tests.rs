@@ -476,8 +476,8 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 )],
             ),
         ],
-        "function parameter `value` is not an admitted scalar type",
-        "reference signature remains ineligible",
+        "call to `ineligible` has 0 arguments but its signature requires 1",
+        "reference signature now participates in exact arity admission",
     );
     assert_admission(
         vec![
@@ -510,7 +510,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
             ),
         ],
-        "function return type is not an admitted scalar or Void type",
+        "reference results require lifetime semantics and are not supported by CORE-053",
         "reference result remains ineligible",
     );
 
