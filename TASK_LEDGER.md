@@ -12776,3 +12776,180 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   balance, structured evidence generation, and periodic composed system gates remain
   active. This closure changes records only; its successor commit identity is reported
   externally and must pass all eight checks again.
+
+## CORE-065 - Exact acyclic conditional ownership joins for admitted enums
+
+- Task ID: `CORE-065`.
+- Status: authorized for red-first implementation. This is the single class-level
+  authorization record; it is not a candidate, acceptance, safety, stability, ABI,
+  release, or merge claim.
+- Observed behavior: CORE-064 accepts exact whole-owner transfer and replacement for
+  every already-admitted non-generic unit-or-unary-CopyData enum. Semantic analysis,
+  however, analyzes an `if` then arm against the live outer scope and analyzes the else
+  arm against the then arm's mutated ownership, so moving the same owner once in each
+  mutually exclusive arm falsely reports a moved-value error. Checked admission does
+  start both arms from clones, but discards both results and therefore leaves the entry
+  ownership after every conditional, allowing a conditionally moved owner to appear
+  owned after the merge. Checked IR and the verifier currently prove local enum type,
+  place, dominance, and dispatch facts but do not prove linear enum consumption across
+  CFG paths. Existing code generation already emits explicit branch/merge CFG and
+  restores source bindings per arm.
+- Hypothesis: one shared, reachability-aware join over the existing enum ownership
+  states closes both the false-negative sibling-arm boundary and the false-success
+  post-merge boundary without adding general dataflow, partial moves, borrow joins, or
+  loop semantics. The emitted CFG contains enough typed identity to let the verifier
+  independently prove that an enum owner is consumed at most once on every reachable
+  path.
+- Frozen class: this task covers ownership state for pre-existing local or parameter
+  bindings whose exact type is one enum schema already admitted by CORE-063/064, across
+  acyclic `if`, `if`/`else`, and arbitrarily nested `else if` statements. Each sibling
+  arm begins from the identical entry snapshot. Branch-local declarations and shadows
+  do not participate in the outer join. Multiple outer enum owners join independently.
+  Copy scalars, CopyData aggregates, references, strings, structs as owners, closures,
+  unsupported enum schemas, and every other preserved/quarantined topology retain their
+  established behavior.
+- Frozen transfer enumeration: within an arm, the already-accepted enum operations are
+  exhaustive for this class: no consuming use preserves `Owned`; moving through an
+  inferred or exact binding, exact by-value call argument, exhaustive `Match`, enum
+  return, or distinct-source whole-owner assignment produces `Moved`; replacing a
+  mutable target with a constructor, exact call result, or distinct source leaves that
+  target `Owned` while the distinct source becomes `Moved`. Existing moved and future
+  `MaybeMoved` entry states propagate conservatively. This task adds no new consuming
+  expression form.
+- Frozen reachability and join: a then block or else statement that definitely returns
+  under the compiler's existing structural return predicate does not reach the merge.
+  Missing `else` contributes one implicit fallthrough arm with the entry state. With no
+  reachable arm, the continuation is unreachable. All reachable `Owned` states join to
+  `Owned`; all reachable `Moved` states join to `Moved`; any reachable mixture of
+  `Owned`, `Moved`, or `MaybeMoved` joins to `MaybeMoved`; `MaybeMoved` with itself
+  remains `MaybeMoved`. A subsequent read, borrow, move, Match, call, return, or RHS use
+  of `MaybeMoved` fails deterministically with a may-have-been-moved diagnostic. Exact
+  replacement of a `MaybeMoved` mutable target is not admitted in this slice because it
+  would add conditional reinitialization semantics.
+- Frozen loop boundary: this is an acyclic join, not a fixed-point analysis. Inside a
+  loop, a conditional whose reachable fallthrough join changes an outer enum ownership
+  state is explicitly rejected by the same classifier. A definitely returning arm may
+  consume an enum because it contributes no backedge. Independent checked-IR
+  verification rejects enum consumption on reachable CFG cycles and double consumption
+  on any path. `break`, `continue`, loop-carried reinitialization, and all backedge joins
+  remain separately unauthorized.
+- Shared predicate and phase contract: one `ownership_flow` classifier owns the exact
+  branch reachability/join/loop disposition and is consumed by both semantic analysis
+  and checked admission. Semantic analysis snapshots and restores outer scope ownership
+  around siblings, then applies only that classifier's result. Checked admission does
+  the same over admission bindings. Neither phase may grow a topology-specific enum
+  rule table. Invalid source stops before raw/checked IR and LLVM. The verifier derives
+  owner identity from exact enum-typed parameter, constructor, payload, call, load,
+  adjacent initialization, owned assignment, Match dispatch, and return instructions;
+  it must not trust a source-only marker or manufacture scalar identity.
+- Exhaustive red-first proof: before production mutation, add one focused target and a
+  tracked direct-module program. Positive execution must cover the same enum owner moved
+  independently in both returning sibling arms; one returning arm plus an unchanged
+  fallthrough; both fallthrough arms replacing a target followed by Match/call/return;
+  both fallthrough arms moving the same source into the same target; nested `else if`;
+  no-else unchanged flow; branch-local shadowing; multiple owners; inferred and exact
+  annotations; local and parameter origins; all CORE-063 admitted unit, scalar, array,
+  tuple, struct, recursive, and mixed schemas; deterministic checked IR/LLVM; direct
+  modules; and native sentinel 137. The first run must fail at the current sequential
+  sibling-arm moved-value diagnostic rather than parser, Cargo, subprocess, or host
+  security setup.
+- Negative completion surface: no-else conditional move followed by read/Match/call/
+  return/borrow/assignment-source use; one moved and one owned fallthrough arm; both
+  moved fallthrough arms followed by use; nested partial move; independent multi-owner
+  partial states; exact replacement of a maybe-moved target; conditional move on a loop
+  backedge; `break`/`continue` ownership transport; raw-IR double consumption; merge
+  consumption after only one predecessor consumes; cyclic consumption; enum-load place
+  consumption and replacement corruption; schema/type/dominance/identity corruption;
+  unsupported enum declarations/storage/borrowing; requested-artifact residue; and all
+  still-quarantined language shapes. Ordinary functions, CopyData/references, structs,
+  tuples, arrays, modules, closures-as-unsupported, and CORE-043 through CORE-064 must
+  remain unchanged.
+- Allowed files: this ledger; new `src/compiler/src/ownership_flow.rs`;
+  `src/compiler/src/lib.rs`, `main.rs`, `types.rs`, `semantic_analyzer.rs`,
+  `ir_generator.rs`, `ir_verifier.rs`, plus the directly coupled shared
+  `local_reference.rs` and `scalar_assignment.rs` classifiers that must reject the new
+  joined state rather than leave non-exhaustive or permissive ownership matches; one exhaustive
+  `conditional_enum_ownership_tests.rs` target; directly superseded ownership/enum/
+  verifier expectations; one tracked example tree; `.github/workflows/rust.yml`; and,
+  only after the exact candidate is green, the project-state, task/capability matrix,
+  framework-alignment, decision/audit, README/roadmap/conformance/backend records needed
+  by their existing consistency gates, plus draft PR #4. Parser, AST, IR opcode, and
+  LLVM representation changes are not authorized.
+- Forbidden actions: general path-sensitive borrowing or NLL; partial field/payload
+  moves; enum fields/arrays/general storage or borrowing; moved-target reinitialization;
+  destructors/drop/lifetimes; loop fixed points; `break`/`continue` transport; new enum
+  declaration/payload topology; aggregate Match results or nested destructuring; stable
+  layout/ABI/FFI; closure/runtime/dependency/accelerator work; benchmark, release,
+  package, registry, or claim-verification changes; `master`, PR merge, force-push,
+  history rewrite, or any mutation of `tmp/`.
+- Acceptance gates: focused red/green target and verifier corruption unit; affected
+  ownership, CORE-043-through-064 enum, reference, struct/tuple/array, module, closure,
+  checked-IR, verifier, and backend suites; formatting; all-target/all-feature check;
+  correctness Clippy; docs; exact repository-root `./tools/test.sh`; tracked source to
+  checked IR to externally verified LLVM, machine verification, object/link, and exact
+  native exit 137; one immutable candidate; immediate draft PR #4 synchronization; all
+  eight public checks; and the pinned LLVM/Clang 22 stable system lane. Candidate status
+  and public acceptance must remain explicitly separate.
+- Risks and stop conditions: stop rather than approximate if structural reachability is
+  insufficient for the frozen cases, sibling restoration changes non-ownership
+  semantics, the join cannot be shared exactly by both source phases, enum owner
+  identity is lost before verification, the verifier requires a trusted source marker,
+  loop exclusion cannot fail closed, implementation crosses an unauthorized phase, a
+  test/spec must be weakened, or the baseline becomes red for an unrelated cause.
+- Scaling controls: PR #4 remains a draft integration program requiring a separately
+  authorized checkpoint/merge strategy; this hard CFG-ownership slice prevents bounded
+  compile-time wins from monopolizing selection; one authorization and one exhaustive
+  class target cap evidence administration pending structured manifest generation; and
+  the milestone includes a composed source-through-native system gate rather than only
+  local feature tests.
+- Red evidence: after correcting a test-only legacy raw-IR probe that had incorrectly
+  sent the full checked-enum program through the intentionally unchecked compatibility
+  generator, the exhaustive target runs 0/1 before any production mutation. The
+  complete in-memory program and tracked direct-module `check`/`build` both stop at the
+  exact current sequential sibling-arm diagnostic, `Use of moved value \`value\``, and
+  no requested LLVM artifact is created. The negative matrix also exposes the current
+  false-success loop/backedge cases, while the future may-move diagnostics, verifier
+  control, and six workflow anchors are absent. The command was `cargo test
+  --manifest-path src/compiler/Cargo.toml --test conditional_enum_ownership_tests --
+  --nocapture` with the inherited user Cargo bin directory on `PATH`. This is the
+  required semantic-class red, not a parser, Cargo, subprocess, Windows Security, or
+  unchecked-generator failure.
+
+### CORE-065 locally green candidate evidence
+
+- Finding and implementation: one shared `ownership_flow` module now gives semantic
+  analysis and checked admission the same reachability-aware conditional join and loop
+  exclusion. `MaybeMoved` is a first-class ownership state with one deterministic
+  diagnostic. The checked-IR verifier independently follows exact enum result/place
+  owner identity through calls, returns, Match dispatch, mutable-place initialization
+  and replacement, predecessor unions, and cycles.
+- Additional red/green boundary: an audit negative proved that consuming an enum in a
+  `while` condition was rejected only later by checked-IR verification. Both source
+  phases now reject it through the shared loop classifier before checked IR; the
+  verifier remains the independent corruption backstop. Place-load controls also prove
+  that exact replacement restores one consumable owner and an unreplaced second load/
+  consumption rejects.
+- Files changed: `.github/workflows/rust.yml`; `src/compiler/src/types.rs`,
+  `ownership_flow.rs`, `semantic_analyzer.rs`, `ir_generator.rs`, `ir_verifier.rs`,
+  `local_reference.rs`, `scalar_assignment.rs`, `lib.rs`, and `main.rs`; the exhaustive
+  `conditional_enum_ownership_tests.rs`; tracked
+  `examples/conditional_enum_ownership/{main,flows}.aero`; and the authorized project,
+  capability, framework, decision, audit, README, roadmap, conformance, backend, and
+  ledger records. `tmp/` remains untouched.
+- Local commands: focused conditional target; shared-classifier and verifier corruption
+  units; the affected closure/enum/reference/struct/tuple/array/module compatibility
+  ring; full library and binary tests; `cargo fmt --all -- --check`; all-target/all-
+  feature checking; correctness Clippy; docs; and exact root `bash ./tools/test.sh` with
+  the inherited user Cargo bin path.
+- Local result: focused, corruption, compatibility, formatting, checking, Clippy, docs,
+  and exact root gates pass; the complete Rust surface is 182/182 library and 188/188
+  binary tests. Existing warnings remain unchanged. This records a local candidate,
+  not public acceptance.
+- Remaining uncertainty and next action: Windows has no local LLVM 22 native-claim
+  lane. Freeze one immutable candidate, push only `agent/aero-integration`, synchronize
+  draft PR #4 immediately, and require all eight public checks plus pinned external/
+  machine/object/link/native exit 137 before an additive acceptance record.
+- Regression risk: structural return classification is deliberately bounded; loops,
+  `break`/`continue`, partial moves, borrowing joins, conditional reinitialization, and
+  general CFG ownership remain fail-closed. No new enum topology, runtime layout, ABI,
+  accelerator, benchmark, release, merge, or stability behavior is claimed.

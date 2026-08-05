@@ -351,6 +351,11 @@ pub(crate) fn classify_reference_call(
                     "cannot reborrow moved mutable reference `{name}`"
                 ));
             }
+            OwnershipState::MaybeMoved => {
+                return ReferenceCallDisposition::ExplicitlyRejected(
+                    crate::ownership_flow::maybe_moved_diagnostic(name),
+                );
+            }
             OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
                 return ReferenceCallDisposition::ExplicitlyRejected(format!(
                     "mutable reference call argument `{name}` has an invalid ownership state"
@@ -471,6 +476,9 @@ pub(crate) fn classify_local_borrow(
     }
     let conflict = match (&facts.ownership, mutable) {
         (OwnershipState::Moved, _) => Some(format!("cannot borrow `{name}` because it was moved")),
+        (OwnershipState::MaybeMoved, _) => {
+            Some(crate::ownership_flow::maybe_moved_diagnostic(name))
+        }
         (OwnershipState::MutablyBorrowed, true) => Some(format!(
             "cannot borrow `{name}` as mutable because it is already borrowed as mutable"
         )),
@@ -621,6 +629,11 @@ pub(crate) fn classify_mutable_reference_assignment(
             return MutableReferenceAssignmentDisposition::ExplicitlyRejected(format!(
                 "cannot assign through moved mutable reference `{name}`"
             ));
+        }
+        OwnershipState::MaybeMoved => {
+            return MutableReferenceAssignmentDisposition::ExplicitlyRejected(
+                crate::ownership_flow::maybe_moved_diagnostic(name),
+            );
         }
         OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
             return MutableReferenceAssignmentDisposition::ExplicitlyRejected(format!(

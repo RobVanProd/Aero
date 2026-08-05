@@ -22,6 +22,11 @@ use crate::local_reference::{
     classify_reference_call, classify_reference_function, reference_call_fact_subject,
     reference_call_source_mode,
 };
+use crate::ownership_flow::{
+    ConditionalOwnershipArm, OwnershipFlowDisposition, block_definitely_returns,
+    classify_conditional_ownership, classify_loop_ownership, maybe_moved_diagnostic,
+    statement_definitely_returns,
+};
 use crate::scalar_assignment::{
     OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
     classify_owned_place_assignment, resolve_owned_place_logical_type,
@@ -663,6 +668,84 @@ impl IrGenerator {
         Ok(())
     }
 
+    fn apply_conditional_admission_join(
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        entry: &HashMap<String, AdmissionBinding>,
+        then_state: &HashMap<String, AdmissionBinding>,
+        then_reaches_merge: bool,
+        else_state: &HashMap<String, AdmissionBinding>,
+        else_reaches_merge: bool,
+        inside_loop: bool,
+    ) -> Result<(), IrGenerationError> {
+        let mut joined = entry.clone();
+        let mut names = entry.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+        for name in names {
+            let entry_binding = &entry[&name];
+            let then_binding = &then_state[&name];
+            let else_binding = &else_state[&name];
+            match classify_conditional_ownership(
+                &name,
+                &entry_binding.ty,
+                &entry_binding.ownership,
+                &[
+                    ConditionalOwnershipArm {
+                        state: then_binding.ownership.clone(),
+                        reaches_merge: then_reaches_merge,
+                    },
+                    ConditionalOwnershipArm {
+                        state: else_binding.ownership.clone(),
+                        reaches_merge: else_reaches_merge,
+                    },
+                ],
+                inside_loop,
+            ) {
+                OwnershipFlowDisposition::Joined(Some(state)) => {
+                    joined
+                        .get_mut(&name)
+                        .expect("entry admission binding remains available")
+                        .ownership = state;
+                }
+                OwnershipFlowDisposition::Joined(None)
+                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                OwnershipFlowDisposition::ExplicitlyRejected(message) => {
+                    return Err(IrGenerationError::Admission(message));
+                }
+            }
+        }
+        *bindings = joined;
+        Ok(())
+    }
+
+    fn reject_loop_admission_changes(
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        entry: &HashMap<String, AdmissionBinding>,
+        backedge: &HashMap<String, AdmissionBinding>,
+        reaches_backedge: bool,
+    ) -> Result<(), IrGenerationError> {
+        let mut names = entry.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+        for name in names {
+            let entry_binding = &entry[&name];
+            let backedge_binding = &backedge[&name];
+            match classify_loop_ownership(
+                &name,
+                &entry_binding.ty,
+                &entry_binding.ownership,
+                &backedge_binding.ownership,
+                reaches_backedge,
+            ) {
+                OwnershipFlowDisposition::Joined(_)
+                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                OwnershipFlowDisposition::ExplicitlyRejected(message) => {
+                    return Err(IrGenerationError::Admission(message));
+                }
+            }
+        }
+        *bindings = entry.clone();
+        Ok(())
+    }
+
     fn validate_statement(
         statement: &Statement,
         bindings: &mut HashMap<String, AdmissionBinding>,
@@ -863,6 +946,11 @@ impl IrGenerator {
                                 OwnershipState::ImmutablyBorrowed(count) => {
                                     OwnershipState::ImmutablyBorrowed(count + 1)
                                 }
+                                OwnershipState::MaybeMoved => {
+                                    unreachable!(
+                                        "shared reference classifier rejected maybe-moved source"
+                                    )
+                                }
                                 _ => unreachable!(
                                     "shared reference classifier rejected conflicting borrow"
                                 ),
@@ -997,7 +1085,8 @@ impl IrGenerator {
                 )?;
             }
             Statement::Loop { body } => {
-                let mut nested = bindings.clone();
+                let entry_bindings = bindings.clone();
+                let mut nested = entry_bindings.clone();
                 Self::validate_block(
                     body,
                     &mut nested,
@@ -1005,6 +1094,12 @@ impl IrGenerator {
                     true,
                     inside_impl,
                     inside_generic_impl,
+                )?;
+                Self::reject_loop_admission_changes(
+                    bindings,
+                    &entry_bindings,
+                    &nested,
+                    !block_definitely_returns(body),
                 )?;
             }
             Statement::Function {
@@ -1151,7 +1246,8 @@ impl IrGenerator {
                     inside_impl,
                     !inside_impl,
                 )?;
-                let mut then_bindings = bindings.clone();
+                let entry_bindings = bindings.clone();
+                let mut then_bindings = entry_bindings.clone();
                 Self::validate_block(
                     then_block,
                     &mut then_bindings,
@@ -1160,8 +1256,8 @@ impl IrGenerator {
                     inside_impl,
                     inside_generic_impl,
                 )?;
-                if let Some(else_statement) = else_block {
-                    let mut else_bindings = bindings.clone();
+                let else_bindings = if let Some(else_statement) = else_block {
+                    let mut else_bindings = entry_bindings.clone();
                     Self::validate_statement(
                         else_statement,
                         &mut else_bindings,
@@ -1171,9 +1267,24 @@ impl IrGenerator {
                         inside_generic_impl,
                         false,
                     )?;
-                }
+                    else_bindings
+                } else {
+                    entry_bindings.clone()
+                };
+                Self::apply_conditional_admission_join(
+                    bindings,
+                    &entry_bindings,
+                    &then_bindings,
+                    !block_definitely_returns(then_block),
+                    &else_bindings,
+                    else_block
+                        .as_deref()
+                        .is_none_or(|statement| !statement_definitely_returns(statement)),
+                    inside_loop,
+                )?;
             }
             Statement::While { condition, body } => {
+                let entry_bindings = bindings.clone();
                 Self::validate_expression(
                     condition,
                     bindings,
@@ -1181,6 +1292,13 @@ impl IrGenerator {
                     ExpressionUse::Value,
                     inside_impl,
                     !inside_impl,
+                )?;
+                let condition_bindings = bindings.clone();
+                Self::reject_loop_admission_changes(
+                    bindings,
+                    &entry_bindings,
+                    &condition_bindings,
+                    true,
                 )?;
                 let mut nested = bindings.clone();
                 Self::validate_block(
@@ -1191,12 +1309,19 @@ impl IrGenerator {
                     inside_impl,
                     inside_generic_impl,
                 )?;
+                Self::reject_loop_admission_changes(
+                    bindings,
+                    &entry_bindings,
+                    &nested,
+                    !block_definitely_returns(body),
+                )?;
             }
             Statement::For {
                 variable,
                 iterable,
                 body,
             } => {
+                let entry_bindings = bindings.clone();
                 let iterable_ty = Self::validate_expression(
                     iterable,
                     bindings,
@@ -1232,6 +1357,12 @@ impl IrGenerator {
                     true,
                     inside_impl,
                     inside_generic_impl,
+                )?;
+                Self::reject_loop_admission_changes(
+                    bindings,
+                    &entry_bindings,
+                    &nested,
+                    !block_definitely_returns(body),
                 )?;
             }
             Statement::ImplBlock {
@@ -1307,6 +1438,9 @@ impl IrGenerator {
                     return Err(admission_error(&format!(
                         "use of moved value `{name}` in checked IR"
                     )));
+                }
+                if binding.ownership == OwnershipState::MaybeMoved {
+                    return Err(IrGenerationError::Admission(maybe_moved_diagnostic(name)));
                 }
                 Ok(binding.ty.clone())
             }

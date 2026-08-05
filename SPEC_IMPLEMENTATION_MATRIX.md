@@ -44,6 +44,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Direct mutable owned-enum reassignment | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Acyclic conditional owned-enum joins | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
@@ -84,6 +85,20 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 | Quantization | Y | Y | — | — | Scalar-double helper transform only | N | N | EXPERIMENTAL |
 
 ## Evidence notes
+
+- `CORE-065` is a locally green candidate for exact acyclic `if` ownership joins over
+  admitted enums. Sibling arms begin from one shared entry snapshot; definitely
+  returning arms do not reach the join; reachable states join to `Owned`, `Moved`, or
+  `MaybeMoved`; and later use of `MaybeMoved` fails before IR. The same classifier is
+  consumed by semantic analysis and checked admission. Independent checked-IR CFG
+  dataflow tracks enum result/place identity and rejects serial, partial-merge, and
+  cyclic double consumption while accepting mutually exclusive sibling consumption.
+  Loop-carried ownership changes remain rejected pending fixed-point semantics. The
+  exhaustive source/IR/verifier/LLVM/CLI target, corruption unit, compatibility ring,
+  formatting, all-target/all-feature checking, correctness Clippy, docs, exact root
+  gate, 182 library tests, and 188 binary tests pass locally. Immutable identity, all
+  eight public checks, and pinned LLVM/Clang 22 native exit 137 remain pending; no
+  public acceptance, general CFG ownership, stable ABI, or safety claim follows.
 
 - `CORE-064` is accepted public at exact implementation
   `79aed71371e192a07218d437e882a863653b6826`, tree

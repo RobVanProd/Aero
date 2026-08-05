@@ -17,6 +17,7 @@ pub mod lexer;
 mod llvm_verifier;
 mod local_reference;
 pub mod module_resolver;
+mod ownership_flow;
 pub mod parser;
 pub mod quantization;
 pub mod registry;

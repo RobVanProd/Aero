@@ -26,6 +26,13 @@ checked identities, independent verifier controls, and private typed LLVM loads/
 All eight public checks and the pinned LLVM/Clang 22 native-exit-131 gate pass; enum
 borrowing/projection/storage, new CFG ownership, drop/lifetimes, and stable ABI remain
 unsupported.
+Locally green `CORE-065` adds exact acyclic conditional joins for those enum owners:
+mutually exclusive arms begin from one ownership snapshot, definitely returning arms
+do not join, uncertain fallthrough becomes `MaybeMoved`, and checked-IR CFG dataflow
+rejects double consumption after partial merges or across cycles. Loop fixed points,
+break/continue transport, and general CFG ownership remain unsupported. The local
+182-library/188-binary/root gates pass; all-eight public and pinned native-exit-137
+acceptance remain pending.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

@@ -4,6 +4,29 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
+Milestone 84 `CORE-065` is a locally green candidate for exact acyclic conditional
+ownership joins over the enum class already accepted by CORE-063/064. One shared
+classifier gives every sibling `if` arm the same entry ownership, excludes definitely
+returning arms from the merge, and joins reachable states as `Owned`, `Moved`, or
+`MaybeMoved`. Later use of `MaybeMoved` fails deterministically. Conditional or direct
+enum ownership changes that reach a loop backedge remain rejected because no fixed-point
+loop semantics are claimed.
+
+Semantic analysis and checked admission consume the same classifier. The independent
+checked-IR verifier follows exact enum result/place identities through calls, returns,
+Match dispatch, mutable-place initialization, replacement, and CFG predecessor unions;
+it accepts one consumption in each mutually exclusive arm and rejects serial,
+post-partial-merge, and cyclic double consumption. The exhaustive target, corruption
+controls, affected compatibility ring, 182/182 library tests, 188/188 binary tests,
+formatting, all-target/all-feature checking, correctness Clippy, docs, and the exact
+repository-root gate pass locally. The tracked direct-module specimen and public stable
+workflow are pinned to LLVM/Clang 22 external verification, machine verification,
+object/link, and native exit 137. Exact immutable identity, all eight public checks,
+and that native result remain pending, so CORE-065 is not yet accepted public. No
+general CFG ownership, loop fixed point, break/continue transport, enum borrowing or
+aggregate storage, partial moves, drop/lifetimes, stable ABI/FFI, release, or stability
+claim follows.
+
 Milestone 83 `CORE-064` is accepted public at exact implementation commit
 `79aed71371e192a07218d437e882a863653b6826`, tree
 `ac80c49aca3fb875c44d132f930567e95d81f698`, and stable patch ID
@@ -2011,10 +2034,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve accepted CORE-064 implementation identity `79aed71`, keep draft PR #4
-synchronized to the records-only acceptance closure, and require fresh public checks
-on that closure head. Begin no further behavior slice on a red or pending head. Keep
-the PR draft and unmerged. The controlled
+Freeze the exact locally green CORE-065 candidate, commit and push it on
+`agent/aero-integration`, immediately synchronize draft PR #4 to that candidate, and
+require all eight public checks plus the pinned LLVM/Clang 22 native exit-137 result
+before recording public acceptance. Preserve accepted CORE-064 identity `79aed71` and
+keep the PR draft and unmerged. The controlled
 mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
 tasks, hard capability classes must not be deferred for convenient slices, and
 periodic multi-capability system gates remain mandatory.

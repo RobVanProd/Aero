@@ -272,6 +272,21 @@ struct Definition {
     position: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum EnumOwner {
+    Result(ResultId),
+    Place(PlaceId),
+}
+
+impl fmt::Display for EnumOwner {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Result(id) => write!(formatter, "result {}", id.0),
+            Self::Place(id) => write!(formatter, "place {}", id.0),
+        }
+    }
+}
+
 fn logical_type(type_name: &str) -> Option<LogicalType> {
     match type_name {
         "int" | "i32" => Some(LogicalType::Int),
@@ -1138,6 +1153,186 @@ impl<'a> FunctionVerifier<'a> {
 
     fn error(&self, block: usize, kind: IrVerificationErrorKind) -> IrVerificationError {
         IrVerificationError::new(&self.body.name, Some(&self.blocks[block].label), kind)
+    }
+
+    fn enum_place(&self, value: &Value) -> Option<PlaceId> {
+        let place = PlaceId(reg(value)?);
+        self.places
+            .get(&place)
+            .and_then(PlaceType::logical)
+            .is_some_and(|ty| matches!(ty, LogicalType::Enum { .. }))
+            .then_some(place)
+    }
+
+    fn enum_owner(&self, value: &Value) -> Option<EnumOwner> {
+        let result = ResultId(reg(value)?);
+        if !matches!(
+            self.result_types.get(&result),
+            Some(LogicalType::Enum { .. })
+        ) {
+            return None;
+        }
+        let definition = self.definitions.get(&result)?;
+        match self.body.instructions[definition.position] {
+            Inst::Load(_, source) => self
+                .enum_place(source)
+                .map(EnumOwner::Place)
+                .or(Some(EnumOwner::Result(result))),
+            _ => Some(EnumOwner::Result(result)),
+        }
+    }
+
+    fn consume_enum_owner(
+        &self,
+        value: &Value,
+        consumed: &mut BTreeSet<EnumOwner>,
+        block: usize,
+        operation: &'static str,
+    ) -> Result<(), IrVerificationError> {
+        let Some(owner) = self.enum_owner(value) else {
+            return Ok(());
+        };
+        if !consumed.insert(owner) {
+            return Err(self.error(
+                block,
+                IrVerificationErrorKind::MetadataMismatch(format!(
+                    "{operation} consumes enum owner {owner} more than once on a reachable control-flow path"
+                )),
+            ));
+        }
+        Ok(())
+    }
+
+    fn reset_enum_result(&self, instruction: &Inst, consumed: &mut BTreeSet<EnumOwner>) {
+        let Some(result) = result_definition(instruction).and_then(reg).map(ResultId) else {
+            return;
+        };
+        if matches!(
+            self.result_types.get(&result),
+            Some(LogicalType::Enum { .. })
+        ) && !matches!(
+            self.enum_owner(&Value::Reg(result.0)),
+            Some(EnumOwner::Place(_))
+        ) {
+            consumed.remove(&EnumOwner::Result(result));
+        }
+    }
+
+    fn transfer_enum_ownership(
+        &self,
+        block: usize,
+        consumed: &mut BTreeSet<EnumOwner>,
+    ) -> Result<(), IrVerificationError> {
+        for (_, instruction) in &self.blocks[block].instructions {
+            if let Inst::CheckedMutableOwnedPlaceAlloca { result, ty, .. } = instruction
+                && matches!(ty, LogicalType::Enum { .. })
+                && let Some(place) = self.enum_place(result)
+            {
+                consumed.remove(&EnumOwner::Place(place));
+            }
+
+            match instruction {
+                Inst::Store(target, value) if self.enum_place(target).is_some() => {
+                    let target = self.enum_place(target).expect("enum place checked above");
+                    if self.enum_owner(value) == Some(EnumOwner::Place(target)) {
+                        return Err(self.error(
+                            block,
+                            IrVerificationErrorKind::MetadataMismatch(format!(
+                                "enum initialization of place {} cannot consume that same place",
+                                target.0
+                            )),
+                        ));
+                    }
+                    self.consume_enum_owner(value, consumed, block, "enum initialization")?;
+                    consumed.remove(&EnumOwner::Place(target));
+                }
+                Inst::CheckedOwnedPlaceAssignment { target, value, ty }
+                    if matches!(ty, LogicalType::Enum { .. }) =>
+                {
+                    let target = self
+                        .enum_place(target)
+                        .expect("checked enum assignment target type was verified");
+                    if self.enum_owner(value) == Some(EnumOwner::Place(target)) {
+                        return Err(self.error(
+                            block,
+                            IrVerificationErrorKind::MetadataMismatch(format!(
+                                "checked enum assignment cannot replace place {} from its own consumed value",
+                                target.0
+                            )),
+                        ));
+                    }
+                    self.consume_enum_owner(value, consumed, block, "checked enum assignment")?;
+                    consumed.remove(&EnumOwner::Place(target));
+                }
+                Inst::Call {
+                    function,
+                    arguments,
+                    ..
+                } => {
+                    let signature = &self.signatures[function];
+                    for (argument, (_, expected)) in arguments.iter().zip(&signature.parameters) {
+                        if matches!(expected, LogicalType::Enum { .. }) {
+                            self.consume_enum_owner(
+                                argument,
+                                consumed,
+                                block,
+                                "by-value enum call argument",
+                            )?;
+                        }
+                    }
+                }
+                Inst::Return(value)
+                    if matches!(self.body.signature.result, LogicalType::Enum { .. }) =>
+                {
+                    self.consume_enum_owner(value, consumed, block, "enum return")?;
+                }
+                Inst::CheckedEnumDispatch { value, .. } => {
+                    self.consume_enum_owner(value, consumed, block, "checked enum dispatch")?;
+                }
+                _ => {}
+            }
+            self.reset_enum_result(instruction, consumed);
+        }
+        Ok(())
+    }
+
+    fn verify_enum_ownership_flow(&self) -> Result<(), IrVerificationError> {
+        let labels = self
+            .blocks
+            .iter()
+            .enumerate()
+            .map(|(index, block)| (block.label.as_str(), index))
+            .collect::<HashMap<_, _>>();
+        let mut incoming = vec![None::<BTreeSet<EnumOwner>>; self.blocks.len()];
+        incoming[0] = Some(BTreeSet::new());
+        let mut worklist = VecDeque::from([0]);
+        while let Some(block) = worklist.pop_front() {
+            if !self.blocks[block].reachable {
+                continue;
+            }
+            let mut consumed = incoming[block]
+                .clone()
+                .expect("reachable worklist block has an ownership state");
+            self.transfer_enum_ownership(block, &mut consumed)?;
+            for successor in &self.blocks[block].successors {
+                let successor = labels[successor.as_str()];
+                let changed = match &mut incoming[successor] {
+                    Some(existing) => {
+                        let before = existing.len();
+                        existing.extend(consumed.iter().copied());
+                        existing.len() != before
+                    }
+                    slot @ None => {
+                        *slot = Some(consumed.clone());
+                        true
+                    }
+                };
+                if changed {
+                    worklist.push_back(successor);
+                }
+            }
+        }
+        Ok(())
     }
 
     fn collect_definitions(
@@ -3341,6 +3536,8 @@ impl<'a> FunctionVerifier<'a> {
                 }
             }
         }
+
+        self.verify_enum_ownership_flow()?;
 
         let declared_mutable_places = self.mutable_owned_places.clone();
         if initialized_mutable_places != declared_mutable_places {
@@ -6632,5 +6829,169 @@ mod tests {
                 "{label} passed mutable owned enum verification"
             );
         }
+    }
+
+    #[test]
+    fn conditional_enum_owner_dataflow_is_path_sensitive_and_fail_closed() {
+        let schema = unit_schema("E", &["A", "B"]);
+        let logical = schema.logical_type();
+        let consume_definition = Inst::CheckedFunctionDef {
+            name: "consume".to_string(),
+            parameters: vec![("value".to_string(), logical.clone())],
+            result: LogicalType::Int,
+            body: vec![
+                Inst::CheckedEnumParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    schema: schema.clone(),
+                },
+                Inst::Return(Value::ImmInt(0)),
+            ],
+        };
+        let program = |runtime: Vec<Inst>| {
+            let mut main = vec![consume_definition.clone()];
+            main.extend(runtime);
+            HashMap::from([
+                (
+                    "main".to_string(),
+                    Function {
+                        name: "main".to_string(),
+                        body: main,
+                        next_reg: 16,
+                        next_ptr: 16,
+                    },
+                ),
+                (
+                    "consume".to_string(),
+                    Function {
+                        name: "consume".to_string(),
+                        body: Vec::new(),
+                        next_reg: 16,
+                        next_ptr: 16,
+                    },
+                ),
+            ])
+        };
+        let construct_and_branch = || {
+            vec![
+                checked_variant(Value::Reg(0), schema.clone(), 0),
+                Inst::ICmp {
+                    op: "eq".to_string(),
+                    result: Value::Reg(1),
+                    left: Value::ImmInt(0),
+                    right: Value::ImmInt(0),
+                },
+                Inst::Branch {
+                    condition: Value::Reg(1),
+                    true_label: "then".to_string(),
+                    false_label: "else".to_string(),
+                },
+            ]
+        };
+        let call = |result| Inst::Call {
+            function: "consume".to_string(),
+            arguments: vec![Value::Reg(0)],
+            result: Some(Value::Reg(result)),
+        };
+
+        let mut exclusive = construct_and_branch();
+        exclusive.extend([
+            Inst::Label("then".to_string()),
+            call(2),
+            Inst::Jump("merge".to_string()),
+            Inst::Label("else".to_string()),
+            call(3),
+            Inst::Jump("merge".to_string()),
+            Inst::Label("merge".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+        ]);
+        verify_ir(program(exclusive))
+            .expect("one consumption in each mutually exclusive arm must verify");
+
+        let mut partial_then_merge = construct_and_branch();
+        partial_then_merge.extend([
+            Inst::Label("then".to_string()),
+            call(2),
+            Inst::Jump("merge".to_string()),
+            Inst::Label("else".to_string()),
+            Inst::Jump("merge".to_string()),
+            Inst::Label("merge".to_string()),
+            call(3),
+            Inst::Return(Value::ImmInt(0)),
+        ]);
+        assert!(
+            verify_ir(program(partial_then_merge)).is_err(),
+            "post-merge consumption passed after one predecessor consumed the enum owner"
+        );
+
+        let serial = vec![
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            call(1),
+            call(2),
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        assert!(
+            verify_ir(program(serial)).is_err(),
+            "serial double consumption passed enum ownership verification"
+        );
+
+        let cyclic = vec![
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            Inst::Jump("cycle".to_string()),
+            Inst::Label("cycle".to_string()),
+            call(1),
+            Inst::Jump("cycle".to_string()),
+        ];
+        assert!(
+            verify_ir(program(cyclic)).is_err(),
+            "loop-carried enum consumption passed fixed-point verification"
+        );
+
+        let place = |result| Inst::CheckedMutableOwnedPlaceAlloca {
+            result: Value::Reg(result),
+            name: "owner".to_string(),
+            ty: logical.clone(),
+        };
+        let load = |result| Inst::Load(Value::Reg(result), Value::Reg(5));
+        let replace = |value| Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(5),
+            value: Value::Reg(value),
+            ty: logical.clone(),
+        };
+        let place_call = |argument, result| Inst::Call {
+            function: "consume".to_string(),
+            arguments: vec![Value::Reg(argument)],
+            result: Some(Value::Reg(result)),
+        };
+
+        let replaced_place = vec![
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            place(5),
+            Inst::Store(Value::Reg(5), Value::Reg(0)),
+            load(1),
+            place_call(1, 2),
+            checked_variant(Value::Reg(3), schema.clone(), 1),
+            replace(3),
+            load(4),
+            place_call(4, 6),
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        verify_ir(program(replaced_place))
+            .expect("exact replacement must restore one consumable enum place owner");
+
+        let consumed_place = vec![
+            checked_variant(Value::Reg(0), schema, 0),
+            place(5),
+            Inst::Store(Value::Reg(5), Value::Reg(0)),
+            load(1),
+            place_call(1, 2),
+            load(3),
+            place_call(3, 4),
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        assert!(
+            verify_ir(program(consumed_place)).is_err(),
+            "a second load and consumption passed without exact enum place replacement"
+        );
     }
 }

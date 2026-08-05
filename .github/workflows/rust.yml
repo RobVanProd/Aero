@@ -672,6 +672,25 @@ jobs:
         fi
         echo "owned enum reassignment example passed with exit code 131"
 
+    - name: Test conditional enum ownership integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/conditional_enum_ownership/main.aero -o ../../conditional_enum_ownership.ll
+        opt-22 -passes=verify -disable-output ../../conditional_enum_ownership.ll
+        llc-22 -verify-machineinstrs ../../conditional_enum_ownership.ll -o /dev/null
+        llc-22 -filetype=obj ../../conditional_enum_ownership.ll -o ../../conditional_enum_ownership.o
+        clang-22 -no-pie ../../conditional_enum_ownership.o -o ../../conditional_enum_ownership
+        set +e
+        ../../conditional_enum_ownership
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 137 ]; then
+          echo "Expected exit code 137, got $exit_code"
+          exit 1
+        fi
+        echo "conditional enum ownership example passed with exit code 137"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

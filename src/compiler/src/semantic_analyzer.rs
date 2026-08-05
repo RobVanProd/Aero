@@ -15,6 +15,10 @@ use crate::local_reference::{
     classify_mutable_reference_binding, classify_reference_call, classify_reference_function,
     reference_call_fact_subject,
 };
+use crate::ownership_flow::{
+    ConditionalOwnershipArm, OwnershipFlowDisposition, classify_conditional_ownership,
+    classify_loop_ownership, maybe_moved_diagnostic,
+};
 use crate::scalar_assignment::{
     OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
     classify_owned_place_assignment,
@@ -327,6 +331,94 @@ impl ScopeManager {
         self.loop_depth
     }
 
+    fn ownership_snapshot(&self) -> Vec<HashMap<String, VariableInfoNew>> {
+        self.scopes.clone()
+    }
+
+    fn restore_ownership_snapshot(&mut self, snapshot: &[HashMap<String, VariableInfoNew>]) {
+        self.scopes = snapshot.to_vec();
+    }
+
+    fn apply_conditional_ownership_join(
+        &mut self,
+        entry: &[HashMap<String, VariableInfoNew>],
+        then_state: &[HashMap<String, VariableInfoNew>],
+        then_reaches_merge: bool,
+        else_state: &[HashMap<String, VariableInfoNew>],
+        else_reaches_merge: bool,
+    ) -> Result<(), String> {
+        self.restore_ownership_snapshot(entry);
+        let mut bindings = entry
+            .iter()
+            .enumerate()
+            .flat_map(|(scope, bindings)| bindings.keys().cloned().map(move |name| (scope, name)))
+            .collect::<Vec<_>>();
+        bindings.sort();
+        for (scope, name) in bindings {
+            let entry_binding = &entry[scope][&name];
+            let then_binding = &then_state[scope][&name];
+            let else_binding = &else_state[scope][&name];
+            match classify_conditional_ownership(
+                &name,
+                &entry_binding.var_type,
+                &entry_binding.ownership,
+                &[
+                    ConditionalOwnershipArm {
+                        state: then_binding.ownership.clone(),
+                        reaches_merge: then_reaches_merge,
+                    },
+                    ConditionalOwnershipArm {
+                        state: else_binding.ownership.clone(),
+                        reaches_merge: else_reaches_merge,
+                    },
+                ],
+                self.loop_depth > 0,
+            ) {
+                OwnershipFlowDisposition::Joined(Some(state)) => {
+                    self.scopes[scope]
+                        .get_mut(&name)
+                        .expect("entry binding remains in restored scope")
+                        .ownership = state;
+                }
+                OwnershipFlowDisposition::Joined(None)
+                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                OwnershipFlowDisposition::ExplicitlyRejected(message) => return Err(message),
+            }
+        }
+        Ok(())
+    }
+
+    fn reject_loop_ownership_changes(
+        &mut self,
+        entry: &[HashMap<String, VariableInfoNew>],
+        backedge: &[HashMap<String, VariableInfoNew>],
+        reaches_backedge: bool,
+    ) -> Result<(), String> {
+        self.restore_ownership_snapshot(entry);
+        let mut bindings = entry
+            .iter()
+            .enumerate()
+            .flat_map(|(scope, bindings)| bindings.keys().cloned().map(move |name| (scope, name)))
+            .collect::<Vec<_>>();
+        bindings.sort();
+        for (scope, name) in bindings {
+            let entry_binding = &entry[scope][&name];
+            let backedge_binding = &backedge[scope][&name];
+            match classify_loop_ownership(
+                &name,
+                &entry_binding.var_type,
+                &entry_binding.ownership,
+                &backedge_binding.ownership,
+                reaches_backedge,
+            ) {
+                OwnershipFlowDisposition::Joined(_)
+                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                OwnershipFlowDisposition::ExplicitlyRejected(message) => return Err(message),
+            }
+        }
+        Ok(())
+    }
+
     pub fn check_mutability(&self, name: &str) -> Result<bool, String> {
         if let Some(var_info) = self.get_variable(name) {
             Ok(var_info.mutable)
@@ -385,11 +477,17 @@ impl ScopeManager {
     pub fn mark_moved(&mut self, name: &str) -> Result<(), String> {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(var_info) = scope.get_mut(name) {
-                if var_info.ownership == OwnershipState::Moved {
-                    return Err(format!(
-                        "Error: Use of moved value `{}`. Value was previously moved.",
-                        name
-                    ));
+                match var_info.ownership {
+                    OwnershipState::Moved => {
+                        return Err(format!(
+                            "Error: Use of moved value `{}`. Value was previously moved.",
+                            name
+                        ));
+                    }
+                    OwnershipState::MaybeMoved => {
+                        return Err(maybe_moved_diagnostic(name));
+                    }
+                    _ => {}
                 }
                 var_info.ownership = OwnershipState::Moved;
                 return Ok(());
@@ -413,11 +511,17 @@ impl ScopeManager {
     pub fn check_not_moved(&self, name: &str) -> Result<(), String> {
         for scope in self.scopes.iter().rev() {
             if let Some(var_info) = scope.get(name) {
-                if var_info.ownership == OwnershipState::Moved {
-                    return Err(format!(
-                        "Error: Use of moved value `{}`. Value was previously moved.",
-                        name
-                    ));
+                match var_info.ownership {
+                    OwnershipState::Moved => {
+                        return Err(format!(
+                            "Error: Use of moved value `{}`. Value was previously moved.",
+                            name
+                        ));
+                    }
+                    OwnershipState::MaybeMoved => {
+                        return Err(maybe_moved_diagnostic(name));
+                    }
+                    _ => {}
                 }
                 return Ok(());
             }
@@ -445,6 +549,9 @@ impl ScopeManager {
                             "Error: Cannot borrow `{}` because it was moved.",
                             name
                         ));
+                    }
+                    OwnershipState::MaybeMoved => {
+                        return Err(maybe_moved_diagnostic(name));
                     }
                     OwnershipState::MutablyBorrowed => {
                         return Err(format!(
@@ -476,6 +583,9 @@ impl ScopeManager {
                             "Error: Cannot borrow `{}` as mutable because it was moved.",
                             name
                         ));
+                    }
+                    OwnershipState::MaybeMoved => {
+                        return Err(maybe_moved_diagnostic(name));
                     }
                     OwnershipState::MutablyBorrowed => {
                         return Err(format!(
@@ -517,6 +627,9 @@ impl ScopeManager {
                     OwnershipState::Owned => OwnershipState::ImmutablyBorrowed(1),
                     OwnershipState::ImmutablyBorrowed(count) => {
                         OwnershipState::ImmutablyBorrowed(count + 1)
+                    }
+                    OwnershipState::MaybeMoved => {
+                        unreachable!("shared reference classifier rejected maybe-moved source")
                     }
                     _ => unreachable!("shared reference classifier rejected conflicting borrow"),
                 }
@@ -1125,26 +1238,11 @@ impl SemanticAnalyzer {
     }
 
     fn statement_definitely_returns(statement: &Statement) -> bool {
-        match statement {
-            Statement::Return(_) => true,
-            Statement::Block(block) => Self::control_flow_block_definitely_returns(block),
-            Statement::If {
-                then_block,
-                else_block: Some(else_statement),
-                ..
-            } => {
-                Self::control_flow_block_definitely_returns(then_block)
-                    && Self::statement_definitely_returns(else_statement)
-            }
-            _ => false,
-        }
+        crate::ownership_flow::statement_definitely_returns(statement)
     }
 
     fn control_flow_block_definitely_returns(block: &Block) -> bool {
-        block
-            .statements
-            .iter()
-            .any(Self::statement_definitely_returns)
+        crate::ownership_flow::block_definitely_returns(block)
     }
 
     fn function_body_definitely_returns(block: &Block) -> bool {
@@ -2936,21 +3034,40 @@ impl SemanticAnalyzer {
                 }
                 self.apply_enum_match_moves(condition)?;
 
+                let entry_state = self.scope_manager.ownership_snapshot();
                 self.enter_scope();
                 let then_result = self.analyze_block(then_block);
                 self.exit_scope();
+                let then_state = self.scope_manager.ownership_snapshot();
+                self.scope_manager.restore_ownership_snapshot(&entry_state);
                 then_result?;
 
-                if let Some(else_stmt) = else_block {
+                let else_state = if let Some(else_stmt) = else_block {
                     self.enter_scope();
                     let else_result = self.analyze_statement(else_stmt);
                     self.exit_scope();
+                    let state = self.scope_manager.ownership_snapshot();
+                    self.scope_manager.restore_ownership_snapshot(&entry_state);
                     else_result?;
-                }
+                    state
+                } else {
+                    entry_state.clone()
+                };
+
+                self.scope_manager.apply_conditional_ownership_join(
+                    &entry_state,
+                    &then_state,
+                    !Self::control_flow_block_definitely_returns(then_block),
+                    &else_state,
+                    else_block
+                        .as_deref()
+                        .is_none_or(|statement| !Self::statement_definitely_returns(statement)),
+                )?;
 
                 Ok(())
             }
             Statement::While { condition, body } => {
+                let entry_state = self.scope_manager.ownership_snapshot();
                 self.check_expression_initialization(condition)?;
                 let condition_type = self.infer_and_validate_expression_immutable(condition)?;
 
@@ -2961,11 +3078,24 @@ impl SemanticAnalyzer {
                     ));
                 }
                 self.apply_enum_match_moves(condition)?;
+                let condition_state = self.scope_manager.ownership_snapshot();
+                self.scope_manager.reject_loop_ownership_changes(
+                    &entry_state,
+                    &condition_state,
+                    true,
+                )?;
 
                 self.enter_loop_scope();
                 let body_result = self.analyze_block(body);
                 self.exit_loop_scope();
+                let backedge_state = self.scope_manager.ownership_snapshot();
+                self.scope_manager.restore_ownership_snapshot(&entry_state);
                 body_result?;
+                self.scope_manager.reject_loop_ownership_changes(
+                    &entry_state,
+                    &backedge_state,
+                    !Self::control_flow_block_definitely_returns(body),
+                )?;
 
                 Ok(())
             }
@@ -2974,6 +3104,7 @@ impl SemanticAnalyzer {
                 iterable,
                 body,
             } => {
+                let entry_state = self.scope_manager.ownership_snapshot();
                 self.check_expression_initialization(iterable)?;
                 let iterable_type = self.infer_and_validate_expression_immutable(iterable)?;
                 let loop_var_type = self
@@ -2997,15 +3128,30 @@ impl SemanticAnalyzer {
                     self.analyze_block(body)
                 })();
                 self.exit_loop_scope();
+                let backedge_state = self.scope_manager.ownership_snapshot();
+                self.scope_manager.restore_ownership_snapshot(&entry_state);
                 body_result?;
+                self.scope_manager.reject_loop_ownership_changes(
+                    &entry_state,
+                    &backedge_state,
+                    !Self::control_flow_block_definitely_returns(body),
+                )?;
 
                 Ok(())
             }
             Statement::Loop { body } => {
+                let entry_state = self.scope_manager.ownership_snapshot();
                 self.enter_loop_scope();
                 let body_result = self.analyze_block(body);
                 self.exit_loop_scope();
+                let backedge_state = self.scope_manager.ownership_snapshot();
+                self.scope_manager.restore_ownership_snapshot(&entry_state);
                 body_result?;
+                self.scope_manager.reject_loop_ownership_changes(
+                    &entry_state,
+                    &backedge_state,
+                    !Self::control_flow_block_definitely_returns(body),
+                )?;
                 Ok(())
             }
             Statement::Break => {

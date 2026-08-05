@@ -54,6 +54,14 @@ explicitly link the private non-PIE executable, and observe exact native exit 13
 nightly job `92376666842` repeats exit 131. This does not establish a public backend,
 layout, or ABI class.
 
+Locally green `CORE-065` also adds no backend representation or ABI class. It reuses
+the accepted private enum values, typed places, branches, and merge blocks while an
+independent verifier proves enum-owner consumption across the checked CFG. The tracked
+direct-module specimen is pinned to LLVM/Clang 22 external verification, machine
+verification, object lowering, explicit private non-PIE linking, and native exit 137.
+Those public results remain pending; local source-to-LLVM and complete repository gates
+pass. No loop ownership, public layout, backend stability, or ABI claim follows.
+
 ## ROCm path
 
 The CLI can retarget module metadata and invoke `llc` with AMDGPU flags, but it

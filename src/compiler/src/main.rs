@@ -21,6 +21,7 @@ mod local_reference;
 mod lsp;
 mod module_resolver;
 mod optimizations;
+mod ownership_flow;
 mod parser;
 mod performance_optimizations;
 mod profiler;

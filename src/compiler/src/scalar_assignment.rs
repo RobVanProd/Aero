@@ -110,6 +110,11 @@ pub(crate) fn classify_owned_place_assignment(
                 "cannot assign to moved value `{name}`"
             ));
         }
+        OwnershipState::MaybeMoved => {
+            return OwnedPlaceAssignmentDisposition::ExplicitlyRejected(
+                crate::ownership_flow::maybe_moved_diagnostic(name),
+            );
+        }
         OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
             return OwnedPlaceAssignmentDisposition::ExplicitlyRejected(format!(
                 "cannot assign to `{name}` while it is borrowed"

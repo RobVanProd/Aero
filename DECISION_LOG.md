@@ -2841,3 +2841,40 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   a hard ownership/storage slice. Its tracked multi-capability source-to-native gate is
   mandatory. PR #4 remains draft/unmerged; controlled checkpoint strategy and
   structured manifest generation remain separately authorized work.
+
+## DEC-061 - Join admitted enum ownership across acyclic conditionals
+
+- Date: 2026-08-05
+- Status: locally green candidate; immutable commit identity, draft PR synchronization,
+  all eight public checks, and pinned LLVM/Clang 22 native exit 137 remain pending. This
+  is not public acceptance, a merge, or a safety/stability/ABI claim.
+- Decision: ownership joins are admitted only for existing owners of exact non-Copy
+  enum schemas accepted by DEC-059/060. Each sibling `if` arm starts from the same entry
+  snapshot. Definitely returning arms are excluded, missing `else` contributes entry,
+  and reachable states join as `Owned`, `Moved`, or `MaybeMoved`. Any later operation
+  requiring ownership rejects a `MaybeMoved` value deterministically.
+- Shared source contract: one `ownership_flow` classifier owns the structural return
+  predicate, conditional join, and explicit loop rejection for semantic analysis and
+  checked admission. Branch-local shadows remain local; multiple owners join
+  independently. Consuming loop conditions and ownership changes reaching a backedge
+  reject because no fixed-point proof is claimed.
+- Independent proof: checked-IR verification derives enum owner identity from exact
+  results and mutable places, maps loads back to the place owner, and computes consumed-
+  owner unions across CFG predecessors and cycles. It accepts one consumption in each
+  mutually exclusive arm and exact replacement, and rejects serial, partial-merge,
+  cyclic, and unreplaced-place double consumption before trusted LLVM.
+- Evidence: the exhaustive source/direct-module/checked-IR/verifier/LLVM/CLI target,
+  focused corruption controls, affected compatibility ring, 182/182 library tests,
+  188/188 binary tests, formatting, all-target/all-feature checking, correctness
+  Clippy, docs, and exact repository-root gate pass locally. The tracked public workflow
+  requires LLVM/Clang 22 external and machine verification, object lowering, explicit
+  private link, and native exit 137.
+- Exclusions: loop fixed points, `break`/`continue` transport, conditional target
+  reinitialization, partial moves, enum borrowing/projection/field or array storage,
+  new enum topology, general CFG ownership or borrowing, drop/destructors, lifetimes,
+  stable layout/ABI/FFI, closures, accelerators, performance, release, stability, and
+  PR merge remain unsupported or separately governed.
+- Scaling boundary: this hard CFG-ownership slice uses one class target and one shared
+  classifier rather than growing duplicated topology rules. PR #4 remains a draft
+  integration program; controlled checkpoint strategy, structured evidence-manifest
+  generation, and periodic composed system gates remain active separate controls.

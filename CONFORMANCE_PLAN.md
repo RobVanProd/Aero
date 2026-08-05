@@ -47,6 +47,13 @@
   independently reject unanalyzed AST, and prove no closure symbol/layout/LLVM or CLI
   artifact for inferred/explicit bindings, comparisons, arguments, returns,
   array/struct storage, captures, and calls.
+- Acyclic conditional ownership tests must distinguish mutually exclusive sibling
+  consumption from post-merge uncertainty. For each admitted enum schema, cover
+  missing else, both fallthrough arms, definitely returning arms, nested else-if,
+  shadowing, multiple owners, mutable whole-owner replacement, Match/call/return use,
+  and direct modules. Checked-IR corruption controls must reject serial, partial-merge,
+  and cyclic double consumption. Loop-carried ownership changes remain compile-fail
+  cases until a separately frozen fixed-point contract exists.
 - Runtime-output tests with exact stdout, stderr, exit code, and declared sources
   of nondeterminism.
 - Diagnostic snapshots normalized only for unstable machine paths or equivalent

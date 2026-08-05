@@ -8,6 +8,19 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
+- `CORE-065` is locally green, but not yet publicly accepted, for exact acyclic
+  conditional ownership joins over the non-Copy enum class accepted by CORE-063/064.
+  One shared classifier gives sibling `if` arms the same entry state, excludes
+  definitely returning arms, joins reachable fallthrough as `Owned`, `Moved`, or
+  `MaybeMoved`, and rejects loop-carried changes without claiming a fixed point.
+  Semantic analysis and checked admission both consume that classifier. Independent
+  checked-IR dataflow tracks exact enum result/place owners across predecessor unions,
+  calls, returns, Match dispatch, initialization, replacement, and cycles. The focused
+  target, corruption controls, affected compatibility ring, formatting, all-target/
+  all-feature checking, correctness Clippy, docs, exact root gate, 182/182 library
+  tests, and 188/188 binary tests pass locally. The candidate workflow pins LLVM/
+  Clang 22 verification, lowering, link, and native exit 137; immutable identity, all
+  eight public checks, and that native result remain pending.
 - `CORE-064` is accepted public at exact implementation
   `79aed71371e192a07218d437e882a863653b6826`, tree
   `ac80c49aca3fb875c44d132f930567e95d81f698`, and stable patch ID
@@ -1912,6 +1925,28 @@ promise future compatibility.
 - Its fresh and verification exact full gates each exit 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no capability moves.
+
+## CORE-065 local-candidate conditional enum ownership boundary
+
+- The admitted state is limited to existing local and parameter owners of the exact
+  non-Copy enum schemas accepted by CORE-063/064. Each acyclic `if` sibling starts from
+  one entry snapshot; branch-local shadows do not alter the outer join, and multiple
+  owners join independently.
+- Reachable `Owned`/`Moved` states join exactly. A mixed reachable state becomes
+  `MaybeMoved`; later use, borrow, move, Match, call, return, assignment-source use, or
+  target replacement rejects deterministically. A missing `else` contributes the
+  entry state, while a definitely returning arm contributes no fallthrough state.
+- Loop-condition consumption and ownership changes reaching a loop backedge reject
+  through the same classifier. Loop fixed points, `break`/`continue` transport,
+  conditional reinitialization, and general CFG ownership are not admitted.
+- The verifier independently maps enum-valued loads back to their owning place and
+  computes consumed-owner unions through the checked CFG. It accepts mutually
+  exclusive sibling consumption and exact place replacement, while rejecting serial,
+  post-partial-merge, cyclic, and unreplaced-place double consumption.
+- Local evidence is 182 library and 188 binary tests plus the focused source/direct-
+  module/IR/verifier/LLVM/CLI target, formatting, all-target/all-feature checking,
+  correctness Clippy, docs, and the exact root gate. Public acceptance remains pending
+  an immutable candidate, all eight checks, and pinned LLVM/Clang 22 native exit 137.
 
 ## CORE-064 accepted owned-enum reassignment boundary
 

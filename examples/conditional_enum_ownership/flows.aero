@@ -1,0 +1,81 @@
+struct Cell { value: int, flags: [bool; 2] }
+
+enum Phase { Cold, Warm, Hot }
+enum Measure { Count(int), Ratio(float), Flag(bool) }
+enum Payload {
+    Idle,
+    Flag(bool),
+    Pair((int, bool)),
+    CellValue(Cell),
+    Cells([Cell; 2]),
+    Matrix([[int; 2]; 2])
+}
+
+fn make_cell(value: int) -> Cell {
+    Cell { value: value, flags: [value > 0, value < 0] }
+}
+
+fn bool_score(value: bool, score: int) -> int {
+    if value { return score; }
+    0
+}
+
+fn phase_score(value: Phase) -> int {
+    match value {
+        Phase::Cold => 1,
+        Phase::Warm => 2,
+        Phase::Hot => 3
+    }
+}
+
+fn measure_score(value: Measure) -> int {
+    match value {
+        Measure::Count(count) => count,
+        Measure::Ratio(ratio) => 4,
+        Measure::Flag(flag) => bool_score(flag, 5)
+    }
+}
+
+fn score(value: Payload) -> int {
+    match value {
+        Payload::Idle => 1,
+        Payload::Flag(flag) => bool_score(flag, 2),
+        Payload::Pair(pair) => pair.0,
+        Payload::CellValue(cell) => cell.value,
+        Payload::Cells(cells) => cells[1].value,
+        Payload::Matrix(matrix) => matrix[1][0]
+    }
+}
+
+fn phase_branch(flag: bool, value: Phase) -> int {
+    if flag { return phase_score(value); }
+    else { return phase_score(value); }
+}
+
+fn measure_branch(flag: bool, value: Measure) -> int {
+    if flag { return measure_score(value); }
+    else { return measure_score(value); }
+}
+
+fn payload_branch(flag: bool, value: Payload) -> int {
+    if flag { return score(value); }
+    else { return score(value); }
+}
+
+fn returning_then(flag: bool, value: Payload) -> int {
+    if flag { return score(value); }
+    score(value)
+}
+
+fn replace_both(flag: bool, value: Payload) -> int {
+    let mut target: Payload = Payload::Idle;
+    if flag { target = value; }
+    else { target = value; }
+    score(target)
+}
+
+fn nested(which: int, value: Payload) -> int {
+    if which == 0 { return score(value); }
+    else if which == 1 { return score(value); }
+    else { return score(value); }
+}

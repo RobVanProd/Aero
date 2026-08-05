@@ -121,6 +121,7 @@ impl EnumDef {
 pub enum OwnershipState {
     Owned,                  // Variable owns its value
     Moved,                  // Value has been moved out
+    MaybeMoved,             // At least one reachable control-flow path moved the value
     ImmutablyBorrowed(u32), // Number of active immutable borrows
     MutablyBorrowed,        // Active mutable borrow
 }
