@@ -453,12 +453,13 @@ fn semantic_enforces_numeric_array_elements_indexes_and_child_precedence() {
             }
         }
     }
-    expect_acceptance(
+    expect_rejection(
         &mut failures,
-        "custom enum payload retains pre-task numeric-array quarantine",
+        "payload enum is rejected before constructor admission",
         semantic_result(
             "enum Choice { Number(int) } fn main() { let choice = Choice::Number([1, 2.5]); }",
         ),
+        &["enum `Choice` is not an admitted non-generic unit enum"],
     );
     let deeply_nested_array = format!(
         "fn main() {{ let values = {}1{}; }}",

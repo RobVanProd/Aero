@@ -1,0 +1,22 @@
+enum Signal { Idle, Ready, Busy }
+struct ModuleRow { value: int, ready: bool }
+
+fn module_make(value: int) -> ModuleRow {
+    ModuleRow { value: value, ready: value > 0 }
+}
+
+fn module_score() -> int {
+    let signal: Signal = Signal::Busy;
+    return match signal {
+        Signal::Ready => 23,
+        Signal::Idle => 11,
+        Signal::Busy => 37
+    };
+}
+
+fn module_scan(rows: [ModuleRow; 2]) -> int {
+    for row in rows.iter() {
+        if !row.ready { return 0; }
+    }
+    rows.len()
+}

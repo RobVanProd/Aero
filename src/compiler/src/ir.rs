@@ -41,6 +41,20 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
+    /// Verified construction of one payload-free variant in a closed local enum.
+    CheckedUnitEnumVariant {
+        result: Value,
+        enum_name: String,
+        variants: Vec<String>,
+        variant_index: usize,
+    },
+    /// Verified exhaustive dispatch with one target per declaration-ordered variant.
+    CheckedUnitEnumDispatch {
+        value: Value,
+        enum_name: String,
+        variants: Vec<String>,
+        targets: Vec<String>,
+    },
     Return(Value),        // value to return
     SIToFP(Value, Value), // result_reg, int_value (signed integer to floating point)
     FPToSI(Value, Value), // result_reg, float_value (floating point to signed integer)
@@ -263,6 +277,10 @@ pub enum LogicalType {
         name: String,
         fields: Vec<LogicalType>,
     },
+    Enum {
+        name: String,
+        variants: Vec<String>,
+    },
 }
 
 impl LogicalType {
@@ -287,6 +305,16 @@ impl fmt::Display for LogicalType {
                         write!(f, ", ")?;
                     }
                     write!(f, "{field}")?;
+                }
+                write!(f, "]>")
+            }
+            Self::Enum { name, variants } => {
+                write!(f, "Enum<{name}; [")?;
+                for (index, variant) in variants.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{variant}")?;
                 }
                 write!(f, "]>")
             }

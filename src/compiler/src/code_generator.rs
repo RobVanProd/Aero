@@ -84,6 +84,7 @@ impl CodeGenerator {
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Void => "void".to_string(),
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::Enum { .. } => "i32".to_string(),
             LogicalType::Array { element, count } => {
                 let element = match element.as_ref() {
                     LogicalType::Int | LogicalType::Float => "double".to_string(),
@@ -128,7 +129,7 @@ impl CodeGenerator {
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
             LogicalType::Array { .. } => Self::logical_type_to_llvm(logical_type),
-            LogicalType::Void | LogicalType::String => {
+            LogicalType::Void | LogicalType::String | LogicalType::Enum { .. } => {
                 unreachable!("verified Copy-aggregate schemas exclude Void and String")
             }
         }
@@ -235,6 +236,12 @@ impl CodeGenerator {
                 Inst::CheckedImmutableBorrow { result, source, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedUnitEnumVariant { result, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                }
+                Inst::CheckedUnitEnumDispatch { value, .. } => {
+                    Self::bump_seed_from_value(&mut seed, value);
                 }
                 Inst::Store(ptr, value)
                 | Inst::Load(value, ptr)
@@ -583,7 +590,9 @@ impl CodeGenerator {
                 | Inst::CheckedCopyStructArrayElementPtr { .. }
                 | Inst::CheckedStructAlloca { .. }
                 | Inst::CheckedStructFieldPtr { .. }
-                | Inst::CheckedImmutableBorrow { .. } => {}
+                | Inst::CheckedImmutableBorrow { .. }
+                | Inst::CheckedUnitEnumVariant { .. }
+                | Inst::CheckedUnitEnumDispatch { .. } => {}
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                     Self::ensure_instruction_support(body)?
                 }
@@ -1443,6 +1452,29 @@ impl CodeGenerator {
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
                     ));
                 }
+                Inst::CheckedUnitEnumVariant {
+                    result,
+                    variant_index,
+                    ..
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked unit-enum variant")
+                    };
+                    llvm_ir.push_str(&format!("  %reg{result} = add i32 0, {variant_index}\n"));
+                }
+                Inst::CheckedUnitEnumDispatch { value, targets, .. } => {
+                    let Value::Reg(value) = value else {
+                        panic!("Expected register for checked unit-enum dispatch")
+                    };
+                    let first = targets
+                        .first()
+                        .expect("verified unit-enum dispatch has a target");
+                    llvm_ir.push_str(&format!("  switch i32 %reg{value}, label %{first} [\n"));
+                    for (index, target) in targets.iter().enumerate().skip(1) {
+                        llvm_ir.push_str(&format!("    i32 {index}, label %{target}\n"));
+                    }
+                    llvm_ir.push_str("  ]\n");
+                }
                 Inst::VecAlloca { .. }
                 | Inst::VecPush { .. }
                 | Inst::VecPop { .. }
@@ -1462,7 +1494,10 @@ impl CodeGenerator {
             && !instructions.last().is_some_and(|instruction| {
                 matches!(
                     instruction,
-                    Inst::Return(_) | Inst::Jump(_) | Inst::Branch { .. }
+                    Inst::Return(_)
+                        | Inst::Jump(_)
+                        | Inst::Branch { .. }
+                        | Inst::CheckedUnitEnumDispatch { .. }
                 )
             })
         {

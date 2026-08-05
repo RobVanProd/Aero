@@ -5,6 +5,7 @@ mod code_generator;
 mod compatibility;
 mod conformance;
 mod doc_generator;
+mod enum_match_contract;
 mod errors;
 mod fixed_array_method;
 mod gpu;

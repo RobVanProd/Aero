@@ -5,6 +5,7 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
     typed_empty_numeric_array_contract,
 };
+use crate::enum_match_contract::{EnumExecutionContext, UnitEnumRegistry};
 use crate::local_reference::{
     LocalReferenceDisposition, classify_local_borrow, classify_local_dereference,
     classify_local_reference_annotation,
@@ -487,6 +488,7 @@ pub struct SemanticAnalyzer {
     /// Whether the current statement is nested beneath an impl block.
     inside_impl: bool,
     struct_registry: StructRegistry,
+    unit_enum_registry: UnitEnumRegistry,
     struct_execution_stack: Vec<StructExecutionContext>,
     /// Trait registry: trait name -> list of required method names
     trait_registry: HashMap<String, Vec<String>>,
@@ -512,6 +514,7 @@ impl SemanticAnalyzer {
             type_param_scopes: Vec::new(),
             inside_impl: false,
             struct_registry: StructRegistry::default(),
+            unit_enum_registry: UnitEnumRegistry::default(),
             struct_execution_stack: vec![StructExecutionContext::PreservedContext],
             trait_registry,
             trait_impls: HashMap::new(),
@@ -531,6 +534,35 @@ impl SemanticAnalyzer {
             .last()
             .copied()
             .unwrap_or(StructExecutionContext::PreservedContext)
+    }
+
+    fn enum_execution_context(&self) -> EnumExecutionContext {
+        match self.struct_execution_context() {
+            StructExecutionContext::AdmittedFunction => EnumExecutionContext::AdmittedFunction,
+            StructExecutionContext::PreservedContext => EnumExecutionContext::PreservedContext,
+        }
+    }
+
+    fn local_binding_type(&self, name: &str) -> Option<Ty> {
+        self.scope_manager
+            .get_variable(name)
+            .map(|binding| binding.var_type.clone())
+            .or_else(|| {
+                self.symbol_table
+                    .get(name)
+                    .map(|binding| binding.ty.clone())
+            })
+    }
+
+    fn apply_unit_enum_match_moves(&mut self, expression: &Expression) -> Result<(), String> {
+        let consumed = self
+            .unit_enum_registry
+            .consumed_scrutinees(expression)
+            .map_err(|error| error.diagnostic())?;
+        for name in consumed {
+            self.scope_manager.mark_moved(&name)?;
+        }
+        Ok(())
     }
 
     fn is_copy_type(&self, ty: &Ty) -> bool {
@@ -656,6 +688,7 @@ impl SemanticAnalyzer {
         self.type_param_scopes.clear();
         self.inside_impl = false;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
+        self.unit_enum_registry = UnitEnumRegistry::from_top_level_ast(&ast);
         self.struct_execution_stack.clear();
         self.struct_execution_stack
             .push(StructExecutionContext::PreservedContext);
@@ -953,6 +986,23 @@ impl SemanticAnalyzer {
             Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
                 self.check_expression_initialization(expr)?;
             }
+            Expression::EnumVariant { data, .. } => {
+                if let Some(data) = data {
+                    self.check_expression_initialization(data)?;
+                }
+            }
+            Expression::Match { expr, arms } => {
+                if self.unit_enum_registry.is_candidate_match_scrutinee(
+                    expr,
+                    self.enum_execution_context(),
+                    |name| self.local_binding_type(name),
+                ) {
+                    self.check_expression_initialization(expr)?;
+                    for arm in arms {
+                        self.check_expression_initialization(&arm.body)?;
+                    }
+                }
+            }
             _ => {} // Literals don't need initialization checks
         }
         Ok(())
@@ -1198,10 +1248,39 @@ impl SemanticAnalyzer {
                             _ => Err(format!("Unknown Result variant: {}", variant)),
                         }
                     }
+                    _ if self.enum_execution_context()
+                        == EnumExecutionContext::AdmittedFunction =>
+                    {
+                        self.unit_enum_registry
+                            .resolve_constructor(
+                                enum_name,
+                                variant,
+                                data.is_some(),
+                                self.enum_execution_context(),
+                            )
+                            .map(|resolved| resolved.contract.ty())
+                            .map_err(|error| error.diagnostic())
+                    }
                     _ => Ok(Ty::Enum(enum_name.clone())),
                 }
             }
-            Expression::Match { .. } => Ok(Ty::Int), // Stub
+            Expression::Match { expr, arms } => {
+                let scrutinee = self.infer_and_validate_expression(expr)?;
+                let result_types = arms
+                    .iter_mut()
+                    .map(|arm| self.infer_and_validate_expression(&mut arm.body))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.unit_enum_registry
+                    .resolve_match(
+                        &scrutinee,
+                        expr,
+                        arms,
+                        &result_types,
+                        self.enum_execution_context(),
+                    )
+                    .map(|resolved| resolved.result)
+                    .map_err(|error| error.diagnostic())
+            }
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
                 let inner_ty = self.infer_and_validate_expression(expr)?;
@@ -1426,6 +1505,18 @@ impl SemanticAnalyzer {
                         struct_context,
                     )?;
                 }
+                if matches!(struct_context, StructExecutionContext::AdmittedFunction)
+                    && !matches!(enum_name.as_str(), "Option" | "Result")
+                {
+                    self.unit_enum_registry
+                        .resolve_constructor(
+                            enum_name,
+                            variant,
+                            data.is_some(),
+                            EnumExecutionContext::AdmittedFunction,
+                        )
+                        .map_err(|error| error.diagnostic())?;
+                }
             }
             Expression::Match { expr, arms } => {
                 self.preflight_expression_with_array_mode(
@@ -1442,7 +1533,22 @@ impl SemanticAnalyzer {
                         struct_context,
                     )?;
                 }
-                return Err("Match expressions are not supported.".to_string());
+                let context = match struct_context {
+                    StructExecutionContext::AdmittedFunction => {
+                        EnumExecutionContext::AdmittedFunction
+                    }
+                    StructExecutionContext::PreservedContext => {
+                        EnumExecutionContext::PreservedContext
+                    }
+                };
+                if !self
+                    .unit_enum_registry
+                    .is_candidate_match_scrutinee(expr, context, |name| {
+                        self.local_binding_type(name)
+                    })
+                {
+                    return Err("Match expressions are not supported.".to_string());
+                }
             }
             Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
                 self.preflight_expression_with_array_mode(
@@ -1850,9 +1956,42 @@ impl SemanticAnalyzer {
                     }
                     _ => Err(format!("Unknown Result variant: {}", variant)),
                 },
+                _ if self.enum_execution_context() == EnumExecutionContext::AdmittedFunction => {
+                    self.unit_enum_registry
+                        .resolve_constructor(
+                            enum_name,
+                            variant,
+                            data.is_some(),
+                            self.enum_execution_context(),
+                        )
+                        .map(|resolved| resolved.contract.ty())
+                        .map_err(|error| error.diagnostic())
+                }
                 _ => Ok(Ty::Enum(enum_name.clone())),
             },
-            Expression::Match { .. } => Ok(Ty::Int), // Stub
+            Expression::Match { expr, arms } => {
+                let scrutinee =
+                    self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
+                let result_types = arms
+                    .iter()
+                    .map(|arm| {
+                        self.infer_and_validate_expression_immutable_with_cache(
+                            &arm.body,
+                            array_types,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.unit_enum_registry
+                    .resolve_match(
+                        &scrutinee,
+                        expr,
+                        arms,
+                        &result_types,
+                        self.enum_execution_context(),
+                    )
+                    .map(|resolved| resolved.result)
+                    .map_err(|error| error.diagnostic())
+            }
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
                 let inner_ty =
@@ -2091,6 +2230,11 @@ impl SemanticAnalyzer {
                             .validate_binding_annotation(struct_name, type_annotation.as_ref())
                             .map_err(|error| error.diagnostic())?;
                     }
+                    if let Ty::Enum(enum_name) = &inferred_type {
+                        self.unit_enum_registry
+                            .validate_binding(enum_name, type_annotation.as_ref(), *mutable)
+                            .map_err(|error| error.diagnostic())?;
+                    }
                 }
 
                 if value.is_some()
@@ -2148,6 +2292,7 @@ impl SemanticAnalyzer {
 
                 // Phase 5: Track ownership transfers and borrows.
                 if let Some(val_expr) = value {
+                    self.apply_unit_enum_match_moves(val_expr)?;
                     match val_expr {
                         // Move semantics: let x = y (non-Copy type moves)
                         Expression::Identifier(source_name) => {
@@ -2220,6 +2365,9 @@ impl SemanticAnalyzer {
                 } else if let Some(val) = expr {
                     self.check_expression_initialization(val)?;
                     self.infer_and_validate_expression_immutable(val)?;
+                }
+                if let Some(val) = expr {
+                    self.apply_unit_enum_match_moves(val)?;
                 }
                 Ok(())
             }
@@ -2332,6 +2480,7 @@ impl SemanticAnalyzer {
                         condition_type
                     ));
                 }
+                self.apply_unit_enum_match_moves(condition)?;
 
                 self.enter_scope();
                 let then_result = self.analyze_block(then_block);
@@ -2357,6 +2506,7 @@ impl SemanticAnalyzer {
                         condition_type
                     ));
                 }
+                self.apply_unit_enum_match_moves(condition)?;
 
                 self.enter_loop_scope();
                 let body_result = self.analyze_block(body);
@@ -2380,6 +2530,7 @@ impl SemanticAnalyzer {
                             iterable_type
                         )
                     })?;
+                self.apply_unit_enum_match_moves(iterable)?;
 
                 self.enter_loop_scope();
                 let body_result = (|| {
@@ -2418,6 +2569,7 @@ impl SemanticAnalyzer {
             Statement::Expression(expr) => {
                 self.check_expression_initialization(expr)?;
                 self.infer_discarded_expression_immutable(expr)?;
+                self.apply_unit_enum_match_moves(expr)?;
                 // Phase 5: Track moves for non-Copy function call arguments
                 self.track_expression_moves(expr)?;
                 // Phase 5: Check trait bounds at function call sites
@@ -2669,6 +2821,7 @@ impl SemanticAnalyzer {
         if let Some(expr) = &block.expression {
             self.check_expression_initialization(expr)?;
             self.infer_and_validate_expression_immutable(expr)?;
+            self.apply_unit_enum_match_moves(expr)?;
         }
 
         Ok(())

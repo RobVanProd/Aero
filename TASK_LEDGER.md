@@ -9425,3 +9425,206 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   workflow, semantics, ABI, or claims beyond the bounded accepted class. Its successor
   identity must be reported externally, pass the exact local root gate, be pushed
   unchanged, resynchronize the PR front page, and pass all eight public checks again.
+
+## CORE-049 - Explicit exhaustive matches over owned unit enums
+
+- Task ID: `CORE-049`.
+- Observed behavior: strict source already retains top-level enum declarations, custom
+  `Enum::Variant` construction, enum patterns, and nested `match` expressions. Semantic
+  inference accepts an arbitrary custom constructor name as `Ty::Enum` without proving
+  that the enum or variant exists, stubs every `match` result as `Int`, and then rejects
+  every match during syntax preflight. Checked admission rejects all enum construction
+  and matching, while deprecated raw lowering substitutes integer zero. The legacy
+  `EnumConstruct`, `EnumDiscriminant`, and `EnumVariantData` instructions are explicitly
+  unverified stdlib scaffolding and cannot establish source enum identity, exhaustiveness,
+  or native execution.
+- Specification basis: the founding `__Aero___ A High-Performance, Ergonomic Programming
+  Language.pdf` defines enums as algebraic sum types and requires a powerful exhaustive
+  enum `match` expression; it also requires explicit, Rust-inspired ownership rather than
+  hidden copies. `Aero Programming Language Framework - Claude.pdf` does not add a more
+  specific enum-copy or representation rule. Neither source authorizes implicit `Copy`, a
+  public discriminant ABI, payload layout, wildcard/binding semantics, or erased integer
+  identity. This checkpoint therefore admits an exact owned, fieldless subset and keeps
+  every representation detail compiler-internal.
+- Frozen definition class: after direct-module linking, an admitted enum is exactly one
+  uniquely named top-level, non-generic definition with one or more uniquely named unit
+  variants and no top-level struct of the same type name. Declaration order establishes
+  only the compiler-internal closed variant identity used by checked IR; source cannot
+  inspect or cast the index. Duplicate/empty/generic/mixed/payload definitions and
+  struct/enum type-name collisions remain unexecutable. Unsupported declarations may
+  remain syntax-only when unused, but using one must fail before IR.
+- Frozen value/binding class: in an admitted top-level non-generic executable function,
+  `Enum::Variant` constructs the exact declared unit variant with no payload. The owned
+  value may initialize an immutable inferred binding or exact `Enum` annotation, or be
+  moved through immutable local aliases. Unit enums do not become `Copy`: aliasing an
+  identifier moves the source under the existing ownership rule, and matching an owned
+  identifier consumes it. Direct constructor scrutinees consume their temporary. Mutable
+  enum bindings, use after move/match, duplicate consumption along one expression, and
+  reuse of the consumed scrutinee inside an arm fail before IR.
+- Frozen match class: a supported match has an admitted unit-enum scrutinee and exactly
+  one payload-free `Enum::Variant` arm for every declared variant, with no duplicate,
+  missing, foreign, unknown, wildcard, identifier-binding, literal, tuple, struct, or
+  payload pattern. Arm order is arbitrary. Every arm body must independently be an
+  already-admitted value expression of the same exact scalar result type `Int`, `Float`,
+  or `Bool`; only the selected arm is evaluated. A supported match may appear in every
+  already-admitted scalar parent context and may nest recursively. Nested owned enum
+  scrutinees are collected by one ownership-effect classifier; a value consumed on any
+  possible arm is conservatively unavailable after the complete expression, and the
+  same identifier cannot be consumed twice within that expression.
+- Frozen exclusions and containment: payload/tuple/struct variants; Option/Result
+  shortcuts; generic enums; enum parameters/results/calls; enum arrays, structs, fields,
+  references, closures, trait defaults, impls, nested functions, top-level executable
+  expressions/bindings, wildcard or binding arms, guards (which the AST does not retain),
+  mutation, borrowing, copying, equality/order/casts, discriminant reflection, stable
+  layout/ABI/FFI, heap/drop behavior, optimizer claims, and GPU/accelerator execution are
+  not admitted. Existing numeric/string/Option/Result and syntax-only trait match
+  rejections retain their established diagnostic precedence. No unsupported enum may
+  silently become `Int` or reach the backend.
+- Shared-classifier constraint: add one `enum_match_contract` registry/classifier that
+  owns definition classification, constructor identity, exact binding annotations,
+  exhaustive arm mapping, scalar result agreement, execution context, and consumed-
+  scrutinee topology. Semantic preflight/inference, checked admission, ownership effects,
+  and lowering must consume that shared result; no phase may add its own list of nested
+  match shapes or variant rules. This directly addresses the observed combinatorial
+  topology growth rather than adding another duplicated guard matrix.
+- Checked IR/backend contract: introduce a distinct logical unit-enum schema plus two
+  checked instructions only: exact variant construction as a fresh typed result and an
+  exhaustive dispatch terminator carrying the same enum name, complete ordered variant
+  schema, and one target per variant. Enum values remain SSA-only and cannot enter generic
+  numeric places or transport. The verifier independently rejects invalid/duplicate
+  symbols, empty/duplicate/conflicting schemas, out-of-range indices, metadata mismatch,
+  immediate/place results, undefined/use-before-definition/non-dominating enum operands,
+  non-enum or wrong-enum dispatch, incomplete/duplicate/missing targets, and use of the
+  legacy enum instructions. LLVM may represent the verified local value as `i32` and the
+  dispatch as `switch i32`, but that physical index is not `LogicalType::Int` and creates
+  no observable ABI. Scalar arm values join through a dominating typed result place whose
+  all-path initialization remains verifier-proven.
+- Tests-first acceptance: add one exhaustive focused target before production changes.
+  It must enumerate all supported definition sizes, all variants and arm orders, all
+  three scalar result types, direct/bound/moved scrutinees, exact annotations, nesting,
+  selected-arm-only effects, and every existing scalar parent context; enumerate every
+  frozen invalid definition/construction/pattern/result/context/ownership shape; prove
+  parser retention, semantic-before-IR failure, raw-path containment, exact checked
+  metadata, LLVM `switch`/arm control flow, CLI check/build hygiene, and no invalid
+  artifact. Private verifier corruption tests must cover every new instruction invariant.
+  Run the focused target once red before compiler, example, workflow, or capability-state
+  mutation.
+- System-level/end-to-end acceptance: add one tracked direct-module example that composes
+  the new unit-enum construction/exhaustive nested matching with accepted compile-time
+  strings, numeric/fixed arrays, acyclic Copy aggregates, scalar function transport,
+  immutable scalar references, control flow, module resolution, checked verification,
+  LLVM, object/link, and native execution for exact exit `149`. Add one unconditional
+  stable/nightly Rust-CI gate using pinned LLVM/Clang 22, `opt-22`,
+  `llc-22 -verify-machineinstrs`, object lowering, link, execution, and the exact exit.
+  Parser-only, rejection-only, erased-zero, unchecked legacy IR, LLVM-text-only, or
+  unexecuted evidence cannot close.
+- Allowed files: this ledger; `src/compiler/src/lib.rs`, `src/compiler/src/main.rs`, one
+  new `enum_match_contract.rs`, `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; one new
+  `src/compiler/tests/unit_enum_match_tests.rs`; only exact obsolete enum/match cells in
+  `unsupported_match_tests.rs`, `typed_ir_admission_tests.rs`,
+  `checked_ir_contract_test.rs`, or `binding_type_contract_tests.rs` if the frozen class
+  makes them stale; one new tracked `examples/unit_enum_matches/` direct module;
+  `.github/workflows/rust.yml`; and only `README.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md` where accepted facts
+  change. No lexer/parser/AST, legacy enum/stdlib simulation, general pattern matcher,
+  function enum transport, ownership architecture outside the shared match effect,
+  runtime, optimizer, dependency, target, benchmark, claim-verification, release,
+  `master`, PR merge, or history rewrite is authorized.
+- Risks and stop conditions: stop rather than invent behavior if unit-enum identity cannot
+  remain distinct from `Int`; exhaustive dispatch cannot be independently verified;
+  matching requires payload layout, guards, wildcard/binding scope, CFG ownership beyond
+  the frozen conservative join, enum ABI, parser/AST change, runtime tagging, or legacy
+  enum activation; a nested match can bypass consumption; selected-arm-only evaluation
+  cannot be preserved; unsupported topology reaches LLVM; existing scalar/aggregate/
+  reference behavior changes; a failing test must be weakened; a third-party dependency
+  or baseline regression appears. Parser-to-native work across more than two compiler
+  phases is expected, bounded, and explicitly lead-owned; unexpected semantic expansion
+  remains a stop.
+- Scaling disposition: CORE-049 is an intentionally hard ADT/control-flow/ownership/IR
+  milestone. It uses one shared classifier for nested topology, a schema-bearing dispatch
+  terminator rather than topology-specific guards, one focused manifest-like target, and
+  one broad source-to-native architecture gate. PR #4 remains a draft integration program
+  at 235 commits, 58,140 additions, 1,392 deletions, and 123 files; its controlled
+  checkpoint/merge strategy remains a separately authorized project action. Structured
+  evidence-manifest generation remains a future process task and may not become a semantic
+  truth source.
+- Status at authorization: the clean accepted CORE-048 records head is
+  `ea2cc146d400ee0ac193e367ff5e31300e66114a`, equal to
+  `origin/agent/aero-integration`. The only CORE-049 mutation is this authorization
+  record. No CORE-049 test, production behavior, example, workflow anchor, capability
+  claim, commit, or public artifact exists. The next allowed mutation is the exhaustive
+  failing target followed by captured red evidence.
+- Tests-first red evidence: with `%USERPROFILE%\.cargo\bin` addressed explicitly,
+  `cargo test --test unit_enum_match_tests -- --nocapture` builds and executes the new
+  exhaustive target but fails 0/1 before any production, example, workflow, or
+  capability-document mutation. Every otherwise-valid definition size, arm order,
+  scalar result, owned move, nested match, selected-arm control, and scalar parent stops
+  at `Match expressions are not supported.`; constructor-invalid cases still reach the
+  old checked-admission blanket `enum construction is not admitted in checked IR`;
+  checked unit-enum instructions, logical schemas, LLVM switches, the tracked two-file
+  example, and all six stable-CI anchors are absent. Numeric/Option/closure/transport
+  controls remain rejected, deprecated raw lowering retains its zero containment, and
+  the invalid CLI build publishes no artifact. No compiler source, generated artifact,
+  public branch, PR, or capability claim changed.
+- Baseline-gate chronology: after the focused CORE-049 target and both unit-test binaries
+  passed, the first exact root `./tools/test.sh` run stopped in
+  `binding_type_contract_tests::semantic_enforces_numeric_array_elements_indexes_and_child_precedence`.
+  Its historical custom payload-enum cell required semantic acceptance of
+  `enum Choice { Number(int) }`, but the frozen CORE-049 classifier explicitly rejects
+  every payload enum before constructor admission. This is one of the pre-authorized
+  exact obsolete enum cells in `binding_type_contract_tests.rs`; changing it from
+  acceptance to an exact unsupported-definition rejection strengthens containment and
+  does not relax its numeric-array or child-precedence cases. No production behavior is
+  being changed for this correction.
+- Baseline amendment before mutation: the second exact root gate passed through the
+  corrected binding suite and stopped at
+  `struct_execution_tests::monomorphic_scalar_struct_class_is_complete_and_executable`.
+  Its one `struct enum payload` cell expects the old checked-IR blanket diagnostic for a
+  payload enum, but the same frozen classifier now rejects `Choice { Item(Value) }`
+  during semantics. Authorize only that exact expected diagnostic in
+  `src/compiler/tests/struct_execution_tests.rs`; keep the adjacent Option payload and
+  every struct capability assertion unchanged. This is earlier fail-closed containment,
+  not payload-enum or struct semantic expansion.
+- Third-gate chronology: after the struct correction passed, the exact root gate reached
+  the pre-authorized `typed_ir_admission_tests` enum cell. That payload-enum specimen
+  still required an `IR Generation Error:` prefix, while CORE-049 now rejects the
+  unsupported definition at semantic analysis. Change only that case's expected phase
+  prefix to `Semantic Analysis Error:`; keep `Some`, `Ok`, empty-array, String, borrow,
+  and dereference behavior unchanged.
+- Focused correction evidence: the first typed-admission rerun remained red 12/13 because
+  the test's shared CLI assertion assumed every public diagnostic retains its library
+  phase prefix. The CLI intentionally renders semantic failures as `error: MESSAGE`.
+  Preserve the CLI check by making this case's library prefix include the exact enum
+  message and deriving the CLI needle by removing only the known semantic phase prefix;
+  do not disable the CLI route or generalize enum behavior.
+- Fourth-gate regression evidence: after typed admission passed 13/13, the exact root
+  gate reached `unsupported_match_tests` and failed only two legacy non-candidates:
+  an undeclared scrutinee and an undeclared arm leaked child-variable diagnostics instead
+  of the established `Match expressions are not supported.` boundary. The new preflight
+  traversed match children before consulting the shared candidate classifier. Freeze the
+  correction as ordering only: classify first; return the blanket boundary immediately
+  for every non-candidate; traverse children only for a provable admitted-function custom
+  unit-enum constructor or enum-typed local. Do not change the old test or admit another
+  scrutinee topology.
+- Focused ordering correction: the first attempted preflight-first classification kept
+  CORE-049 green but made `unsupported_match_tests` red 12/15 by suppressing established
+  tuple/field/Void child precedence, while the two undeclared diagnostics still leaked
+  from the earlier initialization walk. Revert that preflight ordering. Apply the shared
+  candidate predicate at the actual regression point instead: initialization descends
+  through match children only for the frozen unit-enum candidate class; legacy
+  non-candidates retain their prior child-preflight ordering and blanket fallback.
+- Final local implementation evidence: `cargo fmt --all` is clean;
+  `unit_enum_match_tests` passes 1/1; the adjacent `unsupported_match_tests` passes
+  15/15; corrected `binding_type_contract_tests`, `struct_execution_tests`, and
+  `typed_ir_admission_tests` pass 28/28, 1/1, and 13/13 respectively. The final exact
+  repository-root `./tools/test.sh` exits 0 with formatting and correctness Clippy clean,
+  160/160 library tests, 166/166 binary tests, every active integration target, the
+  preserved 22 active plus 16 quarantined phase-5 split, and doc tests green. A fresh
+  root-entry build resolves `signals`, completes semantic analysis, checked IR,
+  verification, and LLVM generation, contains four `switch i32` terminators plus the
+  expected module/aggregate calls, and has SHA-256
+  `A35B908F0FD5669382CC57A8B924874684EEF1FAFC741F254CF0977EA4BA6908`; the temporary
+  artifact was removed. Local verification remains truthfully `InternalOnly` because no
+  LLVM 22 verifier is installed, so pinned public `opt-22`/`llc-22`/`clang-22` native
+  exit `149` remains mandatory before acceptance.

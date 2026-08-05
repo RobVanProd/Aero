@@ -98,10 +98,14 @@ fn rejection_failures(label: &str, cases: &[RejectionCase]) -> Vec<String> {
                     case.name, diagnostics
                 ));
             }
-            if !diagnostics.contains(case.expected_prefix) {
+            let expected_cli = case
+                .expected_prefix
+                .strip_prefix("Semantic Analysis Error: ")
+                .unwrap_or(case.expected_prefix);
+            if !diagnostics.contains(expected_cli) {
                 failures.push(format!(
                     "{}: `aero check` omitted {:?}; output:\n{}",
-                    case.name, case.expected_prefix, diagnostics
+                    case.name, expected_cli, diagnostics
                 ));
             }
             if diagnostics.contains("panicked at") {
@@ -443,7 +447,7 @@ fn checked_admission_rejects_fabricated_scalar_fallbacks_and_accepts_verified_bo
         RejectionCase {
             name: "custom enum construction",
             source: "enum Choice { Number(int) } fn main() { let choice = Choice::Number(7); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: enum `Choice` is not an admitted non-generic unit enum",
             check_cli: true,
         },
         RejectionCase {

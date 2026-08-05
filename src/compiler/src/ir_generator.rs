@@ -3,6 +3,7 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, BindingContractKind, classify_binding_annotation,
     is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
+use crate::enum_match_contract::{EnumExecutionContext, UnitEnumError, UnitEnumRegistry};
 use crate::fixed_array_method::{FixedArrayLenDisposition, classify_fixed_array_len};
 use crate::ir::{Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
@@ -64,6 +65,7 @@ struct AdmissionTopLevelFunction {
 struct AdmissionProgram {
     functions: HashMap<String, AdmissionTopLevelFunction>,
     structs: StructRegistry,
+    unit_enums: UnitEnumRegistry,
 }
 
 const STRUCT_ADMISSION_BINDING: &str = "\0aero.checked.struct.context";
@@ -90,6 +92,7 @@ pub struct IrGenerator {
     checked_mode: bool,
     checked_place_hints: PlaceTypeHints,
     struct_registry: StructRegistry,
+    unit_enum_registry: UnitEnumRegistry,
 }
 
 impl IrGenerator {
@@ -107,6 +110,7 @@ impl IrGenerator {
             checked_mode: false,
             checked_place_hints: BTreeMap::new(),
             struct_registry: StructRegistry::default(),
+            unit_enum_registry: UnitEnumRegistry::default(),
         }
     }
 }
@@ -124,6 +128,7 @@ impl IrGenerator {
     ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
         Self::validate_checked_ast(&ast)?;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
+        self.unit_enum_registry = UnitEnumRegistry::from_top_level_ast(&ast);
         self.functions.clear();
         self.current_function_name.clear();
         self.next_reg = 0;
@@ -271,6 +276,7 @@ impl IrGenerator {
             Ty::String
                 | Ty::Array(_, _)
                 | Ty::Struct(_)
+                | Ty::Enum(_)
                 | Ty::Reference(_, _)
                 | Ty::Vec(_)
                 | Ty::Fn(_)
@@ -280,6 +286,7 @@ impl IrGenerator {
     fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
         let mut program: HashMap<String, AdmissionTopLevelFunction> = HashMap::new();
         let structs = StructRegistry::from_top_level_ast(ast);
+        let unit_enums = UnitEnumRegistry::from_top_level_ast(ast);
         for node in ast {
             if let AstNode::Statement(Statement::Function {
                 name,
@@ -355,6 +362,7 @@ impl IrGenerator {
         let program = AdmissionProgram {
             functions: program,
             structs,
+            unit_enums,
         };
         let mut bindings = HashMap::new();
         for node in ast {
@@ -540,6 +548,12 @@ impl IrGenerator {
                         program
                             .structs
                             .validate_binding_annotation(struct_name, type_annotation.as_ref())
+                            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                    }
+                    if let Ty::Enum(enum_name) = &ty {
+                        program
+                            .unit_enums
+                            .validate_binding(enum_name, type_annotation.as_ref(), *mutable)
                             .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
                     }
                     if let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
@@ -1374,7 +1388,11 @@ impl IrGenerator {
                     &result_ty,
                 )))
             }
-            Expression::EnumVariant { data, .. } => {
+            Expression::EnumVariant {
+                enum_name,
+                variant,
+                data,
+            } => {
                 if let Some(data) = data {
                     let _ = Self::validate_expression(
                         data,
@@ -1385,9 +1403,21 @@ impl IrGenerator {
                         admit_static_string_equality,
                     )?;
                 }
-                Err(admission_error(
-                    "enum construction is not admitted in checked IR",
-                ))
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
+                    EnumExecutionContext::AdmittedFunction
+                } else {
+                    EnumExecutionContext::PreservedContext
+                };
+                program
+                    .unit_enums
+                    .resolve_constructor(enum_name, variant, data.is_some(), context)
+                    .map(|resolved| resolved.contract.ty())
+                    .map_err(|error| match error {
+                        UnitEnumError::PreserveExistingBehavior => {
+                            admission_error("enum construction is not admitted in checked IR")
+                        }
+                        _ => admission_error(&error.diagnostic()),
+                    })
             }
             Expression::Borrow { expr, mutable } => {
                 let pointee = Self::validate_expression(
@@ -1512,9 +1542,40 @@ impl IrGenerator {
                     .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
                 Ok(Ty::Struct(resolved.contract.name))
             }
-            Expression::TupleLiteral(_)
-            | Expression::TupleIndex { .. }
-            | Expression::Match { .. } => Err(admission_error(
+            Expression::Match { expr, arms } => {
+                let scrutinee = Self::validate_expression(
+                    expr,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                let result_types = arms
+                    .iter()
+                    .map(|arm| {
+                        Self::validate_expression(
+                            &arm.body,
+                            bindings,
+                            program,
+                            ExpressionUse::Value,
+                            inside_impl,
+                            admit_static_string_equality,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
+                    EnumExecutionContext::AdmittedFunction
+                } else {
+                    EnumExecutionContext::PreservedContext
+                };
+                program
+                    .unit_enums
+                    .resolve_match(&scrutinee, expr, arms, &result_types, context)
+                    .map(|resolved| resolved.result)
+                    .map_err(|error| admission_error(&error.diagnostic()))
+            }
+            Expression::TupleLiteral(_) | Expression::TupleIndex { .. } => Err(admission_error(
                 "aggregate expression is not admitted in checked IR",
             )),
         }
@@ -1830,7 +1891,79 @@ impl IrGenerator {
     }
 
     fn instruction_terminates_block(inst: &Inst) -> bool {
-        matches!(inst, Inst::Return(_) | Inst::Jump(_) | Inst::Branch { .. })
+        matches!(
+            inst,
+            Inst::Return(_)
+                | Inst::Jump(_)
+                | Inst::Branch { .. }
+                | Inst::CheckedUnitEnumDispatch { .. }
+        )
+    }
+
+    fn generate_unit_enum_match_ir(
+        &mut self,
+        scrutinee_expression: Expression,
+        arms: Vec<crate::ast::MatchArm>,
+        function: &mut Function,
+    ) -> (Value, Ty) {
+        let (scrutinee, scrutinee_ty) =
+            self.generate_expression_ir(scrutinee_expression.clone(), function);
+        let (contract, arm_for_variant) = self
+            .unit_enum_registry
+            .resolve_match_patterns(
+                &scrutinee_ty,
+                &scrutinee_expression,
+                &arms,
+                EnumExecutionContext::AdmittedFunction,
+            )
+            .expect("checked unit-enum match was admitted");
+
+        let result_place_id = self.next_ptr;
+        let result_place = Value::Reg(result_place_id);
+        self.next_ptr += 1;
+        function.body.push(Inst::Alloca(
+            result_place.clone(),
+            format!("__match_result_{result_place_id}"),
+        ));
+
+        let arm_labels = (0..arms.len())
+            .map(|_| {
+                let label = format!("match_arm_{}", self.next_reg);
+                self.next_reg += 1;
+                label
+            })
+            .collect::<Vec<_>>();
+        let end_label = format!("match_end_{}", self.next_reg);
+        self.next_reg += 1;
+        let targets = arm_for_variant
+            .iter()
+            .map(|source_index| arm_labels[*source_index].clone())
+            .collect();
+        function.body.push(Inst::CheckedUnitEnumDispatch {
+            value: scrutinee,
+            enum_name: contract.name,
+            variants: contract.variants,
+            targets,
+        });
+
+        let mut result_ty = None;
+        for (arm, label) in arms.into_iter().zip(arm_labels) {
+            function.body.push(Inst::Label(label));
+            let (value, ty) = self.generate_expression_ir(arm.body, function);
+            if let Some(expected) = &result_ty {
+                assert_eq!(expected, &ty, "checked match result type remains exact");
+            } else {
+                result_ty = Some(ty.clone());
+            }
+            function.body.push(Inst::Store(result_place.clone(), value));
+            function.body.push(Inst::Jump(end_label.clone()));
+        }
+        function.body.push(Inst::Label(end_label));
+        let result_ty = result_ty.expect("admitted unit enum has at least one arm");
+        let result = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(result.clone(), result_place));
+        (result, result_ty)
     }
 
     fn restore_bindings(&mut self, before_scope: &HashMap<String, (Value, Ty)>) {
@@ -2612,6 +2745,33 @@ impl IrGenerator {
                 self.next_reg += 1;
                 function.body.push(Inst::Load(result.clone(), place));
                 (result, *pointee)
+            }
+            Expression::EnumVariant {
+                enum_name,
+                variant,
+                data: None,
+            } if self.checked_mode => {
+                let resolved = self
+                    .unit_enum_registry
+                    .resolve_constructor(
+                        &enum_name,
+                        &variant,
+                        false,
+                        EnumExecutionContext::AdmittedFunction,
+                    )
+                    .expect("checked unit-enum constructor was admitted");
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::CheckedUnitEnumVariant {
+                    result: result.clone(),
+                    enum_name: resolved.contract.name.clone(),
+                    variants: resolved.contract.variants.clone(),
+                    variant_index: resolved.variant_index,
+                });
+                (result, resolved.contract.ty())
+            }
+            Expression::Match { expr, arms } if self.checked_mode => {
+                self.generate_unit_enum_match_ir(*expr, arms, function)
             }
             Expression::FieldAccess { object, field } if self.checked_mode => {
                 let (base, receiver) = self.generate_expression_ir(*object, function);
