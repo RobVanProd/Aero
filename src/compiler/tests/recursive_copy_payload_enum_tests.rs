@@ -455,7 +455,7 @@ fn recursive_copydata_payload_enum_class_is_complete_checked_and_executable() {
                 "examples/recursive_copy_payload_enum/main.aero",
                 "opt-22 -passes=verify -disable-output ../../recursive_copy_payload_enum.ll",
                 "llc-22 -verify-machineinstrs ../../recursive_copy_payload_enum.ll",
-                "clang-22 ../../recursive_copy_payload_enum.o -o ../../recursive_copy_payload_enum",
+                "clang-22 -no-pie ../../recursive_copy_payload_enum.o -o ../../recursive_copy_payload_enum",
                 "Expected exit code 113",
             ] {
                 if !workflow.contains(anchor) {

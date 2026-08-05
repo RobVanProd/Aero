@@ -12537,3 +12537,13 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   result, nested destructuring, generic enum, new CFG ownership, closure, accelerator,
   performance, release, or stability claim follows. The four scaling controls remain
   active and PR #4 remains draft/unmerged.
+- First public candidate result: exact candidate `2a5c3c58192dc65116c436d6ae76da5829eeba52`
+  passed both compiler-test jobs and every CodeQL check. Stable job `92362141684` and
+  nightly job `92362141924` both externally verified the LLVM with pinned `opt-22`,
+  machine-verified it with `llc-22`, and produced an object, then failed at the host
+  linker's default PIE policy: the switch jump table introduced an
+  `R_X86_64_32S` relocation against `.rodata`, which cannot be linked into a PIE.
+  This is not an IR-verifier or machine-verifier failure. The bounded candidate repair
+  keeps the established static `llc-22` object and makes the private executable choice
+  explicit with `clang-22 -no-pie`; the exhaustive test pins that exact command. No
+  compiler semantics, LLVM representation, public ABI, or release behavior changes.

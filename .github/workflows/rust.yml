@@ -642,7 +642,7 @@ jobs:
         opt-22 -passes=verify -disable-output ../../recursive_copy_payload_enum.ll
         llc-22 -verify-machineinstrs ../../recursive_copy_payload_enum.ll -o /dev/null
         llc-22 -filetype=obj ../../recursive_copy_payload_enum.ll -o ../../recursive_copy_payload_enum.o
-        clang-22 ../../recursive_copy_payload_enum.o -o ../../recursive_copy_payload_enum
+        clang-22 -no-pie ../../recursive_copy_payload_enum.o -o ../../recursive_copy_payload_enum
         set +e
         ../../recursive_copy_payload_enum
         exit_code=$?
