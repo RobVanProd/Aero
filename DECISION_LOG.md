@@ -2802,12 +2802,16 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-060 - Extend direct owned replacement to admitted enums
 
 - Date: 2026-08-05
-- Status: locally green implementation candidate; public acceptance is pending. The
+- Status: accepted public at exact implementation
+  `79aed71371e192a07218d437e882a863653b6826`, tree
+  `ac80c49aca3fb875c44d132f930567e95d81f698`, and stable patch ID
+  `1bb2c9c19f6d427122f83bffc59d3f18f0a5b3e4`. The
   focused exhaustive target, verifier corruption unit, affected compatibility ring,
   formatting, all-target/all-feature checking, correctness Clippy, docs, the exact root
-  gate, and complete Rust surface pass at 180/180 library and 186/186 binary tests. An
-  immutable commit identity, all eight public checks, and pinned LLVM/Clang 22 native
-  exit 131 remain required.
+  gate, and complete Rust surface pass at 180/180 library and 186/186 binary tests. All
+  eight public checks pass; stable job `92376666972` proves the pinned LLVM/Clang 22
+  external/machine/object/link/native exit-131 lane and nightly job `92376666842`
+  repeats exit 131.
 - Decision: the direct mutable owned-place universe is the union of DEC-058 recursive
   finite `CopyData` and the exact non-Copy enum schemas accepted by DEC-059. One shared
   classifier resolves target type, mutability, initialization, ownership, exact RHS,

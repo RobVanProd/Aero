@@ -12742,3 +12742,37 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   moves, new CFG ownership, multi-field/generic/recursive enums, drop/lifetimes, stable
   layout/ABI/FFI, closure, accelerator, performance, release, merge, and stability
   remain excluded. The four scaling controls remain active and PR #4 remains draft.
+
+### CORE-064 public acceptance closure
+
+- Exact identities: implementation commit
+  `79aed71371e192a07218d437e882a863653b6826`, tree
+  `ac80c49aca3fb875c44d132f930567e95d81f698`, stable patch ID
+  `1bb2c9c19f6d427122f83bffc59d3f18f0a5b3e4`, and parent accepted CORE-063
+  evidence closure `9ff83f54506fa3e6c23eba8e7750265c1ae1508d`.
+- Records gate: the exact repository-root `./tools/test.sh` passes after the acceptance
+  updates with 180/180 library tests, 186/186 binary tests, every integration/claim
+  target, the 22-active/16-quarantined Phase 5 split, and doc tests.
+- Public checks: all eight pass on exact implementation `79aed71`. CodeQL run
+  `31026627490` supplies actions job `92376662663`, python job `92376662554`, rust job
+  `92376662586`, and aggregate check `92376818007`; PR CI `31026630294` / job
+  `92376666941`; push CI `31026630855` / job `92376669020`; and PR Rust CI
+  `31026630282` / stable job `92376666972` and nightly job `92376666842` are green.
+- Pinned system evidence: stable job `92376666972` installs LLVM/Clang 22.1.8,
+  confirms `opt-22` rejects known-invalid IR, builds the tracked two-module source,
+  externally verifies it with `opt-22`, machine-verifies and object-lowers it with
+  `llc-22`, explicitly links the private executable with `clang-22 -no-pie`, and
+  records exact native exit 131. Nightly job `92376666842` independently records exit
+  131.
+- Acceptance boundary: CORE-064 is accepted public for the frozen exact whole-owner
+  replacement of admitted enum locals. Candidate wording in implementation history is
+  superseded by this records-only closure. No enum fields/arrays/general storage,
+  enum/projected borrowing, partial moves, new CFG ownership, multi-field/generic/
+  recursive enums, drop/lifetimes, stable layout/ABI/FFI, closure, accelerator,
+  benchmark, release, merge, or stability claim follows.
+- PR/scaling state: PR #4 leads with CORE-064 and remains draft/open/unmerged. Its
+  current integration surface is 256 commits, 178 changed files, 82,386 additions, and
+  1,665 deletions relative to `master`. Controlled checkpoint strategy, hard-capability
+  balance, structured evidence generation, and periodic composed system gates remain
+  active. This closure changes records only; its successor commit identity is reported
+  externally and must pass all eight checks again.

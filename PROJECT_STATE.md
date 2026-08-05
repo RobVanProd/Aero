@@ -4,8 +4,11 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 83 `CORE-064` is a locally green implementation candidate, not yet public
-acceptance. It admits exact whole-owner reassignment for the already accepted
+Milestone 83 `CORE-064` is accepted public at exact implementation commit
+`79aed71371e192a07218d437e882a863653b6826`, tree
+`ac80c49aca3fb875c44d132f930567e95d81f698`, and stable patch ID
+`1bb2c9c19f6d427122f83bffc59d3f18f0a5b3e4`. It admits exact whole-owner
+reassignment for the already accepted
 unit-or-unary-`CopyData` enum class. One shared owned-place classifier now covers
 recursive `CopyData` and admitted enum places across semantics and checked admission;
 the generalized checked allocation/assignment identities retain exact enum schema,
@@ -17,8 +20,12 @@ The focused exhaustive target, verifier corruption controls, affected compatibil
 ring, 180/180 library tests, 186/186 binary tests, formatting,
 all-target/all-feature checking, correctness Clippy, docs, and the exact repository-root
 gate pass locally. The tracked two-module system specimen is pinned to native exit 131.
-Publication, all eight public checks, and pinned LLVM/Clang 22 external/machine
-verification plus native execution remain acceptance gates. No enum
+All eight public checks pass through CodeQL `31026627490`, PR CI `31026630294`,
+push CI `31026630855`, and PR Rust CI `31026630282`. Stable job `92376666972`
+installs LLVM/Clang 22.1.8, rejects the known-invalid verifier control, externally
+verifies, machine-verifies, object-lowers, explicitly links the private non-PIE
+executable, and observes exact native exit 131; nightly job `92376666842` repeats exit
+131. No enum
 projection, borrowing, array/struct storage, partial move, new CFG ownership, drop,
 lifetime, stable layout/ABI/FFI, accelerator, performance, release, or stability claim
 follows.
@@ -2004,11 +2011,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish the exact locally green CORE-064 candidate on `agent/aero-integration`,
-immediately synchronize draft PR #4 to its exact identity,
-and require all eight public checks plus the pinned LLVM/Clang 22 source-to-native
-exit-131 system lane before recording public acceptance. Begin no further behavior
-slice on a red or pending candidate. Keep the PR draft and unmerged. The controlled
+Preserve accepted CORE-064 implementation identity `79aed71`, keep draft PR #4
+synchronized to the records-only acceptance closure, and require fresh public checks
+on that closure head. Begin no further behavior slice on a red or pending head. Keep
+the PR draft and unmerged. The controlled
 mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
 tasks, hard capability classes must not be deferred for convenient slices, and
 periodic multi-capability system gates remain mandatory.

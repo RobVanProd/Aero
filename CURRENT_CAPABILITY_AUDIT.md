@@ -8,7 +8,10 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-064` is a locally green implementation candidate, not public acceptance. One
+- `CORE-064` is accepted public at exact implementation
+  `79aed71371e192a07218d437e882a863653b6826`, tree
+  `ac80c49aca3fb875c44d132f930567e95d81f698`, and stable patch ID
+  `1bb2c9c19f6d427122f83bffc59d3f18f0a5b3e4`. One
   shared owned-place classifier admits either recursive finite CopyData or an exact
   CORE-063 enum schema for direct mutable whole-owner replacement. Inferred and exact
   mutable enum locals accept fresh constructors, exact enum-returning calls, and
@@ -16,9 +19,11 @@ Branch: `agent/aero-integration`
   trusted LLVM. Generalized checked identities, independent schema/place/value verifier
   controls, and private typed enum loads/stores cover the target. The focused exhaustive
   target, formatting, all-target/all-feature checking, correctness Clippy, docs, exact
-  root gate, and complete Rust test surface pass locally at 180/180 library and 186/186
-  binary tests. Public workflows and pinned LLVM/Clang 22 native exit 131 remain
-  pending.
+  root gate, and complete Rust test surface pass at 180/180 library and 186/186 binary
+  tests. All eight public checks pass. Stable job `92376666972` installs LLVM/Clang
+  22.1.8, proves the known-invalid control, externally and machine verifies, object-
+  lowers, explicitly links the private executable, and observes native exit 131;
+  nightly job `92376666842` repeats exit 131.
 - `CORE-063` is accepted public at exact implementation
   `2a5c3c58192dc65116c436d6ae76da5829eeba52`, tree
   `8a5cef6b14214e76349a41f6997d5fa19595858f`, and stable patch ID
@@ -1908,7 +1913,7 @@ promise future compatibility.
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no capability moves.
 
-## CORE-064 local owned-enum reassignment candidate
+## CORE-064 accepted owned-enum reassignment boundary
 
 - The admitted target is an initialized mutable local whose exact logical type is
   either recursive finite CopyData or one already admitted non-Copy enum schema. One
@@ -1923,11 +1928,11 @@ promise future compatibility.
   checked later writes. Borrow identities continue to accept CopyData only.
 - Verified LLVM uses exact private enum allocas, loads, and stores. It introduces no
   fallback `i32`, byte layout, bitcast, public discriminant, stable layout, ABI, or FFI.
-- Local candidate evidence is 180 library and 186 binary tests plus formatting,
+- Accepted evidence is 180 library and 186 binary tests plus formatting,
   all-target/all-feature checking, correctness Clippy, docs, the exact root gate, and
-  the exhaustive source/IR/verifier/LLVM/CLI target. Public all-eight and pinned
-  LLVM/Clang 22 native exit 131 remain required before this section can be recorded as
-  accepted.
+  the exhaustive source/IR/verifier/LLVM/CLI target. All eight public checks and the
+  pinned LLVM/Clang 22 external/machine/object/link/native exit-131 lane pass on exact
+  implementation `79aed71`.
 
 ## CORE-063 accepted unary recursive CopyData enum boundary
 

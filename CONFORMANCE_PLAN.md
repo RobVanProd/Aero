@@ -121,12 +121,11 @@ fail consistently before checked IR and cannot manufacture callable or LLVM stat
 The exact amended repository-root gate passes. Public workflows and the pinned system
 lane remain acceptance requirements.
 
-The local CORE-064 candidate supplies the next periodic architecture specimen: a
+Accepted CORE-064 supplies the next periodic architecture specimen: a
 tracked two-module program composes unit, scalar, array/tuple/struct-payload enums with
 constructor, call-result, and distinct-local replacement, then Match/call/return use.
 Focused tests trace exact source semantics, checked owned-place identities, independent
 corruption controls, private typed LLVM, CLI artifact hygiene, and the pinned exit-131
-workflow. The exact root gate passes locally. Public acceptance still requires all
-eight checks and LLVM/Clang 22 external verification, machine verification,
-object/link, and native execution. This proves only the frozen whole-owner enum
-replacement boundary.
+workflow. The exact root gate, all eight public checks, and LLVM/Clang 22 external
+verification, machine verification, object/link, and exact native exit 131 pass. This
+proves only the frozen whole-owner enum replacement boundary.

@@ -146,8 +146,8 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. A locally green CORE-064 candidate extends only direct whole-owner replacement to already admitted enums; public acceptance is pending. Projected writes/borrows and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
-| **Data Types** | Recursive finite CopyData composition and bounded unit-or-unary recursive CopyData owned enums with exhaustive bound Match and internal transport are publicly accepted. CORE-064 locally adds exact mutable whole-owner enum replacement but does not add enum fields, arrays, borrowing, projection, or general mutation. Broader enum/storage/destructuring/generic semantics remain unsupported. |
+| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Accepted CORE-064 extends only direct whole-owner replacement to already admitted enums. Projected writes/borrows and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
+| **Data Types** | Recursive finite CopyData composition and bounded unit-or-unary recursive CopyData owned enums with exhaustive bound Match, internal transport, and exact mutable whole-owner replacement are publicly accepted. This does not add enum fields, arrays, borrowing, projection, or general mutation. Broader enum/storage/destructuring/generic semantics remain unsupported. |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
@@ -333,14 +333,17 @@ aero lsp
 > non-identifier targets, assignment values/chaining/compound syntax, NLL, drop, stable
 > ABI, and memory-safety claims remain excluded.
 >
-> CORE-064 is a locally green candidate for direct whole-owner reassignment of the
+> CORE-064 is publicly accepted for direct whole-owner reassignment of the
 > exact enum class accepted by CORE-063. One shared owned-place classifier serves
 > semantic analysis and checked admission; generalized checked allocation/assignment
 > identities and the independent verifier preserve exact enum schema; private LLVM
 > uses typed enum loads/stores. A distinct local RHS is moved and direct
-> self-replacement rejects. The exhaustive target and complete Rust suite pass locally
-> at 180 library and 186 binary tests. Public all-eight checks and pinned LLVM/Clang 22
-> native exit 131 remain pending. Enum borrowing, projection, array/field storage,
+> self-replacement rejects. The exhaustive target and complete Rust suite pass at 180
+> library and 186 binary tests. Exact implementation `79aed71` passes all eight public
+> checks; stable job `92376666972` uses LLVM/Clang 22.1.8 for the known-invalid control,
+> external and machine verification, object lowering, explicit private non-PIE linking,
+> and exact native exit 131; nightly job `92376666842` repeats exit 131. Enum borrowing,
+> projection, array/field storage,
 > partial moves, new CFG ownership, drop/lifetimes, stable ABI/FFI, and general enum
 > mutation remain unsupported.
 

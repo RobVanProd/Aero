@@ -45,12 +45,14 @@ Focused contracts, the complete repository gate, three exact-diff reviews, and a
 required public CI checks pass at head `db349ef`. This does not expand the CPU
 feature or execution classification.
 
-The local `CORE-064` candidate adds no backend or ABI class. For already admitted
+Accepted `CORE-064` adds no backend or ABI class. For already admitted
 private enum schemas it emits exact typed alloca/load/store operations for mutable
 whole-owner replacement, guarded by generalized checked identities and independent
-schema verification. Its tracked direct-module program is pinned to exit 131, but
-external LLVM verification, machine verification, object lowering, linking, and native
-execution on LLVM/Clang 22 remain public acceptance gates.
+schema verification. Stable job `92376666972` uses LLVM/Clang 22.1.8 to reject the
+known-invalid verifier control, externally verify, machine-verify, object-lower,
+explicitly link the private non-PIE executable, and observe exact native exit 131;
+nightly job `92376666842` repeats exit 131. This does not establish a public backend,
+layout, or ABI class.
 
 ## ROCm path
 

@@ -85,7 +85,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- `CORE-064` is a locally green implementation candidate, not public acceptance. It
+- `CORE-064` is accepted public at exact implementation
+  `79aed71371e192a07218d437e882a863653b6826`, tree
+  `ac80c49aca3fb875c44d132f930567e95d81f698`, and stable patch ID
+  `1bb2c9c19f6d427122f83bffc59d3f18f0a5b3e4`. It
   generalizes the direct mutable-place classifier and checked identities from the
   recursive `CopyData` subset to an owned-place class that also contains every enum
   admitted by CORE-063. Exact inferred/annotated mutable enum locals accept constructor,
@@ -95,8 +98,11 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   dominance, and checked later writes. Private LLVM uses exact typed enum load/store
   without scalar fallback or public layout. The exhaustive target, formatting,
   all-target/all-feature checking, correctness Clippy, docs, exact root gate, and
-  complete Rust test surface pass locally at 180 library and 186 binary tests. Public
-  CI and pinned LLVM/Clang 22 native exit 131 evidence remain pending.
+  complete Rust test surface pass at 180 library and 186 binary tests. All eight public
+  checks pass. Stable job `92376666972` uses LLVM/Clang 22.1.8 for the known-invalid
+  control, external and machine verification, object lowering, explicit private
+  non-PIE linking, and exact native exit 131; nightly job `92376666842` repeats exit
+  131.
 
 - `CORE-063` is accepted public at exact implementation
   `2a5c3c58192dc65116c436d6ae76da5829eeba52`, tree
