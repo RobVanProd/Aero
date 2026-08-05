@@ -232,6 +232,10 @@ impl CodeGenerator {
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
                 }
+                Inst::CheckedImmutableBorrow { result, source, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, source);
+                }
                 Inst::Store(ptr, value)
                 | Inst::Load(value, ptr)
                 | Inst::SIToFP(value, ptr)
@@ -578,7 +582,8 @@ impl CodeGenerator {
                 | Inst::CheckedCopyStructArrayAlloca { .. }
                 | Inst::CheckedCopyStructArrayElementPtr { .. }
                 | Inst::CheckedStructAlloca { .. }
-                | Inst::CheckedStructFieldPtr { .. } => {}
+                | Inst::CheckedStructFieldPtr { .. }
+                | Inst::CheckedImmutableBorrow { .. } => {}
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                     Self::ensure_instruction_support(body)?
                 }
@@ -1414,6 +1419,28 @@ impl CodeGenerator {
                     };
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = getelementptr inbounds %aero.struct.{struct_name}, %aero.struct.{struct_name}* %ptr{base}, i32 0, i32 {field_index}\n"
+                    ));
+                }
+                Inst::CheckedImmutableBorrow {
+                    result,
+                    source,
+                    pointee,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked immutable borrow result")
+                    };
+                    let Value::Reg(source) = source else {
+                        panic!("Expected register for checked immutable borrow source")
+                    };
+                    let pointee = match pointee {
+                        LogicalType::Int | LogicalType::Float => "double",
+                        LogicalType::Bool => "i1",
+                        _ => unreachable!(
+                            "verified immutable borrows carry only scalar pointee types"
+                        ),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
                     ));
                 }
                 Inst::VecAlloca { .. }

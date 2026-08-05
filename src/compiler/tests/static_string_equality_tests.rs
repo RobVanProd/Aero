@@ -334,12 +334,12 @@ fn static_string_equality_class_is_complete_and_ci_executable() {
         (
             "borrowed String remains excluded",
             "fn main() { let same = (&\"a\") == \"a\"; }",
-            "borrow and dereference are not admitted in checked IR",
+            "a local immutable scalar borrow requires an identifier place",
         ),
         (
             "dereferenced String remains excluded",
             "fn main() { let text = \"a\"; let same = (*text) == \"a\"; }",
-            "borrow and dereference are not admitted in checked IR",
+            "cannot dereference a non-reference value",
         ),
         (
             "field value remains excluded",

@@ -146,7 +146,7 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Ownership/reference syntax and shallow move tracking only; no borrow checker, lifetime analysis, or memory-safety guarantee. |
+| **Memory** | Shallow move tracking plus an unpublished bounded candidate for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places through checked IR and LLVM. No general borrow checker, mutable references, lifetime analysis, drop model, or memory-safety guarantee. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
@@ -213,6 +213,19 @@ aero lsp
 > and otherwise unsupported arrays do not gain function transport. LLVM owns internal
 > padding and alignment. `main` retains exact `i32 @main()`, and other method calls
 > remain a distinct AST form.
+
+> **Reference status:** CORE-048 is an unpublished local candidate, not an accepted
+> general borrow checker. It supports immutable `&x` only when `x` is an initialized
+> local or parameter `Int`, `Float`, or `Bool`; inferred/exact local aliases may be
+> copied and dereferenced into already-supported scalar contexts. Checked IR records a
+> fresh read-only alias place, verifies its exact pointee and dominance, and lowers it
+> as a typed zero-offset pointer derivation plus scalar load. Mutable references,
+> temporary/non-scalar pointees, reference parameters/results, escaping or aggregate
+> references, assignment/mutation, NLL, drop, stable pointer ABI, and any memory-safety
+> guarantee remain unsupported. The exact local root gate passes 159 library and 165
+> binary tests plus all downstream formatting, Clippy, integration, and doc gates; the
+> composed direct module builds to typed alias/load LLVM. This machine has no LLVM 22
+> verifier, so public pinned verification and native exit 127 remain pending.
 
 > **Pattern matching status:** `match` syntax, arms, and patterns are recognized,
 > but Match value evaluation is not executable yet. Trusted parsed source bodies,

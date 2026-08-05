@@ -40,7 +40,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
-| Shared/mutable references | Y | Y | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
+| Local immutable scalar references | Y | Y | Y | P | P | P | P | P | ? | Y | Y | Y | Y | PARTIAL |
+| Mutable/general references | Y | Y | Y | P | P | P | N | N | N | P | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | P | P | ? | P | N | N | P | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -1072,3 +1073,30 @@ declared compatibility policy and release-level coverage.
 - Direct nested/Bool arrays, cyclic or non-Copy aggregates, mutation, dynamic bounds,
   move/drop/lifetime behavior, process-entry aggregates, separate compilation, stable
   layout/ABI/FFI, accelerators, performance, release, and stability remain excluded.
+
+## CORE-048 local immutable scalar-reference candidate
+
+- The unpublished CORE-048 candidate admits only non-escaping immutable aliases of
+  initialized local/parameter `Int`, `Float`, or `Bool` places. Direct `&x`, inferred
+  or exact annotations, copied/multiple aliases, immediate dereference, nested lexical
+  use, owner reuse, and all already-admitted scalar consumers are covered. One shared
+  classifier drives mutable/unsupported-origin/unsupported-pointee rejection in both
+  semantic analysis and checked admission without extending binding-topology lists.
+- `CheckedImmutableBorrow` defines a fresh exact alias place. Verifier controls reject
+  malformed identifiers, undefined/non-dominating sources, duplicates, result/place
+  collisions, unsupported metadata, and source/pointee mismatches. LLVM emits typed
+  zero-offset pointer derivations and exact scalar loads, with no integer-pointer cast
+  and no activation in the deprecated raw route.
+- The exhaustive target, private corruption controls, frontend/Phase 5/binding/checked-
+  IR neighbors, tracked direct-module check/build, and CLI artifact-hygiene controls
+  pass locally. The exact root gate passes 159 library and 165 binary tests plus every
+  downstream formatting, correctness-Clippy, integration, and doc gate. The composed
+  direct module builds to typed `double`/`i1` alias and load LLVM, with local status
+  accurately `InternalOnly` because LLVM 22 is absent. Immutable identity, public
+  LLVM/Clang 22 verification, and native exit-127 evidence remain pending; therefore
+  execution stays `?` and the row remains `PARTIAL`, not a general borrow-checker or
+  memory-safety claim.
+- Mutable borrowing/dereference, non-scalar or temporary origins, function reference
+  ABI, escaping/aggregate references, assignment/mutation, NLL, owner drop/resource
+  ownership, FFI/stable pointer ABI, accelerators, performance, release, and stability
+  remain excluded.

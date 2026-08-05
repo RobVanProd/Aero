@@ -35,9 +35,15 @@ pub enum Inst {
     Alloca(Value, String),     // pointer_reg, variable_name
     Store(Value, Value),       // pointer_reg, value_to_store
     Load(Value, Value),        // result_reg, pointer_reg
-    Return(Value),             // value to return
-    SIToFP(Value, Value),      // result_reg, int_value (signed integer to floating point)
-    FPToSI(Value, Value),      // result_reg, float_value (floating point to signed integer)
+    /// Verified read-only alias of an existing scalar place.
+    CheckedImmutableBorrow {
+        result: Value,
+        source: Value,
+        pointee: LogicalType,
+    },
+    Return(Value),        // value to return
+    SIToFP(Value, Value), // result_reg, int_value (signed integer to floating point)
+    FPToSI(Value, Value), // result_reg, float_value (floating point to signed integer)
 
     // Function operations
     FunctionDef {

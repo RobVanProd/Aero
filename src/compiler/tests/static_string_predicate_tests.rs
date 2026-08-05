@@ -379,12 +379,12 @@ fn static_string_boolean_predicate_class_is_complete_and_ci_executable() {
         (
             "borrowed receiver remains excluded",
             "fn main() { let found = (&\"a\").contains(\"a\"); }",
-            "borrow and dereference are not admitted in checked IR",
+            "a local immutable scalar borrow requires an identifier place",
         ),
         (
             "dereferenced receiver remains excluded",
             "fn main() { let text = \"a\"; let found = (*text).contains(\"a\"); }",
-            "borrow and dereference are not admitted in checked IR",
+            "cannot dereference a non-reference value",
         ),
         (
             "array is_empty remains excluded",

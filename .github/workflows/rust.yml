@@ -359,6 +359,24 @@ jobs:
         fi
         echo "acyclic Copy-aggregate example passed with exit code 107"
 
+    - name: Test local scalar-reference integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/local_scalar_references/main.aero -o ../../local_scalar_references.ll
+        opt-22 -passes=verify -disable-output ../../local_scalar_references.ll
+        llc-22 -verify-machineinstrs ../../local_scalar_references.ll -o /dev/null
+        llc-22 -filetype=obj ../../local_scalar_references.ll -o ../../local_scalar_references.o
+        clang-22 ../../local_scalar_references.o -o ../../local_scalar_references
+        set +e
+        ../../local_scalar_references
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 127 ]; then
+          echo "Expected exit code 127, got $exit_code"
+          exit 1
+        fi
+        echo "local scalar-reference example passed with exit code 127"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

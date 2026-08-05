@@ -418,7 +418,27 @@ fn checked_admission_accepts_static_string_equality_without_unwind() {
 }
 
 #[test]
-fn checked_admission_rejects_fabricated_scalar_fallbacks() {
+fn checked_admission_rejects_fabricated_scalar_fallbacks_and_accepts_verified_borrows() {
+    let borrow_llvm = compile_program(
+        "fn main() { let value = 7; let borrowed = &value; }",
+        CompilerOptions::default(),
+    )
+    .expect("an immutable local Int borrow should pass checked admission");
+    assert!(
+        borrow_llvm.contains("getelementptr inbounds double, double* %ptr"),
+        "a verified immutable local Int borrow must retain alias-place LLVM:\n{borrow_llvm}"
+    );
+
+    let deref_llvm = compile_program(
+        "fn main() { let value = 7; let borrowed = &value; let copied = *borrowed; }",
+        CompilerOptions::default(),
+    )
+    .expect("a dereferenced immutable local Int borrow should pass checked admission");
+    assert!(
+        deref_llvm.contains("load double, double* %ptr"),
+        "a verified immutable local Int dereference must retain exact load LLVM:\n{deref_llvm}"
+    );
+
     let cases = [
         RejectionCase {
             name: "custom enum construction",
@@ -437,18 +457,6 @@ fn checked_admission_rejects_fabricated_scalar_fallbacks() {
             source: "fn main() { let result = Ok(9); }",
             expected_prefix: "IR Generation Error:",
             check_cli: false,
-        },
-        RejectionCase {
-            name: "borrow value",
-            source: "fn main() { let value = 7; let borrowed = &value; }",
-            expected_prefix: "IR Generation Error:",
-            check_cli: false,
-        },
-        RejectionCase {
-            name: "deref borrowed value",
-            source: "fn main() { let value = 7; let borrowed = &value; let copied = *borrowed; }",
-            expected_prefix: "IR Generation Error:",
-            check_cli: true,
         },
         RejectionCase {
             name: "empty array without an element type",

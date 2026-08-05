@@ -12,6 +12,7 @@ mod ir_generator;
 mod ir_verifier;
 pub mod lexer;
 mod llvm_verifier;
+mod local_reference;
 pub mod module_resolver;
 pub mod parser;
 pub mod quantization;

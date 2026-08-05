@@ -4,6 +4,31 @@ Last updated: 2026-08-04 (America/New_York)
 
 ## Current objective
 
+Milestone 67 `CORE-048` is an unpublished local candidate for non-escaping immutable
+references to existing local `Int`, `Float`, and `Bool` places. One shared classifier
+now admits only `&x` for an initialized scalar identifier, exact inferred or annotated
+local aliases, copied aliases, and scalar dereference. It explicitly rejects mutable
+references, temporary/non-identifier origins, and non-scalar pointees while preserving
+the existing behavior-neutral annotation cases that do not initialize a reference.
+Reference parameters/results, aggregate storage, mutation, assignment, NLL, drop, and
+general provenance remain outside the class.
+
+Checked IR carries each admitted borrow as a fresh `CheckedImmutableBorrow` alias
+place with exact scalar pointee metadata. The verifier independently rejects malformed,
+undefined, non-dominating, duplicate, colliding, unsupported, or type-mismatched alias
+places before LLVM. Verified lowering emits a zero-offset typed pointer derivation and
+exact `double`/`i1` loads; the deprecated raw path does not activate the checked
+instruction. The exhaustive focused target, verifier corruption controls, Phase 5,
+frontend, binding-characterization, and checked-IR suites pass locally. The two-file
+direct-module example checked-builds and the stable/nightly workflow is prepared for
+pinned LLVM/Clang 22 verification, machine verification, object lowering, linking,
+and exact native exit 127. The exact repository-root gate passes 159 library and 165
+binary tests plus every formatting, correctness-Clippy, integration, and doc gate.
+The local CLI reports `InternalOnly` because no LLVM 22 verifier is installed, while
+the generated composed LLVM retains typed `double`/`i1` alias derivations and loads.
+Immutable candidate identity, public checks, and stable native execution remain
+pending, so CORE-048 is not accepted and makes no general memory-safety claim.
+
 Milestone 66 `CORE-047` is accepted public at exact implementation commit
 `a1dcc3fbef3ce0e4750a1476b348940a966bf609`, tree
 `15cf5d3451e1e02576c506d0bb4df4e3a62ab07c`, and stable patch ID
@@ -123,15 +148,16 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-Already-executable Copy components can compose into arbitrary finite acyclic named
-aggregate graphs without inventing move/drop or stable ABI semantics if one graph
-classifier resolves all definitions and publishes exact recursive contracts to every
-source consumer. Whole-value checked loads/stores can preserve field Copy identity,
-while recursive schema verification prevents unsupported or conflicting metadata from
-reaching LLVM. The focused source-to-LLVM evidence satisfies the local portion of this
-hypothesis. Root-gate, pinned LLVM, native exit-107, and all-eight public evidence are
-still required before acceptance. Direct nested/Bool arrays, cycles, non-Copy storage,
-mutation, dynamic bounds, and public layout/ABI rules remain outside this class.
+A non-escaping immutable reference to an already-live local Copy scalar can preserve
+real place provenance without requiring mutable-loan expiry, reference ABI, drop, or
+runtime checks. One source classifier can keep semantic and checked admission aligned;
+an explicit checked alias-place instruction plus independent dominance/type verification
+can prevent forged pointers from reaching LLVM. Focused source-to-LLVM evidence now
+satisfies the local slice, and the exact 159/165 repository-root gate is green. Pinned
+external verification, native exit-127, immutable commit identity, and all-eight
+public evidence are still required before acceptance. Mutable references, non-scalar
+pointees, escaping references, NLL, mutation, resource ownership, drop, and stable
+pointer ABI remain outside this class.
 
 The completed `AUDIT-032` hypothesis was:
 
@@ -1675,18 +1701,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish this records-only CORE-047 acceptance synchronization unchanged, immediately
-keep draft PR #4's title/body synchronized to its exact public head, and require all
-eight records-head checks. Then separately authorize the next hard capability class,
-the controlled mega-PR checkpoint strategy, or structured evidence-manifest work; no
-new semantics follow merely from CORE-047 acceptance.
-
-Milestone selection after CORE-047 must continue to weigh harder non-Copy ownership,
-runtime layout/ABI, full module semantics, and real accelerator execution, with
-periodic cross-capability gates. The controlled mega-PR checkpoint strategy and
-structured evidence-manifest generator require separate authorization. Do not merge
-PR #4, publish releases/packages/benchmarks/claims, rewrite history, force-push, or
-touch `master`.
+Commit and push the locally green CORE-048 implementation candidate unchanged.
+Immediately synchronize draft PR #4 through CORE-048, require all eight public checks,
+and inspect stable Linux
+for pinned LLVM/Clang 22 verification plus exact native exit 127 before acceptance.
+After acceptance, separately choose the next hard capability or authorize the
+controlled mega-PR checkpoint strategy or structured evidence-manifest generator.
+Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
+force-push, or touch `master`.
 
 ## Unauthorized actions
 

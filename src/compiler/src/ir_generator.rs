@@ -6,6 +6,10 @@ use crate::binding_annotation::{
 use crate::fixed_array_method::{FixedArrayLenDisposition, classify_fixed_array_len};
 use crate::ir::{Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
+use crate::local_reference::{
+    LocalReferenceDisposition, classify_local_borrow, classify_local_dereference,
+    classify_local_reference_annotation,
+};
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
 };
@@ -264,7 +268,12 @@ impl IrGenerator {
     fn stores_value_directly(ty: &Ty) -> bool {
         matches!(
             ty,
-            Ty::String | Ty::Array(_, _) | Ty::Struct(_) | Ty::Vec(_) | Ty::Fn(_)
+            Ty::String
+                | Ty::Array(_, _)
+                | Ty::Struct(_)
+                | Ty::Reference(_, _)
+                | Ty::Vec(_)
+                | Ty::Fn(_)
         )
     }
 
@@ -542,11 +551,34 @@ impl IrGenerator {
                             kind.topology()
                         )));
                     }
+                    let reference_annotation = if matches!(ty, Ty::Reference(_, _)) {
+                        type_annotation
+                            .as_ref()
+                            .map_or(LocalReferenceDisposition::Preserved, |annotation| {
+                                classify_local_reference_annotation(annotation, true)
+                            })
+                    } else {
+                        LocalReferenceDisposition::Preserved
+                    };
+                    if let LocalReferenceDisposition::ExplicitlyRejected(kind) =
+                        reference_annotation
+                    {
+                        return Err(IrGenerationError::Admission(kind.diagnostic().to_string()));
+                    }
                     if !inside_generic_impl
                         && let BindingAnnotationDisposition::MatchesExistingContractShape(contract) =
                             disposition
                     {
                         let expected = contract.ty();
+                        if ty != expected {
+                            return Err(IrGenerationError::Admission(format!(
+                                "checked IR binding `{}` type annotation mismatch: expected {}, actual {}",
+                                name, expected, ty
+                            )));
+                        }
+                    }
+                    if let LocalReferenceDisposition::Supported(contract) = reference_annotation {
+                        let expected = contract.reference_type();
                         if ty != expected {
                             return Err(IrGenerationError::Admission(format!(
                                 "checked IR binding `{}` type annotation mismatch: expected {}, actual {}",
@@ -1357,8 +1389,8 @@ impl IrGenerator {
                     "enum construction is not admitted in checked IR",
                 ))
             }
-            Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
-                let _ = Self::validate_expression(
+            Expression::Borrow { expr, mutable } => {
+                let pointee = Self::validate_expression(
                     expr,
                     bindings,
                     program,
@@ -1366,9 +1398,34 @@ impl IrGenerator {
                     inside_impl,
                     admit_static_string_equality,
                 )?;
-                Err(admission_error(
-                    "borrow and dereference are not admitted in checked IR",
-                ))
+                match classify_local_borrow(expr, *mutable, &pointee) {
+                    LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
+                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
+                        Err(admission_error(kind.diagnostic()))
+                    }
+                    LocalReferenceDisposition::Preserved => unreachable!(
+                        "borrow expressions are fully classified by the local reference contract"
+                    ),
+                }
+            }
+            Expression::Deref(expr) => {
+                let reference = Self::validate_expression(
+                    expr,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                match classify_local_dereference(&reference) {
+                    LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
+                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
+                        Err(admission_error(kind.diagnostic()))
+                    }
+                    LocalReferenceDisposition::Preserved => unreachable!(
+                        "dereference expressions are fully classified by the local reference contract"
+                    ),
+                }
             }
             Expression::FieldAccess { object, field } => {
                 let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
@@ -1667,6 +1724,10 @@ impl IrGenerator {
                 | Inst::CheckedStructFieldPtr {
                     result: Value::Reg(register),
                     ..
+                }
+                | Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(register),
+                    ..
                 } => {
                     places.entry(*register).or_insert_with(|| {
                         let place = next_place;
@@ -1708,6 +1769,10 @@ impl IrGenerator {
                 Inst::CheckedStructFieldPtr { result, base, .. } => {
                     Self::rewrite_place(result, &places);
                     Self::rewrite_place(base, &places);
+                }
+                Inst::CheckedImmutableBorrow { result, source, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(source, &places);
                 }
                 Inst::Store(place, _) => Self::rewrite_place(place, &places),
                 Inst::Load(_, place) => Self::rewrite_place(place, &places),
@@ -2510,6 +2575,43 @@ impl IrGenerator {
                 self.next_reg += 1;
                 function.body.push(Inst::Load(result.clone(), elem_ptr));
                 (result, elem_ty)
+            }
+            Expression::Borrow {
+                expr,
+                mutable: false,
+            } if self.checked_mode => {
+                let Expression::Identifier(name) = expr.as_ref() else {
+                    unreachable!("checked reference admission requires an identifier place")
+                };
+                let (source, pointee) = self
+                    .symbol_table
+                    .get(name)
+                    .expect("checked borrowed binding exists")
+                    .clone();
+                let pointee_contract = match pointee {
+                    Ty::Int => LogicalType::Int,
+                    Ty::Float => LogicalType::Float,
+                    Ty::Bool => LogicalType::Bool,
+                    _ => unreachable!("checked reference admission requires a scalar pointee"),
+                };
+                let result = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(Inst::CheckedImmutableBorrow {
+                    result: result.clone(),
+                    source,
+                    pointee: pointee_contract,
+                });
+                (result, Ty::Reference(Box::new(pointee), false))
+            }
+            Expression::Deref(reference) if self.checked_mode => {
+                let (place, reference_type) = self.generate_expression_ir(*reference, function);
+                let Ty::Reference(pointee, false) = reference_type else {
+                    unreachable!("checked dereference admission requires an immutable reference")
+                };
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::Load(result.clone(), place));
+                (result, *pointee)
             }
             Expression::FieldAccess { object, field } if self.checked_mode => {
                 let (base, receiver) = self.generate_expression_ir(*object, function);

@@ -559,7 +559,7 @@ fn test_semantic_immutable_borrow_ok() {
 
 #[test]
 fn test_semantic_mutable_borrow_requires_mut() {
-    // Mutable borrow of non-mut variable should fail
+    // CORE-048 rejects mutable borrowing before later owner-mutability rules.
     let source = "let x = 10; let r = &mut x;";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
@@ -567,77 +567,65 @@ fn test_semantic_mutable_borrow_requires_mut() {
     let result = analyzer.analyze(ast);
     assert!(
         result.is_err(),
-        "Mutable borrow of non-mut variable should fail"
+        "Mutable references remain outside CORE-048"
     );
     let err = result.unwrap_err();
-    assert!(err.contains("not declared as mutable"), "Error: {}", err);
+    assert_eq!(err, "mutable references are not supported by CORE-048");
 }
 
 #[test]
-fn test_semantic_mutable_borrow_ok() {
-    // Mutable borrow of mut variable is fine
+fn test_semantic_mutable_borrow_remains_unsupported() {
+    // A mutable owner does not broaden the immutable-only CORE-048 class.
     let source = "let mut x = 10; let r = &mut x;";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(
-        result.is_ok(),
-        "Mutable borrow of mut variable should work: {:?}",
-        result
+    assert_eq!(
+        result.unwrap_err(),
+        "mutable references are not supported by CORE-048"
     );
 }
 
 #[test]
 fn test_semantic_double_mutable_borrow_fails() {
-    // Two mutable borrows of same variable should fail
+    // Mutable references are rejected before active-loan conflict analysis.
     let source = "let mut x = 10; let r1 = &mut x; let r2 = &mut x;";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Double mutable borrow should fail");
-    let err = result.unwrap_err();
-    assert!(err.contains("mutable more than once"), "Error: {}", err);
+    assert_eq!(
+        result.unwrap_err(),
+        "mutable references are not supported by CORE-048"
+    );
 }
 
 #[test]
 fn test_semantic_mut_and_immut_borrow_conflict() {
-    // Mutable borrow while immutably borrowed should fail
+    // Mutable references are rejected before active-loan conflict analysis.
     let source = "let mut x = 10; let r1 = &x; let r2 = &mut x;";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(
-        result.is_err(),
-        "Mutable borrow while immutably borrowed should fail"
-    );
-    let err = result.unwrap_err();
-    assert!(
-        err.contains("immutable"),
-        "Error should mention immutable conflict: {}",
-        err
+    assert_eq!(
+        result.unwrap_err(),
+        "mutable references are not supported by CORE-048"
     );
 }
 
 #[test]
 fn test_semantic_immut_borrow_while_mut_borrowed_fails() {
-    // Immutable borrow while mutably borrowed should fail
+    // The first mutable reference is rejected before a later immutable alias exists.
     let source = "let mut x = 10; let r1 = &mut x; let r2 = &x;";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(
-        result.is_err(),
-        "Immutable borrow while mutably borrowed should fail"
-    );
-    let err = result.unwrap_err();
-    assert!(
-        err.contains("mutable"),
-        "Error should mention mutable conflict: {}",
-        err
+    assert_eq!(
+        result.unwrap_err(),
+        "mutable references are not supported by CORE-048"
     );
 }
 

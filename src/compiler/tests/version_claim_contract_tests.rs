@@ -123,7 +123,9 @@ fn conformance_is_presented_as_deterministic_regression_evidence() {
 fn current_repository_surfaces_state_only_evidenced_capabilities() {
     let readme = repository_file("README.md");
     assert!(readme.contains("Generic and trait syntax is parsed but quarantined"));
-    assert!(readme.contains("no borrow checker, lifetime analysis, or memory-safety guarantee"));
+    assert!(readme.contains(
+        "No general borrow checker, mutable references, lifetime analysis, drop model, or memory-safety guarantee."
+    ));
     assert!(readme.contains("3 example cases and 4 deterministic regression checks"));
     assert!(!readme.contains("formal conformance + mechanized checks"));
     assert!(

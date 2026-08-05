@@ -9196,3 +9196,210 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   evidence from pending to observed. Its successor commit identity is necessarily
   reported externally. After its exact local gate, push it unchanged, resynchronize
   the draft PR front page to the records head, and require all eight checks again.
+
+## CORE-048 - Non-escaping local immutable scalar references
+
+- Task ID: `CORE-048`.
+- Observed behavior: strict source already retains `&T`, `&mut T`, borrow, and
+  dereference syntax, and semantic analysis assigns provisional reference types and
+  shallow loan states. Checked admission nevertheless rejects every borrow and
+  dereference, while the deprecated raw lowering path substitutes integer zero.
+  Consequently no reference has checked-place provenance, verifier evidence, LLVM
+  pointer representation, or native execution. The shallow mutable-loan state also
+  never expires, so broad reference admission would overclaim the specified lifetime
+  model.
+- Specification basis: the founding framework requires explicit `&T`/`&mut T`,
+  immutable-by-default bindings, compile-time ownership/borrowing, any number of
+  simultaneous immutable references, no simultaneous mutable conflict, and no use
+  after the owner is dropped, with zero runtime checking cost. The ownership design
+  also requires references to remain valid for their lifetime. This checkpoint
+  implements only the immutable, non-escaping local scalar subset whose lifetime is
+  structurally contained by an existing lexical owner; it does not redefine or
+  approximate mutable loans, non-lexical lifetimes, reference-return relationships,
+  drop, or mutation.
+- Frozen supported class: in an executable body, `&x` is supported exactly when `x`
+  is an already-declared, initialized, non-moved local or scalar parameter whose exact
+  type is `Int`, `Float`, or `Bool`. The borrow must be immutable and its source must
+  be the identifier place itself. The resulting `&Int`, `&Float`, or `&Bool` value may
+  initialize an inferred binding or an exact immutable scalar-reference annotation,
+  may be copied through any number of local alias bindings, and may be dereferenced
+  through `*r` or immediate `*&x`. Dereferenced values participate in every already-
+  admitted scalar binding, arithmetic, comparison, logical, branch, print, call-
+  argument, and scalar-return context. Multiple immutable aliases and ordinary reads
+  of the Copy owner remain valid. Nested lexical blocks may consume outer references
+  but cannot export inner bindings under the existing scope rules.
+- Frozen exclusions and containment: `&mut`, `&mut T` initialized bindings, borrowing
+  a literal/computation/dereference/field/index/temporary, String or any aggregate/
+  array/tuple/enum/struct/reference/generic/void pointee, dereferencing a mutable or
+  unsupported reference, reference parameters/results, passing or returning a
+  reference value, storing a reference in an aggregate, uninitialized reference
+  declarations, mutation or assignment through a reference, owner mutation/move/drop
+  while borrowed, lifetime annotations/inference, reference comparisons/arithmetic,
+  raw-pointer/FFI/ABI claims, heap references, closures/traits/impl capture, modules or
+  globals, and GPU/accelerator execution remain unsupported or preserved behind their
+  existing earlier rejection/quarantine. Existing syntax-only uninitialized scalar
+  reference declarations remain preserved, not newly executable, until assignment and
+  definite-initialization semantics are separately frozen.
+- Shared-classifier constraint: add one topology-independent reference classifier
+  that consumes the exact AST origin, mutability, and inferred type and returns one of
+  supported immutable scalar reference, explicit rejection, or preserved/quarantined
+  topology. Semantic inference, binding-annotation checking, and checked admission
+  must consume that result; none may grow a parallel borrow/dereference shape list or
+  infer an unsupported pointee as `Int`. The existing shared binding-annotation
+  classifier retains precedence for its established tuple diagnostics.
+- Ownership/provenance contract: a supported borrow creates a shared read-only alias
+  to the owner's existing checked stack place; it does not copy the pointee or create
+  independent storage. Copying the reference copies that alias identity. A dereference
+  loads the exact logical scalar from the alias place. Because the admitted owners are
+  Copy scalars, no admitted operation can move or mutate them, no admitted reference
+  crosses its owner's executable body, and no runtime loan counter or check is needed.
+  This is a real but deliberately partial ownership capability, not evidence for
+  mutable borrowing, general provenance, NLL, resource ownership, or drop.
+- Checked IR/backend contract: introduce one explicit checked immutable-borrow place
+  instruction carrying the exact scalar pointee contract. It must define a fresh
+  alias place from a dominating source place of the same exact logical type. The
+  verifier must reject immediate/result identifiers, undefined/use-before-definition/
+  non-dominating sources, duplicate or kind-colliding alias definitions, unsupported
+  pointee metadata, source/pointee mismatch, and forged alias loads before LLVM. LLVM
+  lowers the verified alias as a zero-offset pointer derivation and dereference as an
+  exact `double` or `i1` load from that alias. No pointer value may enter arithmetic,
+  call ABI, return ABI, storage, or unchecked codegen inference.
+- Tests-first acceptance: add one exhaustive focused target before production changes.
+  It must cover all three scalar pointees, inferred/exact annotations, direct/immediate/
+  copied aliases, multiple shared borrows, owner reuse, nested use, admitted scalar
+  consumers, parameter-place borrowing, exact annotation mismatch, undeclared/
+  uninitialized/moved sources, every excluded origin and pointee category, mutable
+  borrow/deref/signature/escape rejection, raw-path containment, checked-IR corruption,
+  exact metadata, LLVM alias/load markers, CLI build/check hygiene, and absence of an
+  artifact after invalid input. Run it once red before any compiler, example,
+  workflow, or capability-document mutation.
+- System-level/end-to-end acceptance: add one tracked direct-module example combining
+  accepted compile-time Strings, arrays, nested Copy aggregates, function transport,
+  control flow, and all three new immutable scalar-reference pointees into exact native
+  exit `127`. Add one unconditional stable/nightly Rust-CI step that checked-builds the
+  example, runs pinned `opt-22`, `llc-22 -verify-machineinstrs`, object lowering,
+  `clang-22` linking, executes it, and asserts `127`. A parser/semantic-only,
+  classifier-only, rejection-only, erased-zero, LLVM-text-only, records-only, or
+  non-executed result cannot close.
+- Allowed files: this ledger; `src/compiler/src/lib.rs`, `src/compiler/src/main.rs`, one new
+  `local_reference.rs`, `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; one new
+  `src/compiler/tests/local_scalar_reference_tests.rs`; only exact obsolete reference
+  cells in `phase5_tests.rs`, `frontend_tests.rs`, `checked_ir_contract_tests.rs`, and
+  `binding_type_contract_tests.rs` if the frozen boundary makes them stale; the exact
+  two blanket borrow/dereference diagnostic cells in
+  `static_string_equality_tests.rs`; one new
+  tracked `examples/local_scalar_references/` direct module; `.github/workflows/rust.yml`;
+  and only `README.md`, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and
+  `FRAMEWORK_ALIGNMENT.md` where accepted facts change. No lexer/parser/AST, general
+  assignment/mutation, function reference ABI, aggregate contract, module resolver,
+  runtime/stdlib, optimizer, dependency, target, benchmark, claim-verification,
+  release, `master`, PR merge, or history rewrite is authorized.
+- Authorized wiring correction: the package has separate library and CLI crate roots,
+  each with an explicit private-module list. Registering the one shared classifier in
+  `main.rs` as well as `lib.rs` is required for the same semantic/analyzer and checked-
+  admission sources to compile in both products. This is module wiring only and does
+  not authorize CLI behavior, parser, orchestration, or unrelated `main.rs` changes.
+- Risks and stop conditions: stop rather than invent behavior if exact owner place
+  provenance cannot survive checked verification; the class requires mutable loans,
+  owner writes, NLL/dataflow, reference ABI, aggregate reference layout, parser/AST
+  change, or runtime checks; a reference can outlive or escape its owner; the verifier
+  must trust AST-only alias metadata; an unsupported reference reaches LLVM; existing
+  scalar/array/struct behavior changes; a failing test must be weakened; a third-party
+  dependency or baseline regression appears. Parser-to-native work across more than
+  two compiler phases is expected, bounded, and explicitly lead-owned; unexpected
+  semantic expansion remains a stop.
+- Scaling disposition: this is the first intentionally hard post-CORE-047 ownership
+  and runtime-representation slice, not another compile-time convenience. One shared
+  classifier prevents topology guard multiplication; one focused manifest-like test
+  and one composed native example cap evidence overhead; the exit-127 gate is the next
+  periodic source-to-native architecture check. PR #4 remains a draft integration
+  program at 233 commits and requires a separately authorized controlled checkpoint/
+  merge strategy; no merge authority is inferred. Structured evidence-manifest
+  generation remains a future process task and may not become a semantic truth source.
+- Status at authorization: the clean accepted CORE-047 records head is
+  `8b103dd2fed5a3ebc62dffae8a226f4e455c20bf`. The only CORE-048 mutation is this
+  authorization record. No CORE-048 test, production behavior, example, workflow
+  anchor, capability claim, commit, or public artifact exists. The next allowed
+  mutation is the exhaustive failing target followed by captured red evidence.
+- Tests-first red evidence: with `%USERPROFILE%\.cargo\bin` prepended to the inherited
+  PowerShell `PATH`, `cargo test --test local_scalar_reference_tests -- --nocapture`
+  builds and executes the new exhaustive target but fails 0/1 before any production,
+  example, workflow, or capability-document mutation. All otherwise-valid Int/Float/
+  Bool direct, copied, multiple, immediate, nested, parameter-place, and scalar-
+  consumer cases stop at the existing checked-admission error `borrow and dereference
+  are not admitted in checked IR`; no `CheckedImmutableBorrow`, exact reference place
+  metadata, or LLVM pointer/load evidence exists. The requested topology-specific
+  diagnostics are absent, while undeclared, uninitialized, moved, reference-signature,
+  and reference-argument controls already fail closed through neighboring contracts.
+  The tracked two-file example and five unique stable-CI anchors do not exist, and the
+  invalid CLI build publishes no artifact but retains the old generic checked-IR
+  rejection. No compiler source, generated artifact, public branch, PR, or capability
+  claim changed.
+- Root-gate correction chronology: after formatting, the first exact root run passed
+  all 159 library tests and entered the 165-test CLI crate before the static String-
+  equality target stopped on two stale negative expectations. Their sources remain
+  rejected before IR, but the old blanket `borrow and dereference are not admitted in
+  checked IR` text was replaced by the shared classifier's exact non-identifier-borrow
+  and non-reference-dereference diagnostics. Updating only those two expected strings
+  is authorized; String reference support, equality semantics, and every neighboring
+  negative remain unchanged.
+- Second root-gate correction chronology: the next exact root run again passed all
+  159 library tests and advanced through the CLI integration targets before the
+  static String-character-length target exposed the same two obsolete blanket
+  diagnostic expectations for `&"a"` and `*text`. Both programs still fail before
+  checked IR: the shared classifier now reports the exact non-identifier-borrow and
+  non-reference-dereference boundaries. Updating only those two expected strings in
+  `src/compiler/tests/static_string_len_tests.rs` is authorized; String borrowing,
+  String dereferencing, String length semantics, and every adjacent topology remain
+  excluded and unchanged.
+- Final diagnostic-correction chronology: the following root run passed the 159-test
+  library and both corrected String targets, then the static String-predicate matrix
+  exposed its identical two blanket expectations. A repository-wide search found
+  these are the only remaining copies of the superseded diagnostic in integration
+  tests. Updating only those two expected strings in
+  `src/compiler/tests/static_string_predicate_tests.rs` is authorized. Both sources
+  remain rejected before checked IR, and no String borrow, dereference, or predicate
+  capability changes.
+- Typed-IR characterization correction: the subsequent root run passed all prior
+  targets and reached `typed_ir_admission_tests`, where the exact newly supported
+  `&value` and `*borrowed` scalar programs remained listed as fabricated-fallback
+  rejections. Updating only those two cells in
+  `src/compiler/tests/typed_ir_admission_tests.rs` is authorized: they must become
+  positive assertions for the checked immutable-alias GEP and exact scalar load,
+  while every enum/constructor/untyped-empty-array/mutable-String fallback rejection
+  remains intact. This is not permission to relax checked admission or accept any
+  additional reference topology.
+- Claim-guard correction: after all 159 library and 165 binary tests executed, the
+  version/claim target retained the pre-CORE-048 absolute README wording `no borrow
+  checker`. Because this slice adds a real bounded immutable-reference checker while
+  explicitly excluding the general borrow-checking model, that phrase is no longer
+  accurate. Updating only the corresponding assertion in
+  `src/compiler/tests/version_claim_contract_tests.rs` to require the exact stronger
+  containment—no general borrow checker, mutable references, lifetime analysis, drop
+  model, or memory-safety guarantee—is authorized. No version, release, stability,
+  safety, mutable-reference, lifetime, or accepted/public status claim may change.
+- Local implementation evidence: the shared classifier, semantic/checked admission,
+  `CheckedImmutableBorrow` alias-place instruction, independent verifier invariants,
+  typed LLVM lowering, exhaustive focused target, composed two-file example, and
+  stable/nightly exit-127 workflow gate are implemented within the frozen class. The
+  focused target passes 1/1; adjacent binding, checked-IR, Phase 5, frontend, static-
+  String, typed-admission, and claim-characterization targets pass with no skipped or
+  weakened negative behavior. After the recorded chronology corrections, the exact
+  repository-root `./tools/test.sh` exits 0 with 159/159 library and 165/165 binary
+  tests, every active integration target, formatting, correctness Clippy, and doc
+  tests green.
+- Local artifact evidence: the tracked direct module resolves `data.aero` and builds
+  successfully through source, semantics, checked IR, independent verification, and
+  LLVM generation. Its generated product contains typed zero-offset `double` and `i1`
+  alias derivations plus exact loads and has local SHA-256
+  `A18BFE501D575960D7EF7FE89DA519655261DB0CEED0BB43D6446DB128E9FA03`.
+  The CLI accurately reports `InternalOnly` because this Windows host has no LLVM 22
+  `opt`/`llvm-as`; no local external-verification, machine-verification, object, link,
+  native-exit, cross-platform, safety, performance, or acceptance claim is made.
+- Publication boundary: CORE-048 remains an unpublished local candidate at the clean
+  accepted CORE-047 parent until a single immutable implementation commit is formed,
+  pushed unchanged, and the draft PR front page is synchronized. Public pinned LLVM/
+  Clang 22 verification, exact native exit 127, all eight checks, and a records-only
+  acceptance sync remain required. The ignored-by-default two-file example must be
+  explicitly staged so the public candidate cannot depend on local-only files.

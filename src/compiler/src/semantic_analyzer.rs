@@ -5,6 +5,10 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, classify_binding_annotation, is_statically_empty_fixed_array,
     typed_empty_numeric_array_contract,
 };
+use crate::local_reference::{
+    LocalReferenceDisposition, classify_local_borrow, classify_local_dereference,
+    classify_local_reference_annotation,
+};
 use crate::struct_contract::{
     CopyStructArrayIndexDisposition, StructExecutionContext, StructRegistry,
 };
@@ -946,6 +950,9 @@ impl SemanticAnalyzer {
             Expression::Unary { operand, .. } => {
                 self.check_expression_initialization(operand)?;
             }
+            Expression::Borrow { expr, .. } | Expression::Deref(expr) => {
+                self.check_expression_initialization(expr)?;
+            }
             _ => {} // Literals don't need initialization checks
         }
         Ok(())
@@ -1198,13 +1205,26 @@ impl SemanticAnalyzer {
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
                 let inner_ty = self.infer_and_validate_expression(expr)?;
-                Ok(Ty::Reference(Box::new(inner_ty), *mutable))
+                match classify_local_borrow(expr, *mutable, &inner_ty) {
+                    LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
+                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
+                        Err(kind.diagnostic().to_string())
+                    }
+                    LocalReferenceDisposition::Preserved => unreachable!(
+                        "borrow expressions are fully classified by the local reference contract"
+                    ),
+                }
             }
             Expression::Deref(expr) => {
                 let inner_ty = self.infer_and_validate_expression(expr)?;
-                match inner_ty {
-                    Ty::Reference(inner, _) => Ok(*inner),
-                    _ => Err("Cannot dereference non-reference type".to_string()),
+                match classify_local_dereference(&inner_ty) {
+                    LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
+                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
+                        Err(kind.diagnostic().to_string())
+                    }
+                    LocalReferenceDisposition::Preserved => unreachable!(
+                        "dereference expressions are fully classified by the local reference contract"
+                    ),
                 }
             }
             // Phase 7: Closures
@@ -1837,14 +1857,27 @@ impl SemanticAnalyzer {
             Expression::Borrow { expr, mutable } => {
                 let inner_ty =
                     self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
-                Ok(Ty::Reference(Box::new(inner_ty), *mutable))
+                match classify_local_borrow(expr, *mutable, &inner_ty) {
+                    LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
+                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
+                        Err(kind.diagnostic().to_string())
+                    }
+                    LocalReferenceDisposition::Preserved => unreachable!(
+                        "borrow expressions are fully classified by the local reference contract"
+                    ),
+                }
             }
             Expression::Deref(expr) => {
                 let inner_ty =
                     self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
-                match inner_ty {
-                    Ty::Reference(inner, _) => Ok(*inner),
-                    _ => Err("Cannot dereference non-reference type".to_string()),
+                match classify_local_dereference(&inner_ty) {
+                    LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
+                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
+                        Err(kind.diagnostic().to_string())
+                    }
+                    LocalReferenceDisposition::Preserved => unreachable!(
+                        "dereference expressions are fully classified by the local reference contract"
+                    ),
                 }
             }
             // Phase 7: Closures
@@ -2071,12 +2104,37 @@ impl SemanticAnalyzer {
                     ));
                 }
 
+                let reference_annotation = if matches!(inferred_type, Ty::Reference(_, _)) {
+                    type_annotation.as_ref().map_or(
+                        LocalReferenceDisposition::Preserved,
+                        |annotation| {
+                            classify_local_reference_annotation(annotation, value.is_some())
+                        },
+                    )
+                } else {
+                    LocalReferenceDisposition::Preserved
+                };
+                if let LocalReferenceDisposition::ExplicitlyRejected(kind) = reference_annotation {
+                    return Err(kind.diagnostic().to_string());
+                }
+
                 let binding_type = if value.is_some()
                     && let BindingAnnotationDisposition::MatchesExistingContractShape(contract) =
                         disposition
                     && (self.type_param_scopes.is_empty() || contract.is_numeric_scalar())
                 {
                     let expected_type = contract.ty();
+                    if inferred_type != expected_type {
+                        return Err(format!(
+                            "Error: Variable `{}` type annotation mismatch: expected {}, actual {}.",
+                            name, expected_type, inferred_type
+                        ));
+                    }
+                    expected_type
+                } else if value.is_some()
+                    && let LocalReferenceDisposition::Supported(contract) = reference_annotation
+                {
+                    let expected_type = contract.reference_type();
                     if inferred_type != expected_type {
                         return Err(format!(
                             "Error: Variable `{}` type annotation mismatch: expected {}, actual {}.",

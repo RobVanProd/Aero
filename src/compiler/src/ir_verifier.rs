@@ -291,6 +291,13 @@ fn valid_symbol(name: &str) -> bool {
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
+fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
+    matches!(
+        ty,
+        LogicalType::Int | LogicalType::Float | LogicalType::Bool
+    )
+}
+
 fn valid_struct_schema(fields: &[LogicalType]) -> bool {
     !fields.is_empty() && fields.iter().all(valid_copy_struct_field_type)
 }
@@ -845,7 +852,8 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedCopyStructArrayAlloca { result, .. }
         | Inst::CheckedCopyStructArrayElementPtr { result, .. }
         | Inst::CheckedStructAlloca { result, .. }
-        | Inst::CheckedStructFieldPtr { result, .. } => Some(result),
+        | Inst::CheckedStructFieldPtr { result, .. }
+        | Inst::CheckedImmutableBorrow { result, .. } => Some(result),
         _ => None,
     }
 }
@@ -1174,6 +1182,7 @@ impl<'a> FunctionVerifier<'a> {
                                 Inst::CheckedStructFieldPtr { .. } => {
                                     "checked struct field pointer"
                                 }
+                                Inst::CheckedImmutableBorrow { .. } => "checked immutable borrow",
                                 _ => "getelementptr",
                             }),
                         ));
@@ -1494,6 +1503,38 @@ impl<'a> FunctionVerifier<'a> {
                                 ));
                             }
                             (PlaceType::Known(field_type.clone()), None)
+                        }
+                        Inst::CheckedImmutableBorrow {
+                            source, pointee, ..
+                        } => {
+                            if !valid_immutable_reference_pointee(pointee) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::UnsupportedType(format!(
+                                        "checked immutable reference pointee `{pointee}`"
+                                    )),
+                                ));
+                            }
+                            let Some(source_id) = reg(source).map(PlaceId) else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked immutable borrow source",
+                                    ),
+                                ));
+                            };
+                            if !self.places.contains_key(&source_id) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked immutable borrow source",
+                                    ),
+                                ));
+                            }
+                            (PlaceType::Known(pointee.clone()), None)
                         }
                         _ => unreachable!(),
                     };
@@ -2303,6 +2344,26 @@ impl<'a> FunctionVerifier<'a> {
                             position,
                         )?;
                     }
+                    Inst::CheckedImmutableBorrow {
+                        source, pointee, ..
+                    } => {
+                        let source = self.require_place(
+                            source,
+                            "checked immutable borrow source",
+                            block_index,
+                            position,
+                        )?;
+                        let actual = self.places.get(&source).and_then(PlaceType::logical);
+                        if actual.as_ref() != Some(pointee) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked immutable borrow pointee mismatch: declared {pointee}, source {}",
+                                    actual.map_or_else(|| "unknown".to_string(), |ty| ty.to_string())
+                                )),
+                            ));
+                        }
+                    }
                     _ if unsupported_name(instruction).is_some() => unreachable!(),
                     _ => {}
                 }
@@ -2559,6 +2620,156 @@ mod tests {
             checked.metadata().functions["main"].signature.result,
             LogicalType::Int
         );
+    }
+
+    #[test]
+    fn immutable_scalar_borrow_place_integrity_is_fail_closed() {
+        let checked = verify_ir(function(vec![
+            Inst::Alloca(Value::Reg(0), "owner".to_string()),
+            Inst::Store(Value::Reg(0), Value::ImmInt(7)),
+            Inst::CheckedImmutableBorrow {
+                result: Value::Reg(1),
+                source: Value::Reg(0),
+                pointee: LogicalType::Int,
+            },
+            Inst::Load(Value::Reg(2), Value::Reg(1)),
+            Inst::Return(Value::Reg(2)),
+        ]))
+        .expect("an exact dominating immutable scalar borrow is valid");
+        let metadata = &checked.metadata().functions["main"];
+        assert_eq!(metadata.places[&PlaceId(0)].pointee, LogicalType::Int);
+        assert_eq!(metadata.places[&PlaceId(1)].pointee, LogicalType::Int);
+        assert_eq!(metadata.results[&ResultId(2)], LogicalType::Int);
+
+        let invalid_cases = [
+            (
+                "immediate alias identifier",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "owner".to_string()),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(7)),
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::ImmInt(1),
+                        source: Value::Reg(0),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "immediate source identifier",
+                vec![
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::ImmInt(0),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "undefined source place",
+                vec![
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::Reg(7),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "exact pointee mismatch",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "owner".to_string()),
+                    Inst::Store(Value::Reg(0), Value::ImmFloat(1.5)),
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::Reg(0),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "unsupported pointee metadata",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "owner".to_string()),
+                    Inst::Store(Value::Reg(0), Value::ImmString("aero".to_string())),
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::Reg(0),
+                        pointee: LogicalType::String,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "duplicate alias definition",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "owner".to_string()),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(7)),
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::Reg(0),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::Reg(0),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "result/place kind collision",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "owner".to_string()),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(7)),
+                    Inst::Add(Value::Reg(1), Value::ImmInt(1), Value::ImmInt(2)),
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::Reg(0),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        ];
+        for (label, body) in invalid_cases {
+            let error = verify_ir(function(body)).expect_err(label).to_string();
+            assert!(error.contains("IR Verification Error"), "{label}: {error}");
+        }
+
+        let non_dominating = verify_ir(function(vec![
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(3),
+                left: Value::ImmInt(1),
+                right: Value::ImmInt(1),
+            },
+            Inst::Branch {
+                condition: Value::Reg(3),
+                true_label: "define".to_string(),
+                false_label: "use".to_string(),
+            },
+            Inst::Label("define".to_string()),
+            Inst::Alloca(Value::Reg(0), "owner".to_string()),
+            Inst::Store(Value::Reg(0), Value::ImmInt(7)),
+            Inst::Jump("use".to_string()),
+            Inst::Label("use".to_string()),
+            Inst::CheckedImmutableBorrow {
+                result: Value::Reg(1),
+                source: Value::Reg(0),
+                pointee: LogicalType::Int,
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("borrow source must dominate alias creation");
+        assert!(matches!(
+            non_dominating.kind,
+            IrVerificationErrorKind::PlaceDoesNotDominateUse(PlaceId(0))
+        ));
     }
 
     #[test]

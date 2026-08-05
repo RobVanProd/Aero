@@ -14,6 +14,7 @@ mod ir_generator;
 mod ir_verifier;
 mod lexer;
 mod llvm_verifier;
+mod local_reference;
 mod lsp;
 mod module_resolver;
 mod optimizations;

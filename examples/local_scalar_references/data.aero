@@ -1,0 +1,11 @@
+struct ModuleRow { value: int, ready: bool }
+fn module_make(value: int) -> ModuleRow {
+    ModuleRow { value: value, ready: value > 0 }
+}
+fn module_value(row: ModuleRow) -> int { row.value }
+fn module_scan(rows: [ModuleRow; 2]) -> int {
+    for row in rows.iter() {
+        if !row.ready { return 0; }
+    }
+    rows.len()
+}
