@@ -239,17 +239,28 @@ aero lsp
 > or ABI. Exact implementation `b38a6b0` passes 160 library and 166 binary tests plus all
 > eight public checks; pinned Linux LLVM/Clang 22.1.8 externally verifies, machine-verifies,
 > object-lowers, links, and executes the composed module with exact native exit 149.
-> CORE-050's locally green candidate extends only those exact enums through internal
-> owned parameters, arguments, call results, and returns. One shared signature resolver
-> and consumed-name classifier serve semantics and checked admission; checked IR uses
-> direct enum SSA parameter binders, the verifier proves exact call/return schemas, and
-> LLVM uses direct internal `i32` flow without generic numeric storage or conversion.
-> The local root gate passes 161 library and 167 binary tests. The tracked public gate
-> must still externally verify, machine-verify, object-lower, link, and execute the
-> composed module at exact exit 173 before acceptance. Payload/generic enums,
-> Option/Result matching, wildcard/binding/guard patterns, enum aggregate transport,
-> borrowing, mutation, stable layout/ABI, and general pattern matching remain
-> unsupported. Other Match topologies retain the established fail-closed boundary.
+> CORE-050 is also publicly accepted at exact implementation `13f0003`. It extends
+> those unit enums through internal owned parameters, arguments, call results, and
+> returns using one shared signature resolver and consumed-name classifier, direct
+> checked SSA parameter binders, exact call/return verification, and internal `i32`
+> LLVM flow. All eight public checks pass, and pinned Linux LLVM/Clang 22.1.8
+> externally verifies, machine-verifies, object-lowers, links, and executes exact
+> native exit 173.
+>
+> CORE-051 is the locally green candidate for owned local enums whose variants are
+> unit or carry exactly one `int`, `float`, or `bool` payload. Construction requires
+> the exact declared scalar type; exhaustive Match requires one identifier binding
+> for each payload arm, scopes that Copy scalar to the selected arm, and consumes the
+> non-`Copy` enum. One shared schema classifier serves semantics, checked admission,
+> IR, verification, and lowering. Checked IR retains construction, selected payload
+> extraction, and exhaustive dispatch; verified LLVM uses a private
+> `{ i32, double, i1 }` aggregate with deterministic inactive lanes. The full local
+> gate passes 162 library and 168 binary tests. Public acceptance still requires all
+> eight checks plus pinned LLVM/Clang 22 external verification, object/link, and exact
+> native exit 181. Payload-enum function transport, aggregate storage, references,
+> non-scalar/multi-field/struct/generic payloads, Option/Result matching, wildcard/
+> guard/nested destructuring, mutation, stable layout/ABI, and general pattern
+> matching remain unsupported. Other Match topologies retain the fail-closed boundary.
 
 Formal spec: `docs/language/aero_formal_language_specification.md`
 

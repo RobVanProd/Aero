@@ -84,7 +84,12 @@ impl CodeGenerator {
             LogicalType::Bool => "i1".to_string(),
             LogicalType::Void => "void".to_string(),
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
-            LogicalType::Enum { .. } => "i32".to_string(),
+            LogicalType::Enum { variants, .. }
+                if variants.iter().all(|variant| variant.payload.is_none()) =>
+            {
+                "i32".to_string()
+            }
+            LogicalType::Enum { .. } => "{ i32, double, i1 }".to_string(),
             LogicalType::Array { element, count } => {
                 let element = match element.as_ref() {
                     LogicalType::Int | LogicalType::Float => "double".to_string(),
@@ -237,11 +242,22 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, source);
                 }
-                Inst::CheckedUnitEnumParameter { result, .. }
-                | Inst::CheckedUnitEnumVariant { result, .. } => {
+                Inst::CheckedUnitEnumParameter { result, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
-                Inst::CheckedUnitEnumDispatch { value, .. } => {
+                Inst::CheckedEnumVariant {
+                    result, payload, ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    if let Some(payload) = payload {
+                        Self::bump_seed_from_value(&mut seed, payload);
+                    }
+                }
+                Inst::CheckedEnumPayload { result, value, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, value);
+                }
+                Inst::CheckedEnumDispatch { value, .. } => {
                     Self::bump_seed_from_value(&mut seed, value);
                 }
                 Inst::Store(ptr, value)
@@ -600,8 +616,9 @@ impl CodeGenerator {
                 | Inst::CheckedStructFieldPtr { .. }
                 | Inst::CheckedImmutableBorrow { .. }
                 | Inst::CheckedUnitEnumParameter { .. }
-                | Inst::CheckedUnitEnumVariant { .. }
-                | Inst::CheckedUnitEnumDispatch { .. } => {}
+                | Inst::CheckedEnumVariant { .. }
+                | Inst::CheckedEnumPayload { .. }
+                | Inst::CheckedEnumDispatch { .. } => {}
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                     Self::ensure_instruction_support(body)?
                 }
@@ -1472,24 +1489,85 @@ impl CodeGenerator {
                         Self::llvm_parameter_name(parameter)
                     ));
                 }
-                Inst::CheckedUnitEnumVariant {
+                Inst::CheckedEnumVariant {
                     result,
+                    schema,
                     variant_index,
-                    ..
+                    payload,
                 } => {
                     let Value::Reg(result) = result else {
-                        panic!("Expected register for checked unit-enum variant")
+                        panic!("Expected register for checked enum variant")
                     };
-                    llvm_ir.push_str(&format!("  %reg{result} = add i32 0, {variant_index}\n"));
+                    if schema.is_unit() {
+                        llvm_ir.push_str(&format!("  %reg{result} = add i32 0, {variant_index}\n"));
+                        continue;
+                    }
+                    let enum_type = "{ i32, double, i1 }";
+                    let tagged = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
+                    ));
+                    let payload_type = schema.variants[*variant_index].payload.as_ref();
+                    let numeric = self.fresh_reg();
+                    let numeric_value = match (payload_type, payload) {
+                        (Some(LogicalType::Int | LogicalType::Float), Some(value)) => {
+                            self.value_to_string(value)
+                        }
+                        _ => "0x0000000000000000".to_string(),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %{numeric} = insertvalue {enum_type} %{tagged}, double {numeric_value}, 1\n"
+                    ));
+                    let bool_value = match (payload_type, payload) {
+                        (Some(LogicalType::Bool), Some(value)) => self.bool_value_to_string(value),
+                        _ => "false".to_string(),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = insertvalue {enum_type} %{numeric}, i1 {bool_value}, 2\n"
+                    ));
                 }
-                Inst::CheckedUnitEnumDispatch { value, targets, .. } => {
+                Inst::CheckedEnumPayload {
+                    result,
+                    value,
+                    schema,
+                    variant_index,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked enum payload")
+                    };
                     let Value::Reg(value) = value else {
-                        panic!("Expected register for checked unit-enum dispatch")
+                        panic!("Expected register for checked enum payload source")
+                    };
+                    let lane = match schema.variants[*variant_index].payload.as_ref() {
+                        Some(LogicalType::Int | LogicalType::Float) => 1,
+                        Some(LogicalType::Bool) => 2,
+                        _ => unreachable!("verified payload extraction has a scalar payload"),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = extractvalue {{ i32, double, i1 }} %reg{value}, {lane}\n"
+                    ));
+                }
+                Inst::CheckedEnumDispatch {
+                    value,
+                    schema,
+                    targets,
+                } => {
+                    let Value::Reg(value) = value else {
+                        panic!("Expected register for checked enum dispatch")
                     };
                     let first = targets
                         .first()
-                        .expect("verified unit-enum dispatch has a target");
-                    llvm_ir.push_str(&format!("  switch i32 %reg{value}, label %{first} [\n"));
+                        .expect("verified enum dispatch has a target");
+                    let tag = if schema.is_unit() {
+                        format!("%reg{value}")
+                    } else {
+                        let tag = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{tag} = extractvalue {{ i32, double, i1 }} %reg{value}, 0\n"
+                        ));
+                        format!("%{tag}")
+                    };
+                    llvm_ir.push_str(&format!("  switch i32 {tag}, label %{first} [\n"));
                     for (index, target) in targets.iter().enumerate().skip(1) {
                         llvm_ir.push_str(&format!("    i32 {index}, label %{target}\n"));
                     }
@@ -1517,7 +1595,7 @@ impl CodeGenerator {
                     Inst::Return(_)
                         | Inst::Jump(_)
                         | Inst::Branch { .. }
-                        | Inst::CheckedUnitEnumDispatch { .. }
+                        | Inst::CheckedEnumDispatch { .. }
                 )
             })
         {

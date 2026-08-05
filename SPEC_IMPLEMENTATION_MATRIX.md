@@ -35,8 +35,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Named field access | Y | Y | Y | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
 | All-scalar struct Copy transport | Y | â€” | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Acyclic named Copy aggregates | Y | - | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
-| Enums and construction | Y | Y | P | N | P | P | P | P | ? | P | P | P | Y | PARTIAL |
-| Pattern matching | Y | Y | P | N | N | N | N | N | N | P | Y | Y | Y | PARSED_ONLY |
+| Enums and construction | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Pattern matching | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
@@ -1117,8 +1117,8 @@ declared compatibility policy and release-level coverage.
   Nested matches and existing scalar parents are supported, only the selected arm
   executes, and possible-arm nested consumption is conservative at the expression join.
   Unsupported Match topologies retain their established fail-closed behavior.
-- Checked IR introduces a distinct schema-bearing `LogicalType::Enum`, exact
-  `CheckedUnitEnumVariant`, and exhaustive `CheckedUnitEnumDispatch` terminator.
+- Checked IR introduces a distinct schema-bearing `LogicalType::Enum`; the current
+  shared forms use exact `CheckedEnumVariant` and exhaustive `CheckedEnumDispatch`.
   Independent verification rejects malformed/empty/duplicate/conflicting schemas,
   invalid indices, immediate/undefined/non-dominating/wrong-enum values, incomplete/
   duplicate/missing targets, identifier-kind collisions, and excluded aggregate or
@@ -1138,7 +1138,7 @@ declared compatibility policy and release-level coverage.
   borrowing, public discriminants, stable layout/ABI/FFI, heap/drop behavior,
   accelerators, performance, release, and stability remain excluded.
 
-## CORE-050 candidate internal owned unit-enum transport
+## CORE-050 accepted internal owned unit-enum transport
 
 - CORE-050 admits enum-bearing signatures only for unique top-level non-generic
   non-`main` functions and exact CORE-049 unit-enum annotations. Other parameters and
@@ -1158,14 +1158,49 @@ declared compatibility policy and release-level coverage.
   return types, dominance, and global enum-schema consistency. LLVM lowers only verified
   enum parameters/calls/returns to direct internal `i32`; no source `Int`, public
   discriminant, layout, calling convention, stable ABI, or FFI is established.
-- The exhaustive target, verifier corruption cases, CORE-049/unsupported-Match controls,
-  adjacent Copy transport and checked-admission suites, and the exact root gate pass
-  locally: 161 library and 167 binary tests plus formatting, correctness Clippy, every
-  integration target, and docs. The composed `phases` example reaches LLVM with direct
-  transport and three switches. Public acceptance remains conditional on all eight
-  checks and pinned LLVM/Clang 22 external/machine verification, object/link, and exact
-  native exit 173. The broader enum/function/ownership rows remain `PARTIAL`.
+- Exact implementation `13f000358bdab33a2a8f5618bdbe80ffc50a1ed9`, tree
+  `e0228d7f0b056137abe1cc29e8078668ec0872fd`, and stable patch ID
+  `ee4eb0b8efc4847e30091d0293eed746b40851fa` pass the exhaustive target, verifier
+  corruption cases, adjacent controls, exact root gate, and all eight public checks.
+  Stable job `92215771782` uses LLVM/Clang 22.1.8 for external and machine
+  verification, object lowering, linking, exact native exit 173, and 161/167 test
+  passes. The broader enum/function/ownership rows remain `PARTIAL`.
 - Payload/struct/generic/mixed enums, Option/Result, enum arrays/struct fields/references,
   mutation, borrowing, equality, casts, printing, `main`, closures/nested functions,
   traits, recursive CFG ownership, loop state, stable ABI/FFI, accelerators, performance,
   release, and stability remain excluded.
+
+## CORE-051 candidate owned unary scalar-payload enums
+
+- CORE-051 generalizes the shared enum classifier to unique top-level non-generic,
+  nonempty definitions whose declaration-ordered variants are unit or carry exactly
+  one `int`/`i32`, `float`/`f64`, or `bool` payload. Mixed schemas are admitted.
+  Empty/multi-field tuples, struct variants, non-scalar/nested/generic payloads,
+  ambiguous definitions, and type-name collisions share one explicit rejected or
+  quarantined disposition rather than topology-specific phase guards.
+- Construction requires payload presence and the exact declared scalar type. An
+  exhaustive Match requires one identifier payload binding for each payload variant,
+  scopes that initialized immutable Copy scalar only to its arm, and consumes the
+  non-`Copy` enum. Unit arms remain payload-free. Missing/foreign/duplicate arms,
+  wildcard/literal/nested payload patterns, binding leakage, scrutinee shadowing,
+  use-after-Match, and result-type mismatches fail before checked IR.
+- Current shared checked IR uses `EnumSchema`, `CheckedEnumVariant`,
+  `CheckedEnumPayload`, and `CheckedEnumDispatch`. Independent verification proves
+  schema identity, construction payload presence/type/dominance, exhaustive unique
+  targets, selected-variant guarding, exact extraction type/source, global consistency,
+  and transport containment. Verified local payload enums lower privately as
+  `{ i32, double, i1 }` with deterministic zero in inactive lanes. No public
+  discriminant, memory layout, calling convention, stable ABI, or FFI is established.
+- The exhaustive target, private verifier corruption cases, CORE-049/050 and adjacent
+  binding/struct/typed-admission controls, and exact root gate pass locally: 162
+  library and 168 binary tests plus formatting, correctness Clippy, every integration
+  target, and docs. The composed `signals` example reaches LLVM with 12 tagged
+  aggregate insertions, 16 selected-lane extractions, six switches, and SHA-256
+  `42930069C175CE245EEA0C2CFBF0F01B0D0B21FD1FD9AB2B9B587BC6990D39CC`.
+  Public acceptance remains conditional on all eight checks and pinned LLVM/Clang 22
+  external/machine verification, object/link, and exact native exit 181.
+- Payload-enum function transport, fields, arrays, references, borrowing, mutation,
+  equality, casts, printing, copying, heap/drop, Option/Result Match, guards,
+  destructuring, general CFG ownership, loop state, stable ABI/FFI, accelerators,
+  performance, release, and stability remain excluded. The broad enum and Match rows
+  remain `PARTIAL`.

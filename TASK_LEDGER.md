@@ -9828,3 +9828,176 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   corruption tests, adjacent capability suites, and the root gate are the controls.
   Next action is one intentional candidate commit and push, immediate PR-front-page
   synchronization, and exact public acceptance inspection without merging or release.
+
+## CORE-051 - Owned unary scalar-payload enums and bound Match extraction
+
+- Task ID: `CORE-051`. Observed behavior: accepted CORE-050 executes payload-free
+  enums through construction, ownership, exhaustive Match, internal transport, checked
+  verification, and native code, but every declared payload topology remains outside
+  the admitted enum registry. The parser and AST retain exactly one executable
+  constructor/pattern payload expression, while declarations also retain multi-field
+  tuple and struct variants that construction/pattern syntax cannot faithfully
+  represent. Dormant raw `EnumConstruct`, `EnumDiscriminant`, and `EnumVariantData`
+  instructions are rejected by checked admission and code generation; historical
+  documents describing them as complete are experimental records, not capability
+  evidence. This is one bounded audit of the scalar-payload class, not a new residual
+  re-ranking.
+- Authoritative semantics: the grammar permits unit, tuple, and struct enum variants;
+  the ownership design says ownership applies to enum-held data and explicitly shows a
+  mixed enum with `Quit` and `ProcessId(u32)`, a `Message::ProcessId(id)` Match binding,
+  transfer of the enum into the matching function, and copying of scalar `id`. Existing
+  accepted scalar semantics make `int`, `float`, and `bool` Copy while enums remain
+  non-Copy. CORE-051 implements only the intersection represented exactly by parser,
+  AST, ownership text, and executable scalar contracts. It does not choose semantics
+  for strings, references, aggregate payloads, multi-field tuple constructors, struct-
+  variant construction, drop, stable layout, or ABI.
+- Hypothesis: one shared enum-definition classifier can generalize the accepted unit
+  registry to declaration-ordered mixed unit/unary-scalar schemas, preserve exact
+  payload types through semantics and checked IR, bind the selected payload in an
+  arm-local lexical scope, and lower verified values to a private tagged aggregate.
+  Replacing unit-only constructor/dispatch schema guards with a common schema object
+  avoids another combinatorial family of phase-specific checks.
+- Frozen definition class: after module linking, a supported enum has one unique valid
+  top-level name, no type parameters, at least one uniquely named valid variant, and
+  every variant is either unit or `Tuple` with exactly one annotation resolving exactly
+  to `int`/`i32`, `float`/`f64`, or `bool`. Pure unit enums remain supported unchanged;
+  the new class contains at least one unary payload and may mix unit, Int, Float, and
+  Bool variants in declaration order. Empty tuple variants, tuple arity greater than
+  one, struct variants, unsupported/nested/generic payload annotations, duplicate or
+  invalid names, generic/empty definitions, struct/enum collisions, and ambiguous
+  definitions share one explicitly rejected/quarantined classifier disposition.
+  `Option` and `Result` retain their existing separate behavior.
+- Frozen construction and Match class: a payload constructor supplies exactly one
+  expression of the declared scalar type; a unit constructor supplies none. Match
+  consumes its owned enum scrutinee exactly as CORE-049/050 do and remains exhaustive
+  with one explicit arm per declared variant. A unit arm has no data; a payload arm has
+  exactly one valid `Pattern::Identifier`, creating an immutable initialized Copy
+  binding of the exact scalar type only within that arm. Existing lexical shadowing
+  applies, except a payload binding may not shadow a scrutinee name consumed by that
+  Match. Wildcards, literals, nested enum/tuple/struct patterns, missing/excess payload
+  patterns, guards, duplicate/foreign/incomplete arms, non-scalar/mismatched results,
+  arm leakage, and consumed-enum reuse remain fail-closed before checked IR. All
+  constructor origins and Match result types `Int`/`Float`/`Bool` are in the class.
+- Checked IR/backend contract: introduce one reusable logical enum schema containing
+  the exact name and declaration-ordered variant names plus optional scalar payload
+  types. Unit transport remains permitted only for a payload-free schema; payload-enum
+  parameters, arguments, results, and returns remain rejected. Replace unit-only
+  constructor/dispatch records with schema-carrying checked enum construction and
+  dispatch, and add one selected-variant payload-extraction result. The verifier
+  independently proves schema validity and identity, construction arity and payload
+  type/dominance, tag range, exhaustive unique targets, extraction source/schema/
+  variant/payload agreement and dominance, global schema consistency, and type-name
+  collisions. Verified payload enums lower privately as an SSA aggregate with an `i32`
+  tag, one `double` lane shared by Int/Float, and one `i1` Bool lane; inactive lanes are
+  deterministic zero. Dispatch extracts the tag and switches; selected arms extract
+  only their declared lane. This establishes no stable discriminant, memory layout,
+  calling convention, FFI, or public ABI.
+- Complete exclusions: String/reference/array/tuple/struct/enum/Option/Result payloads;
+  multi-field and struct variants; generic or recursive enums; payload enum transport,
+  fields, arrays, borrowing, mutation, equality, casts, printing, copying, heap/drop,
+  guards, wildcard/default arms, nested destructuring, loop-carried enum state,
+  selected-arm-only ownership, closures, nested functions, trait defaults, impl methods,
+  stable ABI/FFI, accelerators, performance, release, and stability. Raw enum
+  instructions remain inert; dormant stdlib simulation is not evidence.
+- Tests-first completeness contract: add one focused target that proves parser/AST
+  retention, then enumerates pure unary and mixed unit/Int/Float/Bool definitions;
+  literal, comparison, arithmetic, local, and nested constructor payload origins;
+  inferred/exact immutable bindings; direct and owned-local scrutinees; declaration- and
+  source-arm-order permutations; arm bindings in scalar arithmetic/comparison/logic;
+  all three Match result types; nested matches; move invalidation; and modules.
+  Enumerate every definition, constructor, payload type, pattern topology, coverage,
+  result, scope, ownership, transport, raw-path, and schema-corruption rejection above.
+  Require semantic-before-IR failures, exact checked metadata/instructions, LLVM tagged
+  construction/tag switch/lane extraction without legacy enum instructions, CLI artifact
+  hygiene, and workflow anchors. Run this target red before production, example,
+  workflow, capability-state, or claim mutation; do not weaken CORE-049/050 coverage.
+- System-level gate: add one tracked direct-module example composing mixed unary scalar
+  payload construction/extraction with accepted unit-enum transport, modules, compile-
+  time Strings, fixed arrays, acyclic Copy aggregates/transport, immutable scalar
+  references, scalar control flow, checked verification, LLVM, object/link, and exact
+  native exit `181`. Stable/nightly CI must unconditionally use pinned LLVM/Clang 22,
+  `opt-22`, `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking,
+  execution, and exact exit. Parser-only, rejection-only, LLVM-text-only, unchecked, or
+  unexecuted evidence cannot close this milestone.
+- Allowed files: this ledger; `src/compiler/src/enum_match_contract.rs`,
+  `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs`; one new
+  `src/compiler/tests/scalar_payload_enum_match_tests.rs`; only exact checked-enum
+  verifier/unit-enum expectations and the three enumerated adjacent binding/struct/
+  typed-admission cells made stale by the shared schema migration; one new
+  tracked `examples/scalar_payload_enum/` module pair; `.github/workflows/rust.yml`;
+  and, only after executable acceptance, `README.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, and `FRAMEWORK_ALIGNMENT.md`. No lexer/parser/AST,
+  dependency, optimizer, runtime, stdlib simulation, general pattern engine, generic
+  ownership architecture, claim-verification, benchmark, release, `master`, PR merge,
+  force-push, or history rewrite is authorized.
+- Risks and stop conditions: stop rather than broaden if unary syntax is ambiguous; arm
+  bindings require general pattern-engine semantics; payload enum values enter numeric
+  places; inactive lanes expose source behavior; verifier metadata cannot prove schema
+  and extraction identity; payload transport or public ABI becomes necessary; ownership
+  needs unsound CFG approximation; raw/excluded contexts activate; selected-arm-only
+  behavior changes; a test must be weakened; unit transport regresses; or work requires
+  parser, AST, runtime, dependency, or more than this authorized semantic/checked-IR/
+  backend slice. Unexpected semantics remain a lead stop.
+- Starting evidence: exact clean accepted CORE-050 head
+  `13f000358bdab33a2a8f5618bdbe80ffc50a1ed9` equals
+  `origin/agent/aero-integration`; all eight public checks and stable native exit `173`
+  pass. Draft PR #4 is synchronized through CORE-050, unmerged, and carries all four
+  scaling controls. The only CORE-051 mutation at authorization is this ledger record.
+  The next allowed mutation is the exhaustive focused red contract; no CORE-051
+  compiler behavior, example, workflow, capability claim, commit, or public artifact
+  exists.
+- Tests-first red evidence: `cargo test --manifest-path src/compiler/Cargo.toml --test
+  scalar_payload_enum_match_tests -- --nocapture` builds and runs the single exhaustive
+  target but fails 0/1 before any production, example, workflow, or capability-state
+  mutation. Parser/AST retention passes for the mixed unit/Int/Float/Bool declaration,
+  unary constructor expression, and identifier payload patterns. Every positive
+  executable shape stops at the existing unit-only enum classifier; arm payload names
+  remain undeclared, the intended constructor/type/pattern/transport diagnostics do not
+  exist, checked schema construction/extraction/dispatch and tagged LLVM flow are absent,
+  the raw path remains inert, the invalid CLI build publishes no artifact, and both
+  tracked example files plus all six stable workflow anchors are absent. This is the
+  required behavioral red state; no existing test was weakened and no public branch or
+  PR state changed.
+- Local implementation result: the former unit-only registry is now one shared
+  `EnumRegistry` with a declaration-ordered schema and one supported/rejected/
+  quarantined topology decision used by semantic analysis and checked admission.
+  Constructors retain exact optional scalar payload types. Exhaustive Match resolves
+  all patterns before bodies, creates one exact arm-local immutable Copy binding,
+  consumes the owned enum, and rejects scrutinee shadowing. Checked IR carries
+  schema-bearing construction, selected payload extraction, and exhaustive dispatch;
+  the independent verifier proves payload presence/type/dominance, unique selected-arm
+  guarding, schema/source identity, exhaustive CFG targets, global consistency, and
+  unit-only transport. Verified payload enums lower privately to
+  `{ i32, double, i1 }` with deterministic inactive zero lanes. The deprecated raw
+  path remains inert and no stable layout, ABI, or FFI claim is created.
+- Pre-publication gate correction: the first exact root gate passed 162 library and
+  168 binary tests, then exposed one stale CORE-034 child-precedence expectation that
+  still required the former unit-only rejection. Exhaustive search found exactly three
+  adjacent stale cells: the binding case now correctly requires its earlier array-child
+  mismatch, the struct-payload case retains rejection under the generalized classifier
+  wording, and one scalar-payload checked-admission rejection made positive by CORE-051
+  was removed. The ledger allowed-file boundary was amended before those edits. No
+  failing test, unsupported topology, or diagnostic precedence was weakened; all three
+  adjacent targets pass after the correction.
+- Local test evidence: `cargo fmt` is clean. The exhaustive CORE-051 target, its private
+  checked-IR corruption case, CORE-049 Match, CORE-050 unit transport, binding type,
+  struct execution, and typed-admission targets pass. The unchanged repository-root
+  `./tools/test.sh` rerun exits 0 and passes formatting, correctness Clippy, 162/162
+  library tests, 168/168 binary tests, every integration target, and doc tests. The
+  invalid CLI path remains artifact-free. No unsupported program reaches checked IR or
+  LLVM.
+- Local system trace and remaining risk: a fresh CLI build of
+  `examples/scalar_payload_enum/main.aero` resolves `signals` and completes source,
+  semantics, checked IR, internal verification, and LLVM generation. Its LLVM contains
+  12 tagged aggregate insertions, 16 selected-lane extractions, and six switches, with
+  SHA-256 `42930069C175CE245EEA0C2CFBF0F01B0D0B21FD1FD9AB2B9B587BC6990D39CC`.
+  This Windows host accurately reports `InternalOnly` because LLVM/Clang 22 is absent;
+  public pinned LLVM/Clang 22 external verification, machine verification, object/link,
+  exact native exit 181, and all eight checks remain mandatory for acceptance. Main
+  regression risks are schema drift across phases, extraction outside the selected
+  arm, enum leakage into numeric places, or accidental payload transport; shared
+  classification, independent verifier corruption tests, adjacent suites, and the
+  composed gate are the controls. Next action is one intentional candidate commit and
+  push, immediate PR-front-page synchronization, and exact public acceptance inspection
+  without merging or release.

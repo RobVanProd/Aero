@@ -237,15 +237,15 @@ fn main() -> int {
         Err(error) => failures.push(format!("checked enum IR/LLVM failed: {error}")),
         Ok((checked, llvm)) => {
             let debug = format!("{checked:?}");
-            if debug.matches("CheckedUnitEnumVariant").count() < 7 {
+            if debug.matches("CheckedEnumVariant").count() < 7 {
                 failures.push(format!("checked IR lost unit variants:\n{debug}"));
             }
-            if debug.matches("CheckedUnitEnumDispatch").count() < 7 {
+            if debug.matches("CheckedEnumDispatch").count() < 7 {
                 failures.push(format!("checked IR lost exhaustive dispatches:\n{debug}"));
             }
             for schema in [
-                "Enum { name: \"Phase\", variants: [\"Cold\", \"Warm\", \"Hot\"] }",
-                "Enum { name: \"Switch\", variants: [\"Off\", \"On\"] }",
+                "EnumSchema { name: \"Phase\", variants: [EnumVariantSchema { name: \"Cold\", payload: None }, EnumVariantSchema { name: \"Warm\", payload: None }, EnumVariantSchema { name: \"Hot\", payload: None }] }",
+                "EnumSchema { name: \"Switch\", variants: [EnumVariantSchema { name: \"Off\", payload: None }, EnumVariantSchema { name: \"On\", payload: None }] }",
             ] {
                 if !debug.contains(schema) {
                     failures.push(format!("checked metadata missing {schema:?}:\n{debug}"));
@@ -266,107 +266,102 @@ fn main() -> int {
         (
             "unknown enum",
             "fn main() { let value = Missing::Only; }",
-            "enum `Missing` has no unique admitted unit definition",
+            "enum `Missing` has no unique admitted definition",
         ),
         (
             "unknown variant",
             "enum Phase { Cold, Warm } fn main() { let value = Phase::Hot; }",
-            "unit enum `Phase` has no variant `Hot`",
+            "enum `Phase` has no variant `Hot`",
         ),
         (
             "payload on unit variant",
             "enum Phase { Cold, Warm } fn main() { let value = Phase::Warm(1); }",
-            "unit enum `Phase` variant `Warm` does not accept payload data",
-        ),
-        (
-            "payload definition",
-            "enum Phase { Cold, Warm(int) } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit enum",
+            "enum `Phase` variant `Warm` does not accept payload data",
         ),
         (
             "struct variant definition",
             "enum Phase { Cold, Warm { value: int } } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit enum",
+            "enum `Phase` is not an admitted non-generic unit-or-unary-scalar enum",
         ),
         (
             "generic definition",
             "enum Phase<T> { Cold, Warm } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit enum",
+            "enum `Phase` is not an admitted non-generic unit-or-unary-scalar enum",
         ),
         (
             "empty definition",
             "enum Phase {} fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit enum",
+            "enum `Phase` is not an admitted non-generic unit-or-unary-scalar enum",
         ),
         (
             "duplicate variant",
             "enum Phase { Cold, Cold } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit enum",
+            "enum `Phase` is not an admitted non-generic unit-or-unary-scalar enum",
         ),
         (
             "duplicate enum definition",
             "enum Phase { Cold } enum Phase { Cold } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` has no unique admitted unit definition",
+            "enum `Phase` has no unique admitted definition",
         ),
         (
             "struct enum collision",
             "struct Phase { value: int } enum Phase { Cold } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` has no unique admitted unit definition",
+            "enum `Phase` has no unique admitted definition",
         ),
         (
             "annotation mismatch",
             "enum Phase { Cold } enum Other { Cold } fn main() { let value: Other = Phase::Cold; }",
-            "unit enum binding annotation mismatch: expected Phase, actual Other",
+            "enum binding annotation mismatch: expected Phase, actual Other",
         ),
         (
             "mutable binding",
             "enum Phase { Cold } fn main() { let mut value = Phase::Cold; }",
-            "mutable unit-enum bindings are not admitted",
+            "mutable enum bindings are not admitted",
         ),
         (
             "missing arm",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1 }; }",
-            "unit enum match must cover every declared variant exactly once",
+            "enum match must cover every declared variant exactly once",
         ),
         (
             "duplicate arm",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, Phase::Cold => 2 }; }",
-            "unit enum match contains duplicate variant `Cold`",
+            "enum match contains duplicate variant `Cold`",
         ),
         (
             "unknown arm",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, Phase::Hot => 2 }; }",
-            "unit enum `Phase` has no variant `Hot`",
+            "enum `Phase` has no variant `Hot`",
         ),
         (
             "foreign arm",
             "enum Phase { Cold, Warm } enum Other { Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, Other::Warm => 2 }; }",
-            "unit enum match arm names `Other`, expected `Phase`",
+            "enum match arm names `Other`, expected `Phase`",
         ),
         (
             "payload arm",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, Phase::Warm(x) => 2 }; }",
-            "unit enum match requires one explicit payload-free variant arm per declared variant",
+            "enum match variant `Warm` does not accept a payload binding",
         ),
         (
             "wildcard arm",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, _ => 2 }; }",
-            "unit enum match requires one explicit payload-free variant arm per declared variant",
+            "enum match requires one explicit variant arm per declared variant",
         ),
         (
             "binding arm",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, other => 2 }; }",
-            "unit enum match requires one explicit payload-free variant arm per declared variant",
+            "enum match requires one explicit variant arm per declared variant",
         ),
         (
             "result mismatch",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, Phase::Warm => 1.5 }; }",
-            "unit enum match arm result mismatch: expected int, actual float",
+            "enum match arm result mismatch: expected int, actual float",
         ),
         (
             "unsupported result",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => \"cold\", Phase::Warm => \"warm\" }; }",
-            "unit enum match arms must return Int, Float, or Bool",
+            "enum match arms must return Int, Float, or Bool",
         ),
         (
             "use after match",
@@ -376,12 +371,12 @@ fn main() -> int {
         (
             "arm reuses consumed scrutinee",
             "enum Phase { Cold, Warm } fn main() { let phase = Phase::Cold; let value = match phase { Phase::Cold => match phase { Phase::Cold => 1, Phase::Warm => 2 }, Phase::Warm => 3 }; }",
-            "unit enum match arm reuses consumed scrutinee `phase`",
+            "enum match arm reuses consumed scrutinee `phase`",
         ),
         (
             "duplicate consumption",
             "enum Phase { Cold, Warm } fn pair(a: int, b: int) -> int { a + b } fn main() { let phase = Phase::Cold; let value = pair(match phase { Phase::Cold => 1, Phase::Warm => 2 }, match phase { Phase::Cold => 3, Phase::Warm => 4 }); }",
-            "unit enum `phase` is consumed more than once in one expression",
+            "enum `phase` is consumed more than once in one expression",
         ),
         (
             "closure context",
@@ -413,8 +408,8 @@ fn main() -> int {
         Ok(ast) => {
             let raw = IrGenerator::new().generate_ir(ast);
             let debug = format!("{raw:?}");
-            if debug.contains("CheckedUnitEnumVariant")
-                || debug.contains("CheckedUnitEnumDispatch")
+            if debug.contains("CheckedEnumVariant")
+                || debug.contains("CheckedEnumDispatch")
                 || !debug.contains("ImmInt(0)")
             {
                 failures.push(format!(
@@ -465,7 +460,7 @@ fn main() -> int {
     if invalid_build.status.success()
         || invalid_artifact.exists()
         || !output_text(&invalid_build)
-            .contains("unit enum match must cover every declared variant exactly once")
+            .contains("enum match must cover every declared variant exactly once")
     {
         failures.push(format!(
             "CLI invalid match did not fail closed without an artifact: {}",

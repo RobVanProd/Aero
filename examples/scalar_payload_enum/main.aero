@@ -1,0 +1,55 @@
+mod signals;
+
+enum Signal { Idle, Count(int), Ratio(float), Ready(bool) }
+struct Envelope { row: ModuleRow, rows: [ModuleRow; 2] }
+
+fn roundtrip(value: Envelope) -> Envelope { value }
+
+fn main() -> int {
+    let phase = module_phase();
+    let row = module_make(20);
+    let module_total = module_score(module_forward(phase), row, [2, 3]);
+    let module_total_ref: &int = &module_total;
+    let module_total_alias = module_total_ref;
+
+    let count = match Signal::Count(*module_total_alias + 9) {
+        Signal::Idle => 0,
+        Signal::Ratio(value) => 0,
+        Signal::Ready(value) => 0,
+        Signal::Count(value) => value
+    };
+    let ratio = match Signal::Ratio(1.5) {
+        Signal::Ready(value) => 0.0,
+        Signal::Count(value) => 0.0,
+        Signal::Idle => 0.0,
+        Signal::Ratio(value) => value + 0.5
+    };
+    let ready = match Signal::Ready(count > 0) {
+        Signal::Count(value) => value > 0,
+        Signal::Ratio(value) => value > 0.0,
+        Signal::Ready(value) => value,
+        Signal::Idle => 1 > 2
+    };
+    let idle = match Signal::Idle {
+        Signal::Idle => 4,
+        Signal::Count(value) => value,
+        Signal::Ratio(value) => 0,
+        Signal::Ready(value) => 0
+    };
+    let direct = match module_forward(Phase::Hot) {
+        Phase::Cold => 1,
+        Phase::Warm => 5,
+        Phase::Hot => 13
+    };
+    let envelope = roundtrip(Envelope {
+        row: row,
+        rows: [module_make(30), module_make(31)]
+    });
+
+    if count == 39 && ratio > 1.5 && ready && idle == 4 && direct == 13
+        && envelope.row.value == 20 && module_scan(envelope.rows) == 2
+        && "aero".len() == 4 {
+        return count + 142;
+    }
+    return 1;
+}

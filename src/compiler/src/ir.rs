@@ -22,6 +22,33 @@ impl fmt::Display for Value {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub struct EnumVariantSchema {
+    pub name: String,
+    pub payload: Option<LogicalType>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub struct EnumSchema {
+    pub name: String,
+    pub variants: Vec<EnumVariantSchema>,
+}
+
+impl EnumSchema {
+    pub fn is_unit(&self) -> bool {
+        self.variants
+            .iter()
+            .all(|variant| variant.payload.is_none())
+    }
+
+    pub fn logical_type(&self) -> LogicalType {
+        LogicalType::Enum {
+            name: self.name.clone(),
+            variants: self.variants.clone(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
     Add(Value, Value, Value),  // result, lhs, rhs (integer)
@@ -45,21 +72,26 @@ pub enum Inst {
     CheckedUnitEnumParameter {
         result: Value,
         parameter: String,
-        enum_name: String,
-        variants: Vec<String>,
+        schema: EnumSchema,
     },
-    /// Verified construction of one payload-free variant in a closed local enum.
-    CheckedUnitEnumVariant {
+    /// Verified construction of one unit or unary scalar variant in a closed enum.
+    CheckedEnumVariant {
         result: Value,
-        enum_name: String,
-        variants: Vec<String>,
+        schema: EnumSchema,
+        variant_index: usize,
+        payload: Option<Value>,
+    },
+    /// Verified extraction of the selected unary scalar payload.
+    CheckedEnumPayload {
+        result: Value,
+        value: Value,
+        schema: EnumSchema,
         variant_index: usize,
     },
     /// Verified exhaustive dispatch with one target per declaration-ordered variant.
-    CheckedUnitEnumDispatch {
+    CheckedEnumDispatch {
         value: Value,
-        enum_name: String,
-        variants: Vec<String>,
+        schema: EnumSchema,
         targets: Vec<String>,
     },
     Return(Value),        // value to return
@@ -286,7 +318,7 @@ pub enum LogicalType {
     },
     Enum {
         name: String,
-        variants: Vec<String>,
+        variants: Vec<EnumVariantSchema>,
     },
 }
 
@@ -321,7 +353,10 @@ impl fmt::Display for LogicalType {
                     if index > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{variant}")?;
+                    write!(f, "{}", variant.name)?;
+                    if let Some(payload) = &variant.payload {
+                        write!(f, "({payload})")?;
+                    }
                 }
                 write!(f, "]>")
             }

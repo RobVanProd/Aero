@@ -4,33 +4,51 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 69 `CORE-050` is the locally green candidate for internal owned transport of
-the exact unit enums accepted by CORE-049. One shared enum registry now classifies the
-complete enum-bearing function signature and delegates all non-enum annotations to the
-existing Copy resolver. Parameters, arguments, call results, and returns retain exact
-enum identity; named arguments move and become unusable. A single recursive consumed-
-name classifier is shared by semantic analysis and checked admission, including nested
-calls and direct call-result Match scrutinees.
+Milestone 70 `CORE-051` is the locally green candidate for owned local enums containing
+any declaration-ordered mix of unit variants and exactly unary `int`/`i32`,
+`float`/`f64`, or `bool` payload variants. One shared `EnumRegistry` classifier now
+owns supported definitions, explicitly rejected topologies, constructors, annotations,
+exhaustive patterns, ownership consumption, and unit-only transport decisions. Exact
+payload construction types survive semantic analysis and checked admission. Exhaustive
+Match binds the selected Copy scalar only inside its arm and consumes the non-`Copy`
+enum; bindings cannot shadow the consumed scrutinee.
 
-Checked IR carries exact enum-bearing function schemas and direct
-`CheckedUnitEnumParameter` SSA binders. Enum values never enter generic numeric places.
-The verifier independently rejects missing, duplicate, misplaced, mismatched, or alloca
-parameter binders plus wrong enum calls/returns and global schema conflicts. LLVM lowers
-only verified internal transport to direct `i32` parameters, calls, and returns; this
-defines no source integer identity, layout, ABI, or FFI contract.
+Checked IR carries one declaration-ordered `EnumSchema`, schema-bearing construction,
+selected-variant payload extraction, and exhaustive dispatch. The verifier independently
+rejects malformed or conflicting schemas, payload presence/type errors, wrong sources,
+unguarded extraction, incomplete/duplicate dispatch, transport leaks, and type-name
+collisions before LLVM. Verified local payload values lower privately as
+`{ i32, double, i1 }` with deterministic inactive lanes; this defines no stable
+discriminant, memory layout, calling convention, ABI, or FFI contract. Unit enums retain
+their accepted direct internal `i32` transport from CORE-050; payload-enum transport
+remains excluded.
 
-The exact local root gate passes formatting, correctness Clippy, 161 library tests, 167
-binary tests, every integration target, and doc tests. A fresh composed module build
-resolves `phases`, completes semantics through LLVM, and contains direct enum transport
-plus three exhaustive switches. The tracked stable/nightly gate requires pinned LLVM/
-Clang 22 external verification, machine verification, object lowering, linking, and
-exact native exit 173. CORE-050 is accepted only when the pushed candidate passes that
-native gate and all eight public checks; the PR front page is the live public identity.
+The exact repository-root gate passes formatting, correctness Clippy, 162 library
+tests, 168 binary tests, every integration target, and doc tests. A fresh composed
+module build resolves `signals`, completes semantics through LLVM, emits 12 tagged
+aggregate insertions, 16 selected-lane extractions, and six switches, and has SHA-256
+`42930069C175CE245EEA0C2CFBF0F01B0D0B21FD1FD9AB2B9B587BC6990D39CC`.
+The Windows host remains truthfully `InternalOnly` because LLVM 22 is absent. The
+tracked stable/nightly gate requires pinned LLVM/Clang 22 external and machine
+verification, object lowering, linking, and exact native exit 181. CORE-051 is
+accepted only when the pushed candidate passes that native gate and all eight public
+checks; the PR front page remains the live public identity.
 
-Payload/generic/mixed enums, Option/Result, enum aggregates/references/mutation/equality/
-printing, `main` transport, closures/nested functions/traits, recursive CFG ownership,
-loop state, stable ABI/FFI, accelerators, performance, release, and stability remain
-excluded.
+String/reference/aggregate/enum/Option/Result payloads; multi-field and struct variants;
+payload-enum parameters/results/arrays/struct fields/references; wildcard, guard, or
+nested destructuring patterns; selected-arm-only ownership, mutation, borrowing,
+equality, casts, printing, heap/drop, general CFG ownership, loop-carried enum state,
+stable ABI/FFI, accelerators, performance, release, and stability remain excluded.
+
+Milestone 69 `CORE-050` is accepted public at exact implementation commit
+`13f000358bdab33a2a8f5618bdbe80ffc50a1ed9`, tree
+`e0228d7f0b056137abe1cc29e8078668ec0872fd`, and stable patch ID
+`ee4eb0b8efc4847e30091d0293eed746b40851fa`. All eight public checks pass. Stable
+job `92215771782` uses LLVM/Clang 22.1.8 for external verification, machine
+verification, object lowering, linking, and exact native exit 173, and passes 161/161
+library plus 167/167 binary tests. CORE-050 accepts only exact internal owned transport
+for the unit enums established by CORE-049; it creates no public integer identity,
+layout, ABI, or FFI contract.
 
 Milestone 68 `CORE-049` is accepted public for explicit exhaustive matches over owned
 local unit enums. The admitted definition is exactly one unique top-level non-generic,
@@ -166,7 +184,9 @@ composition rather than a module system.
   exhaustive control flow, schema-bearing checked IR, and internal backend
   representation through native execution. CORE-050 deliberately takes the harder
   ownership/function-boundary class by moving that non-Copy identity through exact
-  internal calls and returns. Deeper CFG ownership, runtime
+  internal calls and returns. CORE-051 takes the next ADT/runtime-representation step:
+  exact owned scalar payload construction, arm-local extraction, and private tagged
+  aggregate lowering rather than another compile-time leaf. Deeper CFG ownership, runtime
   representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -187,10 +207,12 @@ composition rather than a module system.
   scalar-reference provenance and typed alias/load lowering to the same composition.
   CORE-049's accepted exit-149 gate adds owned unit-enum identity, conservative move
   effects, exhaustive nested dispatch, independent enum/CFG verification, and native
-  selected-arm execution to that system trace. CORE-050's exit-173 candidate adds exact
+  selected-arm execution to that system trace. CORE-050's accepted exit-173 gate adds exact
   enum-bearing signatures, cross-function ownership transfer, direct checked SSA
-  binding, call/return verification, and module-composed execution; public native
-  acceptance remains mandatory.
+  binding, call/return verification, and module-composed execution. CORE-051's
+  exit-181 candidate adds mixed scalar payloads, exact bound-arm types, selected-lane
+  checked verification, and private tagged aggregate LLVM; public native acceptance
+  remains mandatory.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -1782,9 +1804,9 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push the bounded CORE-050 candidate once, immediately resynchronize draft
+Commit and push the bounded CORE-051 candidate once, immediately resynchronize draft
 PR #4 to the exact candidate head and current diff size, and require all eight checks
-plus pinned LLVM/Clang 22 native exit 173 before acceptance. Keep the PR draft and
+plus pinned LLVM/Clang 22 native exit 181 before acceptance. Keep the PR draft and
 unmerged. Then choose the next hard capability separately; the controlled mega-PR
 checkpoint strategy and structured evidence-manifest generator remain separate tasks.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,

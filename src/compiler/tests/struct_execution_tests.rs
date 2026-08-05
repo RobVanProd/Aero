@@ -363,7 +363,7 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
         (
             "struct enum payload",
             "struct Value { field: int } enum Choice { Item(Value) } fn main() { let choice = Choice::Item(Value { field: 1 }); }",
-            "enum `Choice` is not an admitted non-generic unit enum",
+            "enum `Choice` is not an admitted non-generic unit-or-unary-scalar enum",
         ),
         (
             "struct Option payload",

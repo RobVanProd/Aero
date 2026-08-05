@@ -1,6 +1,6 @@
 use crate::ir::{
-    BlockMetadata, CheckedIr, FunctionMetadata, FunctionSignature, Inst, IrMetadata, LogicalType,
-    PlaceId, PlaceMetadata, RawIr, ResultId, Value,
+    BlockMetadata, CheckedIr, EnumSchema, EnumVariantSchema, FunctionMetadata, FunctionSignature,
+    Inst, IrMetadata, LogicalType, PlaceId, PlaceMetadata, RawIr, ResultId, Value,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::error::Error;
@@ -298,13 +298,24 @@ fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
     )
 }
 
-fn valid_unit_enum_schema(name: &str, variants: &[String]) -> bool {
+fn valid_enum_schema(schema: &EnumSchema) -> bool {
     let mut unique = BTreeSet::new();
-    valid_symbol(name)
-        && !variants.is_empty()
-        && variants
-            .iter()
-            .all(|variant| valid_symbol(variant) && unique.insert(variant))
+    valid_symbol(&schema.name)
+        && !schema.variants.is_empty()
+        && schema.variants.iter().all(|variant| {
+            valid_symbol(&variant.name)
+                && unique.insert(&variant.name)
+                && variant.payload.as_ref().is_none_or(|payload| {
+                    matches!(
+                        payload,
+                        LogicalType::Int | LogicalType::Float | LogicalType::Bool
+                    )
+                })
+        })
+}
+
+fn valid_unit_enum_schema(schema: &EnumSchema) -> bool {
+    valid_enum_schema(schema) && schema.is_unit()
 }
 
 fn valid_struct_schema(fields: &[LogicalType]) -> bool {
@@ -339,7 +350,10 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
             matches!(element.as_ref(), LogicalType::Int | LogicalType::Float)
                 || valid_copy_struct_type(element)
         }
-        LogicalType::Enum { name, variants } => valid_unit_enum_schema(name, variants),
+        LogicalType::Enum { name, variants } => valid_unit_enum_schema(&EnumSchema {
+            name: name.clone(),
+            variants: variants.clone(),
+        }),
         LogicalType::Void | LogicalType::String => false,
     }
 }
@@ -673,10 +687,7 @@ fn collect_bodies<'a>(
 fn is_terminator(instruction: &Inst) -> bool {
     matches!(
         instruction,
-        Inst::Return(_)
-            | Inst::Jump(_)
-            | Inst::Branch { .. }
-            | Inst::CheckedUnitEnumDispatch { .. }
+        Inst::Return(_) | Inst::Jump(_) | Inst::Branch { .. } | Inst::CheckedEnumDispatch { .. }
     )
 }
 
@@ -760,7 +771,7 @@ fn split_blocks<'a>(body: &Body<'a>) -> Result<Vec<Block<'a>>, IrVerificationErr
                     false_label,
                     ..
                 } => vec![true_label.clone(), false_label.clone()],
-                Inst::CheckedUnitEnumDispatch { targets, .. } => targets.clone(),
+                Inst::CheckedEnumDispatch { targets, .. } => targets.clone(),
                 _ => Vec::new(),
             };
         }
@@ -768,7 +779,7 @@ fn split_blocks<'a>(body: &Body<'a>) -> Result<Vec<Block<'a>>, IrVerificationErr
             if !label_set.contains(label) {
                 let operation = match block.instructions.last() {
                     Some((_, Inst::Jump(_))) => "jump",
-                    Some((_, Inst::CheckedUnitEnumDispatch { .. })) => "checked unit-enum dispatch",
+                    Some((_, Inst::CheckedEnumDispatch { .. })) => "checked enum dispatch",
                     _ => "branch",
                 };
                 return Err(IrVerificationError::new(
@@ -851,7 +862,8 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::SIToFP(result, _)
         | Inst::FPToSI(result, _)
         | Inst::CheckedUnitEnumParameter { result, .. }
-        | Inst::CheckedUnitEnumVariant { result, .. } => Some(result),
+        | Inst::CheckedEnumVariant { result, .. }
+        | Inst::CheckedEnumPayload { result, .. } => Some(result),
         Inst::Call { result, .. } => result.as_ref(),
         Inst::ICmp { result, .. }
         | Inst::FCmp { result, .. }
@@ -905,22 +917,17 @@ fn definition_type(
             .and_then(|id| places.get(&PlaceId(id)))
             .and_then(PlaceType::logical),
         Inst::Call { function, .. } => signatures.get(function).map(|sig| sig.result.clone()),
-        Inst::CheckedUnitEnumVariant {
-            enum_name,
-            variants,
+        Inst::CheckedEnumVariant { schema, .. } | Inst::CheckedUnitEnumParameter { schema, .. } => {
+            Some(schema.logical_type())
+        }
+        Inst::CheckedEnumPayload {
+            schema,
+            variant_index,
             ..
-        } => Some(LogicalType::Enum {
-            name: enum_name.clone(),
-            variants: variants.clone(),
-        }),
-        Inst::CheckedUnitEnumParameter {
-            enum_name,
-            variants,
-            ..
-        } => Some(LogicalType::Enum {
-            name: enum_name.clone(),
-            variants: variants.clone(),
-        }),
+        } => schema
+            .variants
+            .get(*variant_index)
+            .and_then(|variant| variant.payload.clone()),
         _ => None,
     }
 }
@@ -2410,12 +2417,9 @@ impl<'a> FunctionVerifier<'a> {
                         }
                     }
                     Inst::CheckedUnitEnumParameter {
-                        parameter,
-                        enum_name,
-                        variants,
-                        ..
+                        parameter, schema, ..
                     } => {
-                        if block_index != 0 || !valid_unit_enum_schema(enum_name, variants) {
+                        if block_index != 0 || !valid_unit_enum_schema(schema) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
@@ -2423,10 +2427,7 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
-                        let actual = LogicalType::Enum {
-                            name: enum_name.clone(),
-                            variants: variants.clone(),
-                        };
+                        let actual = schema.logical_type();
                         let expected = self
                             .body
                             .signature
@@ -2451,61 +2452,145 @@ impl<'a> FunctionVerifier<'a> {
                             ));
                         }
                     }
-                    Inst::CheckedUnitEnumVariant {
-                        enum_name,
-                        variants,
+                    Inst::CheckedEnumVariant {
+                        schema,
+                        variant_index,
+                        payload,
+                        ..
+                    } => {
+                        if !valid_enum_schema(schema) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::UnsupportedType(format!(
+                                    "checked enum schema `{}`",
+                                    schema.name
+                                )),
+                            ));
+                        }
+                        if *variant_index >= schema.variants.len() {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum variant index {variant_index} is outside 0..{}",
+                                    schema.variants.len()
+                                )),
+                            ));
+                        }
+                        let expected_payload = schema.variants[*variant_index].payload.as_ref();
+                        if expected_payload.is_some() != payload.is_some() {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum variant `{}` payload presence disagrees with its schema",
+                                    schema.variants[*variant_index].name
+                                )),
+                            ));
+                        }
+                        if let (Some(expected), Some(payload)) = (expected_payload, payload) {
+                            self.require_type(
+                                payload,
+                                expected,
+                                "checked enum construction",
+                                "payload",
+                                block_index,
+                                position,
+                            )?;
+                        }
+                    }
+                    Inst::CheckedEnumPayload {
+                        value,
+                        schema,
                         variant_index,
                         ..
                     } => {
-                        if !valid_unit_enum_schema(enum_name, variants) {
+                        if !valid_enum_schema(schema) || *variant_index >= schema.variants.len() {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::UnsupportedType(format!(
-                                    "checked unit-enum schema `{enum_name}`"
+                                    "checked enum payload schema `{}`",
+                                    schema.name
                                 )),
                             ));
                         }
-                        if *variant_index >= variants.len() {
+                        if schema.variants[*variant_index].payload.is_none() {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked unit-enum variant index {variant_index} is outside 0..{}",
-                                    variants.len()
-                                )),
-                            ));
-                        }
-                    }
-                    Inst::CheckedUnitEnumDispatch {
-                        value,
-                        enum_name,
-                        variants,
-                        targets,
-                    } => {
-                        if !valid_unit_enum_schema(enum_name, variants) {
-                            return Err(self.error(
-                                block_index,
-                                IrVerificationErrorKind::UnsupportedType(format!(
-                                    "checked unit-enum schema `{enum_name}`"
-                                )),
-                            ));
-                        }
-                        let unique_targets = targets.iter().collect::<BTreeSet<_>>();
-                        if targets.len() != variants.len() || unique_targets.len() != targets.len()
-                        {
-                            return Err(self.error(
-                                block_index,
-                                IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked unit-enum dispatch for `{enum_name}` must carry one unique target per variant"
+                                    "checked enum payload extraction names unit variant `{}`",
+                                    schema.variants[*variant_index].name
                                 )),
                             ));
                         }
                         self.require_type(
                             value,
-                            &LogicalType::Enum {
-                                name: enum_name.clone(),
-                                variants: variants.clone(),
-                            },
-                            "checked unit-enum dispatch",
+                            &schema.logical_type(),
+                            "checked enum payload extraction",
+                            "value",
+                            block_index,
+                            position,
+                        )?;
+                        let block_label = &self.blocks[block_index].label;
+                        let incoming = self
+                            .blocks
+                            .iter()
+                            .filter(|block| block.successors.contains(block_label))
+                            .collect::<Vec<_>>();
+                        let guarded = incoming.len() == 1
+                            && incoming[0]
+                                .instructions
+                                .last()
+                                .is_some_and(|(_, instruction)| {
+                                    matches!(
+                                        instruction,
+                                        Inst::CheckedEnumDispatch {
+                                            value: dispatched,
+                                            schema: dispatched_schema,
+                                            targets,
+                                        } if dispatched == value
+                                            && dispatched_schema == schema
+                                            && targets.get(*variant_index) == Some(block_label)
+                                    )
+                                });
+                        if !guarded {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum payload extraction for `{}` is not uniquely guarded by its selected variant target",
+                                    schema.variants[*variant_index].name
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedEnumDispatch {
+                        value,
+                        schema,
+                        targets,
+                    } => {
+                        if !valid_enum_schema(schema) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::UnsupportedType(format!(
+                                    "checked enum schema `{}`",
+                                    schema.name
+                                )),
+                            ));
+                        }
+                        let unique_targets = targets.iter().collect::<BTreeSet<_>>();
+                        if targets.len() != schema.variants.len()
+                            || unique_targets.len() != targets.len()
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum dispatch for `{}` must carry one unique target per variant",
+                                    schema.name
+                                )),
+                            ));
+                        }
+                        self.require_type(
+                            value,
+                            &schema.logical_type(),
+                            "checked enum dispatch",
                             "value",
                             block_index,
                             position,
@@ -2622,13 +2707,20 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn register_type(
         logical_type: &LogicalType,
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<String>>,
+        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
     ) -> Result<(), IrVerificationError> {
         if let LogicalType::Array { element, .. } = logical_type {
             return register_type(element, schemas, enum_schemas);
         }
         if let LogicalType::Enum { name, variants } = logical_type {
-            return register_enum(name, variants, schemas, enum_schemas);
+            return register_enum(
+                &EnumSchema {
+                    name: name.clone(),
+                    variants: variants.clone(),
+                },
+                schemas,
+                enum_schemas,
+            );
         }
         let LogicalType::Struct { name, fields } = logical_type else {
             return Ok(());
@@ -2669,41 +2761,43 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     }
 
     fn register_enum(
-        name: &str,
-        variants: &[String],
+        schema: &EnumSchema,
         schemas: &BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<String>>,
+        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
     ) -> Result<(), IrVerificationError> {
-        if !valid_unit_enum_schema(name, variants) {
+        if !valid_enum_schema(schema) {
             return Err(IrVerificationError::new(
                 "<module>",
                 None,
                 IrVerificationErrorKind::UnsupportedType(format!(
-                    "checked unit-enum schema `{name}`"
+                    "checked enum schema `{}`",
+                    schema.name
                 )),
             ));
         }
-        if schemas.contains_key(name) {
+        if schemas.contains_key(&schema.name) {
             return Err(IrVerificationError::new(
                 "<module>",
                 None,
                 IrVerificationErrorKind::MetadataMismatch(format!(
-                    "checked type name `{name}` is used by both a struct and an enum"
+                    "checked type name `{}` is used by both a struct and an enum",
+                    schema.name
                 )),
             ));
         }
-        if let Some(existing) = enum_schemas.get(name) {
-            if existing != variants {
+        if let Some(existing) = enum_schemas.get(&schema.name) {
+            if existing != &schema.variants {
                 return Err(IrVerificationError::new(
                     "<module>",
                     None,
                     IrVerificationErrorKind::MetadataMismatch(format!(
-                        "conflicting checked unit-enum schemas for `{name}`"
+                        "conflicting checked enum schemas for `{}`",
+                        schema.name
                     )),
                 ));
             }
         } else {
-            enum_schemas.insert(name.to_string(), variants.to_vec());
+            enum_schemas.insert(schema.name.clone(), schema.variants.clone());
         }
         Ok(())
     }
@@ -2711,7 +2805,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn visit(
         instructions: &[Inst],
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<String>>,
+        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
     ) -> Result<(), IrVerificationError> {
         for instruction in instructions {
             match instruction {
@@ -2732,21 +2826,12 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 Inst::CheckedCopyStructArrayAlloca { element, .. } => {
                     register_type(element, schemas, enum_schemas)?;
                 }
-                Inst::CheckedUnitEnumVariant {
-                    enum_name,
-                    variants,
-                    ..
+                Inst::CheckedEnumVariant { schema, .. }
+                | Inst::CheckedEnumPayload { schema, .. }
+                | Inst::CheckedUnitEnumParameter { schema, .. }
+                | Inst::CheckedEnumDispatch { schema, .. } => {
+                    register_enum(schema, schemas, enum_schemas)?
                 }
-                | Inst::CheckedUnitEnumParameter {
-                    enum_name,
-                    variants,
-                    ..
-                }
-                | Inst::CheckedUnitEnumDispatch {
-                    enum_name,
-                    variants,
-                    ..
-                } => register_enum(enum_name, variants, schemas, enum_schemas)?,
                 Inst::FunctionDef { body, .. } => visit(body, schemas, enum_schemas)?,
                 Inst::CheckedFunctionDef {
                     parameters,
@@ -2836,6 +2921,60 @@ mod tests {
     use super::*;
     use crate::ir::Function;
 
+    fn unit_schema(name: &str, variants: &[&str]) -> EnumSchema {
+        EnumSchema {
+            name: name.to_string(),
+            variants: variants
+                .iter()
+                .map(|variant| EnumVariantSchema {
+                    name: (*variant).to_string(),
+                    payload: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn scalar_payload_schema(name: &str) -> EnumSchema {
+        EnumSchema {
+            name: name.to_string(),
+            variants: vec![
+                EnumVariantSchema {
+                    name: "Idle".to_string(),
+                    payload: None,
+                },
+                EnumVariantSchema {
+                    name: "Count".to_string(),
+                    payload: Some(LogicalType::Int),
+                },
+                EnumVariantSchema {
+                    name: "Ratio".to_string(),
+                    payload: Some(LogicalType::Float),
+                },
+                EnumVariantSchema {
+                    name: "Ready".to_string(),
+                    payload: Some(LogicalType::Bool),
+                },
+            ],
+        }
+    }
+
+    fn checked_variant(result: Value, schema: EnumSchema, variant_index: usize) -> Inst {
+        Inst::CheckedEnumVariant {
+            result,
+            schema,
+            variant_index,
+            payload: None,
+        }
+    }
+
+    fn checked_dispatch(value: Value, schema: EnumSchema, targets: &[&str]) -> Inst {
+        Inst::CheckedEnumDispatch {
+            value,
+            schema,
+            targets: targets.iter().map(|target| (*target).to_string()).collect(),
+        }
+    }
+
     fn function(body: Vec<Inst>) -> RawIr {
         HashMap::from([(
             "main".to_string(),
@@ -2849,11 +2988,7 @@ mod tests {
     }
 
     fn checked_enum_transport_program(forward_body: Vec<Inst>, main_runtime: Vec<Inst>) -> RawIr {
-        let variants = vec!["Cold".to_string(), "Warm".to_string()];
-        let enum_type = LogicalType::Enum {
-            name: "Phase".to_string(),
-            variants,
-        };
+        let enum_type = unit_schema("Phase", &["Cold", "Warm"]).logical_type();
         let mut main_body = vec![Inst::CheckedFunctionDef {
             name: "forward".to_string(),
             parameters: vec![("value".to_string(), enum_type.clone())],
@@ -2894,35 +3029,21 @@ mod tests {
 
     #[test]
     fn checked_unit_enum_transport_signatures_and_binders_are_fail_closed() {
-        let variants = vec!["Cold".to_string(), "Warm".to_string()];
-        let enum_type = LogicalType::Enum {
-            name: "Phase".to_string(),
-            variants: variants.clone(),
-        };
+        let schema = unit_schema("Phase", &["Cold", "Warm"]);
+        let enum_type = schema.logical_type();
         let binder = || Inst::CheckedUnitEnumParameter {
             result: Value::Reg(0),
             parameter: "value".to_string(),
-            enum_name: "Phase".to_string(),
-            variants: variants.clone(),
+            schema: schema.clone(),
         };
         let valid_main = vec![
-            Inst::CheckedUnitEnumVariant {
-                result: Value::Reg(0),
-                enum_name: "Phase".to_string(),
-                variants: variants.clone(),
-                variant_index: 1,
-            },
+            checked_variant(Value::Reg(0), schema.clone(), 1),
             Inst::Call {
                 function: "forward".to_string(),
                 arguments: vec![Value::Reg(0)],
                 result: Some(Value::Reg(1)),
             },
-            Inst::CheckedUnitEnumDispatch {
-                value: Value::Reg(1),
-                enum_name: "Phase".to_string(),
-                variants: variants.clone(),
-                targets: vec!["cold".to_string(), "warm".to_string()],
-            },
+            checked_dispatch(Value::Reg(1), schema.clone(), &["cold", "warm"]),
             Inst::Label("cold".to_string()),
             Inst::Return(Value::ImmInt(0)),
             Inst::Label("warm".to_string()),
@@ -2950,12 +3071,7 @@ mod tests {
             (
                 "missing direct binder",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        variant_index: 0,
-                    },
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
                     Inst::Return(Value::Reg(0)),
                 ],
             ),
@@ -2972,8 +3088,7 @@ mod tests {
                     Inst::CheckedUnitEnumParameter {
                         result: Value::Reg(0),
                         parameter: "other".to_string(),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
+                        schema: schema.clone(),
                     },
                     Inst::Return(Value::Reg(0)),
                 ],
@@ -2984,8 +3099,7 @@ mod tests {
                     Inst::CheckedUnitEnumParameter {
                         result: Value::Reg(0),
                         parameter: "value".to_string(),
-                        enum_name: "Phase".to_string(),
-                        variants: vec!["Cold".to_string(), "Hot".to_string()],
+                        schema: unit_schema("Phase", &["Cold", "Hot"]),
                     },
                     Inst::Return(Value::Reg(0)),
                 ],
@@ -2997,8 +3111,7 @@ mod tests {
                     Inst::CheckedUnitEnumParameter {
                         result: Value::Reg(1),
                         parameter: "value".to_string(),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
+                        schema: schema.clone(),
                     },
                     Inst::Return(Value::Reg(1)),
                 ],
@@ -3016,12 +3129,7 @@ mod tests {
                 "wrong enum return",
                 vec![
                     binder(),
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(1),
-                        enum_name: "Other".to_string(),
-                        variants: vec!["Cold".to_string(), "Warm".to_string()],
-                        variant_index: 0,
-                    },
+                    checked_variant(Value::Reg(1), unit_schema("Other", &["Cold", "Warm"]), 0),
                     Inst::Return(Value::Reg(1)),
                 ],
             ),
@@ -3038,12 +3146,7 @@ mod tests {
         }
 
         let wrong_call = vec![
-            Inst::CheckedUnitEnumVariant {
-                result: Value::Reg(0),
-                enum_name: "Other".to_string(),
-                variants: vec!["Cold".to_string(), "Warm".to_string()],
-                variant_index: 0,
-            },
+            checked_variant(Value::Reg(0), unit_schema("Other", &["Cold", "Warm"]), 0),
             Inst::Call {
                 function: "forward".to_string(),
                 arguments: vec![Value::Reg(0)],
@@ -3063,21 +3166,11 @@ mod tests {
 
     #[test]
     fn checked_unit_enum_identity_and_exhaustive_dispatch_are_fail_closed() {
-        let variants = vec!["Cold".to_string(), "Warm".to_string()];
+        let schema = unit_schema("Phase", &["Cold", "Warm"]);
         let checked = verify_ir(function(vec![
-            Inst::CheckedUnitEnumVariant {
-                result: Value::Reg(0),
-                enum_name: "Phase".to_string(),
-                variants: variants.clone(),
-                variant_index: 1,
-            },
+            checked_variant(Value::Reg(0), schema.clone(), 1),
             Inst::Alloca(Value::Reg(1), "result".to_string()),
-            Inst::CheckedUnitEnumDispatch {
-                value: Value::Reg(0),
-                enum_name: "Phase".to_string(),
-                variants: variants.clone(),
-                targets: vec!["cold".to_string(), "warm".to_string()],
-            },
+            checked_dispatch(Value::Reg(0), schema.clone(), &["cold", "warm"]),
             Inst::Label("cold".to_string()),
             Inst::Store(Value::Reg(1), Value::ImmInt(11)),
             Inst::Jump("end".to_string()),
@@ -3090,13 +3183,7 @@ mod tests {
         ]))
         .expect("exact unit-enum identity and exhaustive dispatch are valid");
         let metadata = &checked.metadata().functions["main"];
-        assert_eq!(
-            metadata.results[&ResultId(0)],
-            LogicalType::Enum {
-                name: "Phase".to_string(),
-                variants: variants.clone(),
-            }
-        );
+        assert_eq!(metadata.results[&ResultId(0)], schema.logical_type());
         assert_eq!(metadata.results[&ResultId(2)], LogicalType::Int);
         assert_eq!(
             metadata.blocks[0].successors,
@@ -3107,11 +3194,11 @@ mod tests {
             (
                 "immediate constructor result",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
+                    Inst::CheckedEnumVariant {
                         result: Value::ImmInt(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
+                        schema: schema.clone(),
                         variant_index: 0,
+                        payload: None,
                     },
                     Inst::Return(Value::ImmInt(0)),
                 ],
@@ -3119,11 +3206,14 @@ mod tests {
             (
                 "empty schema",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
+                    Inst::CheckedEnumVariant {
                         result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: vec![],
+                        schema: EnumSchema {
+                            name: "Phase".to_string(),
+                            variants: vec![],
+                        },
                         variant_index: 0,
+                        payload: None,
                     },
                     Inst::Return(Value::ImmInt(0)),
                 ],
@@ -3131,36 +3221,21 @@ mod tests {
             (
                 "duplicate variant schema",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: vec!["Cold".to_string(), "Cold".to_string()],
-                        variant_index: 0,
-                    },
+                    checked_variant(Value::Reg(0), unit_schema("Phase", &["Cold", "Cold"]), 0),
                     Inst::Return(Value::ImmInt(0)),
                 ],
             ),
             (
                 "out of range variant",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        variant_index: 2,
-                    },
+                    checked_variant(Value::Reg(0), schema.clone(), 2),
                     Inst::Return(Value::ImmInt(0)),
                 ],
             ),
             (
                 "immediate dispatch value",
                 vec![
-                    Inst::CheckedUnitEnumDispatch {
-                        value: Value::ImmInt(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        targets: vec!["cold".to_string(), "warm".to_string()],
-                    },
+                    checked_dispatch(Value::ImmInt(0), schema.clone(), &["cold", "warm"]),
                     Inst::Label("cold".to_string()),
                     Inst::Return(Value::ImmInt(0)),
                     Inst::Label("warm".to_string()),
@@ -3170,12 +3245,7 @@ mod tests {
             (
                 "undefined dispatch value",
                 vec![
-                    Inst::CheckedUnitEnumDispatch {
-                        value: Value::Reg(7),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        targets: vec!["cold".to_string(), "warm".to_string()],
-                    },
+                    checked_dispatch(Value::Reg(7), schema.clone(), &["cold", "warm"]),
                     Inst::Label("cold".to_string()),
                     Inst::Return(Value::ImmInt(0)),
                     Inst::Label("warm".to_string()),
@@ -3185,18 +3255,12 @@ mod tests {
             (
                 "dispatch schema mismatch",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        variant_index: 0,
-                    },
-                    Inst::CheckedUnitEnumDispatch {
-                        value: Value::Reg(0),
-                        enum_name: "Other".to_string(),
-                        variants: variants.clone(),
-                        targets: vec!["cold".to_string(), "warm".to_string()],
-                    },
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
+                    checked_dispatch(
+                        Value::Reg(0),
+                        unit_schema("Other", &["Cold", "Warm"]),
+                        &["cold", "warm"],
+                    ),
                     Inst::Label("cold".to_string()),
                     Inst::Return(Value::ImmInt(0)),
                     Inst::Label("warm".to_string()),
@@ -3206,18 +3270,8 @@ mod tests {
             (
                 "incomplete dispatch",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        variant_index: 0,
-                    },
-                    Inst::CheckedUnitEnumDispatch {
-                        value: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        targets: vec!["cold".to_string()],
-                    },
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
+                    checked_dispatch(Value::Reg(0), schema.clone(), &["cold"]),
                     Inst::Label("cold".to_string()),
                     Inst::Return(Value::ImmInt(0)),
                 ],
@@ -3225,18 +3279,8 @@ mod tests {
             (
                 "duplicate dispatch targets",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        variant_index: 0,
-                    },
-                    Inst::CheckedUnitEnumDispatch {
-                        value: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        targets: vec!["cold".to_string(), "cold".to_string()],
-                    },
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
+                    checked_dispatch(Value::Reg(0), schema.clone(), &["cold", "cold"]),
                     Inst::Label("cold".to_string()),
                     Inst::Return(Value::ImmInt(0)),
                 ],
@@ -3244,18 +3288,8 @@ mod tests {
             (
                 "missing dispatch target",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        variant_index: 0,
-                    },
-                    Inst::CheckedUnitEnumDispatch {
-                        value: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        targets: vec!["cold".to_string(), "missing".to_string()],
-                    },
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
+                    checked_dispatch(Value::Reg(0), schema.clone(), &["cold", "missing"]),
                     Inst::Label("cold".to_string()),
                     Inst::Return(Value::ImmInt(0)),
                 ],
@@ -3263,18 +3297,8 @@ mod tests {
             (
                 "conflicting enum schema",
                 vec![
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        variant_index: 0,
-                    },
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(1),
-                        enum_name: "Phase".to_string(),
-                        variants: vec!["Cold".to_string(), "Hot".to_string()],
-                        variant_index: 1,
-                    },
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
+                    checked_variant(Value::Reg(1), unit_schema("Phase", &["Cold", "Hot"]), 1),
                     Inst::Return(Value::ImmInt(0)),
                 ],
             ),
@@ -3286,12 +3310,7 @@ mod tests {
                         struct_name: "Phase".to_string(),
                         field_types: vec![LogicalType::Int],
                     },
-                    Inst::CheckedUnitEnumVariant {
-                        result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
-                        variant_index: 0,
-                    },
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
                     Inst::Return(Value::ImmInt(0)),
                 ],
             ),
@@ -3299,11 +3318,179 @@ mod tests {
                 "result place collision",
                 vec![
                     Inst::Alloca(Value::Reg(0), "slot".to_string()),
-                    Inst::CheckedUnitEnumVariant {
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        ];
+
+        for (label, body) in invalid_cases {
+            assert!(
+                verify_ir(function(body)).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+    }
+
+    #[test]
+    fn checked_scalar_payload_enum_construction_dispatch_and_extraction_are_fail_closed() {
+        let schema = scalar_payload_schema("Signal");
+        let valid = verify_ir(function(vec![
+            Inst::CheckedEnumVariant {
+                result: Value::Reg(0),
+                schema: schema.clone(),
+                variant_index: 1,
+                payload: Some(Value::ImmInt(41)),
+            },
+            checked_dispatch(
+                Value::Reg(0),
+                schema.clone(),
+                &["idle", "count", "ratio", "ready"],
+            ),
+            Inst::Label("idle".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("count".to_string()),
+            Inst::CheckedEnumPayload {
+                result: Value::Reg(1),
+                value: Value::Reg(0),
+                schema: schema.clone(),
+                variant_index: 1,
+            },
+            Inst::Return(Value::Reg(1)),
+            Inst::Label("ratio".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("ready".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect("exact scalar-payload construction, guard, and extraction are valid");
+        assert_eq!(
+            valid.metadata().functions["main"].results[&ResultId(0)],
+            schema.logical_type()
+        );
+        assert_eq!(
+            valid.metadata().functions["main"].results[&ResultId(1)],
+            LogicalType::Int
+        );
+
+        let invalid_cases = [
+            (
+                "missing constructor payload",
+                vec![
+                    checked_variant(Value::Reg(0), schema.clone(), 1),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "constructor payload on unit variant",
+                vec![
+                    Inst::CheckedEnumVariant {
                         result: Value::Reg(0),
-                        enum_name: "Phase".to_string(),
-                        variants: variants.clone(),
+                        schema: schema.clone(),
                         variant_index: 0,
+                        payload: Some(Value::ImmInt(1)),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "constructor payload exact-type mismatch",
+                vec![
+                    Inst::CheckedEnumVariant {
+                        result: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                        payload: Some(Value::ImmFloat(1.0)),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "payload extraction from a unit variant",
+                vec![
+                    checked_variant(Value::Reg(0), schema.clone(), 0),
+                    checked_dispatch(
+                        Value::Reg(0),
+                        schema.clone(),
+                        &["idle", "count", "ratio", "ready"],
+                    ),
+                    Inst::Label("idle".to_string()),
+                    Inst::CheckedEnumPayload {
+                        result: Value::Reg(1),
+                        value: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 0,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("count".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("ratio".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("ready".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "payload extraction under the wrong variant target",
+                vec![
+                    Inst::CheckedEnumVariant {
+                        result: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                        payload: Some(Value::ImmInt(1)),
+                    },
+                    checked_dispatch(
+                        Value::Reg(0),
+                        schema.clone(),
+                        &["idle", "count", "ratio", "ready"],
+                    ),
+                    Inst::Label("idle".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("count".to_string()),
+                    Inst::CheckedEnumPayload {
+                        result: Value::Reg(1),
+                        value: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 2,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("ratio".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("ready".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "payload extraction without dispatch guard",
+                vec![
+                    Inst::CheckedEnumVariant {
+                        result: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                        payload: Some(Value::ImmInt(1)),
+                    },
+                    Inst::CheckedEnumPayload {
+                        result: Value::Reg(1),
+                        value: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                    },
+                    Inst::Return(Value::Reg(1)),
+                ],
+            ),
+            (
+                "unsupported payload metadata",
+                vec![
+                    Inst::CheckedEnumVariant {
+                        result: Value::Reg(0),
+                        schema: EnumSchema {
+                            name: "Signal".to_string(),
+                            variants: vec![EnumVariantSchema {
+                                name: "Text".to_string(),
+                                payload: Some(LogicalType::String),
+                            }],
+                        },
+                        variant_index: 0,
+                        payload: Some(Value::ImmString("x".to_string())),
                     },
                     Inst::Return(Value::ImmInt(0)),
                 ],
@@ -3316,6 +3503,21 @@ mod tests {
                 "{label} passed checked IR verification"
             );
         }
+
+        let payload_transport = schema.logical_type();
+        let transport_error = verify_ir(function(vec![
+            Inst::CheckedFunctionDef {
+                name: "forward".to_string(),
+                parameters: vec![("value".to_string(), payload_transport.clone())],
+                result: payload_transport,
+                body: vec![Inst::Return(Value::ImmInt(0))],
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]));
+        assert!(
+            transport_error.is_err(),
+            "payload enum function transport passed checked IR verification"
+        );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use crate::ast::{
     AstNode, Expression, MatchArm, Parameter, Pattern, Statement, Type, VariantDeclKind,
 };
-use crate::ir::LogicalType;
+use crate::ir::{EnumSchema, EnumVariantSchema, LogicalType};
 use crate::types::Ty;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -12,37 +12,44 @@ pub(crate) enum EnumExecutionContext {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UnitEnumContract {
-    pub(crate) name: String,
-    pub(crate) variants: Vec<String>,
+pub(crate) struct EnumContract {
+    pub(crate) schema: EnumSchema,
 }
 
-impl UnitEnumContract {
+impl EnumContract {
     pub(crate) fn ty(&self) -> Ty {
-        Ty::Enum(self.name.clone())
+        Ty::Enum(self.schema.name.clone())
     }
 
     pub(crate) fn variant_index(&self, variant: &str) -> Option<usize> {
-        self.variants
+        self.schema
+            .variants
             .iter()
-            .position(|candidate| candidate == variant)
+            .position(|candidate| candidate.name == variant)
+    }
+
+    pub(crate) fn payload_ty(&self, variant_index: usize) -> Option<Ty> {
+        self.schema.variants[variant_index]
+            .payload
+            .as_ref()
+            .map(scalar_logical_ty)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UnitEnumTransportType {
+pub(crate) struct EnumTransportType {
     pub(crate) ty: Ty,
     pub(crate) logical_type: LogicalType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct UnitEnumFunctionContract {
+pub(crate) struct EnumFunctionContract {
     pub(crate) name: String,
-    pub(crate) parameters: Vec<(String, UnitEnumTransportType)>,
-    pub(crate) result: UnitEnumTransportType,
+    pub(crate) parameters: Vec<(String, EnumTransportType)>,
+    pub(crate) result: EnumTransportType,
 }
 
-impl UnitEnumFunctionContract {
+impl EnumFunctionContract {
     pub(crate) fn parameter_types(&self) -> Vec<Ty> {
         self.parameters
             .iter()
@@ -52,22 +59,37 @@ impl UnitEnumFunctionContract {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ResolvedUnitEnumConstructor {
-    pub(crate) contract: UnitEnumContract,
+pub(crate) struct ResolvedEnumConstructor {
+    pub(crate) contract: EnumContract,
     pub(crate) variant_index: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ResolvedUnitEnumMatch {
-    pub(crate) contract: UnitEnumContract,
+pub(crate) struct EnumPayloadBinding {
+    pub(crate) name: String,
+    pub(crate) ty: Ty,
+    pub(crate) variant_index: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedEnumPatterns {
+    pub(crate) contract: EnumContract,
+    pub(crate) arm_for_variant: Vec<usize>,
+    pub(crate) payload_bindings: Vec<Option<EnumPayloadBinding>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedEnumMatch {
+    pub(crate) contract: EnumContract,
     /// Source-arm index for each variant in declaration order.
     pub(crate) arm_for_variant: Vec<usize>,
+    pub(crate) payload_bindings: Vec<Option<EnumPayloadBinding>>,
     pub(crate) result: Ty,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum EnumDefinitionDisposition {
-    Supported(UnitEnumContract),
+    Supported(EnumContract),
     Unsupported,
     Ambiguous,
 }
@@ -85,82 +107,138 @@ enum RawEnumDefinitionDisposition {
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct UnitEnumRegistry {
+pub(crate) struct EnumRegistry {
     definitions: BTreeMap<String, EnumDefinitionDisposition>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum UnitEnumError {
+pub(crate) enum EnumError {
     PreserveExistingBehavior,
     NoUniqueDefinition(String),
     UnsupportedDefinition(String),
-    UnknownVariant { enum_name: String, variant: String },
-    UnexpectedPayload { enum_name: String, variant: String },
+    UnknownVariant {
+        enum_name: String,
+        variant: String,
+    },
+    UnexpectedPayload {
+        enum_name: String,
+        variant: String,
+    },
+    MissingPayload {
+        enum_name: String,
+        variant: String,
+        expected: Ty,
+    },
+    PayloadTypeMismatch {
+        enum_name: String,
+        variant: String,
+        expected: Ty,
+        actual: Ty,
+    },
     MutableBinding,
-    BindingAnnotationMismatch { expected: String, actual: String },
+    BindingAnnotationMismatch {
+        expected: String,
+        actual: String,
+    },
     ExplicitVariantPatternsRequired,
-    ForeignArm { actual: String, expected: String },
+    MissingIdentifierPayloadBinding(String),
+    UnexpectedPayloadBinding(String),
+    PayloadBindingShadowsConsumed(String),
+    ForeignArm {
+        actual: String,
+        expected: String,
+    },
     DuplicateArm(String),
     IncompleteCoverage,
     UnsupportedResult,
-    ResultMismatch { expected: Ty, actual: Ty },
+    ResultMismatch {
+        expected: Ty,
+        actual: Ty,
+    },
     ArmReusesConsumedScrutinee(String),
     DuplicateConsumption(String),
     ProcessEntryTransport,
     GenericTransportFunction,
     InvalidTransportFunction,
     InvalidTransportParameter(String),
-    UnsupportedTransportParameter { function: String, parameter: String },
+    UnsupportedTransportParameter {
+        function: String,
+        parameter: String,
+    },
     UnsupportedTransportResult(String),
+    PayloadEnumTransport(String),
 }
 
-impl UnitEnumError {
+impl EnumError {
     pub(crate) fn diagnostic(&self) -> String {
         match self {
             Self::PreserveExistingBehavior => "Match expressions are not supported.".to_string(),
             Self::NoUniqueDefinition(name) => {
-                format!("enum `{name}` has no unique admitted unit definition")
+                format!("enum `{name}` has no unique admitted definition")
             }
             Self::UnsupportedDefinition(name) => {
-                format!("enum `{name}` is not an admitted non-generic unit enum")
+                format!("enum `{name}` is not an admitted non-generic unit-or-unary-scalar enum")
             }
             Self::UnknownVariant { enum_name, variant } => {
-                format!("unit enum `{enum_name}` has no variant `{variant}`")
+                format!("enum `{enum_name}` has no variant `{variant}`")
             }
-            Self::UnexpectedPayload { enum_name, variant } => format!(
-                "unit enum `{enum_name}` variant `{variant}` does not accept payload data"
+            Self::UnexpectedPayload { enum_name, variant } => {
+                format!("enum `{enum_name}` variant `{variant}` does not accept payload data")
+            }
+            Self::MissingPayload {
+                enum_name,
+                variant,
+                expected,
+            } => format!(
+                "enum `{enum_name}` variant `{variant}` requires one {} payload",
+                expected.to_string().to_ascii_lowercase()
             ),
-            Self::MutableBinding => "mutable unit-enum bindings are not admitted".to_string(),
-            Self::BindingAnnotationMismatch { expected, actual } => format!(
-                "unit enum binding annotation mismatch: expected {expected}, actual {actual}"
+            Self::PayloadTypeMismatch {
+                enum_name,
+                variant,
+                expected,
+                actual,
+            } => format!(
+                "enum `{enum_name}` variant `{variant}` payload type mismatch: expected {expected}, actual {actual}"
             ),
-            Self::ExplicitVariantPatternsRequired =>
-                "unit enum match requires one explicit payload-free variant arm per declared variant"
-                    .to_string(),
+            Self::MutableBinding => "mutable enum bindings are not admitted".to_string(),
+            Self::BindingAnnotationMismatch { expected, actual } => {
+                format!("enum binding annotation mismatch: expected {expected}, actual {actual}")
+            }
+            Self::ExplicitVariantPatternsRequired => {
+                "enum match requires one explicit variant arm per declared variant".to_string()
+            }
+            Self::MissingIdentifierPayloadBinding(variant) => {
+                format!("enum match variant `{variant}` requires one identifier payload binding")
+            }
+            Self::UnexpectedPayloadBinding(variant) => {
+                format!("enum match variant `{variant}` does not accept a payload binding")
+            }
+            Self::PayloadBindingShadowsConsumed(name) => {
+                format!("enum payload binding `{name}` shadows consumed scrutinee")
+            }
             Self::ForeignArm { actual, expected } => {
-                format!("unit enum match arm names `{actual}`, expected `{expected}`")
+                format!("enum match arm names `{actual}`, expected `{expected}`")
             }
             Self::DuplicateArm(variant) => {
-                format!("unit enum match contains duplicate variant `{variant}`")
+                format!("enum match contains duplicate variant `{variant}`")
             }
             Self::IncompleteCoverage => {
-                "unit enum match must cover every declared variant exactly once".to_string()
+                "enum match must cover every declared variant exactly once".to_string()
             }
             Self::UnsupportedResult => {
-                "unit enum match arms must return Int, Float, or Bool".to_string()
+                "enum match arms must return Int, Float, or Bool".to_string()
             }
-            Self::ResultMismatch { expected, actual } => format!(
-                "unit enum match arm result mismatch: expected {expected}, actual {actual}"
-            ),
+            Self::ResultMismatch { expected, actual } => {
+                format!("enum match arm result mismatch: expected {expected}, actual {actual}")
+            }
             Self::ArmReusesConsumedScrutinee(name) => {
-                format!("unit enum match arm reuses consumed scrutinee `{name}`")
+                format!("enum match arm reuses consumed scrutinee `{name}`")
             }
             Self::DuplicateConsumption(name) => {
-                format!("unit enum `{name}` is consumed more than once in one expression")
+                format!("enum `{name}` is consumed more than once in one expression")
             }
-            Self::ProcessEntryTransport => {
-                "process entry cannot transport unit enums".to_string()
-            }
+            Self::ProcessEntryTransport => "process entry cannot transport unit enums".to_string(),
             Self::GenericTransportFunction => {
                 "generic unit-enum transport functions are not admitted".to_string()
             }
@@ -179,11 +257,14 @@ impl UnitEnumError {
             Self::UnsupportedTransportResult(function) => format!(
                 "unit-enum transport function `{function}` result is not an admitted by-value type"
             ),
+            Self::PayloadEnumTransport(name) => {
+                format!("payload enum `{name}` is not admitted in function transport")
+            }
         }
     }
 }
 
-impl UnitEnumRegistry {
+impl EnumRegistry {
     pub(crate) fn from_top_level_ast(ast: &[AstNode]) -> Self {
         let mut raw = BTreeMap::<String, RawEnumDefinitionDisposition>::new();
         let mut struct_names = BTreeSet::new();
@@ -237,32 +318,47 @@ impl UnitEnumRegistry {
         if !valid_symbol(name)
             || !definition.type_params.is_empty()
             || definition.variants.is_empty()
-            || definition.variants.iter().any(|variant| {
-                !valid_symbol(&variant.name)
-                    || !matches!(variant.kind, VariantDeclKind::Unit)
-                    || !names.insert(variant.name.clone())
-            })
         {
             return EnumDefinitionDisposition::Unsupported;
         }
-        EnumDefinitionDisposition::Supported(UnitEnumContract {
-            name: name.to_string(),
-            variants: definition
-                .variants
-                .into_iter()
-                .map(|variant| variant.name)
-                .collect(),
+        let mut variants = Vec::with_capacity(definition.variants.len());
+        for variant in definition.variants {
+            if !valid_symbol(&variant.name) || !names.insert(variant.name.clone()) {
+                return EnumDefinitionDisposition::Unsupported;
+            }
+            let payload = match variant.kind {
+                VariantDeclKind::Unit => None,
+                VariantDeclKind::Tuple(types) if types.len() == 1 => {
+                    let Some((_, logical_type)) = scalar_payload_annotation(&types[0]) else {
+                        return EnumDefinitionDisposition::Unsupported;
+                    };
+                    Some(logical_type)
+                }
+                VariantDeclKind::Tuple(_) | VariantDeclKind::Struct(_) => {
+                    return EnumDefinitionDisposition::Unsupported;
+                }
+            };
+            variants.push(EnumVariantSchema {
+                name: variant.name,
+                payload,
+            });
+        }
+        EnumDefinitionDisposition::Supported(EnumContract {
+            schema: EnumSchema {
+                name: name.to_string(),
+                variants,
+            },
         })
     }
 
-    fn contract(&self, name: &str) -> Result<UnitEnumContract, UnitEnumError> {
+    fn contract(&self, name: &str) -> Result<EnumContract, EnumError> {
         match self.definitions.get(name) {
             Some(EnumDefinitionDisposition::Supported(contract)) => Ok(contract.clone()),
             Some(EnumDefinitionDisposition::Unsupported) => {
-                Err(UnitEnumError::UnsupportedDefinition(name.to_string()))
+                Err(EnumError::UnsupportedDefinition(name.to_string()))
             }
             Some(EnumDefinitionDisposition::Ambiguous) | None => {
-                Err(UnitEnumError::NoUniqueDefinition(name.to_string()))
+                Err(EnumError::NoUniqueDefinition(name.to_string()))
             }
         }
     }
@@ -286,7 +382,7 @@ impl UnitEnumRegistry {
         &self,
         annotation: &Type,
         resolve_existing: &mut F,
-    ) -> Result<Option<UnitEnumTransportType>, UnitEnumError>
+    ) -> Result<Option<EnumTransportType>, EnumError>
     where
         F: FnMut(&Type) -> Option<(Ty, LogicalType)>,
     {
@@ -294,16 +390,16 @@ impl UnitEnumRegistry {
             && self.definitions.contains_key(name)
         {
             let contract = self.contract(name)?;
-            return Ok(Some(UnitEnumTransportType {
+            if !contract.schema.is_unit() {
+                return Err(EnumError::PayloadEnumTransport(name.clone()));
+            }
+            return Ok(Some(EnumTransportType {
                 ty: contract.ty(),
-                logical_type: LogicalType::Enum {
-                    name: contract.name,
-                    variants: contract.variants,
-                },
+                logical_type: contract.schema.logical_type(),
             }));
         }
         Ok(resolve_existing(annotation)
-            .map(|(ty, logical_type)| UnitEnumTransportType { ty, logical_type }))
+            .map(|(ty, logical_type)| EnumTransportType { ty, logical_type }))
     }
 
     pub(crate) fn resolve_function_contract<F>(
@@ -313,7 +409,7 @@ impl UnitEnumRegistry {
         return_type: Option<&Type>,
         type_params: &[String],
         mut resolve_existing: F,
-    ) -> Result<Option<UnitEnumFunctionContract>, UnitEnumError>
+    ) -> Result<Option<EnumFunctionContract>, EnumError>
     where
         F: FnMut(&Type) -> Option<(Ty, LogicalType)>,
     {
@@ -325,27 +421,25 @@ impl UnitEnumRegistry {
             return Ok(None);
         }
         if name == "main" {
-            return Err(UnitEnumError::ProcessEntryTransport);
+            return Err(EnumError::ProcessEntryTransport);
         }
         if !type_params.is_empty() {
-            return Err(UnitEnumError::GenericTransportFunction);
+            return Err(EnumError::GenericTransportFunction);
         }
         if !valid_symbol(name) || name == "printf" {
-            return Err(UnitEnumError::InvalidTransportFunction);
+            return Err(EnumError::InvalidTransportFunction);
         }
 
         let mut seen = BTreeSet::new();
         let mut resolved_parameters = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             if !valid_symbol(&parameter.name) || !seen.insert(parameter.name.as_str()) {
-                return Err(UnitEnumError::InvalidTransportParameter(
-                    parameter.name.clone(),
-                ));
+                return Err(EnumError::InvalidTransportParameter(parameter.name.clone()));
             }
             let Some(contract) =
                 self.resolve_transport_annotation(&parameter.param_type, &mut resolve_existing)?
             else {
-                return Err(UnitEnumError::UnsupportedTransportParameter {
+                return Err(EnumError::UnsupportedTransportParameter {
                     function: name.to_string(),
                     parameter: parameter.name.clone(),
                 });
@@ -356,13 +450,13 @@ impl UnitEnumRegistry {
         let result = match return_type {
             Some(result) => self
                 .resolve_transport_annotation(result, &mut resolve_existing)?
-                .ok_or_else(|| UnitEnumError::UnsupportedTransportResult(name.to_string()))?,
-            None => UnitEnumTransportType {
+                .ok_or_else(|| EnumError::UnsupportedTransportResult(name.to_string()))?,
+            None => EnumTransportType {
                 ty: Ty::Void,
                 logical_type: LogicalType::Void,
             },
         };
-        Ok(Some(UnitEnumFunctionContract {
+        Ok(Some(EnumFunctionContract {
             name: name.to_string(),
             parameters: resolved_parameters,
             result,
@@ -375,29 +469,67 @@ impl UnitEnumRegistry {
         variant: &str,
         has_payload: bool,
         context: EnumExecutionContext,
-    ) -> Result<ResolvedUnitEnumConstructor, UnitEnumError> {
+    ) -> Result<ResolvedEnumConstructor, EnumError> {
         if context != EnumExecutionContext::AdmittedFunction
             || matches!(enum_name, "Option" | "Result")
         {
-            return Err(UnitEnumError::PreserveExistingBehavior);
+            return Err(EnumError::PreserveExistingBehavior);
         }
         let contract = self.contract(enum_name)?;
         let Some(variant_index) = contract.variant_index(variant) else {
-            return Err(UnitEnumError::UnknownVariant {
+            return Err(EnumError::UnknownVariant {
                 enum_name: enum_name.to_string(),
                 variant: variant.to_string(),
             });
         };
-        if has_payload {
-            return Err(UnitEnumError::UnexpectedPayload {
+        let expected = contract.payload_ty(variant_index);
+        if has_payload && expected.is_none() {
+            return Err(EnumError::UnexpectedPayload {
                 enum_name: enum_name.to_string(),
                 variant: variant.to_string(),
             });
         }
-        Ok(ResolvedUnitEnumConstructor {
+        if !has_payload && let Some(expected) = expected {
+            return Err(EnumError::MissingPayload {
+                enum_name: enum_name.to_string(),
+                variant: variant.to_string(),
+                expected,
+            });
+        }
+        Ok(ResolvedEnumConstructor {
             contract,
             variant_index,
         })
+    }
+
+    pub(crate) fn validate_constructor_payload(
+        &self,
+        resolved: &ResolvedEnumConstructor,
+        actual: Option<&Ty>,
+    ) -> Result<(), EnumError> {
+        let expected = resolved.contract.payload_ty(resolved.variant_index);
+        if expected.as_ref() == actual {
+            return Ok(());
+        }
+        let variant = &resolved.contract.schema.variants[resolved.variant_index].name;
+        match (expected, actual) {
+            (None, Some(_)) => Err(EnumError::UnexpectedPayload {
+                enum_name: resolved.contract.schema.name.clone(),
+                variant: variant.clone(),
+            }),
+            (Some(expected), None) => Err(EnumError::MissingPayload {
+                enum_name: resolved.contract.schema.name.clone(),
+                variant: variant.clone(),
+                expected,
+            }),
+            (Some(expected), Some(actual)) => Err(EnumError::PayloadTypeMismatch {
+                enum_name: resolved.contract.schema.name.clone(),
+                variant: variant.clone(),
+                expected,
+                actual: actual.clone(),
+            }),
+            (None, None) => Ok(()),
+        }
     }
 
     pub(crate) fn validate_binding(
@@ -405,15 +537,15 @@ impl UnitEnumRegistry {
         enum_name: &str,
         annotation: Option<&Type>,
         mutable: bool,
-    ) -> Result<(), UnitEnumError> {
+    ) -> Result<(), EnumError> {
         self.contract(enum_name)?;
         if mutable {
-            return Err(UnitEnumError::MutableBinding);
+            return Err(EnumError::MutableBinding);
         }
         match annotation {
             None => Ok(()),
             Some(Type::Named(actual)) if actual == enum_name => Ok(()),
-            Some(actual) => Err(UnitEnumError::BindingAnnotationMismatch {
+            Some(actual) => Err(EnumError::BindingAnnotationMismatch {
                 expected: enum_name.to_string(),
                 actual: display_type(actual),
             }),
@@ -450,47 +582,70 @@ impl UnitEnumRegistry {
 
     fn resolve_arms(
         &self,
-        contract: &UnitEnumContract,
+        contract: &EnumContract,
         arms: &[MatchArm],
         consumed_scrutinees: &[String],
-    ) -> Result<Vec<usize>, UnitEnumError> {
-        let mut arm_for_variant = vec![usize::MAX; contract.variants.len()];
+    ) -> Result<(Vec<usize>, Vec<Option<EnumPayloadBinding>>), EnumError> {
+        let mut arm_for_variant = vec![usize::MAX; contract.schema.variants.len()];
+        let mut payload_bindings = vec![None; arms.len()];
         for (arm_index, arm) in arms.iter().enumerate() {
             let Pattern::Enum {
                 enum_name,
                 variant,
-                data: None,
+                data,
             } = &arm.pattern
             else {
-                return Err(UnitEnumError::ExplicitVariantPatternsRequired);
+                return Err(EnumError::ExplicitVariantPatternsRequired);
             };
-            if enum_name != &contract.name {
-                return Err(UnitEnumError::ForeignArm {
+            if enum_name != &contract.schema.name {
+                return Err(EnumError::ForeignArm {
                     actual: enum_name.clone(),
-                    expected: contract.name.clone(),
+                    expected: contract.schema.name.clone(),
                 });
             }
             let Some(variant_index) = contract.variant_index(variant) else {
-                return Err(UnitEnumError::UnknownVariant {
-                    enum_name: contract.name.clone(),
+                return Err(EnumError::UnknownVariant {
+                    enum_name: contract.schema.name.clone(),
                     variant: variant.clone(),
                 });
             };
             if arm_for_variant[variant_index] != usize::MAX {
-                return Err(UnitEnumError::DuplicateArm(variant.clone()));
+                return Err(EnumError::DuplicateArm(variant.clone()));
+            }
+            match (contract.payload_ty(variant_index), data.as_deref()) {
+                (None, None) => {}
+                (None, Some(_)) => {
+                    return Err(EnumError::UnexpectedPayloadBinding(variant.clone()));
+                }
+                (Some(_), None) => {
+                    return Err(EnumError::MissingIdentifierPayloadBinding(variant.clone()));
+                }
+                (Some(ty), Some(Pattern::Identifier(name))) if valid_symbol(name) => {
+                    if consumed_scrutinees.contains(name) {
+                        return Err(EnumError::PayloadBindingShadowsConsumed(name.clone()));
+                    }
+                    payload_bindings[arm_index] = Some(EnumPayloadBinding {
+                        name: name.clone(),
+                        ty,
+                        variant_index,
+                    });
+                }
+                (Some(_), Some(_)) => {
+                    return Err(EnumError::MissingIdentifierPayloadBinding(variant.clone()));
+                }
             }
             if let Some(name) = consumed_scrutinees
                 .iter()
                 .find(|name| expression_mentions_identifier(&arm.body, name))
             {
-                return Err(UnitEnumError::ArmReusesConsumedScrutinee(name.clone()));
+                return Err(EnumError::ArmReusesConsumedScrutinee(name.clone()));
             }
             arm_for_variant[variant_index] = arm_index;
         }
-        if arms.len() != contract.variants.len() || arm_for_variant.contains(&usize::MAX) {
-            return Err(UnitEnumError::IncompleteCoverage);
+        if arms.len() != contract.schema.variants.len() || arm_for_variant.contains(&usize::MAX) {
+            return Err(EnumError::IncompleteCoverage);
         }
-        Ok(arm_for_variant)
+        Ok((arm_for_variant, payload_bindings))
     }
 
     pub(crate) fn resolve_match_patterns(
@@ -499,20 +654,24 @@ impl UnitEnumRegistry {
         scrutinee_expression: &Expression,
         arms: &[MatchArm],
         context: EnumExecutionContext,
-    ) -> Result<(UnitEnumContract, Vec<usize>), UnitEnumError> {
+    ) -> Result<ResolvedEnumPatterns, EnumError> {
         if context != EnumExecutionContext::AdmittedFunction {
-            return Err(UnitEnumError::PreserveExistingBehavior);
+            return Err(EnumError::PreserveExistingBehavior);
         }
         let Ty::Enum(enum_name) = scrutinee else {
-            return Err(UnitEnumError::PreserveExistingBehavior);
+            return Err(EnumError::PreserveExistingBehavior);
         };
         let contract = self.contract(enum_name)?;
         let consumed = match scrutinee_expression {
             Expression::Identifier(name) => vec![name.clone()],
             _ => Vec::new(),
         };
-        let mapping = self.resolve_arms(&contract, arms, &consumed)?;
-        Ok((contract, mapping))
+        let (arm_for_variant, payload_bindings) = self.resolve_arms(&contract, arms, &consumed)?;
+        Ok(ResolvedEnumPatterns {
+            contract,
+            arm_for_variant,
+            payload_bindings,
+        })
     }
 
     pub(crate) fn resolve_match_with_consumed(
@@ -523,12 +682,12 @@ impl UnitEnumRegistry {
         result_types: &[Ty],
         externally_consumed: &[String],
         context: EnumExecutionContext,
-    ) -> Result<ResolvedUnitEnumMatch, UnitEnumError> {
+    ) -> Result<ResolvedEnumMatch, EnumError> {
         if context != EnumExecutionContext::AdmittedFunction {
-            return Err(UnitEnumError::PreserveExistingBehavior);
+            return Err(EnumError::PreserveExistingBehavior);
         }
         let Ty::Enum(enum_name) = scrutinee else {
-            return Err(UnitEnumError::PreserveExistingBehavior);
+            return Err(EnumError::PreserveExistingBehavior);
         };
         let contract = self.contract(enum_name)?;
         let mut consumed = externally_consumed.to_vec();
@@ -537,24 +696,25 @@ impl UnitEnumRegistry {
         {
             consumed.push(name.clone());
         }
-        let arm_for_variant = self.resolve_arms(&contract, arms, &consumed)?;
+        let (arm_for_variant, payload_bindings) = self.resolve_arms(&contract, arms, &consumed)?;
         let Some(result) = result_types.first().cloned() else {
-            return Err(UnitEnumError::IncompleteCoverage);
+            return Err(EnumError::IncompleteCoverage);
         };
         if !matches!(result, Ty::Int | Ty::Float | Ty::Bool) {
-            return Err(UnitEnumError::UnsupportedResult);
+            return Err(EnumError::UnsupportedResult);
         }
         for actual in result_types.iter().skip(1) {
             if actual != &result {
-                return Err(UnitEnumError::ResultMismatch {
+                return Err(EnumError::ResultMismatch {
                     expected: result,
                     actual: actual.clone(),
                 });
             }
         }
-        Ok(ResolvedUnitEnumMatch {
+        Ok(ResolvedEnumMatch {
             contract,
             arm_for_variant,
+            payload_bindings,
             result,
         })
     }
@@ -564,7 +724,7 @@ impl UnitEnumRegistry {
         expression: &Expression,
         lookup_binding: F,
         lookup_function_parameters: G,
-    ) -> Result<Vec<String>, UnitEnumError>
+    ) -> Result<Vec<String>, EnumError>
     where
         F: Fn(&str) -> Option<Ty>,
         G: Fn(&str) -> Option<Vec<Ty>>,
@@ -580,7 +740,7 @@ impl UnitEnumRegistry {
         let mut unique = BTreeSet::new();
         for name in &names {
             if !unique.insert(name.clone()) {
-                return Err(UnitEnumError::DuplicateConsumption(name.clone()));
+                return Err(EnumError::DuplicateConsumption(name.clone()));
             }
         }
         Ok(names)
@@ -588,7 +748,7 @@ impl UnitEnumRegistry {
 }
 
 fn collect_consumed_owned_values<F, G>(
-    registry: &UnitEnumRegistry,
+    registry: &EnumRegistry,
     expression: &Expression,
     names: &mut Vec<String>,
     lookup_binding: &F,
@@ -828,6 +988,28 @@ fn expression_mentions_identifier(expression: &Expression, target: &str) -> bool
         Expression::IntegerLiteral(_)
         | Expression::FloatLiteral(_)
         | Expression::StringLiteral(_) => false,
+    }
+}
+
+fn scalar_payload_annotation(annotation: &Type) -> Option<(Ty, LogicalType)> {
+    match annotation {
+        Type::Named(name) if matches!(name.as_str(), "int" | "i32") => {
+            Some((Ty::Int, LogicalType::Int))
+        }
+        Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
+            Some((Ty::Float, LogicalType::Float))
+        }
+        Type::Named(name) if name == "bool" => Some((Ty::Bool, LogicalType::Bool)),
+        _ => None,
+    }
+}
+
+fn scalar_logical_ty(logical_type: &LogicalType) -> Ty {
+    match logical_type {
+        LogicalType::Int => Ty::Int,
+        LogicalType::Float => Ty::Float,
+        LogicalType::Bool => Ty::Bool,
+        _ => unreachable!("admitted enum payload schemas are scalar"),
     }
 }
 

@@ -445,12 +445,6 @@ fn checked_admission_rejects_fabricated_scalar_fallbacks_and_accepts_verified_bo
 
     let cases = [
         RejectionCase {
-            name: "custom enum construction",
-            source: "enum Choice { Number(int) } fn main() { let choice = Choice::Number(7); }",
-            expected_prefix: "Semantic Analysis Error: enum `Choice` is not an admitted non-generic unit enum",
-            check_cli: true,
-        },
-        RejectionCase {
             name: "Some construction",
             source: "fn main() { let option = Some(7); }",
             expected_prefix: "IR Generation Error:",

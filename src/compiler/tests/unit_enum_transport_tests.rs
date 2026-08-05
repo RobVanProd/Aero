@@ -284,9 +284,9 @@ fn main() -> int { return 0; }
                 failures.push(format!("checked IR lost enum-bearing signatures:\n{debug}"));
             }
             for schema in [
-                "Enum { name: \"Solo\", variants: [\"Only\"] }",
-                "Enum { name: \"Phase\", variants: [\"Cold\", \"Warm\", \"Hot\"] }",
-                "Enum { name: \"Switch\", variants: [\"Off\", \"On\"] }",
+                "EnumSchema { name: \"Solo\", variants: [EnumVariantSchema { name: \"Only\", payload: None }] }",
+                "EnumSchema { name: \"Phase\", variants: [EnumVariantSchema { name: \"Cold\", payload: None }, EnumVariantSchema { name: \"Warm\", payload: None }, EnumVariantSchema { name: \"Hot\", payload: None }] }",
+                "EnumSchema { name: \"Switch\", variants: [EnumVariantSchema { name: \"Off\", payload: None }, EnumVariantSchema { name: \"On\", payload: None }] }",
             ] {
                 if !debug.contains(schema) {
                     failures.push(format!("checked metadata missing {schema:?}:\n{debug}"));
@@ -316,7 +316,7 @@ fn main() -> int { return 0; }
         (
             "payload enum parameter",
             "enum Phase { Cold, Warm(int) } fn take(value: Phase) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Phase` is not an admitted non-generic unit enum",
+            "payload enum `Phase` is not admitted in function transport",
         ),
         (
             "process entry parameter",
@@ -381,12 +381,12 @@ fn main() -> int { return 0; }
         (
             "duplicate nested consumption",
             "enum Phase { Cold } fn take(value: Phase) -> int { 1 } fn pair(a: int, b: int) -> int { a + b } fn main() -> int { let phase = Phase::Cold; pair(take(phase), take(phase)) }",
-            "unit enum `phase` is consumed more than once in one expression",
+            "enum `phase` is consumed more than once in one expression",
         ),
         (
             "call scrutinee arm reuse",
             "enum Phase { Cold } fn forward(value: Phase) -> Phase { value } fn main() -> int { let phase = Phase::Cold; match forward(phase) { Phase::Cold => match phase { Phase::Cold => 1 } } }",
-            "unit enum match arm reuses consumed scrutinee `phase`",
+            "enum match arm reuses consumed scrutinee `phase`",
         ),
         (
             "closure transport context",
@@ -415,8 +415,8 @@ fn main() -> int { return 0; }
             let debug = format!("{raw:?}");
             if debug.contains("CheckedUnitEnumParameter")
                 || debug.contains("CheckedFunctionDef")
-                || debug.contains("CheckedUnitEnumVariant")
-                || debug.contains("CheckedUnitEnumDispatch")
+                || debug.contains("CheckedEnumVariant")
+                || debug.contains("CheckedEnumDispatch")
             {
                 failures.push(format!(
                     "deprecated raw path activated checked enum transport: {debug}"
