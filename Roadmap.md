@@ -12,11 +12,11 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-Current integration work is the locally green `CORE-063` candidate: unary owned enums
-now carry the accepted recursive CopyData grammar through construction, exhaustive
+Current integration work has accepted `CORE-063` publicly: unary owned enums carry the
+accepted recursive CopyData grammar through construction, exhaustive
 identifier-bound Match, internal transport, checked IR, independent verification,
-private typed LLVM, and direct modules. Public pinned LLVM/Clang 22 native-exit-113
-evidence remains pending. Accepted CORE-061 keeps closures parsed-only/fail-closed and
+private typed LLVM, direct modules, and the pinned LLVM/Clang 22 native-exit-113 gate.
+Accepted CORE-061 keeps closures parsed-only/fail-closed and
 accepted CORE-062 supplies the recursive CopyData classifier. Projected borrows/writes,
 deeper CFG ownership, stable ABI, full module semantics, generic/multi-field enums, and
 real GPU execution remain unresolved.

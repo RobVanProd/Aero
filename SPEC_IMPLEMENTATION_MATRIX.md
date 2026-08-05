@@ -84,7 +84,11 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- `CORE-063` is a locally green record-inclusive candidate for unique nongeneric
+- `CORE-063` is accepted public at exact implementation
+  `2a5c3c58192dc65116c436d6ae76da5829eeba52`, tree
+  `8a5cef6b14214e76349a41f6997d5fa19595858f`, and stable patch ID
+  `276af069807b6f59c233a2f281c1b0d0b8c899b8`, with verified native-link repair head
+  `bebd0b6a87108219497187a5952688c95c397158`, for unique nongeneric
   enums whose variants are unit or carry exactly one recursive `CopyData` payload.
   Enum admission delegates to the accepted recursive struct/array/tuple classifier;
   semantic preflight, inference, checked IR, the independent verifier, and private LLVM
@@ -92,9 +96,10 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   construction, exhaustive identifier-bound Match, projections, internal transport,
   direct modules, corruption controls, and fail-closed unsupported leaves/topologies.
   Formatting, all-target/all-feature checking, correctness Clippy, docs, 179 library
-  and 185 binary tests, and the exact root gate pass. The pinned LLVM/Clang 22
-  native-exit-113 workflow and all public checks remain pending; this is not public
-  acceptance or a stable enum layout/ABI claim.
+  and 185 binary tests, and the exact root gate pass. All eight public checks pass;
+  stable job `92363420145` uses LLVM/Clang 22.1.8 for external/machine verification,
+  object lowering, explicit private non-PIE linking, and exact native exit 113. This is
+  not a stable enum layout/ABI claim.
 
 - `CORE-062` is accepted public for recursive finite CopyData composition at exact
   implementation `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree

@@ -147,7 +147,7 @@ aero lsp
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
 | **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Projected writes/borrows and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
-| **Data Types** | Recursive finite CopyData composition is publicly accepted. CORE-063 is a locally green candidate for unit-or-unary recursive CopyData owned enums with exhaustive bound Match and internal transport; pinned public native evidence remains pending. Broader enum/storage/destructuring/generic semantics remain unsupported. |
+| **Data Types** | Recursive finite CopyData composition and bounded unit-or-unary recursive CopyData owned enums with exhaustive bound Match and internal transport are publicly accepted. Broader enum/storage/destructuring/generic semantics remain unsupported. |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
@@ -379,15 +379,18 @@ aero lsp
 > convention, ABI, FFI,
 > aggregate enum storage, borrowing, mutation, drop, or general CFG ownership claim.
 >
-> CORE-063 is a locally green superseding candidate for unary payloads drawn from the
+> CORE-063 is publicly accepted for unary payloads drawn from the
 > accepted recursive CopyData grammar: fixed arrays, arity-at-least-two tuples, and
 > finite acyclic named Copy structs in addition to scalars. Exact construction,
 > exhaustive identifier-bound Match, arm-local projections, owned internal transport,
 > direct modules, checked schemas, verifier corruption controls, and private typed LLVM
 > pass the exhaustive target and exact root gate at 179 library and 185 binary tests.
 > Unit/scalar layouts retain their accepted private forms; aggregate schemas use a
-> private tag plus exact typed lanes. Pinned LLVM/Clang 22 native exit 113 and all public
-> checks remain pending, so this is not public acceptance or a stable layout/ABI claim.
+> private tag plus exact typed lanes. Exact implementation `2a5c3c5` with verified
+> native-link repair head `bebd0b6` passes all eight public checks; stable job
+> `92363420145` uses LLVM/Clang 22.1.8 for the known-invalid control, external and
+> machine verification, object lowering, explicit private non-PIE link, and native exit
+> 113. This is not a stable layout/ABI claim.
 
 Formal spec: `docs/language/aero_formal_language_specification.md`
 

@@ -12547,3 +12547,36 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   keeps the established static `llc-22` object and makes the private executable choice
   explicit with `clang-22 -no-pie`; the exhaustive test pins that exact command. No
   compiler semantics, LLVM representation, public ABI, or release behavior changes.
+
+### CORE-063 public acceptance closure
+
+- Exact identities: implementation commit
+  `2a5c3c58192dc65116c436d6ae76da5829eeba52`, tree
+  `8a5cef6b14214e76349a41f6997d5fa19595858f`, stable patch ID
+  `276af069807b6f59c233a2f281c1b0d0b8c899b8`; verified native-link repair head
+  `bebd0b6a87108219497187a5952688c95c397158`, tree
+  `47516726cfeecd0dc2a65b916ba3859a7c31d96e`, repair patch ID
+  `1f0e02410d969b7646aef65e7ef7e57532d8eabb`.
+- Public checks: all eight PR checks pass on exact repair head `bebd0b6`. CodeQL run
+  `31022757247` supplies jobs `92363411086` (actions), `92363411205` (python),
+  `92363411014` (rust), and aggregate check `92363605055`; push CI
+  `31022756615` / job `92363401751`, PR CI `31022760915` / job `92363418221`,
+  and PR Rust CI `31022761529` / stable job `92363420145` and nightly job
+  `92363420286` are green.
+- Pinned system evidence: stable job `92363420145` installs LLVM/Clang 22.1.8,
+  confirms `opt-22` rejects known-invalid IR, builds the tracked two-module source,
+  externally verifies it with `opt-22`, machine-verifies and object-lowers it with
+  `llc-22`, explicitly links the private executable with `clang-22 -no-pie`, and
+  records exact native exit 113. Nightly job `92363420286` independently records exit
+  113. The failed first candidate link is retained above; no failure is erased.
+- Acceptance boundary: CORE-063 is accepted public for the frozen unary recursive
+  CopyData payload enum class. Candidate wording in implementation history is
+  superseded by this evidence-only closure. No stable layout/ABI/FFI, general enum
+  storage/borrowing/mutation, aggregate Match result, generic/nested destructuring,
+  general ownership/lifetime, closure, accelerator, benchmark, release, merge, or
+  stability claim follows.
+- PR/scaling state: PR #4 is synchronized to CORE-063 and remains draft/open/unmerged.
+  Its front page leads with the current exact identity and keeps the controlled
+  checkpoint strategy, hard-capability balance, structured evidence generation, and
+  periodic composed system gates explicit. This closure changes records only; its
+  successor commit identity is reported externally and must pass all eight checks again.

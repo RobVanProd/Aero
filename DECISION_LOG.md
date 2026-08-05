@@ -2756,11 +2756,14 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-059 - Extend unary owned-enum payloads to recursive CopyData
 
 - Date: 2026-08-05
-- Status: locally green record-inclusive CORE-063 candidate. Formatting,
+- Status: accepted public at exact implementation
+  `2a5c3c58192dc65116c436d6ae76da5829eeba52`, tree
+  `8a5cef6b14214e76349a41f6997d5fa19595858f`, and stable patch ID
+  `276af069807b6f59c233a2f281c1b0d0b8c899b8`, with verified native-link repair head
+  `bebd0b6a87108219497187a5952688c95c397158`. Formatting,
   all-target/all-feature checking, correctness Clippy, docs, 179/179 library tests,
-  185/185 binary tests, verifier corruptions, the exhaustive target, and the exact
-  repository-root gate pass. The commit containing this record becomes the immutable
-  candidate; public checks and pinned LLVM/Clang 22 native exit 113 remain pending.
+  185/185 binary tests, verifier corruptions, the exhaustive target, the exact root
+  gate, all eight public checks, and pinned LLVM/Clang 22 native exit 113 pass.
 - Decision: a unique nongeneric nonempty enum is executable when every variant is unit
   or contains exactly one value accepted by DEC-058's recursive `CopyData` contract.
   Variant order and the exact recursive payload schema are identity. `EnumRegistry`
@@ -2789,3 +2792,9 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   runtime bounds behavior, whose specifications remain ambiguous. PR #4 remains draft;
   checkpoint strategy, evidence-manifest automation, and periodic composed system gates
   remain active separate controls.
+- Public evidence: CodeQL run `31022757247`, push CI `31022756615`, PR CI
+  `31022760915`, and PR Rust CI `31022761529` pass on verified head `bebd0b6`.
+  Stable job `92363420145` installs LLVM/Clang 22.1.8, proves the known-invalid
+  verifier control, externally verifies, machine-verifies, object-lowers, explicitly
+  links the private non-PIE executable, and observes exact exit 113; nightly job
+  `92363420286` independently observes exit 113.

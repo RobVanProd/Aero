@@ -8,15 +8,20 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-063` is a locally green record-inclusive candidate. It extends the accepted
+- `CORE-063` is accepted public at exact implementation
+  `2a5c3c58192dc65116c436d6ae76da5829eeba52`, tree
+  `8a5cef6b14214e76349a41f6997d5fa19595858f`, and stable patch ID
+  `276af069807b6f59c233a2f281c1b0d0b8c899b8`, with verified native-link repair head
+  `bebd0b6a87108219497187a5952688c95c397158`. It extends the accepted
   owned unit/unary-scalar enum class to unary recursive `CopyData` payloads by consuming
   the accepted registry classifier, exact checked schemas, independent recursive
   verifier controls, and private typed LLVM lanes. The exhaustive arrays/tuples/structs,
   Match, transport, module, corruption, and artifact-hygiene target passes with the
   exact root gate, formatting, all-target/all-feature checking, correctness Clippy,
-  docs, 179/179 library tests, and 185/185 binary tests. This Windows host lacks LLVM
-  22; public checks and pinned external/machine verification, object/link, native exit
-  113, and public acceptance remain pending.
+  docs, 179/179 library tests, and 185/185 binary tests. All eight public checks pass.
+  Stable job `92363420145` uses LLVM/Clang 22.1.8 for the known-invalid verifier
+  control, external and machine verification, object lowering, the explicit private
+  non-PIE link, and exact native exit 113; nightly job `92363420286` repeats exit 113.
 - `CORE-062` is accepted public at exact implementation
   `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree
   `d2aff21a54c42d1ce649ef6668d50a4908315738`, and stable patch ID
@@ -1892,7 +1897,7 @@ promise future compatibility.
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no capability moves.
 
-## CORE-063 locally green unary recursive CopyData enum boundary
+## CORE-063 accepted unary recursive CopyData enum boundary
 
 - The exact selected grammar is a unique nongeneric nonempty enum whose variants are
   unit or contain exactly one value from the accepted recursive `CopyData` grammar.
@@ -1907,8 +1912,10 @@ promise future compatibility.
 - Unit-only and scalar-only schemas preserve their accepted private layout. Schemas
   containing aggregate payloads use a private tag plus one exact typed lane for each
   payload-bearing variant; inactive lanes are typed zero values. No public ABI follows.
-- The exact local gate is green at 179 library and 185 binary tests. Public acceptance
-  requires the pushed pinned LLVM/Clang 22 native-exit-113 lane and all public checks.
+- The exact local gate is green at 179 library and 185 binary tests. All eight public
+  checks pass on verified head `bebd0b6`; pinned LLVM/Clang 22 externally verifies,
+  machine-verifies, object-lowers, explicitly links the private non-PIE executable, and
+  records exact native exit 113. No stable layout/ABI claim follows.
 
 ## CORE-062 accepted recursive CopyData boundary
 
