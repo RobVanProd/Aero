@@ -858,7 +858,7 @@ impl SemanticAnalyzer {
         self.type_param_scopes.clear();
         self.inside_impl = false;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
-        self.enum_registry = EnumRegistry::from_top_level_ast(&ast);
+        self.enum_registry = EnumRegistry::from_top_level_ast(&ast, &self.struct_registry);
         self.enum_function_contracts.clear();
         self.reference_function_contracts.clear();
         self.enum_payload_binding_scopes.borrow_mut().clear();
@@ -1217,22 +1217,25 @@ impl SemanticAnalyzer {
                     },
                 ) {
                     self.check_expression_initialization(expr)?;
-                    for arm in arms {
-                        let binding = match &arm.pattern {
-                            crate::ast::Pattern::Enum {
-                                data: Some(data), ..
-                            } => match data.as_ref() {
-                                crate::ast::Pattern::Identifier(name) => Some(name.clone()),
-                                _ => None,
-                            },
-                            _ => None,
-                        };
-                        let has_binding = binding.is_some();
-                        if let Some(name) = binding {
-                            self.push_enum_payload_binding(name, Ty::Int);
+                    let scrutinee = self.infer_and_validate_expression_immutable(expr)?;
+                    let patterns = self
+                        .enum_registry
+                        .resolve_match_patterns(
+                            &scrutinee,
+                            expr,
+                            arms,
+                            self.enum_execution_context(),
+                        )
+                        .map_err(|error| error.diagnostic())?;
+                    for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
+                        if let Some(binding) = binding {
+                            self.push_enum_payload_binding(
+                                binding.name.clone(),
+                                binding.ty.clone(),
+                            );
                         }
                         let result = self.check_expression_initialization(&arm.body);
-                        if has_binding {
+                        if binding.is_some() {
                             self.pop_enum_payload_binding();
                         }
                         result?;
@@ -1802,14 +1805,6 @@ impl SemanticAnalyzer {
                     array_types,
                     struct_context,
                 )?;
-                for arm in arms {
-                    self.preflight_expression_with_array_mode(
-                        &arm.body,
-                        false,
-                        array_types,
-                        struct_context,
-                    )?;
-                }
                 let context = match struct_context {
                     StructExecutionContext::AdmittedFunction => {
                         EnumExecutionContext::AdmittedFunction
@@ -1828,7 +1823,35 @@ impl SemanticAnalyzer {
                             .map(|contract| contract.return_type.clone())
                     },
                 ) {
+                    for arm in arms {
+                        self.preflight_expression_with_array_mode(
+                            &arm.body,
+                            false,
+                            array_types,
+                            struct_context,
+                        )?;
+                    }
                     return Err("Match expressions are not supported.".to_string());
+                }
+                let scrutinee = self.infer_expression_immutable_with_cache(expr, array_types)?;
+                let patterns = self
+                    .enum_registry
+                    .resolve_match_patterns(&scrutinee, expr, arms, context)
+                    .map_err(|error| error.diagnostic())?;
+                for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
+                    if let Some(binding) = binding {
+                        self.push_enum_payload_binding(binding.name.clone(), binding.ty.clone());
+                    }
+                    let result = self.preflight_expression_with_array_mode(
+                        &arm.body,
+                        false,
+                        array_types,
+                        struct_context,
+                    );
+                    if binding.is_some() {
+                        self.pop_enum_payload_binding();
+                    }
+                    result?;
                 }
             }
             Expression::Borrow { expr, .. } | Expression::Deref(expr) => {

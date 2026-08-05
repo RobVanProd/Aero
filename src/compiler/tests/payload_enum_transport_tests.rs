@@ -355,22 +355,22 @@ fn main() -> int { return 0; }
         (
             "empty tuple definition in signature",
             "enum Value { Empty() } fn take(value: Value) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Value` is not an admitted non-generic unit-or-unary-scalar enum",
+            "enum `Value` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
             "multi-field definition in signature",
             "enum Value { Pair(int, bool) } fn take(value: Value) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Value` is not an admitted non-generic unit-or-unary-scalar enum",
+            "enum `Value` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
             "String payload definition in signature",
             "enum Value { Text(String) } fn take(value: Value) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Value` is not an admitted non-generic unit-or-unary-scalar enum",
+            "enum `Value` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
             "struct variant definition in signature",
             "enum Value { Named { value: int } } fn take(value: Value) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Value` is not an admitted non-generic unit-or-unary-scalar enum",
+            "enum `Value` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
             "process entry parameter",

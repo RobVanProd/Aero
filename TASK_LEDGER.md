@@ -12352,3 +12352,188 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   Its front page leads with the current exact identity and keeps the controlled
   checkpoint strategy, hard-capability balance, structured evidence generation, and
   periodic composed system gates explicit.
+
+## CORE-063 - Recursive CopyData payloads in unary owned enums
+
+- Task ID: `CORE-063`. Starting identity: accepted public CORE-062 evidence head
+  `0fa63f7e54567acb203070f1ede54a8faa62b242`; implementation, candidate, and public
+  acceptance identities are unset. The worktree is clean except for the pre-existing
+  user-owned untracked `tmp/`, which is outside this task.
+- Selection audit and stop: projected Copy-place loans/writes were audited as one hard
+  class and remain deliberately rejected. Authoritative sources do not freeze field or
+  tuple disjointness, dynamic-index aliasing, ancestor/descendant overlap, partial
+  writes, or general reborrow provenance; checked IR also lacks path provenance and
+  immutable-loan lifetime state. Dynamic fixed-array bounds likewise retain an explicit
+  compile-error-versus-runtime-failure ambiguity. Neither class may be implemented by
+  inventing semantics. CORE-063 instead selects the already specified unary owned-enum
+  payload class and closes its remaining scalar-versus-recursive-CopyData partition.
+- Observed behavior: accepted CORE-051/052 admit unique nongeneric enums whose variants
+  are unit or exactly one `Int`/`Float`/`Bool` payload. They already prove construction,
+  exhaustive identifier-bound Match, non-Copy ownership transfer, internal function
+  transport, direct modules, checked schema identity, verification, private LLVM, and
+  native execution. Accepted CORE-062 now supplies one recursive `CopyData` classifier,
+  but `EnumRegistry`, `valid_enum_schema`, payload binding conversion, and the private
+  `{ i32, double, i1 }` lowerer retain independent scalar-only guards. Thus every unary
+  array, tuple, or finite acyclic Copy-struct payload is a false rejection rather than a
+  separately classified topology.
+- Frozen definition grammar:
+  `Enum ::= unique valid nongeneric nonempty declaration of Variant+`; `Variant ::= Unit
+  | Name(CopyData)`; `CopyData ::= Int | Float | Bool | [CopyData; N] |
+  (CopyData, CopyData, ...) | finite acyclic nongeneric nonempty named struct whose
+  fields are CopyData`. Variant names are unique and declaration order is semantic.
+  Pure unit and scalar-payload enums retain exact accepted behavior. Empty/unary tuples,
+  String/reference/enum/Option/Result/generic leaves, unknown/empty/generic/duplicate/
+  conflicting/cyclic structs, recursive enums, tuple arity greater than one, and struct
+  variants remain explicitly rejected by one shared registry decision before checked IR.
+- Frozen value, Match, and ownership semantics: a payload constructor evaluates exactly
+  one expression once and requires the exact recursive payload type. The containing enum
+  remains non-Copy regardless of its payload. Existing whole-enum moves, constructor and
+  call-result temporaries, source invalidation, exhaustive one-arm-per-variant dispatch,
+  and arm-local immutable identifier binding remain unchanged. The selected binding has
+  the exact recursive CopyData type and may use already admitted Copy operations,
+  projections, calls, whole references, and whole reassignment rules. Match result types
+  remain the accepted scalar `Int`/`Float`/`Bool` class; no aggregate-result, partial
+  payload move, default/wildcard/guard, nested destructuring, selected-arm-only ownership,
+  borrowing of the enum, mutation of the enum, drop, NLL, or new CFG ownership semantics
+  are introduced.
+- Shared admission contract: `EnumRegistry` must consume `StructRegistry`'s exact
+  recursive annotation contract; no enum phase may recreate an array/tuple/struct depth
+  whitelist. Semantic analysis and checked admission build the registries in the same
+  program-wide order after direct-module flattening. Payload conversion from
+  `LogicalType` to `Ty` is recursive and total only over admitted CopyData. Constructor,
+  pattern, transport, and schema consumers use the same declaration-ordered
+  `EnumSchema`.
+- Frozen checked IR and verifier: existing `CheckedEnumVariant`,
+  `CheckedEnumPayload`, `CheckedEnumDispatch`, and `CheckedEnumParameter` carry the exact
+  recursive schema without a new topology-specific opcode. The verifier independently
+  proves recursive payload validity, finite named schemas, global schema identity,
+  construction payload type/dominance, selected-variant extraction type and unique arm
+  guard, exhaustive targets, parameter/call/result/return identity, and collision
+  freedom. No raw enum instruction or unverified metadata may enter trusted codegen.
+- Frozen backend: unit-only enums retain private `i32`, and schemas whose payloads are
+  all scalar retain the accepted compact `{ i32, double, i1 }` representation and its
+  established deterministic inactive lanes. A schema containing any aggregate payload
+  lowers privately to a literal aggregate containing an `i32` tag followed by one exact
+  typed lane for each payload-bearing variant in declaration order. Construction initializes
+  every inactive lane deterministically with the exact LLVM zero value and writes the
+  selected lane without bitcasts, integer/pointer conversion, byte storage, or fallback
+  scalar substitution. Extraction reads only the statically selected lane after checked
+  dispatch. Nested struct definitions are collected from enum payload schemas. This is
+  an internal representation only and creates no stable discriminant, size, alignment,
+  layout, calling convention, ABI, FFI, performance, safety, or release claim.
+- Exhaustive red-first proof: after this record and before production mutation, add one
+  focused target and tracked two-module program covering every immediate recursive
+  constructor pair, Bool/nested/zero arrays, aggregate-bearing tuples and structs,
+  mixed unit/scalar/aggregate variants, inferred and annotated bindings, exact/mismatched
+  constructors, exhaustive source/declaration arm permutations, arm-local recursive
+  projections and Copy operations, enum consumers/producers/forwarders,
+  constructor/local/parameter/call-result origins, whole-enum move failures, direct
+  modules, checked metadata, corruption controls, deterministic LLVM, CLI artifact
+  hygiene, and an exact native sentinel. The target must first fail at the existing
+  scalar-payload classifier while CORE-043 through CORE-062 and closure containment stay
+  green.
+- Negative completion surface: every unsupported CopyData leaf at every container
+  depth; invalid/ambiguous/cyclic named schemas; multi-field tuple and struct variants;
+  wrong/missing/excess payloads; foreign/duplicate/incomplete/non-identifier patterns;
+  arm leakage and consumed-enum reuse; aggregate Match results; enum fields/arrays,
+  references, equality, mutation, partial moves, generic/recursive enums, stable ABI,
+  raw checked-IR bypass, schema/lane/payload/call corruption, legacy raw enum emission,
+  and requested-artifact residue. Invalid source stops before checked IR and LLVM.
+- Allowed files: this ledger; `src/compiler/src/enum_match_contract.rs`,
+  `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs`; one exhaustive `recursive_copy_payload_enum_tests.rs` target;
+  directly superseded enum/verifier/backend expectations; one tracked example tree;
+  `.github/workflows/rust.yml`; and only after the exact candidate is green,
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, README/roadmap/conformance records
+  required by their consistency gates, and PR #4. Parser/AST changes are not authorized.
+- Forbidden actions: projected-place, bounds-failure, multi-field pattern, generic,
+  closure, lifetime/drop, module namespace/visibility, runtime, dependency, accelerator,
+  benchmark, release, package, registry, or claim-verification changes; `master`, PR
+  merge, force-push, history rewrite, and any mutation of `tmp/`.
+- Acceptance gates: focused red/green target; affected unit/scalar-payload enum, recursive
+  aggregate, ownership, reference, module, closure, checked-IR, verifier, and backend
+  suites; verifier corruption controls; rustfmt; all-target/all-feature check and
+  correctness Clippy; docs; exact repository-root `./tools/test.sh`; tracked source to
+  checked IR to verified LLVM to object/link/native sentinel; one immutable candidate;
+  immediate draft PR #4 synchronization; all eight public checks; and the pinned
+  LLVM/Clang 22 stable system lane. Candidate status and public acceptance remain
+  separately identified.
+- Risks and stop conditions: stop rather than narrow the payload class if the shared
+  classifier cannot own every recursive shape, aggregate payload bindings need new
+  pattern semantics, enum transport needs a public ABI, checked verification cannot
+  prove exact lane/schema identity, inactive lanes expose source behavior, any admitted
+  shape requires byte/type-erased storage or a fallback type, ownership needs a new CFG
+  approximation, work crosses the allowed boundary, a test must be weakened, or the
+  baseline becomes red for an unrelated cause.
+- Scaling controls: PR #4 remains a draft integration program needing a separately
+  authorized controlled checkpoint strategy; this hard ADT/layout slice prevents easy
+  bounded wins from monopolizing selection; one authorization and one exhaustive target
+  bound evidence cost pending a structured-manifest task; and the milestone requires a
+  composed source-through-native system gate rather than local feature proof alone.
+- Red evidence: after fixture-only correction for the established statement-form `if`
+  grammar and parenthesized consecutive tuple projections, `cargo test --manifest-path
+  src/compiler/Cargo.toml --test recursive_copy_payload_enum_tests -- --nocapture`
+  builds and runs the one exhaustive target but exits 1 at 0/1 before production
+  mutation. Parser/AST retention succeeds. The complete recursive program, every
+  immediate array/tuple/struct constructor pair, internal enum transport, checked IR,
+  and tracked direct-module build all stop at the existing `enum ... is not an admitted
+  non-generic unit-or-unary-scalar enum` boundary; no requested artifact is created.
+  Excluded shapes remain rejected and all six future pinned-workflow anchors are absent.
+- Fixture correction before green implementation: the recursive enum forwarder was
+  removed because its branch-dependent reuse requires the explicitly excluded new CFG
+  ownership semantics, not because of the payload shape. The zero-length Bool array is
+  introduced through an exact `[bool; 0]` binding because contextual empty-array
+  inference is not part of this slice. Both recursive CopyData shapes remain positively
+  covered through already admitted ownership and annotation rules.
+  This is the required class-level red, not a parser, Cargo, subprocess, or Windows
+  Security failure.
+
+### CORE-063 locally green implementation candidate
+
+- Status: record-inclusive implementation candidate is locally green. The commit
+  containing these records becomes the immutable candidate. Push, PR #4 synchronization,
+  all public checks, and the pinned LLVM/Clang 22 native system lane remain pending and
+  are not public acceptance.
+- Implementation: `EnumRegistry` delegates every unary payload annotation to
+  `StructRegistry::resolve_copy_annotation` and recursively converts the returned
+  `LogicalType` to exact semantic `Ty`. Semantic initialization and preflight now consume
+  the same resolved enum pattern bindings as inference; admitted aggregate bindings no
+  longer receive a fabricated scalar placeholder. Preserved non-enum Match contexts keep
+  their established child-first diagnostic precedence.
+- Checked IR/verifier: construction loads aggregate payload values before checked enum
+  construction; payload bindings use exact aggregate places; existing checked enum
+  opcodes retain recursive schemas. The independent verifier recursively validates and
+  registers every payload type and nested named schema. New corruptions reject nested
+  String/reference/enum leaves, conflicting named structs, scalar fallback payloads,
+  and changed lane identity.
+- Backend: unit and scalar-only schemas retain accepted private lowering. Schemas with
+  any aggregate payload lower to an `i32` tag followed by declaration-ordered exact
+  payload lanes. Construction writes typed zero values into inactive lanes and the
+  exact selected value into its lane; extraction and transport use the same exact LLVM
+  type. No bitcast, byte storage, pointer/integer conversion, or fallback `i32` exists.
+- Positive/negative evidence: the exhaustive 1/1 target covers parser retention, every
+  immediate recursive constructor pairing, Bool/nested/zero arrays, aggregate-bearing
+  tuples/structs, mixed schemas, exact construction, bound Match projections, owned
+  transport/forwarding, move errors, direct modules, checked metadata, deterministic
+  LLVM, unsupported shapes, CLI artifact hygiene, and all six pinned-workflow anchors.
+- Compatibility correction: prior scalar enum targets changed only their superseded
+  classifier wording; the old negative struct-enum-payload assertion was removed because
+  the newly frozen class explicitly admits it and the exhaustive positive target now
+  proves it. The full gate also caught and corrected unsupported-Match child diagnostic
+  precedence. No still-unsupported source case or test was weakened.
+- Commands/results: focused target passes 1/1; the new verifier corruption unit passes;
+  the compatibility ring passes 179/179 library tests plus unit/scalar enum, transport,
+  recursive aggregate, closure 7/7, reference, ownership, struct, and module targets.
+  `cargo fmt --check`, all-target/all-feature `cargo check`, correctness Clippy, and docs
+  pass. The exact Git-Bash repository-root `./tools/test.sh`, with the inherited Cargo
+  path corrected, exits 0 and the enumerated surface is 179 library and 185 binary tests.
+- Native boundary: this Windows host has no `opt-22`, `llvm-as-22`, `llc-22`, or
+  `clang-22`; no local pinned-native result is claimed. The stable public job is pinned
+  to build the tracked two-module source, externally verify LLVM, machine-verify,
+  object-lower, link, and require exact native exit 113 before acceptance.
+- Remaining uncertainty/risks: public CI may expose Linux-only LLVM type/layout defects.
+  No stable layout/ABI/FFI, general enum storage/borrowing/mutation, aggregate Match
+  result, nested destructuring, generic enum, new CFG ownership, closure, accelerator,
+  performance, release, or stability claim follows. The four scaling controls remain
+  active and PR #4 remains draft/unmerged.

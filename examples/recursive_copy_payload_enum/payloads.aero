@@ -1,0 +1,57 @@
+struct Cell { value: int, flags: [bool; 2] }
+struct Frame {
+    cells: [Cell; 2],
+    meta: ((int, bool), [float; 2]),
+    empty: [bool; 0]
+}
+
+enum Payload {
+    Idle,
+    Flag(bool),
+    Empty([bool; 0]),
+    Flags([bool; 2]),
+    Matrix([[int; 2]; 2]),
+    Pair((int, bool)),
+    Rows([(int, bool); 2]),
+    CellValue(Cell),
+    Cells([Cell; 2]),
+    Wrapped((Cell, [bool; 2])),
+    FrameValue(Frame)
+}
+
+fn make_cell(value: int) -> Cell {
+    Cell { value: value, flags: [value > 0, value < 0] }
+}
+
+fn make_frame(value: int) -> Frame {
+    Frame {
+        cells: [make_cell(value), make_cell(value + 1)],
+        meta: ((value + 2, value > 0), [1.5, 2.5]),
+        empty: []
+    }
+}
+
+fn forward(value: Payload) -> Payload { value }
+
+fn produce() -> Payload { Payload::Flag(1 < 2) }
+
+fn bool_score(value: bool, score: int) -> int {
+    if value { return score; }
+    0
+}
+
+fn score(value: Payload) -> int {
+    match value {
+        Payload::Idle => 1,
+        Payload::Flag(flag) => bool_score(flag, 2),
+        Payload::Empty(items) => 3,
+        Payload::Flags(flags) => bool_score(flags[0], 4),
+        Payload::Matrix(matrix) => matrix[1][0],
+        Payload::Pair(pair) => pair.0,
+        Payload::Rows(rows) => rows[1].0,
+        Payload::CellValue(cell) => cell.value,
+        Payload::Cells(cells) => cells[1].value,
+        Payload::Wrapped(wrapped) => bool_score(wrapped.1[0], wrapped.0.value),
+        Payload::FrameValue(frame) => frame.cells[1].value + (frame.meta.0).0
+    }
+}

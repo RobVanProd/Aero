@@ -156,7 +156,7 @@ impl IrGenerator {
     ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
         Self::validate_checked_ast(&ast)?;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
-        self.enum_registry = EnumRegistry::from_top_level_ast(&ast);
+        self.enum_registry = EnumRegistry::from_top_level_ast(&ast, &self.struct_registry);
         self.functions.clear();
         self.current_function_name.clear();
         self.next_reg = 0;
@@ -409,7 +409,7 @@ impl IrGenerator {
         let mut enum_functions = HashMap::new();
         let mut reference_functions = HashMap::new();
         let structs = StructRegistry::from_top_level_ast(ast);
-        let enums = EnumRegistry::from_top_level_ast(ast);
+        let enums = EnumRegistry::from_top_level_ast(ast, &structs);
         for node in ast {
             if let AstNode::Statement(Statement::Function {
                 name,
@@ -2446,13 +2446,19 @@ impl IrGenerator {
                     schema: resolved.contract.schema.clone(),
                     variant_index: binding.variant_index,
                 });
-                let place = Value::Reg(self.next_ptr);
-                self.next_ptr += 1;
-                function.body.push(Inst::Alloca(
-                    place.clone(),
-                    format!("__enum_payload_{}", binding.name),
-                ));
-                function.body.push(Inst::Store(place.clone(), payload));
+                let place = if matches!(&binding.ty, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_))
+                {
+                    self.store_copy_aggregate_value(payload, &binding.ty, function)
+                } else {
+                    let place = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    function.body.push(Inst::Alloca(
+                        place.clone(),
+                        format!("__enum_payload_{}", binding.name),
+                    ));
+                    function.body.push(Inst::Store(place.clone(), payload));
+                    place
+                };
                 self.symbol_table.insert(binding.name, (place, binding.ty));
             }
             let (value, ty) = self.generate_expression_ir(arm.body, function);
@@ -3484,7 +3490,11 @@ impl IrGenerator {
                 variant,
                 data,
             } if self.checked_mode => {
-                let payload = data.map(|payload| self.generate_expression_ir(*payload, function));
+                let payload = data.map(|payload| {
+                    let (value, ty) = self.generate_expression_ir(*payload, function);
+                    let value = self.load_copy_aggregate_value(value, &ty, function);
+                    (value, ty)
+                });
                 let resolved = self
                     .enum_registry
                     .resolve_constructor(

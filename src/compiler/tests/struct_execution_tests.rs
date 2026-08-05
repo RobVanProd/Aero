@@ -366,11 +366,6 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
             "comparison operand types are not admitted; expected numeric operands or Bool with Bool",
         ),
         (
-            "struct enum payload",
-            "struct Value { field: int } enum Choice { Item(Value) } fn main() { let choice = Choice::Item(Value { field: 1 }); }",
-            "enum `Choice` is not an admitted non-generic unit-or-unary-scalar enum",
-        ),
-        (
             "struct Option payload",
             "struct Value { field: int } fn main() { let value = Some(Value { field: 1 }); }",
             "enum construction is not admitted in checked IR",

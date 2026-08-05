@@ -146,8 +146,8 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references over the exact admitted Copy-data universe. CORE-061 is a locally green candidate for direct whole-owner reassignment of that same universe through the shared three-way classifier and unified checked place/write proof. Projected writes/borrows and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
-| **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
+| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Projected writes/borrows and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
+| **Data Types** | Recursive finite CopyData composition is publicly accepted. CORE-063 is a locally green candidate for unit-or-unary recursive CopyData owned enums with exhaustive bound Match and internal transport; pinned public native evidence remains pending. Broader enum/storage/destructuring/generic semantics remain unsupported. |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
@@ -321,19 +321,13 @@ aero lsp
 > Exact implementation `6ef3e44` passes 165 library and 171 binary tests plus all eight
 > public checks; pinned Linux LLVM/Clang 22.1.8 externally verifies, machine-verifies,
 > object-lowers, links, and executes exact native exit 227.
-> CORE-061 is the locally green superseding candidate for the same direct whole-owner
-> statement across every exact admitted Copy-data type: scalars, flat Copy tuples,
-> fixed numeric arrays, fixed Copy-struct arrays, and finite acyclic Copy structs,
-> including zero-length admitted arrays. One owned-assignment context delegates schema
+> CORE-061 is publicly accepted for the same direct whole-owner statement across its
+> then-frozen exact Copy-data types. One owned-assignment context delegates schema
 > classification to `copy_place_contract`; one checked mutable Copy-place allocation
-> and one checked Copy-place assignment now cover scalars and aggregates. The exhaustive
-> target and adjacent compatibility suites pass, and the tracked two-module source is
-> pinned to native exit 83. With the closure-containment amendment, the complete Rust
-> surface passes at 175 library and 181 binary tests; formatting, all-target checking,
-> and correctness Clippy are green. The exact amended record-inclusive repository-root
-> gate passes, and the tracked program again executes locally at exact exit 83. The
-> commit containing this record becomes the immutable candidate; public LLVM/Clang 22
-> evidence remains required before acceptance.
+> and assignment cover scalars and aggregates. Exact implementation `de6fc0d` passes
+> 175 library and 181 binary tests plus all eight public checks; pinned LLVM/Clang 22
+> externally verifies, machine-verifies, object-lowers, links, and executes native exit
+> 83. Accepted CORE-062 subsequently replaces the topology list with recursive CopyData.
 > Immutable locals/parameters, unknown or uninitialized
 > targets, borrowed targets, String/enums/references/unsupported layouts, projected or
 > non-identifier targets, assignment values/chaining/compound syntax, NLL, drop, stable
@@ -384,6 +378,16 @@ aero lsp
 > object/link, and exact native exit 197. This creates no stable layout, public calling
 > convention, ABI, FFI,
 > aggregate enum storage, borrowing, mutation, drop, or general CFG ownership claim.
+>
+> CORE-063 is a locally green superseding candidate for unary payloads drawn from the
+> accepted recursive CopyData grammar: fixed arrays, arity-at-least-two tuples, and
+> finite acyclic named Copy structs in addition to scalars. Exact construction,
+> exhaustive identifier-bound Match, arm-local projections, owned internal transport,
+> direct modules, checked schemas, verifier corruption controls, and private typed LLVM
+> pass the exhaustive target and exact root gate at 179 library and 185 binary tests.
+> Unit/scalar layouts retain their accepted private forms; aggregate schemas use a
+> private tag plus exact typed lanes. Pinned LLVM/Clang 22 native exit 113 and all public
+> checks remain pending, so this is not public acceptance or a stable layout/ABI claim.
 
 Formal spec: `docs/language/aero_formal_language_specification.md`
 

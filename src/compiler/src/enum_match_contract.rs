@@ -2,6 +2,7 @@ use crate::ast::{
     AstNode, Expression, MatchArm, Parameter, Pattern, Statement, Type, VariantDeclKind,
 };
 use crate::ir::{EnumSchema, EnumVariantSchema, LogicalType};
+use crate::struct_contract::StructRegistry;
 use crate::types::Ty;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -32,7 +33,7 @@ impl EnumContract {
         self.schema.variants[variant_index]
             .payload
             .as_ref()
-            .map(scalar_logical_ty)
+            .map(copy_logical_ty)
     }
 }
 
@@ -176,7 +177,7 @@ impl EnumError {
                 format!("enum `{name}` has no unique admitted definition")
             }
             Self::UnsupportedDefinition(name) => {
-                format!("enum `{name}` is not an admitted non-generic unit-or-unary-scalar enum")
+                format!("enum `{name}` is not an admitted non-generic unit-or-unary-CopyData enum")
             }
             Self::UnknownVariant { enum_name, variant } => {
                 format!("enum `{enum_name}` has no variant `{variant}`")
@@ -261,7 +262,7 @@ impl EnumError {
 }
 
 impl EnumRegistry {
-    pub(crate) fn from_top_level_ast(ast: &[AstNode]) -> Self {
+    pub(crate) fn from_top_level_ast(ast: &[AstNode], structs: &StructRegistry) -> Self {
         let mut raw = BTreeMap::<String, RawEnumDefinitionDisposition>::new();
         let mut struct_names = BTreeSet::new();
         for node in ast {
@@ -300,7 +301,7 @@ impl EnumRegistry {
                         EnumDefinitionDisposition::Ambiguous
                     }
                     RawEnumDefinitionDisposition::Unique(definition) => {
-                        Self::classify_definition(&name, definition)
+                        Self::classify_definition(&name, definition, structs)
                     }
                 };
                 (name, disposition)
@@ -309,7 +310,11 @@ impl EnumRegistry {
         Self { definitions }
     }
 
-    fn classify_definition(name: &str, definition: RawEnumDefinition) -> EnumDefinitionDisposition {
+    fn classify_definition(
+        name: &str,
+        definition: RawEnumDefinition,
+        structs: &StructRegistry,
+    ) -> EnumDefinitionDisposition {
         let mut names = BTreeSet::new();
         if !valid_symbol(name)
             || !definition.type_params.is_empty()
@@ -325,10 +330,10 @@ impl EnumRegistry {
             let payload = match variant.kind {
                 VariantDeclKind::Unit => None,
                 VariantDeclKind::Tuple(types) if types.len() == 1 => {
-                    let Some((_, logical_type)) = scalar_payload_annotation(&types[0]) else {
+                    let Some(contract) = structs.resolve_copy_annotation(&types[0]) else {
                         return EnumDefinitionDisposition::Unsupported;
                     };
-                    Some(logical_type)
+                    Some(contract.logical_type)
                 }
                 VariantDeclKind::Tuple(_) | VariantDeclKind::Struct(_) => {
                     return EnumDefinitionDisposition::Unsupported;
@@ -987,25 +992,25 @@ fn expression_mentions_identifier(expression: &Expression, target: &str) -> bool
     }
 }
 
-fn scalar_payload_annotation(annotation: &Type) -> Option<(Ty, LogicalType)> {
-    match annotation {
-        Type::Named(name) if matches!(name.as_str(), "int" | "i32") => {
-            Some((Ty::Int, LogicalType::Int))
-        }
-        Type::Named(name) if matches!(name.as_str(), "float" | "f64") => {
-            Some((Ty::Float, LogicalType::Float))
-        }
-        Type::Named(name) if name == "bool" => Some((Ty::Bool, LogicalType::Bool)),
-        _ => None,
-    }
-}
-
-fn scalar_logical_ty(logical_type: &LogicalType) -> Ty {
+fn copy_logical_ty(logical_type: &LogicalType) -> Ty {
     match logical_type {
         LogicalType::Int => Ty::Int,
         LogicalType::Float => Ty::Float,
         LogicalType::Bool => Ty::Bool,
-        _ => unreachable!("admitted enum payload schemas are scalar"),
+        LogicalType::Array { element, count } => {
+            Ty::Array(Box::new(copy_logical_ty(element)), *count)
+        }
+        LogicalType::Tuple { elements } => {
+            Ty::Tuple(elements.iter().map(copy_logical_ty).collect())
+        }
+        LogicalType::Struct { name, .. } => Ty::Struct(name.clone()),
+        LogicalType::Void
+        | LogicalType::String
+        | LogicalType::ImmutableReference { .. }
+        | LogicalType::MutableReference { .. }
+        | LogicalType::Enum { .. } => {
+            unreachable!("admitted enum payload schemas are recursive CopyData")
+        }
     }
 }
 

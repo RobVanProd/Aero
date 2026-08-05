@@ -330,12 +330,7 @@ fn valid_enum_schema(schema: &EnumSchema) -> bool {
         && schema.variants.iter().all(|variant| {
             valid_symbol(&variant.name)
                 && unique.insert(&variant.name)
-                && variant.payload.as_ref().is_none_or(|payload| {
-                    matches!(
-                        payload,
-                        LogicalType::Int | LogicalType::Float | LogicalType::Bool
-                    )
-                })
+                && variant.payload.as_ref().is_none_or(valid_copy_data_type)
         })
 }
 
@@ -3560,7 +3555,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
 
     fn register_enum(
         schema: &EnumSchema,
-        schemas: &BTreeMap<String, Vec<LogicalType>>,
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
         enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
     ) -> Result<(), IrVerificationError> {
         if !valid_enum_schema(schema) {
@@ -3596,6 +3591,13 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
             }
         } else {
             enum_schemas.insert(schema.name.clone(), schema.variants.clone());
+        }
+        for payload in schema
+            .variants
+            .iter()
+            .filter_map(|variant| variant.payload.as_ref())
+        {
+            register_type(payload, schemas, enum_schemas)?;
         }
         Ok(())
     }
@@ -4458,6 +4460,165 @@ mod tests {
         assert!(
             transport_error.is_err(),
             "payload enum function transport passed checked IR verification"
+        );
+    }
+
+    #[test]
+    fn checked_recursive_copydata_enum_schemas_and_payload_identity_are_fail_closed() {
+        let schema = EnumSchema {
+            name: "Payload".to_string(),
+            variants: vec![
+                EnumVariantSchema {
+                    name: "Idle".to_string(),
+                    payload: None,
+                },
+                EnumVariantSchema {
+                    name: "Flags".to_string(),
+                    payload: Some(LogicalType::Array {
+                        element: Box::new(LogicalType::Bool),
+                        count: 2,
+                    }),
+                },
+                EnumVariantSchema {
+                    name: "Pair".to_string(),
+                    payload: Some(LogicalType::Tuple {
+                        elements: vec![LogicalType::Int, LogicalType::Bool],
+                    }),
+                },
+                EnumVariantSchema {
+                    name: "Row".to_string(),
+                    payload: Some(LogicalType::Struct {
+                        name: "Row".to_string(),
+                        fields: vec![LogicalType::Int, LogicalType::Bool],
+                    }),
+                },
+            ],
+        };
+        let checked = verify_ir(function(vec![
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect("finite recursive CopyData enum schemas are valid");
+        assert_eq!(
+            checked.metadata().functions["main"].results[&ResultId(0)],
+            schema.logical_type()
+        );
+
+        let invalid_schemas = [
+            (
+                "nested String leaf",
+                EnumSchema {
+                    name: "BadString".to_string(),
+                    variants: vec![EnumVariantSchema {
+                        name: "Value".to_string(),
+                        payload: Some(LogicalType::Array {
+                            element: Box::new(LogicalType::Tuple {
+                                elements: vec![LogicalType::Int, LogicalType::String],
+                            }),
+                            count: 1,
+                        }),
+                    }],
+                },
+            ),
+            (
+                "nested reference leaf",
+                EnumSchema {
+                    name: "BadReference".to_string(),
+                    variants: vec![EnumVariantSchema {
+                        name: "Value".to_string(),
+                        payload: Some(LogicalType::Tuple {
+                            elements: vec![
+                                LogicalType::Int,
+                                LogicalType::ImmutableReference {
+                                    pointee: Box::new(LogicalType::Int),
+                                },
+                            ],
+                        }),
+                    }],
+                },
+            ),
+            (
+                "nested enum leaf",
+                EnumSchema {
+                    name: "BadEnum".to_string(),
+                    variants: vec![EnumVariantSchema {
+                        name: "Value".to_string(),
+                        payload: Some(unit_schema("Inner", &["Unit"]).logical_type()),
+                    }],
+                },
+            ),
+            (
+                "conflicting named struct payload schemas",
+                EnumSchema {
+                    name: "BadStructIdentity".to_string(),
+                    variants: vec![
+                        EnumVariantSchema {
+                            name: "Left".to_string(),
+                            payload: Some(LogicalType::Struct {
+                                name: "Row".to_string(),
+                                fields: vec![LogicalType::Int],
+                            }),
+                        },
+                        EnumVariantSchema {
+                            name: "Right".to_string(),
+                            payload: Some(LogicalType::Struct {
+                                name: "Row".to_string(),
+                                fields: vec![LogicalType::Bool],
+                            }),
+                        },
+                    ],
+                },
+            ),
+        ];
+        for (label, invalid) in invalid_schemas {
+            assert!(
+                verify_ir(function(vec![
+                    checked_variant(Value::Reg(0), invalid, 0),
+                    Inst::Return(Value::ImmInt(0)),
+                ]))
+                .is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+
+        assert!(
+            verify_ir(function(vec![
+                Inst::CheckedEnumVariant {
+                    result: Value::Reg(0),
+                    schema: schema.clone(),
+                    variant_index: 1,
+                    payload: Some(Value::ImmInt(1)),
+                },
+                Inst::Return(Value::ImmInt(0)),
+            ]))
+            .is_err(),
+            "scalar fallback value passed as an aggregate enum payload"
+        );
+
+        let mut changed_schema = schema.clone();
+        changed_schema.variants[1].payload = Some(LogicalType::Array {
+            element: Box::new(LogicalType::Bool),
+            count: 3,
+        });
+        assert!(
+            verify_ir(function(vec![
+                checked_variant(Value::Reg(0), schema, 0),
+                checked_dispatch(
+                    Value::Reg(0),
+                    changed_schema,
+                    &["idle", "flags", "pair", "row"],
+                ),
+                Inst::Label("idle".to_string()),
+                Inst::Return(Value::ImmInt(0)),
+                Inst::Label("flags".to_string()),
+                Inst::Return(Value::ImmInt(0)),
+                Inst::Label("pair".to_string()),
+                Inst::Return(Value::ImmInt(0)),
+                Inst::Label("row".to_string()),
+                Inst::Return(Value::ImmInt(0)),
+            ]))
+            .is_err(),
+            "changed aggregate lane schema passed checked IR dispatch"
         );
     }
 

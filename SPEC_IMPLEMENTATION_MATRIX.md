@@ -36,6 +36,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | All-scalar struct Copy transport | Y | â€” | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Acyclic named Copy aggregates | Y | - | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Recursive finite CopyData composition | Y | - | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Unary recursive CopyData enum payloads | Y | - | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Enums and construction | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Pattern matching | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
@@ -82,6 +83,18 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 | Quantization | Y | Y | — | — | Scalar-double helper transform only | N | N | EXPERIMENTAL |
 
 ## Evidence notes
+
+- `CORE-063` is a locally green record-inclusive candidate for unique nongeneric
+  enums whose variants are unit or carry exactly one recursive `CopyData` payload.
+  Enum admission delegates to the accepted recursive struct/array/tuple classifier;
+  semantic preflight, inference, checked IR, the independent verifier, and private LLVM
+  retain the same exact declaration-ordered schema. The exhaustive target covers
+  construction, exhaustive identifier-bound Match, projections, internal transport,
+  direct modules, corruption controls, and fail-closed unsupported leaves/topologies.
+  Formatting, all-target/all-feature checking, correctness Clippy, docs, 179 library
+  and 185 binary tests, and the exact root gate pass. The pinned LLVM/Clang 22
+  native-exit-113 workflow and all public checks remain pending; this is not public
+  acceptance or a stable enum layout/ABI claim.
 
 - `CORE-062` is accepted public for recursive finite CopyData composition at exact
   implementation `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree

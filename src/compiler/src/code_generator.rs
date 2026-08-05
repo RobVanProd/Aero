@@ -1,5 +1,6 @@
 use crate::ir::{
-    CheckedIr, Function, FunctionMetadata, Inst, IrMetadata, LogicalType, PlaceId, ResultId, Value,
+    CheckedIr, EnumSchema, Function, FunctionMetadata, Inst, IrMetadata, LogicalType, PlaceId,
+    ResultId, Value,
 };
 use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -91,12 +92,10 @@ impl CodeGenerator {
             LogicalType::Tuple { .. } | LogicalType::Array { .. } => {
                 Self::copy_data_type_to_llvm(logical_type)
             }
-            LogicalType::Enum { variants, .. }
-                if variants.iter().all(|variant| variant.payload.is_none()) =>
-            {
-                "i32".to_string()
-            }
-            LogicalType::Enum { .. } => "{ i32, double, i1 }".to_string(),
+            LogicalType::Enum { name, variants } => Self::enum_schema_to_llvm(&EnumSchema {
+                name: name.clone(),
+                variants: variants.clone(),
+            }),
             LogicalType::String => {
                 unreachable!("verified call signatures exclude String values")
             }
@@ -127,6 +126,64 @@ impl CodeGenerator {
             | LogicalType::MutableReference { .. }
             | LogicalType::Enum { .. } => {
                 unreachable!("verified Copy-data schemas exclude non-Copy-data logical types")
+            }
+        }
+    }
+
+    fn enum_schema_is_scalar_only(schema: &EnumSchema) -> bool {
+        schema
+            .variants
+            .iter()
+            .filter_map(|variant| variant.payload.as_ref())
+            .all(|payload| {
+                matches!(
+                    payload,
+                    LogicalType::Int | LogicalType::Float | LogicalType::Bool
+                )
+            })
+    }
+
+    fn enum_schema_to_llvm(schema: &EnumSchema) -> String {
+        if schema.is_unit() {
+            return "i32".to_string();
+        }
+        if Self::enum_schema_is_scalar_only(schema) {
+            return "{ i32, double, i1 }".to_string();
+        }
+        let mut lanes = vec!["i32".to_string()];
+        lanes.extend(
+            schema
+                .variants
+                .iter()
+                .filter_map(|variant| variant.payload.as_ref())
+                .map(Self::copy_data_type_to_llvm),
+        );
+        format!("{{ {} }}", lanes.join(", "))
+    }
+
+    fn enum_payload_lane(schema: &EnumSchema, variant_index: usize) -> Option<usize> {
+        schema.variants.get(variant_index)?.payload.as_ref()?;
+        Some(
+            1 + schema.variants[..variant_index]
+                .iter()
+                .filter(|variant| variant.payload.is_some())
+                .count(),
+        )
+    }
+
+    fn copy_data_zero_value(logical_type: &LogicalType) -> String {
+        match logical_type {
+            LogicalType::Int | LogicalType::Float => "0x0000000000000000".to_string(),
+            LogicalType::Bool => "false".to_string(),
+            LogicalType::Array { .. } | LogicalType::Tuple { .. } | LogicalType::Struct { .. } => {
+                "zeroinitializer".to_string()
+            }
+            LogicalType::Void
+            | LogicalType::String
+            | LogicalType::ImmutableReference { .. }
+            | LogicalType::MutableReference { .. }
+            | LogicalType::Enum { .. } => {
+                unreachable!("verified enum payload lanes contain only CopyData")
             }
         }
     }
@@ -162,6 +219,14 @@ impl CodeGenerator {
             LogicalType::Tuple { elements } => {
                 for element in elements {
                     Self::collect_logical_struct_schema(element, schemas);
+                }
+            }
+            LogicalType::Enum { variants, .. } => {
+                for payload in variants
+                    .iter()
+                    .filter_map(|variant| variant.payload.as_ref())
+                {
+                    Self::collect_logical_struct_schema(payload, schemas);
                 }
             }
             _ => {}
@@ -1701,7 +1766,17 @@ impl CodeGenerator {
                         llvm_ir.push_str(&format!("  %reg{result} = add i32 %{parameter}, 0\n"));
                         continue;
                     }
-                    let enum_type = "{ i32, double, i1 }";
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    if !Self::enum_schema_is_scalar_only(schema) {
+                        let tag = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{tag} = extractvalue {enum_type} %{parameter}, 0\n"
+                        ));
+                        llvm_ir.push_str(&format!(
+                            "  %reg{result} = insertvalue {enum_type} %{parameter}, i32 %{tag}, 0\n"
+                        ));
+                        continue;
+                    }
                     let tag = self.fresh_reg();
                     let numeric = self.fresh_reg();
                     let boolean = self.fresh_reg();
@@ -1739,7 +1814,51 @@ impl CodeGenerator {
                         llvm_ir.push_str(&format!("  %reg{result} = add i32 0, {variant_index}\n"));
                         continue;
                     }
-                    let enum_type = "{ i32, double, i1 }";
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    if !Self::enum_schema_is_scalar_only(schema) {
+                        let tagged = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
+                        ));
+                        let payload_lanes = schema
+                            .variants
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(index, variant)| {
+                                variant.payload.as_ref().map(|payload| (index, payload))
+                            })
+                            .collect::<Vec<_>>();
+                        let mut aggregate = format!("%{tagged}");
+                        for (position, (source_index, payload_type)) in
+                            payload_lanes.iter().enumerate()
+                        {
+                            let lane = Self::enum_payload_lane(schema, *source_index)
+                                .expect("verified payload-bearing variant has a lane");
+                            let payload_llvm = Self::copy_data_type_to_llvm(payload_type);
+                            let lane_value = if *source_index == *variant_index {
+                                let value = payload
+                                    .as_ref()
+                                    .expect("verified selected payload variant has a value");
+                                if **payload_type == LogicalType::Bool {
+                                    self.bool_value_to_string(value)
+                                } else {
+                                    self.value_to_string(value)
+                                }
+                            } else {
+                                Self::copy_data_zero_value(payload_type)
+                            };
+                            let output = if position + 1 == payload_lanes.len() {
+                                format!("reg{result}")
+                            } else {
+                                self.fresh_reg()
+                            };
+                            llvm_ir.push_str(&format!(
+                                "  %{output} = insertvalue {enum_type} {aggregate}, {payload_llvm} {lane_value}, {lane}\n"
+                            ));
+                            aggregate = format!("%{output}");
+                        }
+                        continue;
+                    }
                     let tagged = self.fresh_reg();
                     llvm_ir.push_str(&format!(
                         "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
@@ -1775,13 +1894,19 @@ impl CodeGenerator {
                     let Value::Reg(value) = value else {
                         panic!("Expected register for checked enum payload source")
                     };
-                    let lane = match schema.variants[*variant_index].payload.as_ref() {
-                        Some(LogicalType::Int | LogicalType::Float) => 1,
-                        Some(LogicalType::Bool) => 2,
-                        _ => unreachable!("verified payload extraction has a scalar payload"),
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let lane = if Self::enum_schema_is_scalar_only(schema) {
+                        match schema.variants[*variant_index].payload.as_ref() {
+                            Some(LogicalType::Int | LogicalType::Float) => 1,
+                            Some(LogicalType::Bool) => 2,
+                            _ => unreachable!("verified compact enum payload is scalar"),
+                        }
+                    } else {
+                        Self::enum_payload_lane(schema, *variant_index)
+                            .expect("verified aggregate enum payload has a lane")
                     };
                     llvm_ir.push_str(&format!(
-                        "  %reg{result} = extractvalue {{ i32, double, i1 }} %reg{value}, {lane}\n"
+                        "  %reg{result} = extractvalue {enum_type} %reg{value}, {lane}\n"
                     ));
                 }
                 Inst::CheckedEnumDispatch {
@@ -1798,9 +1923,10 @@ impl CodeGenerator {
                     let tag = if schema.is_unit() {
                         format!("%reg{value}")
                     } else {
+                        let enum_type = Self::enum_schema_to_llvm(schema);
                         let tag = self.fresh_reg();
                         llvm_ir.push_str(&format!(
-                            "  %{tag} = extractvalue {{ i32, double, i1 }} %reg{value}, 0\n"
+                            "  %{tag} = extractvalue {enum_type} %reg{value}, 0\n"
                         ));
                         format!("%{tag}")
                     };

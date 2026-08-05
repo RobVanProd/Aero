@@ -12,16 +12,14 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-Current integration work is at `CORE-061`: direct mutable whole-owner reassignment over
-the already admitted Copy-data universe, with one shared schema predicate, unified
-checked scalar/aggregate place identity, and a composed native exit-83 gate. Its
-authorized closure amendment preserves closure parsing while rejecting executable
-closure use before checked IR and removes all callable/unknown-type-to-`i32` lowering
-fallbacks; it does not add closure semantics. This
-continues the harder ownership, aggregate representation, and mutation work in
-Milestone 2 rather than optimizing only for convenient compile-time features. CORE-060
-whole-place mutable references are accepted public. Projected borrows/writes, deeper CFG
-ownership, stable ABI, full module semantics, and real GPU execution remain unresolved.
+Current integration work is the locally green `CORE-063` candidate: unary owned enums
+now carry the accepted recursive CopyData grammar through construction, exhaustive
+identifier-bound Match, internal transport, checked IR, independent verification,
+private typed LLVM, and direct modules. Public pinned LLVM/Clang 22 native-exit-113
+evidence remains pending. Accepted CORE-061 keeps closures parsed-only/fail-closed and
+accepted CORE-062 supplies the recursive CopyData classifier. Projected borrows/writes,
+deeper CFG ownership, stable ABI, full module semantics, generic/multi-field enums, and
+real GPU execution remain unresolved.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

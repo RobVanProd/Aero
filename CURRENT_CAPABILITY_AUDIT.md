@@ -8,6 +8,15 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
+- `CORE-063` is a locally green record-inclusive candidate. It extends the accepted
+  owned unit/unary-scalar enum class to unary recursive `CopyData` payloads by consuming
+  the accepted registry classifier, exact checked schemas, independent recursive
+  verifier controls, and private typed LLVM lanes. The exhaustive arrays/tuples/structs,
+  Match, transport, module, corruption, and artifact-hygiene target passes with the
+  exact root gate, formatting, all-target/all-feature checking, correctness Clippy,
+  docs, 179/179 library tests, and 185/185 binary tests. This Windows host lacks LLVM
+  22; public checks and pinned external/machine verification, object/link, native exit
+  113, and public acceptance remain pending.
 - `CORE-062` is accepted public at exact implementation
   `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree
   `d2aff21a54c42d1ce649ef6668d50a4908315738`, and stable patch ID
@@ -1882,6 +1891,24 @@ promise future compatibility.
 - Its fresh and verification exact full gates each exit 0 with 139/139 library,
   149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites.
   Fresh review and public acceptance remain pending; no capability moves.
+
+## CORE-063 locally green unary recursive CopyData enum boundary
+
+- The exact selected grammar is a unique nongeneric nonempty enum whose variants are
+  unit or contain exactly one value from the accepted recursive `CopyData` grammar.
+  Enum values remain non-Copy and Match results remain scalar.
+- `EnumRegistry` delegates payload annotation classification to `StructRegistry`;
+  semantic initialization/preflight/inference and checked admission consume resolved
+  arm binding types instead of scalar placeholders or topology-specific rules.
+- Checked enum construction, payload extraction, dispatch, parameters, calls, returns,
+  and schema registration retain exact recursive types. The verifier rejects unsupported
+  nested leaves, conflicting named schemas, scalar fallback payloads, and changed lane
+  identity before trusted LLVM generation.
+- Unit-only and scalar-only schemas preserve their accepted private layout. Schemas
+  containing aggregate payloads use a private tag plus one exact typed lane for each
+  payload-bearing variant; inactive lanes are typed zero values. No public ABI follows.
+- The exact local gate is green at 179 library and 185 binary tests. Public acceptance
+  requires the pushed pinned LLVM/Clang 22 native-exit-113 lane and all public checks.
 
 ## CORE-062 accepted recursive CopyData boundary
 

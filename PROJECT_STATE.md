@@ -4,6 +4,28 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
+Milestone 82 `CORE-063` is a locally green, record-inclusive candidate; the commit
+containing this record will become its immutable candidate identity. It extends the
+accepted unit-or-unary-scalar owned-enum class to exactly one recursive `CopyData`
+payload per payload-bearing variant by delegating annotation admission to the accepted
+`StructRegistry` classifier. Unit and scalar-only enum layouts retain their accepted
+private forms; any schema containing an aggregate payload lowers to a private typed
+product with an `i32` tag and one exact typed lane per payload-bearing variant.
+
+Construction, exhaustive identifier-bound `Match`, arm-local CopyData projections,
+whole-enum moves, internal parameters/results/calls, and flattened direct modules pass
+through exact checked enum schemas and independent verifier controls. The exhaustive
+target covers arrays, tuples, finite acyclic Copy structs, mixed unit/scalar/aggregate
+variants, unsupported recursive leaves/topologies, malformed schemas, and artifact
+hygiene. Rustfmt, all-target/all-feature checking, correctness Clippy, docs, 179/179
+library tests, 185/185 binary tests, and the exact repository-root `./tools/test.sh`
+gate pass. This Windows host has no LLVM/Clang 22 installation, so external LLVM
+verification, machine verification, object/link, native exit 113, all public checks,
+and public acceptance remain pending the pushed stable workflow. No stable layout,
+ABI/FFI, general enum storage/borrowing/mutation, aggregate Match result, nested
+destructuring, generic enum, new CFG ownership, closure, accelerator, performance,
+release, or stability claim follows.
+
 Milestone 81 `CORE-062` is accepted public at exact implementation commit
 `e62fd7470d8cb929d57d0c063815d7a99005d768`, tree
 `d2aff21a54c42d1ce649ef6668d50a4908315738`, and stable patch ID
@@ -1957,11 +1979,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Preserve accepted CORE-062 identity `e62fd747` and keep draft PR #4 synchronized. Begin
-no new behavior until a separately authorized task freezes its semantics, red evidence,
-files, stop conditions, and system gate. Selection must balance bounded work with hard
-ownership, module, runtime-layout/ABI, and accelerator classes instead of optimizing
-only for convenient compile-time leaves. Keep the PR draft and unmerged. The controlled
+Commit and publish the exact locally green CORE-063 candidate on
+`agent/aero-integration`, synchronize draft PR #4, and require all public checks plus
+the pinned LLVM/Clang 22 external/machine verification, object/link, and native-exit-113
+lane before recording public acceptance. Keep the PR draft and unmerged. The controlled
 mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
 tasks, and periodic multi-capability system gates remain mandatory.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,

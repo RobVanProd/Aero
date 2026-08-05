@@ -2752,3 +2752,40 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   manifest generation remain separate work. Hard ownership/module/runtime/accelerator
   classes must not be deferred indefinitely, and periodic source-to-native system gates
   remain mandatory.
+
+## DEC-059 - Extend unary owned-enum payloads to recursive CopyData
+
+- Date: 2026-08-05
+- Status: locally green record-inclusive CORE-063 candidate. Formatting,
+  all-target/all-feature checking, correctness Clippy, docs, 179/179 library tests,
+  185/185 binary tests, verifier corruptions, the exhaustive target, and the exact
+  repository-root gate pass. The commit containing this record becomes the immutable
+  candidate; public checks and pinned LLVM/Clang 22 native exit 113 remain pending.
+- Decision: a unique nongeneric nonempty enum is executable when every variant is unit
+  or contains exactly one value accepted by DEC-058's recursive `CopyData` contract.
+  Variant order and the exact recursive payload schema are identity. `EnumRegistry`
+  must delegate payload annotation classification to `StructRegistry`; semantic
+  initialization, preflight, inference, checked admission, and verifier registration
+  consume the same resolved binding/schema rather than scalar or topology placeholders.
+- Value and ownership boundary: constructors evaluate one exact payload once. Match
+  remains exhaustive with one explicit identifier binding per payload variant and a
+  scalar result. The bound CopyData value may use already accepted projections and
+  Copy operations, but the containing enum remains non-Copy and existing whole-enum
+  move/transport rules remain unchanged.
+- IR/backend: existing checked enum construction, extraction, dispatch, parameter,
+  call, return, and schema identities carry recursive payloads. Unit-only and
+  scalar-only schemas preserve their accepted private lowering. Any schema containing
+  an aggregate payload uses a private `i32` tag plus one exact typed lane per
+  payload-bearing variant, with typed zero values in inactive lanes. The verifier
+  rejects unsupported nested leaves, conflicting named schemas, fallback scalar
+  payloads, changed lane identity, and unguarded extraction before trusted codegen.
+- Exclusions: multi-field/struct variants, wildcard/guard/nested destructuring,
+  aggregate Match results, enum fields/arrays/general storage, enum borrowing or
+  mutation, partial moves, generic/recursive enums, new CFG ownership, drop/lifetimes,
+  public layout/ABI/FFI, closures, accelerators, performance, release, and stability
+  remain unsupported or separately governed.
+- Scaling boundary: this slice removes the scalar-versus-recursive payload partition
+  by reusing a shared classifier. It does not authorize projected-place semantics or
+  runtime bounds behavior, whose specifications remain ambiguous. PR #4 remains draft;
+  checkpoint strategy, evidence-manifest automation, and periodic composed system gates
+  remain active separate controls.

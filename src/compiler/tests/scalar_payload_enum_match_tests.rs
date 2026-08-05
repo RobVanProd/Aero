@@ -311,22 +311,22 @@ fn main() -> int {
         (
             "empty tuple declaration",
             "enum Signal { Empty() } fn main() { let value = Signal::Empty; }",
-            "enum `Signal` is not an admitted non-generic unit-or-unary-scalar enum",
+            "enum `Signal` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
             "multi payload declaration",
             "enum Signal { Pair(int, bool) } fn main() { let value = Signal::Pair(1); }",
-            "enum `Signal` is not an admitted non-generic unit-or-unary-scalar enum",
+            "enum `Signal` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
             "String payload declaration",
             "enum Signal { Text(String) } fn main() { let value = Signal::Text(\"x\"); }",
-            "enum `Signal` is not an admitted non-generic unit-or-unary-scalar enum",
+            "enum `Signal` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
             "struct variant declaration",
             "enum Signal { Named { value: int } } fn main() { let value = Signal::Named; }",
-            "enum `Signal` is not an admitted non-generic unit-or-unary-scalar enum",
+            "enum `Signal` is not an admitted non-generic unit-or-unary-CopyData enum",
         ),
         (
             "mutable payload enum binding",

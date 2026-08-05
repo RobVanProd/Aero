@@ -634,6 +634,25 @@ jobs:
         fi
         echo "recursive Copy-aggregate example passed with exit code 109"
 
+    - name: Test recursive CopyData payload enum integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/recursive_copy_payload_enum/main.aero -o ../../recursive_copy_payload_enum.ll
+        opt-22 -passes=verify -disable-output ../../recursive_copy_payload_enum.ll
+        llc-22 -verify-machineinstrs ../../recursive_copy_payload_enum.ll -o /dev/null
+        llc-22 -filetype=obj ../../recursive_copy_payload_enum.ll -o ../../recursive_copy_payload_enum.o
+        clang-22 ../../recursive_copy_payload_enum.o -o ../../recursive_copy_payload_enum
+        set +e
+        ../../recursive_copy_payload_enum
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 113 ]; then
+          echo "Expected exit code 113, got $exit_code"
+          exit 1
+        fi
+        echo "recursive CopyData payload enum example passed with exit code 113"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

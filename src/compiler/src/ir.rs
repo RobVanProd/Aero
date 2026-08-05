@@ -115,14 +115,14 @@ pub enum Inst {
         parameter: String,
         schema: EnumSchema,
     },
-    /// Verified construction of one unit or unary scalar variant in a closed enum.
+    /// Verified construction of one unit or unary recursive CopyData variant.
     CheckedEnumVariant {
         result: Value,
         schema: EnumSchema,
         variant_index: usize,
         payload: Option<Value>,
     },
-    /// Verified extraction of the selected unary scalar payload.
+    /// Verified extraction of the selected unary recursive CopyData payload.
     CheckedEnumPayload {
         result: Value,
         value: Value,
