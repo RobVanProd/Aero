@@ -1,45 +1,47 @@
 use crate::ast::{Expression, Parameter, Type};
 use crate::ir::LogicalType;
-use crate::types::Ty;
+use crate::types::{OwnershipState, Ty};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LocalReferenceContract {
     pub(crate) pointee: Ty,
+    pub(crate) mutable: bool,
 }
 
 impl LocalReferenceContract {
     pub(crate) fn reference_type(&self) -> Ty {
-        Ty::Reference(Box::new(self.pointee.clone()), false)
+        Ty::Reference(Box::new(self.pointee.clone()), self.mutable)
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LocalReferenceRejectKind {
-    Mutable,
-    NonIdentifierPlace,
-    UnsupportedPointee,
-    NonReferenceDereference,
+#[derive(Debug, Clone)]
+pub(crate) struct LocalReferenceSourceFacts {
+    pub(crate) ty: Ty,
+    pub(crate) mutable: bool,
+    pub(crate) initialized: bool,
+    pub(crate) local: bool,
+    pub(crate) ownership: OwnershipState,
 }
 
-impl LocalReferenceRejectKind {
-    pub(crate) fn diagnostic(self) -> &'static str {
-        match self {
-            Self::Mutable => "mutable references are not supported by CORE-048",
-            Self::NonIdentifierPlace => {
-                "a local immutable scalar borrow requires an identifier place"
-            }
-            Self::UnsupportedPointee => {
-                "local immutable references support only Int, Float, or Bool pointees"
-            }
-            Self::NonReferenceDereference => "cannot dereference a non-reference value",
-        }
-    }
+#[derive(Debug, Clone)]
+pub(crate) struct MutableReferenceAssignmentFacts {
+    pub(crate) ty: Ty,
+    pub(crate) initialized: bool,
+    pub(crate) local: bool,
+    pub(crate) ownership: OwnershipState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum LocalReferenceDisposition {
     Supported(LocalReferenceContract),
-    ExplicitlyRejected(LocalReferenceRejectKind),
+    ExplicitlyRejected(String),
+    Preserved,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum MutableReferenceAssignmentDisposition {
+    Supported(LocalReferenceContract),
+    ExplicitlyRejected(String),
     Preserved,
 }
 
@@ -66,6 +68,14 @@ pub(crate) enum ReferenceFunctionDisposition {
 fn scalar_contract(ty: &Ty) -> Option<LocalReferenceContract> {
     matches!(ty, Ty::Int | Ty::Float | Ty::Bool).then(|| LocalReferenceContract {
         pointee: ty.clone(),
+        mutable: false,
+    })
+}
+
+fn scalar_reference_contract(ty: &Ty, mutable: bool) -> Option<LocalReferenceContract> {
+    scalar_contract(ty).map(|mut contract| {
+        contract.mutable = mutable;
+        contract
     })
 }
 
@@ -176,35 +186,64 @@ pub(crate) fn classify_reference_function(
 pub(crate) fn classify_local_borrow(
     expression: &Expression,
     mutable: bool,
-    pointee: &Ty,
+    facts: Option<&LocalReferenceSourceFacts>,
 ) -> LocalReferenceDisposition {
-    if mutable {
-        return LocalReferenceDisposition::ExplicitlyRejected(LocalReferenceRejectKind::Mutable);
+    let Expression::Identifier(name) = expression else {
+        let qualifier = if mutable { "mutable " } else { "immutable " };
+        return LocalReferenceDisposition::ExplicitlyRejected(format!(
+            "a local {qualifier}scalar borrow requires an identifier place"
+        ));
+    };
+    let Some(facts) = facts else {
+        return LocalReferenceDisposition::ExplicitlyRejected(format!(
+            "local scalar borrow source `{name}` is not an initialized local binding"
+        ));
+    };
+    if !facts.local || !facts.initialized {
+        return LocalReferenceDisposition::ExplicitlyRejected(format!(
+            "local scalar borrow source `{name}` is not an initialized local binding"
+        ));
     }
-    if !matches!(expression, Expression::Identifier(_)) {
-        return LocalReferenceDisposition::ExplicitlyRejected(
-            LocalReferenceRejectKind::NonIdentifierPlace,
-        );
+    let Some(contract) = scalar_reference_contract(&facts.ty, mutable) else {
+        let qualifier = if mutable { "mutable " } else { "immutable " };
+        return LocalReferenceDisposition::ExplicitlyRejected(format!(
+            "local {qualifier}references support only Int, Float, or Bool pointees"
+        ));
+    };
+    if mutable && !facts.mutable {
+        return LocalReferenceDisposition::ExplicitlyRejected(format!(
+            "mutable scalar borrow source `{name}` must be declared mutable"
+        ));
     }
-    scalar_contract(pointee).map_or(
-        LocalReferenceDisposition::ExplicitlyRejected(LocalReferenceRejectKind::UnsupportedPointee),
-        LocalReferenceDisposition::Supported,
+    let conflict = match (&facts.ownership, mutable) {
+        (OwnershipState::Moved, _) => Some(format!("cannot borrow `{name}` because it was moved")),
+        (OwnershipState::MutablyBorrowed, true) => Some(format!(
+            "cannot borrow `{name}` as mutable because it is already borrowed as mutable"
+        )),
+        (OwnershipState::MutablyBorrowed, false) => Some(format!(
+            "cannot borrow `{name}` as immutable because it is also borrowed as mutable"
+        )),
+        (OwnershipState::ImmutablyBorrowed(_), true) => Some(format!(
+            "cannot borrow `{name}` as mutable because it is also borrowed as immutable"
+        )),
+        _ => None,
+    };
+    conflict.map_or(
+        LocalReferenceDisposition::Supported(contract),
+        LocalReferenceDisposition::ExplicitlyRejected,
     )
 }
 
 pub(crate) fn classify_local_dereference(operand: &Ty) -> LocalReferenceDisposition {
     match operand {
-        Ty::Reference(_, true) => {
-            LocalReferenceDisposition::ExplicitlyRejected(LocalReferenceRejectKind::Mutable)
-        }
-        Ty::Reference(pointee, false) => scalar_contract(pointee).map_or(
+        Ty::Reference(pointee, mutable) => scalar_reference_contract(pointee, *mutable).map_or(
             LocalReferenceDisposition::ExplicitlyRejected(
-                LocalReferenceRejectKind::UnsupportedPointee,
+                "local references support only Int, Float, or Bool pointees".to_string(),
             ),
             LocalReferenceDisposition::Supported,
         ),
         _ => LocalReferenceDisposition::ExplicitlyRejected(
-            LocalReferenceRejectKind::NonReferenceDereference,
+            "cannot dereference a non-reference value".to_string(),
         ),
     }
 }
@@ -219,20 +258,108 @@ pub(crate) fn classify_local_reference_annotation(
     if !initialized {
         return LocalReferenceDisposition::Preserved;
     }
-    if *mutable {
-        return LocalReferenceDisposition::ExplicitlyRejected(LocalReferenceRejectKind::Mutable);
-    }
     let pointee = match inner.as_ref() {
         Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Ty::Int,
         Type::Named(name) if matches!(name.as_str(), "float" | "f64") => Ty::Float,
         Type::Named(name) if name == "bool" => Ty::Bool,
         _ => {
-            return LocalReferenceDisposition::ExplicitlyRejected(
-                LocalReferenceRejectKind::UnsupportedPointee,
+            return LocalReferenceDisposition::ExplicitlyRejected(format!(
+                "local {}references support only Int, Float, or Bool pointees",
+                if *mutable { "mutable " } else { "immutable " }
+            ));
+        }
+    };
+    LocalReferenceDisposition::Supported(LocalReferenceContract {
+        pointee,
+        mutable: *mutable,
+    })
+}
+
+pub(crate) fn classify_mutable_reference_assignment(
+    target: &Expression,
+    facts: Option<&MutableReferenceAssignmentFacts>,
+    rhs: &Ty,
+    inside_admitted_function: bool,
+) -> MutableReferenceAssignmentDisposition {
+    let Expression::Deref(reference) = target else {
+        return MutableReferenceAssignmentDisposition::Preserved;
+    };
+    if !inside_admitted_function {
+        return MutableReferenceAssignmentDisposition::ExplicitlyRejected(
+            "mutable reference assignment is supported only inside admitted function bodies"
+                .to_string(),
+        );
+    }
+    let Expression::Identifier(name) = reference.as_ref() else {
+        return MutableReferenceAssignmentDisposition::ExplicitlyRejected(
+            "mutable reference assignment requires a local reference identifier".to_string(),
+        );
+    };
+    let Some(facts) = facts else {
+        return MutableReferenceAssignmentDisposition::ExplicitlyRejected(format!(
+            "mutable reference assignment target `{name}` is not an initialized local binding"
+        ));
+    };
+    if !facts.local || !facts.initialized {
+        return MutableReferenceAssignmentDisposition::ExplicitlyRejected(format!(
+            "mutable reference assignment target `{name}` is not an initialized local binding"
+        ));
+    }
+    match facts.ownership {
+        OwnershipState::Owned => {}
+        OwnershipState::Moved => {
+            return MutableReferenceAssignmentDisposition::ExplicitlyRejected(format!(
+                "cannot assign through moved mutable reference `{name}`"
+            ));
+        }
+        OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
+            return MutableReferenceAssignmentDisposition::ExplicitlyRejected(format!(
+                "mutable reference alias `{name}` has an invalid ownership state"
+            ));
+        }
+    }
+    let contract = match &facts.ty {
+        Ty::Reference(_, false) => {
+            return MutableReferenceAssignmentDisposition::ExplicitlyRejected(
+                "assignment through an immutable reference is not supported".to_string(),
+            );
+        }
+        Ty::Reference(pointee, true) => {
+            let Some(contract) = scalar_reference_contract(pointee, true) else {
+                return MutableReferenceAssignmentDisposition::ExplicitlyRejected(
+                    "local mutable references support only Int, Float, or Bool pointees"
+                        .to_string(),
+                );
+            };
+            contract
+        }
+        _ => {
+            return MutableReferenceAssignmentDisposition::ExplicitlyRejected(
+                "mutable reference assignment requires a mutable reference target".to_string(),
             );
         }
     };
-    LocalReferenceDisposition::Supported(LocalReferenceContract { pointee })
+    if contract.pointee != *rhs {
+        return MutableReferenceAssignmentDisposition::ExplicitlyRejected(format!(
+            "mutable reference assignment type mismatch: expected {}, actual {rhs}",
+            contract.pointee
+        ));
+    }
+    MutableReferenceAssignmentDisposition::Supported(contract)
+}
+
+pub(crate) fn classify_mutable_reference_binding(
+    value: &Expression,
+    ty: &Ty,
+) -> Result<(), String> {
+    if matches!(ty, Ty::Reference(_, true))
+        && !matches!(value, Expression::Borrow { mutable: true, .. })
+    {
+        return Err(
+            "mutable reference aliases cannot be copied or relocated by CORE-055".to_string(),
+        );
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -242,32 +369,54 @@ mod tests {
     #[test]
     fn classifier_partitions_supported_rejected_and_preserved_reference_shapes() {
         for pointee in [Ty::Int, Ty::Float, Ty::Bool] {
+            let facts = LocalReferenceSourceFacts {
+                ty: pointee.clone(),
+                mutable: true,
+                initialized: true,
+                local: true,
+                ownership: OwnershipState::Owned,
+            };
             let disposition = classify_local_borrow(
                 &Expression::Identifier("value".to_string()),
                 false,
-                &pointee,
+                Some(&facts),
             );
             assert_eq!(
                 disposition,
-                LocalReferenceDisposition::Supported(LocalReferenceContract { pointee })
+                LocalReferenceDisposition::Supported(LocalReferenceContract {
+                    pointee,
+                    mutable: false,
+                })
             );
         }
-        assert_eq!(
-            classify_local_borrow(&Expression::Identifier("value".to_string()), true, &Ty::Int),
-            LocalReferenceDisposition::ExplicitlyRejected(LocalReferenceRejectKind::Mutable)
-        );
-        assert_eq!(
-            classify_local_borrow(&Expression::IntegerLiteral(1), false, &Ty::Int),
-            LocalReferenceDisposition::ExplicitlyRejected(
-                LocalReferenceRejectKind::NonIdentifierPlace
-            )
-        );
-        assert_eq!(
+        let mutable_facts = LocalReferenceSourceFacts {
+            ty: Ty::Int,
+            mutable: true,
+            initialized: true,
+            local: true,
+            ownership: OwnershipState::Owned,
+        };
+        assert!(matches!(
+            classify_local_borrow(
+                &Expression::Identifier("value".to_string()),
+                true,
+                Some(&mutable_facts)
+            ),
+            LocalReferenceDisposition::Supported(LocalReferenceContract {
+                pointee: Ty::Int,
+                mutable: true
+            })
+        ));
+        assert!(matches!(
+            classify_local_borrow(&Expression::IntegerLiteral(1), false, None),
+            LocalReferenceDisposition::ExplicitlyRejected(message)
+                if message.contains("identifier place")
+        ));
+        assert!(matches!(
             classify_local_dereference(&Ty::Reference(Box::new(Ty::String), false)),
-            LocalReferenceDisposition::ExplicitlyRejected(
-                LocalReferenceRejectKind::UnsupportedPointee
-            )
-        );
+            LocalReferenceDisposition::ExplicitlyRejected(message)
+                if message.contains("support only Int, Float, or Bool")
+        ));
         assert_eq!(
             classify_local_reference_annotation(
                 &Type::Reference(Box::new(Type::Named("int".to_string())), false),

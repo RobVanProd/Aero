@@ -4,31 +4,41 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 73 `CORE-054` is the locally green candidate for explicit mutable-local
-scalar reassignment. Inside admitted function bodies, `target = value;` resolves only
-the nearest initialized, owned local `let mut` whose exact type is `Int`, `Float`, or
-`Bool`; the right-hand expression must have the same logical type and is evaluated
-once. Sequential writes, reads before/after writes, nested and shadowed locals,
-selected branches, compiler-bounded `for`, `while`-carried state, internal calls, and
-one-level direct modules are covered. Immutable locals and parameters, unknown or
-uninitialized targets, borrowed targets, non-scalars, non-identifier targets,
-assignment values/chaining/compound syntax, mutable references, and NLL remain
-fail-closed.
+Milestone 74 `CORE-055` is the locally green candidate for non-escaping local mutable
+scalar references. Inside admitted function bodies, one direct `&mut owner` may bind a
+non-`Copy` local alias when `owner` is an initialized mutable `Int`, `Float`, or `Bool`.
+`*alias` reads the current value and `*alias = value;` writes an exact same-type value
+once through the verified alias. Sequential writes, branches, loops, shadowing,
+function bodies, one-level direct modules, and explicit lexical release with later
+owner reuse are covered. Owner access and competing immutable or mutable borrows fail
+while the alias is active.
 
-One shared whole-assignment classifier owns topology, target facts, ownership, and
-exact-type admission across semantic analysis and checked admission. Checked IR adds
-an exact mutable scalar place declaration and a distinct scalar assignment. Independent
-verification proves supported metadata, collision-free place identity, dominance,
-one adjacent declaration initializer, and exact assignment value type; generic later
-`Store` instructions cannot substitute for a source assignment. Verified LLVM keeps
-the established internal `double` representation for `Int`/`Float` and `i1` for
-`Bool`, writing the existing stack slot so real branch and loop execution carry state.
-The exhaustive source/IR/LLVM/CLI target and private verifier corruption matrix pass.
-The tracked composed direct-module gate now requires pinned LLVM/Clang 22 external and
-machine verification, object lowering, linking, and exact native exit 227. The exact
-repository-root gate is formatting and correctness-Clippy clean and passes 165/165
-library tests, 171/171 binary tests, every integration target, and doc tests.
-Publication, all eight public checks, and public acceptance remain pending.
+One shared local-reference classifier owns immutable/mutable mode, topology, source
+facts, pointee type, and ownership disposition across semantic analysis and checked
+admission; mutable dereference assignment consumes the same classification boundary.
+Checked IR adds distinct mutable-borrow, mutable-dereference-write, and lexical
+borrow-end identities. Independent verification proves exact alias/source/pointee
+provenance, dominance, active-loan state, value type, and release identity, and rejects
+raw-store or immutable-borrow substitution. Verified LLVM derives typed `double*` or
+`i1*` aliases without pointer/integer conversion and executes real branch/loop writes.
+The exhaustive source/IR/LLVM/CLI target, private corruption matrix, tracked two-file
+example, and full Rust suite pass locally at 166/166 library and 172/172 binary tests.
+The composed workflow now requires pinned LLVM/Clang 22 external and machine
+verification, object lowering, linking, and exact native exit 239. Mutable-reference
+parameters/results, relocation, escaping/storage/capture, non-scalar or projected
+pointees, reborrowing, NLL, lifetime inference, drop, stable ABI/FFI, and a general
+memory-safety claim remain fail-closed. Publication and public acceptance are pending.
+
+Milestone 73 `CORE-054` is accepted public at exact implementation commit
+`6ef3e44f8c7910815031c12e880ac874141cef5c`, tree
+`b6fe360fa42dfefef48492423a481da930279c8f`, and stable patch ID
+`7cfa95a31f53381e4bc373ebc07d09d76a0d76fc`. All eight public checks pass. Stable
+run `30986603008`, job `92242692711`, uses LLVM/Clang 22.1.8 for external
+verification, machine verification, object lowering, linking, and exact native exit
+227, with 165/165 library and 171/171 binary tests. CORE-054 accepts explicit exact
+`Int`/`Float`/`Bool` reassignment of initialized owned local `let mut` bindings across
+real branch and loop CFG without assignment expressions, compound syntax, aggregate
+assignment, mutable-reference semantics, NLL, drop, stable ABI, or safety claims.
 
 Milestone 72 `CORE-053` is accepted public at exact implementation commit
 `b4aec4a01312088807750b0e40150cee87dc2131`, tree
@@ -212,8 +222,10 @@ composition rather than a module system.
   effects, checked call/return verification, and aggregate SSA lowering. Accepted
   CORE-053 takes immutable borrow provenance across an internal pointer-bearing call
   boundary, with one whole-signature topology classifier and checked parameter-place
-  proof. CORE-054 now takes explicit mutable state across branches and loops with one
-  shared whole-assignment classifier and checked place/write proof. Deeper CFG
+  proof. Accepted CORE-054 takes explicit mutable state across branches and loops with
+  one shared whole-assignment classifier and checked place/write proof. CORE-055 now
+  takes the harder exclusive-loan/provenance boundary with non-`Copy` aliases,
+  dereference writes, lexical release, and checked active-loan verification. Deeper CFG
   ownership, runtime representation, stable ABI, full module semantics, and real
   accelerator execution remain mandatory hard classes for later frozen decisions.
 - Evidence remains proportional for current work, while chronology/identity boilerplate
@@ -243,10 +255,11 @@ composition rather than a module system.
   exact ownership transfer, and module-composed execution. CORE-053's accepted exit-211
   gate adds direct and aliased scalar borrows, pointer-bearing parameters/calls,
   forwarding, recursion, modules, and composition with enums, Copy aggregates, arrays,
-  Strings, and control flow. CORE-054's candidate exit-227 gate adds sequential,
+  Strings, and control flow. CORE-054's accepted exit-227 gate adds sequential,
   branch-selected, and loop-carried Int/Float/Bool mutation through explicit checked
-  writes while retaining that broader composition; public native acceptance remains
-  mandatory.
+  writes while retaining that broader composition. CORE-055's candidate exit-239 gate
+  adds exclusive local mutable aliases, typed dereference loads/stores, lexical owner
+  reuse, and Bool/Float/Int loan provenance; public native acceptance remains mandatory.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
@@ -285,16 +298,17 @@ fixed-array-length example with exact exit 37.
 
 ## Active hypothesis
 
-An explicit statement-only write to an initialized, owned local mutable scalar can
-carry real state through existing branch and loop CFG without inventing mutable-reference
-or NLL semantics. One whole-assignment classifier can keep semantic and checked
-admission aligned; explicit mutable-place and assignment instructions plus independent
-dominance/type/initialization verification can prevent generic storage IR from
-masquerading as source mutation. Focused source-to-LLVM and CLI evidence satisfies the
-local slice. The full root gate, immutable implementation identity, all-eight public
-checks, pinned external and machine verification, object/link stages, and native exit
-227 remain required before acceptance. Mutable references, non-scalar or projected
-targets, assignment values, lifetime inference, resource ownership, drop, stable ABI,
+A direct, non-escaping mutable alias to an initialized mutable local scalar can carry
+exclusive writes through existing branch and loop CFG without inventing parameter
+aliasing, NLL, or escaping lifetime semantics. One shared reference classifier can keep
+semantic analysis and checked admission aligned across immutable and mutable mode;
+distinct borrow/write/end identities plus independent active-loan verification can
+prevent raw storage IR or immutable aliases from masquerading as mutable provenance.
+Focused source-to-LLVM, CLI, corruption, and full Rust evidence satisfies the local
+slice. The exact root gate, immutable implementation identity, all-eight public checks,
+pinned external and machine verification, object/link stages, and native exit 239
+remain required before acceptance. Mutable-reference parameters/results, relocation,
+non-scalar or projected pointees, reborrowing, lifetime inference, drop, stable ABI,
 and memory-safety claims remain outside this class.
 
 The completed `AUDIT-032` hypothesis was:
@@ -1839,10 +1853,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Complete the exact root gate for the bounded CORE-054 candidate, record only the final
+Complete the exact root gate for the bounded CORE-055 candidate, record only the final
 evidence, commit and push once, and immediately resynchronize draft PR #4 to the exact
 candidate head and current diff size. Require all eight checks plus pinned LLVM/Clang
-22 native exit 227 before acceptance. Keep the PR draft and unmerged. Then choose the
+22 native exit 239 before acceptance. Keep the PR draft and unmerged. Then choose the
 next hard capability separately; the controlled mega-PR checkpoint strategy and
 structured evidence-manifest generator remain separate tasks.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,

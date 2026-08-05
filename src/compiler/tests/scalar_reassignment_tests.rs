@@ -409,9 +409,9 @@ fn main() -> int {
             "assignment target must be a local identifier",
         ),
         (
-            "dereference target",
+            "immutable dereference target",
             "fn main() -> int { let mut value = 1; let alias = &value; *alias = 2; value }",
-            "assignment target must be a local identifier",
+            "assignment through an immutable reference is not supported",
         ),
         (
             "top-level assignment",

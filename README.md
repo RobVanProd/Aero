@@ -146,7 +146,7 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus accepted bounded subsets for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places and transport of those aliases through exact internal function parameters. CORE-054 is a locally green candidate for explicit reassignment of initialized owned `let mut` scalar locals. These use checked IR, independent verification, and typed LLVM. No general borrow checker, mutable references, lifetime analysis, drop model, or memory-safety guarantee. Reference results remain unsupported. |
+| **Memory** | Shallow move tracking plus accepted bounded subsets for non-escaping immutable aliases of local `Int`/`Float`/`Bool` places, transport of those aliases through exact internal function parameters, and explicit reassignment of initialized owned `let mut` scalar locals. CORE-055 is a locally green candidate for one non-escaping mutable alias to such a local scalar, with exact dereference writes and lexical release. These use checked IR, independent verification, and typed LLVM. No general borrow checker, mutable references, lifetime analysis, drop model, or memory-safety guarantee. Reference results remain unsupported. |
 | **Data Types** | Struct/enum declarations and syntax, arrays, tuples, strings, pattern matching; execution limits below |
 | **Control Flow** | Functions, if/else, while/for loops, break/continue, closures |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
@@ -234,12 +234,21 @@ aero lsp
 > Linux uses LLVM/Clang 22.1.8 for external verification, machine verification, object
 > lowering, linking, and exact native exit 211, with 163 library and 169 binary tests.
 >
-> Mutable references, temporary/non-scalar pointees, reference results, escaping or
-> aggregate references, storage/capture, mutation through references, NLL, drop, stable pointer
-> ABI, and any memory-safety guarantee remain unsupported. The Windows host accurately
-> remains `InternalOnly` because LLVM 22 is absent locally.
+> CORE-055 is a bounded local candidate for a direct `&mut owner` alias when `owner`
+> is an initialized mutable `Int`, `Float`, or `Bool`. Mutable aliases are non-`Copy`;
+> exact `*alias` reads and `*alias = value;` writes retain alias/source/pointee identity
+> through checked borrow, write, and lexical-end instructions. The verifier rejects
+> competing loans, owner access during the loan, raw-store substitution, wrong release
+> identity, and use after release. The tracked direct-module gate requires pinned
+> LLVM/Clang 22 verification and exact native exit 239 before public acceptance.
+>
+> Mutable-reference parameters/results, temporary/non-scalar/projected pointees,
+> escaping or aggregate references, relocation, storage/capture, reborrowing, NLL,
+> lifetime inference, drop, stable pointer ABI, and any memory-safety guarantee remain
+> unsupported. The Windows host accurately remains `InternalOnly` because LLVM 22 is
+> absent locally.
 
-> **Mutation status:** CORE-054 is a bounded candidate for semicolon-terminated
+> **Mutation status:** CORE-054 is publicly accepted for semicolon-terminated
 > `target = value;` statements inside admitted functions. `target` must resolve to the
 > nearest initialized, owned local `let mut` of exact type `Int`, `Float`, or `Bool`,
 > and `value` must have the same logical type. Sequential writes, nested/shadowed
@@ -248,12 +257,12 @@ aero lsp
 > topology, mutability, ownership, and exact-type admission across semantic analysis
 > and checked admission. Checked mutable-place and assignment instructions are
 > independently verified before typed `double`/`i1` allocation, store, and load LLVM.
-> The exhaustive source/IR/LLVM/CLI target, private corruption matrix, and exact root
-> gate pass locally with 165 library and 171 binary tests; the tracked composed stable
-> gate requires LLVM/Clang 22 verification and exact native exit 227 before acceptance.
+> Exact implementation `6ef3e44` passes 165 library and 171 binary tests plus all eight
+> public checks; pinned Linux LLVM/Clang 22.1.8 externally verifies, machine-verifies,
+> object-lowers, links, and executes exact native exit 227.
 > Immutable locals/parameters, unknown or uninitialized targets, borrowed targets,
 > non-scalar or non-identifier targets, assignment values/chaining/compound syntax,
-> mutable references, NLL, drop, stable ABI, and memory-safety claims remain excluded.
+> aggregate assignment, NLL, drop, stable ABI, and memory-safety claims remain excluded.
 
 > **Pattern matching status:** CORE-049 accepts one bounded owned unit-enum class:
 > unique top-level non-generic enums with one or more unit variants, exact payload-free

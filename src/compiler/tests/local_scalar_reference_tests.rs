@@ -234,9 +234,9 @@ fn local_immutable_scalar_reference_class_is_complete_and_executable() {
 
     let rejected = [
         (
-            "mutable borrow",
-            "fn main() { let mut x = 1; let r = &mut x; let y = *r; }",
-            "mutable references are not supported",
+            "mutable alias relocation",
+            "fn main() { let mut x = 1; let r = &mut x; let moved = r; }",
+            "mutable reference aliases cannot be copied or relocated",
         ),
         (
             "borrowed literal",
@@ -289,9 +289,9 @@ fn local_immutable_scalar_reference_class_is_complete_and_executable() {
             "type annotation mismatch",
         ),
         (
-            "mutable annotation",
+            "mutable annotation with immutable initializer",
             "fn main() { let x = 1; let r: &mut int = &x; }",
-            "mutable references are not supported",
+            "type annotation mismatch",
         ),
         (
             "reference result ABI",

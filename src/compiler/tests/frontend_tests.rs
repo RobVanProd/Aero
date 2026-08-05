@@ -545,8 +545,8 @@ fn test_semantic_move_once_ok() {
 
 #[test]
 fn test_semantic_immutable_borrow_ok() {
-    // Multiple immutable borrows are fine
-    let source = "let x = 10; let r1 = &x; let r2 = &x;";
+    // Multiple immutable borrows remain valid in the admitted local function class.
+    let source = "fn main() -> int { let x = 10; let r1 = &x; let r2 = &x; *r1 + *r2 }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
@@ -559,74 +559,68 @@ fn test_semantic_immutable_borrow_ok() {
 
 #[test]
 fn test_semantic_mutable_borrow_requires_mut() {
-    // CORE-048 rejects mutable borrowing before later owner-mutability rules.
-    let source = "let x = 10; let r = &mut x;";
+    // CORE-055 requires the directly borrowed local owner to be mutable.
+    let source = "fn main() -> int { let x = 10; let r = &mut x; *r }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
     assert!(
         result.is_err(),
-        "Mutable references remain outside CORE-048"
+        "A mutable reference requires a mutable owner"
     );
     let err = result.unwrap_err();
-    assert_eq!(err, "mutable references are not supported by CORE-048");
+    assert_eq!(
+        err,
+        "mutable scalar borrow source `x` must be declared mutable"
+    );
 }
 
 #[test]
-fn test_semantic_mutable_borrow_remains_unsupported() {
-    // A mutable owner does not broaden the immutable-only CORE-048 class.
-    let source = "let mut x = 10; let r = &mut x;";
+fn test_semantic_mutable_borrow_ok() {
+    // CORE-055 admits one non-escaping mutable alias to a mutable local scalar.
+    let source = "fn main() -> int { let mut x = 10; let r = &mut x; *r = 11; *r }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert_eq!(
-        result.unwrap_err(),
-        "mutable references are not supported by CORE-048"
+    assert!(
+        result.is_ok(),
+        "A local mutable scalar alias should be valid"
     );
 }
 
 #[test]
 fn test_semantic_double_mutable_borrow_fails() {
-    // Mutable references are rejected before active-loan conflict analysis.
-    let source = "let mut x = 10; let r1 = &mut x; let r2 = &mut x;";
+    // The exclusive loan forbids a second mutable alias in the same lexical scope.
+    let source = "fn main() -> int { let mut x = 10; let r1 = &mut x; let r2 = &mut x; *r1 + *r2 }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert_eq!(
-        result.unwrap_err(),
-        "mutable references are not supported by CORE-048"
-    );
+    assert!(result.unwrap_err().contains("already borrowed as mutable"));
 }
 
 #[test]
 fn test_semantic_mut_and_immut_borrow_conflict() {
-    // Mutable references are rejected before active-loan conflict analysis.
-    let source = "let mut x = 10; let r1 = &x; let r2 = &mut x;";
+    // An immutable alias blocks a mutable alias to the same owner.
+    let source = "fn main() -> int { let mut x = 10; let r1 = &x; let r2 = &mut x; *r1 + *r2 }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert_eq!(
-        result.unwrap_err(),
-        "mutable references are not supported by CORE-048"
-    );
+    assert!(result.unwrap_err().contains("also borrowed as immutable"));
 }
 
 #[test]
 fn test_semantic_immut_borrow_while_mut_borrowed_fails() {
-    // The first mutable reference is rejected before a later immutable alias exists.
-    let source = "let mut x = 10; let r1 = &mut x; let r2 = &x;";
+    // An active mutable alias blocks a later immutable alias to the same owner.
+    let source = "fn main() -> int { let mut x = 10; let r1 = &mut x; let r2 = &x; *r1 + *r2 }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert_eq!(
-        result.unwrap_err(),
-        "mutable references are not supported by CORE-048"
-    );
+    assert!(result.unwrap_err().contains("also borrowed as mutable"));
 }
 
 #[test]

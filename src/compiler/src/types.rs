@@ -137,11 +137,13 @@ impl Ty {
     }
 
     /// Returns true if this type is a Copy type (cheap stack copy, no move semantics).
-    /// Copy types: integers, floats, booleans, references, and tuples/arrays of Copy types.
+    /// Copy types: integers, floats, booleans, immutable references, and tuples/arrays
+    /// of Copy types. Mutable references retain unique alias ownership.
     pub fn is_copy_type(&self) -> bool {
         match self {
             Ty::Int | Ty::Float | Ty::Bool | Ty::Void => true,
-            Ty::Reference(_, _) => true, // references are always Copy
+            Ty::Reference(_, false) => true,
+            Ty::Reference(_, true) => false,
             Ty::Tuple(elems) => elems.iter().all(|t| t.is_copy_type()),
             Ty::Array(elem, _) => elem.is_copy_type(),
             // Move types: String, Struct, Enum, Option, Result, Vec, HashMap

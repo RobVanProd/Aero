@@ -904,6 +904,7 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedStructAlloca { result, .. }
         | Inst::CheckedStructFieldPtr { result, .. }
         | Inst::CheckedImmutableBorrow { result, .. }
+        | Inst::CheckedMutableBorrow { result, .. }
         | Inst::CheckedImmutableReferenceParameter { result, .. } => Some(result),
         _ => None,
     }
@@ -1025,6 +1026,7 @@ struct FunctionVerifier<'a> {
     place_names: BTreeMap<PlaceId, Option<String>>,
     element_owners: BTreeMap<PlaceId, PlaceId>,
     mutable_scalar_places: BTreeSet<PlaceId>,
+    mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     dominators: Vec<BTreeSet<usize>>,
     infer_bool_places: bool,
 }
@@ -1050,6 +1052,7 @@ impl<'a> FunctionVerifier<'a> {
             place_names: BTreeMap::new(),
             element_owners: BTreeMap::new(),
             mutable_scalar_places: BTreeSet::new(),
+            mutable_reference_origins: BTreeMap::new(),
             dominators,
             infer_bool_places,
         };
@@ -1250,6 +1253,7 @@ impl<'a> FunctionVerifier<'a> {
                                     "checked struct field pointer"
                                 }
                                 Inst::CheckedImmutableBorrow { .. } => "checked immutable borrow",
+                                Inst::CheckedMutableBorrow { .. } => "checked mutable borrow",
                                 Inst::CheckedImmutableReferenceParameter { .. } => {
                                     "checked immutable reference parameter"
                                 }
@@ -1638,6 +1642,39 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             }
+                            (PlaceType::Known(pointee.clone()), None)
+                        }
+                        Inst::CheckedMutableBorrow {
+                            source, pointee, ..
+                        } => {
+                            if !valid_mutable_scalar_type(pointee) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::UnsupportedType(format!(
+                                        "checked mutable reference pointee `{pointee}`"
+                                    )),
+                                ));
+                            }
+                            let Some(source_id) = reg(source).map(PlaceId) else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked mutable borrow source",
+                                    ),
+                                ));
+                            };
+                            if !self.mutable_scalar_places.contains(&source_id) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked mutable borrow source",
+                                    ),
+                                ));
+                            }
+                            self.mutable_reference_origins.insert(id, source_id);
                             (PlaceType::Known(pointee.clone()), None)
                         }
                         Inst::CheckedImmutableReferenceParameter {
@@ -2033,6 +2070,8 @@ impl<'a> FunctionVerifier<'a> {
         let mut bound_enum_parameters = BTreeSet::new();
         let mut bound_reference_parameters = BTreeSet::new();
         let mut initialized_mutable_scalar_places = BTreeSet::new();
+        let mut active_mutable_references = BTreeSet::new();
+        let mut active_mutable_sources = BTreeSet::new();
         for block_index in 0..self.blocks.len() {
             let instructions = self.blocks[block_index].instructions.clone();
             for (position, instruction) in instructions {
@@ -2101,6 +2140,24 @@ impl<'a> FunctionVerifier<'a> {
                     | Inst::Label(_) => {}
                     Inst::Store(place, value) => {
                         let id = self.require_place(place, "store", block_index, position)?;
+                        if self.mutable_reference_origins.contains_key(&id) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "generic store through mutable reference place {} is forbidden; mutable-reference writes require CheckedMutableDereferenceAssignment",
+                                    id.0
+                                )),
+                            ));
+                        }
+                        if active_mutable_sources.contains(&id) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "generic store to source place {} is forbidden while its mutable reference is active",
+                                    id.0
+                                )),
+                            ));
+                        }
                         if self.mutable_scalar_places.contains(&id) {
                             let definition = self
                                 .place_definitions
@@ -2210,6 +2267,15 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
+                        if active_mutable_sources.contains(&target) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked scalar assignment to source place {} is forbidden while its mutable reference is active",
+                                    target.0
+                                )),
+                            ));
+                        }
                         let actual = self.places.get(&target).and_then(PlaceType::logical);
                         if actual.as_ref() != Some(ty) {
                             return Err(self.error(
@@ -2230,7 +2296,27 @@ impl<'a> FunctionVerifier<'a> {
                         )?;
                     }
                     Inst::Load(_, place) => {
-                        self.require_place(place, "load", block_index, position)?;
+                        let place = self.require_place(place, "load", block_index, position)?;
+                        if active_mutable_sources.contains(&place) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "load from source place {} is forbidden while its mutable reference is active",
+                                    place.0
+                                )),
+                            ));
+                        }
+                        if self.mutable_reference_origins.contains_key(&place)
+                            && !active_mutable_references.contains(&place)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "load from mutable reference place {} occurs outside its active lexical borrow",
+                                    place.0
+                                )),
+                            ));
+                        }
                     }
                     Inst::Return(value) => {
                         if self.body.signature.result == LogicalType::Void {
@@ -2580,6 +2666,15 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
+                        if active_mutable_sources.contains(&source) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked immutable borrow of source place {} is forbidden while its mutable reference is active",
+                                    source.0
+                                )),
+                            ));
+                        }
                         let actual = self.places.get(&source).and_then(PlaceType::logical);
                         if actual.as_ref() != Some(pointee) {
                             return Err(self.error(
@@ -2587,6 +2682,143 @@ impl<'a> FunctionVerifier<'a> {
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "checked immutable borrow pointee mismatch: declared {pointee}, source {}",
                                     actual.map_or_else(|| "unknown".to_string(), |ty| ty.to_string())
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedMutableBorrow {
+                        result,
+                        source,
+                        pointee,
+                    } => {
+                        let Some(reference) = reg(result).map(PlaceId) else {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                    "checked mutable borrow result",
+                                ),
+                            ));
+                        };
+                        let source = self.require_place(
+                            source,
+                            "checked mutable borrow source",
+                            block_index,
+                            position,
+                        )?;
+                        if !valid_mutable_scalar_type(pointee)
+                            || !self.mutable_scalar_places.contains(&source)
+                            || !initialized_mutable_scalar_places.contains(&source)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable borrow source place {} is not an initialized declared mutable scalar",
+                                    source.0
+                                )),
+                            ));
+                        }
+                        let source_type = self.places.get(&source).and_then(PlaceType::logical);
+                        let reference_type =
+                            self.places.get(&reference).and_then(PlaceType::logical);
+                        if source_type.as_ref() != Some(pointee)
+                            || reference_type.as_ref() != Some(pointee)
+                            || self.mutable_reference_origins.get(&reference) != Some(&source)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable borrow metadata disagrees with reference place {} or source place {}",
+                                    reference.0, source.0
+                                )),
+                            ));
+                        }
+                        if active_mutable_sources.contains(&source)
+                            || !active_mutable_references.insert(reference)
+                            || !active_mutable_sources.insert(source)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "source place {} already has an active mutable reference",
+                                    source.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedMutableDereferenceAssignment {
+                        target,
+                        value,
+                        pointee,
+                    } => {
+                        let target = self.require_place(
+                            target,
+                            "checked mutable dereference assignment target",
+                            block_index,
+                            position,
+                        )?;
+                        if !valid_mutable_scalar_type(pointee)
+                            || !active_mutable_references.contains(&target)
+                            || !self.mutable_reference_origins.contains_key(&target)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable dereference assignment target place {} is not an active verified mutable reference",
+                                    target.0
+                                )),
+                            ));
+                        }
+                        let actual = self.places.get(&target).and_then(PlaceType::logical);
+                        if actual.as_ref() != Some(pointee) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable dereference assignment metadata `{pointee}` disagrees with target place {}",
+                                    target.0
+                                )),
+                            ));
+                        }
+                        self.require_type(
+                            value,
+                            pointee,
+                            "checked mutable dereference assignment",
+                            "value",
+                            block_index,
+                            position,
+                        )?;
+                    }
+                    Inst::CheckedMutableBorrowEnd {
+                        reference,
+                        source,
+                        pointee,
+                    } => {
+                        let reference = self.require_place(
+                            reference,
+                            "checked mutable borrow end reference",
+                            block_index,
+                            position,
+                        )?;
+                        let source = self.require_place(
+                            source,
+                            "checked mutable borrow end source",
+                            block_index,
+                            position,
+                        )?;
+                        let reference_type =
+                            self.places.get(&reference).and_then(PlaceType::logical);
+                        let source_type = self.places.get(&source).and_then(PlaceType::logical);
+                        if !valid_mutable_scalar_type(pointee)
+                            || reference_type.as_ref() != Some(pointee)
+                            || source_type.as_ref() != Some(pointee)
+                            || self.mutable_reference_origins.get(&reference) != Some(&source)
+                            || !active_mutable_references.remove(&reference)
+                            || !active_mutable_sources.remove(&source)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable borrow end does not match active reference place {} and source place {}",
+                                    reference.0, source.0
                                 )),
                             ));
                         }
@@ -4501,6 +4733,212 @@ mod tests {
                         value: Value::Reg(1),
                         ty: LogicalType::Int,
                     },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        ];
+
+        for (label, body) in invalid {
+            assert!(
+                verify_ir(function(body)).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+    }
+
+    #[test]
+    fn checked_mutable_scalar_borrows_writes_and_ends_are_fail_closed() {
+        let place = |result, name: &str| Inst::CheckedMutableScalarAlloca {
+            result: Value::Reg(result),
+            name: name.to_string(),
+            ty: LogicalType::Int,
+        };
+        let borrow = |result, source| Inst::CheckedMutableBorrow {
+            result: Value::Reg(result),
+            source: Value::Reg(source),
+            pointee: LogicalType::Int,
+        };
+        let write = |target, value| Inst::CheckedMutableDereferenceAssignment {
+            target: Value::Reg(target),
+            value,
+            pointee: LogicalType::Int,
+        };
+        let end = |reference, source| Inst::CheckedMutableBorrowEnd {
+            reference: Value::Reg(reference),
+            source: Value::Reg(source),
+            pointee: LogicalType::Int,
+        };
+
+        verify_ir(function(vec![
+            place(0, "value"),
+            Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+            borrow(1, 0),
+            write(1, Value::ImmInt(2)),
+            Inst::Load(Value::Reg(2), Value::Reg(1)),
+            end(1, 0),
+            Inst::CheckedScalarAssignment {
+                target: Value::Reg(0),
+                value: Value::ImmInt(3),
+                ty: LogicalType::Int,
+            },
+            Inst::Load(Value::Reg(3), Value::Reg(0)),
+            Inst::Return(Value::Reg(3)),
+        ]))
+        .expect("exact mutable borrow, dereference write, lexical end, and owner reuse are valid");
+
+        let invalid = [
+            (
+                "undefined source",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 9),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "non-place source",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    Inst::CheckedMutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::ImmInt(0),
+                        pointee: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "generic alloca source substitution",
+                vec![
+                    Inst::Alloca(Value::Reg(0), "value".to_string()),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 0),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "pointee metadata mismatch",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    Inst::CheckedMutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::Reg(0),
+                        pointee: LogicalType::Float,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "wrong write value type",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 0),
+                    write(1, Value::ImmFloat(2.0)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "undefined write value",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 0),
+                    write(1, Value::Reg(9)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "immutable borrow substitution",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    Inst::CheckedImmutableBorrow {
+                        result: Value::Reg(1),
+                        source: Value::Reg(0),
+                        pointee: LogicalType::Int,
+                    },
+                    write(1, Value::ImmInt(2)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "raw store through mutable alias",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 0),
+                    Inst::Store(Value::Reg(1), Value::ImmInt(2)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "wrong lexical end origin",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    place(2, "other"),
+                    Inst::Store(Value::Reg(2), Value::ImmInt(2)),
+                    borrow(1, 0),
+                    end(1, 2),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "write after lexical end",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 0),
+                    end(1, 0),
+                    write(1, Value::ImmInt(2)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "second active mutable borrow",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 0),
+                    borrow(2, 0),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "owner load while mutable alias active",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 0),
+                    Inst::Load(Value::Reg(2), Value::Reg(0)),
+                    Inst::Return(Value::Reg(2)),
+                ],
+            ),
+            (
+                "owner write while mutable alias active",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    borrow(1, 0),
+                    Inst::CheckedScalarAssignment {
+                        target: Value::Reg(0),
+                        value: Value::ImmInt(2),
+                        ty: LogicalType::Int,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "reference identifier collision",
+                vec![
+                    place(0, "value"),
+                    Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                    Inst::Add(Value::Reg(1), Value::ImmInt(1), Value::ImmInt(2)),
+                    borrow(1, 0),
                     Inst::Return(Value::ImmInt(0)),
                 ],
             ),

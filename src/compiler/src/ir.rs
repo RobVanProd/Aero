@@ -80,6 +80,24 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
+    /// Verified exclusive non-escaping alias of an existing mutable scalar place.
+    CheckedMutableBorrow {
+        result: Value,
+        source: Value,
+        pointee: LogicalType,
+    },
+    /// Verified scalar write through a checked mutable-reference alias.
+    CheckedMutableDereferenceAssignment {
+        target: Value,
+        value: Value,
+        pointee: LogicalType,
+    },
+    /// Verified lexical end of a non-escaping mutable scalar borrow.
+    CheckedMutableBorrowEnd {
+        reference: Value,
+        source: Value,
+        pointee: LogicalType,
+    },
     /// Verified read-only place binding for an immutable scalar-reference parameter.
     CheckedImmutableReferenceParameter {
         result: Value,

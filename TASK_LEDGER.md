@@ -10566,3 +10566,167 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   accurately `InternalOnly` because LLVM 22 is absent. Exact public implementation
   identity, pinned external/machine verification, object/link, exit 227, all eight
   checks, and PR-front-page acceptance remain pending; PR #4 stays draft and unmerged.
+- Public acceptance: exact implementation
+  `6ef3e44f8c7910815031c12e880ac874141cef5c`, tree
+  `b6fe360fa42dfefef48492423a481da930279c8f`, and stable patch ID
+  `7cfa95a31f53381e4bc373ebc07d09d76a0d76fc` were pushed unchanged. All eight
+  public checks pass. Stable Rust CI run `30986603008`, job `92242692711`, uses
+  LLVM/Clang 22.1.8, reports `ExternalVerified: opt 22.1.8`, runs
+  `llc-22 -verify-machineinstrs`, object-lowers, links with `clang-22`, executes the
+  composed mutable-state example with exact native exit 227, and passes 165/165
+  library plus 171/171 binary tests. Draft PR #4 is synchronized through CORE-054
+  at 242 commits, 68,005 additions, 1,440 deletions, and 144 files and remains open,
+  draft, and unmerged.
+
+## CORE-055 - Non-escaping local mutable scalar references
+
+- Task ID: `CORE-055`. Observed behavior: accepted CORE-054 supplies explicit scalar
+  writes and checked mutable storage, while the parser and semantic scope manager
+  already retain `&mut`, mutable-reference annotations, dereference expressions, and
+  exclusive-borrow state. Nevertheless, the one accepted reference classifier rejects
+  every mutable borrow, mutable annotation, and mutable dereference before checked IR;
+  `*alias = value;` is retained by the assignment AST but rejected as a non-identifier
+  target. `Ty::Reference` also classifies mutable references as `Copy`, no binding owns
+  a borrow origin, lexical scope exit releases no borrow, and checked IR has no mutable
+  alias or dereference-write identity. No mutable-reference program can execute.
+- Authoritative semantics and hypothesis: the founding paper makes mutation and
+  pointer-like state explicit, distinguishes `&T` from `&mut T`, and forbids two
+  simultaneous mutable references. The formal specification requires exactly one
+  mutable borrow with no overlapping shared borrow and bounds borrow lifetimes by
+  lexical scopes and use sites. The tracked ownership design gives the exact local
+  form `let ref_to_value = &mut value;` followed by dereference mutation. Therefore
+  the already-specified local topology can be admitted conservatively with lexical
+  lifetimes, without NLL, escaping aliases, reference results, or a general memory-
+  safety claim. One shared reference classifier can own source topology, scalar type,
+  mutability, initialization, locality, ownership, and reference mode across semantics
+  and checked admission; checked alias/write identities can preserve that decision
+  independently through verification and LLVM.
+- Frozen admitted class: inside an admitted top-level function body, `&mut source`
+  may borrow exactly one nearest initialized, owned local `let mut` identifier whose
+  exact logical type is `Int`, `Float`, or `Bool`. The borrow must initialize one local
+  alias, inferred or annotated with exact `&mut int`/`&mut i32`, `&mut float`/`&mut
+  f64`, or `&mut bool`. The alias binding itself need not be `mut`; it owns one lexical
+  mutable-borrow token and is not `Copy` or relocatable in this milestone. `*alias`
+  may be read wherever an admitted scalar expression is accepted, and a statement
+  `*alias = value;` may write an exactly matching admitted scalar value once or
+  repeatedly. Sequential, nested/shadowed, selected branch, compiler-bounded `for`,
+  `while`-carried, non-`main` local-body, and one-level direct-module contexts are the
+  complete control-flow shapes. When the alias's lexical block ends, its direct source
+  borrow is released; owner reads and CORE-054 owner writes after that block are
+  admitted. There is no last-use/NLL release inside a block.
+- Frozen exclusive/preserved class: borrowing an immutable, unknown, uninitialized,
+  moved, already mutably borrowed, or immutably borrowed source; a second mutable or
+  any overlapping immutable borrow; direct owner assignment while borrowed; reading
+  the owner while mutably borrowed; mutation through `&T`; mutable-reference copying,
+  relocation, reassignment, return, capture, aggregate/array/tuple storage, or function
+  argument/result transport; non-identifier borrow sources; non-identifier reference
+  operands; field/index/nested-reference/String/aggregate/Option/Result/function
+  pointees; implicit conversion; compound/chained/assignment-value forms; globals,
+  statics, fields, parameters, traits, impls, generics, closures, NLL, inferred
+  lifetimes, reborrowing, drop/destruction, heap allocation, concurrency, atomics,
+  ABI/FFI, accelerators, performance, release, and stability remain rejected or
+  preserved. Mutable-reference parameters remain the separate whole-signature and
+  call-alias/ABI class; CORE-055 must not weaken the exact CORE-053 rejection.
+- Shared classification and ownership contract: evolve `local_reference` rather than
+  add phase-local guards. Its common scalar-reference predicate must resolve immutable
+  and mutable mode, exact pointee, direct source topology, and source facts once.
+  Semantic analysis and checked admission must consume the same disposition. Each
+  direct alias records its source and mode; lexical scope exit releases exactly that
+  source borrow. Mutable references are non-`Copy`; alias relocation is rejected
+  explicitly rather than creating an unproved second provenance path. The existing
+  immutable local/reference-parameter classes must remain byte-for-byte compatible in
+  accepted source behavior and keep their established checked identities.
+- Checked IR and LLVM contract: add a distinct checked mutable-borrow place carrying
+  exact source and pointee metadata, a distinct checked mutable-dereference write, and
+  a checked mutable-borrow end carrying the same alias/source/pointee identity. The
+  end is the explicit checked-IR witness for the already frozen lexical release; it
+  does not introduce NLL, escaping provenance, reborrowing, or inferred lifetimes.
+  The independent verifier must prove supported scalar metadata, valid and dominating
+  source/alias places, exact pointee agreement, mutable-origin identity for every write,
+  value type/dominance, collision-free definitions, and no raw `Alloca`, `Store`, or
+  immutable-borrow substitution. Reads use the existing typed load only after the
+  alias place is verified. LLVM lowers `Int`/`Float` aliases as typed `double*` and
+  `Bool` aliases as `i1*`, derives the alias without pointer/integer conversions, and
+  stores through that verified pointer. Runtime CFG, not textual simulation, must
+  select and repeat writes. No stable address, layout, alias-analysis, ABI, or memory-
+  safety contract is created.
+- Tests-first complete product: one exhaustive CORE-055 target must prove parser
+  retention; inferred and exact annotations for all three scalar types; dereference
+  reads and writes; sequential, shadowed, branch, loop, call-body, module, and lexical-
+  release contexts; exact once-only RHS calls; source/alias ownership diagnostics;
+  immutable-dereference-write rejection; non-Copy alias relocation rejection; mutable-
+  parameter containment; checked identity counts and metadata; raw-path containment;
+  CLI check/build failure hygiene; and typed LLVM alias/store/load/CFG anchors. A
+  private verifier corruption matrix must reject undefined/non-place/wrong-type/non-
+  dominating sources and values, immutable/generic substitution, metadata mismatch,
+  definition collision, raw-store substitution, and a write through a non-mutable
+  alias without relying on source analysis.
+- System gate and acceptance: add one tracked direct-module example with exact native
+  exit 239 that composes local mutable `Int`/`Float`/`Bool` aliases, lexical release,
+  repeated and branch/loop-carried writes, immutable scalar-reference parameters,
+  payload/unit enums, Copy aggregates/arrays, compile-time String length, functions,
+  and modules. Stable CI must source-collect, analyze, generate checked IR, independently
+  verify, run pinned `opt-22`, run `llc-22 -verify-machineinstrs`, object-lower, link
+  with `clang-22`, and execute exact exit 239. The exact root gate and all eight public
+  checks remain mandatory.
+- Allowed files: this `TASK_LEDGER.md` record; `local_reference.rs`, `types.rs`, semantic
+  scope/analysis, checked IR/generator/verifier/code generator, and only the assignment
+  routing needed to hand mutable dereference targets to the shared reference contract;
+  one exhaustive CORE-055 target and only directly superseded adjacent mutable-
+  reference expectations; one tracked example/module pair; `.github/workflows/rust.yml`;
+  and `README.md`, `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, and
+  `FRAMEWORK_ALIGNMENT.md` where accepted/candidate facts change. No lexer/parser token
+  or AST-shape expansion, dependency, runtime/stdlib, optimizer, target, mutable-
+  parameter ABI, accelerator, benchmark, release, package, `master`, merge, or
+  downstream-repository change is authorized.
+- Risks and stop conditions: incorrect borrow release under shadowing; accidental NLL;
+  copied mutable aliases; owner access during exclusivity; immutable write-through;
+  raw store substitution; stale loads across CFG; pointer type mismatch; duplicated
+  source/mutability guards; or public safety/ABI overclaim. Stop if the local topology
+  requires mutable-parameter call aliasing, escaping provenance, liveness inference,
+  more than direct lexical release, an unresolved reborrow rule, a changed founding
+  semantic, weakening a test, or another unfrozen decision. CORE-055 is a hard
+  ownership/CFG/runtime slice, not an evidence-only or rejection-only milestone. Draft
+  PR #4 remains an integration program and must be synchronized at publication; merge
+  strategy and structured evidence generation remain separately authorized work.
+- Tests-first red evidence: from the exact clean accepted CORE-054 head with Cargo's
+  user bin directory inherited, `cargo test --manifest-path src/compiler/Cargo.toml
+  --test mutable_scalar_reference_tests -- --nocapture` compiles the new exhaustive
+  target and fails 0/1. Parser retention succeeds for mutable annotation, `&mut`,
+  dereference read, and dereference assignment. Every intended Int/Float/Bool,
+  sequential, lexical-release, shadowed, branch, `while`, `for`, call-body, checked-IR,
+  and LLVM case stops at the one existing `mutable references are not supported by
+  CORE-048` boundary. Immutable dereference writes and direct temporary dereference
+  targets still stop at the existing non-identifier assignment boundary. Exact source
+  mutability/exclusivity/type diagnostics, checked mutable-borrow/write identities,
+  the tracked module example, all five workflow anchors, and the invalid-CLI diagnostic
+  are absent; invalid CLI build still exits 1 without an artifact. Parameter/result,
+  compound, chained, and assignment-value forms remain contained. This is the complete
+  executable red product; the next permitted mutation is the shared classifier and
+  vertical implementation, not another per-shape test or record.
+- Pre-publication implementation evidence: `local_reference.rs` now owns one shared
+  immutable/mutable scalar-reference contract and the mutable dereference-assignment
+  disposition; semantic analysis and checked admission consume those decisions, track
+  one direct alias/source origin, reject owner access and competing loans, make mutable
+  aliases non-`Copy`, and release only at lexical scope exit. Checked IR carries
+  `CheckedMutableBorrow`, `CheckedMutableDereferenceAssignment`, and
+  `CheckedMutableBorrowEnd`; the independent verifier proves exact active
+  alias/source/pointee/value identity and rejects raw/generic/immutable substitution,
+  wrong release, competing loans, owner access, and use after release. LLVM derives
+  typed `double*`/`i1*` aliases and emits typed loads/stores without pointer/integer
+  conversions. Mutable-reference parameters retain the exact CORE-053 rejection.
+- Pre-publication tests and integration evidence: the exhaustive CORE-055 target passes
+  1/1, and the private verifier corruption target passes 1/1. Directly superseded
+  frontend, CORE-048, and CORE-054 expectations now assert the admitted local mutable
+  class or its still-fail-closed boundary; no test was removed, skipped, or weakened.
+  `cargo test --quiet --manifest-path src/compiler/Cargo.toml` passes 166/166 library,
+  172/172 binary, every integration target, and doc tests. The tracked
+  `examples/mutable_scalar_references/{main,mutation}.aero` pair checked-builds through
+  the CLI, and the stable workflow contains one pinned source-to-native lane with
+  `opt-22`, `llc-22 -verify-machineinstrs`, object lowering, `clang-22` linking, and
+  exact exit 239. From repository root with Cargo inherited through Git Bash,
+  `./tools/test.sh` passes in 122.2 seconds, including formatting, correctness Clippy,
+  the complete Rust surface, integrations, claim contracts, and docs. The local host
+  does not have the pinned LLVM/Clang 22 acceptance toolchain; external verification,
+  object/link, exact native exit 239, immutable commit/tree/patch identity, all eight
+  public checks, and PR synchronization remain pending publication evidence.

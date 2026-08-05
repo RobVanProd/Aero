@@ -10,8 +10,10 @@ use crate::fixed_array_method::{FixedArrayLenDisposition, classify_fixed_array_l
 use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::local_reference::{
-    LocalReferenceDisposition, ReferenceFunctionContract, ReferenceFunctionDisposition,
+    LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
+    MutableReferenceAssignmentFacts, ReferenceFunctionContract, ReferenceFunctionDisposition,
     classify_local_borrow, classify_local_dereference, classify_local_reference_annotation,
+    classify_mutable_reference_assignment, classify_mutable_reference_binding,
     classify_reference_function,
 };
 use crate::scalar_assignment::{
@@ -60,6 +62,7 @@ struct AdmissionBinding {
     ty: Ty,
     mutable: bool,
     initialized: bool,
+    ownership: OwnershipState,
     callable: bool,
     static_string: Option<String>,
 }
@@ -94,6 +97,7 @@ pub struct IrGenerator {
     next_reg: u32,
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
+    mutable_reference_sources: HashMap<u32, Value>,
     function_return_types: HashMap<String, Ty>,
     copy_function_contracts: HashMap<String, CopyFunctionContract>,
     enum_function_contracts: HashMap<String, EnumFunctionContract>,
@@ -114,6 +118,7 @@ impl IrGenerator {
             next_reg: 0,
             next_ptr: 0,
             symbol_table: HashMap::new(),
+            mutable_reference_sources: HashMap::new(),
             function_return_types: HashMap::new(),
             copy_function_contracts: HashMap::new(),
             enum_function_contracts: HashMap::new(),
@@ -147,6 +152,7 @@ impl IrGenerator {
         self.next_reg = 0;
         self.next_ptr = 0;
         self.symbol_table.clear();
+        self.mutable_reference_sources.clear();
         self.function_return_types.clear();
         self.copy_function_contracts.clear();
         self.enum_function_contracts.clear();
@@ -706,10 +712,10 @@ impl IrGenerator {
                     } else {
                         LocalReferenceDisposition::Preserved
                     };
-                    if let LocalReferenceDisposition::ExplicitlyRejected(kind) =
+                    if let LocalReferenceDisposition::ExplicitlyRejected(message) =
                         reference_annotation
                     {
-                        return Err(IrGenerationError::Admission(kind.diagnostic().to_string()));
+                        return Err(IrGenerationError::Admission(message));
                     }
                     if !inside_generic_impl
                         && let BindingAnnotationDisposition::MatchesExistingContractShape(contract) =
@@ -732,17 +738,40 @@ impl IrGenerator {
                             )));
                         }
                     }
+                    classify_mutable_reference_binding(value, &ty)
+                        .map_err(IrGenerationError::Admission)?;
                     if *mutable && matches!(ty, Ty::String) {
                         return Err(IrGenerationError::Admission(
                             "mutable string bindings are not admitted; checked strings are immutable compile-time aliases"
                                 .to_string(),
                         ));
                     }
+                    if let Expression::Borrow { expr, mutable } = value
+                        && let Expression::Identifier(source) = expr.as_ref()
+                    {
+                        let source = bindings
+                            .get_mut(source)
+                            .expect("shared reference classifier resolved source binding");
+                        source.ownership = if *mutable {
+                            OwnershipState::MutablyBorrowed
+                        } else {
+                            match source.ownership.clone() {
+                                OwnershipState::Owned => OwnershipState::ImmutablyBorrowed(1),
+                                OwnershipState::ImmutablyBorrowed(count) => {
+                                    OwnershipState::ImmutablyBorrowed(count + 1)
+                                }
+                                _ => unreachable!(
+                                    "shared reference classifier rejected conflicting borrow"
+                                ),
+                            }
+                        };
+                    }
                     bindings.insert(
                         name.clone(),
                         AdmissionBinding {
                             mutable: *mutable,
                             initialized: true,
+                            ownership: OwnershipState::Owned,
                             callable: matches!(ty, Ty::Fn(_)),
                             static_string,
                             ty,
@@ -762,6 +791,32 @@ impl IrGenerator {
                 let inside_admitted_function = bindings.contains_key(STRUCT_ADMISSION_BINDING)
                     && !inside_impl
                     && !inside_generic_impl;
+                let mutable_reference_facts = if let Expression::Deref(reference) = target
+                    && let Expression::Identifier(name) = reference.as_ref()
+                {
+                    bindings
+                        .get(name)
+                        .map(|binding| MutableReferenceAssignmentFacts {
+                            ty: binding.ty.clone(),
+                            initialized: binding.initialized,
+                            local: inside_admitted_function,
+                            ownership: binding.ownership.clone(),
+                        })
+                } else {
+                    None
+                };
+                match classify_mutable_reference_assignment(
+                    target,
+                    mutable_reference_facts.as_ref(),
+                    &rhs,
+                    inside_admitted_function,
+                ) {
+                    MutableReferenceAssignmentDisposition::Supported(_) => return Ok(()),
+                    MutableReferenceAssignmentDisposition::ExplicitlyRejected(message) => {
+                        return Err(IrGenerationError::Admission(message));
+                    }
+                    MutableReferenceAssignmentDisposition::Preserved => {}
+                }
                 let facts = if let Expression::Identifier(name) = target {
                     bindings
                         .get(name)
@@ -770,7 +825,7 @@ impl IrGenerator {
                             mutable: binding.mutable,
                             initialized: binding.initialized,
                             local: inside_admitted_function,
-                            ownership: OwnershipState::Owned,
+                            ownership: binding.ownership.clone(),
                         })
                 } else {
                     None
@@ -867,6 +922,7 @@ impl IrGenerator {
                             ty: Ty::Void,
                             mutable: false,
                             initialized: true,
+                            ownership: OwnershipState::Owned,
                             callable: false,
                             static_string: None,
                         },
@@ -934,6 +990,7 @@ impl IrGenerator {
                             ty: parameter_ty,
                             mutable: false,
                             initialized: true,
+                            ownership: OwnershipState::Owned,
                             callable: false,
                             static_string: None,
                         },
@@ -1044,6 +1101,7 @@ impl IrGenerator {
                         ty: element_ty,
                         mutable: false,
                         initialized: true,
+                        ownership: OwnershipState::Owned,
                         callable: false,
                         static_string: None,
                     },
@@ -1120,6 +1178,11 @@ impl IrGenerator {
                     return Err(admission_error(
                         "closure aliases may only be used as direct callees",
                     ));
+                }
+                if binding.ownership == OwnershipState::MutablyBorrowed {
+                    return Err(admission_error(&format!(
+                        "cannot read `{name}` while it is mutably borrowed"
+                    )));
                 }
                 Ok(binding.ty.clone())
             }
@@ -1592,6 +1655,7 @@ impl IrGenerator {
                             ty: parameter_ty,
                             mutable: false,
                             initialized: true,
+                            ownership: OwnershipState::Owned,
                             callable: false,
                             static_string: None,
                         },
@@ -1654,18 +1718,31 @@ impl IrGenerator {
                 Ok(resolved.contract.ty())
             }
             Expression::Borrow { expr, mutable } => {
-                let pointee = Self::validate_expression(
-                    expr,
-                    bindings,
-                    program,
-                    ExpressionUse::Value,
-                    inside_impl,
-                    admit_static_string_equality,
-                )?;
-                match classify_local_borrow(expr, *mutable, &pointee) {
+                let inside_admitted_function =
+                    bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
+                let facts = if let Expression::Identifier(name) = expr.as_ref() {
+                    bindings.get(name).map(|binding| LocalReferenceSourceFacts {
+                        ty: binding.ty.clone(),
+                        mutable: binding.mutable,
+                        initialized: binding.initialized,
+                        local: inside_admitted_function,
+                        ownership: binding.ownership.clone(),
+                    })
+                } else {
+                    Self::validate_expression(
+                        expr,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?;
+                    None
+                };
+                match classify_local_borrow(expr, *mutable, facts.as_ref()) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
-                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
-                        Err(admission_error(kind.diagnostic()))
+                    LocalReferenceDisposition::ExplicitlyRejected(message) => {
+                        Err(admission_error(&message))
                     }
                     LocalReferenceDisposition::Preserved => unreachable!(
                         "borrow expressions are fully classified by the local reference contract"
@@ -1683,8 +1760,8 @@ impl IrGenerator {
                 )?;
                 match classify_local_dereference(&reference) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
-                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
-                        Err(admission_error(kind.diagnostic()))
+                    LocalReferenceDisposition::ExplicitlyRejected(message) => {
+                        Err(admission_error(&message))
                     }
                     LocalReferenceDisposition::Preserved => unreachable!(
                         "dereference expressions are fully classified by the local reference contract"
@@ -1804,6 +1881,7 @@ impl IrGenerator {
                                 ty: binding.ty.clone(),
                                 mutable: false,
                                 initialized: true,
+                                ownership: OwnershipState::Owned,
                                 callable: false,
                                 static_string: None,
                             },
@@ -2109,6 +2187,10 @@ impl IrGenerator {
                     result: Value::Reg(register),
                     ..
                 }
+                | Inst::CheckedMutableBorrow {
+                    result: Value::Reg(register),
+                    ..
+                }
                 | Inst::CheckedImmutableReferenceParameter {
                     result: Value::Reg(register),
                     ..
@@ -2162,6 +2244,19 @@ impl IrGenerator {
                 }
                 Inst::CheckedImmutableBorrow { result, source, .. } => {
                     Self::rewrite_place(result, &places);
+                    Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedMutableBorrow { result, source, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedMutableDereferenceAssignment { target, .. } => {
+                    Self::rewrite_place(target, &places);
+                }
+                Inst::CheckedMutableBorrowEnd {
+                    reference, source, ..
+                } => {
+                    Self::rewrite_place(reference, &places);
                     Self::rewrite_place(source, &places);
                 }
                 Inst::CheckedImmutableReferenceParameter { result, .. } => {
@@ -2345,6 +2440,47 @@ impl IrGenerator {
 
     fn restore_bindings(&mut self, before_scope: &HashMap<String, (Value, Ty)>) {
         self.symbol_table.clone_from(before_scope);
+    }
+
+    fn end_new_mutable_references(
+        &mut self,
+        before_scope: &HashMap<String, (Value, Ty)>,
+        function: &mut Function,
+    ) {
+        let ended = self
+            .symbol_table
+            .iter()
+            .filter_map(|(name, (reference, ty))| {
+                let Ty::Reference(pointee, true) = ty else {
+                    return None;
+                };
+                let existed = before_scope
+                    .get(name)
+                    .is_some_and(|(prior, prior_ty)| prior == reference && prior_ty == ty);
+                if existed {
+                    return None;
+                }
+                let Value::Reg(reference_id) = reference else {
+                    unreachable!("checked mutable references use place identifiers")
+                };
+                let source = self
+                    .mutable_reference_sources
+                    .get(reference_id)
+                    .expect("checked mutable reference retains direct source")
+                    .clone();
+                let pointee = Self::scalar_logical_type(pointee)
+                    .expect("checked mutable reference retains scalar pointee");
+                Some((*reference_id, reference.clone(), source, pointee))
+            })
+            .collect::<Vec<_>>();
+        for (id, reference, source, pointee) in ended {
+            function.body.push(Inst::CheckedMutableBorrowEnd {
+                reference,
+                source,
+                pointee,
+            });
+            self.mutable_reference_sources.remove(&id);
+        }
     }
 
     fn generate_binding_expression_ir(
@@ -2576,6 +2712,27 @@ impl IrGenerator {
                 type_annotation,
                 value,
             } => {
+                let binding_name = name.clone();
+                let mutable_borrow_source = self
+                    .checked_mode
+                    .then(|| {
+                        value.as_ref().and_then(|value| {
+                            let Expression::Borrow {
+                                expr,
+                                mutable: true,
+                            } = value
+                            else {
+                                return None;
+                            };
+                            let Expression::Identifier(source) = expr.as_ref() else {
+                                return None;
+                            };
+                            self.symbol_table
+                                .get(source)
+                                .map(|(place, _)| place.clone())
+                        })
+                    })
+                    .flatten();
                 let copies_existing_aggregate =
                     matches!(value.as_ref(), Some(Expression::Identifier(_)));
                 let (expr_value, expr_type) = if let Some(val) = value {
@@ -2635,30 +2792,73 @@ impl IrGenerator {
                     // Store the expression result into the allocated slot
                     current_function.body.push(Inst::Store(ptr_reg, expr_value));
                 }
+                if let Some(source) = mutable_borrow_source {
+                    let (reference, reference_type) = self
+                        .symbol_table
+                        .get(&binding_name)
+                        .expect("mutable reference binding was generated");
+                    debug_assert!(matches!(reference_type, Ty::Reference(_, true)));
+                    let Value::Reg(reference_id) = reference else {
+                        unreachable!("checked mutable reference uses a place identifier")
+                    };
+                    self.mutable_reference_sources.insert(*reference_id, source);
+                }
             }
             Statement::Assignment { target, value } => {
-                let Expression::Identifier(name) = target else {
-                    unreachable!("checked admission rejects non-identifier assignment targets")
-                };
                 let (assigned_value, assigned_type) =
                     self.generate_expression_ir(value, current_function);
-                let (target_place, target_type) = self
-                    .symbol_table
-                    .get(&name)
-                    .expect("checked admission resolves assignment targets")
-                    .clone();
-                debug_assert_eq!(assigned_type, target_type);
-                if self.checked_mode {
-                    current_function.body.push(Inst::CheckedScalarAssignment {
-                        target: target_place,
-                        value: assigned_value,
-                        ty: Self::scalar_logical_type(&target_type)
-                            .expect("checked admission admits only scalar reassignment"),
-                    });
-                } else {
-                    current_function
-                        .body
-                        .push(Inst::Store(target_place, assigned_value));
+                match target {
+                    Expression::Identifier(name) => {
+                        let (target_place, target_type) = self
+                            .symbol_table
+                            .get(&name)
+                            .expect("checked admission resolves assignment targets")
+                            .clone();
+                        debug_assert_eq!(assigned_type, target_type);
+                        if self.checked_mode {
+                            current_function.body.push(Inst::CheckedScalarAssignment {
+                                target: target_place,
+                                value: assigned_value,
+                                ty: Self::scalar_logical_type(&target_type)
+                                    .expect("checked admission admits only scalar reassignment"),
+                            });
+                        } else {
+                            current_function
+                                .body
+                                .push(Inst::Store(target_place, assigned_value));
+                        }
+                    }
+                    Expression::Deref(_) if !self.checked_mode => {
+                        // Raw IR is a compatibility surface and must not acquire the
+                        // checked mutable-reference identities. The checked pipeline
+                        // below is the sole admitted lowering path for this topology.
+                    }
+                    Expression::Deref(reference) => {
+                        let Expression::Identifier(name) = reference.as_ref() else {
+                            unreachable!(
+                                "checked admission requires an identifier mutable reference"
+                            )
+                        };
+                        let (target_place, target_type) = self
+                            .symbol_table
+                            .get(name)
+                            .expect("checked admission resolves mutable reference target")
+                            .clone();
+                        let Ty::Reference(pointee, true) = target_type else {
+                            unreachable!("checked admission requires a mutable reference target")
+                        };
+                        debug_assert_eq!(assigned_type, *pointee);
+                        current_function
+                            .body
+                            .push(Inst::CheckedMutableDereferenceAssignment {
+                                target: target_place,
+                                value: assigned_value,
+                                pointee: Self::scalar_logical_type(&pointee).expect(
+                                    "checked admission admits only scalar mutable references",
+                                ),
+                            });
+                    }
+                    _ => unreachable!("checked admission rejects assignment target topology"),
                 }
             }
             Statement::Return(expr) => {
@@ -2745,6 +2945,14 @@ impl IrGenerator {
                 }
                 if let Some(expr) = block.expression {
                     self.generate_expression_ir(expr, current_function);
+                }
+                if self.checked_mode
+                    && !current_function
+                        .body
+                        .last()
+                        .is_some_and(Self::instruction_terminates_block)
+                {
+                    self.end_new_mutable_references(&scope_snapshot, current_function);
                 }
                 self.restore_bindings(&scope_snapshot);
             }
@@ -3124,10 +3332,7 @@ impl IrGenerator {
                 function.body.push(Inst::Load(result.clone(), elem_ptr));
                 (result, elem_ty)
             }
-            Expression::Borrow {
-                expr,
-                mutable: false,
-            } if self.checked_mode => {
+            Expression::Borrow { expr, mutable } if self.checked_mode => {
                 let Expression::Identifier(name) = expr.as_ref() else {
                     unreachable!("checked reference admission requires an identifier place")
                 };
@@ -3144,17 +3349,25 @@ impl IrGenerator {
                 };
                 let result = Value::Reg(self.next_ptr);
                 self.next_ptr += 1;
-                function.body.push(Inst::CheckedImmutableBorrow {
-                    result: result.clone(),
-                    source,
-                    pointee: pointee_contract,
+                function.body.push(if mutable {
+                    Inst::CheckedMutableBorrow {
+                        result: result.clone(),
+                        source,
+                        pointee: pointee_contract,
+                    }
+                } else {
+                    Inst::CheckedImmutableBorrow {
+                        result: result.clone(),
+                        source,
+                        pointee: pointee_contract,
+                    }
                 });
-                (result, Ty::Reference(Box::new(pointee), false))
+                (result, Ty::Reference(Box::new(pointee), mutable))
             }
             Expression::Deref(reference) if self.checked_mode => {
                 let (place, reference_type) = self.generate_expression_ir(*reference, function);
-                let Ty::Reference(pointee, false) = reference_type else {
-                    unreachable!("checked dereference admission requires an immutable reference")
+                let Ty::Reference(pointee, _) = reference_type else {
+                    unreachable!("checked dereference admission requires a scalar reference")
                 };
                 let result = Value::Reg(self.next_reg);
                 self.next_reg += 1;
@@ -3369,11 +3582,13 @@ impl IrGenerator {
     ) {
         // Save current state
         let saved_symbol_table = self.symbol_table.clone();
+        let saved_mutable_reference_sources = self.mutable_reference_sources.clone();
         let saved_next_reg = self.next_reg;
         let saved_next_ptr = self.next_ptr;
 
         // Reset for function generation
         self.symbol_table.clear();
+        self.mutable_reference_sources.clear();
         self.next_reg = 0;
         self.next_ptr = 0;
 
@@ -3563,6 +3778,7 @@ impl IrGenerator {
 
         // Restore state
         self.symbol_table = saved_symbol_table;
+        self.mutable_reference_sources = saved_mutable_reference_sources;
         self.next_reg = saved_next_reg;
         self.next_ptr = saved_next_ptr;
     }
@@ -3844,6 +4060,9 @@ impl IrGenerator {
             .last()
             .is_some_and(Self::instruction_terminates_block);
         if !then_terminates {
+            if self.checked_mode {
+                self.end_new_mutable_references(&scope_snapshot, current_function);
+            }
             current_function.body.push(Inst::Jump(end_label.clone()));
         }
         self.restore_bindings(&scope_snapshot);

@@ -41,7 +41,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
 | Local immutable scalar references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
-| Mutable/general references | Y | Y | Y | P | P | P | N | N | N | P | Y | Y | Y | PARTIAL |
+| Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | P | P | ? | P | N | N | P | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -1286,7 +1286,7 @@ declared compatibility policy and release-level coverage.
   performance, release, and stability remain excluded. Function, ownership, and
   reference rows remain `PARTIAL`.
 
-## CORE-054 candidate mutable local scalar reassignment
+## CORE-054 accepted mutable local scalar reassignment
 
 - CORE-054 parses `target = value;` as an explicit statement and admits it only inside
   admitted function bodies when `target` is the nearest initialized, owned local
@@ -1308,20 +1308,55 @@ declared compatibility policy and release-level coverage.
   real branch and loop CFG. The exhaustive source/IR/LLVM/CLI target and private
   corruption matrix pass locally. The tracked direct-module system gate composes
   immutable scalar-reference transport, payload/unit enums, Copy aggregates/arrays,
-  compile-time String length, calls, and control flow and requires exact stable native
-  exit 227 before public acceptance.
+  compile-time String length, calls, and control flow and passes exact stable native
+  exit 227.
 - The exact repository-root gate is formatting and correctness-Clippy clean and passes
   165 library tests, 171 binary tests, every integration target, and doc tests. The
   composed example emits 10 function definitions, 18 `double` and five `i1` allocas,
   27 `double` and seven `i1` stores, 26 `double` and six `i1` loads, and zero
   pointer/integer casts in a 10,798-byte LLVM artifact with SHA-256
   `a7104e3db6d7f0775cd5722e8f7c672fb2b11711803e5d130e140acb88b04b17`.
-  The Windows host accurately reports `InternalOnly` because LLVM 22 is absent;
-  external/machine verification, object/link, and native exit 227 remain public-CI
-  acceptance requirements.
+  Exact implementation `6ef3e44f8c7910815031c12e880ac874141cef5c`, tree
+  `b6fe360fa42dfefef48492423a481da930279c8f`, and stable patch ID
+  `7cfa95a31f53381e4bc373ebc07d09d76a0d76fc` pass all eight public checks. Stable
+  job `92242692711` uses LLVM/Clang 22.1.8 for external/machine verification,
+  object/link, and exact native exit 227. The Windows host accurately reports
+  `InternalOnly` because LLVM 22 is absent.
 - Immutable locals/parameters, unknown or uninitialized targets, borrowed or moved
   targets, non-identifier targets, String/aggregate/reference/function values,
-  implicit conversion, assignment expressions/chaining/compound forms, mutable
-  references, NLL, drop/destruction, stable ABI/FFI, accelerators, performance,
+  implicit conversion, assignment expressions/chaining/compound forms, general or
+  escaping mutable references, NLL, drop/destruction, stable ABI/FFI, accelerators, performance,
   release, and stability remain excluded. Assignment, ownership, control-flow, and IR
   rows remain `PARTIAL`.
+
+## CORE-055 candidate non-escaping local mutable scalar references
+
+- CORE-055 admits one direct `&mut owner` local alias inside an admitted function when
+  `owner` is an initialized mutable `Int`, `Float`, or `Bool`. Inferred or exact
+  annotations, `*alias` reads, exact `*alias = value;` writes, sequential/branch/loop
+  execution, nested shadowing, function bodies, direct modules, and lexical release
+  followed by owner reuse are included. Mutable aliases are non-`Copy` and cannot be
+  relocated or reassigned.
+- The evolved shared local-reference classifier resolves mode, direct identifier
+  topology, source locality/initialization/mutability/ownership, and exact scalar
+  pointee once. Semantic analysis and checked admission consume that disposition;
+  mutable dereference assignment consumes the same reference contract instead of a
+  second topology guard table.
+- Checked IR adds `CheckedMutableBorrow`,
+  `CheckedMutableDereferenceAssignment`, and `CheckedMutableBorrowEnd`. Independent
+  verification requires a declared initialized mutable scalar source, exact and
+  dominating alias/source/value identities, one active exclusive loan, exact pointee
+  metadata, checked writes, and an exact lexical release triple. It rejects generic
+  allocas, raw stores, immutable-borrow substitution, owner access during the loan,
+  competing loans, wrong release identity, and use after release.
+- Verified LLVM derives typed zero-offset `double*` aliases for `Int`/`Float` and `i1*`
+  aliases for `Bool`, then performs exact typed loads/stores without pointer/integer
+  conversion. The exhaustive source/IR/LLVM/CLI target, verifier corruption matrix,
+  full Rust suite, and tracked direct-module checked build pass locally at 166 library
+  and 172 binary tests. The stable workflow requires external/machine verification,
+  object/link, and exact native exit 239 before public acceptance.
+- Mutable-reference parameters/results, reference relocation, escaping/storage/capture,
+  non-identifier or projected origins, String/aggregate/nested pointees, reborrowing,
+  NLL, lifetime inference, drop/destruction, stable ABI/FFI, accelerators, performance,
+  release, stability, and general memory-safety claims remain excluded. Reference,
+  ownership, assignment, control-flow, and IR rows remain `PARTIAL`.

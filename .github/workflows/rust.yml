@@ -485,6 +485,24 @@ jobs:
         fi
         echo "mutable scalar reassignment example passed with exit code 227"
 
+    - name: Test local mutable scalar-reference integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/mutable_scalar_references/main.aero -o ../../mutable_scalar_references.ll
+        opt-22 -passes=verify -disable-output ../../mutable_scalar_references.ll
+        llc-22 -verify-machineinstrs ../../mutable_scalar_references.ll -o /dev/null
+        llc-22 -filetype=obj ../../mutable_scalar_references.ll -o ../../mutable_scalar_references.o
+        clang-22 ../../mutable_scalar_references.o -o ../../mutable_scalar_references
+        set +e
+        ../../mutable_scalar_references
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 239 ]; then
+          echo "Expected exit code 239, got $exit_code"
+          exit 1
+        fi
+        echo "local mutable scalar-reference example passed with exit code 239"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

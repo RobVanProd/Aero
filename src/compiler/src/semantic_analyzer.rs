@@ -7,8 +7,11 @@ use crate::binding_annotation::{
 };
 use crate::enum_match_contract::{EnumExecutionContext, EnumFunctionContract, EnumRegistry};
 use crate::local_reference::{
-    LocalReferenceDisposition, ReferenceFunctionDisposition, classify_local_borrow,
-    classify_local_dereference, classify_local_reference_annotation, classify_reference_function,
+    LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
+    MutableReferenceAssignmentFacts, ReferenceFunctionDisposition, classify_local_borrow,
+    classify_local_dereference, classify_local_reference_annotation,
+    classify_mutable_reference_assignment, classify_mutable_reference_binding,
+    classify_reference_function,
 };
 use crate::scalar_assignment::{
     ScalarAssignmentDisposition, ScalarAssignmentTargetFacts, classify_scalar_assignment,
@@ -54,6 +57,7 @@ pub struct VariableInfoNew {
     pub scope_level: u32,
     pub ptr_name: String,
     pub ownership: OwnershipState,
+    pub borrowed_from: Option<(String, bool)>,
 }
 
 pub struct FunctionTable {
@@ -210,7 +214,12 @@ impl ScopeManager {
 
     pub fn exit_scope(&mut self) {
         if self.scopes.len() > 1 {
-            self.scopes.pop();
+            let scope = self.scopes.pop().expect("non-global scope exists");
+            for (_, variable) in scope {
+                if let Some((source, mutable)) = variable.borrowed_from {
+                    self.release_borrow(&source, mutable);
+                }
+            }
         }
     }
 
@@ -265,6 +274,7 @@ impl ScopeManager {
             scope_level: (self.scopes.len() - 1) as u32,
             ptr_name: ptr_name.clone(),
             ownership: OwnershipState::Owned,
+            borrowed_from: None,
         };
 
         if let Some(current_scope) = self.scopes.last_mut() {
@@ -478,6 +488,64 @@ impl ScopeManager {
         }
         Err(format!("Error: Variable `{}` not found.", name))
     }
+
+    fn record_classified_borrow(&mut self, name: &str, mutable: bool) {
+        for scope in self.scopes.iter_mut().rev() {
+            let Some(variable) = scope.get_mut(name) else {
+                continue;
+            };
+            variable.ownership = if mutable {
+                OwnershipState::MutablyBorrowed
+            } else {
+                match variable.ownership.clone() {
+                    OwnershipState::Owned => OwnershipState::ImmutablyBorrowed(1),
+                    OwnershipState::ImmutablyBorrowed(count) => {
+                        OwnershipState::ImmutablyBorrowed(count + 1)
+                    }
+                    _ => unreachable!("shared reference classifier rejected conflicting borrow"),
+                }
+            };
+            return;
+        }
+        unreachable!("shared reference classifier resolved a local source")
+    }
+
+    pub fn set_borrow_origin(
+        &mut self,
+        alias: &str,
+        source: String,
+        mutable: bool,
+    ) -> Result<(), String> {
+        let Some(variable) = self
+            .scopes
+            .last_mut()
+            .and_then(|scope| scope.get_mut(alias))
+        else {
+            return Err(format!("Error: Variable `{alias}` not found."));
+        };
+        variable.borrowed_from = Some((source, mutable));
+        Ok(())
+    }
+
+    fn release_borrow(&mut self, name: &str, mutable: bool) {
+        for scope in self.scopes.iter_mut().rev() {
+            let Some(variable) = scope.get_mut(name) else {
+                continue;
+            };
+            if mutable {
+                if variable.ownership == OwnershipState::MutablyBorrowed {
+                    variable.ownership = OwnershipState::Owned;
+                }
+            } else if let OwnershipState::ImmutablyBorrowed(count) = variable.ownership.clone() {
+                variable.ownership = if count > 1 {
+                    OwnershipState::ImmutablyBorrowed(count - 1)
+                } else {
+                    OwnershipState::Owned
+                };
+            }
+            return;
+        }
+    }
 }
 
 pub struct SemanticAnalyzer {
@@ -604,6 +672,46 @@ impl SemanticAnalyzer {
 
     fn is_copy_type(&self, ty: &Ty) -> bool {
         self.struct_registry.is_copy_type(ty)
+    }
+
+    fn local_reference_source_facts(
+        &self,
+        expression: &Expression,
+    ) -> Option<LocalReferenceSourceFacts> {
+        let Expression::Identifier(name) = expression else {
+            return None;
+        };
+        self.scope_manager
+            .get_variable(name)
+            .map(|variable| LocalReferenceSourceFacts {
+                ty: variable.var_type.clone(),
+                mutable: variable.mutable,
+                initialized: variable.initialized,
+                local: variable.scope_level > 0,
+                ownership: variable.ownership.clone(),
+            })
+    }
+
+    fn readable_identifier_type(&self, name: &str) -> Result<Ty, String> {
+        if let Some(ty) = self.enum_payload_binding_type(name) {
+            return Ok(ty);
+        }
+        if let Some(variable) = self.scope_manager.get_variable(name) {
+            if !variable.initialized {
+                return Err(format!("Error: Use of uninitialized variable `{name}`."));
+            }
+            if variable.ownership == OwnershipState::MutablyBorrowed {
+                return Err(format!("cannot read `{name}` while it is mutably borrowed"));
+            }
+            return Ok(variable.var_type.clone());
+        }
+        if let Some(variable) = self.symbol_table.get(name) {
+            if !variable.initialized {
+                return Err(format!("Error: Use of uninitialized variable `{name}`."));
+            }
+            return Ok(variable.ty.clone());
+        }
+        Err(format!("Error: Use of undeclared variable `{name}`."))
     }
 
     fn infer_supported_field_type(
@@ -1128,25 +1236,7 @@ impl SemanticAnalyzer {
         match expr {
             Expression::IntegerLiteral(_) => Ok(Ty::Int),
             Expression::FloatLiteral(_) => Ok(Ty::Float),
-            Expression::Identifier(name) => {
-                if let Some(ty) = self.enum_payload_binding_type(name) {
-                    Ok(ty)
-                } else if let Some(var_info) = self.scope_manager.get_variable(name) {
-                    if !var_info.initialized {
-                        Err(format!("Error: Use of uninitialized variable `{}`.", name))
-                    } else {
-                        Ok(var_info.var_type.clone())
-                    }
-                } else if let Some(var_info) = self.symbol_table.get(name) {
-                    if !var_info.initialized {
-                        Err(format!("Error: Use of uninitialized variable `{}`.", name))
-                    } else {
-                        Ok(var_info.ty.clone())
-                    }
-                } else {
-                    Err(format!("Error: Use of undeclared variable `{}`.", name))
-                }
-            }
+            Expression::Identifier(name) => self.readable_identifier_type(name),
             Expression::Binary {
                 op, left, right, ..
             } => {
@@ -1421,12 +1511,13 @@ impl SemanticAnalyzer {
             }
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
-                let inner_ty = self.infer_and_validate_expression(expr)?;
-                match classify_local_borrow(expr, *mutable, &inner_ty) {
+                let facts = self.local_reference_source_facts(expr);
+                if facts.is_none() {
+                    self.infer_and_validate_expression(expr)?;
+                }
+                match classify_local_borrow(expr, *mutable, facts.as_ref()) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
-                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
-                        Err(kind.diagnostic().to_string())
-                    }
+                    LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
                         "borrow expressions are fully classified by the local reference contract"
                     ),
@@ -1436,9 +1527,7 @@ impl SemanticAnalyzer {
                 let inner_ty = self.infer_and_validate_expression(expr)?;
                 match classify_local_dereference(&inner_ty) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
-                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
-                        Err(kind.diagnostic().to_string())
-                    }
+                    LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
                         "dereference expressions are fully classified by the local reference contract"
                     ),
@@ -1831,25 +1920,7 @@ impl SemanticAnalyzer {
         match expr {
             Expression::IntegerLiteral(_) => Ok(Ty::Int),
             Expression::FloatLiteral(_) => Ok(Ty::Float),
-            Expression::Identifier(name) => {
-                if let Some(ty) = self.enum_payload_binding_type(name) {
-                    Ok(ty)
-                } else if let Some(var_info) = self.scope_manager.get_variable(name) {
-                    if !var_info.initialized {
-                        Err(format!("Error: Use of uninitialized variable `{}`.", name))
-                    } else {
-                        Ok(var_info.var_type.clone())
-                    }
-                } else if let Some(var_info) = self.symbol_table.get(name) {
-                    if !var_info.initialized {
-                        Err(format!("Error: Use of uninitialized variable `{}`.", name))
-                    } else {
-                        Ok(var_info.ty.clone())
-                    }
-                } else {
-                    Err(format!("Error: Use of undeclared variable `{}`.", name))
-                }
-            }
+            Expression::Identifier(name) => self.readable_identifier_type(name),
             Expression::Binary {
                 op, left, right, ..
             } => {
@@ -2164,13 +2235,13 @@ impl SemanticAnalyzer {
             }
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
-                let inner_ty =
+                let facts = self.local_reference_source_facts(expr);
+                if facts.is_none() {
                     self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
-                match classify_local_borrow(expr, *mutable, &inner_ty) {
+                }
+                match classify_local_borrow(expr, *mutable, facts.as_ref()) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
-                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
-                        Err(kind.diagnostic().to_string())
-                    }
+                    LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
                         "borrow expressions are fully classified by the local reference contract"
                     ),
@@ -2181,9 +2252,7 @@ impl SemanticAnalyzer {
                     self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
                 match classify_local_dereference(&inner_ty) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
-                    LocalReferenceDisposition::ExplicitlyRejected(kind) => {
-                        Err(kind.diagnostic().to_string())
-                    }
+                    LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
                         "dereference expressions are fully classified by the local reference contract"
                     ),
@@ -2428,8 +2497,9 @@ impl SemanticAnalyzer {
                 } else {
                     LocalReferenceDisposition::Preserved
                 };
-                if let LocalReferenceDisposition::ExplicitlyRejected(kind) = reference_annotation {
-                    return Err(kind.diagnostic().to_string());
+                if let LocalReferenceDisposition::ExplicitlyRejected(message) = reference_annotation
+                {
+                    return Err(message);
                 }
 
                 let binding_type = if value.is_some()
@@ -2460,7 +2530,12 @@ impl SemanticAnalyzer {
                     inferred_type
                 };
 
+                if let Some(initializer) = value {
+                    classify_mutable_reference_binding(initializer, &binding_type)?;
+                }
+
                 // Phase 5: Track ownership transfers and borrows.
+                let mut borrow_origin = None;
                 if let Some(val_expr) = value {
                     self.apply_enum_match_moves(val_expr)?;
                     match val_expr {
@@ -2476,11 +2551,9 @@ impl SemanticAnalyzer {
                             mutable: is_mut_borrow,
                         } => {
                             if let Expression::Identifier(source_name) = expr.as_ref() {
-                                if *is_mut_borrow {
-                                    self.scope_manager.add_mutable_borrow(source_name)?;
-                                } else {
-                                    self.scope_manager.add_immutable_borrow(source_name)?;
-                                }
+                                self.scope_manager
+                                    .record_classified_borrow(source_name, *is_mut_borrow);
+                                borrow_origin = Some((source_name.clone(), *is_mut_borrow));
                             }
                         }
                         _ => {}
@@ -2493,6 +2566,10 @@ impl SemanticAnalyzer {
                     *mutable,
                     value.is_some(),
                 )?;
+                if let Some((source, mutable)) = borrow_origin {
+                    self.scope_manager
+                        .set_borrow_origin(name, source, mutable)?;
+                }
 
                 // Also add to old symbol table for backward compatibility
                 let var_info = VariableInfo {
@@ -2515,6 +2592,38 @@ impl SemanticAnalyzer {
             Statement::Assignment { target, value } => {
                 self.check_expression_initialization(value)?;
                 let rhs = self.require_value(value)?;
+                let inside_admitted_function = self.scope_manager.is_in_function()
+                    && self.type_param_scopes.is_empty()
+                    && !self.inside_impl;
+                let mutable_reference_facts = if let Expression::Deref(reference) = target
+                    && let Expression::Identifier(name) = reference.as_ref()
+                {
+                    self.scope_manager.get_variable(name).map(|variable| {
+                        MutableReferenceAssignmentFacts {
+                            ty: variable.var_type.clone(),
+                            initialized: variable.initialized,
+                            local: variable.scope_level > 0,
+                            ownership: variable.ownership.clone(),
+                        }
+                    })
+                } else {
+                    None
+                };
+                match classify_mutable_reference_assignment(
+                    target,
+                    mutable_reference_facts.as_ref(),
+                    &rhs,
+                    inside_admitted_function,
+                ) {
+                    MutableReferenceAssignmentDisposition::Supported(_) => {
+                        self.apply_enum_match_moves(value)?;
+                        return Ok(());
+                    }
+                    MutableReferenceAssignmentDisposition::ExplicitlyRejected(message) => {
+                        return Err(message);
+                    }
+                    MutableReferenceAssignmentDisposition::Preserved => {}
+                }
                 let facts = if let Expression::Identifier(name) = target {
                     self.scope_manager.get_variable(name).map(|variable| {
                         ScalarAssignmentTargetFacts {
@@ -2528,9 +2637,6 @@ impl SemanticAnalyzer {
                 } else {
                     None
                 };
-                let inside_admitted_function = self.scope_manager.is_in_function()
-                    && self.type_param_scopes.is_empty()
-                    && !self.inside_impl;
                 match classify_scalar_assignment(
                     Some(target),
                     facts.as_ref(),

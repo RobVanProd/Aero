@@ -247,8 +247,15 @@ impl CodeGenerator {
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
                 }
-                Inst::CheckedImmutableBorrow { result, source, .. } => {
+                Inst::CheckedImmutableBorrow { result, source, .. }
+                | Inst::CheckedMutableBorrow { result, source, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedMutableBorrowEnd {
+                    reference, source, ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, reference);
                     Self::bump_seed_from_value(&mut seed, source);
                 }
                 Inst::CheckedImmutableReferenceParameter { result, .. } => {
@@ -274,6 +281,9 @@ impl CodeGenerator {
                 }
                 Inst::Store(ptr, value)
                 | Inst::CheckedScalarAssignment {
+                    target: ptr, value, ..
+                }
+                | Inst::CheckedMutableDereferenceAssignment {
                     target: ptr, value, ..
                 }
                 | Inst::Load(value, ptr)
@@ -608,6 +618,7 @@ impl CodeGenerator {
                 | Inst::Alloca(..)
                 | Inst::CheckedMutableScalarAlloca { .. }
                 | Inst::CheckedScalarAssignment { .. }
+                | Inst::CheckedMutableDereferenceAssignment { .. }
                 | Inst::Store(..)
                 | Inst::Load(..)
                 | Inst::Return(..)
@@ -632,6 +643,8 @@ impl CodeGenerator {
                 | Inst::CheckedStructAlloca { .. }
                 | Inst::CheckedStructFieldPtr { .. }
                 | Inst::CheckedImmutableBorrow { .. }
+                | Inst::CheckedMutableBorrow { .. }
+                | Inst::CheckedMutableBorrowEnd { .. }
                 | Inst::CheckedImmutableReferenceParameter { .. }
                 | Inst::CheckedEnumParameter { .. }
                 | Inst::CheckedEnumVariant { .. }
@@ -1112,7 +1125,12 @@ impl CodeGenerator {
                         val_str, ptr_str
                     ));
                 }
-                Inst::CheckedScalarAssignment { target, value, ty } => {
+                Inst::CheckedScalarAssignment { target, value, ty }
+                | Inst::CheckedMutableDereferenceAssignment {
+                    target,
+                    value,
+                    pointee: ty,
+                } => {
                     let Value::Reg(ptr_id) = target else {
                         panic!("Expected register for checked scalar assignment target")
                     };
@@ -1508,19 +1526,24 @@ impl CodeGenerator {
                     result,
                     source,
                     pointee,
+                }
+                | Inst::CheckedMutableBorrow {
+                    result,
+                    source,
+                    pointee,
                 } => {
                     let Value::Reg(result) = result else {
-                        panic!("Expected register for checked immutable borrow result")
+                        panic!("Expected register for checked scalar borrow result")
                     };
                     let Value::Reg(source) = source else {
-                        panic!("Expected register for checked immutable borrow source")
+                        panic!("Expected register for checked scalar borrow source")
                     };
                     let pointee = match pointee {
                         LogicalType::Int | LogicalType::Float => "double",
                         LogicalType::Bool => "i1",
-                        _ => unreachable!(
-                            "verified immutable borrows carry only scalar pointee types"
-                        ),
+                        _ => {
+                            unreachable!("verified scalar borrows carry only scalar pointee types")
+                        }
                     };
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
@@ -1546,6 +1569,7 @@ impl CodeGenerator {
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %{parameter}, i64 0\n"
                     ));
                 }
+                Inst::CheckedMutableBorrowEnd { .. } => {}
                 Inst::CheckedEnumParameter {
                     result,
                     parameter,
