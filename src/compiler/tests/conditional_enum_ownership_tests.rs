@@ -339,17 +339,12 @@ fn conditional_enum_ownership_class_is_complete_checked_and_executable() {
         (
             "loop-carried conditional move",
             "enum E { A, B } fn main() { let value = E::A; let mut step = 0; while step < 2 { if step == 0 { let moved = value; } step = step + 1; } }",
-            vec!["loop", "fixed-point", "backedge"],
+            vec!["may have been moved", "moved value"],
         ),
         (
-            "loop condition consumption remains excluded",
+            "loop condition consumption without reinitialization",
             "enum E { A, B } fn main() -> int { let value = E::A; while match value { E::A => 1 < 2, E::B => 2 < 1 } { return 1; } match value { E::A => 2, E::B => 3 } }",
-            vec!["loop", "fixed-point", "backedge"],
-        ),
-        (
-            "loop break transport remains excluded",
-            "enum E { A } fn main() { let value = E::A; loop { let moved = value; break; } }",
-            vec!["moved", "loop", "backedge", "not admitted"],
+            vec!["Use of moved value", "moved value"],
         ),
         (
             "enum borrowing remains excluded",

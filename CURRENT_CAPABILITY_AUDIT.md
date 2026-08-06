@@ -8,22 +8,30 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-078` is in a locally green public-Windows-system-gate archive replacement and
-  changes no compiler source or language semantics. Candidate `3e3910f...` was rejected
-  at a custom installer root; `d87bb9e...` reached the official root and proved the
-  toolchain installer omits required `opt.exe`. The revised contract forbids the
-  installer path and pins official archive
-  `clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz` by SHA-256
-  `d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`.
-  One `windows-latest` stable job extracts that task-locally,
-  requires exact `opt`/`llvm-as`/`llc`/`clang` versions, and freezes the existing
-  x86_64 MSVC target header. It must prove invalid-build artifact hygiene, external and
-  machine verification, COFF object generation, Clang/MSVC linking, public `run`,
-  manual native execution, and exact exit 227. The red/green contract passes 1/1, as
-  do the 195-library/201-binary complete surface, every integration/doc target,
-  formatting, check, correctness Clippy, docs, and exact root gate. Archive-replacement
-  publication and the expanded nine-check public result remain pending; Windows
-  public acceptance is not yet claimed.
+- `CORE-079` is a locally green implementation candidate for convergent direct-enum
+  loop ownership fixed points. One shared classifier joins finite ownership states at
+  the headers and exits of `while`, admitted fixed-array `for`, and `loop`; semantic
+  analysis and independent checked admission iteratively recheck the loop from each
+  widened header. This admits moved or mixed backedges only when every possible next
+  use is preceded by exact whole-owner reinitialization, carries conservative
+  `Moved`/`MaybeMoved` exit state forward, and leaves the existing independent verifier
+  cycle proof intact. The focused target passes 3/3 and the complete all-features test
+  surface is green, as are formatting, all-target/all-feature check, correctness
+  Clippy, docs, diff hygiene, and the exact repository-root gate. Publication, all-nine
+  exact-head checks, and pinned LLVM/Clang 22 native exit 229 are pending, so no public
+  acceptance is claimed.
+
+- `CORE-078` is accepted public at exact commit
+  `70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe`, tree
+  `b7a2f41877ab812140248ecce10d3157bdab29ac`, and stable patch
+  `a85fca8b087a98a89c81cb6c2eb35de67a249f9e`. Its SHA-256-pinned official full
+  Windows LLVM/Clang 22.1.8 archive supplies exact `opt`/`llvm-as`/`llc`/`clang`,
+  preserves the x86_64 MSVC target/layout, rejects invalid source and IR without an
+  artifact, externally and machine verifies, emits COFF, links with Clang/MSVC, and
+  returns exact 227 through both public and independent execution. All nine exact-head
+  checks pass; stable/nightly Linux preserve exits 149/223/227. The two installer-based
+  predecessors remain rejected evidence, and no general Windows, ABI, packaging,
+  release, safety, performance, or accelerator claim follows.
 
 - `CORE-077` is accepted public for balanced loop-carried owned-enum reinitialization
   at exact commit `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree

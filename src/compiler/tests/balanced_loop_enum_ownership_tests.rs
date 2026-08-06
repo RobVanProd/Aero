@@ -377,37 +377,22 @@ fn balanced_loop_owned_enum_class_is_complete_checked_and_executable() {
         (
             "missing fallthrough restoration",
             "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut owner = E::A; let mut step = 0; while step < 1 { let used = take(owner); step = step + 1; } }",
-            vec!["loop", "backedge", "fixed-point"],
+            vec!["may have been moved", "moved value"],
         ),
         (
             "missing continue restoration",
             "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut owner = E::A; while 1 < 2 { let used = take(owner); continue; } }",
-            vec!["loop", "continue", "backedge", "fixed-point"],
+            vec!["may have been moved", "moved value"],
         ),
         (
             "restoration after continue is unreachable",
             "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut owner = E::A; while 1 < 2 { let used = take(owner); continue; owner = E::A; } }",
-            vec!["loop", "continue", "backedge", "fixed-point"],
-        ),
-        (
-            "missing break restoration",
-            "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut owner = E::A; loop { let used = take(owner); break; } }",
-            vec!["loop", "break", "backedge", "not admitted"],
-        ),
-        (
-            "restoration after break is unreachable",
-            "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut owner = E::A; loop { let used = take(owner); break; owner = E::A; } }",
-            vec!["loop", "break", "backedge", "not admitted"],
+            vec!["may have been moved", "moved value"],
         ),
         (
             "only one conditional path restores",
             "enum E { A, B } fn take(value: E) -> int { match value { E::A => 1, E::B => 2 } } fn main() { let mut owner = E::A; let mut step = 0; while step < 1 { if step < 1 { let used = take(owner); owner = E::B; } else { let used = take(owner); } step = step + 1; } }",
-            vec!["loop", "fixed-point", "backedge"],
-        ),
-        (
-            "entry owner already moved",
-            "enum E { A, B } fn take(value: E) -> int { match value { E::A => 1, E::B => 2 } } fn main() { let mut owner = E::A; let used = take(owner); while 1 < 2 { owner = E::B; break; } }",
-            vec!["loop", "reinitialization", "moved value"],
+            vec!["may have been moved", "moved value"],
         ),
         (
             "same-path double consumption",
@@ -430,16 +415,10 @@ fn balanced_loop_owned_enum_class_is_complete_checked_and_executable() {
         }
     }
 
-    for (label, source) in [
-        (
-            "direct admission missing continue restoration",
-            "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut owner = E::A; while 1 < 2 { let used = take(owner); continue; } }",
-        ),
-        (
-            "direct admission unreachable break restoration",
-            "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut owner = E::A; loop { let used = take(owner); break; owner = E::A; } }",
-        ),
-    ] {
+    for (label, source) in [(
+        "direct admission missing continue restoration",
+        "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut owner = E::A; while 1 < 2 { let used = take(owner); continue; } }",
+    )] {
         if checked_admission_without_semantics(source).is_ok() {
             failures.push(format!(
                 "{label}: independent checked admission accepted an unbalanced edge"
@@ -520,7 +499,8 @@ fn balanced_loop_owned_enum_class_is_complete_checked_and_executable() {
     )
     .expect("write invalid balanced-loop ownership source");
     let invalid_check = run_cli(&invalid_workspace, &[Path::new("check"), &invalid]);
-    if invalid_check.status.success() || !output_text(&invalid_check).contains("continue backedge")
+    if invalid_check.status.success()
+        || !output_text(&invalid_check).contains("may have been moved")
     {
         failures.push(format!(
             "unbalanced continue CLI check did not fail closed: {}",

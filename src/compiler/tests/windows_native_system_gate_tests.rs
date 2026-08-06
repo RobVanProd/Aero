@@ -93,9 +93,9 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
     }
 
     let expected_exit_reset_count = workflow.matches("$global:LASTEXITCODE = 0").count();
-    if expected_exit_reset_count != 3 {
+    if expected_exit_reset_count != 4 {
         failures.push(format!(
-            "the three expected-nonzero Windows controls must reset LASTEXITCODE, found {expected_exit_reset_count} resets"
+            "the four expected-nonzero Windows control groups must reset LASTEXITCODE, found {expected_exit_reset_count} resets"
         ));
     }
 

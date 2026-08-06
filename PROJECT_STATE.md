@@ -4,22 +4,33 @@ Last updated: 2026-08-06 (America/New_York)
 
 ## Current objective
 
-Milestone 98 `CORE-078` is in a locally green pinned Windows x86_64
-native-system-gate archive replacement. Exact public candidate `3e3910f...` was
-rejected at a disproven custom installer destination; replacement `d87bb9e...` reached
-the official installer root but proved that the toolchain installer omits required
-`opt.exe`. The red-first repair now uses official 862,053,924-byte asset
-`clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz`, pinned by SHA-256
-`d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`, and
-requires all four exact tools before use. It changes no compiler source or language
-semantics. The job
-freezes the existing `x86_64-pc-windows-msvc` target and data layout, invalid-build
-artifact hygiene, external and machine verification, COFF object generation,
-Clang/MSVC linking, public `run`, manual execution, and exact exit 227. The focused
-red/green target passes 1/1; all 195 library and 201 binary tests, every integration/doc
-target, formatting, check, correctness Clippy, docs, and exact root gate pass locally.
-Archive-replacement publication and the expanded nine-check public set remain pending;
-no local LLVM 22 or Windows-native acceptance claim is made.
+Milestone 99 `CORE-079` is a locally green implementation candidate for convergent
+direct-enum loop ownership fixed points. One phase-neutral classifier now joins
+`Owned`/`Moved`/`MaybeMoved` states at the header and exit of statement `while`,
+admitted fixed-array `for`, and `loop`; semantic analysis and independent checked
+admission recheck each body only while that finite header widens. The converged header
+governs condition/body use, and the conservative exit joins false/exhaustion and
+nearest-loop `break` paths while return paths do not join. Unsafe missing/bypassed
+reinitialization, repeated use, borrowed edges, enum aggregate storage, and verifier
+corruptions remain fail closed. The focused target passes 3/3; the complete all-
+features test surface, 195 library tests, every integration target, and doctests are
+green. Formatting, all-target/all-feature check, correctness Clippy, docs, diff hygiene,
+and the exact repository-root gate also pass. Immutable candidate publication, all
+nine exact-head public checks, and pinned Linux/Windows LLVM 22 native exit 229 remain
+pending; this is not accepted public.
+
+Milestone 98 `CORE-078` is accepted public at exact commit
+`70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe`, tree
+`b7a2f41877ab812140248ecce10d3157bdab29ac`, and stable patch ID
+`a85fca8b087a98a89c81cb6c2eb35de67a249f9e`. The official 862,053,924-byte
+`clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz` archive is pinned by SHA-256
+`d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`; exact
+`opt`, `llvm-as`, `llc`, and `clang` 22.1.8 prove the existing MSVC target/layout,
+invalid-build artifact hygiene, external and machine verification, COFF object
+generation, Clang/MSVC linking, public `run`, manual execution, and exit 227. All nine
+exact-head checks pass, while stable/nightly Linux preserve exits 149/223/227. The two
+installer-based predecessors remain rejected evidence. No general Windows, stable ABI,
+packaging, release, safety, performance, or accelerator claim follows.
 
 Milestone 97 `CORE-077` is accepted public at exact commit
 `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree

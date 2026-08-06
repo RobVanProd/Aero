@@ -3363,12 +3363,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-074 - Require a pinned Windows x86_64 native system lane
 
 - Date: 2026-08-06
-- Status: exact candidates `3e3910f...` and `d87bb9e...` were rejected by Windows jobs
-  `92569807493` and `92571432934`: first at a disproven custom installer destination,
-  then because the official toolchain installer omits required `opt.exe`. The official
-  full-archive repair is locally green; immutable replacement commit/push,
-  rendered PR synchronization, and the expanded all-nine exact-head public set remain
-  pending.
+- Status: accepted public `CORE-078` at exact implementation
+  `70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe`, tree
+  `b7a2f41877ab812140248ecce10d3157bdab29ac`, and stable patch
+  `a85fca8b087a98a89c81cb6c2eb35de67a249f9e`. All nine exact-head checks pass.
+  Rejected installer candidates `3e3910f...` and `d87bb9e...` remain chronology and
+  were not relabeled.
 - Decision: add one public `windows-latest` stable-Rust system job without changing
   compiler source or language semantics. It downloads the official LLVM 22.1.8 win64
   full x86_64 MSVC archive and verifies exact release SHA-256
@@ -3397,9 +3397,50 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   release distinguishes the toolchain installer from the full archive containing
   additional tools. The second archive contract failed 0/1 before workflow mutation,
   now pins the official 862,053,924-byte full archive and forbids installer invocation.
+- Acceptance evidence: the full archive matched the frozen digest; exact `opt`,
+  `llvm-as`, `llc`, and `clang` 22.1.8 passed the invalid-IR/source, MSVC target/layout,
+  external/machine verification, COFF object/link, public/manual exit-227 proof. The
+  aggregate CodeQL check, Windows native job, push/PR compiler jobs, stable/nightly
+  Linux jobs, and all three CodeQL language jobs passed at the exact accepted head;
+  Linux preserved exits 149/223/227.
 - Exclusions and scaling boundary: this proves only the bounded current private CPU
   subset on GitHub's x86_64 MSVC runner after public green. It adds no Windows ARM,
   MinGW, macOS, stable ABI/FFI, Aero installer/package, language feature, memory-safety,
   release, performance, or accelerator claim. The mega-PR checkpoint strategy,
   structured evidence manifest, hard runtime/module/ABI work, and real RX 7800 XT
   execution remain separate controls.
+
+## DEC-075 - Compute convergent direct-enum loop ownership summaries
+
+- Date: 2026-08-06
+- Status: locally green `CORE-079` implementation candidate. Focused tests pass 3/3;
+  complete all-features, formatting, all-target/all-feature check, correctness Clippy,
+  docs, diff hygiene, and exact root gates pass. Immutable publication, all-nine exact-
+  head checks, and pinned Linux/Windows native exit 229 remain pending. No public
+  acceptance is claimed.
+- Decision: statement `while`, admitted fixed-array `for`, and `loop` compute one
+  finite ownership fixed point for each direct admitted enum owner. The header begins
+  at the exact preheader state and joins reachable fallthrough and nearest-loop
+  `continue` states until `Owned`/`Moved`/`MaybeMoved` stabilizes. `while` conditions
+  run from the converged header, `for` evaluates its iterable once before iteration,
+  and post-loop state conservatively joins reachable false/exhaustion and nearest-loop
+  `break` exits. Returning paths do not join; a no-break `loop` has no post-loop state.
+- Shared authority and independent proof: `classify_loop_ownership` owns loop-kind,
+  edge-topology, borrowed-state, header, and exit classification. Semantic analysis
+  and independent checked admission recheck their own loop bodies from each widened
+  header, resetting nonownership temporary identity between passes. The existing
+  checked-IR verifier remains the independent CFG cycle proof and rejects missing,
+  bypassed, wrong-schema, generic-store, or repeated-consumption repair.
+- Evidence: the exact red failed at CORE-077's first changed backedge. The green product
+  covers every loop/edge kind, moved entry, moved and mixed backedges, top-of-cycle
+  repair, consuming conditions, nested nearest-loop transfers, exact/conservative
+  exits, direct semantic/admission paths, deterministic checked IR/LLVM, CLI artifact
+  hygiene, and a two-file specimen wired for exit 229. Compatibility tests preserve
+  genuinely cyclic negatives while reclassifying only paths that unconditionally
+  return or break. The 195 library tests and complete integration/doctest surface pass.
+- Exclusions and scaling boundary: this adds no enum aggregate storage, reference to an
+  enum, partial move/projection, drop/destructor/lifetime behavior, generic/named-field
+  enum, dynamic iterator, loop value/label, non-enum dataflow, layout/ABI, module,
+  runtime, GPU, release, safety, or performance semantics. It implements one shared
+  classification instead of adding topology-specific semantic/admission guards; the
+  mega-PR checkpoint strategy and structured evidence manifest remain separate work.

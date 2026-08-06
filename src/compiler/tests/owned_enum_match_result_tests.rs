@@ -393,6 +393,15 @@ fn fresh_owned_enum_match_result_class_is_complete_checked_and_executable() {
         }
     }
 
+    if let Err(error) = compile_program(
+        "enum I { A } enum O { X } fn take(value: O) -> int { match value { O::X => 1 } } fn main() { let mut value = O::X; loop { let consumed = take(value); if 1 < 2 { value = match I::A { I::A => O::X }; } break; } }",
+        CompilerOptions::default(),
+    ) {
+        failures.push(format!(
+            "owned Match-result reinitialization on an always-terminating loop path unexpectedly failed: {error}"
+        ));
+    }
+
     let root = repository_root();
     let tracked_root = root.join(EXAMPLE_ROOT);
     let tracked_module = root.join(EXAMPLE_MODULE);
@@ -554,11 +563,6 @@ fn excluded_owned_enum_match_result_origins_fail_closed() {
             "scrutinee reuse",
             "enum I { A } enum O { X } fn main() { let input = I::A; let result = match input { I::A => O::X }; let reused = input; }",
             vec!["moved value", "Use of moved"],
-        ),
-        (
-            "unbalanced loop Match-result reinitialization",
-            "enum I { A } enum O { X } fn take(value: O) -> int { match value { O::X => 1 } } fn main() { let mut value = O::X; loop { let consumed = take(value); if 1 < 2 { value = match I::A { I::A => O::X }; } break; } }",
-            vec!["loop", "fixed-point"],
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, &expected) {

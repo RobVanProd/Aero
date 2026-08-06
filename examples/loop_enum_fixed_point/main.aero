@@ -1,0 +1,13 @@
+mod fixed_points;
+
+fn main() -> int {
+    let total = while_moved_backedge()
+        + for_moved_backedge()
+        + loop_moved_backedge_owned_break()
+        + moved_entry_reinitialized()
+        + mixed_backedges()
+        + condition_consumption()
+        + nested_nearest_loop_transfers();
+    if total == 34 { return 229; }
+    1
+}

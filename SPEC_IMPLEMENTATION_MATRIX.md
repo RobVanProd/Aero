@@ -55,6 +55,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Acyclic moved/maybe-moved enum reinitialization | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fresh per-iteration owned enums in statement loops | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Balanced loop-carried owned-enum reinitialization | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Convergent direct-enum loop ownership fixed points | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
@@ -131,21 +132,27 @@ admission collect snapshots but consume one edge classifier; verifier CFG proof 
 missing, bypassed, one-path, generic-store, wrong-schema, cycle, and exit repairs. The
 Exact implementation `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, all eight
 exact-head checks, and pinned stable/nightly LLVM/Clang 22.1.8 native exit 227 pass
-while preserving exits 149/223. Loop-carried `Moved`/`MaybeMoved`, projections/partial moves, enum
-storage/borrowing, drop/lifetimes, stable ABI, imports, accelerators, release, safety,
-and general loop fixed-point semantics remain excluded; the row stays `PARTIAL`.
+while preserving exits 149/223. Projections/partial moves, enum storage/borrowing,
+drop/lifetimes, stable ABI, imports, accelerators, release, safety, and general
+non-enum loop dataflow remain excluded; the row stays `PARTIAL`.
 
-Local candidate `CORE-078` changes no language or matrix row. It adds one exact
-public Windows x86_64 CPU evidence lane using the official LLVM/Clang 22.1.8 x86_64
-MSVC archive pinned by SHA-256. The lane must preserve the existing MSVC triple/layout,
-fail artifact-free on invalid source, externally and machine verify, emit a COFF
-object, link through Clang/MSVC, and execute the public and manual paths at exit 227.
-Two public candidates were rejected: one at a disproven installer destination and one
-because the official toolchain installer omits required `opt.exe`. The red/green repair
-uses the official full archive and requires all tools before use. Focused and complete
-local gates pass; the CPU row remains `PARTIAL`
-and cannot gain Windows public evidence until an expanded nine-check exact replacement
-is green.
+Local candidate `CORE-079` adds the convergent fixed-point row without changing enum
+topology or backend layout. One shared classifier joins `Owned`/`Moved`/`MaybeMoved`
+at loop headers and exits; semantic analysis and independent checked admission recheck
+`while`, admitted fixed-array `for`, and `loop` until the finite header stabilizes.
+The existing verifier remains the independent cycle proof. The focused target passes
+3/3; complete all-features, static, documentation, diff-hygiene, and exact root gates
+pass. Public/native gates remain pending, so the row remains `PARTIAL` and is not
+accepted public.
+
+Accepted public `CORE-078` changes no language or matrix row. Exact implementation
+`70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe` adds one Windows x86_64 CPU evidence
+lane using the official full LLVM/Clang 22.1.8 x86_64 MSVC archive pinned by SHA-256.
+It preserves the existing MSVC triple/layout, fails artifact-free on invalid source,
+externally and machine verifies, emits COFF, links through Clang/MSVC, and executes the
+public and manual paths at exit 227. All nine exact-head checks pass, while Linux
+stable/nightly preserve exits 149/223/227. The CPU row remains `PARTIAL`; this bounded
+evidence is not general Windows or stable ABI support.
 
 ## Compiler, tooling, and ecosystem surfaces
 
@@ -174,7 +181,7 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 | Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| CPU | Y | Y | P | P | P; Linux accepted, pinned Windows candidate pending | P | P | PARTIAL |
+| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted | P | P | PARTIAL |
 | ROCm | Y | Y | P, temporary/unchecked at AUDIT-024 | N | N | N | External llama.cpp only | EXPERIMENTAL |
 | CUDA | Y | P | N | N | N | N | N | PARSED_ONLY |
 | Graph compilation | Y | Y | — | — | Internal scalar-helper transform only | N | N | EXPERIMENTAL |

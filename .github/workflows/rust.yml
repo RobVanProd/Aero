@@ -935,6 +935,34 @@ jobs:
         fi
         echo "balanced loop enum ownership example passed with exit code 227"
 
+    - name: Test convergent loop enum fixed-point integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/loop_enum_fixed_point/main.aero
+        set +e
+        cargo run -- run ../../examples/loop_enum_fixed_point/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 229 ]; then
+          echo "Expected public loop fixed-point run exit code 229, got $public_run_exit"
+          exit 1
+        fi
+        cargo run -- build ../../examples/loop_enum_fixed_point/main.aero -o ../../loop_enum_fixed_point.ll
+        opt-22 -passes=verify -disable-output ../../loop_enum_fixed_point.ll
+        llc-22 -verify-machineinstrs ../../loop_enum_fixed_point.ll -o /dev/null
+        llc-22 -filetype=obj ../../loop_enum_fixed_point.ll -o ../../loop_enum_fixed_point.o
+        clang-22 -no-pie ../../loop_enum_fixed_point.o -o ../../loop_enum_fixed_point
+        set +e
+        ../../loop_enum_fixed_point
+        loop_fixed_point_exit_code=$?
+        set -e
+        if [ $loop_fixed_point_exit_code -ne 229 ]; then
+          echo "Expected loop enum fixed-point exit code 229, got $loop_fixed_point_exit_code"
+          exit 1
+        fi
+        echo "convergent loop enum fixed-point example passed with exit code 229"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
@@ -1107,6 +1135,59 @@ jobs:
           throw "Windows manual native execution returned $manualExit, expected 227"
         }
         Write-Host "Windows manual native execution passed with exit code 227"
+        $global:LASTEXITCODE = 0
+
+    - name: Test Windows loop enum fixed-point system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/loop_enum_fixed_point/main.aero"
+        $loopLlvmPath = Join-Path $env:RUNNER_TEMP "loop_enum_fixed_point.windows.ll"
+        $loopMachinePath = Join-Path $env:RUNNER_TEMP "loop_enum_fixed_point.windows.s"
+        $loopObjectPath = Join-Path $env:RUNNER_TEMP "loop_enum_fixed_point.windows.obj"
+        $loopExecutablePath = Join-Path $env:RUNNER_TEMP "loop_enum_fixed_point.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check $example
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows loop fixed-point public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $loopLlvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $loopLlvmPath)) {
+          throw "Windows loop fixed-point public build failed or omitted its LLVM artifact"
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $loopLlvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows loop fixed-point opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $loopLlvmPath -o $loopMachinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $loopMachinePath)) {
+          throw "Windows loop fixed-point machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $loopLlvmPath -o $loopObjectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $loopObjectPath)) {
+          throw "Windows loop fixed-point object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $loopObjectPath -o $loopExecutablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $loopExecutablePath)) {
+          throw "Windows loop fixed-point Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run $example
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 229) {
+          throw "Windows loop fixed-point public run returned $publicRunExit, expected 229"
+        }
+        Write-Host "Windows loop fixed-point public run passed with exit code 229"
+
+        & $loopExecutablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 229) {
+          throw "Windows loop fixed-point manual native execution returned $manualExit, expected 229"
+        }
+        Write-Host "Windows loop fixed-point manual native execution passed with exit code 229"
         $global:LASTEXITCODE = 0
 
 

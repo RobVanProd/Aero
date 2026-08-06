@@ -1,0 +1,108 @@
+enum Token { A, B }
+
+fn consume(value: Token) -> int {
+    match value {
+        Token::A => 1,
+        Token::B => 2
+    }
+}
+
+fn keep_going(value: Token, step: int) -> bool {
+    let score = consume(value);
+    if step < 2 { return score > 0; }
+    1 > 2
+}
+
+fn while_moved_backedge() -> int {
+    let mut owner = Token::A;
+    let mut step = 0;
+    let mut total = 0;
+    while step < 3 {
+        owner = Token::B;
+        total = total + consume(owner);
+        step = step + 1;
+    }
+    total
+}
+
+fn for_moved_backedge() -> int {
+    let mut owner = Token::A;
+    let mut total = 0;
+    for item in [1, 2] {
+        owner = Token::B;
+        total = total + consume(owner) + item;
+    }
+    total
+}
+
+fn loop_moved_backedge_owned_break() -> int {
+    let mut owner = Token::A;
+    let mut step = 0;
+    let mut total = 0;
+    loop {
+        owner = Token::B;
+        total = total + consume(owner);
+        step = step + 1;
+        if step < 2 { continue; }
+        owner = Token::A;
+        break;
+    }
+    total + consume(owner)
+}
+
+fn moved_entry_reinitialized() -> int {
+    let mut owner = Token::A;
+    let mut total = consume(owner);
+    loop {
+        owner = Token::B;
+        break;
+    }
+    total = total + consume(owner);
+    total
+}
+
+fn mixed_backedges() -> int {
+    let mut owner = Token::A;
+    let mut step = 0;
+    let mut total = 0;
+    while step < 3 {
+        owner = Token::B;
+        if step < 1 {
+            total = total + consume(owner);
+            step = step + 1;
+            continue;
+        }
+        step = step + 1;
+    }
+    total
+}
+
+fn condition_consumption() -> int {
+    let mut owner = Token::A;
+    let mut step = 0;
+    let mut total = 0;
+    while keep_going(owner, step) {
+        total = total + step + 1;
+        owner = Token::B;
+        step = step + 1;
+    }
+    total
+}
+
+fn nested_nearest_loop_transfers() -> int {
+    let mut outer = Token::A;
+    let mut step = 0;
+    let mut total = 0;
+    while step < 2 {
+        outer = Token::B;
+        let mut inner = Token::A;
+        loop {
+            inner = Token::B;
+            total = total + consume(inner);
+            break;
+        }
+        total = total + consume(outer);
+        step = step + 1;
+    }
+    total
+}

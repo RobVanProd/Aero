@@ -438,17 +438,17 @@ fn acyclic_owned_enum_reinitialization_is_complete_checked_and_executable() {
         (
             "while backedge without reinitialization",
             "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut value = E::A; let mut step = 0; while step < 1 { let used = take(value); step = step + 1; } }",
-            vec!["not restored", "backedge"],
+            vec!["may have been moved on another control-flow path"],
         ),
         (
             "for backedge without reinitialization",
             "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut value = E::A; for item in [1] { let used = take(value); } }",
-            vec!["not restored", "backedge"],
+            vec!["may have been moved on another control-flow path"],
         ),
         (
             "loop continue without reinitialization",
             "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut value = E::A; loop { let used = take(value); continue; } }",
-            vec!["not restored", "continue backedge"],
+            vec!["may have been moved on another control-flow path"],
         ),
         (
             "enum array storage remains excluded",
@@ -488,13 +488,13 @@ fn acyclic_owned_enum_reinitialization_is_complete_checked_and_executable() {
     let artifact = workspace.path("invalid.ll");
     fs::write(
         &invalid,
-        "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut value = E::A; loop { let used = take(value); break; } }",
+        "enum E { A } fn take(value: E) -> int { match value { E::A => 1 } } fn main() { let mut value = E::A; loop { let used = take(value); continue; } }",
     )
-    .expect("write invalid unbalanced-loop source");
+    .expect("write invalid cyclic-loop source");
     let check = run_cli(&workspace, &[Path::new("check"), &invalid]);
     if check.status.success() {
         failures.push(format!(
-            "unbalanced-loop CLI check succeeded: {}",
+            "cyclic-loop CLI check succeeded: {}",
             output_text(&check)
         ));
     }
@@ -504,7 +504,7 @@ fn acyclic_owned_enum_reinitialization_is_complete_checked_and_executable() {
     );
     if build.status.success() || artifact.exists() {
         failures.push(format!(
-            "unbalanced-loop CLI build did not fail without an artifact: {}",
+            "cyclic-loop CLI build did not fail without an artifact: {}",
             output_text(&build)
         ));
     }

@@ -15756,3 +15756,175 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   and doc tests green. No compiler source or semantics changed. A third immutable
   replacement, immediate candidate PR synchronization, and all-nine exact-head public
   evidence remain mandatory; neither rejected candidate is acceptance.
+
+### CORE-078 accepted public checkpoint
+
+- Accepted identity: immutable archive replacement
+  `70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe`, tree
+  `b7a2f41877ab812140248ecce10d3157bdab29ac`, stable patch ID
+  `a85fca8b087a98a89c81cb6c2eb35de67a249f9e` is accepted public. Both rejected
+  installer predecessors remain rejection evidence and were not rewritten.
+- Exact-head evidence: aggregate CodeQL check `92573248329`; Windows native run
+  `31088366675`, job `92573137033`; pull-request compiler run `31088367681`, job
+  `92573140054`; stable Linux job `92573137021`; nightly Linux job `92573137080`;
+  CodeQL Actions/Python/Rust jobs `92573127314`, `92573127291`, and `92573127396`;
+  and push compiler run `31088361912`, job `92573121600` all passed at the accepted
+  commit.
+- Windows evidence: the official full archive matched the frozen digest; local
+  `opt.exe`, `llvm-as.exe`, `llc.exe`, and `clang.exe` reported exact 22.1.8; the
+  known-invalid module was rejected; invalid Aero source left no artifact; the exact
+  MSVC triple and data layout survived; external and machine verification, COFF
+  object generation, Clang/MSVC linking, public `run`, and independent execution all
+  passed with both executions returning 227. Stable and nightly Linux retained exact
+  LLVM/Clang 22.1.8 and exits 149, 223, and 227.
+- Rendered integration record: draft PR #4 is open, unmerged, and cleanly mergeable;
+  its title and first heading identify CORE-078 accepted public, its exact head is
+  `70f59fd...`, all nine immutable evidence links render, and no encoding substitution
+  is present. The accepted implementation changes no compiler source or language
+  semantics and does not create a general Windows, ABI, packaging, release, safety,
+  performance, or accelerator claim.
+
+## CORE-079 - convergent direct-enum loop ownership fixed points
+
+- Date/task/status: 2026-08-06, `CORE-079`, authorized and active after exact
+  CORE-078 public acceptance. PR #4 remains draft, open, cleanly mergeable, and
+  unmerged. User-owned untracked `tmp/` remains outside this task.
+- Observed behavior and class enumeration: accepted CORE-077 requires a direct
+  mutable admitted destructor-free enum owner to equal its first-entry state on the
+  `while` condition, fixed-array `for` iterable, every reachable fallthrough or
+  `continue` backedge, and every `break` exit. Both semantic analysis and independent
+  checked admission therefore reject safe cyclic programs whose next iteration begins
+  `Moved` or `MaybeMoved` but reinitializes the owner before every possible use. They
+  also restore the pre-loop snapshot after every loop, so they cannot represent exact
+  or conservative post-loop `Moved`/`MaybeMoved` state. The independent checked-IR
+  verifier already computes a cyclic consumed-owner fixed point, treats predecessor
+  union conservatively, accepts checked reinitialization before every repeated use,
+  and rejects bypassed, missing, wrong-schema, generic-store, or double-consumption
+  repairs. The remaining false boundary is one complete direct-enum loop dataflow
+  class, not three syntax-specific exceptions.
+- Frozen positive semantics: one phase-neutral classifier covers `while`, admitted
+  fixed-array `for`, and `loop`. For each direct admitted enum owner, the loop header
+  starts from the exact preheader ownership state; reachable fallthrough and nearest-
+  loop `continue` states join back into that header until the finite
+  `Owned`/`Moved`/`MaybeMoved` lattice converges. The body is rechecked from each
+  widened header state, so a possibly consumed owner must be reinitialized before any
+  repeated-cycle use. `while` evaluates its condition from the converged header and
+  starts its body from the condition result; `for` evaluates its iterable once and
+  starts its fixed point from that result; `loop` starts directly from its preheader.
+  Post-loop ownership is the conservative join of every reachable false/exhaustion
+  and nearest-loop `break` exit. Returning paths do not join. An unreachable
+  no-break `loop` supplies no executable post-loop state.
+- Frozen exclusions: this changes only direct mutable whole-owner state for the
+  already admitted destructor-free enum class. Borrowed states across a loop boundary,
+  partial moves, projections, enum aggregate storage, enum fields/arrays/tuples,
+  references to enums, drop/destructor/lifetime behavior, generic or named-field
+  enums, loop labels or values, dynamic iterators, new ABI/runtime/module/import/GPU
+  behavior, and general non-enum dataflow remain excluded. The classifier may not
+  duplicate a topology guard in semantic and checked admission, and no source-only
+  acceptance may bypass checked-IR verification before LLVM.
+- Hypothesis and smallest complete change: replace equality-to-first-entry loop
+  classification with one deterministic convergent header/exit summary consumed by
+  both source paths. Reuse the existing checked-IR cyclic ownership verifier as the
+  independent trusted proof rather than copying its CFG algorithm into another phase.
+  Reanalyze each source loop only while its finite ownership header widens; reject a
+  borrowed edge, non-convergence, or any repeated-pass use of `Moved`/`MaybeMoved`.
+  Carry the converged exit summary into subsequent source statements. No backend
+  layout or lowering contract changes.
+- Red-first plan and allowed files: first add
+  `src/compiler/tests/loop_enum_fixed_point_tests.rs` proving that a complete
+  while/for/loop program with moved and mixed backedges, moved entry, top-of-cycle
+  reinitialization, exact post-loop joins, nested nearest-loop transfers, direct
+  modules, and native-observable result is rejected today by the old fixed-entry
+  diagnostic. Production work may then change only `src/compiler/src/ownership_flow.rs`,
+  `src/compiler/src/semantic_analyzer.rs`, `src/compiler/src/ir_generator.rs`, focused
+  ownership/verifier tests, the CORE-078 Windows workflow contract only as needed to
+  preserve its unique anchors while counting the additional intentional nonzero-exit
+  group, one tracked `examples/loop_enum_fixed_point/` specimen, and
+  `.github/workflows/rust.yml`. After exact green, synchronize the capability,
+  matrix, framework, backend, risk, decision, roadmap, README, and this ledger.
+  Compiler type/layout registries, enum schemas, aggregate contracts, LLVM lowering,
+  dependencies, `master`, releases, and `tmp/` are not authorized.
+- Acceptance tests: exact focused red then green; unit exhaustion of all three loop
+  kinds, every edge kind, entry/header/backedge/exit state, fixed-point widening,
+  nested nearest-loop control, returning paths, and borrowed rejection; negative
+  source and direct checked-admission coverage for missing/bypassed reinitialization,
+  use after a `MaybeMoved` exit, same-path double consumption, wrong schema, generic
+  store corruption, and all frozen exclusions; deterministic checked IR and LLVM;
+  public `check`, required-verifier `build`, and `run`; external LLVM 22 verification,
+  machine verification, object/link, and exact native exit; formatting, check, tests,
+  correctness Clippy, docs, exact repository-root `./tools/test.sh`, and all nine
+  exact-head public checks. Linux and Windows must preserve exits 149/223/227 while
+  adding the new composed exit.
+- Risks and stop conditions: stop rather than invent semantics if finite convergence
+  cannot be expressed through one shared classifier, full semantic reanalysis mutates
+  non-ownership meaning, an enum may be used before reinitialization on any cyclic
+  path, post-loop state is understated, nearest-loop transfers are misattributed,
+  the verifier accepts a bypass or unverified generic store, the change requires an
+  aggregate/type/layout/ABI decision, or any existing accepted capability regresses.
+  Do not weaken CORE-077 controls or accept a milestone that only changes rejection.
+- Scaling controls: CORE-079 is the queued hard CFG-ownership class and ends in a
+  composed source-to-native capability. Enum-bearing aggregate storage remains queued
+  behind a unified owned-type graph authority; the 279-commit mega-PR still needs a
+  separately authorized checkpoint strategy; structured evidence manifests remain
+  separate; and real runtime/module/ABI/RX 7800 XT work stays visible.
+
+### CORE-079 exact red checkpoint
+
+- Before any production mutation, the new focused target
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  loop_enum_fixed_point_tests -- --nocapture` compiles and runs 0/1 green. Parsing
+  succeeds, then the complete while/for/loop program is rejected at the first changed
+  edge with `balanced loop ownership for enum owner `owner` is not restored to Owned
+  on the fallthrough backedge`. This is the frozen fixed-entry false boundary.
+- The red specimen already composes an Owned-to-Moved while backedge, a fixed-array
+  for backedge, a loop with Moved continue and Owned break, a Moved preheader repaired
+  before break, mixed Owned/Moved backedges, calls, Match, exact post-loop use, and
+  native-observable exit 229. No production source, verifier, backend, example,
+  workflow, dependency, `master`, or `tmp/` change exists at this checkpoint.
+
+### CORE-079 locally green implementation checkpoint
+
+- Implementation summary: `ownership_flow` now owns one phase-neutral loop-kind and
+  edge classifier that computes deterministic header/exit joins over the finite
+  `Owned`/`Moved`/`MaybeMoved` lattice. Semantic analysis and independent checked
+  admission iteratively recheck `while`, admitted fixed-array `for`, and `loop` from
+  widened headers and restore the conservative converged exit. Reanalysis restores
+  the loop-entry temporary counter before each pass so ownership convergence cannot
+  perturb pointer identity. No verifier, enum schema, checked opcode, LLVM layout, or
+  backend lowering contract changed.
+- Exact coverage: the focused target now passes 3/3. It covers moved and mixed
+  backedges, moved entry repaired before use, consuming conditions, all loop and edge
+  kinds, nested nearest-loop transfers, exact/conservative exits, direct semantic and
+  checked-admission routes, deterministic checked IR/LLVM, module collection, public
+  check/build hygiene, every frozen negative, workflow anchors, and exit-229 wiring.
+  A direct-admission regression also proves a `for` loop variable restores a shadowed
+  outer enum binding on fallthrough and every captured control edge.
+  Classifier unit tests cover valid/invalid topology, every state join, no-break loop,
+  borrowed rejection, and non-enum preservation.
+- Compatibility audit: `conditional_owned_enum_match_result_tests`,
+  `loop_local_enum_ownership_tests`, `owned_enum_match_result_tests`,
+  `owned_enum_reassignment_tests`, and `owned_enum_reinitialization_tests` contained
+  pre-CORE-079 blanket loop exclusions. Only unconditional return/break paths were
+  moved to positive coverage. Actual repeated cycles remain negative under the shared
+  `MaybeMoved` diagnostic, and the reinitialization CLI hygiene control was strengthened
+  from a terminating break path to an actual continue backedge. CORE-065/066 and
+  CORE-073 through CORE-077 focused compatibility suites are green.
+- Commands/results: the red-first command failed 0/1 before production mutation and
+  now passes 3/3. The 195 library tests pass. `cargo test --locked --manifest-path
+  src/compiler/Cargo.toml --all-features` passes every unit, integration, and doc test.
+  The exact repository-root `./tools/test.sh` exits 0 in 274.1 seconds. `cargo fmt
+  --check`, all-target/all-feature `cargo check`, correctness Clippy, docs, and `git
+  diff --check` all exit 0. Local public `check` passes; local `run` stops before object
+  generation because this host has no required LLVM 22 verifier, returns 1, and leaves
+  no artifact. That is an environment boundary, not Windows Security or native
+  execution evidence.
+- Files changed: shared ownership classification and semantic/admission consumers;
+  focused compatibility tests; new `loop_enum_fixed_point_tests`; tracked ignored
+  two-file example; Linux/Windows workflow exit-229 lanes; the Windows workflow anchor
+  count; and the authorized state/capability/matrix/framework/backend/risk/decision/
+  roadmap/README records. User-owned untracked `tmp/` remains untouched.
+- Remaining gates and uncertainty: stage only the explicit files (force-add the
+  intentionally ignored example and exclude `tmp/`), inspect the staged identity,
+  commit/push one immutable candidate, synchronize draft PR #4 as candidate-only, and
+  require all nine exact-head checks plus pinned Linux/Windows exit 229 while preserving
+  149/223/227. Public acceptance remains false until that exact head is fully green.

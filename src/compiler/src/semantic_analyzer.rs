@@ -23,7 +23,8 @@ use crate::local_reference::{
 };
 use crate::method_call_contract::{IntrinsicMethodPhase, classify_intrinsic_method};
 use crate::ownership_flow::{
-    ConditionalOwnershipArm, LoopControlSnapshots, LoopOwnershipEdge, LoopOwnershipEdgeKind,
+    ConditionalOwnershipArm, LOOP_OWNERSHIP_FIXED_POINT_LIMIT, LoopControlSnapshots,
+    LoopOwnershipDisposition, LoopOwnershipEdge, LoopOwnershipEdgeKind, LoopOwnershipKind,
     OwnershipFlowDisposition, block_reaches_merge, classify_conditional_ownership,
     classify_loop_ownership, classify_owned_consumption_paths, maybe_moved_diagnostic,
     statement_reaches_merge,
@@ -441,20 +442,32 @@ impl ScopeManager {
         Ok(())
     }
 
-    fn validate_loop_ownership_edges(
-        &mut self,
-        entry: &[HashMap<String, VariableInfoNew>],
+    fn summarize_loop_ownership(
+        &self,
+        initial_header: &[HashMap<String, VariableInfoNew>],
+        kind: LoopOwnershipKind,
         edges: &[(LoopOwnershipEdgeKind, Vec<HashMap<String, VariableInfoNew>>)],
-    ) -> Result<(), String> {
-        self.restore_ownership_snapshot(entry);
-        let mut bindings = entry
+    ) -> Result<
+        (
+            Vec<HashMap<String, VariableInfoNew>>,
+            Option<Vec<HashMap<String, VariableInfoNew>>>,
+        ),
+        String,
+    > {
+        let mut header = initial_header.to_vec();
+        let mut exit = initial_header.to_vec();
+        let has_exit = kind != LoopOwnershipKind::Loop
+            || edges
+                .iter()
+                .any(|(edge, _)| *edge == LoopOwnershipEdgeKind::Break);
+        let mut bindings = initial_header
             .iter()
             .enumerate()
             .flat_map(|(scope, bindings)| bindings.keys().cloned().map(move |name| (scope, name)))
             .collect::<Vec<_>>();
         bindings.sort();
         for (scope, name) in bindings {
-            let entry_binding = &entry[scope][&name];
+            let initial_binding = &initial_header[scope][&name];
             let owner_edges = edges
                 .iter()
                 .map(|(kind, snapshot)| LoopOwnershipEdge {
@@ -464,16 +477,43 @@ impl ScopeManager {
                 .collect::<Vec<_>>();
             match classify_loop_ownership(
                 &name,
-                &entry_binding.var_type,
-                &entry_binding.ownership,
+                &initial_binding.var_type,
+                kind,
+                &initial_binding.ownership,
                 &owner_edges,
             ) {
-                OwnershipFlowDisposition::Joined(_)
-                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
-                OwnershipFlowDisposition::ExplicitlyRejected(message) => return Err(message),
+                LoopOwnershipDisposition::FixedPoint(summary) => {
+                    header[scope]
+                        .get_mut(&name)
+                        .expect("initial loop binding remains in header")
+                        .ownership = summary.header;
+                    if let Some(state) = summary.exit {
+                        exit[scope]
+                            .get_mut(&name)
+                            .expect("initial loop binding remains at exit")
+                            .ownership = state;
+                    }
+                }
+                LoopOwnershipDisposition::PreserveExistingBehavior => {}
+                LoopOwnershipDisposition::ExplicitlyRejected(message) => return Err(message),
             }
         }
-        Ok(())
+        Ok((header, has_exit.then_some(exit)))
+    }
+
+    fn ownership_snapshots_match(
+        left: &[HashMap<String, VariableInfoNew>],
+        right: &[HashMap<String, VariableInfoNew>],
+    ) -> bool {
+        left.len() == right.len()
+            && left.iter().zip(right).all(|(left, right)| {
+                left.len() == right.len()
+                    && left.iter().all(|(name, binding)| {
+                        right
+                            .get(name)
+                            .is_some_and(|other| binding.ownership == other.ownership)
+                    })
+            })
     }
 
     pub fn check_mutability(&self, name: &str) -> Result<bool, String> {
@@ -3209,49 +3249,68 @@ impl SemanticAnalyzer {
                 Ok(())
             }
             Statement::While { condition, body } => {
-                let entry_state = self.scope_manager.ownership_snapshot();
-                self.check_expression_initialization(condition)?;
-                let condition_type = self.infer_and_validate_expression_immutable(condition)?;
+                let initial_header = self.scope_manager.ownership_snapshot();
+                let loop_ptr_entry = self.scope_manager.next_ptr;
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    self.scope_manager.next_ptr = loop_ptr_entry;
+                    self.scope_manager.restore_ownership_snapshot(&header);
+                    self.check_expression_initialization(condition)?;
+                    let condition_type = self.infer_and_validate_expression_immutable(condition)?;
+                    if condition_type != Ty::Bool {
+                        return Err(format!(
+                            "Error: While condition must be boolean, found: {}",
+                            condition_type
+                        ));
+                    }
+                    self.apply_enum_match_moves(condition)?;
+                    let condition_state = self.scope_manager.ownership_snapshot();
 
-                if condition_type != Ty::Bool {
-                    return Err(format!(
-                        "Error: While condition must be boolean, found: {}",
-                        condition_type
-                    ));
-                }
-                self.apply_enum_match_moves(condition)?;
-                let condition_state = self.scope_manager.ownership_snapshot();
-                self.scope_manager.validate_loop_ownership_edges(
-                    &entry_state,
-                    &[(LoopOwnershipEdgeKind::Condition, condition_state)],
-                )?;
+                    self.enter_loop_scope();
+                    let body_result = self.analyze_block(body);
+                    let body_reaches_backedge = block_reaches_merge(body, true);
+                    let control = self.exit_loop_scope();
+                    let backedge_state = self.scope_manager.ownership_snapshot();
+                    body_result?;
 
-                self.enter_loop_scope();
-                let body_result = self.analyze_block(body);
-                let body_reaches_backedge = block_reaches_merge(body, true);
-                let control = self.exit_loop_scope();
-                let backedge_state = self.scope_manager.ownership_snapshot();
-                self.scope_manager.restore_ownership_snapshot(&entry_state);
-                body_result?;
-                let mut edges = Vec::new();
-                if body_reaches_backedge {
-                    edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                    let mut edges = vec![(LoopOwnershipEdgeKind::Condition, condition_state)];
+                    if body_reaches_backedge {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                    }
+                    edges.extend(
+                        control
+                            .continues
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                    );
+                    edges.extend(
+                        control
+                            .breaks
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                    );
+                    let (next_header, exit) = self.scope_manager.summarize_loop_ownership(
+                        &initial_header,
+                        LoopOwnershipKind::While,
+                        &edges,
+                    )?;
+                    if ScopeManager::ownership_snapshots_match(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
                 }
-                edges.extend(
-                    control
-                        .continues
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
-                );
-                edges.extend(
-                    control
-                        .breaks
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
-                );
+                if !converged {
+                    return Err(
+                        "direct enum while-loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    );
+                }
                 self.scope_manager
-                    .validate_loop_ownership_edges(&entry_state, &edges)?;
-
+                    .restore_ownership_snapshot(final_exit.as_deref().unwrap_or(&initial_header));
                 Ok(())
             }
             Statement::For {
@@ -3269,77 +3328,122 @@ impl SemanticAnalyzer {
                             "Error: For-loop iterable must implement IntoIterator (supported: arrays, Vec, integer range start), found: {}",
                             iterable_type
                         )
-                    })?;
+                })?;
                 self.apply_enum_match_moves(iterable)?;
-                let iterable_state = self.scope_manager.ownership_snapshot();
-                self.scope_manager.validate_loop_ownership_edges(
-                    &entry_state,
-                    &[(LoopOwnershipEdgeKind::Iterable, iterable_state)],
-                )?;
+                let initial_header = self.scope_manager.ownership_snapshot();
+                let loop_ptr_entry = self.scope_manager.next_ptr;
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    self.scope_manager.next_ptr = loop_ptr_entry;
+                    self.scope_manager.restore_ownership_snapshot(&header);
+                    self.enter_loop_scope();
+                    let body_result = (|| {
+                        self.scope_manager.define_variable(
+                            variable.clone(),
+                            loop_var_type.clone(),
+                            false,
+                            true,
+                        )?;
+                        self.analyze_block(body)
+                    })();
+                    let body_reaches_backedge = block_reaches_merge(body, true);
+                    let control = self.exit_loop_scope();
+                    let backedge_state = self.scope_manager.ownership_snapshot();
+                    body_result?;
 
-                self.enter_loop_scope();
-                let body_result = (|| {
-                    self.scope_manager.define_variable(
-                        variable.clone(),
-                        loop_var_type,
-                        false,
-                        true,
+                    let mut edges = vec![(LoopOwnershipEdgeKind::Iterable, initial_header.clone())];
+                    if body_reaches_backedge {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                    }
+                    edges.extend(
+                        control
+                            .continues
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                    );
+                    edges.extend(
+                        control
+                            .breaks
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                    );
+                    let (next_header, exit) = self.scope_manager.summarize_loop_ownership(
+                        &initial_header,
+                        LoopOwnershipKind::For,
+                        &edges,
                     )?;
-                    self.analyze_block(body)
-                })();
-                let body_reaches_backedge = block_reaches_merge(body, true);
-                let control = self.exit_loop_scope();
-                let backedge_state = self.scope_manager.ownership_snapshot();
-                self.scope_manager.restore_ownership_snapshot(&entry_state);
-                body_result?;
-                let mut edges = Vec::new();
-                if body_reaches_backedge {
-                    edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                    if ScopeManager::ownership_snapshots_match(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
                 }
-                edges.extend(
-                    control
-                        .continues
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
-                );
-                edges.extend(
-                    control
-                        .breaks
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
-                );
+                if !converged {
+                    self.scope_manager.restore_ownership_snapshot(&entry_state);
+                    return Err(
+                        "direct enum for-loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    );
+                }
                 self.scope_manager
-                    .validate_loop_ownership_edges(&entry_state, &edges)?;
-
+                    .restore_ownership_snapshot(final_exit.as_deref().unwrap_or(&initial_header));
                 Ok(())
             }
             Statement::Loop { body } => {
-                let entry_state = self.scope_manager.ownership_snapshot();
-                self.enter_loop_scope();
-                let body_result = self.analyze_block(body);
-                let body_reaches_backedge = block_reaches_merge(body, true);
-                let control = self.exit_loop_scope();
-                let backedge_state = self.scope_manager.ownership_snapshot();
-                self.scope_manager.restore_ownership_snapshot(&entry_state);
-                body_result?;
-                let mut edges = Vec::new();
-                if body_reaches_backedge {
-                    edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                let initial_header = self.scope_manager.ownership_snapshot();
+                let loop_ptr_entry = self.scope_manager.next_ptr;
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    self.scope_manager.next_ptr = loop_ptr_entry;
+                    self.scope_manager.restore_ownership_snapshot(&header);
+                    self.enter_loop_scope();
+                    let body_result = self.analyze_block(body);
+                    let body_reaches_backedge = block_reaches_merge(body, true);
+                    let control = self.exit_loop_scope();
+                    let backedge_state = self.scope_manager.ownership_snapshot();
+                    body_result?;
+
+                    let mut edges = Vec::new();
+                    if body_reaches_backedge {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                    }
+                    edges.extend(
+                        control
+                            .continues
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                    );
+                    edges.extend(
+                        control
+                            .breaks
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                    );
+                    let (next_header, exit) = self.scope_manager.summarize_loop_ownership(
+                        &initial_header,
+                        LoopOwnershipKind::Loop,
+                        &edges,
+                    )?;
+                    if ScopeManager::ownership_snapshots_match(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
                 }
-                edges.extend(
-                    control
-                        .continues
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
-                );
-                edges.extend(
-                    control
-                        .breaks
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
-                );
+                if !converged {
+                    return Err(
+                        "direct enum loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    );
+                }
                 self.scope_manager
-                    .validate_loop_ownership_edges(&entry_state, &edges)?;
+                    .restore_ownership_snapshot(final_exit.as_deref().unwrap_or(&initial_header));
                 Ok(())
             }
             Statement::Break => {

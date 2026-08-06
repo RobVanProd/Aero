@@ -331,6 +331,15 @@ fn fresh_loop_local_enum_ownership_class_is_complete_checked_and_executable() {
         }
     }
 
+    if let Err(error) = compile_program(
+        "enum E { A } fn main() { let outer = E::A; loop { let moved = outer; break; } }",
+        CompilerOptions::default(),
+    ) {
+        failures.push(format!(
+            "outer owner consumed only on a terminating break path unexpectedly failed: {error}"
+        ));
+    }
+
     for (label, source, expected) in [
         (
             "double consumption in one while iteration",
@@ -340,17 +349,12 @@ fn fresh_loop_local_enum_ownership_class_is_complete_checked_and_executable() {
         (
             "outer owner consumed on while backedge",
             "enum E { A } fn main() { let outer = E::A; let mut step = 0; while step < 1 { let moved = outer; step = step + 1; } }",
-            vec!["loop", "fixed-point", "backedge"],
+            vec!["may have been moved on another control-flow path"],
         ),
         (
             "outer owner consumed before for continue",
             "enum E { A } fn main() { let outer = E::A; for item in [1] { let moved = outer; continue; } }",
-            vec!["loop", "fixed-point", "backedge"],
-        ),
-        (
-            "outer owner consumed before loop break remains quarantined",
-            "enum E { A } fn main() { let outer = E::A; loop { let moved = outer; break; } }",
-            vec!["moved", "loop", "backedge", "not admitted"],
+            vec!["may have been moved on another control-flow path"],
         ),
         (
             "fresh local self replacement",

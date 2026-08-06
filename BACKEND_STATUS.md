@@ -10,7 +10,7 @@ execution, numerical correctness, or performance.
 
 | Backend | Interface | IR transformation | Object generation | Linking | Real execution | Numerical correctness | Performance evidence | Classification |
 |---|---|---|---|---|---|---|---|---|
-| CPU | `build`/`run` selectable | Host LLVM text generated | Implemented through `llc` when available | Implemented through `clang` when available | Process execution implemented; accepted Linux CI exits exist; pinned Windows x86_64 public candidate pending | Small bounded exit-code checks only | Current README compilation series is invalid; no accepted performance claim | PARTIAL |
+| CPU | `build`/`run` selectable | Host LLVM text generated | Implemented through `llc` when available | Implemented through `clang` when available | Process execution implemented; accepted pinned Linux and bounded Windows x86_64 exits exist | Small bounded exit-code checks only | Current README compilation series is invalid; no accepted performance claim | PARTIAL |
 | ROCm | Explicit `rocm` target/backend selectable; ambiguous `gpu` is rejected | Module triple/data layout retargeted; backend-named graph/quant scalar helpers | `run` can ask `llc` for a temporary regular file; existence is not object validity | No HIP launcher/link path | Absent; `run` returns status 1 and states that no program ran | No Aero hardware result comparison | Tracked GGUF result is external llama.cpp only; not Aero execution | EXPERIMENTAL |
 | CUDA | Explicit `cuda` target/backend selectable; ambiguous `gpu` is rejected | Target metadata/backend-named scalar helpers only | Absent from active `run` | Absent | Absent; `run` returns status 1 and recommends CPU | Absent | Absent | PARSED_ONLY |
 
@@ -23,15 +23,20 @@ when those external tools exist.
 The secondary Rust workflow verifies the accumulated bounded examples on Ubuntu by
 expected exit status, and `CORE-014` adds the generated `Hello, Aero!` project with
 explicit status and anchored-output proof. Accepted CORE-077 reaches native exit 227
-on pinned stable/nightly Linux LLVM/Clang 22.1.8. Local CORE-078 adds a separate
-`windows-latest` x86_64 job that pins the official full LLVM/Clang 22.1.8 archive by
-release SHA-256 and requires MSVC-target LLVM, external/machine verification, COFF
-object generation, Clang/MSVC linking, public `run`, manual execution, invalid-build
-artifact hygiene, and exit 227. That is candidate workflow evidence only until the
-exact public Windows job passes. One candidate was rejected at a custom installer root;
-the next proved the official toolchain installer omits `opt.exe`. The local red/green
-replacement extracts the official full archive task-locally and requires all four
-tools. The current local host still lacks LLVM 22.
+on pinned stable/nightly Linux LLVM/Clang 22.1.8. Accepted public CORE-078 adds a
+separate `windows-latest` x86_64 job that pins the official full LLVM/Clang 22.1.8
+archive by release SHA-256 and requires MSVC-target LLVM, external/machine
+verification, COFF object generation, Clang/MSVC linking, public `run`, manual
+execution, invalid-build artifact hygiene, and exit 227. Exact implementation
+`70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe` passes all nine exact-head checks;
+Linux stable/nightly preserve exits 149/223/227. The current local host still lacks
+LLVM 22.
+
+Local CORE-079 changes no backend representation, layout, or ABI. Its tracked
+direct-module fixed-point specimen is wired for external/machine verification,
+object/link, public/manual execution, and exact exit 229 on pinned Linux and Windows
+LLVM/Clang 22.1.8. Those native and exact-head results remain candidate requirements,
+not current acceptance evidence.
 
 The CPU path can fall back to direct Clang compilation if `llc` is missing. It
 also prints a success message before interpreting a nonzero program exit status,

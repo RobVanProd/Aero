@@ -298,6 +298,22 @@ fn main() -> int {
 }
 "#,
         ),
+        (
+            "direct owner result on an exiting loop path",
+            r#"
+fn main() -> int {
+    loop {
+        let value = Output::Count(211);
+        let result = match Input::Left {
+            Input::Left => value,
+            Input::Right => Output::Empty
+        };
+        return score(result);
+    }
+    0
+}
+"#,
+        ),
     ] {
         expect_success(label, &with_prelude(body), &mut failures);
     }
@@ -504,28 +520,6 @@ fn main() -> int { score(illegal(Input::Left, Input::Left, Output::Count(1))) }
         ),
         &["owned enum match result arm 1"],
         &[],
-        &mut failures,
-    );
-    expect_rejection(
-        "direct owner result inside loop remains excluded",
-        &with_prelude(
-            r#"
-fn illegal() -> int {
-    loop {
-        let value = Output::Count(1);
-        let result = match Input::Left {
-            Input::Left => value,
-            Input::Right => Output::Empty
-        };
-        return score(result);
-    }
-    0
-}
-fn main() -> int { illegal() }
-"#,
-        ),
-        &["loop", "ownership"],
-        &[CURRENT_FRESH_ONLY_DIAGNOSTIC],
         &mut failures,
     );
     expect_rejection(

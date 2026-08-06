@@ -30,7 +30,8 @@ use crate::method_call_contract::{
     classify_intrinsic_method,
 };
 use crate::ownership_flow::{
-    ConditionalOwnershipArm, LoopControlSnapshots, LoopOwnershipEdge, LoopOwnershipEdgeKind,
+    ConditionalOwnershipArm, LOOP_OWNERSHIP_FIXED_POINT_LIMIT, LoopControlSnapshots,
+    LoopOwnershipDisposition, LoopOwnershipEdge, LoopOwnershipEdgeKind, LoopOwnershipKind,
     OwnershipFlowDisposition, block_reaches_merge, classify_conditional_ownership,
     classify_loop_ownership, classify_owned_consumption_paths, maybe_moved_diagnostic,
     statement_reaches_merge,
@@ -854,15 +855,27 @@ impl IrGenerator {
         Ok(())
     }
 
-    fn validate_loop_admission_edges(
-        bindings: &mut HashMap<String, AdmissionBinding>,
-        entry: &HashMap<String, AdmissionBinding>,
+    fn summarize_loop_admission(
+        initial_header: &HashMap<String, AdmissionBinding>,
+        kind: LoopOwnershipKind,
         edges: &[(LoopOwnershipEdgeKind, HashMap<String, AdmissionBinding>)],
-    ) -> Result<(), IrGenerationError> {
-        let mut names = entry.keys().cloned().collect::<Vec<_>>();
+    ) -> Result<
+        (
+            HashMap<String, AdmissionBinding>,
+            Option<HashMap<String, AdmissionBinding>>,
+        ),
+        IrGenerationError,
+    > {
+        let mut header = initial_header.clone();
+        let mut exit = initial_header.clone();
+        let has_exit = kind != LoopOwnershipKind::Loop
+            || edges
+                .iter()
+                .any(|(edge, _)| *edge == LoopOwnershipEdgeKind::Break);
+        let mut names = initial_header.keys().cloned().collect::<Vec<_>>();
         names.sort();
         for name in names {
-            let entry_binding = &entry[&name];
+            let initial_binding = &initial_header[&name];
             let owner_edges = edges
                 .iter()
                 .map(|(kind, snapshot)| LoopOwnershipEdge {
@@ -872,19 +885,41 @@ impl IrGenerator {
                 .collect::<Vec<_>>();
             match classify_loop_ownership(
                 &name,
-                &entry_binding.ty,
-                &entry_binding.ownership,
+                &initial_binding.ty,
+                kind,
+                &initial_binding.ownership,
                 &owner_edges,
             ) {
-                OwnershipFlowDisposition::Joined(_)
-                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
-                OwnershipFlowDisposition::ExplicitlyRejected(message) => {
+                LoopOwnershipDisposition::FixedPoint(summary) => {
+                    header
+                        .get_mut(&name)
+                        .expect("initial admission binding remains in loop header")
+                        .ownership = summary.header;
+                    if let Some(state) = summary.exit {
+                        exit.get_mut(&name)
+                            .expect("initial admission binding remains at loop exit")
+                            .ownership = state;
+                    }
+                }
+                LoopOwnershipDisposition::PreserveExistingBehavior => {}
+                LoopOwnershipDisposition::ExplicitlyRejected(message) => {
                     return Err(IrGenerationError::Admission(message));
                 }
             }
         }
-        *bindings = entry.clone();
-        Ok(())
+        Ok((header, has_exit.then_some(exit)))
+    }
+
+    fn admission_ownership_matches(
+        left: &HashMap<String, AdmissionBinding>,
+        right: &HashMap<String, AdmissionBinding>,
+    ) -> bool {
+        left.len() == right.len()
+            && left.iter().all(|(name, binding)| {
+                right
+                    .get(name)
+                    .is_some_and(|other| binding.ownership == other.ownership)
+            })
     }
 
     fn admission_direct_owned_enum_result_type(
@@ -1351,39 +1386,61 @@ impl IrGenerator {
                 )?;
             }
             Statement::Loop { body } => {
-                let entry_bindings = bindings.clone();
-                let mut nested = entry_bindings.clone();
-                loop_controls.push(AdmissionLoopControl::default());
-                let body_result = Self::validate_block(
-                    body,
-                    &mut nested,
-                    program,
-                    true,
-                    inside_impl,
-                    inside_generic_impl,
-                    loop_controls,
-                );
-                let control = loop_controls
-                    .pop()
-                    .expect("loop admission control frame was pushed");
-                body_result?;
-                let mut edges = Vec::new();
-                if block_reaches_merge(body, true) {
-                    edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                let initial_header = bindings.clone();
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    let mut nested = header.clone();
+                    loop_controls.push(AdmissionLoopControl::default());
+                    let body_result = Self::validate_block(
+                        body,
+                        &mut nested,
+                        program,
+                        true,
+                        inside_impl,
+                        inside_generic_impl,
+                        loop_controls,
+                    );
+                    let control = loop_controls
+                        .pop()
+                        .expect("loop admission control frame was pushed");
+                    body_result?;
+                    let mut edges = Vec::new();
+                    if block_reaches_merge(body, true) {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                    }
+                    edges.extend(
+                        control
+                            .continues
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                    );
+                    edges.extend(
+                        control
+                            .breaks
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                    );
+                    let (next_header, exit) = Self::summarize_loop_admission(
+                        &initial_header,
+                        LoopOwnershipKind::Loop,
+                        &edges,
+                    )?;
+                    if Self::admission_ownership_matches(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
                 }
-                edges.extend(
-                    control
-                        .continues
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
-                );
-                edges.extend(
-                    control
-                        .breaks
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
-                );
-                Self::validate_loop_admission_edges(bindings, &entry_bindings, &edges)?;
+                if !converged {
+                    return Err(IrGenerationError::Admission(
+                        "direct enum loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    ));
+                }
+                *bindings = final_exit.unwrap_or(initial_header);
             }
             Statement::Function {
                 name,
@@ -1571,61 +1628,82 @@ impl IrGenerator {
                 )?;
             }
             Statement::While { condition, body } => {
-                let entry_bindings = bindings.clone();
-                Self::validate_expression(
-                    condition,
-                    bindings,
-                    program,
-                    ExpressionUse::Value,
-                    inside_impl,
-                    !inside_impl,
-                )?;
-                Self::apply_enum_expression_ownership(condition, bindings, program, true)?;
-                let condition_bindings = bindings.clone();
-                Self::validate_loop_admission_edges(
-                    bindings,
-                    &entry_bindings,
-                    &[(LoopOwnershipEdgeKind::Condition, condition_bindings)],
-                )?;
-                let mut nested = bindings.clone();
-                loop_controls.push(AdmissionLoopControl::default());
-                let body_result = Self::validate_block(
-                    body,
-                    &mut nested,
-                    program,
-                    true,
-                    inside_impl,
-                    inside_generic_impl,
-                    loop_controls,
-                );
-                let control = loop_controls
-                    .pop()
-                    .expect("while admission control frame was pushed");
-                body_result?;
-                let mut edges = Vec::new();
-                if block_reaches_merge(body, true) {
-                    edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                let initial_header = bindings.clone();
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    let mut condition_bindings = header.clone();
+                    Self::validate_expression(
+                        condition,
+                        &mut condition_bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        !inside_impl,
+                    )?;
+                    Self::apply_enum_expression_ownership(
+                        condition,
+                        &mut condition_bindings,
+                        program,
+                        true,
+                    )?;
+                    let mut nested = condition_bindings.clone();
+                    loop_controls.push(AdmissionLoopControl::default());
+                    let body_result = Self::validate_block(
+                        body,
+                        &mut nested,
+                        program,
+                        true,
+                        inside_impl,
+                        inside_generic_impl,
+                        loop_controls,
+                    );
+                    let control = loop_controls
+                        .pop()
+                        .expect("while admission control frame was pushed");
+                    body_result?;
+                    let mut edges = vec![(LoopOwnershipEdgeKind::Condition, condition_bindings)];
+                    if block_reaches_merge(body, true) {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                    }
+                    edges.extend(
+                        control
+                            .continues
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                    );
+                    edges.extend(
+                        control
+                            .breaks
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                    );
+                    let (next_header, exit) = Self::summarize_loop_admission(
+                        &initial_header,
+                        LoopOwnershipKind::While,
+                        &edges,
+                    )?;
+                    if Self::admission_ownership_matches(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
                 }
-                edges.extend(
-                    control
-                        .continues
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
-                );
-                edges.extend(
-                    control
-                        .breaks
-                        .into_iter()
-                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
-                );
-                Self::validate_loop_admission_edges(bindings, &entry_bindings, &edges)?;
+                if !converged {
+                    return Err(IrGenerationError::Admission(
+                        "direct enum while-loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    ));
+                }
+                *bindings = final_exit.unwrap_or(initial_header);
             }
             Statement::For {
                 variable,
                 iterable,
                 body,
             } => {
-                let entry_bindings = bindings.clone();
                 let iterable_ty = Self::validate_expression(
                     iterable,
                     bindings,
@@ -1635,13 +1713,7 @@ impl IrGenerator {
                     !inside_impl,
                 )?;
                 Self::apply_enum_expression_ownership(iterable, bindings, program, true)?;
-                let iterable_bindings = bindings.clone();
-                Self::validate_loop_admission_edges(
-                    bindings,
-                    &entry_bindings,
-                    &[(LoopOwnershipEdgeKind::Iterable, iterable_bindings)],
-                )?;
-                let mut nested = bindings.clone();
+                let initial_header = bindings.clone();
                 let element_ty = match iterable_ty {
                     Ty::Array(element, _) | Ty::Vec(element) => *element,
                     _ => {
@@ -1650,45 +1722,75 @@ impl IrGenerator {
                         ));
                     }
                 };
-                nested.insert(
-                    variable.clone(),
-                    AdmissionBinding {
-                        ty: element_ty,
-                        mutable: false,
-                        initialized: true,
-                        ownership: OwnershipState::Owned,
-                        callable: false,
-                        static_string: None,
-                    },
-                );
-                loop_controls.push(AdmissionLoopControl::default());
-                let body_result = Self::validate_block(
-                    body,
-                    &mut nested,
-                    program,
-                    true,
-                    inside_impl,
-                    inside_generic_impl,
-                    loop_controls,
-                );
-                let control = loop_controls
-                    .pop()
-                    .expect("for admission control frame was pushed");
-                body_result?;
-                nested.remove(variable);
-                let mut edges = Vec::new();
-                if block_reaches_merge(body, true) {
-                    edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    let mut nested = header.clone();
+                    let shadowed_loop_binding = nested.insert(
+                        variable.clone(),
+                        AdmissionBinding {
+                            ty: element_ty.clone(),
+                            mutable: false,
+                            initialized: true,
+                            ownership: OwnershipState::Owned,
+                            callable: false,
+                            static_string: None,
+                        },
+                    );
+                    loop_controls.push(AdmissionLoopControl::default());
+                    let body_result = Self::validate_block(
+                        body,
+                        &mut nested,
+                        program,
+                        true,
+                        inside_impl,
+                        inside_generic_impl,
+                        loop_controls,
+                    );
+                    let control = loop_controls
+                        .pop()
+                        .expect("for admission control frame was pushed");
+                    body_result?;
+                    let restore_loop_binding = |state: &mut HashMap<String, AdmissionBinding>| {
+                        if let Some(shadowed) = &shadowed_loop_binding {
+                            state.insert(variable.clone(), shadowed.clone());
+                        } else {
+                            state.remove(variable);
+                        }
+                    };
+                    restore_loop_binding(&mut nested);
+                    let mut edges = vec![(LoopOwnershipEdgeKind::Iterable, initial_header.clone())];
+                    if block_reaches_merge(body, true) {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                    }
+                    edges.extend(control.continues.into_iter().map(|mut state| {
+                        restore_loop_binding(&mut state);
+                        (LoopOwnershipEdgeKind::Continue, state)
+                    }));
+                    edges.extend(control.breaks.into_iter().map(|mut state| {
+                        restore_loop_binding(&mut state);
+                        (LoopOwnershipEdgeKind::Break, state)
+                    }));
+                    let (next_header, exit) = Self::summarize_loop_admission(
+                        &initial_header,
+                        LoopOwnershipKind::For,
+                        &edges,
+                    )?;
+                    if Self::admission_ownership_matches(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
                 }
-                edges.extend(control.continues.into_iter().map(|mut state| {
-                    state.remove(variable);
-                    (LoopOwnershipEdgeKind::Continue, state)
-                }));
-                edges.extend(control.breaks.into_iter().map(|mut state| {
-                    state.remove(variable);
-                    (LoopOwnershipEdgeKind::Break, state)
-                }));
-                Self::validate_loop_admission_edges(bindings, &entry_bindings, &edges)?;
+                if !converged {
+                    return Err(IrGenerationError::Admission(
+                        "direct enum for-loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    ));
+                }
+                *bindings = final_exit.unwrap_or(initial_header);
             }
             Statement::ImplBlock {
                 methods,

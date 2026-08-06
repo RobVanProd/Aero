@@ -36,6 +36,28 @@ impl LoopOwnershipEdgeKind {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LoopOwnershipKind {
+    While,
+    For,
+    Loop,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LoopOwnershipSummary {
+    pub(crate) header: OwnershipState,
+    pub(crate) exit: Option<OwnershipState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum LoopOwnershipDisposition {
+    FixedPoint(LoopOwnershipSummary),
+    ExplicitlyRejected(String),
+    PreserveExistingBehavior,
+}
+
+pub(crate) const LOOP_OWNERSHIP_FIXED_POINT_LIMIT: usize = 4;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LoopOwnershipEdge {
     pub(crate) kind: LoopOwnershipEdgeKind,
@@ -132,9 +154,9 @@ fn joined_state(states: &[OwnershipState]) -> Result<Option<OwnershipState>, ()>
 pub(crate) fn classify_conditional_ownership(
     name: &str,
     ty: &Ty,
-    entry: &OwnershipState,
+    _entry: &OwnershipState,
     arms: &[ConditionalOwnershipArm],
-    inside_loop: bool,
+    _inside_loop: bool,
 ) -> OwnershipFlowDisposition {
     if !matches!(ty, Ty::Enum(_)) {
         return OwnershipFlowDisposition::PreserveExistingBehavior;
@@ -152,11 +174,6 @@ pub(crate) fn classify_conditional_ownership(
             ));
         }
     };
-    if inside_loop && joined.as_ref().is_some_and(|state| state != entry) {
-        return OwnershipFlowDisposition::ExplicitlyRejected(format!(
-            "conditional ownership change for enum owner `{name}` inside a loop is not admitted; loop backedge ownership requires a fixed-point proof"
-        ));
-    }
     OwnershipFlowDisposition::Joined(joined)
 }
 
@@ -208,24 +225,87 @@ pub(crate) fn classify_owned_consumption_paths(
 pub(crate) fn classify_loop_ownership(
     name: &str,
     ty: &Ty,
-    entry: &OwnershipState,
+    kind: LoopOwnershipKind,
+    initial_header: &OwnershipState,
     edges: &[LoopOwnershipEdge],
-) -> OwnershipFlowDisposition {
+) -> LoopOwnershipDisposition {
     if !matches!(ty, Ty::Enum(_)) {
-        return OwnershipFlowDisposition::PreserveExistingBehavior;
+        return LoopOwnershipDisposition::PreserveExistingBehavior;
     }
-    if let Some(edge) = edges.iter().find(|edge| edge.state != *entry) {
-        let edge_name = edge.kind.diagnostic_name();
-        if !matches!(entry, OwnershipState::Owned) {
-            return OwnershipFlowDisposition::ExplicitlyRejected(format!(
-                "balanced loop ownership for enum owner `{name}` requires an Owned entry before changing state on the {edge_name}"
-            ));
-        }
-        return OwnershipFlowDisposition::ExplicitlyRejected(format!(
-            "balanced loop ownership for enum owner `{name}` is not restored to Owned on the {edge_name}"
+
+    let condition_count = edges
+        .iter()
+        .filter(|edge| edge.kind == LoopOwnershipEdgeKind::Condition)
+        .count();
+    let iterable_count = edges
+        .iter()
+        .filter(|edge| edge.kind == LoopOwnershipEdgeKind::Iterable)
+        .count();
+    let topology_is_valid = match kind {
+        LoopOwnershipKind::While => condition_count == 1 && iterable_count == 0,
+        LoopOwnershipKind::For => condition_count == 0 && iterable_count == 1,
+        LoopOwnershipKind::Loop => condition_count == 0 && iterable_count == 0,
+    };
+    if !topology_is_valid {
+        return LoopOwnershipDisposition::ExplicitlyRejected(format!(
+            "enum owner `{name}` has an invalid loop ownership edge topology"
         ));
     }
-    OwnershipFlowDisposition::Joined(Some(entry.clone()))
+
+    if matches!(
+        initial_header,
+        OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed
+    ) {
+        return LoopOwnershipDisposition::ExplicitlyRejected(format!(
+            "enum owner `{name}` has an unsupported borrowed state at the loop header"
+        ));
+    }
+    if let Some(edge) = edges.iter().find(|edge| {
+        matches!(
+            edge.state,
+            OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed
+        )
+    }) {
+        return LoopOwnershipDisposition::ExplicitlyRejected(format!(
+            "enum owner `{name}` has an unsupported borrowed state on the {}",
+            edge.kind.diagnostic_name()
+        ));
+    }
+
+    let mut header_states = vec![initial_header.clone()];
+    header_states.extend(
+        edges
+            .iter()
+            .filter(|edge| {
+                matches!(
+                    edge.kind,
+                    LoopOwnershipEdgeKind::Fallthrough | LoopOwnershipEdgeKind::Continue
+                )
+            })
+            .map(|edge| edge.state.clone()),
+    );
+    let header = joined_state(&header_states)
+        .expect("borrowed loop header states were rejected")
+        .expect("the initial loop header state is always reachable");
+
+    let mut exit_states = edges
+        .iter()
+        .filter(|edge| edge.kind == LoopOwnershipEdgeKind::Break)
+        .map(|edge| edge.state.clone())
+        .collect::<Vec<_>>();
+    match kind {
+        LoopOwnershipKind::While => exit_states.extend(
+            edges
+                .iter()
+                .filter(|edge| edge.kind == LoopOwnershipEdgeKind::Condition)
+                .map(|edge| edge.state.clone()),
+        ),
+        LoopOwnershipKind::For => exit_states.push(header.clone()),
+        LoopOwnershipKind::Loop => {}
+    }
+    let exit = joined_state(&exit_states).expect("borrowed loop exit states were rejected");
+
+    LoopOwnershipDisposition::FixedPoint(LoopOwnershipSummary { header, exit })
 }
 
 #[cfg(test)]
@@ -240,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn exhaustively_joins_enum_fallthrough_states_and_rejects_loop_changes() {
+    fn exhaustively_joins_enum_fallthrough_states_inside_and_outside_loops() {
         let ty = Ty::Enum("E".to_string());
         for (left, right, expected) in [
             (
@@ -293,7 +373,7 @@ mod tests {
             ),
             OwnershipFlowDisposition::Joined(Some(OwnershipState::Owned))
         );
-        assert!(matches!(
+        assert_eq!(
             classify_conditional_ownership(
                 "value",
                 &ty,
@@ -304,20 +384,8 @@ mod tests {
                 ],
                 true,
             ),
-            OwnershipFlowDisposition::ExplicitlyRejected(_)
-        ));
-        assert!(matches!(
-            classify_loop_ownership(
-                "value",
-                &ty,
-                &OwnershipState::Owned,
-                &[LoopOwnershipEdge {
-                    kind: LoopOwnershipEdgeKind::Continue,
-                    state: OwnershipState::Moved,
-                }],
-            ),
-            OwnershipFlowDisposition::ExplicitlyRejected(_)
-        ));
+            OwnershipFlowDisposition::Joined(Some(OwnershipState::MaybeMoved))
+        );
         assert_eq!(
             classify_conditional_ownership(
                 "value",
@@ -364,7 +432,7 @@ mod tests {
             OwnershipFlowDisposition::ExplicitlyRejected(message)
                 if message.contains("one Match result path")
         ));
-        assert!(matches!(
+        assert_eq!(
             classify_owned_consumption_paths(
                 "value",
                 &ty,
@@ -372,65 +440,177 @@ mod tests {
                 &[vec!["value".to_string()], Vec::new()],
                 true,
             ),
-            OwnershipFlowDisposition::ExplicitlyRejected(_)
-        ));
+            OwnershipFlowDisposition::Joined(Some(OwnershipState::MaybeMoved))
+        );
     }
 
     #[test]
-    fn balanced_loop_edges_are_complete_and_require_exact_entry_restoration() {
+    fn loop_fixed_point_classifier_covers_every_loop_and_edge_topology() {
         let ty = Ty::Enum("E".to_string());
-        let kinds = [
-            LoopOwnershipEdgeKind::Condition,
-            LoopOwnershipEdgeKind::Iterable,
-            LoopOwnershipEdgeKind::Fallthrough,
-            LoopOwnershipEdgeKind::Continue,
-            LoopOwnershipEdgeKind::Break,
-        ];
-        let owned_edges = kinds
-            .iter()
-            .map(|kind| LoopOwnershipEdge {
-                kind: *kind,
+        let while_edges = [
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Condition,
                 state: OwnershipState::Owned,
-            })
-            .collect::<Vec<_>>();
+            },
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Fallthrough,
+                state: OwnershipState::Moved,
+            },
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Continue,
+                state: OwnershipState::Owned,
+            },
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Break,
+                state: OwnershipState::Moved,
+            },
+        ];
         assert_eq!(
-            classify_loop_ownership("value", &ty, &OwnershipState::Owned, &owned_edges),
-            OwnershipFlowDisposition::Joined(Some(OwnershipState::Owned))
+            classify_loop_ownership(
+                "value",
+                &ty,
+                LoopOwnershipKind::While,
+                &OwnershipState::Owned,
+                &while_edges,
+            ),
+            LoopOwnershipDisposition::FixedPoint(LoopOwnershipSummary {
+                header: OwnershipState::MaybeMoved,
+                exit: Some(OwnershipState::MaybeMoved),
+            })
         );
 
-        for kind in kinds {
-            let changed = [LoopOwnershipEdge {
-                kind,
+        let for_edges = [
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Iterable,
                 state: OwnershipState::Moved,
-            }];
+            },
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Fallthrough,
+                state: OwnershipState::Owned,
+            },
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Continue,
+                state: OwnershipState::Moved,
+            },
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Break,
+                state: OwnershipState::Owned,
+            },
+        ];
+        assert_eq!(
+            classify_loop_ownership(
+                "value",
+                &ty,
+                LoopOwnershipKind::For,
+                &OwnershipState::Moved,
+                &for_edges,
+            ),
+            LoopOwnershipDisposition::FixedPoint(LoopOwnershipSummary {
+                header: OwnershipState::MaybeMoved,
+                exit: Some(OwnershipState::MaybeMoved),
+            })
+        );
+
+        let loop_edges = [
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Fallthrough,
+                state: OwnershipState::Owned,
+            },
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Continue,
+                state: OwnershipState::Moved,
+            },
+            LoopOwnershipEdge {
+                kind: LoopOwnershipEdgeKind::Break,
+                state: OwnershipState::Owned,
+            },
+        ];
+        assert_eq!(
+            classify_loop_ownership(
+                "value",
+                &ty,
+                LoopOwnershipKind::Loop,
+                &OwnershipState::Moved,
+                &loop_edges,
+            ),
+            LoopOwnershipDisposition::FixedPoint(LoopOwnershipSummary {
+                header: OwnershipState::MaybeMoved,
+                exit: Some(OwnershipState::Owned),
+            })
+        );
+        assert_eq!(
+            classify_loop_ownership(
+                "value",
+                &ty,
+                LoopOwnershipKind::Loop,
+                &OwnershipState::Moved,
+                &[LoopOwnershipEdge {
+                    kind: LoopOwnershipEdgeKind::Continue,
+                    state: OwnershipState::Moved,
+                }],
+            ),
+            LoopOwnershipDisposition::FixedPoint(LoopOwnershipSummary {
+                header: OwnershipState::Moved,
+                exit: None,
+            })
+        );
+
+        for (kind, edges) in [
+            (
+                LoopOwnershipKind::While,
+                vec![LoopOwnershipEdge {
+                    kind: LoopOwnershipEdgeKind::Condition,
+                    state: OwnershipState::MutablyBorrowed,
+                }],
+            ),
+            (
+                LoopOwnershipKind::For,
+                vec![LoopOwnershipEdge {
+                    kind: LoopOwnershipEdgeKind::Iterable,
+                    state: OwnershipState::ImmutablyBorrowed(1),
+                }],
+            ),
+            (
+                LoopOwnershipKind::Loop,
+                vec![LoopOwnershipEdge {
+                    kind: LoopOwnershipEdgeKind::Break,
+                    state: OwnershipState::MutablyBorrowed,
+                }],
+            ),
+        ] {
             assert!(matches!(
-                classify_loop_ownership("value", &ty, &OwnershipState::Owned, &changed),
-                OwnershipFlowDisposition::ExplicitlyRejected(message)
-                    if message.contains(kind.diagnostic_name())
-                        && message.contains("not restored to Owned")
+                classify_loop_ownership(
+                    "value",
+                    &ty,
+                    kind,
+                    &OwnershipState::Owned,
+                    &edges,
+                ),
+                LoopOwnershipDisposition::ExplicitlyRejected(message)
+                    if message.contains("borrowed state")
             ));
         }
 
-        let unchanged_moved = [LoopOwnershipEdge {
-            kind: LoopOwnershipEdgeKind::Fallthrough,
-            state: OwnershipState::Moved,
-        }];
-        assert_eq!(
-            classify_loop_ownership("value", &ty, &OwnershipState::Moved, &unchanged_moved,),
-            OwnershipFlowDisposition::Joined(Some(OwnershipState::Moved))
-        );
-        let acquired = [LoopOwnershipEdge {
-            kind: LoopOwnershipEdgeKind::Break,
-            state: OwnershipState::Owned,
-        }];
         assert!(matches!(
-            classify_loop_ownership("value", &ty, &OwnershipState::Moved, &acquired),
-            OwnershipFlowDisposition::ExplicitlyRejected(message)
-                if message.contains("requires an Owned entry")
+            classify_loop_ownership(
+                "value",
+                &ty,
+                LoopOwnershipKind::While,
+                &OwnershipState::Owned,
+                &[],
+            ),
+            LoopOwnershipDisposition::ExplicitlyRejected(message)
+                if message.contains("invalid loop ownership edge topology")
         ));
         assert_eq!(
-            classify_loop_ownership("value", &Ty::Int, &OwnershipState::Owned, &unchanged_moved,),
-            OwnershipFlowDisposition::PreserveExistingBehavior
+            classify_loop_ownership(
+                "value",
+                &Ty::Int,
+                LoopOwnershipKind::Loop,
+                &OwnershipState::Owned,
+                &loop_edges,
+            ),
+            LoopOwnershipDisposition::PreserveExistingBehavior
         );
     }
 }

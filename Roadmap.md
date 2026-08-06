@@ -139,19 +139,25 @@ admission provide snapshots to one phase-neutral classifier, while verifier CFG 
 reject missing, bypassed, one-path, generic-store, wrong-schema, cycle, and exit repairs.
 Exact implementation `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, all eight
 exact-head checks, and pinned stable/nightly LLVM/Clang 22.1.8 native exit 227 pass
-while preserving exits 149/223. Loop-carried moved state, partial moves,
-projections, enum storage/borrowing, drop/lifetimes, stable ABI, imports, accelerators,
-release, safety, and general loop fixed-point semantics remain separate.
-Local candidate `CORE-078` adds no language behavior. It pins the official Windows
-x86_64 LLVM/Clang 22.1.8 archive by release SHA-256 and adds a public MSVC system
-lane for external/machine verification, COFF object generation, Clang/MSVC linking,
-public `run`, manual execution, invalid-build artifact hygiene, and exact exit 227.
-Two immutable candidates were rejected: one at a disproven custom installer root and
-one after the official toolchain installer proved it omits required `opt.exe`. The
-red/green repair now extracts the official full archive task-locally and requires every
-tool before use. The focused and complete local gates pass; replacement publication and the expanded
-nine-check exact-head public result remain pending. No stable ABI, general Windows,
-packaging, accelerator, release, safety, or performance claim follows.
+while preserving exits 149/223. Partial moves, projections, enum storage/borrowing,
+drop/lifetimes, stable ABI, imports, accelerators, release, safety, and general non-enum
+loop dataflow remain separate.
+Accepted public `CORE-078` adds no language behavior. Exact implementation
+`70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe` pins the official Windows x86_64
+LLVM/Clang 22.1.8 full archive by release SHA-256 and proves the existing MSVC
+target/layout, invalid-source/IR rejection, external/machine verification, COFF object
+generation, Clang/MSVC linking, public `run`, manual execution, and exact exit 227.
+All nine exact-head checks pass while Linux stable/nightly preserve exits 149/223/227.
+No stable ABI, general Windows, packaging, accelerator, release, safety, or performance
+claim follows.
+Local candidate `CORE-079` then replaces equality-to-first-entry loop ownership with
+one convergent direct-enum header/exit summary shared by semantic analysis and
+independent checked admission. `while`, admitted fixed-array `for`, and `loop` recheck
+from widened `Owned`/`Moved`/`MaybeMoved` headers; post-loop state conservatively joins
+false/exhaustion and nearest-loop break exits, while the existing verifier independently
+proves cyclic consumption and repair. Focused 3/3, complete all-features, static,
+documentation, diff-hygiene, and exact root gates pass; publication, nine-check, and
+pinned Linux/Windows exit-229 gates remain.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 
