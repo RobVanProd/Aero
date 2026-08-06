@@ -72,7 +72,7 @@ pub(crate) fn classify_owned_place_assignment(
     rhs_expression: Option<&Expression>,
     rhs: &Ty,
     inside_admitted_function: bool,
-    inside_loop: bool,
+    _inside_loop: bool,
     structs: &StructRegistry,
     enums: &EnumRegistry,
 ) -> OwnedPlaceAssignmentDisposition {
@@ -127,13 +127,6 @@ pub(crate) fn classify_owned_place_assignment(
 
     let transition = match facts.ownership {
         OwnershipState::Owned => OwnedPlaceAssignmentTransition::Replacement,
-        OwnershipState::Moved | OwnershipState::MaybeMoved
-            if inside_loop && matches!(facts.ty, Ty::Enum(_)) =>
-        {
-            return OwnedPlaceAssignmentDisposition::ExplicitlyRejected(format!(
-                "enum owner reinitialization of `{name}` inside a loop is not admitted; break/continue and backedge ownership require a separately frozen flow proof"
-            ));
-        }
         OwnershipState::Moved if matches!(facts.ty, Ty::Enum(_)) => {
             OwnedPlaceAssignmentTransition::ReinitializeMoved
         }
@@ -434,8 +427,10 @@ mod tests {
                     &structs,
                     &enums,
                 ),
-                OwnedPlaceAssignmentDisposition::ExplicitlyRejected(message)
-                    if message.contains("reinitialization") && message.contains("loop")
+                OwnedPlaceAssignmentDisposition::Supported(OwnedPlaceAssignmentContract {
+                    transition,
+                    ..
+                }) if transition == expected
             ));
         }
     }

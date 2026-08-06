@@ -30,9 +30,10 @@ use crate::method_call_contract::{
     classify_intrinsic_method,
 };
 use crate::ownership_flow::{
-    ConditionalOwnershipArm, OwnershipFlowDisposition, block_definitely_returns,
-    classify_conditional_ownership, classify_loop_ownership, classify_owned_consumption_paths,
-    maybe_moved_diagnostic, statement_definitely_returns,
+    ConditionalOwnershipArm, LoopControlSnapshots, LoopOwnershipEdge, LoopOwnershipEdgeKind,
+    OwnershipFlowDisposition, block_reaches_merge, classify_conditional_ownership,
+    classify_loop_ownership, classify_owned_consumption_paths, maybe_moved_diagnostic,
+    statement_reaches_merge,
 };
 use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
@@ -88,6 +89,8 @@ struct AdmissionBinding {
     callable: bool,
     static_string: Option<String>,
 }
+
+type AdmissionLoopControl = LoopControlSnapshots<HashMap<String, AdmissionBinding>>;
 
 struct AdmissionTopLevelFunction {
     result: Ty,
@@ -702,6 +705,7 @@ impl IrGenerator {
             enums,
         };
         let mut bindings = HashMap::new();
+        let mut loop_controls = Vec::<AdmissionLoopControl>::new();
         for node in ast {
             match node {
                 AstNode::Statement(statement) => Self::validate_statement(
@@ -712,6 +716,7 @@ impl IrGenerator {
                     false,
                     false,
                     true,
+                    &mut loop_controls,
                 )?,
                 AstNode::Expression(_) => {
                     return Err(IrGenerationError::Admission(
@@ -772,6 +777,7 @@ impl IrGenerator {
         inside_loop: bool,
         inside_impl: bool,
         inside_generic_impl: bool,
+        loop_controls: &mut Vec<AdmissionLoopControl>,
     ) -> Result<(), IrGenerationError> {
         for statement in &block.statements {
             Self::validate_statement(
@@ -782,6 +788,7 @@ impl IrGenerator {
                 inside_impl,
                 inside_generic_impl,
                 false,
+                loop_controls,
             )?;
         }
         if let Some(expression) = &block.expression {
@@ -847,23 +854,27 @@ impl IrGenerator {
         Ok(())
     }
 
-    fn reject_loop_admission_changes(
+    fn validate_loop_admission_edges(
         bindings: &mut HashMap<String, AdmissionBinding>,
         entry: &HashMap<String, AdmissionBinding>,
-        backedge: &HashMap<String, AdmissionBinding>,
-        reaches_backedge: bool,
+        edges: &[(LoopOwnershipEdgeKind, HashMap<String, AdmissionBinding>)],
     ) -> Result<(), IrGenerationError> {
         let mut names = entry.keys().cloned().collect::<Vec<_>>();
         names.sort();
         for name in names {
             let entry_binding = &entry[&name];
-            let backedge_binding = &backedge[&name];
+            let owner_edges = edges
+                .iter()
+                .map(|(kind, snapshot)| LoopOwnershipEdge {
+                    kind: *kind,
+                    state: snapshot[&name].ownership.clone(),
+                })
+                .collect::<Vec<_>>();
             match classify_loop_ownership(
                 &name,
                 &entry_binding.ty,
                 &entry_binding.ownership,
-                &backedge_binding.ownership,
-                reaches_backedge,
+                &owner_edges,
             ) {
                 OwnershipFlowDisposition::Joined(_)
                 | OwnershipFlowDisposition::PreserveExistingBehavior => {}
@@ -1008,6 +1019,7 @@ impl IrGenerator {
         inside_impl: bool,
         inside_generic_impl: bool,
         is_top_level: bool,
+        loop_controls: &mut Vec<AdmissionLoopControl>,
     ) -> Result<(), IrGenerationError> {
         match statement {
             Statement::Let {
@@ -1335,25 +1347,43 @@ impl IrGenerator {
                     inside_loop,
                     inside_impl,
                     inside_generic_impl,
+                    loop_controls,
                 )?;
             }
             Statement::Loop { body } => {
                 let entry_bindings = bindings.clone();
                 let mut nested = entry_bindings.clone();
-                Self::validate_block(
+                loop_controls.push(AdmissionLoopControl::default());
+                let body_result = Self::validate_block(
                     body,
                     &mut nested,
                     program,
                     true,
                     inside_impl,
                     inside_generic_impl,
-                )?;
-                Self::reject_loop_admission_changes(
-                    bindings,
-                    &entry_bindings,
-                    &nested,
-                    !block_definitely_returns(body),
-                )?;
+                    loop_controls,
+                );
+                let control = loop_controls
+                    .pop()
+                    .expect("loop admission control frame was pushed");
+                body_result?;
+                let mut edges = Vec::new();
+                if block_reaches_merge(body, true) {
+                    edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                }
+                edges.extend(
+                    control
+                        .continues
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                );
+                edges.extend(
+                    control
+                        .breaks
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                );
+                Self::validate_loop_admission_edges(bindings, &entry_bindings, &edges)?;
             }
             Statement::Function {
                 name,
@@ -1484,6 +1514,7 @@ impl IrGenerator {
                     false,
                     inside_impl,
                     inside_generic_impl,
+                    loop_controls,
                 )?;
             }
             Statement::If {
@@ -1509,6 +1540,7 @@ impl IrGenerator {
                     inside_loop,
                     inside_impl,
                     inside_generic_impl,
+                    loop_controls,
                 )?;
                 let else_bindings = if let Some(else_statement) = else_block {
                     let mut else_bindings = entry_bindings.clone();
@@ -1520,6 +1552,7 @@ impl IrGenerator {
                         inside_impl,
                         inside_generic_impl,
                         false,
+                        loop_controls,
                     )?;
                     else_bindings
                 } else {
@@ -1529,11 +1562,11 @@ impl IrGenerator {
                     bindings,
                     &entry_bindings,
                     &then_bindings,
-                    !block_definitely_returns(then_block),
+                    block_reaches_merge(then_block, inside_loop),
                     &else_bindings,
                     else_block
                         .as_deref()
-                        .is_none_or(|statement| !statement_definitely_returns(statement)),
+                        .is_none_or(|statement| statement_reaches_merge(statement, inside_loop)),
                     inside_loop,
                 )?;
             }
@@ -1549,27 +1582,43 @@ impl IrGenerator {
                 )?;
                 Self::apply_enum_expression_ownership(condition, bindings, program, true)?;
                 let condition_bindings = bindings.clone();
-                Self::reject_loop_admission_changes(
+                Self::validate_loop_admission_edges(
                     bindings,
                     &entry_bindings,
-                    &condition_bindings,
-                    true,
+                    &[(LoopOwnershipEdgeKind::Condition, condition_bindings)],
                 )?;
                 let mut nested = bindings.clone();
-                Self::validate_block(
+                loop_controls.push(AdmissionLoopControl::default());
+                let body_result = Self::validate_block(
                     body,
                     &mut nested,
                     program,
                     true,
                     inside_impl,
                     inside_generic_impl,
-                )?;
-                Self::reject_loop_admission_changes(
-                    bindings,
-                    &entry_bindings,
-                    &nested,
-                    !block_definitely_returns(body),
-                )?;
+                    loop_controls,
+                );
+                let control = loop_controls
+                    .pop()
+                    .expect("while admission control frame was pushed");
+                body_result?;
+                let mut edges = Vec::new();
+                if block_reaches_merge(body, true) {
+                    edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                }
+                edges.extend(
+                    control
+                        .continues
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                );
+                edges.extend(
+                    control
+                        .breaks
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                );
+                Self::validate_loop_admission_edges(bindings, &entry_bindings, &edges)?;
             }
             Statement::For {
                 variable,
@@ -1586,6 +1635,12 @@ impl IrGenerator {
                     !inside_impl,
                 )?;
                 Self::apply_enum_expression_ownership(iterable, bindings, program, true)?;
+                let iterable_bindings = bindings.clone();
+                Self::validate_loop_admission_edges(
+                    bindings,
+                    &entry_bindings,
+                    &[(LoopOwnershipEdgeKind::Iterable, iterable_bindings)],
+                )?;
                 let mut nested = bindings.clone();
                 let element_ty = match iterable_ty {
                     Ty::Array(element, _) | Ty::Vec(element) => *element,
@@ -1606,20 +1661,34 @@ impl IrGenerator {
                         static_string: None,
                     },
                 );
-                Self::validate_block(
+                loop_controls.push(AdmissionLoopControl::default());
+                let body_result = Self::validate_block(
                     body,
                     &mut nested,
                     program,
                     true,
                     inside_impl,
                     inside_generic_impl,
-                )?;
-                Self::reject_loop_admission_changes(
-                    bindings,
-                    &entry_bindings,
-                    &nested,
-                    !block_definitely_returns(body),
-                )?;
+                    loop_controls,
+                );
+                let control = loop_controls
+                    .pop()
+                    .expect("for admission control frame was pushed");
+                body_result?;
+                nested.remove(variable);
+                let mut edges = Vec::new();
+                if block_reaches_merge(body, true) {
+                    edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                }
+                edges.extend(control.continues.into_iter().map(|mut state| {
+                    state.remove(variable);
+                    (LoopOwnershipEdgeKind::Continue, state)
+                }));
+                edges.extend(control.breaks.into_iter().map(|mut state| {
+                    state.remove(variable);
+                    (LoopOwnershipEdgeKind::Break, state)
+                }));
+                Self::validate_loop_admission_edges(bindings, &entry_bindings, &edges)?;
             }
             Statement::ImplBlock {
                 methods,
@@ -1636,6 +1705,7 @@ impl IrGenerator {
                         true,
                         methods_are_generic,
                         false,
+                        loop_controls,
                     )?;
                 }
             }
@@ -1643,12 +1713,29 @@ impl IrGenerator {
             // pass recursively diagnoses unsupported expressions in default bodies;
             // checked lowering must not activate runtime name binding for them.
             Statement::TraitDef { .. } => {}
-            Statement::Break | Statement::Continue => {
+            Statement::Break => {
                 if !inside_loop {
                     return Err(IrGenerationError::Admission(
                         "break and continue are only admitted inside loops".to_string(),
                     ));
                 }
+                loop_controls
+                    .last_mut()
+                    .expect("inside_loop requires an admission control frame")
+                    .breaks
+                    .push(bindings.clone());
+            }
+            Statement::Continue => {
+                if !inside_loop {
+                    return Err(IrGenerationError::Admission(
+                        "break and continue are only admitted inside loops".to_string(),
+                    ));
+                }
+                loop_controls
+                    .last_mut()
+                    .expect("inside_loop requires an admission control frame")
+                    .continues
+                    .push(bindings.clone());
             }
             Statement::StructDef { .. } | Statement::EnumDef { .. } | Statement::ModDecl { .. } => {
             }

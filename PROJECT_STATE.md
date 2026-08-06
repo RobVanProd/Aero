@@ -4,7 +4,33 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 96 `CORE-076` is a locally green unified typed Match-result candidate. One
+Milestone 97 `CORE-077` is a locally green balanced loop-carried owned-enum
+reinitialization candidate. A direct mutable admitted destructor-free enum that is
+exactly `Owned` at loop entry may be consumed and reinitialized inside `while`,
+fixed-array `for`, or `loop` only when every reachable condition/iterable edge,
+fallthrough or `continue` backedge, and `break` exit restores that same owner to
+exactly `Owned`. Return paths do not join; nested loops attribute transfers to the
+nearest loop; and zero-iteration paths preserve entry ownership.
+
+Semantic analysis and independent checked admission collect their own snapshots but
+feed one phase-neutral edge classifier. Existing exact checked assignment remains the
+only ownership-restoring write, while verifier CFG corruption controls reject missing,
+bypassed, one-path, generic-store, and wrong-schema repairs. The tracked direct-module
+specimen covers all three loop forms, admitted enum schemas/reinitialization origins,
+conditional/return/nested control flow, later use, CLI artifact hygiene, and
+deterministic private LLVM; it is pinned for LLVM/Clang 22 native exit 227. The
+complete surface passes 195/195 library and 201/201 binary tests plus every integration
+and doc target; formatting, all-target/all-feature check, correctness Clippy, docs,
+focused corruption controls, and the repository-root gate pass locally. Immutable
+commit/push, rendered PR synchronization, all eight exact-head checks, and pinned
+stable/nightly native exit 227 remain candidate gates. No general loop fixed point,
+borrow checker, drop/lifetime, stable ABI, import, accelerator, release, safety, or
+merge claim follows.
+
+Milestone 96 `CORE-076` is accepted public at exact implementation commit
+`aefeb2d81fb5374e7373a4819f3c92f83a95eb35`, tree
+`34e58b2943d6c01efd245753f4b3ca18a338d595`, and stable patch ID
+`ef7bd0a42de1bda040a4e435fb9c51e0765160b4`. One
 shared result classifier now admits every identical exact value in the existing
 recursive finite CopyData universe—primitives, fixed arrays including zero length,
 arity-two-or-more tuples, and finite acyclic named structs—or the separately constrained
@@ -19,19 +45,19 @@ LLVM type. Generic stores, wrong types or values, missing/repeated writes, bypas
 premature/duplicate loads, and enum ownership fabrication remain fail closed. The
 tracked two-module specimen composes arrays, recursive tuples, structs, nested Match,
 calls, returns, bindings, reassignment, projection/indexing, and references and is
-pinned for LLVM/Clang 22 native exit 223. The complete surface passes 194/194 library
-and 200/200 binary tests plus every integration and doc target; formatting, all-target/
-all-feature check, correctness Clippy, docs, focused corruption controls, CLI artifact
-hygiene, and the repository-root gate pass locally. Immutable commit/push, rendered PR
-synchronization, all eight exact-head checks, and pinned stable/nightly native exit 223
-remain candidate gates. No public CORE-076 acceptance is claimed.
+pinned for LLVM/Clang 22 native exit 223. All eight exact-head checks pass in push CI
+`31081503050`, PR CI `31081506213`, Rust `31081506169`, CodeQL `31081503119`,
+and aggregate check `92551229284`. Stable and nightly pinned LLVM/Clang 22.1.8
+preserve the older unit-enum exit 149 specimen and execute the unified result specimen
+at exact exit 223. Generic stores, public layout/ABI, runtime behavior, and new CopyData
+ownership semantics remain excluded.
 
 Milestone 95 `CORE-075` is accepted public at exact implementation commit
 `50a3e03d0bdbc0e7deddde747bc19df0621c1257`, tree
 `c31e261a32072f7eca473d940641bbbfef3b6b21`, and stable patch ID
 `395de4d78694be56b45a310b87df1f98568217eb`. All eight exact-head checks pass;
 stable and nightly pinned LLVM/Clang 22.1.8 externally verify, machine-verify,
-object-lower, link, and execute exact exit 211. CORE-076 locally generalizes the
+object-lower, link, and execute exact exit 211. Accepted CORE-076 generalizes the
 checked result-place identity and admits exact CopyData aggregate results without
 weakening CORE-075's direct-owner rules.
 
@@ -2215,11 +2241,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push one immutable CORE-075 conditional direct-owner enum Match-result candidate,
-then synchronize draft PR #4 immediately. Require one all-eight exact-head public set
-with independent stable/nightly pinned LLVM/Clang 22.1.8 external verification,
-machine verification, object/link, public `run`, and exact native exit 211 before
-recording public acceptance in rendered PR metadata. Keep the PR draft and unmerged.
+Commit and push one immutable CORE-077 balanced loop-carried enum-owner candidate, then
+synchronize draft PR #4 immediately. Require one all-eight exact-head public set with
+independent stable/nightly pinned LLVM/Clang 22.1.8 external verification, machine
+verification, object/link, public `run`, exact native exit 227, and preservation of the
+older exit-149/223 specimens before recording public acceptance in rendered PR metadata.
+Keep the PR draft and unmerged.
 The controlled mega-PR
 checkpoint strategy, structured evidence-manifest generator, hard ownership/module/
 runtime/backend work, and periodic multi-capability system gates remain active

@@ -54,6 +54,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Acyclic conditional owned-enum joins | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Acyclic moved/maybe-moved enum reinitialization | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fresh per-iteration owned enums in statement loops | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Balanced loop-carried owned-enum reinitialization | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
@@ -107,7 +108,7 @@ borrowing/projection, partial moves, drop/lifetimes, stable ABI, and general CFG
 semantics remain excluded; the row stays `PARTIAL`. All exact-head public checks and
 pinned stable/nightly native exit 211 pass.
 
-Local candidate `CORE-076` unifies exhaustive Match results over the complete existing
+Accepted public `CORE-076` unifies exhaustive Match results over the complete existing
 recursive finite CopyData universe and the separately constrained owned-enum class.
 Semantic inference and checked admission consume one result classifier; primitives,
 fixed arrays including zero length, arity-two-or-more tuples, finite acyclic structs,
@@ -117,7 +118,22 @@ stores, missing/repeated/bypassed writes, premature/duplicate loads, and enum-ow
 fabrication reject independently. Strings, reference results, unit/unary tuples,
 dynamic collections, enum-in-CopyData storage, cyclic/unsupported structs, wider
 patterns, runtime/layout/ABI/drop/lifetime, accelerator, release, safety, and stability
-semantics remain excluded; the row stays `PARTIAL` and public acceptance is pending.
+semantics remain excluded; the row stays `PARTIAL`. All eight exact-head checks and
+pinned stable/nightly LLVM/Clang 22.1.8 native exit 223 pass at exact implementation
+`aefeb2d81fb5374e7373a4819f3c92f83a95eb35`.
+
+Local candidate `CORE-077` adds only the balanced loop-carried row. An exact direct
+mutable admitted enum must enter `while`, fixed-array `for`, or `loop` as `Owned` and
+must be restored to exactly `Owned` on every reachable condition/iterable edge,
+fallthrough or `continue` backedge, and `break` exit. Return paths do not join and
+nested transfers belong to the nearest loop. Semantic analysis and independent checked
+admission collect snapshots but consume one edge classifier; verifier CFG proof rejects
+missing, bypassed, one-path, generic-store, wrong-schema, cycle, and exit repairs. The
+complete 195-library/201-binary local gates pass and the composed specimen is pinned for
+native exit 227. Loop-carried `Moved`/`MaybeMoved`, projections/partial moves, enum
+storage/borrowing, drop/lifetimes, stable ABI, imports, accelerators, release, safety,
+and general loop fixed-point semantics remain excluded; the row stays `PARTIAL` and
+public acceptance is pending.
 
 ## Compiler, tooling, and ecosystem surfaces
 

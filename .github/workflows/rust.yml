@@ -907,6 +907,34 @@ jobs:
         fi
         echo "unified CopyData Match result example passed with exit code 223"
 
+    - name: Test balanced loop enum ownership integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/balanced_loop_enum_ownership/main.aero
+        set +e
+        cargo run -- run ../../examples/balanced_loop_enum_ownership/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 227 ]; then
+          echo "Expected public run exit code 227, got $public_run_exit"
+          exit 1
+        fi
+        cargo run -- build ../../examples/balanced_loop_enum_ownership/main.aero -o ../../balanced_loop_enum_ownership.ll
+        opt-22 -passes=verify -disable-output ../../balanced_loop_enum_ownership.ll
+        llc-22 -verify-machineinstrs ../../balanced_loop_enum_ownership.ll -o /dev/null
+        llc-22 -filetype=obj ../../balanced_loop_enum_ownership.ll -o ../../balanced_loop_enum_ownership.o
+        clang-22 -no-pie ../../balanced_loop_enum_ownership.o -o ../../balanced_loop_enum_ownership
+        set +e
+        ../../balanced_loop_enum_ownership
+        balanced_loop_exit_code=$?
+        set -e
+        if [ $balanced_loop_exit_code -ne 227 ]; then
+          echo "Expected balanced loop enum ownership exit code 227, got $balanced_loop_exit_code"
+          exit 1
+        fi
+        echo "balanced loop enum ownership example passed with exit code 227"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

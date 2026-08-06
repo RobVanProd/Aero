@@ -23,8 +23,10 @@ use crate::local_reference::{
 };
 use crate::method_call_contract::{IntrinsicMethodPhase, classify_intrinsic_method};
 use crate::ownership_flow::{
-    ConditionalOwnershipArm, OwnershipFlowDisposition, classify_conditional_ownership,
+    ConditionalOwnershipArm, LoopControlSnapshots, LoopOwnershipEdge, LoopOwnershipEdgeKind,
+    OwnershipFlowDisposition, block_reaches_merge, classify_conditional_ownership,
     classify_loop_ownership, classify_owned_consumption_paths, maybe_moved_diagnostic,
+    statement_reaches_merge,
 };
 use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
@@ -228,6 +230,7 @@ pub struct ScopeManager {
     scopes: Vec<HashMap<String, VariableInfoNew>>,
     current_function: Option<String>,
     loop_depth: u32,
+    loop_control_snapshots: Vec<LoopControlSnapshots<Vec<HashMap<String, VariableInfoNew>>>>,
     next_ptr: u32,
 }
 
@@ -237,6 +240,7 @@ impl ScopeManager {
             scopes: vec![HashMap::new()], // Start with global scope
             current_function: None,
             loop_depth: 0,
+            loop_control_snapshots: Vec::new(),
             next_ptr: 0,
         }
     }
@@ -276,14 +280,17 @@ impl ScopeManager {
 
     pub fn enter_loop(&mut self) {
         self.loop_depth += 1;
+        self.loop_control_snapshots
+            .push(LoopControlSnapshots::default());
         self.enter_scope(); // Loops create their own scope
     }
 
-    pub fn exit_loop(&mut self) {
+    fn exit_loop(&mut self) -> LoopControlSnapshots<Vec<HashMap<String, VariableInfoNew>>> {
         if self.loop_depth > 0 {
             self.loop_depth -= 1;
             self.exit_scope(); // Exit loop scope
         }
+        self.loop_control_snapshots.pop().unwrap_or_default()
     }
 
     pub fn define_variable(
@@ -367,6 +374,20 @@ impl ScopeManager {
         self.scopes.clone()
     }
 
+    fn record_loop_break(&mut self) {
+        let snapshot = self.ownership_snapshot();
+        if let Some(control) = self.loop_control_snapshots.last_mut() {
+            control.breaks.push(snapshot);
+        }
+    }
+
+    fn record_loop_continue(&mut self) {
+        let snapshot = self.ownership_snapshot();
+        if let Some(control) = self.loop_control_snapshots.last_mut() {
+            control.continues.push(snapshot);
+        }
+    }
+
     fn restore_ownership_snapshot(&mut self, snapshot: &[HashMap<String, VariableInfoNew>]) {
         self.scopes = snapshot.to_vec();
     }
@@ -420,11 +441,10 @@ impl ScopeManager {
         Ok(())
     }
 
-    fn reject_loop_ownership_changes(
+    fn validate_loop_ownership_edges(
         &mut self,
         entry: &[HashMap<String, VariableInfoNew>],
-        backedge: &[HashMap<String, VariableInfoNew>],
-        reaches_backedge: bool,
+        edges: &[(LoopOwnershipEdgeKind, Vec<HashMap<String, VariableInfoNew>>)],
     ) -> Result<(), String> {
         self.restore_ownership_snapshot(entry);
         let mut bindings = entry
@@ -435,13 +455,18 @@ impl ScopeManager {
         bindings.sort();
         for (scope, name) in bindings {
             let entry_binding = &entry[scope][&name];
-            let backedge_binding = &backedge[scope][&name];
+            let owner_edges = edges
+                .iter()
+                .map(|(kind, snapshot)| LoopOwnershipEdge {
+                    kind: *kind,
+                    state: snapshot[scope][&name].ownership.clone(),
+                })
+                .collect::<Vec<_>>();
             match classify_loop_ownership(
                 &name,
                 &entry_binding.var_type,
                 &entry_binding.ownership,
-                &backedge_binding.ownership,
-                reaches_backedge,
+                &owner_edges,
             ) {
                 OwnershipFlowDisposition::Joined(_)
                 | OwnershipFlowDisposition::PreserveExistingBehavior => {}
@@ -1096,9 +1121,10 @@ impl SemanticAnalyzer {
         self.scope_manager.enter_loop();
     }
 
-    fn exit_loop_scope(&mut self) {
-        self.scope_manager.exit_loop();
+    fn exit_loop_scope(&mut self) -> LoopControlSnapshots<Vec<HashMap<String, VariableInfoNew>>> {
+        let control = self.scope_manager.exit_loop();
         self.restore_compatibility_scope();
+        control
     }
 
     fn restore_compatibility_scope(&mut self) {
@@ -1127,6 +1153,8 @@ impl SemanticAnalyzer {
         self.enum_registry = EnumRegistry::from_top_level_ast(&ast, &self.struct_registry);
         self.enum_function_contracts.clear();
         self.reference_function_contracts.clear();
+        self.scope_manager.loop_control_snapshots.clear();
+        self.scope_manager.loop_depth = 0;
         self.enum_payload_binding_scopes.borrow_mut().clear();
         self.struct_execution_stack.clear();
         self.struct_execution_stack
@@ -1378,10 +1406,6 @@ impl SemanticAnalyzer {
             Ty::Void => "void".to_string(),
             _ => ty.to_string(),
         }
-    }
-
-    fn statement_definitely_returns(statement: &Statement) -> bool {
-        crate::ownership_flow::statement_definitely_returns(statement)
     }
 
     fn control_flow_block_definitely_returns(block: &Block) -> bool {
@@ -3175,11 +3199,11 @@ impl SemanticAnalyzer {
                 self.scope_manager.apply_conditional_ownership_join(
                     &entry_state,
                     &then_state,
-                    !Self::control_flow_block_definitely_returns(then_block),
+                    block_reaches_merge(then_block, self.scope_manager.get_loop_depth() > 0),
                     &else_state,
-                    else_block
-                        .as_deref()
-                        .is_none_or(|statement| !Self::statement_definitely_returns(statement)),
+                    else_block.as_deref().is_none_or(|statement| {
+                        statement_reaches_merge(statement, self.scope_manager.get_loop_depth() > 0)
+                    }),
                 )?;
 
                 Ok(())
@@ -3197,23 +3221,36 @@ impl SemanticAnalyzer {
                 }
                 self.apply_enum_match_moves(condition)?;
                 let condition_state = self.scope_manager.ownership_snapshot();
-                self.scope_manager.reject_loop_ownership_changes(
+                self.scope_manager.validate_loop_ownership_edges(
                     &entry_state,
-                    &condition_state,
-                    true,
+                    &[(LoopOwnershipEdgeKind::Condition, condition_state)],
                 )?;
 
                 self.enter_loop_scope();
                 let body_result = self.analyze_block(body);
-                self.exit_loop_scope();
+                let body_reaches_backedge = block_reaches_merge(body, true);
+                let control = self.exit_loop_scope();
                 let backedge_state = self.scope_manager.ownership_snapshot();
                 self.scope_manager.restore_ownership_snapshot(&entry_state);
                 body_result?;
-                self.scope_manager.reject_loop_ownership_changes(
-                    &entry_state,
-                    &backedge_state,
-                    !Self::control_flow_block_definitely_returns(body),
-                )?;
+                let mut edges = Vec::new();
+                if body_reaches_backedge {
+                    edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                }
+                edges.extend(
+                    control
+                        .continues
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                );
+                edges.extend(
+                    control
+                        .breaks
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                );
+                self.scope_manager
+                    .validate_loop_ownership_edges(&entry_state, &edges)?;
 
                 Ok(())
             }
@@ -3234,6 +3271,11 @@ impl SemanticAnalyzer {
                         )
                     })?;
                 self.apply_enum_match_moves(iterable)?;
+                let iterable_state = self.scope_manager.ownership_snapshot();
+                self.scope_manager.validate_loop_ownership_edges(
+                    &entry_state,
+                    &[(LoopOwnershipEdgeKind::Iterable, iterable_state)],
+                )?;
 
                 self.enter_loop_scope();
                 let body_result = (|| {
@@ -3245,15 +3287,29 @@ impl SemanticAnalyzer {
                     )?;
                     self.analyze_block(body)
                 })();
-                self.exit_loop_scope();
+                let body_reaches_backedge = block_reaches_merge(body, true);
+                let control = self.exit_loop_scope();
                 let backedge_state = self.scope_manager.ownership_snapshot();
                 self.scope_manager.restore_ownership_snapshot(&entry_state);
                 body_result?;
-                self.scope_manager.reject_loop_ownership_changes(
-                    &entry_state,
-                    &backedge_state,
-                    !Self::control_flow_block_definitely_returns(body),
-                )?;
+                let mut edges = Vec::new();
+                if body_reaches_backedge {
+                    edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                }
+                edges.extend(
+                    control
+                        .continues
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                );
+                edges.extend(
+                    control
+                        .breaks
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                );
+                self.scope_manager
+                    .validate_loop_ownership_edges(&entry_state, &edges)?;
 
                 Ok(())
             }
@@ -3261,27 +3317,43 @@ impl SemanticAnalyzer {
                 let entry_state = self.scope_manager.ownership_snapshot();
                 self.enter_loop_scope();
                 let body_result = self.analyze_block(body);
-                self.exit_loop_scope();
+                let body_reaches_backedge = block_reaches_merge(body, true);
+                let control = self.exit_loop_scope();
                 let backedge_state = self.scope_manager.ownership_snapshot();
                 self.scope_manager.restore_ownership_snapshot(&entry_state);
                 body_result?;
-                self.scope_manager.reject_loop_ownership_changes(
-                    &entry_state,
-                    &backedge_state,
-                    !Self::control_flow_block_definitely_returns(body),
-                )?;
+                let mut edges = Vec::new();
+                if body_reaches_backedge {
+                    edges.push((LoopOwnershipEdgeKind::Fallthrough, backedge_state));
+                }
+                edges.extend(
+                    control
+                        .continues
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                );
+                edges.extend(
+                    control
+                        .breaks
+                        .into_iter()
+                        .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                );
+                self.scope_manager
+                    .validate_loop_ownership_edges(&entry_state, &edges)?;
                 Ok(())
             }
             Statement::Break => {
                 if !self.scope_manager.can_break_continue() {
                     return Err("Error: Break statement outside of loop.".to_string());
                 }
+                self.scope_manager.record_loop_break();
                 Ok(())
             }
             Statement::Continue => {
                 if !self.scope_manager.can_break_continue() {
                     return Err("Error: Continue statement outside of loop.".to_string());
                 }
+                self.scope_manager.record_loop_continue();
                 Ok(())
             }
             Statement::Expression(expr) => {

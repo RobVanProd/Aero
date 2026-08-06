@@ -3275,9 +3275,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-072 - Unify exhaustive Match results over admitted values
 
 - Date: 2026-08-05
-- Status: locally green `CORE-076` candidate; immutable commit/push, rendered PR
-  synchronization, all-eight exact-head public checks, and pinned stable/nightly
-  LLVM/Clang 22.1.8 native exit 223 remain pending.
+- Status: accepted public `CORE-076` at exact implementation
+  `aefeb2d81fb5374e7373a4819f3c92f83a95eb35`, tree
+  `34e58b2943d6c01efd245753f4b3ca18a338d595`, and stable patch
+  `ef7bd0a42de1bda040a4e435fb9c51e0765160b4`; all eight exact-head checks and pinned
+  stable/nightly LLVM/Clang 22.1.8 native exit 223 pass.
 - Decision: an exhaustive admitted enum Match may yield one identical exact result from
   the complete already admitted recursive finite CopyData universe or the separately
   bounded owned-enum class. CopyData includes primitives, fixed arrays including zero
@@ -3305,11 +3307,52 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   IR/LLVM, CLI check/build/run artifact hygiene, scalar and owned-enum preservation, and
   malformed generic result-place controls. The complete local compiler surface passes
   at 194 library and 200 binary tests with formatting, all-target/all-feature check,
-  correctness Clippy, docs, and exact repository-root gates; the tracked composed native
-  specimen is pinned to exit 223 pending public execution.
+  correctness Clippy, docs, and exact repository-root gates. Both pinned native lanes
+  execute exit 223 and preserve the older unit-enum exit 149 specimen.
 - Exclusions and scaling boundary: String, references/results, Void, unit/unary tuples,
   dynamic collections, Option/Result, closures/functions as values, cyclic/unsupported
   structs, enum-in-aggregate storage, wider patterns, generic/trait behavior, runtime,
   drop/lifetimes, stable ABI/FFI, accelerator, performance, release, safety, and merge
   semantics remain frozen. This removes the scalar/enum checked-result topology split;
   mega-PR checkpoint policy and structured evidence-manifest generation remain separate.
+
+## DEC-073 - Admit exact balanced loop-carried enum-owner restoration
+
+- Date: 2026-08-05
+- Status: locally green `CORE-077` candidate; immutable commit/push, rendered PR
+  synchronization, all-eight exact-head public checks, and pinned stable/nightly
+  LLVM/Clang 22.1.8 native exit 227 remain pending.
+- Decision: an exact direct mutable local of an already admitted destructor-free enum
+  may be consumed and reinitialized within statement `while`, fixed-array `for`, or
+  `loop` only when it is exactly `Owned` at loop entry and on every reachable
+  condition/iterable edge, fallthrough or `continue` backedge, and `break` exit. Return
+  paths do not join, zero-iteration paths preserve entry, and nested `break`/`continue`
+  snapshots belong to the nearest loop. Any changed state from a `Moved`, `MaybeMoved`,
+  borrowed, immutable, or nonlocal entry remains rejected.
+- Shared authority: `LoopOwnershipEdgeKind` classifies condition, iterable,
+  fallthrough, continue, and break edges; `classify_loop_ownership` requires exact
+  entry-state equality on the complete edge set. Semantic analysis and independent
+  checked admission retain phase-specific binding snapshots but consume this single
+  phase-neutral rule. Intermediate use after consumption still receives the existing
+  moved/maybe-moved diagnostic until an existing exact whole-place assignment restores
+  `Owned`. The prior direct-owner Match-result loop exclusion remains unchanged.
+- Independent proof and lowering: no parser, AST, enum schema, checked opcode, or LLVM
+  layout changes. Existing checked enum place/call/Match/assignment identities lower as
+  before. Verifier CFG controls independently require the exact checked assignment kill
+  across cycles and exits and reject missing or bypassed writes, generic `Store`, wrong
+  schema, one-path repair, predecessor bypass, and premature reuse.
+- Evidence: red-first coverage spans unit, unary, and positional recursive CopyData
+  enums; constructor/call/fresh-Match/distinct-owner origins; `while`/`for`/`loop`;
+  fallthrough/continue/break, returning and conditional paths, repeated cycles, nested
+  blocks/loops, later use, direct admission, CLI artifact hygiene, deterministic checked
+  IR/LLVM, and a direct-module specimen pinned to native exit 227. The complete local
+  surface passes 195 library and 201 binary tests plus every integration/doc target,
+  formatting, all-target/all-feature check, correctness Clippy, docs, and the exact root
+  gate.
+- Exclusions and scaling boundary: loop-carried `Moved`/`MaybeMoved`, changed break
+  state, consuming loop conditions/iterables, projections/partial moves, enum aggregate
+  storage/borrowing, drop/destructors/lifetimes, stable layout/ABI/FFI, imports,
+  runtime, generics/closures, accelerators, performance, release, safety, and merge
+  semantics remain frozen. This is a hard ownership/CFG system slice; the mega-PR
+  checkpoint strategy, structured evidence-manifest generator, and broader periodic
+  architecture gates remain separate controls.

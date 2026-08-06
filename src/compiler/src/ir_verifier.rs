@@ -8228,6 +8228,107 @@ mod tests {
         verify_ir(program(fresh_place_cycle))
             .expect("an exact fresh mutable enum place per loop iteration must verify");
 
+        let balanced_place_cycle = vec![
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            place(5),
+            Inst::Store(Value::Reg(5), Value::Reg(0)),
+            Inst::Jump("cycle".to_string()),
+            Inst::Label("cycle".to_string()),
+            load(1),
+            place_call(1, 2),
+            checked_variant(Value::Reg(3), schema.clone(), 1),
+            replace(3),
+            Inst::Jump("cycle".to_string()),
+        ];
+        verify_ir(program(balanced_place_cycle.clone())).expect(
+            "an exact checked reinitialization before every owned-place backedge must verify",
+        );
+
+        let mut missing_cycle_reinitialization = balanced_place_cycle.clone();
+        missing_cycle_reinitialization.remove(8);
+        assert!(
+            verify_ir(program(missing_cycle_reinitialization)).is_err(),
+            "a consumed enum place reached a cycle without its checked reinitialization"
+        );
+
+        let mut generic_cycle_reinitialization = balanced_place_cycle.clone();
+        generic_cycle_reinitialization[8] = Inst::Store(Value::Reg(5), Value::Reg(3));
+        assert!(
+            verify_ir(program(generic_cycle_reinitialization)).is_err(),
+            "generic Store manufactured balanced loop enum ownership"
+        );
+
+        let mut wrong_cycle_schema = balanced_place_cycle.clone();
+        wrong_cycle_schema[8] = Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(5),
+            value: Value::Reg(3),
+            ty: unit_schema("Other", &["A", "B"]).logical_type(),
+        };
+        assert!(
+            verify_ir(program(wrong_cycle_schema)).is_err(),
+            "wrong-schema checked assignment manufactured balanced loop ownership"
+        );
+
+        let bypassed_cycle_reinitialization = vec![
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            place(5),
+            Inst::Store(Value::Reg(5), Value::Reg(0)),
+            Inst::Jump("cycle".to_string()),
+            Inst::Label("cycle".to_string()),
+            load(1),
+            place_call(1, 2),
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(6),
+                left: Value::ImmInt(0),
+                right: Value::ImmInt(0),
+            },
+            Inst::Branch {
+                condition: Value::Reg(6),
+                true_label: "repair".to_string(),
+                false_label: "cycle".to_string(),
+            },
+            Inst::Label("repair".to_string()),
+            checked_variant(Value::Reg(3), schema.clone(), 1),
+            replace(3),
+            Inst::Jump("cycle".to_string()),
+        ];
+        assert!(
+            verify_ir(program(bypassed_cycle_reinitialization)).is_err(),
+            "one cyclic predecessor bypassed balanced enum reinitialization"
+        );
+
+        let bypassed_break_reinitialization = vec![
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            place(5),
+            Inst::Store(Value::Reg(5), Value::Reg(0)),
+            load(1),
+            place_call(1, 2),
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(6),
+                left: Value::ImmInt(0),
+                right: Value::ImmInt(0),
+            },
+            Inst::Branch {
+                condition: Value::Reg(6),
+                true_label: "repair".to_string(),
+                false_label: "exit".to_string(),
+            },
+            Inst::Label("repair".to_string()),
+            checked_variant(Value::Reg(3), schema.clone(), 1),
+            replace(3),
+            Inst::Jump("exit".to_string()),
+            Inst::Label("exit".to_string()),
+            load(4),
+            place_call(4, 7),
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        assert!(
+            verify_ir(program(bypassed_break_reinitialization)).is_err(),
+            "one loop-exit predecessor bypassed balanced enum reinitialization"
+        );
+
         let consumed_place = vec![
             checked_variant(Value::Reg(0), schema, 0),
             place(5),

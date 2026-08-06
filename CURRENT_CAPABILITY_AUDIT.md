@@ -8,7 +8,26 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-076` is a locally green unified typed Match-result candidate. One classifier
+- `CORE-077` is a locally green balanced loop-carried owned-enum reinitialization
+  candidate. One shared edge classifier requires each direct mutable admitted enum to
+  be exactly `Owned` at loop entry and at every reachable `while` condition, `for`
+  iterable, fallthrough/`continue` backedge, and `break` exit. Semantic analysis and
+  independent checked admission provide phase-specific snapshots to that same rule;
+  verifier CFG controls independently reject missing, bypassed, one-path, generic-
+  store, wrong-schema, cycle, and exit repairs. `while`, fixed-array `for`, `loop`,
+  return/nonjoining paths, nearest nested-loop transfers, every admitted enum schema,
+  and every CORE-073 origin are covered. The 195-library/201-binary complete surface,
+  every integration/doc target, formatting, all-target/all-feature check, correctness
+  Clippy, docs, CLI artifact hygiene, and the exact root gate pass locally. The tracked
+  composed specimen is pinned for stable/nightly LLVM/Clang 22 native exit 227;
+  immutable publication and exact public/native acceptance remain pending. Loop-
+  carried `Moved`/`MaybeMoved`, projections/partial moves, enum storage/borrowing,
+  drop/lifetimes, stable ABI, imports, accelerators, release, and safety remain excluded.
+
+- `CORE-076` is accepted public at exact commit
+  `aefeb2d81fb5374e7373a4819f3c92f83a95eb35`, tree
+  `34e58b2943d6c01efd245753f4b3ca18a338d595`, and stable patch
+  `ef7bd0a42de1bda040a4e435fb9c51e0765160b4`. One classifier
   admits identical exact recursive finite CopyData or the separately constrained owned-
   enum result class. One generic checked result place and one verifier CFG proof now
   cover primitives, fixed arrays including zero length, recursive tuples, finite acyclic
@@ -16,9 +35,10 @@ Branch: `agent/aero-integration`
   binary complete compiler surface, every integration/doc target, focused corruption
   controls, format/check/Clippy/docs, direct modules, CLI check/build artifact hygiene,
   deterministic LLVM, and the exact root gate pass locally. The tracked composed
-  specimen is pinned for stable/nightly LLVM/Clang 22 native exit 223. Immutable
-  publication, rendered PR synchronization, exact-head public checks, and native
-  acceptance remain pending. Strings, references/results, unit/unary tuples, dynamic
+  specimen passes stable/nightly LLVM/Clang 22.1.8 native exit 223 while preserving the
+  older unit-enum exit 149 gate. All eight exact-head checks pass in push CI
+  `31081503050`, PR CI `31081506213`, Rust `31081506169`, CodeQL `31081503119`,
+  and aggregate check `92551229284`. Strings, references/results, unit/unary tuples, dynamic
   collections, enum-in-CopyData storage, cyclic/unsupported structs, wider patterns,
   ABI/runtime/drop/lifetime, accelerator, release, and safety semantics remain excluded.
 
@@ -28,7 +48,7 @@ Branch: `agent/aero-integration`
   `395de4d78694be56b45a310b87df1f98568217eb`. Its all-eight exact-head checks and
   stable/nightly pinned LLVM/Clang 22.1.8 native exit 211 pass. The shared dynamic-path
   classifier derives exact `Moved`/`MaybeMoved`/`Owned` state for direct-owner enum
-  Match results; CORE-076 locally generalizes only the typed result universe and checked
+  Match results; accepted CORE-076 generalizes only the typed result universe and checked
   result-place identity.
 
 - `CORE-074` is accepted public for fresh owned-enum Match results at exact commit

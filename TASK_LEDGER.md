@@ -15286,3 +15286,194 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `src/compiler/src/code_generator.rs`, and
   `src/compiler/tests/copydata_match_result_tests.rs`. Public acceptance remains false
   until a replacement immutable head passes all exact public and native controls.
+
+## CORE-077 - Balanced loop-carried owned-enum reinitialization
+
+- Task ID/date/owner: `CORE-077`, 2026-08-05, lead-owned red-first hard ownership/CFG/
+  checked-IR vertical slice. Starting identity is accepted public CORE-076 commit
+  `aefeb2d81fb5374e7373a4819f3c92f83a95eb35`, tree
+  `34e58b2943d6c01efd245753f4b3ca18a338d595`, and stable patch ID
+  `ef7bd0a42de1bda040a4e435fb9c51e0765160b4`. Local, origin, and PR heads match;
+  PR #4 is open, draft, unmerged, and rendered as CORE-076 accepted public. All eight
+  exact-head checks pass in push CI `31081503050`, PR CI `31081506213`, Rust
+  `31081506169`, CodeQL `31081503119`, and aggregate check `92551229284`. Stable and
+  nightly independently report LLVM/Clang 22.1.8, preserve the repaired unit-enum
+  Match exit 149 specimen, and execute the unified CopyData Match specimen at exit
+  223. The integration program is 275 commits/217 files relative to `master`.
+  User-owned untracked `tmp/` remains outside this task.
+- Selection and source-of-truth audit: the original language PDF specifies the founding
+  dotted grammar `import identifier ("." identifier)* ["as" identifier] ";"`, but it
+  does not specify namespace lookup, qualified call syntax, alias binding, filesystem
+  mapping, duplicate/cycle identity, or visibility. Positive import execution therefore
+  stops as semantically ambiguous rather than inventing a resolver. The same source
+  explicitly requires unique ownership, explicit mutation, compile-time prevention of
+  use after ownership loss, deterministic destruction, and `while`/`for` control flow.
+  Accepted CORE-063 through CORE-075 already freeze exact destructor-free owned-enum
+  construction, consumption, replacement, acyclic joins, reinitialization, and
+  independent CFG verification. The remaining balanced-loop class can therefore be
+  derived without adding a new value, lifetime, drop, or alias rule and is selected as
+  the next hard ownership slice.
+- Observed behavior and red hypothesis: an outer mutable admitted enum that is `Owned`
+  at loop entry is rejected as soon as an iteration consumes it and exactly
+  reinitializes it, even when every reachable iteration backedge and exit restores
+  `Owned`. `classify_owned_place_assignment` rejects every `Moved`/`MaybeMoved` enum
+  reinitialization under `inside_loop`; conditional ownership rejects any intermediate
+  loop-local state change; and `classify_loop_ownership` accepts only textual equality
+  between one entry snapshot and one final body snapshot. `break` and `continue` do not
+  carry ownership snapshots, so merely removing the guards would falsely accept a
+  reinitialization written after a terminating transfer. The checked verifier already
+  performs a CFG fixed point and recognizes exact checked assignment as an ownership
+  kill, but no source/admission contract authorizes the balanced program.
+- Frozen positive semantics: for an exact direct mutable local in any already admitted
+  destructor-free owned-enum schema, and only when its state is `Owned` on entry to the
+  containing loop, one iteration may use the complete existing whole-owner transition
+  class: consume by exact by-value call, return/Match/result path where applicable,
+  then reinitialize from any origin already admitted by CORE-073 (fresh constructor,
+  exact non-consuming enum-returning call, independently admitted owned Match result,
+  or distinct direct owned source). Repeated consume/reinitialize cycles are admitted.
+  The program is valid only if the exact owner is `Owned` at every reachable iteration
+  continuation edge (body fallthrough or `continue`) and every reachable loop exit edge
+  (`break`). `while` conditions and `for` iterables must preserve entry ownership, and
+  their zero-iteration path retains `Owned`. `loop` has no new post-loop ownership rule;
+  every admitted reachable `break` still carries `Owned`. Evaluation order remains
+  source order and each executed operation occurs exactly once.
+- Frozen complete structured-control class: apply the same invariant to `while`, fixed
+  recursive-CopyData array `for`, and `loop`; direct fallthrough, direct `continue`,
+  direct `break`, both sides of `if`/`else`, nested conditionals/blocks, nested loops,
+  returning paths excluded from local joins, and multiple continuation/exit sites.
+  A phase may continue diagnosing text after an unconditional transfer, but a later
+  unreachable assignment must never repair the state captured at that transfer. A
+  transfer belonging to a nested loop must not be attributed to its parent. Every enum
+  schema already admitted by CORE-069 and every CORE-073 RHS origin must consume this
+  one class; no unit/unary/multi-field or payload-topology branch is permitted.
+- Frozen shared authority and checked proof: extend one shared ownership-flow authority
+  with phase-neutral loop edge facts and one deterministic disposition. Semantic
+  analysis and independent checked admission may collect their own typed binding
+  snapshots, but both must feed the same classifier; they may not duplicate
+  while/for/loop or break/continue ownership rules. Intermediate `Moved`/`MaybeMoved`
+  states are allowed only within the iteration and retain the existing exact use
+  diagnostics until a checked whole-place reinitialization restores `Owned`. Checked IR
+  uses only the existing exact enum place/load/call/Match/assignment identities. The
+  verifier must independently prove the CFG fixed point: every reachable cycle or exit
+  use is dominated by the exact reinitializing checked write, while a missing, bypassed,
+  wrong-schema, generic-store, or one-path write cannot manufacture ownership.
+- Frozen containment: entry `Moved`, entry `MaybeMoved`, borrowed entry, immutable or
+  nonlocal targets, ownership-consuming `while` conditions/`for` iterables, any
+  continuation or break exit left `Moved`/`MaybeMoved`, reinitialization text after the
+  applicable `break`/`continue`/`return`, self replacement, same-path double use, wrong
+  enum identity, enum aggregate storage/borrowing/projection/partial move, references
+  to enums, destructors/drop/lifetimes, general loop-carried `Moved`/`MaybeMoved` state,
+  loop expressions/labels, stable layout/ABI/FFI, imports/namespaces, runtime String or
+  collections, generics/traits/closures, accelerators, performance, release, safety,
+  merge, and `master` semantics remain rejected, preserved, or separately frozen.
+- Exhaustive red/green surface: unit, unary, and positional multi-field recursive
+  CopyData enum schemas; constructor/call/Match/distinct-owner reinitialization; repeated
+  cycles; `while`/array-`for`/`loop`; fallthrough/continue/break; one- and two-arm
+  conditionals, returning paths, nested blocks/loops, multiple edge sites; later use,
+  call, Match, return, replacement, and subsequent loops; deterministic checked IR and
+  LLVM; direct modules; public check/build/run with no failure artifact; tracked native
+  sentinel; complete CORE-043-076 preservation. Negative completion includes every
+  containment class plus raw checked-IR corruption for missing/bypassed/one-path/
+  wrong-schema assignment, generic Store, premature reuse, and a cycle or exit that can
+  reach consumption without restoration.
+- Red-first workflow and allowed files: after this authorization and before production
+  mutation, add one exhaustive
+  `src/compiler/tests/balanced_loop_enum_ownership_tests.rs` target proving representative
+  balanced `while`, `for`, and `loop` programs stop at the current deterministic
+  loop-reinitialization diagnostic while all negative controls remain rejected. Only
+  after exact red may production work touch `src/compiler/src/{ownership_flow,
+  scalar_assignment,semantic_analyzer,ir_generator,ir_verifier}.rs`, directly
+  superseded ownership-flow expectations, one tracked
+  `examples/balanced_loop_enum_ownership/{main,loops}.aero`, and
+  `.github/workflows/rust.yml`. Parser/lexer/AST/type shapes, enum/CopyData schemas,
+  Match result contracts, module resolver, checked opcodes, LLVM type/layout lowering,
+  dependencies, runtime, accelerator, cache, claims, `master`, and `tmp/` are frozen.
+  After exact green only affected state/capability/matrix/framework/roadmap/decision/
+  risk/README records and rendered draft PR metadata may change.
+- Stop conditions: stop rather than narrow or approximate if import behavior must be
+  guessed; any reachable transfer can be repaired by unreachable text; nested-loop
+  transfers are misattributed; semantic analysis and checked admission cannot consume
+  one shared edge classifier; any admitted backedge/exit is not exactly `Owned`; the
+  verifier accepts a cycle/exit bypassing the checked write; an enum layout/ABI/drop/
+  lifetime rule is required; a new checked opcode or generic store is needed; the class
+  would need splitting by loop or enum topology; an unrelated baseline is red; or an
+  existing spec/test must be weakened. Do not claim a general borrow checker, loop
+  fixed point, memory safety, or founding import implementation from this bounded class.
+- Verification/publication gate: exact red then green; focused shared-classifier units
+  and verifier corruption controls; complete ownership/enum/Match/aggregate/function/
+  reference/module/closure/char compatibility ring; all-feature tests; all-target/
+  all-feature check; formatting; correctness Clippy; docs; exact root `./tools/test.sh`;
+  public check/build/run and artifact hygiene; pinned LLVM/Clang 22 external/machine/
+  object/link verification and exact tracked native exit. Commit/push one immutable
+  candidate only after local green, synchronize PR #4 immediately, and call CORE-077
+  accepted public only after all eight exact-head checks and both pinned native lanes
+  pass.
+- Scaling controls: CORE-077 is deliberately a hard structured-control ownership/CFG/
+  verifier/backend system slice, not another compile-time array/String win. It closes
+  one edge-invariant class across every loop and admitted enum topology through a shared
+  authority rather than adding topology guards. The 275-commit mega-PR still needs a
+  separately authorized checkpoint/merge strategy; structured evidence-manifest
+  generation remains separate; founding imports, runtime, stable ABI, and real RX 7800
+  XT execution remain queued; and the tracked source-through-native specimen supplies
+  the periodic composed gate without claiming release eligibility.
+
+### CORE-077 exact red checkpoint
+
+- Before any production mutation, the new exhaustive target parses and runs 0/1 green.
+  Its complete unit/unary/multi-field recursive-CopyData enum program stops exactly at
+  `enum owner reinitialization of `owner` inside a loop is not admitted; break/continue
+  and backedge ownership require a separately frozen flow proof`. All ten initial
+  containment cases still reject through their accepted ownership/aggregate controls,
+  so the red is the frozen positive boundary rather than a parser, harness, baseline,
+  or diagnostic-expectation defect. Formatting passes. The only task-owned changes are
+  this ledger authorization and
+  `src/compiler/tests/balanced_loop_enum_ownership_tests.rs`; user-owned `tmp/` is
+  untouched.
+
+### CORE-077 local green checkpoint
+
+- Implementation: `ownership_flow.rs` now owns the finite edge taxonomy
+  (condition, iterable, fallthrough, continue, break), merge reachability, phase-neutral
+  snapshots, and the exact entry-equality classifier. Semantic analysis and independent
+  checked admission use separate binding snapshots but feed that shared rule; nearest-
+  loop break/continue stacks preserve nested attribution. The existing assignment
+  classifier now allows intermediate exact enum reinitialization, while the existing
+  moved/maybe-moved use checks remain authoritative. No parser, AST, type shape, enum
+  schema, checked opcode, or LLVM layout changed.
+- Independent verification: the existing checked enum ownership dataflow now has
+  explicit balanced-cycle success and corruption controls for missing exact assignment,
+  generic `Store`, wrong schema, cyclic predecessor bypass, and break-exit predecessor
+  bypass. The trusted path cannot manufacture restoration through text order or a
+  nonchecked write.
+- Exhaustive evidence: the new target covers unit, unary, and positional multi-field
+  recursive CopyData enum schemas; constructor, exact call, fresh Match, and distinct-
+  owner origins; `while`, fixed-array `for`, and `loop`; fallthrough, continue, break,
+  conditional, return, repeated-cycle, nested-block, and nested-loop topology; later
+  call/Match/return/replacement/reentry; direct checked admission without semantics;
+  deterministic LLVM; direct modules; public check/build; invalid-program artifact
+  hygiene; and workflow anchors. Direct-owner Match-result movement inside a loop
+  remains excluded under CORE-075; four older blanket-loop expectations were replaced
+  with stronger unbalanced-edge negatives rather than deleted.
+- Tracked system specimen: `examples/balanced_loop_enum_ownership/{main,loops}.aero`
+  composes the accepted surface and returns exact sentinel 227. Local `check` succeeds.
+  Local `run` stops correctly because this Windows host has no LLVM 22 verifier; no
+  local native claim follows. Stable/nightly install and require LLVM/Clang 22.1.8,
+  externally verify, machine-verify, object-lower, link, execute exit 227, and retain
+  the older exit-149/223 specimens before public acceptance.
+- Commands/results: focused test 1/1; shared ownership units 3/3; verifier corruption
+  target 1/1; directly affected CORE-064/065/066/073/074/075 compatibility ring green;
+  `cargo test --all-features` green at 195 library and 201 binary tests plus every
+  integration/doc target; `cargo check --all-targets --all-features` exit 0;
+  `cargo clippy --all-targets --all-features -- -D clippy::correctness` exit 0;
+  `cargo doc --no-deps --all-features` exit 0; `cargo fmt --all -- --check` exit 0;
+  exact repository-root `./tools/test.sh` exit 0. One initial full-test wrapper timed
+  out while its Windows Cargo children completed; it supplied no candidate result and
+  the clean single-job rerun passed. No test was weakened or skipped.
+- Candidate/public status: local implementation and records are green, but CORE-077 is
+  not public acceptance. Next action is one explicit immutable commit and push,
+  immediate rendered PR #4 candidate synchronization, and monitoring of all eight
+  exact-head checks plus both pinned native lanes. PR remains draft/unmerged; release,
+  merge, performance, accelerator, stable ABI, import, general ownership, and safety
+  claims remain unauthorized. The four scaling controls remain active: separately
+  authorized mega-PR checkpointing, hard-slice selection, later structured evidence
+  manifest generation, and periodic composed source-through-native gates.

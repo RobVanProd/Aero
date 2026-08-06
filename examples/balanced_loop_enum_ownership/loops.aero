@@ -1,0 +1,74 @@
+enum Packet {
+    Empty,
+    Count(int),
+    Pair(int, bool),
+    Data([int; 2])
+}
+
+fn bool_score(value: bool, score: int) -> int {
+    if value { return score; }
+    0
+}
+
+fn score(value: Packet) -> int {
+    match value {
+        Packet::Empty => 0,
+        Packet::Count(number) => number,
+        Packet::Pair(number, flag) => number + bool_score(flag, 2),
+        Packet::Data(values) => values[1]
+    }
+}
+
+fn balanced_while() -> int {
+    let mut owner = Packet::Count(1);
+    let mut step = 0;
+    let mut total = 0;
+    while step < 2 {
+        total = total + score(owner);
+        owner = Packet::Count(step + 10);
+        step = step + 1;
+    }
+    total + score(owner)
+}
+
+fn balanced_for() -> int {
+    let mut owner = Packet::Pair(20, 1 < 2);
+    let mut total = 0;
+    for item in [1, 2] {
+        total = total + score(owner);
+        owner = Packet::Count(item + 30);
+    }
+    total + score(owner)
+}
+
+fn balanced_loop() -> int {
+    let mut owner = Packet::Data([40, 41]);
+    let mut total = 0;
+    loop {
+        total = total + score(owner);
+        owner = Packet::Pair(50, 1 < 2);
+        break;
+    }
+    total + score(owner)
+}
+
+fn balanced_transfers() -> int {
+    let mut owner = Packet::Count(60);
+    let mut total = 0;
+    for item in [1, 2, 3] {
+        total = total + score(owner);
+        owner = Packet::Count(item + 60);
+        if item < 2 { continue; }
+        break;
+    }
+    total + score(owner)
+}
+
+fn run_balanced_loops() -> int {
+    let total = balanced_while()
+        + balanced_for()
+        + balanced_loop()
+        + balanced_transfers();
+    if total == 383 { return 227; }
+    1
+}

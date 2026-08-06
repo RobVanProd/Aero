@@ -277,9 +277,9 @@ fn owned_enum_reassignment_class_is_complete_checked_and_executable() {
             vec!["moved"],
         ),
         (
-            "reassign consumed target inside loop remains excluded",
-            "enum E { A, B } fn take(value: E) -> int { match value { E::A => 1, E::B => 2 } } fn main() -> int { let mut target = E::A; loop { let score = take(target); target = E::B; break; } 0 }",
-            vec!["reinitialization", "loop"],
+            "unbalanced consumed-target reassignment inside loop remains excluded",
+            "enum E { A, B } fn take(value: E) -> int { match value { E::A => 1, E::B => 2 } } fn main() -> int { let mut target = E::A; loop { let score = take(target); if 1 < 2 { target = E::B; } break; } 0 }",
+            vec!["loop", "fixed-point"],
         ),
         (
             "enum borrow remains excluded",

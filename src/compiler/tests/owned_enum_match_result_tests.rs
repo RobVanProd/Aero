@@ -556,9 +556,9 @@ fn excluded_owned_enum_match_result_origins_fail_closed() {
             vec!["moved value", "Use of moved"],
         ),
         (
-            "loop reinitialization",
-            "enum I { A } enum O { X } fn take(value: O) -> int { match value { O::X => 1 } } fn main() { let mut value = O::X; loop { let consumed = take(value); value = match I::A { I::A => O::X }; break; } }",
-            vec!["reinitialization", "loop"],
+            "unbalanced loop Match-result reinitialization",
+            "enum I { A } enum O { X } fn take(value: O) -> int { match value { O::X => 1 } } fn main() { let mut value = O::X; loop { let consumed = take(value); if 1 < 2 { value = match I::A { I::A => O::X }; } break; } }",
+            vec!["loop", "fixed-point"],
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, &expected) {

@@ -117,18 +117,30 @@ results/storage, broader patterns, borrowing/projection, partial moves, drop/lif
 stable ABI, and generic/closure semantics remain separate work. Exact implementation
 `50a3e03d0bdbc0e7deddde747bc19df0621c1257`, all eight exact-head checks, and the
 pinned stable/nightly LLVM/Clang 22.1.8 native exit 211 lanes pass.
-Local candidate `CORE-076` unifies exhaustive Match results over the complete already
+Accepted public `CORE-076` unifies exhaustive Match results over the complete already
 admitted value universe: one shared classifier accepts one identical recursive finite
 CopyData type or the existing constrained owned-enum class, one generic checked result
 place carries every arm through exact typed whole-place assignment, and independent CFG
 verification proves all-path initialization and one merged load. Arrays (including
 zero-length), tuples, finite acyclic structs, primitives, and owned enums retain their
-existing private LLVM types. The complete 194-library/200-binary surface and composed
-two-module native sentinel 223 are locally green; immutable publication, all eight
-exact-head checks, and both pinned native lanes remain pending. Strings, references,
+existing private LLVM types. Exact implementation
+`aefeb2d81fb5374e7373a4819f3c92f83a95eb35`, all eight exact-head checks, and both
+pinned stable/nightly LLVM/Clang 22.1.8 native exit-223 lanes pass while preserving the
+older exit-149 specimen. Strings, references,
 unit/unary tuples, dynamic collections, cyclic/unsupported structs, enum aggregate
 storage, wider patterns, stable ABI, runtime, drop/lifetimes, and general ownership
 remain separately frozen.
+Local candidate `CORE-077` admits exact balanced loop-carried reinitialization for a
+direct mutable admitted destructor-free enum. `while`, fixed-array `for`, and `loop`
+share one rule: entry, condition/iterable, every reachable fallthrough or `continue`
+backedge, and every `break` exit must be exactly `Owned`; return paths do not join and
+nested transfers attach to the nearest loop. Semantic analysis and independent checked
+admission provide snapshots to one phase-neutral classifier, while verifier CFG controls
+reject missing, bypassed, one-path, generic-store, wrong-schema, cycle, and exit repairs.
+The complete 195-library/201-binary local gates pass and the tracked direct-module
+specimen is pinned for native exit 227. Loop-carried moved state, partial moves,
+projections, enum storage/borrowing, drop/lifetimes, stable ABI, imports, accelerators,
+release, safety, and general loop fixed-point semantics remain separate.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 
