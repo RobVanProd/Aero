@@ -1,8 +1,8 @@
 #![allow(clippy::result_large_err)]
 
 use crate::ast::{
-    AstNode, Block, Expression, FieldDecl, MatchArm, Parameter, Pattern, Statement, TraitMethod,
-    Type, VariantDecl, VariantDeclKind,
+    AstNode, Block, Expression, FieldDecl, ImportSyntax, MatchArm, Parameter, Pattern, Statement,
+    TraitMethod, Type, VariantDecl, VariantDeclKind,
 };
 use crate::errors::{CompilerError, CompilerResult, SourceLocation};
 use crate::lexer::{LocatedToken, Token, try_tokenize_with_locations};
@@ -60,6 +60,7 @@ impl Parser {
             // Phase 7: Module system
             Token::Mod => self.parse_mod_declaration(),
             Token::Use => self.parse_use_import(),
+            Token::Import => self.parse_founding_import(),
             Token::Pub => self.parse_pub_item(),
             _ => {
                 // Parse the target/value topology here and leave admission to the
@@ -1871,6 +1872,7 @@ impl Parser {
                 | Token::Trait
                 | Token::Mod
                 | Token::Use
+                | Token::Import
                 | Token::Pub => return,
                 _ => {}
             }
@@ -1976,6 +1978,72 @@ impl Parser {
         self.consume(Token::Semicolon, "Expected ';' after use statement")?;
 
         Ok(Statement::UseImport {
+            syntax: ImportSyntax::RustLikeUse,
+            path,
+            alias,
+            location,
+        })
+    }
+
+    /// Parse the founding `import <path>[ as <alias>];` dotted syntax.
+    fn parse_founding_import(&mut self) -> CompilerResult<Statement> {
+        let location = self.peek().location.clone();
+        self.consume(Token::Import, "Expected 'import'")?;
+
+        let mut path = Vec::new();
+        match &self.peek().token {
+            Token::Identifier(name) => {
+                path.push(name.clone());
+                self.advance();
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "import path",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        }
+
+        while self.match_token(&Token::Dot) {
+            match &self.peek().token {
+                Token::Identifier(name) => {
+                    path.push(name.clone());
+                    self.advance();
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "import path segment",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            }
+        }
+
+        let alias = if self.match_token(&Token::As) {
+            match &self.peek().token {
+                Token::Identifier(name) => {
+                    let name = name.clone();
+                    self.advance();
+                    Some(name)
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "import alias",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            }
+        } else {
+            None
+        };
+
+        self.consume(Token::Semicolon, "Expected ';' after import statement")?;
+
+        Ok(Statement::UseImport {
+            syntax: ImportSyntax::FoundingDottedImport,
             path,
             alias,
             location,

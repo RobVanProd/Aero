@@ -32,11 +32,21 @@ execution, invalid-build artifact hygiene, and exit 227. Exact implementation
 Linux stable/nightly preserve exits 149/223/227. The current local host still lacks
 LLVM 22.
 
-Local CORE-079 changes no backend representation, layout, or ABI. Its tracked
+Accepted public CORE-079 changes no backend representation, layout, or ABI. Its tracked
 direct-module fixed-point specimen is wired for external/machine verification,
 object/link, public/manual execution, and exact exit 229 on pinned Linux and Windows
-LLVM/Clang 22.1.8. Those native and exact-head results remain candidate requirements,
-not current acceptance evidence.
+LLVM/Clang 22.1.8. Exact implementation
+`5b1ec7340db72354542ab325a9f75cad398857c2` passes all nine exact-head checks;
+stable/nightly Linux preserve exits 149/223/227 and execute exit 229, while the pinned
+Windows lane preserves exit 227 and executes exit 229 through public and independent
+native paths.
+
+Local CORE-080 changes no checked-IR opcode, LLVM representation, layout, ABI,
+workflow, or native specimen. Both retained import syntax families fail before checked
+IR, and public check/build/run coverage proves artifact hygiene. Focused 13/13,
+compatibility, complete all-features, static, documentation, diff-hygiene, and exact
+root gates pass. The accepted native exits 149/223/227/229 must remain unchanged in all
+exact-head public lanes before CORE-080 can be accepted.
 
 The CPU path can fall back to direct Clang compilation if `llc` is missing. It
 also prints a success message before interpreting a nonzero program exit status,

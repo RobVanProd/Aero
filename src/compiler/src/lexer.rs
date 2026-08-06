@@ -37,6 +37,7 @@ pub enum Token {
     // Phase 7 keywords (v1.0.0 module system + closures)
     Mod,
     Use,
+    Import,
     Pub,
     As,
 
@@ -794,6 +795,7 @@ fn scan_with_locations(
                         "where" => Token::Where,
                         "mod" => Token::Mod,
                         "use" => Token::Use,
+                        "import" => Token::Import,
                         "pub" => Token::Pub,
                         "as" => Token::As,
                         "_" => Token::Underscore,

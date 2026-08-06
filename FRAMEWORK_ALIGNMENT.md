@@ -159,15 +159,25 @@ Accepted public `CORE-070` takes a bounded step toward the framework's integrate
 direction. Library callers can compile an exact root file, including the already
 accepted root-level direct-module collector, through the same checked library frontend
 as `compile_program`. It returns verified in-memory LLVM and writes no artifact. This
-does not define the founding dotted-import grammar, namespaces, aliases, visibility,
-recursive module graphs, cache identity, external LLVM verification, or a canonical
-thin CLI; those remain separately specified work.
+does not define positive import/name-resolution semantics, namespaces, aliases,
+visibility, recursive module graphs, cache identity, external LLVM verification, or a
+canonical thin CLI; those remain separately specified work.
 
 Accepted public `CORE-071` contains the prototype's different Rust-like `use` syntax rather
 than treating it as the founding import model. The parser preserves direct, aliased,
 and terminal-glob declarations plus the exact keyword location, but semantics and
 checked admission reject executable use consistently before IR. This adds no positive
 module, namespace, visibility, alias, glob, resolver, backend, or runtime behavior.
+
+Local candidate `CORE-080` preserves the founding direct and aliased dotted `import`
+grammar as syntax evidence while keeping the same fail-closed phase boundary. The AST
+distinguishes founding dotted imports from Rust-like `use`; semantic preflight,
+ordinary semantic analysis, and independent checked admission consume one shared
+syntax-aware unsupported-import diagnostic before checked IR. Strict malformed forms,
+library/file/direct-module routes, and public command artifact hygiene are covered.
+This adds no lookup, binding, namespace, visibility, conflict, cycle, package,
+backend, runtime, ABI, or positive import behavior; immutable public evidence remains
+pending.
 
 Accepted public `CORE-072` advances the founding framework's built-in character and strong-
 typing direction as one positive executable class. Exact Unicode scalar identity is
@@ -237,14 +247,16 @@ or general non-enum fixed-point claims remain excluded. Exact implementation
 `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb` passes all eight checks and pinned
 stable/nightly LLVM/Clang 22.1.8 native exit 227 while preserving exits 149/223.
 
-Local candidate `CORE-079` advances the framework's unique-ownership direction beyond
+Accepted public `CORE-079` advances the framework's unique-ownership direction beyond
 exact balanced edges to one convergent direct-enum loop class. A shared finite-lattice
 classifier summarizes headers and exits for `while`, admitted fixed-array `for`, and
 `loop`; source semantics and independent checked admission recheck from widened
 headers, while the verifier retains its independent cyclic proof. This changes no enum
 topology, aggregate storage, borrow, destructor/lifetime, ABI, module, runtime, or GPU
-contract. Focused, complete all-features, static, documentation, and exact root gates
-pass; immutable public/native evidence remains pending.
+contract. Exact implementation `5b1ec7340db72354542ab325a9f75cad398857c2`
+passes all nine exact-head checks. Stable/nightly Linux preserve exits 149/223/227 and
+execute exit 229; pinned Windows LLVM/Clang 22.1.8 preserves exit 227 and executes exit
+229 through both public and independent native paths.
 
 Accepted public `CORE-078` advances portability/reproducibility without changing the
 language. Exact implementation `70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe`
@@ -257,13 +269,13 @@ claim.
 
 | Framework direction | Current evidence | Required next proof |
 |---|---|---|
-| Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-071 preserves Rust-like `use` syntax only for future work and rejects it before checked IR. Accepted CORE-072 preserves exact Unicode-character identity across the existing recursive CopyData execution surface under one primitive authority and a pinned native exit-197 gate. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. Accepted ARCH-002 normalizes binding-annotation topology and phase routing without changing any accepted or quarantined type behavior. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze closure and import/name-resolution semantics before any positive path |
-| Ownership-based safety | Shallow move checks remain partial. CORE-048/053 through accepted CORE-066 establish bounded immutable/mutable whole-place ownership, internal reference transport, recursive finite CopyData composition, direct CopyData owner reassignment, owned enum transport/replacement, exact acyclic conditional joins, independent enum-owner CFG consumption proof, and fresh per-iteration enum owners. Accepted CORE-073–077 add acyclic reinitialization, owned Match results, and balanced loop restoration. Local CORE-079 adds convergent `Owned`/`Moved`/`MaybeMoved` direct-enum loop headers/exits under shared source/admission classification and independent verifier proof. Mutable projections, reference results, escaping provenance, enum aggregate storage, stable reference ABI, general non-enum CFG ownership, NLL, drop, lifetime inference, and memory-safety claims remain absent; 16 broader semantic/lossy-shape Phase 5 tests remain quarantined. | Finish CORE-079's exact public/native gate, then freeze another hard module, runtime, ownership, or execution slice |
-| Structs, arrays, enums, traits, and Match | CORE-043 through CORE-047 accept bounded all-Copy scalar/named-struct construction, projection, arrays, transport, and finite acyclic graphs. CORE-049 through CORE-052 accept unit/unary-scalar enums, exhaustive bound Match, and owned internal transport. CORE-058 through CORE-061 add flat tuples, whole-place references, and direct CopyData owner replacement. Accepted CORE-062 removes the executable CopyData topology whitelist. Accepted CORE-063 carries that recursive class through unary owned-enum payloads and exact bound Match under a pinned native exit-113 gate. Accepted CORE-064/065 add exact enum replacement and acyclic joins. Accepted CORE-069 generalizes positional variants to two or more recursive CopyData fields. Accepted CORE-073–077 add reinitialization, typed owned Match results, and balanced loop-owner restoration; local CORE-079 changes loop dataflow only, not enum topology. Generic/named-field enums, Option/Result Match, wildcard/guard/nested destructuring, enum fields/arrays/borrowing/projection, unit/unary tuples, unsupported/cyclic structs, dynamic arrays, traits, and stable aggregate/reference ABI remain open. | Separately freeze another hard generic/module/runtime/ownership class; do not infer broader enum or ABI support from CORE-069/073–079 |
+| Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-071 preserves Rust-like `use` syntax only for future work and rejects it before checked IR; local CORE-080 similarly preserves the founding dotted `import` syntax with a distinct AST identity and rejects it through the same shared authority. Accepted CORE-072 preserves exact Unicode-character identity across the existing recursive CopyData execution surface under one primitive authority and a pinned native exit-197 gate. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. Accepted ARCH-002 normalizes binding-annotation topology and phase routing without changing any accepted or quarantined type behavior. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze import/name-resolution semantics before any positive path |
+| Ownership-based safety | Shallow move checks remain partial. CORE-048/053 through accepted CORE-066 establish bounded immutable/mutable whole-place ownership, internal reference transport, recursive finite CopyData composition, direct CopyData owner reassignment, owned enum transport/replacement, exact acyclic conditional joins, independent enum-owner CFG consumption proof, and fresh per-iteration enum owners. Accepted CORE-073–077 add acyclic reinitialization, owned Match results, and balanced loop restoration. Accepted CORE-079 adds convergent `Owned`/`Moved`/`MaybeMoved` direct-enum loop headers/exits under shared source/admission classification and independent verifier proof. Mutable projections, reference results, escaping provenance, enum aggregate storage, stable reference ABI, general non-enum CFG ownership, NLL, drop, lifetime inference, and memory-safety claims remain absent; 16 broader semantic/lossy-shape Phase 5 tests remain quarantined. | Freeze another hard module, runtime, ownership, or execution slice |
+| Structs, arrays, enums, traits, and Match | CORE-043 through CORE-047 accept bounded all-Copy scalar/named-struct construction, projection, arrays, transport, and finite acyclic graphs. CORE-049 through CORE-052 accept unit/unary-scalar enums, exhaustive bound Match, and owned internal transport. CORE-058 through CORE-061 add flat tuples, whole-place references, and direct CopyData owner replacement. Accepted CORE-062 removes the executable CopyData topology whitelist. Accepted CORE-063 carries that recursive class through unary owned-enum payloads and exact bound Match under a pinned native exit-113 gate. Accepted CORE-064/065 add exact enum replacement and acyclic joins. Accepted CORE-069 generalizes positional variants to two or more recursive CopyData fields. Accepted CORE-073–077 add reinitialization, typed owned Match results, and balanced loop-owner restoration; accepted CORE-079 changes loop dataflow only, not enum topology. Generic/named-field enums, Option/Result Match, wildcard/guard/nested destructuring, enum fields/arrays/borrowing/projection, unit/unary tuples, unsupported/cyclic structs, dynamic arrays, traits, and stable aggregate/reference ABI remain open. | Separately freeze another hard generic/module/runtime/ownership class; do not infer broader enum or ABI support from CORE-069/073–079 |
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist. Pinned Linux LLVM 22 execution and bounded Windows x86_64 MSVC system evidence are accepted through CORE-078. Typed-IR invariants and verification remain incomplete. | Retain exact object/link/runtime gates on each supported platform and extend only with separately frozen contracts |
 | Zero-cost performance | A benchmark protocol now exists, but no audited public Aero runtime or device performance claim passes it | Correct real programs, raw samples, reproducible baselines, and separately reported compile/runtime/resource costs |
 | Modern concurrency | Interfaces and library-like helpers exist, but the language/runtime concurrency model is not end-to-end | Ownership-safe tasks/channels or another frozen model with race and runtime evidence |
-| Integrated tooling | CLI, LSP, formatter, docs, project, registry, and conformance surfaces exist but are experimental and use divergent compiler paths. Accepted CORE-070 adds a checked file-aware library route over the existing direct-module collector, reducing one library/file-context gap without converging the CLI. Accepted CORE-071 closes one silent-use boundary but adds no resolver. | One canonical compiler service shared by every tool, with failure and integration tests |
+| Integrated tooling | CLI, LSP, formatter, docs, project, registry, and conformance surfaces exist but are experimental and use divergent compiler paths. Accepted CORE-070 adds a checked file-aware library route over the existing direct-module collector, reducing one library/file-context gap without converging the CLI. Accepted CORE-071 and local CORE-080 preserve the prototype and founding import syntaxes respectively, then close both silent-execution boundaries without adding a resolver. | One canonical compiler service shared by every tool, with failure and integration tests |
 | Open governance | MIT licensing, a code of conduct, community guidance, and an RFC template are tracked | A functioning public proposal/review process tied to compatibility and release decisions |
 | Self-hosting | The bootstrap compiler is written in Rust | A sufficiently expressive and stable language core, then a staged Aero compiler bootstrap with reproducibility checks |
 

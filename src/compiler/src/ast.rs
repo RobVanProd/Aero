@@ -3,6 +3,12 @@
 use crate::errors::SourceLocation;
 use crate::types::Ty;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportSyntax {
+    RustLikeUse,
+    FoundingDottedImport,
+}
+
 #[derive(Debug, Clone)]
 pub enum Expression {
     IntegerLiteral(i64),
@@ -167,6 +173,7 @@ pub enum Statement {
         is_public: bool,
     },
     UseImport {
+        syntax: ImportSyntax,
         path: Vec<String>,     // e.g. ["std", "collections", "HashMap"]
         alias: Option<String>, // e.g. `as Foo`
         location: SourceLocation,

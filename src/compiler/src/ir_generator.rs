@@ -54,7 +54,7 @@ use crate::tuple_contract::{
     validate_tuple_binding,
 };
 use crate::types::{OwnershipState, Ty, needs_promotion};
-use crate::use_import_contract::unsupported_use_import_diagnostic;
+use crate::use_import_contract::unsupported_name_import_diagnostic;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
@@ -1841,9 +1841,11 @@ impl IrGenerator {
             }
             Statement::StructDef { .. } | Statement::EnumDef { .. } | Statement::ModDecl { .. } => {
             }
-            Statement::UseImport { location, .. } => {
+            Statement::UseImport {
+                syntax, location, ..
+            } => {
                 return Err(IrGenerationError::Admission(
-                    unsupported_use_import_diagnostic(location),
+                    unsupported_name_import_diagnostic(*syntax, location),
                 ));
             }
         }

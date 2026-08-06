@@ -79,8 +79,13 @@ passes all eight public checks and the unchanged pinned native exit-193 lane.
 Accepted public `CORE-071` preserves parsed Rust-like direct/aliased/glob `use`
 declarations and exact locations but rejects them consistently in semantics and
 independent checked admission. Its exact implementation passes all eight public checks
-and the unchanged pinned native exit-193 lane; no founding dotted-import, namespace,
-visibility, resolver, backend, or runtime semantics move.
+and the unchanged pinned native exit-193 lane; no namespace, visibility, resolver,
+backend, or runtime semantics move.
+Local candidate `CORE-080` additionally preserves the founding direct/aliased dotted
+`import` syntax, exact location, and distinct AST identity while routing it through the
+same fail-closed phase boundary. Focused 13/13, compatibility, complete all-features,
+static, documentation, and root gates pass. No positive name-resolution or import
+semantics move; immutable exact-head evidence remains pending.
 Accepted public `CORE-072` then adds exact Unicode `char` as a distinct CopyData leaf
 under one shared primitive authority. Raw/escaped literals, equality/inequality,
 bindings/replacement, references, calls/results, arrays, tuples, structs, owned enums
@@ -150,14 +155,16 @@ generation, Clang/MSVC linking, public `run`, manual execution, and exact exit 2
 All nine exact-head checks pass while Linux stable/nightly preserve exits 149/223/227.
 No stable ABI, general Windows, packaging, accelerator, release, safety, or performance
 claim follows.
-Local candidate `CORE-079` then replaces equality-to-first-entry loop ownership with
+Accepted public `CORE-079` then replaces equality-to-first-entry loop ownership with
 one convergent direct-enum header/exit summary shared by semantic analysis and
 independent checked admission. `while`, admitted fixed-array `for`, and `loop` recheck
 from widened `Owned`/`Moved`/`MaybeMoved` headers; post-loop state conservatively joins
 false/exhaustion and nearest-loop break exits, while the existing verifier independently
-proves cyclic consumption and repair. Focused 3/3, complete all-features, static,
-documentation, diff-hygiene, and exact root gates pass; publication, nine-check, and
-pinned Linux/Windows exit-229 gates remain.
+proves cyclic consumption and repair. Exact implementation
+`5b1ec7340db72354542ab325a9f75cad398857c2` passes all nine exact-head checks;
+stable/nightly Linux preserve exits 149/223/227 and execute exit 229, while pinned
+Windows LLVM/Clang 22.1.8 preserves exit 227 and executes exit 229 through public and
+independent native paths.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

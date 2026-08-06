@@ -8,18 +8,30 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-079` is a locally green implementation candidate for convergent direct-enum
-  loop ownership fixed points. One shared classifier joins finite ownership states at
-  the headers and exits of `while`, admitted fixed-array `for`, and `loop`; semantic
-  analysis and independent checked admission iteratively recheck the loop from each
-  widened header. This admits moved or mixed backedges only when every possible next
-  use is preceded by exact whole-owner reinitialization, carries conservative
-  `Moved`/`MaybeMoved` exit state forward, and leaves the existing independent verifier
-  cycle proof intact. The focused target passes 3/3 and the complete all-features test
-  surface is green, as are formatting, all-target/all-feature check, correctness
-  Clippy, docs, diff hygiene, and the exact repository-root gate. Publication, all-nine
-  exact-head checks, and pinned LLVM/Clang 22 native exit 229 are pending, so no public
-  acceptance is claimed.
+- `CORE-080` is locally green for exact founding dotted-import syntax retention and
+  fail-closed executable admission. Direct and optional-alias `import a.b [as c];`
+  declarations retain their dotted path, a syntax identity distinct from Rust-like
+  `use`, and the exact keyword location. Both forms consume one syntax-aware diagnostic
+  authority; existing CORE-071 wording remains byte-exact. Semantic preflight, normal
+  semantics, and independent checked admission reject executable imports before
+  checked IR, while source/file libraries, collected modules, and check/build/run leave
+  no artifacts. The focused target passes 13/13 after an exact 8/9 parser red; malformed
+  forms, the compatibility ring, all-features, 195-library, integration, doctest,
+  formatting, check, correctness-Clippy, docs, diff, and exact root gates pass. Public
+  exact-head checks remain pending. No lookup, binding, alias meaning, namespace,
+  visibility, graph, cache, backend, runtime, or ABI behavior is implemented.
+
+- `CORE-079` is accepted public at exact commit
+  `5b1ec7340db72354542ab325a9f75cad398857c2`, tree
+  `930152ff617e104025fc512337b0b31b1c187c08`, and stable patch
+  `f89e01b1f9a2e15aa3fb7a45111b7321da8d4977`. One shared classifier joins finite
+  ownership states at the headers and exits of `while`, admitted fixed-array `for`,
+  and `loop`; semantic analysis and independent checked admission recheck widened
+  headers, and the verifier retains its independent cyclic proof. All nine exact-head
+  checks pass. Stable/nightly preserve exits 149/223/227 and execute exit 229; pinned
+  Windows LLVM/Clang 22.1.8 externally/machine verifies, emits COFF, links through
+  Clang/MSVC, and returns 229 through public/manual execution. Broader ownership,
+  aggregate, drop/lifetime, ABI, module, runtime, and accelerator claims remain absent.
 
 - `CORE-078` is accepted public at exact commit
   `70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe`, tree

@@ -40,7 +40,7 @@ use crate::tuple_contract::{
     classify_copy_tuple_elements, classify_tuple_projection, validate_tuple_binding,
 };
 use crate::types::{OwnershipState, Ty, infer_binary_type};
-use crate::use_import_contract::unsupported_use_import_diagnostic;
+use crate::use_import_contract::unsupported_name_import_diagnostic;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -2234,8 +2234,10 @@ impl SemanticAnalyzer {
             | Statement::StructDef { .. }
             | Statement::EnumDef { .. }
             | Statement::ModDecl { .. } => {}
-            Statement::UseImport { location, .. } => {
-                return Err(unsupported_use_import_diagnostic(location));
+            Statement::UseImport {
+                syntax, location, ..
+            } => {
+                return Err(unsupported_name_import_diagnostic(*syntax, location));
             }
         }
         Ok(())
@@ -3573,9 +3575,9 @@ impl SemanticAnalyzer {
             }
             // Phase 7: Module system
             Statement::ModDecl { .. } => Ok(()),
-            Statement::UseImport { location, .. } => {
-                Err(unsupported_use_import_diagnostic(location))
-            }
+            Statement::UseImport {
+                syntax, location, ..
+            } => Err(unsupported_name_import_diagnostic(*syntax, location)),
         }
     }
 

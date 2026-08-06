@@ -4,20 +4,32 @@ Last updated: 2026-08-06 (America/New_York)
 
 ## Current objective
 
-Milestone 99 `CORE-079` is a locally green implementation candidate for convergent
-direct-enum loop ownership fixed points. One phase-neutral classifier now joins
-`Owned`/`Moved`/`MaybeMoved` states at the header and exit of statement `while`,
-admitted fixed-array `for`, and `loop`; semantic analysis and independent checked
-admission recheck each body only while that finite header widens. The converged header
-governs condition/body use, and the conservative exit joins false/exhaustion and
-nearest-loop `break` paths while return paths do not join. Unsafe missing/bypassed
-reinitialization, repeated use, borrowed edges, enum aggregate storage, and verifier
-corruptions remain fail closed. The focused target passes 3/3; the complete all-
-features test surface, 195 library tests, every integration target, and doctests are
-green. Formatting, all-target/all-feature check, correctness Clippy, docs, diff hygiene,
-and the exact repository-root gate also pass. Immutable candidate publication, all
-nine exact-head public checks, and pinned Linux/Windows LLVM 22 native exit 229 remain
-pending; this is not accepted public.
+Milestone 100 `CORE-080` is a locally green candidate for founding dotted-import
+syntax retention and fail-closed executable admission. Page 2 of the original mandate
+defines `import a.b [as c];` but supplies no name-resolution semantics. The lexer and
+parser now retain direct/aliased dotted paths, a distinct `FoundingDottedImport` AST
+identity, and the exact keyword location. One syntax-aware diagnostic authority keeps
+accepted Rust-like `use` wording byte-exact while semantic preflight, ordinary semantic
+analysis, and independent checked admission reject executable founding imports before
+checked IR. The focused target passes 13/13 after an exact 8/9 parser red; malformed
+forms, libraries, collected modules, and check/build/run artifact hygiene are covered.
+The module/closure/parser/Phase-5/CORE-079 ring, complete all-features surface, 195
+library tests, every integration target, doctests, formatting, all-target/all-feature
+check, correctness Clippy, docs, diff hygiene, and the exact root gate pass. Publication
+and all-nine exact-head checks remain pending. This adds no lookup, binding, alias
+meaning, namespace, visibility, recursive graph, cache, backend, runtime, or ABI rule.
+
+Milestone 99 `CORE-079` is accepted public at exact commit
+`5b1ec7340db72354542ab325a9f75cad398857c2`, tree
+`930152ff617e104025fc512337b0b31b1c187c08`, and stable patch ID
+`f89e01b1f9a2e15aa3fb7a45111b7321da8d4977`. One phase-neutral classifier joins
+`Owned`/`Moved`/`MaybeMoved` loop headers and exits, semantic analysis and independent
+checked admission recheck widened headers, and the verifier independently proves
+cyclic consumption/repair. All nine exact-head checks pass. Stable/nightly Linux
+preserve exits 149/223/227 and execute exit 229; the SHA-256-pinned Windows LLVM/Clang
+22.1.8 lane externally/machine verifies, emits COFF, links through Clang/MSVC, and
+returns 229 through public and manual native execution. No general ownership, memory-
+safety, aggregate, drop/lifetime, ABI, module, runtime, or accelerator claim follows.
 
 Milestone 98 `CORE-078` is accepted public at exact commit
 `70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe`, tree

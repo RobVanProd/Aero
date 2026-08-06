@@ -3413,11 +3413,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-075 - Compute convergent direct-enum loop ownership summaries
 
 - Date: 2026-08-06
-- Status: locally green `CORE-079` implementation candidate. Focused tests pass 3/3;
-  complete all-features, formatting, all-target/all-feature check, correctness Clippy,
-  docs, diff hygiene, and exact root gates pass. Immutable publication, all-nine exact-
-  head checks, and pinned Linux/Windows native exit 229 remain pending. No public
-  acceptance is claimed.
+- Status: accepted public `CORE-079` at exact implementation
+  `5b1ec7340db72354542ab325a9f75cad398857c2`. All nine exact-head checks pass;
+  stable/nightly Linux preserve exits 149/223/227 and execute exit 229, while pinned
+  Windows LLVM/Clang 22.1.8 preserves exit 227 and executes exit 229 through public and
+  independent native paths.
 - Decision: statement `while`, admitted fixed-array `for`, and `loop` compute one
   finite ownership fixed point for each direct admitted enum owner. The header begins
   at the exact preheader state and joins reachable fallthrough and nearest-loop
@@ -3444,3 +3444,37 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   runtime, GPU, release, safety, or performance semantics. It implements one shared
   classification instead of adding topology-specific semantic/admission guards; the
   mega-PR checkpoint strategy and structured evidence manifest remain separate work.
+
+## DEC-076 - Preserve founding dotted imports but fail closed before checked IR
+
+- Date: 2026-08-06
+- Status: locally green `CORE-080` implementation candidate. Focused tests pass 13/13;
+  the compatibility ring, complete all-features surface, formatting, all-target/all-
+  feature check, correctness Clippy, docs, diff hygiene, and exact root gate pass.
+  Immutable publication, all-nine exact-head checks, and preservation of pinned exits
+  149/223/227/229 remain pending. No public acceptance is claimed.
+- Source-grounded decision: page 2 of the founding mandate defines `import` followed by
+  one or more dot-separated identifiers, an optional `as` identifier, and `;`. The
+  execution-quality framework supplies no lookup, namespace, visibility, conflict,
+  cycle, cache, or package semantics. Preserve that exact direct/aliased grammar and
+  keyword location as syntax evidence, but treat every executable founding import as
+  unsupported until those semantics are separately frozen.
+- Shared phase boundary: the AST records `FoundingDottedImport` separately from the
+  accepted CORE-071 `RustLikeUse` identity. Semantic preflight, ordinary semantic
+  statement analysis, and independent checked admission consume one syntax-aware
+  `unsupported_name_import_diagnostic` authority. Neither syntax can be silently erased
+  or reach checked IR; the CORE-071 diagnostic remains byte-exact.
+- Evidence: the red retained 8/9 existing controls but failed both valid founding forms
+  because `import` lexed as an identifier and parsing stopped at the first dot. The
+  green product covers direct/aliased AST retention, exact location, both semantic
+  routes, direct checked admission, source/file/collected-module compilation, public
+  check/build/run artifact hygiene, eight malformed forms, and ordinary module/use
+  compatibility. The focused target is 13/13 and the 195-library complete surface plus
+  every integration target and doctest pass.
+- Exclusions and scaling boundary: this adds no lookup, binding, qualified-name use,
+  alias/glob meaning, visibility, re-export, prelude, conflict/shadow policy, recursive
+  module graph, cycle detection, cache identity, separate compilation, checked opcode,
+  backend/runtime/ABI, package/registry, GPU, release, performance, or stability
+  behavior. One shared syntax classification avoids phase-local topology guards. The
+  mega-PR checkpoint strategy, structured evidence manifest, positive module/runtime/
+  ABI work, and hardware GPU execution remain separately authorized controls.

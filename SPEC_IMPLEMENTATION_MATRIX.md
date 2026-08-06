@@ -70,8 +70,11 @@ it changes no language-feature stage, evidence cell, or feature-level class.
 Accepted public `CORE-071` adds exact negative/diagnostic evidence for the already
 parsed-only Rust-like `use` subset: parsed path/alias/glob data and source location are
 preserved, while semantics and checked admission fail closed before IR. It does not
-change the combined modules/imports/visibility row or implement the founding dotted
-`import` grammar or name resolution.
+change the combined modules/imports/visibility row or implement name resolution.
+Local `CORE-080` adds syntax evidence for the founding direct/aliased dotted `import`
+grammar under a distinct AST identity and the same syntax-aware unsupported-import
+authority. Executable imports still fail before checked IR, so no positive semantic,
+IR, backend, execution, or stability cell changes and the row remains `PARSED_ONLY`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact
@@ -136,14 +139,15 @@ while preserving exits 149/223. Projections/partial moves, enum storage/borrowin
 drop/lifetimes, stable ABI, imports, accelerators, release, safety, and general
 non-enum loop dataflow remain excluded; the row stays `PARTIAL`.
 
-Local candidate `CORE-079` adds the convergent fixed-point row without changing enum
+Accepted public `CORE-079` adds the convergent fixed-point row without changing enum
 topology or backend layout. One shared classifier joins `Owned`/`Moved`/`MaybeMoved`
 at loop headers and exits; semantic analysis and independent checked admission recheck
 `while`, admitted fixed-array `for`, and `loop` until the finite header stabilizes.
-The existing verifier remains the independent cycle proof. The focused target passes
-3/3; complete all-features, static, documentation, diff-hygiene, and exact root gates
-pass. Public/native gates remain pending, so the row remains `PARTIAL` and is not
-accepted public.
+The existing verifier remains the independent cycle proof. Exact implementation
+`5b1ec7340db72354542ab325a9f75cad398857c2`, all nine exact-head checks, pinned
+stable/nightly exits 149/223/227/229, and bounded Windows public/manual exit 229 pass.
+The ownership row remains `PARTIAL`; no broader enum, ownership, ABI, or safety
+capability follows.
 
 Accepted public `CORE-078` changes no language or matrix row. Exact implementation
 `70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe` adds one Windows x86_64 CPU evidence

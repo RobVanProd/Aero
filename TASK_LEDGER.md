@@ -15928,3 +15928,158 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   commit/push one immutable candidate, synchronize draft PR #4 as candidate-only, and
   require all nine exact-head checks plus pinned Linux/Windows exit 229 while preserving
   149/223/227. Public acceptance remains false until that exact head is fully green.
+
+### CORE-079 accepted public checkpoint
+
+- Accepted identity: immutable implementation
+  `5b1ec7340db72354542ab325a9f75cad398857c2`, tree
+  `930152ff617e104025fc512337b0b31b1c187c08`, and stable patch ID
+  `f89e01b1f9a2e15aa3fb7a45111b7321da8d4977` are accepted public without moving
+  the candidate head.
+- Exact-head evidence: aggregate CodeQL check `92587939555`; Windows native run
+  `31092886636`, job `92587825108`; pull-request compiler run `31092886474`, job
+  `92587824305`; stable Linux job `92587825173`; nightly Linux job `92587825181`;
+  CodeQL Actions/Python/Rust jobs `92587816880`, `92587816940`, and `92587817010`;
+  and push compiler run `31092883419`, job `92587813922` all passed at the exact
+  accepted commit.
+- System evidence: stable and nightly Linux each retained exact exits 149, 223, and
+  227 and executed CORE-079 at exact exit 229. The Windows lane matched the official
+  archive digest, required exact LLVM/Clang 22.1.8 tools, rejected known-invalid IR
+  and invalid source without an artifact, preserved the frozen MSVC triple/data
+  layout, externally and machine verified, emitted COFF, linked through Clang/MSVC,
+  preserved public/manual exit 227, and returned 229 through both public `run` and
+  independent native execution.
+- Rendered integration record: draft PR #4 remains open, unmerged, and cleanly
+  mergeable; its title and first heading identify CORE-079 accepted public, its exact
+  head remains `5b1ec734...`, all 18 CORE-078/079 evidence links render, and no stale
+  candidate-only or acceptance-pending wording remains. The exact repository records
+  preserve candidate-time state; the PR front page records subsequent acceptance.
+
+## CORE-080 - preserve founding dotted imports and fail closed before checked IR
+
+- Date/task/status: 2026-08-06, `CORE-080`, authorized and active after exact
+  CORE-079 public acceptance. PR #4 remains draft, open, cleanly mergeable, and
+  unmerged. User-owned untracked `tmp/` remains outside this task.
+- Source-grounded observed behavior: page 2 of
+  `__Aero___ A High-Performance, Ergonomic Programming Language.pdf` defines the
+  founding syntax as `import` followed by one or more dot-separated identifiers, an
+  optional `as` identifier, and a semicolon. The one-page execution-quality framework
+  supplies no lookup, namespace, visibility, conflict, cycle, or cache rules. Accepted
+  CORE-071 instead retains Rust-like `use a::b [as c];` and terminal glob syntax, then
+  rejects it through one shared diagnostic before checked IR. Its focused control
+  proves `import package.value;` is still a parse error, so the founding source shape
+  and its exact location are currently lost.
+- Hypothesis and smallest complete change: add one strict `import` token and parser
+  route, retain a syntax-kind identity plus exact keyword location on the existing
+  import AST statement, and route both `use` and founding `import` through one shared
+  unsupported-name-import diagnostic authority already consumed by semantic preflight,
+  ordinary semantic statement analysis, and independent checked admission. Existing
+  `use` diagnostic text and every accepted behavior remain byte-exact. No phase may
+  silently erase either syntax or manufacture checked IR.
+- Frozen positive syntax only: retain exact direct dotted paths such as
+  `import package.value;` and exact optional aliases such as
+  `import package.value as renamed;`. A path contains at least one identifier, dot may
+  only separate identifiers, alias requires one identifier, and the declaration ends
+  in `;`. Retain the `import` keyword's filename/line/column and distinguish founding
+  dotted syntax from Rust-like `use` syntax in the AST. Parsing is evidence only.
+- Frozen executable semantics and exclusions: every founding import remains
+  unsupported during executable analysis. No name lookup, local binding, qualification,
+  alias meaning, glob/list import, visibility or `pub`, re-export, namespace, prelude,
+  conflict/shadow policy, unused-import rule, recursive module graph, cycle detection,
+  cache identity, separate compilation, checked opcode, LLVM/backend/runtime/ABI,
+  package, registry, accelerator, release, or stability behavior is added. Existing
+  root-level direct `mod x;` collection and accepted Rust-like `use` containment do not
+  move. Malformed dotted imports remain strict parse failures.
+- Red-first plan: revise `use_import_containment_tests` before production mutation so
+  valid direct/aliased founding forms must lex and retain exact AST syntax/path/location,
+  fail in both semantic routes and direct checked admission with one deterministic
+  founding-import diagnostic, fail through source/file library and public
+  check/build/run paths without LLVM/native artifacts, and work identically inside a
+  collected direct module. The current parser must fail that positive retention case.
+  Preserve malformed `use`, malformed founding forms, byte-exact CORE-071 diagnostics,
+  ordinary source/direct modules, closures, references, enums, Match, tuples, arrays,
+  chars, and CORE-043 through CORE-079 behavior.
+- Allowed files: `src/compiler/src/{lexer,parser,ast,use_import_contract,
+  semantic_analyzer,ir_generator}.rs`; `src/compiler/tests/use_import_containment_tests.rs`;
+  directly coupled lexer/parser/AST tests only if the focused target exposes a missing
+  invariant; and, only after exact green, the affected task/decision/state/capability/
+  matrix/framework/roadmap/README records and PR #4 metadata. No workflow or native
+  specimen change is expected because execution remains rejected and the accepted
+  exit-229 system lane must remain byte-identical.
+- Acceptance tests: exact focused red then green; deterministic classifier/diagnostic
+  units; existing CORE-071 target byte-exact preservation; direct semantic and checked-
+  admission rejection; library and CLI artifact hygiene; collected-module location;
+  malformed lexical/parser matrix; relevant closure/module/reference/enum/aggregate
+  compatibility ring; all-feature tests; formatting; all-target/all-feature check;
+  correctness Clippy; docs; `git diff --check`; exact repository-root `./tools/test.sh`;
+  and all nine exact-head public checks. Stable/nightly Linux and the pinned Windows
+  lane must preserve exits 149/223/227/229 unchanged.
+- Risks and stop conditions: stop rather than invent semantics if retention requires a
+  lookup/binding rule, the founding and current grammars cannot share one deterministic
+  phase-neutral disposition, existing `use` diagnostics or AST meaning would change,
+  malformed input recovers as valid, a declaration can reach checked IR/LLVM, a public
+  command leaves an artifact, an unrelated baseline is red, or the task expands into
+  module resolution, visibility, backend, runtime, ABI, or package behavior.
+- Scaling controls: accepted ARCH-002 remains the model for shared supported/rejected/
+  preserved classification; CORE-080 extends one import-syntax identity instead of
+  adding phase-local topology guards. It follows the hard CORE-079 CFG slice and does
+  not substitute for positive module/runtime/ABI/GPU work. The 280-commit mega-PR still
+  requires a separately authorized checkpoint strategy; structured evidence manifests
+  remain separately queued; and the unchanged composed exit-229 lane is the periodic
+  system-level regression gate for this containment-only checkpoint.
+
+### CORE-080 exact red checkpoint
+
+- Before production mutation, the revised focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  use_import_containment_tests -- --nocapture` runs 8/9 green. The new retention test
+  lexes both declarations but parsing fails at `alpha` column 8 and `gamma` column 27
+  because `import` remains an ordinary identifier and the expression parser expects a
+  semicolon before each dotted path. This is the exact founding-grammar loss.
+- Existing direct/aliased/glob `use` retention, malformed-use parse failure, semantic
+  and independent checked-admission rejection, source/file/direct-module routes,
+  check/build/run artifact hygiene, and ordinary source/module controls all remain
+  green. No production, workflow, example, dependency, `master`, release, or `tmp/`
+  file changed at the red checkpoint.
+
+### CORE-080 locally green implementation checkpoint
+
+- Implementation: `Token::Import` and a strict founding parser retain one or more
+  dotted identifiers, an optional identifier alias, the required semicolon, and the
+  exact keyword location. `ImportSyntax::{RustLikeUse, FoundingDottedImport}` preserves
+  syntax-family identity on `Statement::UseImport`. Both semantic routes and independent
+  checked admission call one `unsupported_name_import_diagnostic` authority; existing
+  CORE-071 `use` text remains byte-exact and founding imports receive one deterministic
+  source-located rejection. No checked opcode, LLVM path, workflow, native specimen,
+  dependency, or positive resolution rule changed.
+- Focused evidence: the exact red command now passes 13/13. Coverage includes founding
+  direct/aliased AST identity and locations; direct semantic preflight, ordinary
+  semantic analysis, and checked admission; source/file/collected-module routes;
+  public check/build/run artifact hygiene; eight strict malformed forms; byte-exact
+  Rust-like direct/aliased/glob `use` containment; and ordinary source/module controls.
+  The shared diagnostic unit covers both syntax identities.
+- Compatibility evidence: `use_import_containment_tests` passes 13/13,
+  `closure_containment_tests` 7/7, `direct_module_execution_tests` 1/1,
+  `fatal_parse_tests` 11/11, `loop_enum_fixed_point_tests` 3/3,
+  `module_pipeline_tests` 7/7, `phase5_tests` 22 pass/16 ignored, and
+  `strict_lexing_tests` 12/12. Ordinary functions, references, enums, Match, tuples,
+  arrays, modules, closures, and accepted CORE-043 through CORE-079 behavior remain
+  unchanged.
+- Complete local evidence: `cargo fmt --check`, all-target/all-feature `cargo check`,
+  correctness Clippy, no-dependency docs, and `git diff --check` pass. Complete
+  `cargo test --all-features` passes the 195 library tests, every integration target,
+  and doctests in 278.9 seconds. The exact repository-root `./tools/test.sh`, launched
+  from Git Bash with `C:\Users\usa50\.cargo\bin` inherited on PATH, passes in 25.5
+  seconds. An initial PowerShell invocation could not find `cargo` on PATH; using the
+  authenticated toolchain's absolute path proved this was an environment-path issue,
+  not a compiler or Windows Security failure.
+- Files changed: `src/compiler/src/{ast,lexer,parser,use_import_contract,
+  semantic_analyzer,ir_generator}.rs`,
+  `src/compiler/tests/use_import_containment_tests.rs`, and the authorized ledger,
+  decision, state, capability, matrix, framework, roadmap, risk, backend, and README
+  records. User-owned untracked `tmp/` remains untouched and outside candidate scope.
+- Candidate/public boundary: these results establish a locally green implementation,
+  not public acceptance. Exact staged review, immutable commit/tree/patch identity,
+  publication, rendered PR #4 candidate metadata, all nine exact-head checks, and
+  stable/nightly/Windows preservation of exits 149/223/227/229 remain required. Stop
+  and retain candidate status on any failure; do not add resolver semantics as a repair.
