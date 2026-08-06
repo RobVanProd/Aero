@@ -668,7 +668,7 @@ impl Parser {
                         return Ok(Expression::EnumVariant {
                             enum_name: "Option".to_string(),
                             variant: "Some".to_string(),
-                            data: Some(Box::new(value)),
+                            data: Some(vec![value]),
                         });
                     }
                     "None" => {
@@ -687,7 +687,7 @@ impl Parser {
                         return Ok(Expression::EnumVariant {
                             enum_name: "Result".to_string(),
                             variant: "Ok".to_string(),
-                            data: Some(Box::new(value)),
+                            data: Some(vec![value]),
                         });
                     }
                     "Err" => {
@@ -698,7 +698,7 @@ impl Parser {
                         return Ok(Expression::EnumVariant {
                             enum_name: "Result".to_string(),
                             variant: "Err".to_string(),
-                            data: Some(Box::new(value)),
+                            data: Some(vec![value]),
                         });
                     }
                     _ => {}
@@ -1366,11 +1366,20 @@ impl Parser {
                 ));
             }
         };
-        // Check for variant data: Variant(expr)
+        // Preserve the exact positional list. Semantic admission distinguishes
+        // unary tuple data `Variant((a, b))` from two fields `Variant(a, b)`.
         let data = if self.match_token(&Token::LeftParen) {
-            let expr = self.parse_expression()?;
+            let mut fields = Vec::new();
+            if !self.check(&Token::RightParen) {
+                loop {
+                    fields.push(self.parse_expression()?);
+                    if !self.match_token(&Token::Comma) {
+                        break;
+                    }
+                }
+            }
             self.consume(Token::RightParen, "Expected ')' after variant data")?;
-            Some(Box::new(expr))
+            Some(fields)
         } else {
             None
         };
@@ -1436,7 +1445,7 @@ impl Parser {
                         return Ok(Pattern::Enum {
                             enum_name: "Option".to_string(),
                             variant: "Some".to_string(),
-                            data: Some(Box::new(inner)),
+                            data: Some(vec![inner]),
                         });
                     }
                     "None" => {
@@ -1455,7 +1464,7 @@ impl Parser {
                         return Ok(Pattern::Enum {
                             enum_name: "Result".to_string(),
                             variant: "Ok".to_string(),
-                            data: Some(Box::new(inner)),
+                            data: Some(vec![inner]),
                         });
                     }
                     "Err" => {
@@ -1466,7 +1475,7 @@ impl Parser {
                         return Ok(Pattern::Enum {
                             enum_name: "Result".to_string(),
                             variant: "Err".to_string(),
-                            data: Some(Box::new(inner)),
+                            data: Some(vec![inner]),
                         });
                     }
                     _ => {}
@@ -1490,9 +1499,17 @@ impl Parser {
                         }
                     };
                     let data = if self.match_token(&Token::LeftParen) {
-                        let inner = self.parse_pattern()?;
+                        let mut fields = Vec::new();
+                        if !self.check(&Token::RightParen) {
+                            loop {
+                                fields.push(self.parse_pattern()?);
+                                if !self.match_token(&Token::Comma) {
+                                    break;
+                                }
+                            }
+                        }
                         self.consume(Token::RightParen, "Expected ')'")?;
-                        Some(Box::new(inner))
+                        Some(fields)
                     } else {
                         None
                     };

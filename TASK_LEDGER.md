@@ -13596,3 +13596,170 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `agent/aero-integration`, draft PR #4 must be synchronized immediately to the
   accepted records head, and all eight checks must pass again before administrative
   closure.
+
+## CORE-069 - Positional multi-field recursive CopyData enum variants
+
+- Task ID/date/owner: `CORE-069`, 2026-08-05, lead-owned red-first vertical slice.
+  Starting identity is accepted CORE-068 records head
+  `9175add20896a3ac79d99acec053b82cd12b48a1` on
+  `agent/aero-integration`; local and remote heads match, all eight closure checks
+  pass, `master` remains unchanged, and draft PR #4 is open and unmerged. Existing
+  untracked `tmp/` is preserved user state and remains outside this task.
+- Selection and specification evidence: the primary founding framework defines enum
+  variants as an identifier followed by an optional parenthesized `type_list`, and
+  requires algebraic sum types, exhaustive Match, source-order evaluation, strong
+  static types, typed IR, and LLVM-first native execution. The accepted compiler
+  already carries unit and exactly-one-field recursive `CopyData` variants through
+  construction, ownership, function transport, Match, checked IR, verification, and
+  native code, but the shared `EnumRegistry` rejects every positional declaration
+  with two or more fields. This is a specified false rejection and a hard aggregate/
+  ownership/backend capability class, not another audit or compile-time leaf.
+- Observed behavior and primary hypothesis: declarations retain `Tuple(Vec<Type>)`,
+  while constructor and pattern AST nodes retain only one optional child; the parser
+  therefore cannot retain the founding comma-separated constructor/pattern topology.
+  `EnumVariantSchema`, checked construction/extraction, verification, and LLVM lower
+  one optional payload. One generalized positional-payload schema owned by the existing
+  enum classifier can preserve exact field count/order/types through all phases. A
+  variant lane can remain private: zero fields has no lane, one field retains its exact
+  existing lane, and two or more fields use one exact ordered product lane. No source
+  field may be silently packed, dropped, reordered, duplicated, or replaced by a
+  scalar fallback.
+- Frozen supported definition class: an admitted non-generic enum has one or more
+  uniquely named variants; each variant is unit or a positional tuple declaration
+  with one or more fields; every field independently resolves through the complete
+  accepted finite recursive `CopyData` grammar (`Int`, `Float`, `Bool`, fixed arrays
+  including length zero, arity-at-least-two tuples, and finite acyclic named structs).
+  A newly positive CORE-069 schema contains at least one variant with two or more
+  fields, and may mix unit, unary, and multi-field variants in declaration order.
+  Unary tuple-typed fields remain distinct from multi-field variants.
+- Frozen construction and evaluation semantics: source `Enum::Variant()` is not a
+  unit constructor; unit variants remain `Enum::Variant`. Positional construction is
+  `Enum::Variant(expr, ...)` with exact declared arity and exact field types. Arguments
+  evaluate exactly once from left to right before the enum value exists. A unary
+  tuple field uses `Enum::Variant((a, b))`; a two-field variant uses
+  `Enum::Variant(a, b)`. Missing, excess, reordered-by-type, unsupported, or mismatched
+  fields reject deterministically before checked IR.
+- Frozen Match and ownership semantics: exhaustive Match retains exactly one explicit
+  arm per declared variant in arbitrary arm order. A unit arm is payload-free; a
+  positional arm uses exactly one valid, distinct identifier binding per declared
+  field in order. All bindings are arm-local CopyData values; they cannot shadow the
+  consumed scrutinee, leak, duplicate one another, or use wildcard/literal/nested
+  destructuring. Match consumes the whole non-Copy enum once and exposes all selected
+  CopyData fields without partial enum ownership. Existing whole-enum local binding,
+  function parameter/call/result transport, direct whole-owner reassignment, acyclic
+  conditional ownership, and fresh per-iteration loop-local ownership apply unchanged
+  to the generalized schema.
+- Frozen checked IR/backend contract: schema identity includes enum name, declaration-
+  ordered variant names, and every declaration-ordered payload field type. Checked
+  construction carries the exact ordered value vector; checked extraction names both
+  variant and field index; the verifier independently proves definition finiteness,
+  CopyData leaves, global schema identity, arity/type/dominance, selected-variant field
+  extraction, exhaustive dispatch, function transport, mutable whole-place identity,
+  and one-consumption ownership dataflow. Private LLVM uses the existing tag and one
+  lane per payload-bearing variant; a multi-field lane is an exact ordered product.
+  Unit and unary representations remain byte-for-byte compatible where their schema
+  is unchanged. No public layout, discriminant, ABI, FFI, or stability promise follows.
+- Complete negative surface: empty tuple declarations/constructors; missing/excess or
+  wrong-order fields; wrong enum/variant identity; unsupported String/reference/enum/
+  Option/Result/generic/cyclic leaves; generic and named-field variants; duplicate or
+  invalid variant/binder names; unit-with-parentheses; foreign/duplicate/incomplete
+  arms; wildcard/literal/nested/struct patterns; binder leakage/shadowing/duplication;
+  double whole-enum consumption; enum arrays/fields/references/projections; raw checked
+  construction/extraction/schema/call/assignment corruption; and legacy unchecked
+  generation. Invalid public `check`, `build`, and `run` must fail before a requested
+  artifact or native execution.
+- Executable completion surface: one exhaustive target and tracked two-file direct-
+  module program must compose mixed unit/unary/multi-field schemas, recursive CopyData
+  fields, constructor/call/result origins, exhaustive Match with every field used,
+  whole-owner reassignment, acyclic conditionals, loop-local values, fixed-array
+  queries, ordinary calls, and exact returns. It must cross parsing, semantics,
+  checked IR, independent verification, deterministic LLVM, pinned `opt-22`,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22` link, and exact native
+  exit 193. A rejection-only result cannot close CORE-069.
+- Allowed files: this single authorization/result record; `ast.rs`, `parser.rs`, the
+  shared enum contract, semantic enum consumers, checked IR/schema, checked lowering,
+  verifier, private LLVM generator, and module declarations only as required; one
+  exhaustive `multi_field_enum_tests.rs`; directly superseded enum AST/parser/
+  contract/verifier expectations; one tracked `examples/multi_field_enum/` module
+  pair; `.github/workflows/rust.yml`; and, only after the exact implementation is
+  locally green, the current capability/framework/state/decision/audit/README/roadmap/
+  backend records and rendered draft PR #4. Runtime/dependencies and `master` are
+  frozen.
+- Stop and exclusion boundary: stop rather than narrow the positional class if one
+  field shape needs a second topology guard, if the shared schema cannot distinguish
+  unary tuple fields from multi-field variants, if whole-enum ownership would become
+  per-field/partial ownership, if evaluation order cannot be preserved, or if an
+  unrelated baseline becomes red. Do not add named-field variants, generic enums,
+  Option/Result, wildcard/guard/nested destructuring, enum aggregate storage or
+  borrowing/projection, moved-target reinitialization, new CFG/lifetime/drop behavior,
+  runtime Strings/collections, stable layout/ABI/FFI, accelerators, benchmarks,
+  releases, claims, merge, force-push, or history rewrite.
+- Acceptance gates and evidence discipline: first add one exhaustive behavioral red
+  that proves every positive field topology reaches the current shared rejection and
+  every negative boundary stays contained. Then make the smallest complete vertical
+  change, run focused classifier/parser/AST/semantic/IR/verifier/backend targets, the
+  full affected compatibility ring, formatting, all-target/all-feature check,
+  correctness Clippy, docs, exact repository-root `./tools/test.sh`, deterministic
+  local source-to-native exit 193, and pinned public LLVM/Clang 22 system evidence.
+  Amend this one task record with local results before the immutable candidate is
+  published; do not create a records-only acceptance commit. Immediately synchronize
+  PR #4 to the candidate, require all eight checks once on that exact head, and record
+  public acceptance in rendered PR metadata. Candidate and public acceptance remain
+  explicitly distinct.
+- Scaling controls: PR #4 remains a 265-commit integration program requiring a
+  separately authorized checkpoint strategy; this is a hard aggregate/ownership/
+  backend slice; one generalized schema classifier and one exhaustive product prevent
+  per-arity guard growth; one composed source-to-native program is the periodic system
+  gate; structured evidence-manifest generation remains separate. Status at
+  authorization: no CORE-069 test, example, workflow anchor, production mutation, or
+  claim exists. Next action is the exact exhaustive red on accepted head `9175add`.
+- Corrected red before production: the new exhaustive target compiles and runs 0/1
+  on exact accepted head `9175add`. Declaration parsing already preserves ordered
+  arities `0/1/2/3`, but every comma-separated constructor and enum-pattern specimen
+  fails at the current single-child parser boundary. All four positive products and
+  the composed program therefore fail before semantics; checked IR/LLVM is absent;
+  the tracked module pair and six stable-workflow anchors are absent. Every negative
+  definition, arity, type, pattern, ownership, storage, and CLI/no-artifact control
+  remains rejected. The first red also compared guessed future semantic fragments to
+  current parser errors; the test-only correction accepts existing parse-phase
+  rejection while retaining exact post-parser fragment requirements. Rerunning leaves
+  only the intended positive/parser/IR/example/workflow findings. No production file
+  has changed; this exact red authorizes the generalized positional schema and its
+  parser/semantic/checked-IR/verifier/backend consumers.
+- Local candidate result: the parser/AST now retain `None` versus an explicit ordered
+  positional vector, including the rejected empty-parentheses topology. The existing
+  enum classifier resolves every declared positional field through the one recursive
+  CopyData registry and represents only arity-two-or-more payloads as the private
+  `EnumFields` product; unit and unary schema identities remain unchanged. Semantic
+  inference, checked admission, and checked lowering use exact arity/type vectors and
+  arm-local ordered bindings. Checked IR adds separate multi-field construction and
+  field-indexed extraction identities. One shared verifier guard proves both unary
+  payload and multi-field extraction are uniquely reached from their matching dispatch
+  target; corruption controls reject arity/type/index/schema changes, unguarded fields,
+  nested private products, and unary-identity substitution. LLVM lowers one ordered
+  private product lane and uses typed `insertvalue`/`extractvalue` only.
+- Local evidence: `multi_field_enum_tests` passes its complete mixed-schema,
+  recursive-field, unary-tuple distinction, evaluation-order, ownership, transport,
+  control-flow, negative-containment, CLI/no-artifact, deterministic-LLVM, example,
+  and workflow assertions. The dedicated verifier corruption unit passes. Directly
+  superseded scalar/unit/unary enum targets were updated only for the new vector AST,
+  generalized diagnostic name, and formerly excluded multi-field class; scalar
+  payload Match, unit Match, payload transport, recursive payload, and owned enum
+  reassignment targets all pass unchanged behavior. `cargo test --all-targets
+  --all-features` passes 186/186 library tests plus every integration target and
+  benchmark harness. `cargo fmt --all -- --check`, `cargo check --all-targets
+  --all-features`, correctness Clippy, `cargo doc --no-deps --all-features`, and the
+  exact serialized repository-root `./tools/test.sh` gate pass. The first root command
+  stopped before any gate because Git Bash lacked Cargo; prepending
+  `C:\Users\usa50\.cargo\bin` and rerunning the unchanged gate passed. No test or
+  compiler behavior was changed for that host-shell correction.
+- Executable evidence and candidate boundary: the tracked `examples/multi_field_enum/`
+  module pair builds twice to byte-identical 43,749-byte LLVM with SHA-256
+  `5387f24c4586dca3615f4283dfe770abd21b8184cc04299790bb53f3058f198e`.
+  This host accurately reports `InternalOnly` because LLVM 22 is absent. Visual Studio
+  Clang 19.1.5 links the artifact and native execution returns exact 193. The candidate
+  remains unpublished and unaccepted until one immutable commit is pushed, PR #4 is
+  synchronized, pinned stable/nightly LLVM 22 verify and execute it, and all eight
+  public checks pass. No records-only acceptance commit will follow; public acceptance
+  belongs in rendered PR metadata. All exclusions and four scaling controls remain
+  active.

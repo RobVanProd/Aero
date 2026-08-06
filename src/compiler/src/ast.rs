@@ -72,7 +72,10 @@ pub enum Expression {
     EnumVariant {
         enum_name: String,
         variant: String,
-        data: Option<Box<Expression>>,
+        /// `None` is a unit variant without parentheses. `Some(fields)` preserves
+        /// the exact parenthesized positional field list, including an empty list
+        /// so checked semantics can reject `Variant()` without erasing syntax.
+        data: Option<Vec<Expression>>,
     },
     Match {
         expr: Box<Expression>,
@@ -189,7 +192,9 @@ pub enum Pattern {
     Enum {
         enum_name: String,
         variant: String,
-        data: Option<Box<Pattern>>,
+        /// Exact parenthesized positional bindings. As with expressions, `None`
+        /// distinguishes a unit arm from an explicitly empty field list.
+        data: Option<Vec<Pattern>>,
     },
 }
 

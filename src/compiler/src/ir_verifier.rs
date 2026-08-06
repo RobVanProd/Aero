@@ -314,6 +314,14 @@ fn physical_copy_type_hint(logical_type: &LogicalType) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
+        LogicalType::EnumFields { fields } => format!(
+            "{{ {} }}",
+            fields
+                .iter()
+                .map(physical_copy_type_hint)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         LogicalType::Void
         | LogicalType::String
         | LogicalType::ImmutableReference { .. }
@@ -350,6 +358,15 @@ fn valid_owned_place_type(ty: &LogicalType) -> bool {
         )
 }
 
+fn valid_enum_payload_type(payload: &LogicalType) -> bool {
+    match payload {
+        LogicalType::EnumFields { fields } => {
+            fields.len() >= 2 && fields.iter().all(valid_copy_data_type)
+        }
+        _ => valid_copy_data_type(payload),
+    }
+}
+
 fn valid_enum_schema(schema: &EnumSchema) -> bool {
     let mut unique = BTreeSet::new();
     valid_symbol(&schema.name)
@@ -357,7 +374,7 @@ fn valid_enum_schema(schema: &EnumSchema) -> bool {
         && schema.variants.iter().all(|variant| {
             valid_symbol(&variant.name)
                 && unique.insert(&variant.name)
-                && variant.payload.as_ref().is_none_or(valid_copy_data_type)
+                && variant.payload.as_ref().is_none_or(valid_enum_payload_type)
         })
 }
 
@@ -375,6 +392,7 @@ fn valid_copy_data_type(logical_type: &LogicalType) -> bool {
         LogicalType::Struct { name, fields } => valid_symbol(name) && valid_struct_schema(fields),
         LogicalType::Void
         | LogicalType::String
+        | LogicalType::EnumFields { .. }
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. }
         | LogicalType::Enum { .. } => false,
@@ -396,6 +414,7 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
         | LogicalType::Array { .. }
         | LogicalType::Struct { .. }
         | LogicalType::Tuple { .. }
+        | LogicalType::EnumFields { .. }
         | LogicalType::Void
         | LogicalType::String
         | LogicalType::ImmutableReference { .. }
@@ -949,7 +968,9 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::FPToSI(result, _)
         | Inst::CheckedEnumParameter { result, .. }
         | Inst::CheckedEnumVariant { result, .. }
-        | Inst::CheckedEnumPayload { result, .. } => Some(result),
+        | Inst::CheckedEnumVariantFields { result, .. }
+        | Inst::CheckedEnumPayload { result, .. }
+        | Inst::CheckedEnumField { result, .. } => Some(result),
         Inst::Call { result, .. } => result.as_ref(),
         Inst::ICmp { result, .. }
         | Inst::FCmp { result, .. }
@@ -1009,9 +1030,9 @@ fn definition_type(
             .and_then(|id| places.get(&PlaceId(id)))
             .and_then(PlaceType::logical),
         Inst::Call { function, .. } => signatures.get(function).map(|sig| sig.result.clone()),
-        Inst::CheckedEnumVariant { schema, .. } | Inst::CheckedEnumParameter { schema, .. } => {
-            Some(schema.logical_type())
-        }
+        Inst::CheckedEnumVariant { schema, .. }
+        | Inst::CheckedEnumVariantFields { schema, .. }
+        | Inst::CheckedEnumParameter { schema, .. } => Some(schema.logical_type()),
         Inst::CheckedEnumPayload {
             schema,
             variant_index,
@@ -1020,6 +1041,19 @@ fn definition_type(
             .variants
             .get(*variant_index)
             .and_then(|variant| variant.payload.clone()),
+        Inst::CheckedEnumField {
+            schema,
+            variant_index,
+            field_index,
+            ..
+        } => schema
+            .variants
+            .get(*variant_index)
+            .and_then(|variant| variant.payload.as_ref())
+            .and_then(|payload| match payload {
+                LogicalType::EnumFields { fields } => fields.get(*field_index).cloned(),
+                _ => None,
+            }),
         _ => None,
     }
 }
@@ -2341,6 +2375,49 @@ impl<'a> FunctionVerifier<'a> {
         }
     }
 
+    fn require_enum_variant_guard(
+        &self,
+        value: &Value,
+        schema: &EnumSchema,
+        variant_index: usize,
+        operation: &'static str,
+        block: usize,
+    ) -> Result<(), IrVerificationError> {
+        let block_label = &self.blocks[block].label;
+        let incoming = self
+            .blocks
+            .iter()
+            .filter(|candidate| candidate.successors.contains(block_label))
+            .collect::<Vec<_>>();
+        let guarded = incoming.len() == 1
+            && incoming[0]
+                .instructions
+                .last()
+                .is_some_and(|(_, instruction)| {
+                    matches!(
+                        instruction,
+                        Inst::CheckedEnumDispatch {
+                            value: dispatched,
+                            schema: dispatched_schema,
+                            targets,
+                        } if dispatched == value
+                            && dispatched_schema == schema
+                            && targets.get(variant_index) == Some(block_label)
+                    )
+                });
+        if guarded {
+            Ok(())
+        } else {
+            Err(self.error(
+                block,
+                IrVerificationErrorKind::MetadataMismatch(format!(
+                    "{operation} for `{}` is not uniquely guarded by its selected variant target",
+                    schema.variants[variant_index].name
+                )),
+            ))
+        }
+    }
+
     fn require_numeric(
         &self,
         value: &Value,
@@ -3412,6 +3489,15 @@ impl<'a> FunctionVerifier<'a> {
                             ));
                         }
                         let expected_payload = schema.variants[*variant_index].payload.as_ref();
+                        if matches!(expected_payload, Some(LogicalType::EnumFields { .. })) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum variant `{}` requires the multi-field construction identity",
+                                    schema.variants[*variant_index].name
+                                )),
+                            ));
+                        }
                         if expected_payload.is_some() != payload.is_some() {
                             return Err(self.error(
                                 block_index,
@@ -3427,6 +3513,55 @@ impl<'a> FunctionVerifier<'a> {
                                 expected,
                                 "checked enum construction",
                                 "payload",
+                                block_index,
+                                position,
+                            )?;
+                        }
+                    }
+                    Inst::CheckedEnumVariantFields {
+                        schema,
+                        variant_index,
+                        fields,
+                        ..
+                    } => {
+                        if !valid_enum_schema(schema) || *variant_index >= schema.variants.len() {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::UnsupportedType(format!(
+                                    "checked multi-field enum schema `{}`",
+                                    schema.name
+                                )),
+                            ));
+                        }
+                        let Some(LogicalType::EnumFields {
+                            fields: expected_fields,
+                        }) = schema.variants[*variant_index].payload.as_ref()
+                        else {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked multi-field enum construction names non-product variant `{}`",
+                                    schema.variants[*variant_index].name
+                                )),
+                            ));
+                        };
+                        if fields.len() != expected_fields.len() {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum variant `{}` carries {} fields but its schema requires {}",
+                                    schema.variants[*variant_index].name,
+                                    fields.len(),
+                                    expected_fields.len()
+                                )),
+                            ));
+                        }
+                        for (field, expected) in fields.iter().zip(expected_fields) {
+                            self.require_type(
+                                field,
+                                expected,
+                                "checked multi-field enum construction",
+                                "field",
                                 block_index,
                                 position,
                             )?;
@@ -3456,6 +3591,18 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
+                        if matches!(
+                            schema.variants[*variant_index].payload.as_ref(),
+                            Some(LogicalType::EnumFields { .. })
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum payload extraction for `{}` must use field-indexed identities",
+                                    schema.variants[*variant_index].name
+                                )),
+                            ));
+                        }
                         self.require_type(
                             value,
                             &schema.logical_type(),
@@ -3464,37 +3611,66 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
-                        let block_label = &self.blocks[block_index].label;
-                        let incoming = self
-                            .blocks
-                            .iter()
-                            .filter(|block| block.successors.contains(block_label))
-                            .collect::<Vec<_>>();
-                        let guarded = incoming.len() == 1
-                            && incoming[0]
-                                .instructions
-                                .last()
-                                .is_some_and(|(_, instruction)| {
-                                    matches!(
-                                        instruction,
-                                        Inst::CheckedEnumDispatch {
-                                            value: dispatched,
-                                            schema: dispatched_schema,
-                                            targets,
-                                        } if dispatched == value
-                                            && dispatched_schema == schema
-                                            && targets.get(*variant_index) == Some(block_label)
-                                    )
-                                });
-                        if !guarded {
+                        self.require_enum_variant_guard(
+                            value,
+                            schema,
+                            *variant_index,
+                            "checked enum payload extraction",
+                            block_index,
+                        )?;
+                    }
+                    Inst::CheckedEnumField {
+                        value,
+                        schema,
+                        variant_index,
+                        field_index,
+                        ..
+                    } => {
+                        if !valid_enum_schema(schema) || *variant_index >= schema.variants.len() {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::UnsupportedType(format!(
+                                    "checked enum field schema `{}`",
+                                    schema.name
+                                )),
+                            ));
+                        }
+                        let Some(LogicalType::EnumFields { fields }) =
+                            schema.variants[*variant_index].payload.as_ref()
+                        else {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked enum payload extraction for `{}` is not uniquely guarded by its selected variant target",
+                                    "checked enum field extraction names non-product variant `{}`",
+                                    schema.variants[*variant_index].name
+                                )),
+                            ));
+                        };
+                        if *field_index >= fields.len() {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum field index {field_index} is outside 0..{} for variant `{}`",
+                                    fields.len(),
                                     schema.variants[*variant_index].name
                                 )),
                             ));
                         }
+                        self.require_type(
+                            value,
+                            &schema.logical_type(),
+                            "checked enum field extraction",
+                            "value",
+                            block_index,
+                            position,
+                        )?;
+                        self.require_enum_variant_guard(
+                            value,
+                            schema,
+                            *variant_index,
+                            "checked enum field extraction",
+                            block_index,
+                        )?;
                     }
                     Inst::CheckedEnumDispatch {
                         value,
@@ -3719,6 +3895,21 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
             }
             return Ok(());
         }
+        if let LogicalType::EnumFields { fields } = logical_type {
+            if fields.len() < 2 || !fields.iter().all(valid_copy_data_type) {
+                return Err(IrVerificationError::new(
+                    "<module>",
+                    None,
+                    IrVerificationErrorKind::UnsupportedType(
+                        "checked enum payload product schema".to_string(),
+                    ),
+                ));
+            }
+            for field in fields {
+                register_type(field, schemas, enum_schemas)?;
+            }
+            return Ok(());
+        }
         if let LogicalType::Enum { name, variants } = logical_type {
             return register_enum(
                 &EnumSchema {
@@ -3855,7 +4046,9 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                     )?;
                 }
                 Inst::CheckedEnumVariant { schema, .. }
+                | Inst::CheckedEnumVariantFields { schema, .. }
                 | Inst::CheckedEnumPayload { schema, .. }
+                | Inst::CheckedEnumField { schema, .. }
                 | Inst::CheckedEnumParameter { schema, .. }
                 | Inst::CheckedEnumDispatch { schema, .. } => {
                     register_enum(schema, schemas, enum_schemas)?
@@ -4679,6 +4872,209 @@ mod tests {
             transport_error.is_err(),
             "payload enum function transport passed checked IR verification"
         );
+    }
+
+    #[test]
+    fn checked_multi_field_enum_construction_and_extraction_are_fail_closed() {
+        let schema = EnumSchema {
+            name: "Packet".to_string(),
+            variants: vec![
+                EnumVariantSchema {
+                    name: "Idle".to_string(),
+                    payload: None,
+                },
+                EnumVariantSchema {
+                    name: "Pair".to_string(),
+                    payload: Some(LogicalType::EnumFields {
+                        fields: vec![LogicalType::Int, LogicalType::Bool],
+                    }),
+                },
+            ],
+        };
+        let boolean = Inst::ICmp {
+            op: "slt".to_string(),
+            result: Value::Reg(0),
+            left: Value::ImmInt(0),
+            right: Value::ImmInt(1),
+        };
+        let constructor = Inst::CheckedEnumVariantFields {
+            result: Value::Reg(1),
+            schema: schema.clone(),
+            variant_index: 1,
+            fields: vec![Value::ImmInt(41), Value::Reg(0)],
+        };
+        let valid = verify_ir(function(vec![
+            boolean.clone(),
+            constructor.clone(),
+            checked_dispatch(Value::Reg(1), schema.clone(), &["idle", "pair"]),
+            Inst::Label("idle".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("pair".to_string()),
+            Inst::CheckedEnumField {
+                result: Value::Reg(2),
+                value: Value::Reg(1),
+                schema: schema.clone(),
+                variant_index: 1,
+                field_index: 0,
+            },
+            Inst::CheckedEnumField {
+                result: Value::Reg(3),
+                value: Value::Reg(1),
+                schema: schema.clone(),
+                variant_index: 1,
+                field_index: 1,
+            },
+            Inst::Return(Value::Reg(2)),
+        ]))
+        .expect("exact multi-field construction, guard, and ordered extraction are valid");
+        assert_eq!(
+            valid.metadata().functions["main"].results[&ResultId(1)],
+            schema.logical_type()
+        );
+        assert_eq!(
+            valid.metadata().functions["main"].results[&ResultId(2)],
+            LogicalType::Int
+        );
+        assert_eq!(
+            valid.metadata().functions["main"].results[&ResultId(3)],
+            LogicalType::Bool
+        );
+
+        let invalid_cases = [
+            (
+                "multi-field constructor omits a field",
+                vec![
+                    Inst::CheckedEnumVariantFields {
+                        result: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                        fields: vec![Value::ImmInt(41)],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "multi-field constructor changes ordered field type",
+                vec![
+                    boolean.clone(),
+                    Inst::CheckedEnumVariantFields {
+                        result: Value::Reg(1),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                        fields: vec![Value::Reg(0), Value::ImmInt(41)],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "multi-field constructor names unit variant",
+                vec![
+                    Inst::CheckedEnumVariantFields {
+                        result: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 0,
+                        fields: vec![],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "unary identity constructs a multi-field product",
+                vec![
+                    Inst::CheckedEnumVariant {
+                        result: Value::Reg(0),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                        payload: Some(Value::ImmInt(41)),
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "whole-payload identity extracts a multi-field product",
+                vec![
+                    boolean.clone(),
+                    constructor.clone(),
+                    checked_dispatch(Value::Reg(1), schema.clone(), &["idle", "pair"]),
+                    Inst::Label("idle".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("pair".to_string()),
+                    Inst::CheckedEnumPayload {
+                        result: Value::Reg(2),
+                        value: Value::Reg(1),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "field extraction is outside product bounds",
+                vec![
+                    boolean.clone(),
+                    constructor.clone(),
+                    checked_dispatch(Value::Reg(1), schema.clone(), &["idle", "pair"]),
+                    Inst::Label("idle".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("pair".to_string()),
+                    Inst::CheckedEnumField {
+                        result: Value::Reg(2),
+                        value: Value::Reg(1),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                        field_index: 2,
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+            (
+                "field extraction lacks a dispatch guard",
+                vec![
+                    boolean.clone(),
+                    constructor.clone(),
+                    Inst::CheckedEnumField {
+                        result: Value::Reg(2),
+                        value: Value::Reg(1),
+                        schema: schema.clone(),
+                        variant_index: 1,
+                        field_index: 0,
+                    },
+                    Inst::Return(Value::Reg(2)),
+                ],
+            ),
+            (
+                "multi-field schema nests a private payload product",
+                vec![
+                    Inst::CheckedEnumVariantFields {
+                        result: Value::Reg(0),
+                        schema: EnumSchema {
+                            name: "Nested".to_string(),
+                            variants: vec![EnumVariantSchema {
+                                name: "Bad".to_string(),
+                                payload: Some(LogicalType::EnumFields {
+                                    fields: vec![
+                                        LogicalType::Int,
+                                        LogicalType::EnumFields {
+                                            fields: vec![LogicalType::Int, LogicalType::Bool],
+                                        },
+                                    ],
+                                }),
+                            }],
+                        },
+                        variant_index: 0,
+                        fields: vec![Value::ImmInt(1), Value::ImmInt(2)],
+                    },
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+            ),
+        ];
+
+        for (label, body) in invalid_cases {
+            assert!(
+                verify_ir(function(body)).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
     }
 
     #[test]

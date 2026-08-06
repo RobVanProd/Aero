@@ -281,22 +281,22 @@ fn main() -> int {
         (
             "struct variant definition",
             "enum Phase { Cold, Warm { value: int } } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit-or-unary-CopyData enum",
+            "enum `Phase` is not an admitted non-generic unit-or-positional-CopyData enum",
         ),
         (
             "generic definition",
             "enum Phase<T> { Cold, Warm } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit-or-unary-CopyData enum",
+            "enum `Phase` is not an admitted non-generic unit-or-positional-CopyData enum",
         ),
         (
             "empty definition",
             "enum Phase {} fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit-or-unary-CopyData enum",
+            "enum `Phase` is not an admitted non-generic unit-or-positional-CopyData enum",
         ),
         (
             "duplicate variant",
             "enum Phase { Cold, Cold } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit-or-unary-CopyData enum",
+            "enum `Phase` is not an admitted non-generic unit-or-positional-CopyData enum",
         ),
         (
             "duplicate enum definition",

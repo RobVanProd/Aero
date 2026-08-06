@@ -355,22 +355,22 @@ fn main() -> int { return 0; }
         (
             "empty tuple definition in signature",
             "enum Value { Empty() } fn take(value: Value) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Value` is not an admitted non-generic unit-or-unary-CopyData enum",
+            "enum `Value` is not an admitted non-generic unit-or-positional-CopyData enum",
         ),
         (
-            "multi-field definition in signature",
-            "enum Value { Pair(int, bool) } fn take(value: Value) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Value` is not an admitted non-generic unit-or-unary-CopyData enum",
+            "multi-field constructor arity before transport",
+            "enum Value { Pair(int, bool) } fn take(value: Value) -> int { 1 } fn main() -> int { take(Value::Pair(1)) }",
+            "enum `Value` variant `Pair` requires 2 positional field(s), actual 1",
         ),
         (
             "String payload definition in signature",
             "enum Value { Text(String) } fn take(value: Value) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Value` is not an admitted non-generic unit-or-unary-CopyData enum",
+            "enum `Value` is not an admitted non-generic unit-or-positional-CopyData enum",
         ),
         (
             "struct variant definition in signature",
             "enum Value { Named { value: int } } fn take(value: Value) -> int { 1 } fn main() -> int { 0 }",
-            "enum `Value` is not an admitted non-generic unit-or-unary-CopyData enum",
+            "enum `Value` is not an admitted non-generic unit-or-positional-CopyData enum",
         ),
         (
             "process entry parameter",

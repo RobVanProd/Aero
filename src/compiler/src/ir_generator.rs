@@ -1979,19 +1979,22 @@ impl IrGenerator {
                 variant,
                 data,
             } => {
-                let actual = data
-                    .as_deref()
-                    .map(|data| {
-                        Self::validate_expression(
-                            data,
+                let actual = if let Some(fields) = data.as_deref() {
+                    let mut types = Vec::with_capacity(fields.len());
+                    for field in fields {
+                        types.push(Self::validate_expression(
+                            field,
                             bindings,
                             program,
                             ExpressionUse::Value,
                             inside_impl,
                             admit_static_string_equality,
-                        )
-                    })
-                    .transpose()?;
+                        )?);
+                    }
+                    Some(types)
+                } else {
+                    None
+                };
                 let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
                     EnumExecutionContext::AdmittedFunction
                 } else {
@@ -1999,7 +2002,7 @@ impl IrGenerator {
                 };
                 let resolved = program
                     .enums
-                    .resolve_constructor(enum_name, variant, data.is_some(), context)
+                    .resolve_constructor(enum_name, variant, data.as_ref().map(Vec::len), context)
                     .map_err(|error| match error {
                         EnumError::PreserveExistingBehavior => {
                             admission_error("enum construction is not admitted in checked IR")
@@ -2008,7 +2011,7 @@ impl IrGenerator {
                     })?;
                 program
                     .enums
-                    .validate_constructor_payload(&resolved, actual.as_ref())
+                    .validate_constructor_payload(&resolved, actual.as_deref())
                     .map_err(|error| admission_error(&error.diagnostic()))?;
                 Ok(resolved.contract.ty())
             }
@@ -2165,7 +2168,7 @@ impl IrGenerator {
                 let mut result_types = Vec::with_capacity(arms.len());
                 for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
                     let mut arm_bindings = bindings.clone();
-                    if let Some(binding) = binding {
+                    for binding in binding {
                         arm_bindings.insert(
                             binding.name.clone(),
                             AdmissionBinding {
@@ -2626,7 +2629,9 @@ impl IrGenerator {
             | Inst::Neg { result, .. }
             | Inst::CheckedEnumParameter { result, .. }
             | Inst::CheckedEnumVariant { result, .. }
-            | Inst::CheckedEnumPayload { result, .. } => Some(result),
+            | Inst::CheckedEnumVariantFields { result, .. }
+            | Inst::CheckedEnumPayload { result, .. }
+            | Inst::CheckedEnumField { result, .. } => Some(result),
             Inst::Call {
                 result: Some(result),
                 ..
@@ -2708,15 +2713,25 @@ impl IrGenerator {
         {
             function.body.push(Inst::Label(label));
             let before_scope = self.scope_snapshot();
-            if let Some(binding) = binding {
+            for binding in binding {
                 let payload = Value::Reg(self.next_reg);
                 self.next_reg += 1;
-                function.body.push(Inst::CheckedEnumPayload {
-                    result: payload.clone(),
-                    value: scrutinee.clone(),
-                    schema: resolved.contract.schema.clone(),
-                    variant_index: binding.variant_index,
-                });
+                if resolved.contract.payload_types(binding.variant_index).len() == 1 {
+                    function.body.push(Inst::CheckedEnumPayload {
+                        result: payload.clone(),
+                        value: scrutinee.clone(),
+                        schema: resolved.contract.schema.clone(),
+                        variant_index: binding.variant_index,
+                    });
+                } else {
+                    function.body.push(Inst::CheckedEnumField {
+                        result: payload.clone(),
+                        value: scrutinee.clone(),
+                        schema: resolved.contract.schema.clone(),
+                        variant_index: binding.variant_index,
+                        field_index: binding.field_index,
+                    });
+                }
                 let place = if matches!(&binding.ty, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_))
                 {
                     self.store_copy_aggregate_value(payload, &binding.ty, function)
@@ -3779,31 +3794,49 @@ impl IrGenerator {
                 variant,
                 data,
             } if self.checked_mode => {
-                let payload = data.map(|payload| {
-                    let (value, ty) = self.generate_expression_ir(*payload, function);
-                    let value = self.load_copy_aggregate_value(value, &ty, function);
-                    (value, ty)
-                });
+                let source_arity = data.as_ref().map(Vec::len);
+                let mut payload = Vec::new();
+                if let Some(fields) = data {
+                    payload.reserve(fields.len());
+                    for field in fields {
+                        let (value, ty) = self.generate_expression_ir(field, function);
+                        let value = self.load_copy_aggregate_value(value, &ty, function);
+                        payload.push((value, ty));
+                    }
+                }
                 let resolved = self
                     .enum_registry
                     .resolve_constructor(
                         &enum_name,
                         &variant,
-                        payload.is_some(),
+                        source_arity,
                         EnumExecutionContext::AdmittedFunction,
                     )
                     .expect("checked enum constructor was admitted");
+                let payload_types = payload.iter().map(|(_, ty)| ty.clone()).collect::<Vec<_>>();
                 self.enum_registry
-                    .validate_constructor_payload(&resolved, payload.as_ref().map(|(_, ty)| ty))
+                    .validate_constructor_payload(
+                        &resolved,
+                        source_arity.map(|_| payload_types.as_slice()),
+                    )
                     .expect("checked enum payload type was admitted");
                 let result = Value::Reg(self.next_reg);
                 self.next_reg += 1;
-                function.body.push(Inst::CheckedEnumVariant {
-                    result: result.clone(),
-                    schema: resolved.contract.schema.clone(),
-                    variant_index: resolved.variant_index,
-                    payload: payload.map(|(value, _)| value),
-                });
+                if payload.len() <= 1 {
+                    function.body.push(Inst::CheckedEnumVariant {
+                        result: result.clone(),
+                        schema: resolved.contract.schema.clone(),
+                        variant_index: resolved.variant_index,
+                        payload: payload.into_iter().next().map(|(value, _)| value),
+                    });
+                } else {
+                    function.body.push(Inst::CheckedEnumVariantFields {
+                        result: result.clone(),
+                        schema: resolved.contract.schema.clone(),
+                        variant_index: resolved.variant_index,
+                        fields: payload.into_iter().map(|(value, _)| value).collect(),
+                    });
+                }
                 (result, resolved.contract.ty())
             }
             Expression::Match { expr, arms } if self.checked_mode => {

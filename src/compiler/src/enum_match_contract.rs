@@ -29,11 +29,14 @@ impl EnumContract {
             .position(|candidate| candidate.name == variant)
     }
 
-    pub(crate) fn payload_ty(&self, variant_index: usize) -> Option<Ty> {
-        self.schema.variants[variant_index]
-            .payload
-            .as_ref()
-            .map(copy_logical_ty)
+    pub(crate) fn payload_types(&self, variant_index: usize) -> Vec<Ty> {
+        match self.schema.variants[variant_index].payload.as_ref() {
+            None => Vec::new(),
+            Some(LogicalType::EnumFields { fields }) => {
+                fields.iter().map(copy_logical_ty).collect()
+            }
+            Some(payload) => vec![copy_logical_ty(payload)],
+        }
     }
 }
 
@@ -70,13 +73,14 @@ pub(crate) struct EnumPayloadBinding {
     pub(crate) name: String,
     pub(crate) ty: Ty,
     pub(crate) variant_index: usize,
+    pub(crate) field_index: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ResolvedEnumPatterns {
     pub(crate) contract: EnumContract,
     pub(crate) arm_for_variant: Vec<usize>,
-    pub(crate) payload_bindings: Vec<Option<EnumPayloadBinding>>,
+    pub(crate) payload_bindings: Vec<Vec<EnumPayloadBinding>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,7 +88,7 @@ pub(crate) struct ResolvedEnumMatch {
     pub(crate) contract: EnumContract,
     /// Source-arm index for each variant in declaration order.
     pub(crate) arm_for_variant: Vec<usize>,
-    pub(crate) payload_bindings: Vec<Option<EnumPayloadBinding>>,
+    pub(crate) payload_bindings: Vec<Vec<EnumPayloadBinding>>,
     pub(crate) result: Ty,
 }
 
@@ -130,6 +134,16 @@ pub(crate) enum EnumError {
         variant: String,
         expected: Ty,
     },
+    EmptyPositionalPayload {
+        enum_name: String,
+        variant: String,
+    },
+    ConstructorArityMismatch {
+        enum_name: String,
+        variant: String,
+        expected: usize,
+        actual: usize,
+    },
     PayloadTypeMismatch {
         enum_name: String,
         variant: String,
@@ -142,6 +156,12 @@ pub(crate) enum EnumError {
     },
     ExplicitVariantPatternsRequired,
     MissingIdentifierPayloadBinding(String),
+    PatternArityMismatch {
+        variant: String,
+        expected: usize,
+        actual: usize,
+    },
+    DuplicatePayloadBinding(String),
     UnexpectedPayloadBinding(String),
     PayloadBindingShadowsConsumed(String),
     ForeignArm {
@@ -176,7 +196,9 @@ impl EnumError {
                 format!("enum `{name}` has no unique admitted definition")
             }
             Self::UnsupportedDefinition(name) => {
-                format!("enum `{name}` is not an admitted non-generic unit-or-unary-CopyData enum")
+                format!(
+                    "enum `{name}` is not an admitted non-generic unit-or-positional-CopyData enum"
+                )
             }
             Self::UnknownVariant { enum_name, variant } => {
                 format!("enum `{enum_name}` has no variant `{variant}`")
@@ -191,6 +213,17 @@ impl EnumError {
             } => format!(
                 "enum `{enum_name}` variant `{variant}` requires one {} payload",
                 expected.to_string().to_ascii_lowercase()
+            ),
+            Self::EmptyPositionalPayload { enum_name, variant } => format!(
+                "enum `{enum_name}` variant `{variant}` cannot use an empty positional field list"
+            ),
+            Self::ConstructorArityMismatch {
+                enum_name,
+                variant,
+                expected,
+                actual,
+            } => format!(
+                "enum `{enum_name}` variant `{variant}` requires {expected} positional field(s), actual {actual}"
             ),
             Self::PayloadTypeMismatch {
                 enum_name,
@@ -208,6 +241,16 @@ impl EnumError {
             }
             Self::MissingIdentifierPayloadBinding(variant) => {
                 format!("enum match variant `{variant}` requires one identifier payload binding")
+            }
+            Self::PatternArityMismatch {
+                variant,
+                expected,
+                actual,
+            } => format!(
+                "enum match variant `{variant}` requires {expected} identifier field binding(s), actual {actual}"
+            ),
+            Self::DuplicatePayloadBinding(name) => {
+                format!("enum match contains duplicate payload binding `{name}`")
             }
             Self::UnexpectedPayloadBinding(variant) => {
                 format!("enum match variant `{variant}` does not accept a payload binding")
@@ -327,11 +370,18 @@ impl EnumRegistry {
             }
             let payload = match variant.kind {
                 VariantDeclKind::Unit => None,
-                VariantDeclKind::Tuple(types) if types.len() == 1 => {
-                    let Some(contract) = structs.resolve_copy_annotation(&types[0]) else {
-                        return EnumDefinitionDisposition::Unsupported;
-                    };
-                    Some(contract.logical_type)
+                VariantDeclKind::Tuple(types) if !types.is_empty() => {
+                    let mut fields = Vec::with_capacity(types.len());
+                    for ty in types {
+                        let Some(contract) = structs.resolve_copy_annotation(&ty) else {
+                            return EnumDefinitionDisposition::Unsupported;
+                        };
+                        fields.push(contract.logical_type);
+                    }
+                    match fields.len() {
+                        1 => fields.into_iter().next(),
+                        _ => Some(LogicalType::EnumFields { fields }),
+                    }
                 }
                 VariantDeclKind::Tuple(_) | VariantDeclKind::Struct(_) => {
                     return EnumDefinitionDisposition::Unsupported;
@@ -471,7 +521,7 @@ impl EnumRegistry {
         &self,
         enum_name: &str,
         variant: &str,
-        has_payload: bool,
+        payload_arity: Option<usize>,
         context: EnumExecutionContext,
     ) -> Result<ResolvedEnumConstructor, EnumError> {
         if context != EnumExecutionContext::AdmittedFunction
@@ -486,19 +536,51 @@ impl EnumRegistry {
                 variant: variant.to_string(),
             });
         };
-        let expected = contract.payload_ty(variant_index);
-        if has_payload && expected.is_none() {
-            return Err(EnumError::UnexpectedPayload {
-                enum_name: enum_name.to_string(),
-                variant: variant.to_string(),
-            });
-        }
-        if !has_payload && let Some(expected) = expected {
-            return Err(EnumError::MissingPayload {
-                enum_name: enum_name.to_string(),
-                variant: variant.to_string(),
-                expected,
-            });
+        let expected = contract.payload_types(variant_index);
+        match (expected.as_slice(), payload_arity) {
+            ([], None) => {}
+            ([], Some(0)) => {
+                return Err(EnumError::EmptyPositionalPayload {
+                    enum_name: enum_name.to_string(),
+                    variant: variant.to_string(),
+                });
+            }
+            ([], Some(_)) => {
+                return Err(EnumError::UnexpectedPayload {
+                    enum_name: enum_name.to_string(),
+                    variant: variant.to_string(),
+                });
+            }
+            ([expected], None) => {
+                return Err(EnumError::MissingPayload {
+                    enum_name: enum_name.to_string(),
+                    variant: variant.to_string(),
+                    expected: expected.clone(),
+                });
+            }
+            (_, None) => {
+                return Err(EnumError::ConstructorArityMismatch {
+                    enum_name: enum_name.to_string(),
+                    variant: variant.to_string(),
+                    expected: expected.len(),
+                    actual: 0,
+                });
+            }
+            (_, Some(0)) => {
+                return Err(EnumError::EmptyPositionalPayload {
+                    enum_name: enum_name.to_string(),
+                    variant: variant.to_string(),
+                });
+            }
+            (_, Some(actual)) if actual != expected.len() => {
+                return Err(EnumError::ConstructorArityMismatch {
+                    enum_name: enum_name.to_string(),
+                    variant: variant.to_string(),
+                    expected: expected.len(),
+                    actual,
+                });
+            }
+            _ => {}
         }
         Ok(ResolvedEnumConstructor {
             contract,
@@ -509,31 +591,33 @@ impl EnumRegistry {
     pub(crate) fn validate_constructor_payload(
         &self,
         resolved: &ResolvedEnumConstructor,
-        actual: Option<&Ty>,
+        actual: Option<&[Ty]>,
     ) -> Result<(), EnumError> {
-        let expected = resolved.contract.payload_ty(resolved.variant_index);
-        if expected.as_ref() == actual {
+        let expected = resolved.contract.payload_types(resolved.variant_index);
+        let actual = actual.unwrap_or_default();
+        if expected == actual {
             return Ok(());
         }
         let variant = &resolved.contract.schema.variants[resolved.variant_index].name;
-        match (expected, actual) {
-            (None, Some(_)) => Err(EnumError::UnexpectedPayload {
+        if expected.len() != actual.len() {
+            return Err(EnumError::ConstructorArityMismatch {
                 enum_name: resolved.contract.schema.name.clone(),
                 variant: variant.clone(),
-            }),
-            (Some(expected), None) => Err(EnumError::MissingPayload {
-                enum_name: resolved.contract.schema.name.clone(),
-                variant: variant.clone(),
-                expected,
-            }),
-            (Some(expected), Some(actual)) => Err(EnumError::PayloadTypeMismatch {
-                enum_name: resolved.contract.schema.name.clone(),
-                variant: variant.clone(),
-                expected,
-                actual: actual.clone(),
-            }),
-            (None, None) => Ok(()),
+                expected: expected.len(),
+                actual: actual.len(),
+            });
         }
+        let (expected, actual) = expected
+            .into_iter()
+            .zip(actual)
+            .find(|(expected, actual)| expected != *actual)
+            .expect("different equal-length payload lists have a mismatched field");
+        Err(EnumError::PayloadTypeMismatch {
+            enum_name: resolved.contract.schema.name.clone(),
+            variant: variant.clone(),
+            expected,
+            actual: actual.clone(),
+        })
     }
 
     pub(crate) fn validate_binding(
@@ -585,9 +669,9 @@ impl EnumRegistry {
         contract: &EnumContract,
         arms: &[MatchArm],
         consumed_scrutinees: &[String],
-    ) -> Result<(Vec<usize>, Vec<Option<EnumPayloadBinding>>), EnumError> {
+    ) -> Result<(Vec<usize>, Vec<Vec<EnumPayloadBinding>>), EnumError> {
         let mut arm_for_variant = vec![usize::MAX; contract.schema.variants.len()];
-        let mut payload_bindings = vec![None; arms.len()];
+        let mut payload_bindings = vec![Vec::new(); arms.len()];
         for (arm_index, arm) in arms.iter().enumerate() {
             let Pattern::Enum {
                 enum_name,
@@ -612,26 +696,59 @@ impl EnumRegistry {
             if arm_for_variant[variant_index] != usize::MAX {
                 return Err(EnumError::DuplicateArm(variant.clone()));
             }
-            match (contract.payload_ty(variant_index), data.as_deref()) {
-                (None, None) => {}
-                (None, Some(_)) => {
+            let expected_fields = contract.payload_types(variant_index);
+            match (expected_fields.as_slice(), data.as_deref()) {
+                ([], None) => {}
+                ([], Some(_)) => {
                     return Err(EnumError::UnexpectedPayloadBinding(variant.clone()));
                 }
-                (Some(_), None) => {
+                ([_], None) => {
                     return Err(EnumError::MissingIdentifierPayloadBinding(variant.clone()));
                 }
-                (Some(ty), Some(Pattern::Identifier(name))) if valid_symbol(name) => {
-                    if consumed_scrutinees.contains(name) {
-                        return Err(EnumError::PayloadBindingShadowsConsumed(name.clone()));
-                    }
-                    payload_bindings[arm_index] = Some(EnumPayloadBinding {
-                        name: name.clone(),
-                        ty,
-                        variant_index,
+                (_, None) => {
+                    return Err(EnumError::PatternArityMismatch {
+                        variant: variant.clone(),
+                        expected: expected_fields.len(),
+                        actual: 0,
                     });
                 }
-                (Some(_), Some(_)) => {
-                    return Err(EnumError::MissingIdentifierPayloadBinding(variant.clone()));
+                (_, Some(patterns)) if patterns.len() != expected_fields.len() => {
+                    return Err(EnumError::PatternArityMismatch {
+                        variant: variant.clone(),
+                        expected: expected_fields.len(),
+                        actual: patterns.len(),
+                    });
+                }
+                (_, Some(patterns)) => {
+                    let mut seen = BTreeSet::new();
+                    let mut bindings = Vec::with_capacity(patterns.len());
+                    for (field_index, (pattern, ty)) in
+                        patterns.iter().zip(expected_fields).enumerate()
+                    {
+                        let Pattern::Identifier(name) = pattern else {
+                            return Err(EnumError::MissingIdentifierPayloadBinding(
+                                variant.clone(),
+                            ));
+                        };
+                        if !valid_symbol(name) {
+                            return Err(EnumError::MissingIdentifierPayloadBinding(
+                                variant.clone(),
+                            ));
+                        }
+                        if !seen.insert(name.clone()) {
+                            return Err(EnumError::DuplicatePayloadBinding(name.clone()));
+                        }
+                        if consumed_scrutinees.contains(name) {
+                            return Err(EnumError::PayloadBindingShadowsConsumed(name.clone()));
+                        }
+                        bindings.push(EnumPayloadBinding {
+                            name: name.clone(),
+                            ty,
+                            variant_index,
+                            field_index,
+                        });
+                    }
+                    payload_bindings[arm_index] = bindings;
                 }
             }
             if let Some(name) = consumed_scrutinees
@@ -915,14 +1032,16 @@ fn collect_consumed_owned_values<F, G>(
             }
         }
         Expression::EnumVariant { data, .. } => {
-            if let Some(data) = data {
-                collect_consumed_owned_values(
-                    registry,
-                    data,
-                    names,
-                    lookup_binding,
-                    lookup_function_parameters,
-                );
+            if let Some(fields) = data {
+                for field in fields {
+                    collect_consumed_owned_values(
+                        registry,
+                        field,
+                        names,
+                        lookup_binding,
+                        lookup_function_parameters,
+                    );
+                }
             }
         }
         Expression::IntegerLiteral(_)
@@ -976,9 +1095,11 @@ fn expression_mentions_identifier(expression: &Expression, target: &str) -> bool
         Expression::StructLiteral { fields, .. } => fields
             .iter()
             .any(|(_, value)| expression_mentions_identifier(value, target)),
-        Expression::EnumVariant { data, .. } => data
-            .as_deref()
-            .is_some_and(|value| expression_mentions_identifier(value, target)),
+        Expression::EnumVariant { data, .. } => data.as_ref().is_some_and(|fields| {
+            fields
+                .iter()
+                .any(|value| expression_mentions_identifier(value, target))
+        }),
         Expression::Match { expr, arms } => {
             expression_mentions_identifier(expr, target)
                 || arms
@@ -1003,7 +1124,8 @@ fn copy_logical_ty(logical_type: &LogicalType) -> Ty {
             Ty::Tuple(elements.iter().map(copy_logical_ty).collect())
         }
         LogicalType::Struct { name, .. } => Ty::Struct(name.clone()),
-        LogicalType::Void
+        LogicalType::EnumFields { .. }
+        | LogicalType::Void
         | LogicalType::String
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. }

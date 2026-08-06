@@ -4,12 +4,43 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
+Milestone 88 `CORE-069` is a locally green candidate, not yet an accepted public
+checkpoint. It admits positional multi-field variants for non-generic owned enums
+when every field is in the complete existing recursive finite CopyData class. One
+shared enum classifier preserves exact declaration order, field count, field types,
+constructor arity, Match bindings, and whole-enum ownership. Unit and unary schemas
+retain their established checked identities and private representation; multi-field
+schemas use separate field-vector construction and field-indexed extraction identities
+with an independently verified private product lane. The verifier rejects wrong
+arity/type/index/schema, unguarded extraction, nested private products, and attempts
+to route multi-field data through unary identities.
+
+The exhaustive target covers mixed unit/unary/multi-field definitions, unary tuples
+versus multiple fields, every recursive CopyData field topology, left-to-right
+evaluation, calls/results, Match, reassignment, conditionals, loop-local owners,
+negative syntax/type/ownership/storage boundaries, CLI no-artifact behavior, raw-IR
+quarantine, deterministic LLVM, and direct verifier corruption controls. The full
+all-target/all-feature suite passes at 186/186 library tests plus every integration
+target and benchmark harness. The tracked two-file direct-module example emits a
+byte-identical 43,749-byte LLVM artifact with SHA-256
+`5387f24c4586dca3615f4283dfe770abd21b8184cc04299790bb53f3058f198e`; Visual
+Studio Clang 19.1.5 links it and it executes exact exit 193. This host accurately
+reports `InternalOnly` because LLVM 22 is absent. Formatting, all-target/all-feature
+checking and tests, correctness Clippy, docs, and the exact serialized root gate pass.
+An immutable commit, push, rendered PR synchronization, pinned LLVM 22 evidence, and
+all eight public checks remain candidate gates; no public acceptance is claimed.
+Named-field/generic variants, Option/Result admission, wildcard/guard/nested Match,
+enum aggregate storage/borrowing/projection, partial ownership, new lifetime/drop/CFG
+semantics, stable ABI/FFI, accelerators, release, performance, safety, and merge remain
+excluded.
+
 Milestone 87 `CORE-068` has an accepted public implementation at exact commit
 `55b61c31fc6dd822097daa5d4f371d04ec0d6264`, tree
 `81c2be5d1ee6abdd7382c8674f68f553613efd6f`, and stable patch ID
-`155bbfa5310e1289fccb82c339108d8a44bdbfca`; its additive records-only closure and
-fresh all-eight closure set remain pending. One shared function-call classifier now
-owns named-target availability, exact parameter and result contracts, argument types,
+`155bbfa5310e1289fccb82c339108d8a44bdbfca`; its accepted records head is
+`9175add20896a3ac79d99acec053b82cd12b48a1` and its all-eight closure passes. One
+shared function-call classifier now owns named-target availability, exact parameter
+and result contracts, argument types,
 value-versus-discarded use, and preserved context for both semantic inference paths
 and checked admission/lowering. Missing or unsupported signatures no longer become
 `Int`, and the trusted checked path cannot emit a call or choose a result layout
@@ -2102,10 +2133,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push only the additive CORE-068 public-acceptance records, immediately
-synchronize draft PR #4 to that records head, and require a fresh all-eight public
-closure. Keep the PR draft and unmerged. The controlled mega-PR checkpoint strategy
-and structured evidence-manifest generator remain separate tasks, hard capability
+Finish the exact CORE-069 candidate gates, commit and push the single implementation
+checkpoint, immediately synchronize draft PR #4 to that candidate head, and require
+one all-eight public set plus pinned LLVM/Clang 22 exit-193 evidence before recording
+public acceptance in rendered PR metadata. Keep the PR draft and unmerged. The
+controlled mega-PR checkpoint strategy and structured evidence-manifest generator
+remain separate tasks, hard capability
 classes must not be deferred for convenient slices, and periodic multi-capability
 system gates remain mandatory.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,

@@ -748,6 +748,25 @@ jobs:
         fi
         echo "function call contract example passed with exit code 181"
 
+    - name: Test positional multi-field enum integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/multi_field_enum/main.aero -o ../../multi_field_enum.ll
+        opt-22 -passes=verify -disable-output ../../multi_field_enum.ll
+        llc-22 -verify-machineinstrs ../../multi_field_enum.ll -o /dev/null
+        llc-22 -filetype=obj ../../multi_field_enum.ll -o ../../multi_field_enum.o
+        clang-22 -no-pie ../../multi_field_enum.o -o ../../multi_field_enum
+        set +e
+        ../../multi_field_enum
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 193 ]; then
+          echo "Expected exit code 193, got $exit_code"
+          exit 1
+        fi
+        echo "multi-field enum example passed with exit code 193"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

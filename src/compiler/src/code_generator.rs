@@ -89,9 +89,9 @@ impl CodeGenerator {
                 format!("{}*", Self::reference_pointee_to_llvm(pointee))
             }
             LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
-            LogicalType::Tuple { .. } | LogicalType::Array { .. } => {
-                Self::copy_data_type_to_llvm(logical_type)
-            }
+            LogicalType::Tuple { .. }
+            | LogicalType::EnumFields { .. }
+            | LogicalType::Array { .. } => Self::copy_data_type_to_llvm(logical_type),
             LogicalType::Enum { name, variants } => Self::enum_schema_to_llvm(&EnumSchema {
                 name: name.clone(),
                 variants: variants.clone(),
@@ -115,6 +115,14 @@ impl CodeGenerator {
             LogicalType::Tuple { elements } => format!(
                 "{{ {} }}",
                 elements
+                    .iter()
+                    .map(Self::copy_data_type_to_llvm)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            LogicalType::EnumFields { fields } => format!(
+                "{{ {} }}",
+                fields
                     .iter()
                     .map(Self::copy_data_type_to_llvm)
                     .collect::<Vec<_>>()
@@ -175,9 +183,10 @@ impl CodeGenerator {
         match logical_type {
             LogicalType::Int | LogicalType::Float => "0x0000000000000000".to_string(),
             LogicalType::Bool => "false".to_string(),
-            LogicalType::Array { .. } | LogicalType::Tuple { .. } | LogicalType::Struct { .. } => {
-                "zeroinitializer".to_string()
-            }
+            LogicalType::Array { .. }
+            | LogicalType::Tuple { .. }
+            | LogicalType::EnumFields { .. }
+            | LogicalType::Struct { .. } => "zeroinitializer".to_string(),
             LogicalType::Void
             | LogicalType::String
             | LogicalType::ImmutableReference { .. }
@@ -219,6 +228,11 @@ impl CodeGenerator {
             LogicalType::Tuple { elements } => {
                 for element in elements {
                     Self::collect_logical_struct_schema(element, schemas);
+                }
+            }
+            LogicalType::EnumFields { fields } => {
+                for field in fields {
+                    Self::collect_logical_struct_schema(field, schemas);
                 }
             }
             LogicalType::Enum { variants, .. } => {
@@ -400,7 +414,17 @@ impl CodeGenerator {
                         Self::bump_seed_from_value(&mut seed, payload);
                     }
                 }
+                Inst::CheckedEnumVariantFields { result, fields, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    for field in fields {
+                        Self::bump_seed_from_value(&mut seed, field);
+                    }
+                }
                 Inst::CheckedEnumPayload { result, value, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, value);
+                }
+                Inst::CheckedEnumField { result, value, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, value);
                 }
@@ -783,7 +807,9 @@ impl CodeGenerator {
                 | Inst::CheckedMutableReferenceParameter { .. }
                 | Inst::CheckedEnumParameter { .. }
                 | Inst::CheckedEnumVariant { .. }
+                | Inst::CheckedEnumVariantFields { .. }
                 | Inst::CheckedEnumPayload { .. }
+                | Inst::CheckedEnumField { .. }
                 | Inst::CheckedEnumDispatch { .. } => {}
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                     Self::ensure_instruction_support(body)?
@@ -1886,6 +1912,82 @@ impl CodeGenerator {
                         "  %reg{result} = insertvalue {enum_type} %{numeric}, i1 {bool_value}, 2\n"
                     ));
                 }
+                Inst::CheckedEnumVariantFields {
+                    result,
+                    schema,
+                    variant_index,
+                    fields,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked multi-field enum variant")
+                    };
+                    let LogicalType::EnumFields {
+                        fields: field_types,
+                    } = schema.variants[*variant_index]
+                        .payload
+                        .as_ref()
+                        .expect("verified multi-field enum variant has a payload product")
+                    else {
+                        unreachable!("verified multi-field enum variant has a product schema")
+                    };
+                    let payload_type = Self::copy_data_type_to_llvm(
+                        schema.variants[*variant_index]
+                            .payload
+                            .as_ref()
+                            .expect("verified multi-field enum variant has a payload product"),
+                    );
+                    let mut payload_value = "poison".to_string();
+                    for (field_index, (field, field_type)) in
+                        fields.iter().zip(field_types).enumerate()
+                    {
+                        let output = self.fresh_reg();
+                        let field_llvm = Self::copy_data_type_to_llvm(field_type);
+                        let field_value = if *field_type == LogicalType::Bool {
+                            self.bool_value_to_string(field)
+                        } else {
+                            self.value_to_string(field)
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %{output} = insertvalue {payload_type} {payload_value}, {field_llvm} {field_value}, {field_index}\n"
+                        ));
+                        payload_value = format!("%{output}");
+                    }
+
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let tagged = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
+                    ));
+                    let payload_lanes = schema
+                        .variants
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, variant)| {
+                            variant.payload.as_ref().map(|payload| (index, payload))
+                        })
+                        .collect::<Vec<_>>();
+                    let mut aggregate = format!("%{tagged}");
+                    for (position, (source_index, source_type)) in payload_lanes.iter().enumerate()
+                    {
+                        let lane = Self::enum_payload_lane(schema, *source_index)
+                            .expect("verified payload-bearing variant has a lane");
+                        let source_llvm = Self::copy_data_type_to_llvm(source_type);
+                        let lane_value = if *source_index == *variant_index {
+                            payload_value.clone()
+                        } else {
+                            Self::copy_data_zero_value(source_type)
+                        };
+                        let output = if position + 1 == payload_lanes.len() {
+                            format!("reg{result}")
+                        } else {
+                            self.fresh_reg()
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %{output} = insertvalue {enum_type} {aggregate}, {source_llvm} {lane_value}, {lane}\n"
+                        ));
+                        aggregate = format!("%{output}");
+                    }
+                }
                 Inst::CheckedEnumPayload {
                     result,
                     value,
@@ -1911,6 +2013,41 @@ impl CodeGenerator {
                     };
                     llvm_ir.push_str(&format!(
                         "  %reg{result} = extractvalue {enum_type} %reg{value}, {lane}\n"
+                    ));
+                }
+                Inst::CheckedEnumField {
+                    result,
+                    value,
+                    schema,
+                    variant_index,
+                    field_index,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked enum field")
+                    };
+                    let Value::Reg(value) = value else {
+                        panic!("Expected register for checked enum field source")
+                    };
+                    let payload = schema.variants[*variant_index]
+                        .payload
+                        .as_ref()
+                        .expect("verified multi-field enum variant has a payload product");
+                    let LogicalType::EnumFields { fields } = payload else {
+                        unreachable!("verified checked enum field uses a product schema")
+                    };
+                    fields
+                        .get(*field_index)
+                        .expect("verified checked enum field index is in bounds");
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let payload_type = Self::copy_data_type_to_llvm(payload);
+                    let lane = Self::enum_payload_lane(schema, *variant_index)
+                        .expect("verified multi-field enum variant has a lane");
+                    let extracted_payload = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{extracted_payload} = extractvalue {enum_type} %reg{value}, {lane}\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = extractvalue {payload_type} %{extracted_payload}, {field_index}\n"
                     ));
                 }
                 Inst::CheckedEnumDispatch {

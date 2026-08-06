@@ -39,6 +39,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Acyclic named Copy aggregates | Y | - | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Recursive finite CopyData composition | Y | - | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unary recursive CopyData enum payloads | Y | - | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Positional multi-field recursive CopyData enum variants | Y | - | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Enums and construction | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Pattern matching | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |

@@ -306,9 +306,9 @@ fn owned_enum_reassignment_class_is_complete_checked_and_executable() {
             vec!["not an admitted", "unsupported"],
         ),
         (
-            "multi-field enum remains excluded",
+            "multi-field constructor requires exact arity",
             "enum E { A(int, bool) } fn main() { let mut value = E::A((1, 1 < 2)); }",
-            vec!["not an admitted", "unsupported"],
+            vec!["requires 2 positional field", "actual 1"],
         ),
         (
             "unsupported payload leaf remains excluded",

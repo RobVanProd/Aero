@@ -122,12 +122,30 @@ pub enum Inst {
         variant_index: usize,
         payload: Option<Value>,
     },
+    /// Verified construction of one positional variant with two or more ordered
+    /// recursive CopyData fields. Unary construction retains `CheckedEnumVariant`
+    /// so its accepted checked-IR and LLVM identity does not drift.
+    CheckedEnumVariantFields {
+        result: Value,
+        schema: EnumSchema,
+        variant_index: usize,
+        fields: Vec<Value>,
+    },
     /// Verified extraction of the selected unary recursive CopyData payload.
     CheckedEnumPayload {
         result: Value,
         value: Value,
         schema: EnumSchema,
         variant_index: usize,
+    },
+    /// Verified extraction of one declaration-ordered field from a selected
+    /// positional multi-field variant.
+    CheckedEnumField {
+        result: Value,
+        value: Value,
+        schema: EnumSchema,
+        variant_index: usize,
+        field_index: usize,
     },
     /// Verified exhaustive dispatch with one target per declaration-ordered variant.
     CheckedEnumDispatch {
@@ -380,6 +398,12 @@ pub enum LogicalType {
     Tuple {
         elements: Vec<LogicalType>,
     },
+    /// Private product lane for two-or-more positional enum fields. This is not a
+    /// source tuple type: it preserves the distinction between `V((A, B))` and
+    /// `V(A, B)` in checked schema identity.
+    EnumFields {
+        fields: Vec<LogicalType>,
+    },
     Enum {
         name: String,
         variants: Vec<EnumVariantSchema>,
@@ -420,6 +444,16 @@ impl fmt::Display for LogicalType {
                         write!(f, ", ")?;
                     }
                     write!(f, "{element}")?;
+                }
+                write!(f, "]>")
+            }
+            Self::EnumFields { fields } => {
+                write!(f, "EnumFields<[")?;
+                for (index, field) in fields.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{field}")?;
                 }
                 write!(f, "]>")
             }

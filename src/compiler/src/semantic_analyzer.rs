@@ -6,7 +6,9 @@ use crate::binding_annotation::{
     is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
 use crate::closure_contract::unsupported_closure_diagnostic;
-use crate::enum_match_contract::{EnumExecutionContext, EnumFunctionContract, EnumRegistry};
+use crate::enum_match_contract::{
+    EnumExecutionContext, EnumFunctionContract, EnumPayloadBinding, EnumRegistry,
+};
 use crate::function_call_contract::{
     FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
     FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
@@ -868,10 +870,13 @@ impl SemanticAnalyzer {
             .find_map(|scope| scope.get(name).cloned())
     }
 
-    fn push_enum_payload_binding(&self, name: String, ty: Ty) {
-        self.enum_payload_binding_scopes
-            .borrow_mut()
-            .push(HashMap::from([(name, ty)]));
+    fn push_enum_payload_bindings(&self, bindings: &[EnumPayloadBinding]) {
+        self.enum_payload_binding_scopes.borrow_mut().push(
+            bindings
+                .iter()
+                .map(|binding| (binding.name.clone(), binding.ty.clone()))
+                .collect(),
+        );
     }
 
     fn pop_enum_payload_binding(&self) {
@@ -1362,8 +1367,10 @@ impl SemanticAnalyzer {
                 self.check_expression_initialization(expr)?;
             }
             Expression::EnumVariant { data, .. } => {
-                if let Some(data) = data {
-                    self.check_expression_initialization(data)?;
+                if let Some(fields) = data {
+                    for field in fields {
+                        self.check_expression_initialization(field)?;
+                    }
                 }
             }
             Expression::Match { expr, arms } => {
@@ -1389,16 +1396,9 @@ impl SemanticAnalyzer {
                         )
                         .map_err(|error| error.diagnostic())?;
                     for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
-                        if let Some(binding) = binding {
-                            self.push_enum_payload_binding(
-                                binding.name.clone(),
-                                binding.ty.clone(),
-                            );
-                        }
+                        self.push_enum_payload_bindings(binding);
                         let result = self.check_expression_initialization(&arm.body);
-                        if binding.is_some() {
-                            self.pop_enum_payload_binding();
-                        }
+                        self.pop_enum_payload_binding();
                         result?;
                     }
                 }
@@ -1573,9 +1573,9 @@ impl SemanticAnalyzer {
                         match variant.as_str() {
                             "Some" => {
                                 // Some(value) -> Option<typeof(value)>
-                                if let Some(inner_expr) = data {
-                                    let inner_ty = self
-                                        .infer_and_validate_expression(&mut inner_expr.clone())?;
+                                if let Some([inner_expr]) = data.as_mut().map(Vec::as_mut_slice) {
+                                    let inner_ty =
+                                        self.infer_and_validate_expression(inner_expr)?;
                                     Ok(Ty::Option(Box::new(inner_ty)))
                                 } else {
                                     Err("Some variant requires a value".to_string())
@@ -1593,9 +1593,9 @@ impl SemanticAnalyzer {
                         match variant.as_str() {
                             "Ok" => {
                                 // Ok(value) -> Result<typeof(value), String> (default error type)
-                                if let Some(inner_expr) = data {
-                                    let inner_ty = self
-                                        .infer_and_validate_expression(&mut inner_expr.clone())?;
+                                if let Some([inner_expr]) = data.as_mut().map(Vec::as_mut_slice) {
+                                    let inner_ty =
+                                        self.infer_and_validate_expression(inner_expr)?;
                                     Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
                                 } else {
                                     Err("Ok variant requires a value".to_string())
@@ -1603,9 +1603,9 @@ impl SemanticAnalyzer {
                             }
                             "Err" => {
                                 // Err(error) -> Result<Int, typeof(error)> (default ok type)
-                                if let Some(inner_expr) = data {
-                                    let inner_ty = self
-                                        .infer_and_validate_expression(&mut inner_expr.clone())?;
+                                if let Some([inner_expr]) = data.as_mut().map(Vec::as_mut_slice) {
+                                    let inner_ty =
+                                        self.infer_and_validate_expression(inner_expr)?;
                                     Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
                                 } else {
                                     Err("Err variant requires a value".to_string())
@@ -1617,21 +1617,26 @@ impl SemanticAnalyzer {
                     _ if self.enum_execution_context()
                         == EnumExecutionContext::AdmittedFunction =>
                     {
-                        let actual = data
-                            .as_deref_mut()
-                            .map(|payload| self.infer_and_validate_expression(payload))
-                            .transpose()?;
+                        let actual = if let Some(fields) = data.as_deref_mut() {
+                            let mut types = Vec::with_capacity(fields.len());
+                            for field in fields {
+                                types.push(self.infer_and_validate_expression(field)?);
+                            }
+                            Some(types)
+                        } else {
+                            None
+                        };
                         let resolved = self
                             .enum_registry
                             .resolve_constructor(
                                 enum_name,
                                 variant,
-                                data.is_some(),
+                                data.as_ref().map(Vec::len),
                                 self.enum_execution_context(),
                             )
                             .map_err(|error| error.diagnostic())?;
                         self.enum_registry
-                            .validate_constructor_payload(&resolved, actual.as_ref())
+                            .validate_constructor_payload(&resolved, actual.as_deref())
                             .map_err(|error| error.diagnostic())?;
                         Ok(resolved.contract.ty())
                     }
@@ -1646,13 +1651,9 @@ impl SemanticAnalyzer {
                     .map_err(|error| error.diagnostic())?;
                 let mut result_types = Vec::with_capacity(arms.len());
                 for (arm, binding) in arms.iter_mut().zip(patterns.payload_bindings.iter()) {
-                    if let Some(binding) = binding {
-                        self.push_enum_payload_binding(binding.name.clone(), binding.ty.clone());
-                    }
+                    self.push_enum_payload_bindings(binding);
                     let result = self.infer_and_validate_expression(&mut arm.body);
-                    if binding.is_some() {
-                        self.pop_enum_payload_binding();
-                    }
+                    self.pop_enum_payload_binding();
                     result_types.push(result?);
                 }
                 let consumed = self.enum_consumed_names(expr)?;
@@ -1905,17 +1906,19 @@ impl SemanticAnalyzer {
                 variant,
                 data,
             } => {
-                if let Some(value) = data {
+                if let Some(fields) = data {
                     let payload_is_inferred = matches!(
                         (enum_name.as_str(), variant.as_str()),
                         ("Option", "Some") | ("Result", "Ok") | ("Result", "Err")
                     );
-                    self.preflight_expression_with_array_mode(
-                        value,
-                        interleave_array_inference && payload_is_inferred,
-                        array_types,
-                        struct_context,
-                    )?;
+                    for field in fields {
+                        self.preflight_expression_with_array_mode(
+                            field,
+                            interleave_array_inference && payload_is_inferred,
+                            array_types,
+                            struct_context,
+                        )?;
+                    }
                 }
                 if matches!(struct_context, StructExecutionContext::AdmittedFunction)
                     && !matches!(enum_name.as_str(), "Option" | "Result")
@@ -1924,7 +1927,7 @@ impl SemanticAnalyzer {
                         .resolve_constructor(
                             enum_name,
                             variant,
-                            data.is_some(),
+                            data.as_ref().map(Vec::len),
                             EnumExecutionContext::AdmittedFunction,
                         )
                         .map_err(|error| error.diagnostic())?;
@@ -1971,18 +1974,14 @@ impl SemanticAnalyzer {
                     .resolve_match_patterns(&scrutinee, expr, arms, context)
                     .map_err(|error| error.diagnostic())?;
                 for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
-                    if let Some(binding) = binding {
-                        self.push_enum_payload_binding(binding.name.clone(), binding.ty.clone());
-                    }
+                    self.push_enum_payload_bindings(binding);
                     let result = self.preflight_expression_with_array_mode(
                         &arm.body,
                         false,
                         array_types,
                         struct_context,
                     );
-                    if binding.is_some() {
-                        self.pop_enum_payload_binding();
-                    }
+                    self.pop_enum_payload_binding();
                     result?;
                 }
             }
@@ -2323,7 +2322,7 @@ impl SemanticAnalyzer {
             } => match enum_name.as_str() {
                 "Option" => match variant.as_str() {
                     "Some" => {
-                        if let Some(inner_expr) = data {
+                        if let Some([inner_expr]) = data.as_deref() {
                             let inner_ty = self
                                 .infer_and_validate_expression_immutable_with_cache(
                                     inner_expr,
@@ -2339,7 +2338,7 @@ impl SemanticAnalyzer {
                 },
                 "Result" => match variant.as_str() {
                     "Ok" => {
-                        if let Some(inner_expr) = data {
+                        if let Some([inner_expr]) = data.as_deref() {
                             let inner_ty = self
                                 .infer_and_validate_expression_immutable_with_cache(
                                     inner_expr,
@@ -2351,7 +2350,7 @@ impl SemanticAnalyzer {
                         }
                     }
                     "Err" => {
-                        if let Some(inner_expr) = data {
+                        if let Some([inner_expr]) = data.as_deref() {
                             let inner_ty = self
                                 .infer_and_validate_expression_immutable_with_cache(
                                     inner_expr,
@@ -2365,26 +2364,29 @@ impl SemanticAnalyzer {
                     _ => Err(format!("Unknown Result variant: {}", variant)),
                 },
                 _ if self.enum_execution_context() == EnumExecutionContext::AdmittedFunction => {
-                    let actual = data
-                        .as_deref()
-                        .map(|payload| {
-                            self.infer_and_validate_expression_immutable_with_cache(
-                                payload,
+                    let actual = if let Some(fields) = data.as_deref() {
+                        let mut types = Vec::with_capacity(fields.len());
+                        for field in fields {
+                            types.push(self.infer_and_validate_expression_immutable_with_cache(
+                                field,
                                 array_types,
-                            )
-                        })
-                        .transpose()?;
+                            )?);
+                        }
+                        Some(types)
+                    } else {
+                        None
+                    };
                     let resolved = self
                         .enum_registry
                         .resolve_constructor(
                             enum_name,
                             variant,
-                            data.is_some(),
+                            data.as_ref().map(Vec::len),
                             self.enum_execution_context(),
                         )
                         .map_err(|error| error.diagnostic())?;
                     self.enum_registry
-                        .validate_constructor_payload(&resolved, actual.as_ref())
+                        .validate_constructor_payload(&resolved, actual.as_deref())
                         .map_err(|error| error.diagnostic())?;
                     Ok(resolved.contract.ty())
                 }
@@ -2399,14 +2401,10 @@ impl SemanticAnalyzer {
                     .map_err(|error| error.diagnostic())?;
                 let mut result_types = Vec::with_capacity(arms.len());
                 for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
-                    if let Some(binding) = binding {
-                        self.push_enum_payload_binding(binding.name.clone(), binding.ty.clone());
-                    }
+                    self.push_enum_payload_bindings(binding);
                     let result = self
                         .infer_and_validate_expression_immutable_with_cache(&arm.body, array_types);
-                    if binding.is_some() {
-                        self.pop_enum_payload_binding();
-                    }
+                    self.pop_enum_payload_binding();
                     result_types.push(result?);
                 }
                 let consumed = self.enum_consumed_names(expr)?;
