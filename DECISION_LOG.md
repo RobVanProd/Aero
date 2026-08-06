@@ -3363,16 +3363,17 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-074 - Require a pinned Windows x86_64 native system lane
 
 - Date: 2026-08-06
-- Status: exact candidate `3e3910f522bc18cd34271adb1db306904a6dbe63` was rejected
-  by Windows job `92569807493` at its disproven custom installer destination. The
-  official-default-root repair is locally green; immutable replacement commit/push,
+- Status: exact candidates `3e3910f...` and `d87bb9e...` were rejected by Windows jobs
+  `92569807493` and `92571432934`: first at a disproven custom installer destination,
+  then because the official toolchain installer omits required `opt.exe`. The official
+  full-archive repair is locally green; immutable replacement commit/push,
   rendered PR synchronization, and the expanded all-nine exact-head public set remain
   pending.
 - Decision: add one public `windows-latest` stable-Rust system job without changing
   compiler source or language semantics. It downloads the official LLVM 22.1.8 win64
-  installer and verifies exact release SHA-256
-  `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`
-  before noninteractive installation. `opt`, `llvm-as`, `llc`, and `clang` must each
+  full x86_64 MSVC archive and verifies exact release SHA-256
+  `d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`
+  before task-local extraction. `opt`, `llvm-as`, `llc`, and `clang` must each
   report exact 22.1.8; an unpinned third-party LLVM action is not accepted.
 - System proof: the job must retain the existing `x86_64-pc-windows-msvc` triple and
   MSVC data layout, reject invalid source without the requested artifact, externally
@@ -3392,6 +3393,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   uninstall-before-install. The repair's focused test first failed 0/1, now requires
   that exact default, and forbids the disproven `/D=` override without relaxing any
   version or native-system proof.
+- Second correction evidence: the official root existed, but `opt.exe` did not. LLVM's
+  release distinguishes the toolchain installer from the full archive containing
+  additional tools. The second archive contract failed 0/1 before workflow mutation,
+  now pins the official 862,053,924-byte full archive and forbids installer invocation.
 - Exclusions and scaling boundary: this proves only the bounded current private CPU
   subset on GitHub's x86_64 MSVC runner after public green. It adds no Windows ARM,
   MinGW, macOS, stable ABI/FFI, Aero installer/package, language feature, memory-safety,

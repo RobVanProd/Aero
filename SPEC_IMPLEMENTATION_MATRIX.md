@@ -136,13 +136,14 @@ storage/borrowing, drop/lifetimes, stable ABI, imports, accelerators, release, s
 and general loop fixed-point semantics remain excluded; the row stays `PARTIAL`.
 
 Local candidate `CORE-078` changes no language or matrix row. It adds one exact
-public Windows x86_64 CPU evidence lane using the official LLVM/Clang 22.1.8 win64
-installer pinned by SHA-256. The lane must preserve the existing MSVC triple/layout,
+public Windows x86_64 CPU evidence lane using the official LLVM/Clang 22.1.8 x86_64
+MSVC archive pinned by SHA-256. The lane must preserve the existing MSVC triple/layout,
 fail artifact-free on invalid source, externally and machine verify, emit a COFF
 object, link through Clang/MSVC, and execute the public and manual paths at exit 227.
-The first public candidate was rejected at the disproven custom installer destination;
-the red/green repair requires LLVM's official `$PROGRAMFILES64\LLVM` default and
-forbids `/D=`. Focused and complete local gates pass; the CPU row remains `PARTIAL`
+Two public candidates were rejected: one at a disproven installer destination and one
+because the official toolchain installer omits required `opt.exe`. The red/green repair
+uses the official full archive and requires all tools before use. Focused and complete
+local gates pass; the CPU row remains `PARTIAL`
 and cannot gain Windows public evidence until an expanded nine-check exact replacement
 is green.
 

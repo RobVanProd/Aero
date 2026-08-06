@@ -8,21 +8,20 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-078` is in a locally green public-Windows-system-gate replacement and changes
-  no compiler source or language semantics. Exact candidate
-  `3e3910f522bc18cd34271adb1db306904a6dbe63` was rejected by Windows job
-  `92569807493` after its pinned digest/install step because the disproven custom
-  destination contained no `opt.exe`. A correction red now forbids `/D=` and the
-  repaired job requires LLVM's official `$PROGRAMFILES64\LLVM` default. One
-  `windows-latest` stable job downloads the
-  official LLVM 22.1.8 win64 installer, verifies release SHA-256
-  `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`,
+- `CORE-078` is in a locally green public-Windows-system-gate archive replacement and
+  changes no compiler source or language semantics. Candidate `3e3910f...` was rejected
+  at a custom installer root; `d87bb9e...` reached the official root and proved the
+  toolchain installer omits required `opt.exe`. The revised contract forbids the
+  installer path and pins official archive
+  `clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz` by SHA-256
+  `d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`.
+  One `windows-latest` stable job extracts that task-locally,
   requires exact `opt`/`llvm-as`/`llc`/`clang` versions, and freezes the existing
   x86_64 MSVC target header. It must prove invalid-build artifact hygiene, external and
   machine verification, COFF object generation, Clang/MSVC linking, public `run`,
   manual native execution, and exact exit 227. The red/green contract passes 1/1, as
   do the 195-library/201-binary complete surface, every integration/doc target,
-  formatting, check, correctness Clippy, docs, and exact root gate. Replacement
+  formatting, check, correctness Clippy, docs, and exact root gate. Archive-replacement
   publication and the expanded nine-check public result remain pending; Windows
   public acceptance is not yet claimed.
 

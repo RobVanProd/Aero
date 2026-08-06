@@ -22,7 +22,7 @@ open until a regression test and the applicable full gate prove closure.
 | R-013 | User-facing commands report success without promised behavior | HIGH | HIGH | Accepted `CORE-013` controls typed CLI statuses; accepted `CORE-019` controls analysis-only `aero test` wording; accepted `CORE-021` at closure `b99e445` controls delegated nonzero success wording; accepted `CORE-022` implementation `2a42324` controls final-entry init preflight before writes | Preserve accepted status/wording/preflight controls; keep general rollback/atomicity/race freedom, ancestor-symlink policy, executable-test design, command maturity, and helper architecture separate | PARTIALLY CONTROLLED — selected status, presentation, and dangling-entry init slices accepted; other command boundaries remain open |
 | R-014 | Quick Start and flagship examples fail new-user workflows | HIGH | MEDIUM | `AUDIT-020` at `18526ff` reproduces root `cargo build --release` exit 101, the wrong root binary path, and the unsupported `aeronum`/`aeronn` flagship; public red checkpoint `fc77e99` reproduces the three frozen gaps; accepted public `c56b1d5` passes the focused/full local gates, three exact reviews, and all eight public checks, including the exact generated-project path and anchored output in stable Linux CI | Preserve the exact minimal generated-project tests/CI path, manifest/binary paths, verifier prerequisites, and capability qualifications | CONTROLLED — generated-project Quick Start accepted at `c56b1d5` |
 | R-015 | Tracked compilation benchmark reports successful non-compilations | HIGH | HIGH | `AUDIT-019` confirmed `performance_benchmark.py` timed the CLI's bare-source unknown-command route as success; accepted public `CORE-013` at `a78dd00` returns `2`, classifies exactly two compilation series invalid, splits historical lexer evidence, and preserves all artifacts; the shell harness remains simulated and no benchmark was run | Preserve fail-closed bare-source handling and invalid classifications; a separate protocol-complete benchmark repair/rerun remains required | CONTROLLED — false-success claim path closed; benchmark remains invalid |
-| R-016 | Stable Rust/LLVM drift breaks reproducibility | MEDIUM | MEDIUM | Rust CI tracks floating stable/nightly; Linux explicitly installs LLVM/Clang 22.1.8. Local CORE-078 adds an official Windows LLVM/Clang 22.1.8 installer pinned by release SHA-256 and exact tool-version checks, but public execution is pending. | Declare supported Rust toolchains; retain immutable LLVM inputs/digests and exact Linux/Windows platform gates | OPEN — one Windows LLVM input is locally controlled, but Rust floats and exact public Windows evidence is pending |
+| R-016 | Stable Rust/LLVM drift breaks reproducibility | MEDIUM | MEDIUM | Rust CI tracks floating stable/nightly; Linux explicitly installs LLVM/Clang 22.1.8. Local CORE-078 pins the official full Windows LLVM/Clang 22.1.8 x86_64 MSVC archive by release SHA-256 and exact tool-version checks, but public execution is pending. | Declare supported Rust toolchains; retain immutable LLVM inputs/digests and exact Linux/Windows platform gates | OPEN — one Windows LLVM input is locally controlled, but Rust floats and exact public Windows evidence is pending |
 | R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | Accepted CORE-012 at `6780a23` guards every live function and CLI live branch before auth/I/O/transport while keeping local search and dry-run plans credential/network-free; focused/full gates, exact review, and all public CI checks pass | Preserve quarantine; later specify and adversarially test paths, payload, response, auth, overwrite, dependencies, and transport before separate re-enablement | CONTROLLED — live transport fail closed; protocol remains unimplemented |
 
 The local `CORE-061-CLOSURE` amendment adds a pending R-002/R-003 control: closure
@@ -135,13 +135,13 @@ stable ABI, imports, accelerators, release, safety, and general ownership risks 
 open.
 
 Local candidate `CORE-078` narrows R-005/R-016 evidence without closing either risk
-and changes no language behavior. One official Windows x86_64 LLVM/Clang 22.1.8 asset
+and changes no language behavior. One official full Windows x86_64 LLVM/Clang 22.1.8 archive
 is pinned by release SHA-256; the new job requires exact versions, invalid-build
 artifact hygiene, MSVC-target LLVM, external/machine verification, COFF object/link,
 public `run`, manual execution, and exit 227. The focused and complete local gates pass,
-but the first public candidate was rejected at its disproven custom installer
-destination. The red/green repair uses LLVM's official `$PROGRAMFILES64\LLVM` default
-and forbids `/D=`; replacement publication and the expanded nine-check public result
+but two public candidates were rejected: one at a disproven installer destination and
+one because the toolchain installer omits required `opt.exe`. The red/green repair
+extracts the full archive task-locally and requires all tools; replacement publication and the expanded nine-check public result
 remain pending.
 This does not establish a stable ABI, general Windows support, packaging, release,
 safety, performance, accelerator execution, or a fully pinned Rust toolchain.

@@ -2,9 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 
 const LLVM_VERSION: &str = "22.1.8";
-const LLVM_INSTALLER: &str = "LLVM-22.1.8-win64.exe";
-const LLVM_INSTALLER_SHA256: &str =
-    "16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c";
+const LLVM_ARCHIVE: &str = "clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz";
+const LLVM_ARCHIVE_SHA256: &str =
+    "d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234";
 const WINDOWS_TRIPLE: &str = "x86_64-pc-windows-msvc";
 const WINDOWS_DATA_LAYOUT: &str =
     "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
@@ -21,21 +21,23 @@ fn repository_root() -> PathBuf {
 fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
     let workflow = fs::read_to_string(repository_root().join(".github/workflows/rust.yml"))
         .expect("read Rust workflow");
+    let encoded_archive = LLVM_ARCHIVE.replace('+', "%2B");
     let official_url = format!(
-        "https://github.com/llvm/llvm-project/releases/download/llvmorg-{LLVM_VERSION}/{LLVM_INSTALLER}"
+        "https://github.com/llvm/llvm-project/releases/download/llvmorg-{LLVM_VERSION}/{encoded_archive}"
     );
+    let windows_target_header = format!("target triple = \"{WINDOWS_TRIPLE}\"");
     let required_once = [
         "windows-native:",
         "name: Windows LLVM 22 native system gate",
         "runs-on: windows-latest",
         "timeout-minutes: 30",
         official_url.as_str(),
-        LLVM_INSTALLER_SHA256,
-        "Get-FileHash -LiteralPath $installer -Algorithm SHA256",
-        "Install pinned LLVM 22.1.8 for Windows",
-        "$llvmRoot = Join-Path $env:ProgramW6432 \"LLVM\"",
-        "official LLVM installer did not populate $llvmRoot\\bin",
-        "-ArgumentList @(\"/S\")",
+        LLVM_ARCHIVE_SHA256,
+        "Get-FileHash -LiteralPath $archive -Algorithm SHA256",
+        "Extract pinned LLVM 22.1.8 for Windows",
+        "$llvmRoot = Join-Path $env:RUNNER_TEMP \"llvm-22.1.8-archive\"",
+        "tar.exe -xf $archive -C $llvmRoot --strip-components=1",
+        "official LLVM archive did not provide $toolPath",
         "Assert pinned Windows LLVM and Clang versions",
         "AERO_REQUIRE_LLVM_VERIFIER: \"true\"",
         "AERO_LLVM_OPT=$llvmBin\\opt.exe",
@@ -46,7 +48,7 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
         "Test Windows balanced loop enum ownership system specimen",
         "cargo run --locked --manifest-path src/compiler/Cargo.toml -- check examples/balanced_loop_enum_ownership/main.aero",
         "cargo run --locked --manifest-path src/compiler/Cargo.toml -- run examples/balanced_loop_enum_ownership/main.aero",
-        WINDOWS_TRIPLE,
+        windows_target_header.as_str(),
         WINDOWS_DATA_LAYOUT,
         "-passes=verify -disable-output $llvmPath",
         "-verify-machineinstrs $llvmPath",
@@ -78,7 +80,11 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
         }
     }
 
-    for rejected_installer_anchor in ["/D=$llvmRoot"] {
+    for rejected_installer_anchor in [
+        "LLVM-22.1.8-win64.exe",
+        "Start-Process -FilePath $installer",
+        "/D=$llvmRoot",
+    ] {
         if workflow.contains(rejected_installer_anchor) {
             failures.push(format!(
                 "rejected Windows installer anchor {rejected_installer_anchor:?} must remain absent"

@@ -5,22 +5,21 @@ Last updated: 2026-08-06 (America/New_York)
 ## Current objective
 
 Milestone 98 `CORE-078` is in a locally green pinned Windows x86_64
-native-system-gate replacement candidate. Exact public candidate
-`3e3910f522bc18cd34271adb1db306904a6dbe63` was correctly rejected by Windows job
-`92569807493`: the official installer digest and invocation passed, but the disproven
-custom destination contained no `opt.exe`. The red-first repair now uses LLVM's
-official `$PROGRAMFILES64\LLVM` default and forbids that `/D=` override. It changes no
-compiler source or language semantics. One new
-`windows-latest` job downloads the official LLVM 22.1.8 win64 installer, verifies exact
-SHA-256 `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`
-before installation, and requires exact `opt`/`llvm-as`/`llc`/`clang` 22.1.8. The job
+native-system-gate archive replacement. Exact public candidate `3e3910f...` was
+rejected at a disproven custom installer destination; replacement `d87bb9e...` reached
+the official installer root but proved that the toolchain installer omits required
+`opt.exe`. The red-first repair now uses official 862,053,924-byte asset
+`clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz`, pinned by SHA-256
+`d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`, and
+requires all four exact tools before use. It changes no compiler source or language
+semantics. The job
 freezes the existing `x86_64-pc-windows-msvc` target and data layout, invalid-build
 artifact hygiene, external and machine verification, COFF object generation,
 Clang/MSVC linking, public `run`, manual execution, and exact exit 227. The focused
 red/green target passes 1/1; all 195 library and 201 binary tests, every integration/doc
 target, formatting, check, correctness Clippy, docs, and exact root gate pass locally.
-Replacement publication and the expanded nine-check public set remain pending; no
-local LLVM 22 or Windows-native acceptance claim is made.
+Archive-replacement publication and the expanded nine-check public set remain pending;
+no local LLVM 22 or Windows-native acceptance claim is made.
 
 Milestone 97 `CORE-077` is accepted public at exact commit
 `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree

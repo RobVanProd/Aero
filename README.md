@@ -453,12 +453,13 @@ aero lsp
 > remain unsupported.
 
 > CORE-078 is a locally green infrastructure candidate, not a language feature. It
-> adds a SHA-256-pinned official LLVM/Clang 22.1.8 Windows x86_64 job that must prove
+> adds a SHA-256-pinned official full LLVM/Clang 22.1.8 Windows x86_64 archive job that must prove
 > the existing MSVC target, invalid-build hygiene, external/machine verification,
 > COFF object generation, Clang/MSVC linking, public `run`, manual execution, and exit
-> 227. Exact candidate `3e3910f522bc18cd34271adb1db306904a6dbe63` was rejected
-> after the verified installer left its custom destination empty. The red/green repair
-> requires LLVM's official `$PROGRAMFILES64\LLVM` default and forbids `/D=`. Public
+> 227. Exact candidates `3e3910f...` and `d87bb9e...` were rejected respectively at a
+> disproven custom installer root and because the official toolchain installer omits
+> required `opt.exe`. The red/green repair pins and extracts the official full archive
+> task-locally, requiring every tool before use. Public
 > Windows evidence remains pending; no stable ABI, general Windows,
 > packaging, release, safety, accelerator, or performance claim follows.
 

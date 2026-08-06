@@ -24,14 +24,14 @@ The secondary Rust workflow verifies the accumulated bounded examples on Ubuntu 
 expected exit status, and `CORE-014` adds the generated `Hello, Aero!` project with
 explicit status and anchored-output proof. Accepted CORE-077 reaches native exit 227
 on pinned stable/nightly Linux LLVM/Clang 22.1.8. Local CORE-078 adds a separate
-`windows-latest` x86_64 job that pins the official LLVM/Clang 22.1.8 installer by
+`windows-latest` x86_64 job that pins the official full LLVM/Clang 22.1.8 archive by
 release SHA-256 and requires MSVC-target LLVM, external/machine verification, COFF
 object generation, Clang/MSVC linking, public `run`, manual execution, invalid-build
 artifact hygiene, and exit 227. That is candidate workflow evidence only until the
-exact public Windows job passes. The first candidate was rejected because the verified
-installer did not populate its custom destination; the local red/green replacement
-uses LLVM's official `$PROGRAMFILES64\LLVM` default and forbids `/D=`. The current
-local host still lacks LLVM 22.
+exact public Windows job passes. One candidate was rejected at a custom installer root;
+the next proved the official toolchain installer omits `opt.exe`. The local red/green
+replacement extracts the official full archive task-locally and requires all four
+tools. The current local host still lacks LLVM 22.
 
 The CPU path can fall back to direct Clang compilation if `llc` is missing. It
 also prints a success message before interpreting a nonzero program exit status,

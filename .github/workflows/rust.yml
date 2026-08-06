@@ -956,29 +956,33 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Install pinned LLVM 22.1.8 for Windows
+    - name: Extract pinned LLVM 22.1.8 for Windows
       shell: pwsh
       run: |
         $ErrorActionPreference = "Stop"
-        $installer = Join-Path $env:RUNNER_TEMP "LLVM-22.1.8-win64.exe"
-        $downloadUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-win64.exe"
-        curl.exe --fail --location --retry 3 --output $installer $downloadUrl
+        $archive = Join-Path $env:RUNNER_TEMP "clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz"
+        $downloadUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/clang%2Bllvm-22.1.8-x86_64-pc-windows-msvc.tar.xz"
+        curl.exe --fail --location --retry 3 --output $archive $downloadUrl
         if ($LASTEXITCODE -ne 0) {
-          throw "official LLVM installer download failed with exit code $LASTEXITCODE"
+          throw "official LLVM archive download failed with exit code $LASTEXITCODE"
         }
-        $expectedSha256 = "16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c"
-        $actualSha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+        $expectedSha256 = "d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234"
+        $actualSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($actualSha256 -ne $expectedSha256) {
-          throw "LLVM installer SHA-256 mismatch: expected $expectedSha256, got $actualSha256"
+          throw "LLVM archive SHA-256 mismatch: expected $expectedSha256, got $actualSha256"
         }
-        $llvmRoot = Join-Path $env:ProgramW6432 "LLVM"
-        $install = Start-Process -FilePath $installer -ArgumentList @("/S") -WindowStyle Hidden -Wait -PassThru
-        if ($install.ExitCode -ne 0) {
-          throw "LLVM installer failed with exit code $($install.ExitCode)"
+        $llvmRoot = Join-Path $env:RUNNER_TEMP "llvm-22.1.8-archive"
+        New-Item -ItemType Directory -Path $llvmRoot | Out-Null
+        tar.exe -xf $archive -C $llvmRoot --strip-components=1
+        if ($LASTEXITCODE -ne 0) {
+          throw "official LLVM archive extraction failed with exit code $LASTEXITCODE"
         }
         $llvmBin = Join-Path $llvmRoot "bin"
-        if (-not (Test-Path -LiteralPath $llvmBin -PathType Container)) {
-          throw "official LLVM installer did not populate $llvmRoot\bin"
+        foreach ($tool in @("opt", "llvm-as", "llc", "clang")) {
+          $toolPath = Join-Path $llvmBin "$tool.exe"
+          if (-not (Test-Path -LiteralPath $toolPath -PathType Leaf)) {
+            throw "official LLVM archive did not provide $toolPath"
+          }
         }
         "LLVM_ROOT=$llvmRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         $llvmBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append

@@ -15689,3 +15689,70 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   candidate PR synchronization, and an all-nine exact-head public result; the rejected
   first candidate remains preserved evidence and CORE-077 remains the latest accepted
   public checkpoint.
+
+### CORE-078 second public candidate rejected and archive repair frozen
+
+- Rejected identity/evidence: replacement candidate
+  `d87bb9e080971c7ba8183d95ae9d52b42cce85d7`, tree
+  `caa199bd990e29e3a5bde55af29fb7918569e8a9`, stable patch ID
+  `bf360f6672cf2acd4d00ac217fb8fed476beeab8` was pushed without rewriting the
+  first rejection. Rust run `31087837138`, Windows job `92571432934` reached the
+  official `C:\Program Files\LLVM\bin` directory and then rejected the candidate
+  because `opt.exe` was absent. No Aero build, verifier, object/link, or execution
+  step ran. Both public candidates remain rejected; CORE-077 remains latest accepted.
+- Corrected hypothesis and primary-source boundary: LLVM's official release describes
+  `LLVM-*.exe` as the Windows toolchain installer and the `clang+llvm-*` archive as
+  containing the installer contents plus libraries and tools not normally used in a
+  toolchain. The observed missing `opt.exe` matches that distinction. Because CORE-078
+  requires `opt` and `llvm-as` rather than weakening external verification, the next
+  replacement must use official asset
+  `clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz`, size 862,053,924 bytes, digest
+  `sha256:d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`.
+- Frozen archive repair: download only that official release URL, verify the exact
+  SHA-256 before extraction, extract with runner `tar.exe` into a task-local temporary
+  root using one stripped top-level component, and require exact local `opt.exe`,
+  `llvm-as.exe`, `llc.exe`, and `clang.exe` files before version checks. Forbid the
+  installer filename, `Start-Process`, custom/default installer roots, directory search,
+  runner-`PATH` fallback, an unpinned action, or relaxed versions/verifier controls.
+  Existing native-system, Linux-preservation, local repository, and all-nine public
+  acceptance gates remain unchanged.
+- Archive repair red-first plan: modify the focused contract before workflow mutation
+  so it requires the official archive URL/digest, exact extraction root/command, and
+  explicit per-tool file check, while rejecting the installer filename and invocation.
+  The current installer workflow must fail that test. Allowed files remain the workflow,
+  focused test, and synchronized records; compiler source, semantics, examples, `master`,
+  release state, and user-owned `tmp/` remain outside scope.
+
+### CORE-078 archive repair red checkpoint
+
+- Before workflow mutation, the revised focused target fails 0/1 for nine exact
+  reasons: official archive URL, digest, hash command, extraction step/root/command,
+  and per-tool file control are absent, while the rejected installer filename and
+  `Start-Process` invocation remain present. Every unchanged verifier, MSVC,
+  object/link, public/manual-exit, expected-status-reset, and Linux-preservation anchor
+  remains satisfied. This is the required archive correction red, not a compiler or
+  semantic regression.
+
+- Post-workflow contract correction: after the archive workflow landed, the focused
+  target failed only because its former raw `x86_64-pc-windows-msvc` uniqueness anchor
+  now legitimately appears in the archive filename, URL, and emitted target assertion.
+  The test is tightened to require the exact LLVM header text
+  `target triple = "x86_64-pc-windows-msvc"` once. This does not weaken or broaden the
+  target contract; it prevents supply-chain identity from masquerading as emitted-IR
+  evidence.
+
+### CORE-078 archive replacement local green checkpoint
+
+- The workflow now downloads only official encoded asset URL
+  `clang%2Bllvm-22.1.8-x86_64-pc-windows-msvc.tar.xz`, verifies exact SHA-256
+  `d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`,
+  extracts into `$RUNNER_TEMP\llvm-22.1.8-archive` with one top-level component
+  stripped, and requires local `opt.exe`, `llvm-as.exe`, `llc.exe`, and `clang.exe`
+  before exact-version checks. Both rejected installer filename/invocation forms are
+  absent; no path search or fallback exists.
+- The archive contract passes 1/1 after its nine-reason red and exact-target-header
+  correction. Formatting and `git diff --check` pass. Exact repository-root
+  `./tools/test.sh` exits 0 with 195 library, 201 binary, every integration target,
+  and doc tests green. No compiler source or semantics changed. A third immutable
+  replacement, immediate candidate PR synchronization, and all-nine exact-head public
+  evidence remain mandatory; neither rejected candidate is acceptance.

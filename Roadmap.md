@@ -143,13 +143,13 @@ while preserving exits 149/223. Loop-carried moved state, partial moves,
 projections, enum storage/borrowing, drop/lifetimes, stable ABI, imports, accelerators,
 release, safety, and general loop fixed-point semantics remain separate.
 Local candidate `CORE-078` adds no language behavior. It pins the official Windows
-x86_64 LLVM/Clang 22.1.8 installer by release SHA-256 and adds a public MSVC system
+x86_64 LLVM/Clang 22.1.8 archive by release SHA-256 and adds a public MSVC system
 lane for external/machine verification, COFF object generation, Clang/MSVC linking,
 public `run`, manual execution, invalid-build artifact hygiene, and exact exit 227.
-The first immutable candidate was rejected because its custom installer destination
-was empty after the verified installer ran. The red/green repair now requires LLVM's
-official `$PROGRAMFILES64\LLVM` default and forbids the failed `/D=` assumption. The
-focused and complete local gates pass; replacement publication and the expanded
+Two immutable candidates were rejected: one at a disproven custom installer root and
+one after the official toolchain installer proved it omits required `opt.exe`. The
+red/green repair now extracts the official full archive task-locally and requires every
+tool before use. The focused and complete local gates pass; replacement publication and the expanded
 nine-check exact-head public result remain pending. No stable ABI, general Windows,
 packaging, accelerator, release, safety, or performance claim follows.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
