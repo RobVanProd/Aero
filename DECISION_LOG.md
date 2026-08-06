@@ -3482,12 +3482,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-077 - Make the library the sole owner of compiler-phase modules
 
 - Date: 2026-08-06
-- Status: locally green `CORE-081` candidate. The exact architecture red found 35 compiler
-  modules independently declared by binary and library. The focused target, 207 library
-  tests, 32 binary tests, sensitive integration ring, and complete all-features surface
-  now pass, along with formatting, all-target/all-feature check, correctness Clippy,
-  docs, diff hygiene, and the exact root gate. Immutable publication, all nine exact-
-  head checks, and pinned exits 149/223/227/229 remain pending.
+- Status: accepted public at exact commit
+  `aae33a1774ea558cc782aed6389fbff73419b5b4`, tree
+  `42de741f3d62e84c463462a10d061b7869c905eb`, and stable patch ID
+  `8591b1a6bf334acbc0a388b6fa8d43ec78df194d`. All nine exact-head checks pass;
+  both compiler jobs prove 207 library/32 binary tests and the canonical graph; pinned
+  Linux/Windows lanes preserve exits 149/223/227/229.
 - Decision: every compiler phase has one library-owned Rust module/type/static identity.
   The binary owns only CLI-specific documentation, LSP, profiling, project-init, and
   directly coupled test modules, and consumes the library facade. Compatibility and
@@ -3504,7 +3504,37 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   artifacts, platform behavior, and every accepted capability remain unchanged. No
   language, resolver, ownership, ABI, runtime, GPU, package, safety, performance,
   release, or stability semantics are added.
-- Integration scaling decision: PR #4 at 281 commits/224 files is now an urgent R-018
-  control, not a background concern. After CORE-081 acceptance, freeze a separately
-  authorized checkpoint/merge-handoff strategy before stacking another language slice.
-  This decision itself authorizes no merge, history rewrite, release, or deletion.
+- Integration scaling decision: PR #4 at 282 commits/225 files is now an urgent R-018
+  control, not a background concern. Freeze a separately authorized checkpoint/merge-
+  handoff strategy before stacking another language slice. This decision itself
+  authorizes no merge, history rewrite, release, or deletion.
+
+## DEC-078 - Freeze a merge-commit handoff and minimal Rust CI authority
+
+- Date: 2026-08-06
+- Status: locally green `CHECKPOINT-001` candidate. The repository-governance red runs
+  0/1 because Rust CI has no explicit permissions mapping; exact top-level
+  `permissions: { contents: read }` now passes 1/1. Complete all-features, static,
+  ordinary documentation, diff-hygiene, and exact root gates pass locally; immutable
+  publication and public gates remain required. No compiler capability or master state
+  moves.
+- Audit decision: PR #4 is exactly 282 commits ahead and zero behind master, draft,
+  `MERGEABLE`/`CLEAN`, and has all CORE-081 checks green. Master has no protection or
+  ruleset, every merge mode is enabled, no human approval exists, and the sole review
+  thread is an outdated-location but still-applicable Advanced Security finding about
+  unconstrained Rust-workflow token authority.
+- Security decision: Rust CI only needs to read the public checkout. Declare exactly
+  top-level `contents: read`; forbid additional token permission in the regression.
+  Preserve every trigger, job, step, runner, action, environment, toolchain, specimen,
+  compiler behavior, and claim. Resolve the review thread only after exact public green.
+- Handoff decision: after immutable acceptance, freeze the integration head. Separately
+  authorize and verify master protection requiring PRs, one independent approval,
+  conversation resolution, the eight unique accepted check contexts, and force-push/
+  deletion denial. Keep nonlinear history allowed, then use one merge commit so all
+  accepted SHAs remain reachable; retain the integration branch. Verify the merge
+  commit tree equals the frozen head and audit post-merge workflows. Recover only by a
+  reviewed revert of that merge commit. Start bounded successor PRs from verified master.
+- Boundary: CHECKPOINT-001 authorizes the red-first permissions fix and durable strategy
+  only. It does not authorize master protection mutation, undrafting, review approval,
+  merge, branch deletion, direct master push, squash/rebase, history rewrite, release,
+  or another language slice.

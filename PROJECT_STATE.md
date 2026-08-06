@@ -4,19 +4,26 @@ Last updated: 2026-08-06 (America/New_York)
 
 ## Current objective
 
-Milestone 101 `CORE-081` is the active canonical-compiler-graph candidate. An exact red
-architecture test proved that the binary and library independently declared the same
-35 compiler modules. Compiler phases now have one library-owned Rust module/type/static
-identity; the binary retains only CLI-specific services and consumes narrow library
-facades. Direct-module AST collection and cache framing remain library-owned without
-exposing resolver representations, and compatibility/optimization tests moved with
-their implementations rather than disappearing. The focused architecture target,
-207 library tests, 32 binary tests, the sensitive integration ring, complete
-all-features surface, formatting, check, correctness Clippy, docs, diff hygiene, and
-the exact root gate pass. Immutable publication and public checks remain pending; no
-public acceptance is claimed. Source behavior, diagnostics, checked
-IR/LLVM, CLI status/output, cache identity, backend behavior, and all language semantics
-are frozen.
+Milestone 102 `CHECKPOINT-001` is the active controlled-integration-handoff security
+prerequisite. The 282-commit/225-file draft is clean and zero commits behind master,
+but master has no protection/ruleset or human approval requirement. The sole unresolved
+GitHub Advanced Security thread still correctly reports that Rust CI lacks explicit
+token permissions. An exact governance test failed 0/1, and the minimal top-level
+`contents: read` authority now passes 1/1 without changing a trigger, job, step, runner,
+toolchain, compiler, or specimen. The complete all-features surface, formatting, check,
+correctness Clippy, ordinary docs, diff hygiene, and exact repository-root gate pass
+locally. Immutable publication and exact-head public gates remain pending; no master,
+protection, undraft, merge, release, or history action is authorized.
+
+Milestone 101 `CORE-081` is accepted public at exact commit
+`aae33a1774ea558cc782aed6389fbff73419b5b4`, tree
+`42de741f3d62e84c463462a10d061b7869c905eb`, and stable patch ID
+`8591b1a6bf334acbc0a388b6fa8d43ec78df194d`. The exact red proved 35 duplicate
+binary/library compiler modules; compiler phases now have one library-owned Rust
+identity, the binary keeps only CLI services, resolver/IR representations remain
+private, and no distinct test vanished. All nine exact-head checks pass. Both compiler
+jobs record 207 library and 32 binary tests; pinned Linux/Windows lanes preserve exits
+149/223/227/229. No source, semantic, LLVM, cache, backend, runtime, or ABI rule moves.
 
 Milestone 100 `CORE-080` is accepted public at exact commit
 `063953770ce92f00bae452f312c962c2996977bb`, tree
@@ -1642,8 +1649,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   stability, compatibility, or release evidence (`CORE-016`, `ea036f2`).
 - Library compiler options: accepted `CORE-020` preserves defaults and rejects
   nondefaults before lexing; option meanings remain unimplemented.
-- Compiler architecture: locally green CORE-081 removes the exact 35-module binary/
-  library overlap; public acceptance and broader tool-path convergence are pending.
+- Compiler architecture: accepted public CORE-081 removes the exact 35-module binary/
+  library overlap; broader tool-path convergence remains pending.
 
 ## Known blockers and regressions
 

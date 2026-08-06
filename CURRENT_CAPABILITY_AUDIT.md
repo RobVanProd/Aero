@@ -8,17 +8,23 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-081` is an active architecture candidate for one canonical compiler module
-  graph. Its exact red test found 35 compiler modules independently declared by both
-  binary and library. The binary now retains only CLI-specific services and consumes
-  library-owned compiler phases, direct-module collection/cache material, registry
-  quarantine, and performance-optimizer facades. No resolver representation or raw IR
-  became a supported API. The architecture target, 207 library tests, 32 binary tests,
-  the sensitive integration ring, complete all-features surface, formatting, check,
-  correctness Clippy, docs, diff hygiene, and exact root gate pass. Immutable publication
-  and public checks remain pending. This is Rust architecture convergence only, with
-  source behavior, diagnostics, checked IR/LLVM, CLI/cache/backend behavior, and every
-  language capability frozen.
+- `CHECKPOINT-001` is active after the urgent integration audit found no master
+  protection/ruleset, no human approval requirement, and one still-applicable Advanced
+  Security finding: Rust CI did not constrain `GITHUB_TOKEN`. A red-first repository
+  governance test now requires a top-level permissions mapping before `jobs` containing
+  only `contents: read`; the exact focused target passes 1/1. The complete all-features,
+  static, ordinary documentation, diff-hygiene, and exact root gates pass locally;
+  immutable publication and public gates remain pending. No compiler, workflow behavior,
+  master, protection, undraft, merge, release, or history action moves.
+
+- `CORE-081` is accepted public at exact commit
+  `aae33a1774ea558cc782aed6389fbff73419b5b4`, tree
+  `42de741f3d62e84c463462a10d061b7869c905eb`, and stable patch
+  `8591b1a6bf334acbc0a388b6fa8d43ec78df194d`. Its exact red found 35 duplicate
+  compiler modules; the binary now consumes one library-owned compiler graph without
+  exposing resolver/raw-IR representations or deleting a distinct test. All nine
+  exact-head checks pass, both compiler jobs record 207 library and 32 binary tests,
+  and pinned Linux/Windows preserve exits 149/223/227/229. No language capability moves.
 
 - `CORE-080` is accepted public at exact commit
   `063953770ce92f00bae452f312c962c2996977bb`, tree

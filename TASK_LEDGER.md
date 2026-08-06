@@ -16231,3 +16231,139 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   rendered PR #4 candidate metadata,
   all nine exact-head checks, and pinned Linux/Windows exits 149/223/227/229 remain
   required before public acceptance. Any failure retains candidate status.
+
+### CORE-081 accepted public checkpoint
+
+- Exact accepted identity: commit `aae33a1774ea558cc782aed6389fbff73419b5b4`,
+  tree `42de741f3d62e84c463462a10d061b7869c905eb`, and stable patch ID
+  `8591b1a6bf334acbc0a388b6fa8d43ec78df194d`. The accepted parent CORE-080 head is
+  `063953770ce92f00bae452f312c962c2996977bb`.
+- All nine exact-head checks pass: aggregate CodeQL check `92602603752`; PR compiler
+  run `31097368999`, job `92602480659`; stable/nightly/Windows run `31097368990`, jobs
+  `92602480866`, `92602480865`, and `92602480850`; CodeQL run `31097366341`, Actions/
+  Python/Rust jobs `92602476174`, `92602476079`, and `92602476203`; push compiler run
+  `31097365810`, job `92602470292`.
+- Audited public evidence: both compiler jobs record 207/207 library tests, 32/32
+  binary tests, the canonical graph contract, import containment 13/13, and qualified
+  LLVM 22 rejection of the invalid fixture. Stable/nightly use exact LLVM/Clang 22.1.8,
+  pass the complete test/Clippy surface, and preserve exits 149/223/227/229. Windows
+  matches the expected official archive SHA-256, exact LLVM/Clang 22.1.8 tools,
+  invalid-IR/source controls, MSVC triple/layout, external and machine verification,
+  COFF generation, Clang/MSVC links, public/manual exit 227, and public/independent
+  exit 229.
+- Rendered integration record: PR #4 remains draft, open, unmerged, mergeable, and
+  `CLEAN`; its title and first heading identify CORE-081 accepted public; its unchanged
+  head is the exact accepted commit; 18 CORE-080/081 evidence links render; all nine
+  checks pass; and no stale candidate, pending, or not-accepted wording remains. GitHub
+  reports 282 commits, 225 changed files, 102,517 additions, and 1,905 deletions.
+
+## CHECKPOINT-001 - freeze the controlled integration handoff and harden CI authority
+
+- Date/task/status: 2026-08-06, `CHECKPOINT-001`, authorized and active after exact
+  CORE-081 public acceptance. This is repository governance/security work, not a
+  language checkpoint. No master, merge, undraft, release, history rewrite, branch
+  protection, ruleset, or user-owned `tmp/` change is authorized by this task.
+- Observed integration risk: PR #4 is 282 commits and 225 changed files. GitHub reports
+  it `MERGEABLE`/`CLEAN`, exactly 282 commits ahead and zero behind master at merge base
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`. All merge modes are enabled, the branch
+  is retained on merge, but master has no branch protection or ruleset, no human review
+  decision exists, and all enforcement therefore depends on manual discipline.
+- Observed security prerequisite: the only review thread is an outdated-but-unresolved
+  GitHub Advanced Security finding on `.github/workflows/rust.yml`: the workflow does
+  not declare explicit `GITHUB_TOKEN` permissions. Current source confirms the finding
+  still applies. The Rust CI jobs only check out public source, install tools, compile,
+  test, and execute specimens; they require repository-content read authority and no
+  write authority.
+- Frozen smallest complete change: add a top-level exact `permissions:` block containing
+  only `contents: read` to `rust.yml`. Add one repository-governance regression that
+  reads the tracked workflow, requires the block before `jobs:`, requires zero-indent
+  top-level ownership, and rejects any additional permission entry. No workflow trigger,
+  job, step, runner, action version, environment, toolchain, specimen, or claim changes.
+- Red-first plan: add the governance test before workflow mutation. The accepted CORE-081
+  tree must fail exactly because no top-level permissions block exists. Then apply the
+  two-line workflow authority restriction and require the focused test to pass.
+- Allowed files: `TASK_LEDGER.md`, `.github/workflows/rust.yml`, one new
+  `src/compiler/tests/repository_governance_contract_tests.rs`, and, only after green,
+  the directly affected decision/risk/state records and PR #4 metadata. Do not touch
+  compiler production code, examples, dependencies, native specimens, master, releases,
+  external repositories, or `tmp/`.
+- Acceptance tests: exact focused red/green; workflow-source review; compiler-manifest
+  formatting, all-target/all-feature check, correctness Clippy, docs, diff hygiene,
+  exact repository-root `./tools/test.sh`, and all nine exact-head public checks. The
+  stable/nightly/Windows lanes must still prove exact LLVM/Clang 22.1.8 and preserve
+  exits 149/223/227/229. Only after exact public green may the obsolete-location review
+  thread be resolved as fixed.
+- Controlled handoff strategy: after CHECKPOINT-001 public acceptance, freeze PR #4's
+  head. Before any merge, separately authorize and install master protection requiring
+  pull requests, one independent approval, conversation resolution, the eight unique
+  accepted check contexts, and force-push/deletion denial. Do not require linear history.
+  Undraft and request review only after protection is verified. Use a merge commit—not
+  squash or rebase—so every accepted checkpoint identity remains reachable; retain the
+  integration branch. Verify the merge commit's tree equals the frozen integration tree
+  and audit the post-merge master workflows. If that gate fails, recover through a
+  reviewed revert of the single merge commit. Start the successor branch from verified
+  master and use one bounded vertical slice per PR, with periodic composed system gates.
+- Risks and stop conditions: stop on any permission beyond `contents: read`, required
+  write authority, changed workflow behavior, missing existing check, red compiler/
+  system gate, unexpected master movement, unresolved human-review requirement, or a
+  need to merge/undraft/change protection without separate authorization. Do not use
+  squash/rebase/direct master push because they weaken identity or violate repository
+  policy. Do not stack another language slice before this handoff is frozen.
+
+### CHECKPOINT-001 exact red checkpoint
+
+- Before workflow mutation,
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  repository_governance_contract_tests -- --nocapture` runs 0/1 green. The exact panic
+  is `Rust CI must declare top-level GITHUB_TOKEN permissions explicitly` because the
+  accepted workflow proceeds from `on` and `env` directly to `jobs` without any
+  permissions mapping.
+- The test reads the tracked workflow from the repository root and separately freezes
+  top-level placement before `jobs` plus the exact one-entry `contents: read` authority.
+  No workflow, compiler, dependency, example, master, release, external repository, or
+  user-owned `tmp/` file changed at the red checkpoint.
+
+### CHECKPOINT-001 focused-green checkpoint
+
+- Production change: `.github/workflows/rust.yml` now declares only top-level
+  `contents: read` authority between its trigger and environment mappings. No trigger,
+  branch filter, environment value, job, matrix, step, runner, action, toolchain,
+  specimen, compiler, dependency, or claim changed.
+- Exact focused evidence: the red command now passes 1/1. The test proves the block is
+  top-level, precedes `jobs`, and contains no permission beyond `contents: read`.
+- Strategy evidence: GitHub reports the accepted CORE-081 head 282 commits ahead/zero
+  behind master, `MERGEABLE`/`CLEAN`, with all nine checks green. Repository settings
+  allow merge/squash/rebase and retain branches, while master has no protection/ruleset
+  or human review decision. The one unresolved outdated-location Advanced Security
+  thread names the exact permission defect now repaired locally.
+- Files changed so far: `.github/workflows/rust.yml`, new
+  `src/compiler/tests/repository_governance_contract_tests.rs`, and authorized ledger,
+  decision, state, audit, roadmap, and risk records. Compiler production, examples,
+  dependencies, native specimens, master, external repositories, releases, and
+  user-owned untracked `tmp/` remain untouched.
+- Candidate/public boundary: formatting, check, correctness Clippy, docs, diff hygiene,
+  exact root gate, immutable commit/tree/patch identity, publication, exact PR metadata,
+  all nine exact-head checks, and the pinned system audit remain required. Do not resolve
+  the GitHub thread or mutate master/protection/PR merge state before exact public green
+  and separate authorization.
+
+### CHECKPOINT-001 locally green candidate checkpoint
+
+- Complete local behavior evidence: the exact governance target passes 1/1 and the
+  complete all-features compiler surface passes, including 207 library tests, 32 binary
+  tests, every integration target, the new governance contract, and doc tests. The
+  repository-root `./tools/test.sh` gate passes with the same surface.
+- Static evidence: `cargo fmt --manifest-path src/compiler/Cargo.toml --all -- --check`,
+  all-target/all-feature `cargo check`, correctness-denying Clippy, ordinary all-feature
+  rustdoc, and `git diff --check` pass. An additional exploratory rustdoc run with all
+  warnings denied found four pre-existing invalid-HTML warnings in `stdlib.rs`; those
+  warnings are outside the allowed CHECKPOINT-001 files and the ordinary required docs
+  gate remains green, so no compiler cleanup was smuggled into this security checkpoint.
+- Scope result: only `.github/workflows/rust.yml`, the new governance integration test,
+  and the authorized ledger/decision/state/audit/roadmap/risk records change. Compiler
+  production, examples, dependencies, native specimens, master, external repositories,
+  releases, and user-owned untracked `tmp/` remain untouched.
+- Candidate boundary: the local tree is green but not public or accepted. Commit/tree/
+  patch identity, publication, exact PR candidate metadata, all nine exact-head checks,
+  pinned LLVM/Clang 22.1.8 logs and exits 149/223/227/229, rendered metadata audit, and
+  review-thread resolution remain required before CHECKPOINT-001 can be accepted.
