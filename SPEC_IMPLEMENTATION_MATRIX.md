@@ -57,15 +57,16 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | C/foreign-function interface | P | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | P | DESIGNED |
 
 Accepted public `CORE-069` supplies the evidence for the existing positional multi-
-field recursive CopyData enum row without promoting it beyond `PARTIAL`. Local
-candidate `ARCH-002` only normalizes binding-annotation classification and phase
-routing; it changes no language-feature stage, evidence cell, or feature-level class.
+field recursive CopyData enum row without promoting it beyond `PARTIAL`. Accepted
+public `ARCH-002` only normalizes binding-annotation classification and phase routing;
+it changes no language-feature stage, evidence cell, or feature-level class.
 
 ## Compiler, tooling, and ecosystem surfaces
 
 | Surface | Interface | Shared compiler truth | Artifact/result | Failure tests | Integration evidence | Docs | Class |
 |---|---:|---:|---:|---:|---:|---:|---|
 | Library `compile_program` | Y | P | LLVM text or located parse error | Y | P | P | PARTIAL |
+| Library `compile_file` | Y | P | In-memory checked LLVM text or file-located failure; direct `mod` only | Y | P | P | PARTIAL |
 | Compiler options | Y | N | Default path preserved; accepted CORE-020 rejects nondefaults before lexing | Y | Y | P | PARSED_ONLY |
 | CLI build/check | Y | N | P; surfaced compile failures nonzero | Y | P | Y | PARTIAL |
 | CLI run | Y | N | CPU executes; accepted CORE-018 makes ROCm a temporary regular-file probe followed by status 1/no execution; CUDA status 1 | Y | P | Y | PARTIAL |

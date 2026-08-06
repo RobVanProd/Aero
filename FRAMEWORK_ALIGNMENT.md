@@ -147,23 +147,31 @@ object-lower, link, and execute exact exit 193. Named-field/generic variants, ne
 wildcard/guard patterns, enum storage/borrowing/projection, partial moves, new lifetime/
 drop/CFG semantics, stable ABI, and accelerators remain excluded.
 
-Candidate `ARCH-002` addresses the growing annotation-policy topology without adding a
-language feature. It normalizes an annotation to one leaf plus an ordered wrapper path,
-then returns one shared supported, explicitly rejected, or preserved/quarantined
-disposition to semantic analysis and checked admission. A characterization-first
-depth-four product and byte-identical LLVM corpus protect every accepted and
-quarantined boundary. This improves the compiler-integrity process while leaving every
-framework capability and exclusion unchanged.
+Accepted public `ARCH-002` addresses the growing annotation-policy topology without
+adding a language feature. It normalizes an annotation to one leaf plus an ordered
+wrapper path, then returns one shared supported, explicitly rejected, or preserved/
+quarantined disposition to semantic analysis and checked admission. A
+characterization-first depth-four product and byte-identical LLVM corpus protect every
+accepted and quarantined boundary. All eight public checks and the unchanged pinned
+native exit-193 lane pass, while every framework capability and exclusion stays fixed.
+
+Candidate `CORE-070` takes a bounded step toward the framework's integrated tooling
+direction. Library callers can compile an exact root file, including the already
+accepted root-level direct-module collector, through the same checked library frontend
+as `compile_program`. It returns verified in-memory LLVM and writes no artifact. This
+does not define the founding dotted-import grammar, namespaces, aliases, visibility,
+recursive module graphs, cache identity, external LLVM verification, or a canonical
+thin CLI; those remain separately specified work.
 
 | Framework direction | Current evidence | Required next proof |
 |---|---|---|
-| Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. Candidate ARCH-002 normalizes binding-annotation topology and phase routing without changing any accepted or quarantined type behavior. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze closure typing/capture/call semantics before any positive closure path |
+| Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. Accepted ARCH-002 normalizes binding-annotation topology and phase routing without changing any accepted or quarantined type behavior. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze closure typing/capture/call semantics before any positive closure path |
 | Ownership-based safety | Shallow move checks remain partial. CORE-048/053 through accepted CORE-066 establish bounded immutable/mutable whole-place ownership, internal reference transport, recursive finite CopyData composition, direct CopyData owner reassignment, owned enum transport/replacement, exact acyclic conditional joins, independent enum-owner CFG consumption proof, and fresh per-iteration enum owners without transporting an outer moved owner. Mutable projections, reference results, escaping provenance, outer-owner loop joins, stable reference ABI, general CFG ownership, NLL, drop, lifetime inference, and memory-safety claims remain absent; 16 broader semantic/lossy-shape Phase 5 tests remain quarantined. | Freeze another hard module, runtime, ownership, or execution slice |
 | Structs, arrays, enums, traits, and Match | CORE-043 through CORE-047 accept bounded all-Copy scalar/named-struct construction, projection, arrays, transport, and finite acyclic graphs. CORE-049 through CORE-052 accept unit/unary-scalar enums, exhaustive bound Match, and owned internal transport. CORE-058 through CORE-061 add flat tuples, whole-place references, and direct CopyData owner replacement. Accepted CORE-062 removes the executable CopyData topology whitelist. Accepted CORE-063 carries that recursive class through unary owned-enum payloads and exact bound Match under a pinned native exit-113 gate. Accepted CORE-064 adds exact whole-owner enum replacement under a pinned native exit-131 gate. Accepted CORE-065 composes those operations across acyclic `if` joins under a pinned native exit-137 gate. Accepted CORE-069 generalizes positional variants to two or more recursive CopyData fields and exact field bindings under pinned native exit 193. Generic/named-field enums, Option/Result Match, wildcard/guard/nested destructuring, enum fields/arrays/borrowing/projection, unit/unary tuples, unsupported/cyclic structs, dynamic arrays, traits, and stable aggregate/reference ABI remain open. | Separately freeze another hard generic/module/runtime/ownership class; do not infer broader enum or ABI support from CORE-069 |
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist; typed-IR invariants and verification are incomplete | Fallible typed IR, structural verifier, LLVM verifier, object/link/runtime gates on supported platforms |
 | Zero-cost performance | A benchmark protocol now exists, but no audited public Aero runtime or device performance claim passes it | Correct real programs, raw samples, reproducible baselines, and separately reported compile/runtime/resource costs |
 | Modern concurrency | Interfaces and library-like helpers exist, but the language/runtime concurrency model is not end-to-end | Ownership-safe tasks/channels or another frozen model with race and runtime evidence |
-| Integrated tooling | CLI, LSP, formatter, docs, project, registry, and conformance surfaces exist but are experimental and use divergent compiler paths | One canonical compiler service shared by every tool, with failure and integration tests |
+| Integrated tooling | CLI, LSP, formatter, docs, project, registry, and conformance surfaces exist but are experimental and use divergent compiler paths. Candidate CORE-070 adds a checked file-aware library route over the existing direct-module collector, reducing one library/file-context gap without converging the CLI. | One canonical compiler service shared by every tool, with failure and integration tests |
 | Open governance | MIT licensing, a code of conduct, community guidance, and an RFC template are tracked | A functioning public proposal/review process tied to compatibility and release decisions |
 | Self-hosting | The bootstrap compiler is written in Rust | A sufficiently expressive and stable language core, then a staged Aero compiler bootstrap with reproducibility checks |
 

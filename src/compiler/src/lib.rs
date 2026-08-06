@@ -46,6 +46,8 @@ pub use llvm_verifier::{
 pub use parser::{Parser, parse, parse_with_locations};
 pub use semantic_analyzer::SemanticAnalyzer;
 
+use std::path::Path;
+
 #[cfg(test)]
 mod checked_ir_contract_test;
 
@@ -62,21 +64,32 @@ pub struct CompilerOptions {
     pub target: String,
 }
 
-/// Main compilation function for benchmarking.
-pub fn compile_program(source: &str, options: CompilerOptions) -> Result<String, String> {
+fn validate_compiler_options(options: &CompilerOptions) -> Result<(), String> {
     if options.optimize || options.debug_info || !options.target.is_empty() {
         return Err("Unsupported CompilerOptions: only CompilerOptions::default() is supported; optimize, debug_info, and target behavior is not implemented".to_string());
     }
 
+    Ok(())
+}
+
+fn compile_source(
+    source: &str,
+    filename: Option<String>,
+    entry_file: Option<&str>,
+) -> Result<String, String> {
     // Lexical analysis
-    let tokens =
-        try_tokenize_with_locations(source, None).map_err(|err| format!("Lex error: {}", err))?;
+    let tokens = try_tokenize_with_locations(source, filename)
+        .map_err(|err| format!("Lex error: {}", err))?;
 
     // Parsing
-    let ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
+    let mut ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
-    // Source-only compilation has no directory from which to resolve `mod` files.
-    module_resolver::collect_direct_modules(&ast, None)?;
+    // File-aware compilation resolves only the existing direct-module compatibility
+    // contract. Source-only compilation has no directory from which to resolve files.
+    let direct_modules = module_resolver::collect_direct_modules(&ast, entry_file)?;
+    for module in direct_modules {
+        ast.extend(module.ast);
+    }
 
     // Semantic analysis
     let mut semantic_analyzer = SemanticAnalyzer::new();
@@ -103,4 +116,34 @@ pub fn compile_program(source: &str, options: CompilerOptions) -> Result<String,
     })?;
 
     Ok(llvm_code)
+}
+
+/// Compile exact Aero source text through the checked library pipeline.
+///
+/// This source-only API cannot resolve `mod` declarations because it has no
+/// entry-file directory. Only [`CompilerOptions::default`] is supported.
+pub fn compile_program(source: &str, options: CompilerOptions) -> Result<String, String> {
+    validate_compiler_options(&options)?;
+    compile_source(source, None, None)
+}
+
+/// Compile an Aero root file through the checked library pipeline.
+///
+/// The file path supplies located root diagnostics and the base directory for
+/// the existing direct `mod name;` compatibility contract. The returned LLVM is
+/// kept in memory; this function does not write an artifact or run external tools.
+/// Only [`CompilerOptions::default`] is supported.
+pub fn compile_file(path: impl AsRef<Path>, options: CompilerOptions) -> Result<String, String> {
+    validate_compiler_options(&options)?;
+
+    let path = path.as_ref();
+    let source = std::fs::read_to_string(path).map_err(|error| {
+        format!(
+            "Could not read Aero source file `{}`: {error}",
+            path.display()
+        )
+    })?;
+    let filename = path.to_string_lossy().into_owned();
+
+    compile_source(&source, Some(filename.clone()), Some(&filename))
 }

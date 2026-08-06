@@ -8,20 +8,27 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `ARCH-002` is a locally green behavior-neutral architecture candidate on top of
-  accepted public `CORE-069`. Binding annotations are now decomposed into one leaf
-  plus an ordered array/reference wrapper path, and one shared classifier returns
-  exactly supported binding annotation, explicitly rejected annotation topology, or
-  preserved/quarantined topology to semantic analysis and checked admission. A
-  characterization-first product covers every wrapper path through depth four; the
-  existing end-to-end disposition/diagnostic matrix and affected compatibility ring
-  pass. Five representative accepted programs emit byte-identical LLVM before and
-  after the refactor, and the complete all-target/all-feature Rust test surface passes
-  with 187/187 library tests. Formatting, checking, correctness Clippy, docs, and the
-  exact serialized root gate pass; the root gate reports 187/187 library and 193/193
-  binary tests plus every integration target and doc tests. Immutable publication and
-  public exact-head gates still remain. No supported, rejected, or quarantined
-  behavior changes, and no matrix cell moves.
+- `CORE-070` is a locally green additive library/compiler-service candidate. Public
+  `compile_file(path, options)` supplies exact root-file diagnostics and the accepted
+  root-relative direct-module context while sharing one semantic, checked-IR,
+  in-process verification, and checked-codegen sequence with `compile_program`.
+  Module-free LLVM remains byte-identical, both accepted module layouts and multiple
+  ordered root modules pass, unsupported options reject before I/O, and every tested
+  root/module failure returns without artifacts. The new contract is 5/5, its focused
+  compatibility ring is 45/45, and all-target/all-feature tests, formatting, checking,
+  correctness Clippy, docs, and the exact 187-library/193-binary root gate pass.
+  Publication and exact-head public gates remain. This does not add imports, use/pub,
+  namespaces, recursion, caching, external verification, output writes, or CLI
+  convergence.
+
+- `ARCH-002` is accepted public at exact implementation
+  `aca3fe21ece4a7f90de0b41b5e336c15ac589505`, tree
+  `3c5466e8d6821b8443ecba919bde2ad568923355`, and stable patch ID
+  `cec753bde549b9ea1fc4a3aa7e820d754f7d8798`. Its shared normalized annotation
+  topology is behavior-neutral: all supported, explicitly rejected, and preserved/
+  quarantined results, diagnostics, checked IR, and LLVM remain unchanged. All eight
+  public checks pass, and stable/nightly LLVM/Clang 22.1.8 preserve exact native exit
+  193. No matrix cell moved.
 
 - `CORE-069` is accepted public at exact implementation
   `99ea287843bc0c1262045d31a60f18b03fa0558f`, tree

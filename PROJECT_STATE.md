@@ -4,26 +4,35 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 89 `ARCH-002` is a locally green behavior-neutral architecture candidate.
-It replaces the binding annotation classifier's nested AST-shape rejection table with
-one normalized tuple leaf plus ordered array/reference wrapper path. The shared result
-is now named exactly as supported binding annotation, explicitly rejected annotation
-topology, or preserved/quarantined topology, and shared methods route both semantic
-analysis and checked admission. The accepted supported, rejected, and preserved sets,
-diagnostic text and precedence, generic/impl/trait quarantine, type/ownership behavior,
-checked IR, verifier, LLVM, and backend remain unchanged.
+Milestone 90 `CORE-070` is a locally green file-aware library-compilation candidate.
+Public `compile_file(path, options)` now reads one exact UTF-8 root, attaches the root
+path to diagnostics, resolves only the existing root-level direct `mod x;` collector,
+and uses the same semantic, checked-IR, mandatory in-process verification, and checked
+LLVM-generation sequence as source-only `compile_program`. Module-free file and source
+results are byte-identical; both accepted direct-module layouts and multiple ordered
+root modules compile; root/module read, lex, parse, semantic, nested-module, and option
+failures stop without LLVM artifacts. The new 5/5 contract target, focused 45-test
+compatibility ring, all-target/all-feature surface, formatting, checking, correctness
+Clippy, docs, and exact root gate pass at 187/187 library and 193/193 binary tests plus
+every integration and doc target.
 
-A characterization-first matrix proves every wrapper path through depth four across
-initialization, array count, reference mutability, and tuple arity. The existing
-end-to-end disposition/diagnostic matrix and the full affected tuple/reference/array/
-aggregate/generic ring pass. Five representative accepted programs emit byte-identical
-LLVM before and after the refactor. `cargo test --all-targets --all-features` passes
-187/187 library tests plus every integration target and benchmark harness. Formatting,
-all-target checking, correctness Clippy, docs, and the exact serialized root gate pass;
-the root gate reports 187/187 library and 193/193 binary tests plus every integration
-target and doc tests. An immutable commit, push, PR candidate synchronization, and
-exact-head public gates remain before ARCH-002 acceptance. No language feature or
-matrix cell moves.
+This is an additive library entry point and a partial R-006 convergence step, not a
+module-system or thin-CLI claim. `import`, `use`, `pub`, namespaces, aliases, recursive
+module graphs, cache behavior, external LLVM verification, native execution, output
+writes, and nondefault compiler options remain unchanged or unsupported. An immutable
+candidate commit, push, rendered PR synchronization, all eight exact-head public
+checks, and the unchanged pinned LLVM/Clang 22 native exit-193 system lane remain
+before public acceptance.
+
+Milestone 89 `ARCH-002` is accepted public at exact implementation commit
+`aca3fe21ece4a7f90de0b41b5e336c15ac589505`, tree
+`3c5466e8d6821b8443ecba919bde2ad568923355`, and stable patch ID
+`cec753bde549b9ea1fc4a3aa7e820d754f7d8798`. It replaces nested binding-annotation
+shape rules with one normalized leaf/wrapper-path classifier shared by semantic
+analysis and checked admission without changing any supported, rejected, or
+quarantined behavior. All eight public checks pass, and stable/nightly pinned
+LLVM/Clang 22.1.8 independently preserve the composed exact native exit 193. No
+language feature or matrix cell moved.
 
 Milestone 88 `CORE-069` is accepted public at exact implementation commit
 `99ea287843bc0c1262045d31a60f18b03fa0558f`, tree
@@ -1275,8 +1284,8 @@ capability claims are stop conditions rather than implementation invitations.
   12 strict-lexing, 8 field, 15 Match, 14 modulo, 9 StructLiteral, and 16 tuple
   tests. All 38 Phase 5 tests remain intentionally ignored. Formatting, Clippy
   correctness, all-target compilation, and doc tests pass.
-- Last accepted public full-gate code commit:
-  `edd63f3c59de38b19d92aebec1b6915240b5e5a5` (`CORE-040`).
+- Current accepted public full-gate implementation commit:
+  `aca3fe21ece4a7f90de0b41b5e336c15ac589505` (`ARCH-002`, behavior-neutral).
 - Previous public implementation record: `CORE-015` changed only the two
   preregistered production phases, `src/compiler/src/semantic_analyzer.rs` and
   `src/compiler/src/ir_generator.rs`, plus the focused test and these minimal evidence
@@ -2138,14 +2147,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push ARCH-002 as one immutable behavior-neutral candidate; synchronize
-draft PR #4 immediately; and require one
-all-eight public set plus the unchanged pinned LLVM/Clang 22 composed system lane
-before recording acceptance in rendered PR metadata. Keep the PR draft and unmerged.
-After acceptance, select and separately freeze a hard module/runtime/ownership/
-execution slice rather than another convenient leaf. The controlled mega-PR checkpoint
-strategy, structured evidence-manifest generator, and periodic multi-capability system
-gates remain active separate controls.
+Run the record-inclusive CORE-070 root gate, then commit and push one immutable
+file-aware library candidate and synchronize draft PR #4 immediately. Require one
+all-eight exact-head public set plus the unchanged pinned LLVM/Clang 22 composed
+exit-193 system lane before recording public acceptance in rendered PR metadata. Keep
+the PR draft and unmerged. The controlled mega-PR checkpoint strategy, structured
+evidence-manifest generator, and periodic multi-capability system gates remain active
+separate controls.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.
 

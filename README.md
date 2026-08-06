@@ -151,7 +151,7 @@ aero lsp
 | **Control Flow** | Functions, if/else, while/checked fixed-array for/loop, and nearest-loop break/continue are partial. Accepted CORE-066 corrects checked `for` continue so it reaches the index increment before the header and proves fresh per-iteration enum consumption; labels, loop expressions/break values, non-array checked iterators, and outer-owner loop transport remain unsupported. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Function calls** | Accepted CORE-068 centralizes exact named-call classification across both semantic paths and checked admission/lowering. Existing nongeneric functions over admitted scalar, recursive CopyData, owned-enum, and reference-parameter contracts remain supported; missing or unsupported signatures, wrong arguments, and `Void` value use fail before checked IR. All eight public checks and the pinned LLVM/Clang 22 native-exit-181 gate pass. Overloads, conversions, generic/trait/closure calls, reference results, and stable callable ABI remain unsupported. |
 | **Intrinsic methods** | Accepted CORE-067 centralizes intrinsic method classification across semantics and checked IR. Exact recursive CopyData fixed-array `.len()`/`.is_empty()`, immutable compile-time String queries, and Array/Vec `.iter()` compatibility are the only admitted executable method forms. Runtime Strings, other collection methods, general dispatch, generic/trait methods, and callable ABI remain unsupported. |
-| **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. `use`, `pub` visibility semantics, namespaces, recursive modules, and cycle graphs are not implemented. |
+| **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. Local CORE-070 candidate adds public library `compile_file(path, options)` over this exact collector and the checked library frontend; it returns in-memory LLVM and writes no artifact. `use`, `pub` visibility semantics, namespaces, recursive modules, cycle graphs, cache convergence, and a thin shared CLI are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
@@ -166,12 +166,12 @@ aero lsp
 > `i32` is removed. Captures, calls, storage/transport, callable ABI, lifetime behavior,
 > generics, and closure LLVM generation are not implemented.
 
-> **Binding-annotation architecture candidate:** ARCH-002 normalizes each annotation
+> **Binding-annotation architecture:** Accepted public ARCH-002 normalizes each annotation
 > to one leaf plus an ordered array/reference wrapper path and shares the resulting
 > supported, explicitly rejected, or preserved/quarantined disposition across semantic
 > analysis and checked admission. This is behavior-neutral: it adds no annotation,
-> tuple, reference, generic, ownership, layout, ABI, or backend capability. Local parity
-> evidence is green; exact-head public acceptance remains pending.
+> tuple, reference, generic, ownership, layout, ABI, or backend capability. Exact-head
+> parity, all eight public checks, and the unchanged pinned native exit-193 lane pass.
 
 > **Tuple status:** CORE-058 is publicly accepted for flat
 > immutable tuples of arity two or greater whose elements are exactly `Int`,

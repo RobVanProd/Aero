@@ -64,11 +64,17 @@ whole-owner reassignment/control flow, checked IR, verification, private LLVM, a
 pinned stable/nightly LLVM/Clang 22.1.8 native-exit-193 system gate. Named-field/
 generic variants, broader patterns, enum storage/borrowing/projection, partial moves,
 stable ABI, and accelerators remain excluded.
-Local candidate `ARCH-002` then normalizes binding annotations to a leaf plus ordered
+Accepted public `ARCH-002` then normalizes binding annotations to a leaf plus ordered
 wrapper path and routes semantic analysis and checked admission through one supported/
-explicitly-rejected/preserved policy. Depth-four characterization and byte-identical
-LLVM evidence protect the boundary; no language feature, matrix cell, or runtime
-behavior moves. Public exact-head acceptance remains pending.
+explicitly-rejected/preserved policy. Depth-four characterization, byte-identical LLVM
+evidence, all eight public checks, and the unchanged pinned native exit-193 lane
+protect the boundary; no language feature, matrix cell, or runtime behavior moves.
+Local candidate `CORE-070` adds file-aware library compilation through that same
+checked library frontend and the existing root-level direct-module collector. Its
+module-free parity, direct-module success/failure matrix, and complete local gates are
+green. It is only a partial compiler-service convergence step: imports, namespaces,
+recursive modules, external verification, cache behavior, and thin-CLI convergence
+remain open, and exact-head public acceptance is pending.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

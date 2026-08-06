@@ -13915,3 +13915,146 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   all eight exact-head public checks, and unchanged pinned LLVM/Clang 22 native system
   gate remain before public acceptance. The next capability slice must address a hard
   module/runtime/ownership/execution class rather than another convenient leaf.
+
+### ARCH-002 accepted-public evidence
+
+- Exact immutable identity: implementation commit
+  `aca3fe21ece4a7f90de0b41b5e336c15ac589505`, tree
+  `3c5466e8d6821b8443ecba919bde2ad568923355`, stable patch ID
+  `cec753bde549b9ea1fc4a3aa7e820d754f7d8798`, and parent/accepted CORE-069
+  `99ea287843bc0c1262045d31a60f18b03fa0558f`. Local, remote, and PR heads
+  match; `master` and `origin/master` remain
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Public evidence: push CI run `31064458619` / job `92499149267`, PR CI run
+  `31064460553` / job `92499155311`, Rust CI run `31064460536` stable job
+  `92499155224` and nightly job `92499155158`, CodeQL run `31064458979`
+  Actions job `92499152458`, Python job `92499152341`, Rust job `92499152461`,
+  and aggregate `92499231046` all pass on exact head `aca3fe21`.
+- Pinned system evidence: stable and nightly independently report
+  `ExternalVerified: opt 22.1.8 at /usr/bin/opt-22`, execute
+  `llc-22 -verify-machineinstrs`, object-lower, link with `clang-22 -no-pie`,
+  and report `multi-field enum example passed with exit code 193`. The rendered
+  PR title/body records ARCH-002 as accepted public with zero stale candidate or
+  pending language while PR #4 remains open, draft, and unmerged. No records-only
+  acceptance commit was made.
+- Acceptance changes no language feature, matrix cell, diagnostic, type/ownership
+  behavior, checked IR, verifier, LLVM, backend, or claim. Generic argument topology
+  remains quarantined. The four scaling controls and every ARCH-002 exclusion remain
+  active.
+
+## CORE-070 - File-aware library compilation over the shared checked frontend
+
+- Task ID/date/owner: `CORE-070`, 2026-08-05, lead-owned red-first hard module/tooling
+  vertical slice. Starting identity is accepted public ARCH-002 implementation
+  `aca3fe21ece4a7f90de0b41b5e336c15ac589505` on `agent/aero-integration`;
+  local, remote, and PR heads match, all eight checks are green, PR #4 is open,
+  draft, and unmerged, and user-owned untracked `tmp/` remains outside the task.
+- Founding-framework basis: the original language PDF defines top-level dotted
+  `import` syntax and a compiler front end that parses, resolves names, checks types
+  and borrow rules, then lowers typed IR. It does not freeze import namespace,
+  qualification, alias, visibility, or recursive path semantics. The implementation
+  instead has an accepted compatibility-only root `mod x;` source collector. This
+  task therefore must not implement or reinterpret `import`, `use`, `pub`, dotted
+  paths, aliases, namespaces, or recursive module graphs.
+- Observed behavior: public `compile_program(source, options)` owns one duplicate
+  source-only lexer/parser/semantic/checked-IR/codegen path and must reject file-backed
+  `mod` because it has no entry directory. The CLI owns separate file-aware paths and
+  can collect exact direct modules. Library clients cannot request that already
+  accepted file-aware behavior without manually rebuilding compiler phases, while
+  R-006 remains partially controlled for CLI/library divergence.
+- Primary hypothesis and frozen API: add one public `compile_file(path, options)`
+  entry that reads exactly the requested UTF-8 Aero root, uses its path for located
+  diagnostics and the accepted direct-module base directory, and returns checked,
+  in-process-verified LLVM text without writing an artifact. Extract only the shared
+  library frontend/codegen sequence needed by `compile_program` and `compile_file` so
+  source-only module-free output and all existing diagnostics remain exact. This is a
+  file-aware library capability, not a complete module system or CLI convergence
+  claim.
+- Frozen module behavior: only root-level compatibility `mod x;` is collectible;
+  resolution remains `<root-dir>/x.aero` then `<root-dir>/x/mod.aero`, modules append
+  in root declaration/source order, names remain flattened/unqualified, nested `mod`
+  remains the exact accepted unsupported error, and missing/read/lex/parse/semantic/
+  checked-admission failures stop before LLVM return. Source-only `compile_program`
+  continues rejecting any file-backed declaration and remains byte-identical for
+  module-free default input.
+- Frozen options and verification: both public routes accept only
+  `CompilerOptions::default()`. Unsupported options reject before source-file I/O.
+  `compile_file` performs mandatory checked-IR verification and checked codegen just
+  like `compile_program`; it does not consult external LLVM, cache, graph/quantization
+  transforms, accelerator selection, native tools, output paths, or the process
+  working directory for module resolution. Returned LLVM remains an internally
+  verified library artifact, not external LLVM or execution evidence.
+- Red-first acceptance tests: before production edits, a new exact contract target
+  must fail because `compile_file` is absent. It will then prove module-free file output
+  equals `compile_program` byte-for-byte; both accepted module layouts and multiple
+  root modules compile; root-relative resolution is independent of current directory;
+  direct-module functions flow through semantics, checked IR, verification, and LLVM;
+  missing root/module, invalid UTF-8, root/module strict lex/parse failures, nested
+  modules, semantic errors, and checked-admission errors return without artifacts or
+  external/native tool use; unsupported options win before read; source-only behavior
+  stays exact; and existing CLI module tests remain unchanged.
+- Allowed files before exact green: this ledger; `src/compiler/src/lib.rs`; and new
+  `src/compiler/tests/file_compilation_contract_tests.rs`. A production need to edit
+  the lexer, parser, AST, module resolver, semantic analyzer, checked IR, verifier,
+  codegen, CLI, cache, profiler, docs generator, workflows, dependencies, examples,
+  or other tests is a stop condition requiring a revised task. After the exact
+  candidate is green, only directly affected project-state, capability, framework,
+  roadmap, decision, risk, README, and PR metadata records may be synchronized.
+- Stop conditions: stop on any new module syntax/name binding, changed `mod` search
+  order or flattening, changed source-only LLVM byte, changed established diagnostic,
+  external tool/cache/artifact side effect, unsupported-option phase-order change,
+  public API ambiguity that requires a stability/compatibility promise, a third
+  production file, or any need for namespace/import/visibility/recursive semantics.
+  Do not add a `use` false-success repair opportunistically; that needs its own frozen
+  task.
+- Verification and publication: run the red target, focused options/module/strict-
+  lexing/fatal-parse/checked-IR compatibility ring, complete all-target/all-feature
+  tests, formatting, checking, correctness Clippy, docs, exact root `./tools/test.sh`,
+  all eight public workflows, and the unchanged pinned LLVM/Clang 22 exit-193 composed
+  system lane. Commit and push one candidate only after local green; synchronize PR
+  #4 immediately and record public acceptance there only after exact-head green.
+- Scaling controls: this is a hard file/module/compiler-service slice selected instead
+  of another compile-time leaf. It reduces one R-006 divergence but does not claim
+  canonical CLI convergence. The 267-commit mega-PR checkpoint strategy, structured
+  checkpoint-manifest generator, and periodic composed system gates remain active
+  separate controls. Next action is the missing-API red contract before any production
+  edit.
+
+### CORE-070 local-candidate result
+
+- Red-first evidence: the new `file_compilation_contract_tests` target initially
+  failed at compile time only with unresolved public import `compiler::compile_file`.
+  No production edit preceded that exact missing-API proof. After implementation, the
+  first behavior run passed four cases and exposed one test-only wrong backend guess
+  (`double` instead of established Aero `int`/LLVM `i32`); correcting that assertion
+  changed no compiler behavior, and all 5/5 contract cases pass.
+- Implementation: `src/compiler/src/lib.rs` now owns one private shared checked
+  compilation sequence. `compile_program` retains its source-only boundary and calls
+  it without a filename or entry context. Public `compile_file` validates default-only
+  options before I/O, reads the exact UTF-8 root, supplies its path to located lexing
+  and direct-module resolution, appends the exact accepted ordered direct-module ASTs,
+  and returns in-memory checked LLVM. No other production file changed.
+- Contract evidence: module-free file/source LLVM is byte-identical; `x.aero` and
+  `x/mod.aero` plus multiple source-ordered modules compile; missing/invalid-UTF-8/
+  strict-lex/fatal-parse/semantic/checked-admission failures in both root and direct
+  modules return without `.ll` artifacts; nested and missing modules preserve accepted
+  boundaries; unsupported options win before a missing-root read; and source-only
+  module rejection remains exact.
+- Focused and complete gates: the options, module pipeline, strict lexing, fatal parse,
+  checked-IR, and new file-compilation targets pass 45/45 tests. `cargo test
+  --all-targets --all-features` exits 0 with 187/187 library, 193/193 binary, every
+  integration target, and all benchmark harnesses. `cargo fmt --check`, all-target/
+  all-feature `cargo check`, correctness Clippy, and `cargo doc --no-deps
+  --all-features` exit 0. The final record-inclusive exact repository-root
+  `./tools/test.sh` exits 0 with the same 187/193 unit surfaces plus every integration
+  and doc test.
+- Files changed: `src/compiler/src/lib.rs`; new
+  `src/compiler/tests/file_compilation_contract_tests.rs`; this ledger; and the
+  directly affected project-state, capability, matrix, framework, roadmap, decision,
+  risk, and README records. User-owned untracked `tmp/` remains untouched.
+- Remaining uncertainty and risk: this does not converge the CLI or other tools, add
+  import/use/pub/namespace/visibility/recursive graph semantics, define cache identity,
+  run external LLVM/native tools, write outputs, implement real compiler options, or
+  certify a stable public API. The immutable commit, push, rendered PR candidate sync,
+  all eight public checks, and unchanged pinned LLVM/Clang 22 exit-193 lane remain
+  before public acceptance.

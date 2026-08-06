@@ -3014,8 +3014,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-065 - Normalize binding-annotation topology before phase routing
 
 - Date: 2026-08-05
-- Status: local `ARCH-002` candidate; immutable commit, push, PR synchronization, and
-  exact-head public acceptance remain pending.
+- Status: accepted public `ARCH-002` at exact implementation commit
+  `aca3fe21ece4a7f90de0b41b5e336c15ac589505`, tree
+  `3c5466e8d6821b8443ecba919bde2ad568923355`, and stable patch ID
+  `cec753bde549b9ea1fc4a3aa7e820d754f7d8798`.
 - Decision: decompose every binding annotation into one terminal leaf plus an ordered
   array/reference wrapper path. One classifier returns exactly
   `SupportedBindingAnnotation`, `ExplicitlyRejectedAnnotationTopology`, or
@@ -3027,17 +3029,48 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   compatibility contexts remain preserved or quarantined. Diagnostic wording,
   initializer-validation precedence, type/ownership behavior, checked IR, verifier,
   LLVM, and backend output do not change.
-- Local evidence: a characterization-first product covers every wrapper path through
+- Evidence: a characterization-first product covers every wrapper path through
   depth four across initialization, counts, mutability, and tuple arity. Classifier
   units, the end-to-end disposition/diagnostic target, and the affected compatibility
   ring pass. Five representative accepted programs produce byte-identical LLVM before
   and after the refactor; the full all-target/all-feature test surface passes with
   187/187 library tests. Formatting, all-target/all-feature checking, correctness
   Clippy, docs, and the exact serialized root gate pass; the root gate reports 187/187
-  library and 193/193 binary tests plus every integration target and doc tests.
-  Immutable publication and public gates remain before acceptance.
+  library and 193/193 binary tests plus every integration target and doc tests. All
+  eight public checks pass on the exact head; stable and nightly pinned LLVM/Clang
+  22.1.8 independently externally verify, machine-verify, object-lower, link, and
+  preserve exact native exit 193.
 - Exclusions and scaling boundary: no annotation recursion, new tuple/reference/
   generic semantics, conversions, ownership/lifetime/layout/ABI behavior, capability
   claim, or matrix movement is authorized. This checkpoint reduces combinatorial rule
   growth and phase drift; manifest automation, the mega-PR checkpoint strategy, and
   the next hard module/runtime/ownership/execution slice remain separate controls.
+
+## DEC-066 - Add file-aware library compilation over the checked frontend
+
+- Date: 2026-08-05
+- Status: local `CORE-070` candidate; immutable commit, push, rendered PR
+  synchronization, all eight exact-head checks, and pinned-system confirmation remain
+  before public acceptance.
+- Decision: add public `compile_file(path, options)` and share the library semantic,
+  checked-IR, mandatory in-process verification, and checked-codegen sequence with
+  `compile_program`. Validate options before file I/O, read exactly one UTF-8 root,
+  preserve its path in located diagnostics, and use it only as the base for the
+  accepted direct-module collector. Return LLVM in memory and write no artifact.
+- Frozen module contract: collect only root `mod x;` declarations, search `x.aero`
+  before `x/mod.aero`, append direct modules in declaration order under the existing
+  flattened compatibility model, and keep nested declarations fail-closed. Source-only
+  `compile_program` still cannot resolve modules, and module-free output stays
+  byte-identical.
+- Evidence: red-first compilation failed only because `compile_file` was absent. The
+  implemented 5/5 contract proves file/source parity, both module layouts, multiple
+  modules, phase-ordered root/module failures, source-located diagnostics, option-before-
+  I/O rejection, and absence of output artifacts. The 45-test focused compatibility
+  ring, 187-library/193-binary all-target surface, formatting, all-target/all-feature
+  check, correctness Clippy, docs, and exact repository-root gate all pass.
+- Exclusions and scaling boundary: no `import`, `use`, `pub`, alias, namespace,
+  visibility, recursive graph, cycle, cache, external LLVM, native execution, output-
+  path, accelerator, real option, or CLI/tool convergence behavior is added. This is a
+  hard file/module/compiler-service slice and a partial R-006 reduction; the PR
+  checkpoint strategy, evidence-manifest automation, and broader periodic system gates
+  remain separately controlled.
