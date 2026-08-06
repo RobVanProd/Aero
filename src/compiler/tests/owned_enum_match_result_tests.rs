@@ -360,7 +360,7 @@ fn fresh_owned_enum_match_result_class_is_complete_checked_and_executable() {
         Ok((checked, llvm)) => {
             let debug = format!("{checked:#?}");
             for marker in [
-                "CheckedEnumMatchResultPlaceAlloca",
+                "CheckedMatchResultPlaceAlloca",
                 "dispatch_schema",
                 "CheckedOwnedPlaceAssignment",
                 "CheckedEnumDispatch",
@@ -369,7 +369,7 @@ fn fresh_owned_enum_match_result_class_is_complete_checked_and_executable() {
                     failures.push(format!("checked result IR missing {marker:?}:\n{debug}"));
                 }
             }
-            if debug.matches("CheckedEnumMatchResultPlaceAlloca").count() < 8 {
+            if debug.matches("CheckedMatchResultPlaceAlloca").count() < 8 {
                 failures.push(format!(
                     "checked IR omitted owned Match result places:\n{debug}"
                 ));
@@ -536,16 +536,6 @@ fn excluded_owned_enum_match_result_origins_fail_closed() {
             vec!["same type", "expected"],
         ),
         (
-            "array results",
-            "enum I { A } fn main() { let result = match I::A { I::A => [1, 2] }; }",
-            vec!["must return Int, Float, Bool, Char, or one admitted owned enum result"],
-        ),
-        (
-            "struct results",
-            "enum I { A } struct Cell { value: int } fn main() { let result = match I::A { I::A => Cell { value: 1 } }; }",
-            vec!["must return Int, Float, Bool, Char, or one admitted owned enum result"],
-        ),
-        (
             "borrowed result",
             "enum I { A } enum O { X } fn main() { let value = O::X; let result = match I::A { I::A => &value }; }",
             vec!["reference", "must return"],
@@ -589,7 +579,7 @@ fn deprecated_raw_generation_cannot_activate_checked_match_result_identity() {
     let raw = IrGenerator::new().generate_ir(parsed(source).expect("complete source parses"));
     let debug = format!("{raw:#?}");
     assert!(
-        !debug.contains("CheckedEnumMatchResultPlaceAlloca"),
+        !debug.contains("CheckedMatchResultPlaceAlloca"),
         "deprecated raw generation activated checked Match result identity:\n{debug}"
     );
 }

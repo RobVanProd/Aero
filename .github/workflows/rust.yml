@@ -879,6 +879,34 @@ jobs:
         fi
         echo "conditional direct-owner enum Match result example passed with exit code 211"
 
+    - name: Test unified CopyData Match result integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/copydata_match_results/main.aero
+        set +e
+        cargo run -- run ../../examples/copydata_match_results/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 223 ]; then
+          echo "Public run returned $public_run_exit, expected 223"
+          exit 1
+        fi
+        cargo run -- build ../../examples/copydata_match_results/main.aero -o ../../copydata_match_results.ll
+        opt-22 -passes=verify -disable-output ../../copydata_match_results.ll
+        llc-22 -verify-machineinstrs ../../copydata_match_results.ll -o /dev/null
+        llc-22 -filetype=obj ../../copydata_match_results.ll -o ../../copydata_match_results.o
+        clang-22 -no-pie ../../copydata_match_results.o -o ../../copydata_match_results
+        set +e
+        ../../copydata_match_results
+        copydata_match_exit_code=$?
+        set -e
+        if [ $copydata_match_exit_code -ne 223 ]; then
+          echo "Expected CopyData Match result exit code 223, got $copydata_match_exit_code"
+          exit 1
+        fi
+        echo "unified CopyData Match result example passed with exit code 223"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

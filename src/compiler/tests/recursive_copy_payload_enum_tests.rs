@@ -372,10 +372,6 @@ fn recursive_copydata_payload_enum_class_is_complete_checked_and_executable() {
             "enum E { Value([int; 2]) } fn main() { let value = E::Value([1]); }",
         ),
         (
-            "aggregate Match result remains excluded",
-            "enum E { Value([int; 2]) } fn main() -> int { let result = match E::Value([1, 2]) { E::Value(items) => items }; return result[0]; }",
-        ),
-        (
             "enum stored in aggregate remains excluded",
             "enum E { Value([int; 2]) } struct S { value: E } fn consume(value: S) -> int { 0 } fn main() -> int { 0 }",
         ),

@@ -272,8 +272,8 @@ impl CodeGenerator {
                 | Inst::CheckedOwnedPlaceAssignment { ty, .. } => {
                     Self::collect_logical_struct_schema(ty, schemas);
                 }
-                Inst::CheckedEnumMatchResultPlaceAlloca { schema, .. } => {
-                    Self::collect_logical_struct_schema(&schema.logical_type(), schemas);
+                Inst::CheckedMatchResultPlaceAlloca { result_type, .. } => {
+                    Self::collect_logical_struct_schema(result_type, schemas);
                 }
                 Inst::CheckedImmutableBorrow { pointee, .. }
                 | Inst::CheckedMutableBorrow { pointee, .. }
@@ -398,7 +398,7 @@ impl CodeGenerator {
                 }
                 Inst::Alloca(ptr, _)
                 | Inst::CheckedMutableOwnedPlaceAlloca { result: ptr, .. }
-                | Inst::CheckedEnumMatchResultPlaceAlloca { result: ptr, .. }
+                | Inst::CheckedMatchResultPlaceAlloca { result: ptr, .. }
                 | Inst::AllocaArray { result: ptr, .. }
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
@@ -826,7 +826,7 @@ impl CodeGenerator {
                 | Inst::FDiv(..)
                 | Inst::Alloca(..)
                 | Inst::CheckedMutableOwnedPlaceAlloca { .. }
-                | Inst::CheckedEnumMatchResultPlaceAlloca { .. }
+                | Inst::CheckedMatchResultPlaceAlloca { .. }
                 | Inst::CheckedOwnedPlaceAssignment { .. }
                 | Inst::CheckedMutableDereferenceAssignment { .. }
                 | Inst::Store(..)
@@ -1218,12 +1218,21 @@ impl CodeGenerator {
                         "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
                     ));
                 }
-                Inst::CheckedEnumMatchResultPlaceAlloca { result, schema, .. } => {
+                Inst::CheckedMatchResultPlaceAlloca {
+                    result,
+                    result_type,
+                    ..
+                } => {
                     let Value::Reg(ptr_id) = result else {
-                        panic!("Expected register for checked enum Match result-place alloca")
+                        panic!("Expected register for checked Match result-place alloca")
                     };
-                    let enum_type = Self::logical_type_to_llvm(&schema.logical_type());
-                    llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca {enum_type}, align 8\n"));
+                    let llvm_type = Self::logical_type_to_llvm(result_type);
+                    let align = PrimitiveKind::from_logical_type(result_type)
+                        .map(PrimitiveKind::alignment)
+                        .unwrap_or(8);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{ptr_id} = alloca {llvm_type}, align {align}\n"
+                    ));
                 }
                 Inst::Alloca(ptr_reg, name) => {
                     let ptr_id = match ptr_reg {

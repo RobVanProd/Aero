@@ -524,7 +524,8 @@ impl StructRegistry {
             | Expression::FunctionCall { .. }
             | Expression::IndexAccess { .. }
             | Expression::FieldAccess { .. }
-            | Expression::Deref(_) => Ok(()),
+            | Expression::Deref(_)
+            | Expression::Match { .. } => Ok(()),
             _ => Err(StructContractError::LocalMoveOrCopy),
         }
     }
@@ -873,6 +874,37 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    #[test]
+    fn admitted_match_is_a_direct_copy_struct_binding_origin_only_after_type_proof() {
+        let registry = StructRegistry::from_top_level_ast(&[definition(
+            "Frame",
+            vec![field("value", Type::Named("int".to_string()))],
+            vec![],
+        )]);
+        let admitted_match = Expression::Match {
+            expr: Box::new(Expression::Identifier("pick".to_string())),
+            arms: Vec::new(),
+        };
+
+        registry
+            .validate_direct_binding_initializer(&admitted_match, &Ty::Struct("Frame".to_string()))
+            .expect("an independently typed Match is a direct Copy-struct binding origin");
+        assert_eq!(
+            registry.validate_direct_binding_initializer(
+                &admitted_match,
+                &Ty::Struct("Unknown".to_string()),
+            ),
+            Err(StructContractError::LocalMoveOrCopy)
+        );
+        assert_eq!(
+            registry.validate_direct_binding_initializer(
+                &Expression::IntegerLiteral(1),
+                &Ty::Struct("Frame".to_string()),
+            ),
+            Err(StructContractError::LocalMoveOrCopy)
+        );
     }
 
     #[test]

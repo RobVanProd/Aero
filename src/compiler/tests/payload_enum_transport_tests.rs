@@ -403,11 +403,6 @@ fn main() -> int { return 0; }
             "enum transport function `take` parameter `text` is not an admitted by-value type",
         ),
         (
-            "tuple mixed result",
-            "enum Value { Int(int) } fn take(value: Value) -> (int, int) { (1, 2) } fn main() -> int { 0 }",
-            "enum transport function `take` result is not an admitted by-value type",
-        ),
-        (
             "wrong enum argument",
             "enum Value { Int(int) } enum Other { Int(int) } fn take(value: Value) -> int { 1 } fn main() -> int { take(Other::Int(2)) }",
             "Function `take` parameter `value` type mismatch: expected Value, actual Other",

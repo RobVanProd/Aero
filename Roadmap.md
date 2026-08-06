@@ -107,15 +107,28 @@ recursively fresh nested Match. Exact checked result/dispatch identities and ver
 CFG proof prevent missing, bypassed, repeated, post-merge, or wrong-schema fabrication.
 The composed direct-module/check/build gates, all-eight public set, and pinned native
 exit 203 pass.
-Local candidate `CORE-075` adds exact initialized direct local/owned-parameter result
+Accepted public `CORE-075` adds exact initialized direct local/owned-parameter result
 origins and a shared dynamic-path ownership join. Same-owner mutually exclusive arms,
 different owners, fresh/direct mixtures, and recursively admitted leaves compose;
 same-path duplicates, loop effects, additional owned call consumption, and external
 nested scrutinees reject. It reuses the existing checked result place, enum-value/place-
 load provenance, verifier CFG ownership proof, and private enum layout. Aggregate
 results/storage, broader patterns, borrowing/projection, partial moves, drop/lifetimes,
-stable ABI, and generic/closure semantics remain separate work; pinned native exit 211
-and public acceptance are pending.
+stable ABI, and generic/closure semantics remain separate work. Exact implementation
+`50a3e03d0bdbc0e7deddde747bc19df0621c1257`, all eight exact-head checks, and the
+pinned stable/nightly LLVM/Clang 22.1.8 native exit 211 lanes pass.
+Local candidate `CORE-076` unifies exhaustive Match results over the complete already
+admitted value universe: one shared classifier accepts one identical recursive finite
+CopyData type or the existing constrained owned-enum class, one generic checked result
+place carries every arm through exact typed whole-place assignment, and independent CFG
+verification proves all-path initialization and one merged load. Arrays (including
+zero-length), tuples, finite acyclic structs, primitives, and owned enums retain their
+existing private LLVM types. The complete 194-library/200-binary surface and composed
+two-module native sentinel 223 are locally green; immutable publication, all eight
+exact-head checks, and both pinned native lanes remain pending. Strings, references,
+unit/unary tuples, dynamic collections, cyclic/unsupported structs, enum aggregate
+storage, wider patterns, stable ABI, runtime, drop/lifetimes, and general ownership
+remain separately frozen.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

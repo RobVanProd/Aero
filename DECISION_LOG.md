@@ -3234,9 +3234,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-071 - Admit conditional direct-owner enum Match results
 
 - Date: 2026-08-05
-- Status: locally green `CORE-075` candidate; immutable commit/push,
-  rendered PR synchronization, pinned native exit 211, and all-eight exact-head public
-  acceptance remain pending.
+- Status: accepted public `CORE-075` at exact implementation
+  `50a3e03d0bdbc0e7deddde747bc19df0621c1257`, tree
+  `c31e261a32072f7eca473d940641bbbfef3b6b21`, and stable patch identity
+  `395de4d78694be56b45a310b87df1f98568217eb`; all eight exact-head checks and the
+  pinned stable/nightly LLVM/Clang 22.1.8 native exit 211 lanes pass.
 - Decision: an exhaustive admitted enum Match may yield an already initialized direct
   local owner or owned parameter of the exact result schema. Fresh and direct origins
   may mix, distinct arms may select distinct owners, and the same owner may appear on
@@ -3269,3 +3271,45 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   ABI/FFI, generic/closure, runtime, accelerator, release, safety, or merge semantics are
   added. The shared path classifier prevents another topology-rule multiplication; the
   mega-PR checkpoint strategy and structured evidence-manifest generator remain separate.
+
+## DEC-072 - Unify exhaustive Match results over admitted values
+
+- Date: 2026-08-05
+- Status: locally green `CORE-076` candidate; immutable commit/push, rendered PR
+  synchronization, all-eight exact-head public checks, and pinned stable/nightly
+  LLVM/Clang 22.1.8 native exit 223 remain pending.
+- Decision: an exhaustive admitted enum Match may yield one identical exact result from
+  the complete already admitted recursive finite CopyData universe or the separately
+  bounded owned-enum class. CopyData includes primitives, fixed arrays including zero
+  length, arity-at-least-two tuples, and finite acyclic Copy structs. No common
+  supertype, implicit conversion, default value, arm coercion, or new ownership rule is
+  introduced.
+- Shared authority: `EnumMatchResultContract` consumes
+  `StructRegistry::resolve_copy_type` and the existing owned-enum result resolver, so
+  semantic inference and checked admission share one result classification instead of
+  array/tuple/struct topology tables. Enum-bearing signatures now consume the same
+  existing CopyData annotation resolver for non-enum parameters/results. The direct
+  Copy-struct binding-origin classifier admits an already typed Match without bypassing
+  exact result proof.
+- Independent proof and lowering: one
+  `CheckedMatchResultPlaceAlloca { result, result_type, dispatch_schema }` supersedes
+  the primitive generic-store path and the enum-only result place. Every dispatch arm
+  writes one exact typed whole value through `CheckedOwnedPlaceAssignment`; independent
+  verifier CFG dataflow proves valid metadata, exact dispatch identity, one dominated
+  arm write, all-path initialization, one merged load, and no generic store or bypass.
+  Enum results retain the CORE-074/075 owner proof; CopyData adds no move. LLVM allocates
+  the existing private physical type and establishes no public layout or ABI.
+- Evidence: the red-first target stopped arrays, tuples, structs, and nested Matches at
+  the former result boundary. The green product covers every recursive CopyData shape,
+  all frozen origins/use contexts, nested Match, direct modules, deterministic checked
+  IR/LLVM, CLI check/build/run artifact hygiene, scalar and owned-enum preservation, and
+  malformed generic result-place controls. The complete local compiler surface passes
+  at 194 library and 200 binary tests with formatting, all-target/all-feature check,
+  correctness Clippy, docs, and exact repository-root gates; the tracked composed native
+  specimen is pinned to exit 223 pending public execution.
+- Exclusions and scaling boundary: String, references/results, Void, unit/unary tuples,
+  dynamic collections, Option/Result, closures/functions as values, cyclic/unsupported
+  structs, enum-in-aggregate storage, wider patterns, generic/trait behavior, runtime,
+  drop/lifetimes, stable ABI/FFI, accelerator, performance, release, safety, and merge
+  semantics remain frozen. This removes the scalar/enum checked-result topology split;
+  mega-PR checkpoint policy and structured evidence-manifest generation remain separate.

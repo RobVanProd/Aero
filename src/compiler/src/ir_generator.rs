@@ -2373,6 +2373,12 @@ impl IrGenerator {
                         &result_types,
                         &consumed,
                         &arm_owned_consumptions,
+                        |ty| {
+                            program
+                                .structs
+                                .resolve_copy_type(ty)
+                                .map(|contract| contract.logical_type)
+                        },
                         |name| Self::admission_direct_owned_enum_result_type(name, bindings),
                         |name| {
                             program
@@ -2382,7 +2388,7 @@ impl IrGenerator {
                         },
                         context,
                     )
-                    .map(|resolved| resolved.result)
+                    .map(|resolved| resolved.result_contract.ty())
                     .map_err(|error| admission_error(&error.diagnostic()))
             }
             Expression::TupleLiteral(elements) => {
@@ -2619,7 +2625,7 @@ impl IrGenerator {
                     result: Value::Reg(register),
                     ..
                 }
-                | Inst::CheckedEnumMatchResultPlaceAlloca {
+                | Inst::CheckedMatchResultPlaceAlloca {
                     result: Value::Reg(register),
                     ..
                 }
@@ -2698,7 +2704,7 @@ impl IrGenerator {
                 Inst::CheckedMutableOwnedPlaceAlloca { result, .. } => {
                     Self::rewrite_place(result, &places)
                 }
-                Inst::CheckedEnumMatchResultPlaceAlloca { result, .. } => {
+                Inst::CheckedMatchResultPlaceAlloca { result, .. } => {
                     Self::rewrite_place(result, &places)
                 }
                 Inst::CheckedOwnedPlaceAssignment { target, .. } => {
@@ -2852,30 +2858,15 @@ impl IrGenerator {
                 EnumExecutionContext::AdmittedFunction,
             )
             .expect("checked enum match was admitted");
-        let owned_result = self
-            .enum_registry
-            .resolve_owned_match_result(
-                &arms,
-                &|name| self.symbol_table.get(name).map(|(_, ty)| ty.clone()),
-                &|name| self.function_return_types.get(name).cloned(),
-            )
-            .ok();
-
         let result_place_id = self.next_ptr;
         let result_place = Value::Reg(result_place_id);
         self.next_ptr += 1;
-        let result_name = format!("__match_result_{result_place_id}");
-        if let Some(result) = &owned_result {
-            function.body.push(Inst::CheckedEnumMatchResultPlaceAlloca {
-                result: result_place.clone(),
-                schema: result.contract.schema.clone(),
-                dispatch_schema: resolved.contract.schema.clone(),
-            });
-        } else {
-            function
-                .body
-                .push(Inst::Alloca(result_place.clone(), result_name));
-        }
+        let result_place_position = function.body.len();
+        function.body.push(Inst::CheckedMatchResultPlaceAlloca {
+            result: result_place.clone(),
+            result_type: LogicalType::Void,
+            dispatch_schema: resolved.contract.schema.clone(),
+        });
 
         let arm_labels = (0..arms.len())
             .map(|_| {
@@ -2947,22 +2938,29 @@ impl IrGenerator {
             } else {
                 result_ty = Some(ty.clone());
             }
-            if let Some(result) = &owned_result {
-                function.body.push(Inst::CheckedOwnedPlaceAssignment {
-                    target: result_place.clone(),
-                    value,
-                    ty: result.contract.schema.logical_type(),
-                });
-            } else {
-                function.body.push(Inst::Store(result_place.clone(), value));
-            }
+            let value = self.load_copy_aggregate_value(value, &ty, function);
+            function.body.push(Inst::CheckedOwnedPlaceAssignment {
+                target: result_place.clone(),
+                value,
+                ty: self.admitted_owned_place_logical_type(&ty),
+            });
             function.body.push(Inst::Jump(end_label.clone()));
         }
         function.body.push(Inst::Label(end_label));
         let result_ty = result_ty.expect("admitted enum has at least one arm");
+        let result_type = self.admitted_owned_place_logical_type(&result_ty);
+        let Inst::CheckedMatchResultPlaceAlloca {
+            result_type: stored_result_type,
+            ..
+        } = &mut function.body[result_place_position]
+        else {
+            unreachable!("checked Match result place remains at its recorded position")
+        };
+        *stored_result_type = result_type;
         let result = Value::Reg(self.next_reg);
         self.next_reg += 1;
         function.body.push(Inst::Load(result.clone(), result_place));
+        let result = self.store_copy_aggregate_value(result, &result_ty, function);
         (result, result_ty)
     }
 

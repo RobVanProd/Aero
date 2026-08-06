@@ -8,20 +8,28 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-075` is a locally green conditional direct-owner enum Match-result candidate.
-  One recursive result-origin classifier admits exact initialized direct enum owners
-  alongside the accepted fresh origins, and one shared dynamic-path classifier derives
-  all-path `Moved`, partial-path `MaybeMoved`, or unchanged `Owned` source state while
-  rejecting duplicate same-path moves and every loop effect. Existing checked enum
-  values/place loads, the CORE-074 result place, checked owned-place assignments, and
-  independent verifier CFG ownership proof carry the selected owner without a new IR
-  opcode, layout, ABI, or runtime rule. The 192-library/198-binary complete compiler
-  surface, focused corruption controls, check/Clippy/docs, direct modules, CLI
-  check/build, deterministic LLVM, artifact hygiene, and the exact root gate pass
-  locally. Immutable publication, rendered PR synchronization, all eight exact-head checks,
-  and pinned stable/nightly native exit 211 remain pending. Loops, additional owned call
-  consumption, external nested scrutinees, aggregate storage, borrowing/projection,
-  partial moves, drop/lifetimes, general CFG ownership, and stable ABI remain excluded.
+- `CORE-076` is a locally green unified typed Match-result candidate. One classifier
+  admits identical exact recursive finite CopyData or the separately constrained owned-
+  enum result class. One generic checked result place and one verifier CFG proof now
+  cover primitives, fixed arrays including zero length, recursive tuples, finite acyclic
+  structs, and owned enums without shape-specific result opcodes. The 194-library/200-
+  binary complete compiler surface, every integration/doc target, focused corruption
+  controls, format/check/Clippy/docs, direct modules, CLI check/build artifact hygiene,
+  deterministic LLVM, and the exact root gate pass locally. The tracked composed
+  specimen is pinned for stable/nightly LLVM/Clang 22 native exit 223. Immutable
+  publication, rendered PR synchronization, exact-head public checks, and native
+  acceptance remain pending. Strings, references/results, unit/unary tuples, dynamic
+  collections, enum-in-CopyData storage, cyclic/unsupported structs, wider patterns,
+  ABI/runtime/drop/lifetime, accelerator, release, and safety semantics remain excluded.
+
+- `CORE-075` is accepted public at exact commit
+  `50a3e03d0bdbc0e7deddde747bc19df0621c1257`, tree
+  `c31e261a32072f7eca473d940641bbbfef3b6b21`, and stable patch
+  `395de4d78694be56b45a310b87df1f98568217eb`. Its all-eight exact-head checks and
+  stable/nightly pinned LLVM/Clang 22.1.8 native exit 211 pass. The shared dynamic-path
+  classifier derives exact `Moved`/`MaybeMoved`/`Owned` state for direct-owner enum
+  Match results; CORE-076 locally generalizes only the typed result universe and checked
+  result-place identity.
 
 - `CORE-074` is accepted public for fresh owned-enum Match results at exact commit
   `b2bd320e6960c2e4f539911b28a251b32b2b9b89`, tree

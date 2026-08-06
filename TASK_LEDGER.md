@@ -15026,3 +15026,225 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   composition and interaction with older flat call/scrutinee consumption; exhaustive
   positive, negative, semantic-bypass, verifier, complete-suite, and root controls bound
   that risk without claiming general CFG ownership.
+
+## CORE-076 - Unified typed Match results over the complete admitted value universe
+
+- Task ID/date/owner: `CORE-076`, 2026-08-05, lead-owned red-first hard aggregate/
+  control-flow/checked-IR vertical slice. Starting identity is accepted public CORE-075
+  commit `50a3e03d0bdbc0e7deddde747bc19df0621c1257`, tree
+  `c31e261a32072f7eca473d940641bbbfef3b6b21`, and stable patch ID
+  `395de4d78694be56b45a310b87df1f98568217eb`. Local/origin/PR heads match;
+  `master`/`origin/master` remain `8f8c7337a4008082fd2a443fcc814b5847b8663f`;
+  PR #4 is open, draft, unmerged, and rendered as CORE-075 accepted public. All eight
+  exact-head checks pass in push CI `31077837290`, PR CI `31077840747`, Rust
+  `31077841391`, CodeQL `31077837954`, and aggregate check `92539755760`. Stable and
+  nightly independently report LLVM/Clang 22.1.8, external and machine verification,
+  object lowering, `clang-22 -no-pie`, and exact native exit 211. The integration
+  program is 273 commits/214 files relative to `master`. User-owned untracked `tmp/`
+  remains outside this task.
+- Selection/founding basis: the founding language direction makes exhaustive Match an
+  expression in a strongly typed language and already treats arrays, tuples, structs,
+  and enums as first-class composition forms. Accepted CORE-062 closes one recursive
+  finite CopyData predicate over exact primitives, fixed arrays including zero length,
+  tuples of arity two or more, and finite acyclic named structs. CORE-074/075 separately
+  close fresh and conditional owned-enum Match results. The remaining result-type gap
+  is therefore not an unfrozen new value model: it is the already accepted CopyData
+  universe. Closing it now is a harder aggregate/CFG/verifier/backend slice and avoids
+  selecting another convenient compile-time-only feature.
+- Observed behavior and red hypothesis: a source-valid exhaustive Match whose arms all
+  produce an identical admitted CopyData aggregate infers that exact `Ty`, but
+  `EnumRegistry::resolve_match_with_consumed` rejects every nonprimitive/non-enum result
+  with `enum match arms must return Int, Float, Bool, Char, or one admitted owned enum
+  result`. The accepted recursive-payload target already pins this red with an array
+  payload binding. Scalar Match results lower through generic `Alloca`/`Store`, whereas
+  owned-enum results alone use `CheckedEnumMatchResultPlaceAlloca` and the independent
+  branch-initialization proof. Adding an aggregate-only opcode would multiply that
+  topology split.
+- Frozen positive source semantics: an exhaustive already-admitted enum Match may yield
+  any value in the complete existing executable universe when every reachable arm has
+  one identical exact type: (a) an admitted primitive CopyData scalar; (b) any admitted
+  recursive finite CopyData fixed array, arity-two-or-more tuple, or finite acyclic named
+  struct; or (c) an owned enum satisfying CORE-074/075's stricter origin and dynamic-
+  path ownership contract. CopyData arms may use any expression already independently
+  admitted at the exact type—literal/construction, payload binding, initialized direct
+  identifier, exact function result, projection/index/dereference, or recursively
+  admitted Match—because the existing CopyData contract defines whole-value copy
+  semantics. No implicit conversion, common supertype, default value, or arm coercion is
+  added. Evaluation remains exactly the selected arm once, in source order within that
+  arm.
+- Frozen unified classifier: introduce one result disposition consumed by both semantic
+  inference paths and independent checked admission. It classifies identical result
+  types as `CopyData(exact logical type)`, `OwnedEnum(exact schema plus CORE-075 paths)`,
+  or deterministic rejection/preservation. It must consume the existing recursive
+  `StructRegistry::resolve_copy_type` authority rather than reproduce array/tuple/struct
+  topology. Primitive support becomes a leaf of that same CopyData predicate. Owned enum
+  origin/effect rules remain exact and no Copy rule may absorb an enum or reference.
+- Frozen checked-IR migration: replace the enum-named result-place identity with one
+  `CheckedMatchResultPlaceAlloca { result, result_type, dispatch_schema }` covering every
+  admitted Match result type. Migrate all existing primitive and owned-enum Match results
+  to it; do not add a parallel aggregate opcode. Every arm writes through the existing
+  exact typed whole-place assignment identity, and one merged load follows. Aggregate
+  lowering must load an arm's whole CopyData value before the assignment and return the
+  merged result in the existing place-backed aggregate convention. Preserve LLVM bytes
+  for accepted scalar/enum specimens where representation is unchanged. The old generic
+  Match-result `Alloca`/`Store` and enum-only result-place identity must not remain on any
+  trusted checked path.
+- Frozen independent proof/backend: verifier result-place proof becomes type-generic and
+  still requires valid exact result metadata, immediate exact enum dispatch identity,
+  one distinct dispatch-target-dominated assignment per target, exact assignment type/
+  value/dominance, uninitialized entry, all-path initialization, exactly one merged load,
+  and no generic store/bypass/fabrication. Enum result places additionally retain the
+  independent owner CFG proof from CORE-074/075; CopyData results add no ownership move.
+  Codegen allocates exactly the existing private LLVM physical type derived from verified
+  `LogicalType`. No new layout, padding/alignment promise, public ABI/FFI, heap/runtime,
+  lifetime/drop, or optimization rule follows.
+- Frozen containment: `Void`, compile-time `String`, references and reference results,
+  unit/unary tuples, dynamic `Vec`/`HashMap`, `Option`/`Result`, functions/closures,
+  cyclic/empty/unsupported structs, enums nested inside CopyData aggregates, different
+  arm types, wider enum patterns, aggregate ownership, and any unadmitted expression
+  remain rejected before checked IR. Owned-enum results retain every CORE-075 exclusion:
+  no loop effects, additional owned call consumption, external nested scrutinee,
+  projected/indexed/dereferenced owner, aggregate enum storage, borrowing, or partial
+  move. No parser/AST/type syntax, module/name-resolution, runtime String, generic/trait,
+  closure, stable ABI, accelerator, performance, release, safety, or merge semantics move.
+- Exhaustive red/green surface: primitives Int/Float/Bool/Char; fixed arrays at zero,
+  one, and nested counts; arity-two and heterogeneous recursive tuples; finite named
+  structs with scalar/array/tuple/nested-struct fields; every frozen origin form;
+  inferred/exact/mutable bindings, projections/indexes, calls/returns, reassignment,
+  references after identifier binding, nested Matches, direct modules, deterministic
+  checked IR/LLVM, CLI check/build/run artifact hygiene, tracked native sentinel 223,
+  and workflow anchors. Preservation includes the complete CORE-043–075 ring. Negative
+  completion includes every containment class above plus raw checked-IR corruption for
+  wrong result type, wrong dispatch identity, generic store, missing/repeated/wrong-arm
+  assignment, bypass, non-dominating value, premature/duplicate load, and enum ownership
+  fabrication.
+- Red-first workflow/allowed files: after this authorization and before production
+  mutation, add one exhaustive
+  `src/compiler/tests/copydata_match_result_tests.rs` target that proves representative
+  array/tuple/struct/nested uses fail at the exact current result-type boundary while
+  scalar/owned-enum preservation and all containment controls pass. Only after exact red
+  may production work touch `src/compiler/src/{enum_match_contract,semantic_analyzer,
+  ir,ir_generator,ir_verifier,code_generator}.rs`; directly superseded Match-result and
+  verifier expectations; one tracked `examples/copydata_match_results/{main,values}.aero`;
+  and `.github/workflows/rust.yml`. Parser, lexer, AST/type shapes, CopyData topology,
+  enum pattern/schema rules, modules/resolver, dependencies, runtime, accelerator, cache,
+  claims, and `master` are frozen. After exact green only affected state/capability/
+  matrix/framework/roadmap/decision/risk/README records and rendered draft PR metadata
+  may change.
+- Stop conditions: stop rather than narrow or approximate if the recursive CopyData
+  predicate cannot be consumed without duplication, aggregate arm values cannot retain
+  existing whole-value semantics, one selected arm can be evaluated more than once,
+  existing scalar/enum LLVM changes unexpectedly, checked proof requires trusting raw
+  generic store/load, enum ownership proof weakens, unsupported/reference/String results
+  reach checked IR, representation requires a new layout/ABI/drop/lifetime rule, an
+  unrelated baseline is red, or any existing spec/test must be weakened. Do not split
+  arrays, tuples, or structs into later per-shape tasks; the class is complete or stops.
+- Verification/publication gate: exact red then green; focused shared classifier and
+  verifier corruption controls; complete aggregate/enum/ownership/function/reference/
+  module/closure/char compatibility ring; all-feature tests; all-target/all-feature
+  check; formatting; correctness Clippy; docs; exact root `./tools/test.sh`; public
+  check/build/run and artifact hygiene; pinned LLVM/Clang 22 external/machine/object/link
+  and exact native exit 223. Commit/push one immutable candidate only after local green,
+  synchronize PR #4 immediately, and record accepted-public rendered wording only after
+  all eight exact-head checks and both pinned native lanes pass.
+- Scaling controls: CORE-076 deliberately generalizes one type/evidence class and removes
+  the scalar/enum checked-result topology split instead of adding array/tuple/struct
+  branches. It is a hard aggregate/control-flow/IR/verifier/backend system slice. The
+  273-commit mega-PR still needs a separately authorized checkpoint/merge strategy;
+  structured manifest generation remains separate; module/runtime/stable ABI and real
+  RX 7800 XT work remain queued; and the tracked source-through-native specimen supplies
+  the periodic composed gate without claiming release eligibility.
+
+### CORE-076 red-first composition amendment and evidence
+
+- The first formatting check found only mechanical wrapping in the new test; `cargo
+  fmt --all` changed no production file. After correcting two tuple-projection parser
+  ambiguities in the test (`value.0.1` lexes as a floating token unless parenthesized),
+  the focused target parsed and ran 0/2 green. This was a harness correction before any
+  production mutation, not a semantic or expected-result change.
+- Exact red: fixed-array payload/construction, zero-length arrays, finite named structs,
+  nested Matches, and the complete use-context program fail at the current deterministic
+  Match-result type diagnostic. Heterogeneous recursive tuple cases stop one adjacent
+  step earlier: enum-bearing function contracts explicitly return `None` for tuple
+  annotations, causing exact unsupported by-value parameter/result diagnostics even
+  though the same tuple is already admitted by the recursive CopyData function contract.
+  Different-array-count arms are also preempted by the old first-arm result-support
+  check instead of reaching exact arm-mismatch reporting. Neither condition is a parser,
+  environment, or test-harness defect.
+- Frozen amendment before production work: when a function signature mentions an enum,
+  its non-enum parameters/results must consume the same existing recursive CopyData
+  annotation resolver used by ordinary CopyData functions, including arity-two-or-more
+  tuples. Remove the enum contract's tuple-specific `None` shortcut; do not add another
+  signature topology table. This admits only already accepted CopyData logical types and
+  is required for aggregate Match results to cross an exact call/return boundary. It
+  adds no enum-in-aggregate, reference result, generic, ABI, or new CopyData semantics.
+  The unified Match-result classifier must compare every arm's exact type before result-
+  class admission so different types deterministically report mismatch rather than a
+  misleading support error for the first arm.
+- Preservation evidence before production mutation: accepted owned-enum Match-result
+  tests pass 3/3, recursive CopyData aggregate tests pass 1/1, and flat Copy tuple tests
+  pass 1/1. `git diff --name-only` lists only `TASK_LEDGER.md`; the new focused target is
+  untracked and therefore absent from that command. No compiler, existing test, example,
+  workflow, state record, or user-owned `tmp/` file has changed.
+
+### CORE-076 first-green binding-origin amendment
+
+- After the unified result classifier, checked result place, verifier proof, and backend
+  path compiled, the focused target reached 1/2 green. The complete recursive
+  array/tuple/struct result class passed. The context specimen stopped at the existing
+  direct Copy-struct binding-origin guard: `StructRegistry::validate_direct_binding_initializer`
+  admits literals, identifiers, calls, indexes, fields, and dereferences but does not yet
+  recognize an independently admitted `Match`, producing `local struct moves and copies
+  are not admitted` for `let value: Frame = match ...`.
+- Frozen resolution: add only `Expression::Match` to that existing direct Copy-struct
+  initializer-origin list. This does not admit an unsupported result topology: semantic
+  Match classification has already proven the exact recursive CopyData result before the
+  binding guard runs. It is required by CORE-076's already frozen inferred/exact/mutable
+  binding surface and avoids a Match-specific bypass in the semantic analyzer. Add
+  `src/compiler/src/struct_contract.rs` to the allowed file set solely for that shared
+  origin-classification change and focused unit coverage. All other struct construction,
+  local-copy, annotation, ownership, and execution-context rules remain frozen.
+
+### CORE-076 locally green candidate evidence
+
+- Implementation summary: both semantic inference paths and checked admission now
+  consume one `EnumMatchResultContract` that delegates CopyData topology to
+  `StructRegistry::resolve_copy_type` and retains the stricter owned-enum origin/effect
+  proof. `CheckedMatchResultPlaceAlloca` is the sole trusted result-place identity for
+  primitive, aggregate CopyData, and owned-enum Matches. Every arm uses exact typed
+  whole-place assignment, the verifier independently proves the generic CFG/type/result
+  contract, and codegen allocates the existing exact private LLVM type. No fallback,
+  conversion, default, layout, ABI, runtime, lifetime, or ownership rule was added.
+- Focused evidence: `copydata_match_result_tests` passes 2/2 across fixed arrays
+  including zero length, nested arrays, recursive tuples, finite acyclic structs, nested
+  Match, every frozen origin/use context, direct modules, deterministic checked IR/LLVM,
+  CLI check/build/run and artifact hygiene, scalar/owned-enum preservation, and the
+  complete negative boundary. Match-result verifier filters pass 7/7, including raw
+  generic-store, missing/wrong assignment, wrong type, load, dispatch, CFG, and enum
+  ownership corruption controls.
+- Complete local evidence on the final state/capability/framework/roadmap/decision/risk/
+  README record tree: `cargo fmt --all -- --check`, `cargo test --all-features`, `cargo
+  check --all-targets --all-features`, `cargo clippy --all-targets --all-features -- -D
+  clippy::correctness`, `cargo doc --no-deps --all-features`, and repository-root
+  `./tools/test.sh` all exit 0. The complete compiler surface reports 194 library and 200
+  binary unit tests plus every integration target and doc test green. Existing baseline
+  warnings remain warnings; no test was weakened or skipped.
+- Files changed: the shared enum Match contract, both semantic callers, checked IR,
+  lowering, verifier, LLVM backend, and the narrow direct Copy-struct binding-origin
+  classifier; directly superseded Match-result expectations; the exhaustive CORE-076
+  target; tracked two-module example; stable/nightly public workflow lane; and the
+  affected project-state, capability-audit, implementation-matrix, framework-alignment,
+  roadmap, decision, risk, README, and ledger records. Parser/lexer/AST/type syntax,
+  CopyData topology, enum patterns/schemas, module resolution, dependencies, runtime,
+  accelerator code, claims, `master`, and user-owned `tmp/` remain untouched.
+- Remaining uncertainty and regression risk: this Windows host cannot execute the pinned
+  LLVM/Clang 22.1.8 toolchain. Public acceptance therefore remains false until one
+  immutable pushed candidate passes all eight exact-head workflows and both stable and
+  nightly lanes externally verify, machine-verify, object-lower, non-PIE link, and run
+  the tracked composed example at exact exit 223. Unsupported aggregate, enum-storage,
+  wider-pattern, reference-result, runtime/drop/lifetime, ABI, and general ownership
+  classes remain fail-closed.
+- Recommended next action: rerun the exact root gate after this evidence paragraph,
+  stage only the explicit candidate files (force-adding the two intentionally ignored
+  example sources while excluding `tmp/`), commit/push one immutable CORE-076 candidate,
+  immediately synchronize rendered PR #4, then monitor the exact public/native gates.

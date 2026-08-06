@@ -2,7 +2,6 @@ use crate::ast::{
     AstNode, Expression, MatchArm, Parameter, Pattern, Statement, Type, VariantDeclKind,
 };
 use crate::ir::{EnumSchema, EnumVariantSchema, LogicalType};
-use crate::primitive_contract::PrimitiveKind;
 use crate::struct_contract::StructRegistry;
 use crate::types::Ty;
 use std::collections::{BTreeMap, BTreeSet};
@@ -90,7 +89,7 @@ pub(crate) struct ResolvedEnumMatch {
     /// Source-arm index for each variant in declaration order.
     pub(crate) arm_for_variant: Vec<usize>,
     pub(crate) payload_bindings: Vec<Vec<EnumPayloadBinding>>,
-    pub(crate) result: Ty,
+    pub(crate) result_contract: EnumMatchResultContract,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,6 +99,21 @@ pub(crate) struct OwnedEnumMatchResult {
     /// represent fresh origins; repeated names in different sets are mutually
     /// exclusive rather than duplicate moves on one runtime path.
     pub(crate) consumption_paths: Vec<Vec<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum EnumMatchResultContract {
+    CopyData { ty: Ty, logical_type: LogicalType },
+    OwnedEnum(OwnedEnumMatchResult),
+}
+
+impl EnumMatchResultContract {
+    pub(crate) fn ty(&self) -> Ty {
+        match self {
+            Self::CopyData { ty, .. } => ty.clone(),
+            Self::OwnedEnum(result) => result.contract.ty(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -279,7 +293,7 @@ impl EnumError {
                 "enum match must cover every declared variant exactly once".to_string()
             }
             Self::UnsupportedResult => {
-                "enum match arms must return Int, Float, Bool, Char, or one admitted owned enum result"
+                "enum match arms must return one identical admitted CopyData or owned enum value"
                     .to_string()
             }
             Self::UnsupportedOwnedResultOrigin(arm) => format!(
@@ -455,9 +469,6 @@ impl EnumRegistry {
     where
         F: FnMut(&Type) -> Option<(Ty, LogicalType)>,
     {
-        if matches!(annotation, Type::Tuple(_)) {
-            return Ok(None);
-        }
         if let Type::Named(name) = annotation
             && self.definitions.contains_key(name)
         {
@@ -814,6 +825,7 @@ impl EnumRegistry {
         result_types: &[Ty],
         externally_consumed: &[String],
         arm_owned_consumptions: &[Vec<String>],
+        resolve_copy_data: impl Fn(&Ty) -> Option<LogicalType>,
         lookup_binding: impl Fn(&str) -> Option<Ty>,
         lookup_call_result: impl Fn(&str) -> Option<Ty>,
         context: EnumExecutionContext,
@@ -835,30 +847,6 @@ impl EnumRegistry {
         let Some(result) = result_types.first().cloned() else {
             return Err(EnumError::IncompleteCoverage);
         };
-        match &result {
-            result if PrimitiveKind::from_ty(result).is_some() => {}
-            Ty::Enum(_) => {
-                if arm_owned_consumptions.len() != arms.len() {
-                    return Err(EnumError::IncompleteCoverage);
-                }
-                if let Some((arm, _)) = arm_owned_consumptions
-                    .iter()
-                    .enumerate()
-                    .find(|(_, consumed)| !consumed.is_empty())
-                {
-                    return Err(EnumError::UnsupportedOwnedResultOrigin(arm + 1));
-                }
-                let owned_result =
-                    self.resolve_owned_match_result(arms, &lookup_binding, &lookup_call_result)?;
-                if owned_result.contract.ty() != result {
-                    return Err(EnumError::ResultMismatch {
-                        expected: result,
-                        actual: owned_result.contract.ty(),
-                    });
-                }
-            }
-            _ => return Err(EnumError::UnsupportedResult),
-        }
         for actual in result_types.iter().skip(1) {
             if actual != &result {
                 return Err(EnumError::ResultMismatch {
@@ -867,11 +855,46 @@ impl EnumRegistry {
                 });
             }
         }
+        let result_contract = if let Some(logical_type) = resolve_copy_data(&result) {
+            EnumMatchResultContract::CopyData {
+                ty: result.clone(),
+                logical_type,
+            }
+        } else {
+            match &result {
+                Ty::Enum(_) => {
+                    if arm_owned_consumptions.len() != arms.len() {
+                        return Err(EnumError::IncompleteCoverage);
+                    }
+                    if let Some((arm, _)) = arm_owned_consumptions
+                        .iter()
+                        .enumerate()
+                        .find(|(_, consumed)| !consumed.is_empty())
+                    {
+                        return Err(EnumError::UnsupportedOwnedResultOrigin(arm + 1));
+                    }
+                    let owned_result = self.resolve_owned_match_result(
+                        arms,
+                        &lookup_binding,
+                        &lookup_call_result,
+                    )?;
+                    if owned_result.contract.ty() != result {
+                        return Err(EnumError::ResultMismatch {
+                            expected: result.clone(),
+                            actual: owned_result.contract.ty(),
+                        });
+                    }
+                    EnumMatchResultContract::OwnedEnum(owned_result)
+                }
+                _ => return Err(EnumError::UnsupportedResult),
+            }
+        };
+        debug_assert_eq!(result_contract.ty(), result);
         Ok(ResolvedEnumMatch {
             contract,
             arm_for_variant,
             payload_bindings,
-            result,
+            result_contract,
         })
     }
 

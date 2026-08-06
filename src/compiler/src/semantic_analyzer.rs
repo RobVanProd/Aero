@@ -1756,6 +1756,11 @@ impl SemanticAnalyzer {
                         &result_types,
                         &consumed,
                         &arm_owned_consumptions,
+                        |ty| {
+                            self.struct_registry
+                                .resolve_copy_type(ty)
+                                .map(|contract| contract.logical_type)
+                        },
                         |name| self.direct_owned_enum_result_type(name),
                         |name| {
                             self.function_table
@@ -1764,7 +1769,7 @@ impl SemanticAnalyzer {
                         },
                         self.enum_execution_context(),
                     )
-                    .map(|resolved| resolved.result)
+                    .map(|resolved| resolved.result_contract.ty())
                     .map_err(|error| error.diagnostic())
             }
             // Phase 5: Borrow and Deref
@@ -2521,6 +2526,11 @@ impl SemanticAnalyzer {
                         &result_types,
                         &consumed,
                         &arm_owned_consumptions,
+                        |ty| {
+                            self.struct_registry
+                                .resolve_copy_type(ty)
+                                .map(|contract| contract.logical_type)
+                        },
                         |name| self.direct_owned_enum_result_type(name),
                         |name| {
                             self.function_table
@@ -2529,7 +2539,7 @@ impl SemanticAnalyzer {
                         },
                         self.enum_execution_context(),
                     )
-                    .map(|resolved| resolved.result)
+                    .map(|resolved| resolved.result_contract.ty())
                     .map_err(|error| error.diagnostic())
             }
             // Phase 5: Borrow and Deref

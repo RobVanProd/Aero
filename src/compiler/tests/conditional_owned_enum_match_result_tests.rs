@@ -309,7 +309,7 @@ fn main() -> int {
         Ok((checked, llvm)) => {
             let debug = format!("{checked:#?}");
             for marker in [
-                "CheckedEnumMatchResultPlaceAlloca",
+                "CheckedMatchResultPlaceAlloca",
                 "CheckedEnumParameter",
                 "CheckedOwnedPlaceAssignment",
                 "CheckedEnumDispatch",

@@ -44,6 +44,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Enums and construction | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Pattern matching | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fresh owned-enum Match-expression results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Conditional direct-owner enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Unified typed CopyData/owned-enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
@@ -94,14 +96,27 @@ recursively fresh nested Match. Exact checked result/dispatch schemas, one disti
 target-dominated assignment per arm, all-path initialization, one merged load, and
 later ownership are independently verified. The row remains `PARTIAL`.
 
-Local candidate `CORE-075` adds direct initialized local/owned-parameter result origins
+Accepted public `CORE-075` adds direct initialized local/owned-parameter result origins
 of the exact enum schema. A shared dynamic-path classifier permits the same owner only
 across mutually exclusive arms, derives all-path `Moved` and partial-path `MaybeMoved`,
 and rejects same-path duplicates and loop effects. Checked enum values or checked
-mutable-place loads feed the existing result place and checked assignment; independent
+mutable-place loads feed the checked result place and checked assignment; independent
 verifier CFG ownership proof rejects post-merge source reuse. Calls consuming another
-owner, external nested scrutinees, aggregate results/storage, wider patterns, enum
+owner, external nested scrutinees, aggregate enum storage, wider patterns, enum
 borrowing/projection, partial moves, drop/lifetimes, stable ABI, and general CFG
+semantics remain excluded; the row stays `PARTIAL`. All exact-head public checks and
+pinned stable/nightly native exit 211 pass.
+
+Local candidate `CORE-076` unifies exhaustive Match results over the complete existing
+recursive finite CopyData universe and the separately constrained owned-enum class.
+Semantic inference and checked admission consume one result classifier; primitives,
+fixed arrays including zero length, arity-two-or-more tuples, finite acyclic structs,
+and owned enums lower through one generic checked result place, exact typed arm writes,
+all-path initialization, and one merged load. Wrong type/value metadata, generic
+stores, missing/repeated/bypassed writes, premature/duplicate loads, and enum-owner
+fabrication reject independently. Strings, reference results, unit/unary tuples,
+dynamic collections, enum-in-CopyData storage, cyclic/unsupported structs, wider
+patterns, runtime/layout/ABI/drop/lifetime, accelerator, release, safety, and stability
 semantics remain excluded; the row stays `PARTIAL` and public acceptance is pending.
 
 ## Compiler, tooling, and ecosystem surfaces
