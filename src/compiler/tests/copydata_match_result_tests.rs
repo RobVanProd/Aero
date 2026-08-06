@@ -313,6 +313,35 @@ fn main() -> int { choose(Pick::Left, make_frame(1)).cell.value }
         }
     }
 
+    let scalar_preservation = r#"
+enum Pick { Left, Right }
+fn score(pick: Pick) -> int {
+    match pick { Pick::Left => 11, Pick::Right => 37 }
+}
+fn main() -> int { score(Pick::Right) }
+"#;
+    match checked_ir_and_llvm(scalar_preservation) {
+        Err(error) => failures.push(format!(
+            "accepted integer Match preservation specimen failed: {error}"
+        )),
+        Ok((_, llvm)) => {
+            let score = llvm
+                .split("define i32 @score")
+                .nth(1)
+                .and_then(|body| body.split("\n}").next())
+                .unwrap_or("");
+            if !score.contains("alloca double, align 8")
+                || !score.contains("store double")
+                || !score.contains("load double")
+                || score.contains("alloca i32, align 8")
+            {
+                failures.push(format!(
+                    "integer Match result changed its established private double-place representation:\n{score}"
+                ));
+            }
+        }
+    }
+
     let root = repository_root();
     let tracked_root = root.join(EXAMPLE_ROOT);
     let tracked_module = root.join(EXAMPLE_MODULE);

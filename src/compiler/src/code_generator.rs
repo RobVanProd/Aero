@@ -1226,7 +1226,11 @@ impl CodeGenerator {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked Match result-place alloca")
                     };
-                    let llvm_type = Self::logical_type_to_llvm(result_type);
+                    let llvm_type = if matches!(result_type, LogicalType::Enum { .. }) {
+                        Self::logical_type_to_llvm(result_type)
+                    } else {
+                        Self::copy_data_type_to_llvm(result_type)
+                    };
                     let align = PrimitiveKind::from_logical_type(result_type)
                         .map(PrimitiveKind::alignment)
                         .unwrap_or(8);

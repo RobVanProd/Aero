@@ -15248,3 +15248,41 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   stage only the explicit candidate files (force-adding the two intentionally ignored
   example sources while excluding `tmp/`), commit/push one immutable CORE-076 candidate,
   immediately synchronize rendered PR #4, then monitor the exact public/native gates.
+
+### CORE-076 public native preservation failure and repair amendment
+
+- Immutable candidate `6c18a4d65cc8976b1cb2beccd467c37b825885c2` was pushed and PR #4 was synchronized as
+  candidate-only. Both stable and nightly pinned LLVM/Clang 22.1.8 jobs then failed
+  deterministically in the pre-existing `Test owned unit-enum match integration example`
+  step: expected exit 149, observed exit 1. Public acceptance remains false.
+- Exact finding: the generic checked result place retained logical `Int`, and exact typed
+  assignments/loads retained the established numeric `double` place convention, but
+  codegen allocated the result through scalar ABI lowering as `i32`. The resulting
+  accepted scalar Match LLVM contained `alloca i32` followed by `store double`/`load
+  double`. This is the scalar byte-preservation stop condition that local source/IR tests
+  failed to pin; it is not a runner, LLVM-version, or flaky-test failure.
+- Frozen repair before production mutation: add a red scalar-preservation assertion for
+  an integer Match result, then make generic result-place allocation consume the existing
+  private CopyData physical-type authority for CopyData results and the existing private
+  enum physical-type authority for enum results. Do not change logical metadata,
+  assignment/load lowering, the unified classifier, checked IR, verifier proof, enum
+  representation, or any supported/excluded semantics. The repair is complete only if
+  the focused test turns green, the exact local gates pass, and a new immutable candidate
+  passes the full public/native gate including the older exit-149 specimen and CORE-076
+  exit 223.
+- Exact red/green: the new integer-Match LLVM assertion failed with the public defect
+  (`alloca i32, align 8` followed by `store double`/`load double`). A one-line backend
+  selection now uses `copy_data_type_to_llvm` for the verifier-admitted CopyData result
+  class and retains `logical_type_to_llvm` for the verifier-admitted owned-enum class.
+  The exact focused test then passes 1/1 without an IR, verifier, or semantic change.
+- Replacement local gate: formatting, the complete 194-library/200-binary all-feature
+  suite plus every integration/doc test, all-target/all-feature check, correctness
+  Clippy, docs, and exact repository-root `./tools/test.sh` all exit 0. An initial
+  parallel Cargo rerun was terminated after a host security/file-scan stall left only
+  this task's Cargo/rustc process tree idle; no test failure was reported, every exact
+  orphan PID was removed, and single-job reruns completed green. This host incident is
+  not counted as candidate evidence or a compiler failure.
+- Files changed by the repair are exactly `TASK_LEDGER.md`,
+  `src/compiler/src/code_generator.rs`, and
+  `src/compiler/tests/copydata_match_result_tests.rs`. Public acceptance remains false
+  until a replacement immutable head passes all exact public and native controls.
