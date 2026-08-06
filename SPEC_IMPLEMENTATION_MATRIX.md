@@ -89,8 +89,8 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 ## Evidence notes
 
-- Local `CORE-068` candidate on accepted records head
-  `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656` removes semantic and checked-call
+- Accepted public `CORE-068` implementation
+  `55b61c31fc6dd822097daa5d4f371d04ec0d6264` removes semantic and checked-call
   fallbacks that fabricated `Int` or deferred undefined calls. One phase-aware
   supported/explicitly-rejected/preserved classifier supplies both semantic paths and
   checked admission/lowering with exact target, parameter, result, argument, and use-
@@ -99,9 +99,11 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   annotations, generic/trait/closure calls, wrong arity/type, and `Void` value use
   reject before checked IR. Classifier units, the exhaustive topology target,
   compatibility ring, and exact root gate pass at 185/185 library tests. The tracked
-  direct-module specimen links locally with Clang 19.1.5 and executes exit 181. The
-  immutable candidate, all public checks, and pinned LLVM/Clang 22 evidence remain
-  pending; no row becomes `END_TO_END` or `STABLE`.
+  direct-module specimen links locally with Clang 19.1.5 and executes exit 181. All
+  eight candidate-head checks pass; stable LLVM/Clang 22.1.8 rejects the invalid
+  fixture, externally and machine-verifies, object-lowers, links, and executes exit
+  181, while nightly repeats verification and exit 181. No row becomes `END_TO_END`
+  or `STABLE`.
 
 - Accepted public `CORE-067` implementation
   `e7525bf039339909c8f4f5cc68262fdf498079e0` removes both duplicate semantic method

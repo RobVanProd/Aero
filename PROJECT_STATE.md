@@ -4,9 +4,11 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 87 `CORE-068` is a local implementation candidate derived from accepted
-records head `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656`; it has no published immutable
-candidate identity or public acceptance yet. One shared function-call classifier now
+Milestone 87 `CORE-068` has an accepted public implementation at exact commit
+`55b61c31fc6dd822097daa5d4f371d04ec0d6264`, tree
+`81c2be5d1ee6abdd7382c8674f68f553613efd6f`, and stable patch ID
+`155bbfa5310e1289fccb82c339108d8a44bdbfca`; its additive records-only closure and
+fresh all-eight closure set remain pending. One shared function-call classifier now
 owns named-target availability, exact parameter and result contracts, argument types,
 value-versus-discarded use, and preserved context for both semantic inference paths
 and checked admission/lowering. Missing or unsupported signatures no longer become
@@ -24,9 +26,12 @@ affected compatibility ring, formatting, all-target/all-feature checks, correctn
 Clippy, docs, and exact root gate pass at 185/185 library tests. The tracked two-file
 system specimen resolves its direct module, emits deterministic Windows LLVM, links
 with Visual Studio Clang 19.1.5, and executes exact exit 181. This host accurately
-reports `InternalOnly` because LLVM 22 is absent; the immutable candidate, PR sync,
-all-eight public checks, and pinned LLVM/Clang 22 gate remain pending. Candidate status
-must not be described as accepted public.
+reports `InternalOnly` because LLVM 22 is absent. All eight candidate-head checks pass.
+Pinned stable LLVM/Clang 22.1.8 rejects the known-invalid fixture, externally verifies,
+machine-verifies, object-lowers, privately non-PIE links, and executes exact exit 181;
+nightly independently repeats external verification and exit 181. The first Rust CI
+attempt hit an unrelated transient Linux `ETXTBSY` in an existing fake-verifier test;
+the unchanged exact candidate passed both stable and nightly on attempt 2.
 
 Milestone 86 `CORE-067` is accepted public at exact implementation commit
 `e7525bf039339909c8f4f5cc68262fdf498079e0` and additive records head
@@ -2097,14 +2102,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze and publish one exact CORE-068 implementation candidate, immediately synchronize
-draft PR #4 as candidate-only, and require all eight public checks plus the pinned
-LLVM/Clang 22 invalid-control/external/machine/object/link/native-exit-181 evidence.
-Only then may additive acceptance records be published and a second all-eight public
-closure required. Keep the PR draft and unmerged. The controlled mega-PR checkpoint
-strategy and structured evidence-manifest generator remain separate tasks, hard
-capability classes must not be deferred for convenient slices, and periodic multi-
-capability system gates remain mandatory.
+Commit and push only the additive CORE-068 public-acceptance records, immediately
+synchronize draft PR #4 to that records head, and require a fresh all-eight public
+closure. Keep the PR draft and unmerged. The controlled mega-PR checkpoint strategy
+and structured evidence-manifest generator remain separate tasks, hard capability
+classes must not be deferred for convenient slices, and periodic multi-capability
+system gates remain mandatory.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.
 

@@ -2972,9 +2972,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-064 - Centralize exact function-call contracts before trusted IR
 
 - Date: 2026-08-05
-- Status: local CORE-068 implementation candidate on accepted records head
-  `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656`; immutable identity and public evidence
-  pending, not accepted public.
+- Status: accepted public CORE-068 implementation at exact commit
+  `55b61c31fc6dd822097daa5d4f371d04ec0d6264`, tree
+  `81c2be5d1ee6abdd7382c8674f68f553613efd6f`, and stable patch ID
+  `155bbfa5310e1289fccb82c339108d8a44bdbfca`; additive records-only closure pending.
 - Decision: one phase-aware classifier is the sole authority for named-call target
   availability, exact parameters/result, actual argument types, value-versus-discarded
   use, and preserved context. Mutable and immutable semantic inference plus checked
@@ -2991,12 +2992,16 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   generic/trait/impl and closure calls, constructor lookalikes, and raw checked
   admission reject deterministically. Legacy unchecked lowering is explicitly
   quarantined and unreachable from `try_generate_ir`.
-- Local evidence: red-first proof reproduced every phase-local false success. Two
+- Evidence: red-first proof reproduced every phase-local false success. Two
   classifier unit products, the exhaustive source/semantic/checked-IR/LLVM/CLI target,
   affected compatibility ring, formatting, all-target/all-feature check, correctness
   Clippy, docs, and exact root gate pass at 185/185 library tests. The two-file system
   specimen emits deterministic LLVM, links with local Clang 19.1.5, and executes exit
-  181. Pinned LLVM/Clang 22 and all public evidence remain pending.
+  181. All eight candidate-head checks pass. Pinned stable LLVM/Clang 22.1.8 rejects
+  the invalid fixture, externally and machine-verifies the specimen, object-lowers,
+  links, and executes exit 181; nightly independently repeats verification and exit
+  181. The first Rust CI attempt's unrelated fake-verifier `ETXTBSY` did not recur on
+  the unchanged attempt-2 candidate.
 - Exclusions: overloads, conversions, default/variadic arguments, generic/trait
   dispatch, closure semantics, new function pointers, reference results, lifetime/
   escape or ownership rules, layout/stable ABI/FFI, runtime Strings/collections,

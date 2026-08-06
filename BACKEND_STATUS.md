@@ -86,16 +86,19 @@ independently repeats exit 167. This is public evidence only for the exact bound
 intrinsic-method class and establishes no general method, layout, ABI, backend-
 stability, or performance class.
 
-Local candidate `CORE-068` changes no call ABI, aggregate representation, checked-IR
+Accepted public `CORE-068` changes no call ABI, aggregate representation, checked-IR
 opcode, or verifier rule. One shared call classifier admits only an exact existing
 nongeneric signature and exact argument/result contract before trusted lowering;
 missing, declared-but-unadmitted, generic, closure, unsupported-annotation, wrong-
 arity/type, and `Void`-in-value calls reject before checked IR instead of manufacturing
 `Int` or an LLVM call. The tracked direct-module specimen emits deterministic Windows
 LLVM, links with Visual Studio Clang 19.1.5, and executes exact exit 181. This host has
-no LLVM 22, so external verification, machine verification, object/link evidence, the
-pinned exit-181 system gate, and every public claim remain pending an immutable pushed
-candidate and public checks.
+no LLVM 22 and truthfully reports `InternalOnly`. Stable job `92484486912` on pinned
+LLVM/Clang 22.1.8 rejects the known-invalid fixture, externally verifies, machine-
+verifies, object-lowers, privately non-PIE links, and executes exact exit 181; nightly
+job `92484486872` independently repeats external verification and exit 181. This is
+public evidence only for the exact bounded function-call class and establishes no
+general callable ABI, layout, backend-stability, safety, or performance class.
 
 ## ROCm path
 

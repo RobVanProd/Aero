@@ -48,14 +48,15 @@ collections, generic dispatch, iterator ABI, heap behavior, and closures do not 
 Focused, classifier, compatibility, and 183-library/root gates pass. All eight public
 checks pass; pinned stable LLVM/Clang 22.1.8 externally and machine-verifies, object-
 lowers, links, and executes exit 167, while nightly repeats exit 167.
-Local candidate `CORE-068` closes the corresponding ordinary-function-call false-
+Accepted public `CORE-068` closes the corresponding ordinary-function-call false-
 success boundary behind one exact classifier consumed by both semantic paths and
 checked admission/lowering. Missing or unsupported contracts cannot become `Int` or
 an LLVM call. The 185-library/root gates and the composed local Clang 19.1.5 native-
-exit-181 program pass; an immutable pushed candidate, all eight public checks, and the
-pinned LLVM/Clang 22 invalid-control/external/machine/object/link/exit-181 lane remain
-pending. Generic/trait/closure calls, overloads/conversions, reference results, new
-ownership/lifetime behavior, stable ABI, and runtime collection semantics do not move.
+exit-181 program pass. All eight public checks pass; pinned stable LLVM/Clang 22.1.8
+rejects the invalid control, externally and machine-verifies, object-lowers, links,
+and executes exit 181, while nightly repeats verification and exit 181. Generic/trait/
+closure calls, overloads/conversions, reference results, new ownership/lifetime
+behavior, stable ABI, and runtime collection semantics do not move.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

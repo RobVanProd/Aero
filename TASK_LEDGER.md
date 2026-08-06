@@ -13553,3 +13553,46 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   one immutable implementation candidate, push it, and immediately synchronize draft
   PR #4 as candidate-only before requiring all eight public checks and pinned LLVM 22
   native exit 181.
+
+### CORE-068 accepted public implementation evidence
+
+- Exact identity: implementation commit
+  `55b61c31fc6dd822097daa5d4f371d04ec0d6264`, tree
+  `81c2be5d1ee6abdd7382c8674f68f553613efd6f`, stable patch ID
+  `155bbfa5310e1289fccb82c339108d8a44bdbfca`, parent/accepted CORE-067 records head
+  `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656`. Local, remote branch, and PR head
+  matched before acceptance review; `master` and `origin/master` remained exact
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`. PR #4 remained open, draft,
+  unmerged, and was immediately synchronized to a CORE-068 candidate-first title/body.
+- Public check set on the exact candidate: CodeQL run `31059414877` passes Actions
+  job `92483858872`, Python job `92483858913`, Rust job `92483858894`, and aggregate
+  `92483963919`; push CI run `31059414702` / job `92483862255` and PR CI run
+  `31059417911` / job `92483866006` pass. Rust CI run `31059418165` attempt 2 passes
+  stable job `92484486912` and nightly job `92484486872`. These are all eight required
+  checks on unchanged candidate `55b61c31`.
+- CI chronology: Rust CI attempt 1 did not establish a candidate defect. Nightly's
+  existing `fake_verifier_control_is_executable_and_reports_llvm_22` test encountered
+  Linux `ETXTBSY` (`ExecutableFileBusy`) while launching its temporary script after
+  every new CORE-068 system step had passed; matrix fail-fast then cancelled stable
+  during its otherwise-green test step. The exact unchanged workflow was rerun once.
+  Both attempt-2 jobs passed, so no source, test, workflow, or candidate identity was
+  changed to hide or bypass the transient failure.
+- Pinned system evidence: stable installs LLVM/Clang 22.1.8, confirms `opt-22` rejects
+  the known-invalid return-type fixture, reports `ExternalVerified`, runs
+  `opt-22 -passes=verify`, `llc-22 -verify-machineinstrs`, object lowering, and
+  `clang-22 -no-pie`, then observes exact native exit 181. Nightly independently
+  repeats external verification, machine verification, object/link, and exact exit
+  181. Both jobs also pass the complete repository test and correctness-Clippy steps.
+- Acceptance boundary: CORE-068 is accepted public only for the frozen exact
+  nongeneric function-call class and its supported/rejected/preserved classifier.
+  Overloads, conversions, default/variadic arguments, generic/trait dispatch,
+  closures/captures, new function pointers, reference results, lifetime/escape or
+  ownership rules, layout/stable ABI/FFI, runtime Strings/collections, accelerators,
+  benchmarks, releases, stability/safety, and merge remain excluded. The four scaling
+  controls remain active.
+- Records closure: these additive acceptance updates change no compiler source, test,
+  workflow, dependency, language classification, accepted implementation identity,
+  or claim boundary. Their exact successor commit must be pushed to
+  `agent/aero-integration`, draft PR #4 must be synchronized immediately to the
+  accepted records head, and all eight checks must pass again before administrative
+  closure.
