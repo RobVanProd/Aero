@@ -18,7 +18,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Feature | Spec | Lex | Parse | Res | Ty | Own | TIR | BE | Exec | + | - | D | Docs | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | Integers/floats and arithmetic | Y | P | Y | — | P | — | P | P | P | Y | P | P | Y | PARTIAL |
-| Booleans/chars | Y | N | N | — | P | — | N | N | N | N | N | N | Y | DESIGNED |
+| Booleans | Y | Y | Y | — | P | — | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Unicode characters | Y | Y | Y | — | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Bindings and mutability | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Type annotations | Y | Y | Y | P | P | N | P | P | P | Y | P | P | Y | PARTIAL |
 | Comparisons/logical/unary ops | Y | Y | P | — | P | — | P | P | ? | Y | P | P | Y | PARTIAL |
@@ -60,11 +61,20 @@ Accepted public `CORE-069` supplies the evidence for the existing positional mul
 field recursive CopyData enum row without promoting it beyond `PARTIAL`. Accepted
 public `ARCH-002` only normalizes binding-annotation classification and phase routing;
 it changes no language-feature stage, evidence cell, or feature-level class.
-Local candidate `CORE-071` adds exact negative/diagnostic evidence for the already
+Accepted public `CORE-071` adds exact negative/diagnostic evidence for the already
 parsed-only Rust-like `use` subset: parsed path/alias/glob data and source location are
 preserved, while semantics and checked admission fail closed before IR. It does not
 change the combined modules/imports/visibility row or implement the founding dotted
 `import` grammar or name resolution.
+
+Local candidate `CORE-072` splits the prior combined Boolean/character row and moves
+only the Unicode-character slice from design-only to bounded partial execution. Exact
+raw/escaped scalars, type identity, equality/inequality, the complete existing
+recursive CopyData transport class, checked IR, independent verification, private
+LLVM, public CLI execution, and native exit 197 have positive/negative/diagnostic
+evidence. Arithmetic/order/casts, strings/printing, executable literal patterns,
+generic/trait behavior, public layout/ABI/FFI, accelerators, and stability remain
+unsupported; the row cannot move beyond `PARTIAL`.
 
 ## Compiler, tooling, and ecosystem surfaces
 

@@ -21,6 +21,7 @@ mod method_call_contract;
 pub mod module_resolver;
 mod ownership_flow;
 pub mod parser;
+mod primitive_contract;
 pub mod quantization;
 pub mod registry;
 mod scalar_assignment;

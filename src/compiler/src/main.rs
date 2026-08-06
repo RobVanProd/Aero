@@ -26,6 +26,7 @@ mod optimizations;
 mod ownership_flow;
 mod parser;
 mod performance_optimizations;
+mod primitive_contract;
 mod profiler;
 mod project_init;
 mod quantization;

@@ -2,6 +2,7 @@ use crate::ir::{
     BlockMetadata, CheckedIr, EnumSchema, EnumVariantSchema, FunctionMetadata, FunctionSignature,
     Inst, IrMetadata, LogicalType, PlaceId, PlaceMetadata, RawIr, ResultId, Value,
 };
+use crate::primitive_contract::PrimitiveKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::fmt;
@@ -292,6 +293,7 @@ fn logical_type(type_name: &str) -> Option<LogicalType> {
         "int" | "i32" => Some(LogicalType::Int),
         "float" | "f64" | "double" => Some(LogicalType::Float),
         "bool" | "i1" => Some(LogicalType::Bool),
+        "char" => Some(LogicalType::Char),
         "string" | "str" => Some(LogicalType::String),
         "void" => Some(LogicalType::Void),
         _ => None,
@@ -300,8 +302,15 @@ fn logical_type(type_name: &str) -> Option<LogicalType> {
 
 fn physical_copy_type_hint(logical_type: &LogicalType) -> String {
     match logical_type {
-        LogicalType::Int | LogicalType::Float => "double".to_string(),
-        LogicalType::Bool => "i1".to_string(),
+        ty if PrimitiveKind::from_logical_type(ty).is_some() => {
+            PrimitiveKind::from_logical_type(ty)
+                .unwrap()
+                .copy_data_llvm_type()
+                .to_string()
+        }
+        LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
+            unreachable!("primitive logical types matched above")
+        }
         LogicalType::Array { element, count } => {
             format!("[{count} x {}]", physical_copy_type_hint(element))
         }
@@ -383,14 +392,20 @@ fn valid_struct_schema(fields: &[LogicalType]) -> bool {
 }
 
 fn valid_copy_data_type(logical_type: &LogicalType) -> bool {
+    if PrimitiveKind::from_logical_type(logical_type).is_some() {
+        return true;
+    }
     match logical_type {
-        LogicalType::Int | LogicalType::Float | LogicalType::Bool => true,
         LogicalType::Array { element, .. } => valid_copy_data_type(element),
         LogicalType::Tuple { elements } => {
             elements.len() >= 2 && elements.iter().all(valid_copy_data_type)
         }
         LogicalType::Struct { name, fields } => valid_symbol(name) && valid_struct_schema(fields),
-        LogicalType::Void
+        LogicalType::Int
+        | LogicalType::Float
+        | LogicalType::Bool
+        | LogicalType::Char
+        | LogicalType::Void
         | LogicalType::String
         | LogicalType::EnumFields { .. }
         | LogicalType::ImmutableReference { .. }
@@ -411,6 +426,7 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
         LogicalType::Int
         | LogicalType::Float
         | LogicalType::Bool
+        | LogicalType::Char
         | LogicalType::Array { .. }
         | LogicalType::Struct { .. }
         | LogicalType::Tuple { .. }
@@ -1023,6 +1039,7 @@ fn definition_type(
         Inst::Neg { operand, .. } => match operand {
             Value::ImmInt(_) => Some(LogicalType::Int),
             Value::ImmFloat(_) => Some(LogicalType::Float),
+            Value::ImmChar(_) => Some(LogicalType::Char),
             Value::Reg(id) => results.get(&ResultId(*id)).cloned(),
             Value::ImmString(_) => None,
         },
@@ -1992,7 +2009,10 @@ impl<'a> FunctionVerifier<'a> {
                                 || (actual.is_none()
                                     && !matches!(
                                         pointee,
-                                        LogicalType::Int | LogicalType::Float | LogicalType::Bool
+                                        LogicalType::Int
+                                            | LogicalType::Float
+                                            | LogicalType::Bool
+                                            | LogicalType::Char
                                     ))
                             {
                                 return Err(IrVerificationError::new(
@@ -2217,6 +2237,7 @@ impl<'a> FunctionVerifier<'a> {
         match value {
             Value::ImmInt(value) => i32::try_from(*value).ok().map(|_| LogicalType::Int),
             Value::ImmFloat(_) => Some(LogicalType::Float),
+            Value::ImmChar(_) => Some(LogicalType::Char),
             Value::ImmString(_) => Some(LogicalType::String),
             Value::Reg(id) => self.result_types.get(&ResultId(*id)).cloned(),
         }
@@ -2244,7 +2265,8 @@ impl<'a> FunctionVerifier<'a> {
                     && (actual.is_numeric()
                         || (actual == LogicalType::Bool
                             && self.infer_bool_places
-                            && !self.element_owners.contains_key(&id)))
+                            && !self.element_owners.contains_key(&id))
+                        || (actual == LogicalType::Char && !self.element_owners.contains_key(&id)))
                 {
                     self.places.insert(id, PlaceType::Known(actual.clone()));
                     self.refine_loaded_results(id, &actual);
@@ -2288,6 +2310,7 @@ impl<'a> FunctionVerifier<'a> {
                 .map(|_| LogicalType::Int)
                 .map_err(|_| self.error(block, IrVerificationErrorKind::IntegerOutOfRange(*value))),
             Value::ImmFloat(_) => Ok(LogicalType::Float),
+            Value::ImmChar(_) => Ok(LogicalType::Char),
             Value::ImmString(_) => Ok(LogicalType::String),
             Value::Reg(id) => {
                 let id = ResultId(*id);
@@ -2636,6 +2659,10 @@ impl<'a> FunctionVerifier<'a> {
                                     self.places.insert(id, PlaceType::Known(LogicalType::Bool));
                                     self.refine_loaded_results(id, &LogicalType::Bool);
                                     self.refine_array_element(id, &LogicalType::Bool, block_index)?;
+                                } else if actual == LogicalType::Char {
+                                    self.places.insert(id, PlaceType::Known(LogicalType::Char));
+                                    self.refine_loaded_results(id, &LogicalType::Char);
+                                    self.refine_array_element(id, &LogicalType::Char, block_index)?;
                                 } else if !actual.is_numeric() {
                                     return Err(self.error(
                                         block_index,
@@ -2973,23 +3000,23 @@ impl<'a> FunctionVerifier<'a> {
                         op, left, right, ..
                     } => {
                         let operand_type = self.value_type(left, block_index, position)?;
-                        let admitted_predicate = match &operand_type {
-                            LogicalType::Int => {
-                                matches!(op.as_str(), "eq" | "ne" | "slt" | "sgt" | "sle" | "sge")
-                            }
-                            LogicalType::Bool => matches!(op.as_str(), "eq" | "ne"),
-                            _ => {
-                                return Err(self.error(
-                                    block_index,
-                                    IrVerificationErrorKind::TypeMismatch {
-                                        operation: "icmp",
-                                        role: "operand",
-                                        expected: "Int or Bool".to_string(),
-                                        actual: operand_type.clone(),
-                                    },
-                                ));
-                            }
-                        };
+                        let admitted_predicate =
+                            match PrimitiveKind::from_logical_type(&operand_type) {
+                                Some(primitive) if primitive != PrimitiveKind::Float => {
+                                    primitive.admits_integer_predicate(op)
+                                }
+                                _ => {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::TypeMismatch {
+                                            operation: "icmp",
+                                            role: "operand",
+                                            expected: "Int, Bool, or Char".to_string(),
+                                            actual: operand_type.clone(),
+                                        },
+                                    ));
+                                }
+                            };
                         self.require_type(
                             right,
                             &operand_type,
@@ -4250,6 +4277,88 @@ mod tests {
             checked.metadata().functions["main"].signature.result,
             LogicalType::Int
         );
+    }
+
+    #[test]
+    fn character_immediates_keep_exact_identity_and_predicates_fail_closed() {
+        let checked = verify_ir(function(vec![
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(0),
+                left: Value::ImmChar('界'),
+                right: Value::ImmChar('界'),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect("exact character equality is valid raw IR");
+        assert_eq!(
+            checked.metadata().functions["main"].results[&ResultId(0)],
+            LogicalType::Bool
+        );
+
+        let ordering = verify_ir(function(vec![
+            Inst::ICmp {
+                op: "slt".to_string(),
+                result: Value::Reg(0),
+                left: Value::ImmChar('A'),
+                right: Value::ImmChar('B'),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("character ordering must fail verification");
+        assert!(matches!(
+            ordering.kind,
+            IrVerificationErrorKind::InvalidPredicate {
+                operation: "icmp",
+                predicate
+            } if predicate == "slt"
+        ));
+
+        let substituted = verify_ir(function(vec![
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(0),
+                left: Value::ImmChar('A'),
+                right: Value::ImmInt(65),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("integer immediate must not substitute for character identity");
+        assert!(matches!(
+            substituted.kind,
+            IrVerificationErrorKind::TypeMismatch {
+                operation: "icmp",
+                role: "operand",
+                actual: LogicalType::Int,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn checked_character_places_reject_integer_immediate_substitution() {
+        let error = verify_ir(function(vec![
+            Inst::CheckedMutableOwnedPlaceAlloca {
+                result: Value::Reg(0),
+                name: "character".to_string(),
+                ty: LogicalType::Char,
+            },
+            Inst::Store(Value::Reg(0), Value::ImmChar('A')),
+            Inst::CheckedOwnedPlaceAssignment {
+                target: Value::Reg(0),
+                value: Value::ImmInt(65),
+                ty: LogicalType::Char,
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("checked character place must reject integer substitution");
+        assert!(matches!(
+            error.kind,
+            IrVerificationErrorKind::TypeMismatch {
+                actual: LogicalType::Int,
+                ..
+            }
+        ));
     }
 
     #[test]

@@ -14183,6 +14183,216 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `tmp/` remains untouched.
 - Remaining uncertainty and risk: no positive import/name-resolution/namespace/
   visibility/alias/glob/recursive-module/cache/backend/runtime semantics are defined.
-  The exact commit, push, rendered PR sync, all eight public checks, and unchanged
-  pinned exit-193 system lane remain before public acceptance. The four scaling
-  controls remain active.
+  Public acceptance does not move any of those exclusions. The four scaling controls
+  remain active.
+
+### CORE-071 accepted-public evidence
+
+- Exact immutable identity: implementation commit
+  `5fc15622188e4e80a319e4c7d6c4bab17a7c8366`, tree
+  `ed1f33ede282d01bcd975d83d1e1197424403fef`, stable patch ID
+  `e5b9d98b4f9c1a1d47ddf0dbe227f0feec78dc55`, and parent/accepted CORE-070
+  `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`. Local, origin, and PR heads matched;
+  `master` and `origin/master` remained
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Public checks: push compiler job `92507018983`, PR compiler job `92507024040`, Rust
+  stable job `92507024224`, Rust nightly job `92507024197`, CodeQL job `92507095916`,
+  Actions job `92507022493`, Python job `92507022486`, and Rust analysis job
+  `92507022519` all pass on the exact implementation head. Pinned stable and nightly
+  LLVM/Clang 22.1.8 preserve external verification and exact native exit 193.
+- Rendered PR #4 leads with CORE-071 accepted public, contains no stale CORE-070-
+  candidate chronology, and remains open, draft, and unmerged. No records-only
+  acceptance commit was made. Acceptance moves only fail-closed use containment; all
+  positive import/module exclusions and all four scaling controls remain active.
+
+## CORE-072 - Unicode `char` CopyData values end to end
+
+- Task ID/date/owner: `CORE-072`, 2026-08-05, lead-owned red-first positive vertical
+  slice starting from accepted public CORE-071
+  `5fc15622188e4e80a319e4c7d6c4bab17a7c8366`, tree
+  `ed1f33ede282d01bcd975d83d1e1197424403fef`, stable patch ID
+  `e5b9d98b4f9c1a1d47ddf0dbe227f0feec78dc55`. Local, origin, and PR heads match;
+  all eight public checks and pinned stable/nightly LLVM/Clang 22.1.8 exit 193 pass;
+  `master`/`origin/master` remain `8f8c7337a4008082fd2a443fcc814b5847b8663f`;
+  PR #4 is open, draft, and unmerged; user-owned untracked `tmp/` is outside scope.
+- Selection and specification authority: this is positive executable core-language
+  growth, not another rejection-only checkpoint. The founding language document lists
+  `char` as a built-in basic type. The tracked normative design grammar defines a
+  single-quoted character literal containing one non-quote/non-backslash character or
+  one of `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`, `\\0`, or `\\xHH`; the
+  tracked type-system design defines `char` as one Unicode scalar value with a typical
+  four-byte UTF-32 representation. Imports, loop reinitialization, reference results,
+  runtime strings/collections, stable ABI, and hardware GPU execution remain too
+  semantically broad or unfrozen for this task.
+- Observed behavior and primary hypothesis: a single quote is currently an unexpected
+  character in strict lexing; Token, AST, semantic `Ty`, logical checked IR, verifier,
+  and backend contain no character identity; annotations named `char` are unresolved;
+  and no source character can compile or execute. The existing recursive finite
+  CopyData classifier already carries admitted primitive leaves through arrays,
+  tuples, named structs, enum payloads/fields, calls/results, whole-place assignment,
+  non-escaping references, control flow, direct modules, checked IR, verification,
+  and private LLVM. Adding one shared primitive authority plus an exact character
+  immediate should let the complete character transport class reuse that machinery
+  without topology-specific phase guards or scalar fallback.
+- Frozen lexical semantics: a valid raw literal contains exactly one Unicode scalar
+  value other than `'`, `\\`, carriage return, or line feed. The eight named escapes
+  above are valid; `\\xHH` consumes exactly two ASCII hexadecimal digits and denotes
+  scalar U+0000 through U+00FF. Empty, multi-scalar, unterminated, raw-newline,
+  unknown-escape, short/nonhex/overlong-hex, and trailing-content literals are one
+  invalid-character-literal class. Strict trusted lexing returns one deterministic
+  opening-quote-located error and no token; compatibility recovery may diagnose and
+  resynchronize but may not invent a character value. Token and AST retain the Rust
+  `char` value and the token's exact opening location.
+- Frozen type/value semantics: source `char` and only that exact annotation resolve to
+  `Ty::Char`; checked representation is `LogicalType::Char`; raw IR uses a distinct
+  `Value::ImmChar(char)` and never an integer placeholder. `char` is a CopyData leaf
+  alongside existing `Int`, `Float`, and `Bool`, with exact equality/inequality only.
+  `==`/`!=` compare Unicode scalar identity and return `Bool`; arithmetic, ordering,
+  logical/unary operations, implicit numeric conversion, casts, string conversion,
+  indexing, methods, printing/format interpolation, and executable literal patterns
+  remain explicitly unsupported. No unsupported value may become `Int` or share an
+  untyped source/checked identity merely because both lower to an integer-shaped lane.
+- Complete admitted transport class: inferred and exact immutable/mutable locals;
+  aliases and whole-place replacement; immutable/mutable non-escaping references and
+  dereference reads/writes; exact named function parameters, arguments, and returns;
+  equality/inequality in branches and loops; fixed arrays including zero length,
+  arrays of recursive CopyData containing char, dynamic admitted indexing, tuples of
+  arity at least two, finite acyclic structs, unit/unary/multi-field owned enums with
+  char-bearing recursive CopyData payloads, exhaustive identifier-bound Match,
+  existing whole-owner transport/replacement/control flow, flattened direct modules,
+  `compile_program`, `compile_file`, and public `check`/`build`/`run`. Every recursive
+  combination is admitted through the existing least-fixed-point CopyData resolver,
+  not per-container char tables.
+- Shared-authority and checked-backend contract: add one primitive contract that maps
+  source annotation, semantic type, logical type, supported equality predicates,
+  private physical LLVM type, zero value, and alignment for all admitted primitive
+  kinds while preserving existing numeric/Boolean behavior byte-for-byte. CopyData,
+  binding, function, reference, semantic, checked-admission, verifier, and backend
+  consumers use that authority where primitive classification is required. Character
+  values lower privately as exact unsigned Unicode scalar code points in `i32` storage,
+  parameters, results, aggregates, loads/stores, and `icmp eq/ne`; verification must
+  distinguish `Char` from logical `Int` despite physical `i32`. No stable ABI/FFI or
+  integer-width policy follows.
+- Red-first exhaustive contract: before production mutation, add one target whose
+  valid matrix fails at strict lexing. It must cover raw ASCII/CJK/non-BMP scalars;
+  every escape; exact token/location/AST retention; inference/annotation; both equality
+  predicates; all admitted local/reference/call/result/array/tuple/struct/enum/Match/
+  assignment/control-flow/direct-module/library/CLI contexts; deterministic checked IR
+  and LLVM; and an exact native sentinel. Its negative product covers every invalid
+  literal topology, `char`/non-char annotation and call mismatch, every excluded
+  operator/context, use-after-move controls for char-bearing owned enums, artifact
+  hygiene, raw checked-admission bypass, verifier schema/result/place/immediate/
+  predicate corruptions, and Char-vs-Int/Bool identity substitution.
+- Executable milestone gate: add one tracked two-file direct-module program that
+  composes raw and escaped Unicode characters, equality/inequality, arrays, tuples,
+  nested structs, unary and positional multi-field enums, references, mutable
+  replacement, calls/results, Match, branches, and loops. Stable and nightly CI must
+  compile through semantics and checked IR, externally verify with pinned `opt-22`,
+  machine-verify with `llc-22 -verify-machineinstrs`, object-lower, link with
+  `clang-22 -no-pie`, and execute one frozen exact exit code. A parser-only, rejection-
+  only, LLVM-text-only, or helper-simulation result cannot close CORE-072.
+- Allowed files before exact green: this ledger; new
+  `src/compiler/src/primitive_contract.rs`; `src/compiler/src/{lib,main}.rs` module
+  declarations; `errors.rs`, `lexer.rs`, `ast.rs`, `parser.rs`, `types.rs`, `ir.rs`, and the
+  mechanically coupled LSP diagnostic-location arm in `lsp.rs` so the same opening-quote
+  span is preserved for editor consumers;
+  directly coupled primitive/CopyData consumers `binding_annotation.rs`,
+  `struct_contract.rs`, `enum_match_contract.rs`, `copy_place_contract.rs`,
+  `tuple_contract.rs`, `local_reference.rs`, `scalar_assignment.rs`,
+  `function_call_contract.rs`, `semantic_analyzer.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs`; one new exhaustive
+  `char_copydata_tests.rs`; one tracked `examples/char_copydata/` two-file program;
+  `.github/workflows/rust.yml`; and, by prepublication completeness amendment, only the
+  exact allowed-result diagnostic assertion in `unit_enum_match_tests.rs` so its still-
+  rejected String result names newly admitted Char without weakening the rejection.
+  After exact green, only directly affected current
+  state/capability/matrix/framework/roadmap/decision/risk/README/language-design records
+  may be synchronized in this same task commit.
+- Stop conditions: stop if the implementation requires character arithmetic/order,
+  locale-dependent behavior, normalization or grapheme semantics, String/`&str`
+  allocation or conversion, formatting/printing, literal-pattern exhaustiveness,
+  generic/trait dispatch, public layout/ABI/FFI, signedness/cast policy, a new ownership
+  or lifetime rule, a new aggregate/enum representation, accelerator semantics, a
+  second primitive classifier, topology-specific char admission guards, weakened
+  tests, changed existing primitive LLVM, or an unrelated red baseline. Amend this
+  record before publication if an implementation-critical assumption proves false.
+- Verification and publication: run the exact red; focused lexer/parser/type/CopyData/
+  binding/function/reference/array/tuple/struct/enum/IR/verifier/codegen/module/CLI
+  targets; all-target/all-feature tests; formatting; all-target/all-feature checking;
+  correctness Clippy; docs; exact root `./tools/test.sh`; raw verifier corruption
+  controls; all eight public workflows; and pinned stable/nightly LLVM/Clang 22 native
+  execution. Commit/push one immutable candidate only after the complete local green;
+  update PR #4 immediately, distinguish public acceptance until exact-head green, keep
+  it draft/unmerged, and do not add a records-only acceptance commit.
+- Scaling controls: the class is exhaustive over a new primitive's entire existing
+  recursive CopyData transport surface, not split into literal/array/tuple/struct/enum
+  follow-ups. The shared primitive authority prevents another combinatorial phase
+  table. The 269-commit mega-PR checkpoint strategy, structured checkpoint-manifest
+  automation, hard ownership/module/runtime/backend work, and periodic composed system
+  gates remain active; this task does not claim they are solved.
+
+### CORE-072 local-candidate result
+
+- Red-first evidence: the exhaustive integration target was added before production
+  changes. After its test harness imported the existing compiler crate correctly, the
+  unchanged public pipeline failed at the first literal with
+  `Lex error: Error at 11:23: Unexpected character '''`; no character token, semantic
+  type, checked IR, LLVM, or executable existed. A prepublication completeness audit
+  found the remaining old `Int | Float | Bool` enum-Match-result table; its added ninth
+  regression failed exactly with `enum match arms must return Int, Float, or Bool`
+  before that table was replaced by the shared primitive classifier.
+- Implementation: strict and recovery lexers now classify one exact raw/escaped
+  Unicode scalar and preserve its opening-quote location; parser/AST retain the Rust
+  `char`. `Ty::Char`, `LogicalType::Char`, and `ImmChar` remain distinct from Int and
+  Bool. One `PrimitiveKind` contract supplies source/type/logical mappings, CopyData,
+  equality predicates, private physical types, zero values, and alignment to semantic,
+  annotation, recursive CopyData, checked-admission, verifier, and backend consumers.
+  Character parameters/results/places/aggregates/references lower as private `i32`
+  values without conversion or scalar fallback. The existing recursive topology
+  resolver—not char-specific container guards—carries the entire admitted class.
+- Focused and corruption evidence: `cargo test --test char_copydata_tests --
+  --nocapture` passes 9/9. It covers raw ASCII/CJK/non-BMP values, every escape,
+  invalid literal recovery without token fabrication, exact exclusions and type
+  substitutions, checked metadata/LLVM, the public pipeline, every escape's executable
+  code point, complete recursive transport, direct-module `compile_file`, public
+  `check`/`build`, artifact hygiene, and workflow anchors. `cargo test --lib character`
+  passes 3/3, including verifier rejection of ordering, char-vs-int, and ImmInt-for-
+  Char-place corruption. The implementation also corrected two defects exposed by the
+  candidate: checked for-loop zero initialization now follows the primitive type, and
+  character function parameters/results remain `i32` instead of receiving numeric
+  `sitofp`/`fptosi` conversions.
+- Complete local gate: `cargo fmt --check`, all-target/all-feature `cargo check`,
+  correctness-only Clippy with `-D clippy::correctness`, and `cargo doc --all-features
+  --no-deps` exit 0 (the same 12 existing documentation warnings remain). The complete
+  pre-Match-completeness `cargo test --all-targets --all-features` retry exited 0 after
+  its first invocation reached a command timeout without a test failure. After the
+  ninth red/green change, the first complete run failed only because the established
+  String-result rejection expected the old three-type diagnostic; the amended exact
+  assertion and unchanged rejection pass, and the final all-target rerun exits 0. The
+  exact accepted result is 190/190 library and 196/196 binary tests plus every
+  integration and benchmark target. The exact repository-root Git Bash
+  `./tools/test.sh` exits 0 in 329.7 seconds with
+  every integration and doc target. `git diff --check` is clean.
+- Pinned system evidence: official GitHub LLVM 22.1.8 release assets were verified
+  against their release-API SHA-256 digests. With exact LLVM/Clang 22.1.8, public
+  `check` passes; public `run` returns 197; public `build` reports external verification
+  by `opt 22.1.8`; independent `opt -passes=verify`, `llc
+  -verify-machineinstrs`, object lowering, Clang link, and the native executable all
+  pass, with exact final exit 197. The tracked workflow repeats the same gate in both
+  stable and nightly Linux jobs after publication.
+- Files changed: `.github/workflows/rust.yml`; this ledger;
+  `src/compiler/src/{ast,binding_annotation,code_generator,enum_match_contract,errors,
+  ir,ir_generator,ir_verifier,lexer,lib,lsp,main,parser,semantic_analyzer,
+  struct_contract,types}.rs`; new `src/compiler/src/primitive_contract.rs`; new
+  `src/compiler/tests/char_copydata_tests.rs`; new tracked
+  `examples/char_copydata/{main,glyphs}.aero`; and the directly affected current
+  project-state, capability, matrix, framework, roadmap, decision, risk, and README
+  records. User-owned untracked `tmp/` remains untouched and outside staging.
+- Remaining uncertainty and regression risks: candidate status is local until its one
+  immutable commit is pushed and all eight exact-head checks pass. CI must independently
+  reproduce stable/nightly external verification and exit 197. Character arithmetic,
+  ordering, casts, normalization/grapheme/locale behavior, strings/printing,
+  executable literal patterns, generic/trait semantics, public layout/ABI/FFI, new
+  ownership/lifetime/drop, accelerators, performance, releases, safety/stability, and
+  PR merge remain excluded. The recommended next action is the frozen publication
+  sequence only; do not stack another implementation on a failing public candidate.

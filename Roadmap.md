@@ -76,11 +76,20 @@ green. It is only a partial compiler-service convergence step: imports, namespac
 recursive modules, external verification, cache behavior, and thin-CLI convergence
 remain open. Exact implementation `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`
 passes all eight public checks and the unchanged pinned native exit-193 lane.
-Local candidate `CORE-071` preserves parsed Rust-like direct/aliased/glob `use`
+Accepted public `CORE-071` preserves parsed Rust-like direct/aliased/glob `use`
 declarations and exact locations but rejects them consistently in semantics and
-independent checked admission. Its red boundary, 8/8 focused contract, compatibility
-ring, and complete local gates prove containment only; no founding dotted-import,
-namespace, visibility, resolver, backend, or runtime semantics move.
+independent checked admission. Its exact implementation passes all eight public checks
+and the unchanged pinned native exit-193 lane; no founding dotted-import, namespace,
+visibility, resolver, backend, or runtime semantics move.
+Local candidate `CORE-072` then adds exact Unicode `char` as a distinct CopyData leaf
+under one shared primitive authority. Raw/escaped literals, equality/inequality,
+bindings/replacement, references, calls/results, arrays, tuples, structs, owned enums
+and Match, control flow, direct modules, libraries, public CLI paths, checked IR,
+independent verification, and private LLVM compose in one two-file native exit-197
+system specimen. The 9/9 focused target, 190-library/196-binary complete surface, exact
+root gate, and local official LLVM/Clang 22.1.8 system lane pass. Character arithmetic,
+ordering, casts, strings/printing, literal-pattern execution, generic behavior, stable
+ABI/FFI, and accelerators remain excluded; public stable/nightly acceptance is pending.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

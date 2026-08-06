@@ -642,6 +642,11 @@ impl Parser {
                 self.advance();
                 Ok(Expression::FloatLiteral(value))
             }
+            Token::CharacterLiteral(value) => {
+                let value = *value;
+                self.advance();
+                Ok(Expression::CharacterLiteral(value))
+            }
             Token::StringLiteral(s) => {
                 let s = s.clone();
                 self.advance();
@@ -1426,6 +1431,11 @@ impl Parser {
                 self.advance();
                 Ok(Pattern::Literal(Expression::FloatLiteral(f)))
             }
+            Token::CharacterLiteral(character) => {
+                let character = *character;
+                self.advance();
+                Ok(Pattern::Literal(Expression::CharacterLiteral(character)))
+            }
             Token::StringLiteral(s) => {
                 let s = s.clone();
                 self.advance();
@@ -1821,6 +1831,7 @@ impl Parser {
             self.peek().token,
             Token::IntegerLiteral(_)
                 | Token::FloatLiteral(_)
+                | Token::CharacterLiteral(_)
                 | Token::StringLiteral(_)
                 | Token::FStringLiteral(_)
                 | Token::Identifier(_)

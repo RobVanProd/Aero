@@ -802,6 +802,7 @@ impl ErrorLocation for CompilerError {
         match self {
             CompilerError::UnexpectedCharacter { location, .. }
             | CompilerError::UnterminatedString { location }
+            | CompilerError::InvalidCharacterLiteral { location }
             | CompilerError::InvalidNumber { location, .. }
             | CompilerError::UnexpectedToken { location, .. }
             | CompilerError::UnexpectedEndOfInput { location, .. }

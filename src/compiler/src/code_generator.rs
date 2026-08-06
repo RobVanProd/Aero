@@ -3,6 +3,7 @@ use crate::ir::{
     ResultId, Value,
 };
 use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
+use crate::primitive_contract::PrimitiveKind;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
@@ -79,10 +80,13 @@ impl CodeGenerator {
     }
 
     fn logical_type_to_llvm(logical_type: &LogicalType) -> String {
+        if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
+            return primitive.scalar_llvm_type().to_string();
+        }
         match logical_type {
-            LogicalType::Int => "i32".to_string(),
-            LogicalType::Float => "double".to_string(),
-            LogicalType::Bool => "i1".to_string(),
+            LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
+                unreachable!("primitive logical types returned above")
+            }
             LogicalType::Void => "void".to_string(),
             LogicalType::ImmutableReference { pointee }
             | LogicalType::MutableReference { pointee } => {
@@ -105,9 +109,13 @@ impl CodeGenerator {
     /// Lower one independently verified recursive Copy-data schema as a private LLVM value type.
     /// Numeric aggregate leaves retain their established `double` representation.
     fn copy_data_type_to_llvm(logical_type: &LogicalType) -> String {
+        if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
+            return primitive.copy_data_llvm_type().to_string();
+        }
         match logical_type {
-            LogicalType::Int | LogicalType::Float => "double".to_string(),
-            LogicalType::Bool => "i1".to_string(),
+            LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
+                unreachable!("primitive logical types returned above")
+            }
             LogicalType::Array { element, count } => {
                 format!("[{count} x {}]", Self::copy_data_type_to_llvm(element))
             }
@@ -180,9 +188,13 @@ impl CodeGenerator {
     }
 
     fn copy_data_zero_value(logical_type: &LogicalType) -> String {
+        if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
+            return primitive.copy_data_zero().to_string();
+        }
         match logical_type {
-            LogicalType::Int | LogicalType::Float => "0x0000000000000000".to_string(),
-            LogicalType::Bool => "false".to_string(),
+            LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
+                unreachable!("primitive logical types returned above")
+            }
             LogicalType::Array { .. }
             | LogicalType::Tuple { .. }
             | LogicalType::EnumFields { .. }
@@ -198,11 +210,10 @@ impl CodeGenerator {
     }
 
     fn reference_pointee_to_llvm(pointee: &LogicalType) -> String {
-        match pointee {
-            LogicalType::Int | LogicalType::Float => "double".to_string(),
-            LogicalType::Bool => "i1".to_string(),
-            _ => Self::logical_type_to_llvm(pointee),
-        }
+        PrimitiveKind::from_logical_type(pointee).map_or_else(
+            || Self::logical_type_to_llvm(pointee),
+            |primitive| primitive.copy_data_llvm_type().to_string(),
+        )
     }
 
     fn collect_logical_struct_schema(
@@ -603,6 +614,9 @@ impl CodeGenerator {
                 // Format float as hexadecimal for LLVM IR
                 format!("0x{:016X}", f.to_bits())
             }
+            Value::ImmChar(_) => {
+                panic!("Character value cannot be lowered as numeric LLVM `double`")
+            }
             Value::Reg(r) => format!("%reg{}", r),
             Value::ImmString(_) => {
                 panic!("String value cannot be lowered as numeric LLVM `double`")
@@ -614,6 +628,7 @@ impl CodeGenerator {
         match value {
             Value::ImmInt(n) => format!("{}", n),
             Value::ImmFloat(f) => format!("{}", *f as i64),
+            Value::ImmChar(character) => u32::from(*character).to_string(),
             Value::Reg(r) => format!("%reg{}", r),
             Value::ImmString(_) => panic!("String value cannot be lowered as LLVM integer"),
         }
@@ -623,7 +638,11 @@ impl CodeGenerator {
         match value {
             Value::ImmInt(n) => n.to_string(),
             Value::ImmFloat(f) => (*f as i64).to_string(),
+            Value::ImmChar(character) => u32::from(*character).to_string(),
             Value::Reg(r) => {
+                if self.is_checked_char_result(value) {
+                    return format!("%reg{r}");
+                }
                 let tmp = self.fresh_reg();
                 llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
                 format!("%{}", tmp)
@@ -636,6 +655,7 @@ impl CodeGenerator {
         match value {
             Value::ImmInt(n) => n.to_string(),
             Value::ImmFloat(f) => (*f as i64).to_string(),
+            Value::ImmChar(character) => u32::from(*character).to_string(),
             Value::Reg(r) => {
                 let tmp = self.fresh_reg();
                 llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
@@ -653,6 +673,9 @@ impl CodeGenerator {
         match value {
             Value::ImmInt(n) => ((*n as f64).to_bits() as i64).to_string(),
             Value::ImmFloat(f) => (f.to_bits() as i64).to_string(),
+            Value::ImmChar(_) => {
+                panic!("Character value cannot be lowered as a printf floating operand")
+            }
             Value::Reg(r) => {
                 let floating_register = if self.is_checked_bool_result(value) {
                     let converted = self.fresh_reg();
@@ -684,6 +707,7 @@ impl CodeGenerator {
             "f32" => "float",
             "float" | "f64" | "double" => "double",
             "bool" | "i1" => "i1",
+            "char" => "i32",
             "void" => "void",
             _ => "double", // Default fallback
         }
@@ -728,6 +752,30 @@ impl CodeGenerator {
         matches!(self.checked_place_type(value), Some(LogicalType::Bool))
     }
 
+    fn is_checked_char_result(&self, value: &Value) -> bool {
+        matches!(self.checked_result_type(value), Some(LogicalType::Char))
+    }
+
+    fn is_checked_char_place(&self, value: &Value) -> bool {
+        matches!(self.checked_place_type(value), Some(LogicalType::Char))
+    }
+
+    fn char_value_to_string(&self, value: &Value) -> String {
+        match value {
+            Value::ImmChar(character) => u32::from(*character).to_string(),
+            Value::Reg(register) => format!("%reg{register}"),
+            _ => panic!("verified character value has exact character identity"),
+        }
+    }
+
+    fn copy_data_value_to_string(&self, ty: &LogicalType, value: &Value) -> String {
+        match PrimitiveKind::from_logical_type(ty) {
+            Some(PrimitiveKind::Bool) => self.bool_value_to_string(value),
+            Some(PrimitiveKind::Char) => self.char_value_to_string(value),
+            _ => self.value_to_string(value),
+        }
+    }
+
     fn bool_value_to_string(&self, value: &Value) -> String {
         match value {
             Value::ImmInt(value) => {
@@ -744,6 +792,7 @@ impl CodeGenerator {
                     "true".to_string()
                 }
             }
+            Value::ImmChar(_) => panic!("Character value cannot be lowered as LLVM boolean"),
             Value::Reg(register) => format!("%reg{register}"),
             Value::ImmString(_) => {
                 panic!("String value cannot be lowered as LLVM boolean")
@@ -1157,7 +1206,9 @@ impl CodeGenerator {
                         panic!("Expected register for checked mutable owned-place alloca")
                     };
                     let copy_type = Self::reference_pointee_to_llvm(ty);
-                    let align = if *ty == LogicalType::Bool { 1 } else { 8 };
+                    let align = PrimitiveKind::from_logical_type(ty)
+                        .map(PrimitiveKind::alignment)
+                        .unwrap_or(8);
                     llvm_ir.push_str(&format!(
                         "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
                     ));
@@ -1168,6 +1219,7 @@ impl CodeGenerator {
                         _ => panic!("Expected register for alloca"),
                     };
                     let bool_place = self.is_checked_bool_place(ptr_reg);
+                    let char_place = self.is_checked_char_place(ptr_reg);
                     let aggregate_place = match self.checked_place_type(ptr_reg) {
                         Some(
                             logical_type @ (LogicalType::Struct { .. }
@@ -1183,6 +1235,8 @@ impl CodeGenerator {
                         ));
                     } else if bool_place {
                         llvm_ir.push_str(&format!("  %ptr{} = alloca i1, align 1\n", ptr_id));
+                    } else if char_place {
+                        llvm_ir.push_str(&format!("  %ptr{} = alloca i32, align 4\n", ptr_id));
                     } else {
                         llvm_ir.push_str(&format!("  %ptr{} = alloca double, align 8\n", ptr_id));
                     }
@@ -1202,6 +1256,12 @@ impl CodeGenerator {
                             llvm_ir.push_str(&format!(
                                 "  store i1 %{}, i1* %ptr{}, align 1\n",
                                 parameter, ptr_id
+                            ));
+                            continue;
+                        }
+                        if char_place {
+                            llvm_ir.push_str(&format!(
+                                "  store i32 %{parameter}, i32* %ptr{ptr_id}, align 4\n"
                             ));
                             continue;
                         }
@@ -1281,6 +1341,17 @@ impl CodeGenerator {
                         ));
                         continue;
                     }
+                    if self.is_checked_char_place(ptr_reg) {
+                        let Value::Reg(ptr_id) = ptr_reg else {
+                            panic!("Expected register for character store pointer")
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  store i32 {}, i32* %ptr{}, align 4\n",
+                            self.char_value_to_string(value),
+                            ptr_id
+                        ));
+                        continue;
+                    }
                     let val_str = self.value_to_string(value);
                     let ptr_str = match ptr_reg {
                         Value::Reg(r) => format!("ptr{}", r),
@@ -1308,6 +1379,10 @@ impl CodeGenerator {
                         LogicalType::Bool => llvm_ir.push_str(&format!(
                             "  store i1 {}, i1* %ptr{ptr_id}, align 1\n",
                             self.bool_value_to_string(value)
+                        )),
+                        LogicalType::Char => llvm_ir.push_str(&format!(
+                            "  store i32 {}, i32* %ptr{ptr_id}, align 4\n",
+                            self.char_value_to_string(value)
                         )),
                         logical_type @ (LogicalType::Struct { .. }
                         | LogicalType::Array { .. }
@@ -1355,6 +1430,19 @@ impl CodeGenerator {
                         };
                         llvm_ir.push_str(&format!(
                             "  %reg{} = load i1, i1* %ptr{}, align 1\n",
+                            result_id, ptr_id
+                        ));
+                        continue;
+                    }
+                    if self.is_checked_char_place(ptr_reg) {
+                        let Value::Reg(result_id) = result_reg else {
+                            panic!("Expected register for character load result")
+                        };
+                        let Value::Reg(ptr_id) = ptr_reg else {
+                            panic!("Expected register for character load pointer")
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %reg{} = load i32, i32* %ptr{}, align 4\n",
                             result_id, ptr_id
                         ));
                         continue;
@@ -1869,11 +1957,7 @@ impl CodeGenerator {
                                 let value = payload
                                     .as_ref()
                                     .expect("verified selected payload variant has a value");
-                                if **payload_type == LogicalType::Bool {
-                                    self.bool_value_to_string(value)
-                                } else {
-                                    self.value_to_string(value)
-                                }
+                                self.copy_data_value_to_string(payload_type, value)
                             } else {
                                 Self::copy_data_zero_value(payload_type)
                             };
@@ -1942,11 +2026,7 @@ impl CodeGenerator {
                     {
                         let output = self.fresh_reg();
                         let field_llvm = Self::copy_data_type_to_llvm(field_type);
-                        let field_value = if *field_type == LogicalType::Bool {
-                            self.bool_value_to_string(field)
-                        } else {
-                            self.value_to_string(field)
-                        };
+                        let field_value = self.copy_data_value_to_string(field_type, field);
                         llvm_ir.push_str(&format!(
                             "  %{output} = insertvalue {payload_type} {payload_value}, {field_llvm} {field_value}, {field_index}\n"
                         ));
@@ -2190,7 +2270,9 @@ impl CodeGenerator {
                     result_str, function, args_str
                 )),
                 "i32" => {
-                    if self.is_checked_enum_result(result_reg) {
+                    if self.is_checked_enum_result(result_reg)
+                        || self.is_checked_char_result(result_reg)
+                    {
                         llvm_ir.push_str(&format!(
                             "  %{} = call i32 @{}({})\n",
                             result_str, function, args_str
@@ -2286,8 +2368,9 @@ impl CodeGenerator {
             "i32" => match value {
                 Value::ImmInt(n) => n.to_string(),
                 Value::ImmFloat(f) => (*f as i64).to_string(),
+                Value::ImmChar(character) => u32::from(*character).to_string(),
                 Value::Reg(r) => {
-                    if self.is_checked_enum_result(value) {
+                    if self.is_checked_enum_result(value) || self.is_checked_char_result(value) {
                         format!("%reg{}", r)
                     } else {
                         let tmp = self.fresh_reg();
@@ -2302,6 +2385,7 @@ impl CodeGenerator {
             "i64" => match value {
                 Value::ImmInt(n) => n.to_string(),
                 Value::ImmFloat(f) => (*f as i64).to_string(),
+                Value::ImmChar(_) => panic!("Character values do not use the i64 ABI lane"),
                 Value::Reg(r) => {
                     let tmp = self.fresh_reg();
                     llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
@@ -2326,6 +2410,7 @@ impl CodeGenerator {
                         "true".to_string()
                     }
                 }
+                Value::ImmChar(_) => panic!("Character values do not use the i1 ABI lane"),
                 Value::Reg(r) => {
                     if self.is_checked_bool_result(value) {
                         format!("%reg{}", r)
@@ -2365,6 +2450,7 @@ impl CodeGenerator {
             "i64" => match value {
                 Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i64 {}\n", n)),
                 Value::ImmFloat(f) => llvm_ir.push_str(&format!("  ret i64 {}\n", *f as i64)),
+                Value::ImmChar(_) => panic!("Character values do not use the i64 return lane"),
                 Value::Reg(r) => {
                     let tmp = self.fresh_reg();
                     llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
@@ -2381,6 +2467,7 @@ impl CodeGenerator {
                     "  ret i1 {}\n",
                     if *f == 0.0 { "false" } else { "true" }
                 )),
+                Value::ImmChar(_) => panic!("Character values do not use the i1 return lane"),
                 Value::Reg(r) => {
                     if self.is_checked_bool_result(value) {
                         llvm_ir.push_str(&format!("  ret i1 %reg{}\n", r));
@@ -2398,8 +2485,11 @@ impl CodeGenerator {
             _ => match value {
                 Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i32 {}\n", n)),
                 Value::ImmFloat(f) => llvm_ir.push_str(&format!("  ret i32 {}\n", *f as i64)),
+                Value::ImmChar(character) => {
+                    llvm_ir.push_str(&format!("  ret i32 {}\n", u32::from(*character)))
+                }
                 Value::Reg(r) => {
-                    if self.is_checked_enum_result(value) {
+                    if self.is_checked_enum_result(value) || self.is_checked_char_result(value) {
                         llvm_ir.push_str(&format!("  ret i32 %reg{}\n", r));
                     } else {
                         let tmp = self.fresh_reg();

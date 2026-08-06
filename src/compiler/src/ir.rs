@@ -8,6 +8,7 @@ pub enum Value {
     Reg(u32),
     ImmInt(i64),
     ImmFloat(f64),
+    ImmChar(char),
     ImmString(String),
 }
 
@@ -17,6 +18,7 @@ impl fmt::Display for Value {
             Value::Reg(r) => write!(f, "{}", r),
             Value::ImmInt(n) => write!(f, "{}", n),
             Value::ImmFloat(fl) => write!(f, "{}", fl),
+            Value::ImmChar(character) => write!(f, "U+{:04X}", u32::from(*character)),
             Value::ImmString(s) => write!(f, "\"{}\"", s),
         }
     }
@@ -379,6 +381,7 @@ pub enum LogicalType {
     Int,
     Float,
     Bool,
+    Char,
     Void,
     String,
     ImmutableReference {
@@ -422,6 +425,7 @@ impl fmt::Display for LogicalType {
             Self::Int => write!(f, "Int"),
             Self::Float => write!(f, "Float"),
             Self::Bool => write!(f, "Bool"),
+            Self::Char => write!(f, "Char"),
             Self::Void => write!(f, "Void"),
             Self::String => write!(f, "String"),
             Self::ImmutableReference { pointee } => write!(f, "&{pointee}"),

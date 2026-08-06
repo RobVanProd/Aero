@@ -7,6 +7,7 @@ use crate::types::Ty;
 pub enum Expression {
     IntegerLiteral(i64),
     FloatLiteral(f64),
+    CharacterLiteral(char),
     StringLiteral(String),
     Identifier(String),
     Binary {
@@ -312,6 +313,7 @@ impl Expression {
         match self {
             Expression::IntegerLiteral(_) => Some(Ty::Int),
             Expression::FloatLiteral(_) => Some(Ty::Float),
+            Expression::CharacterLiteral(_) => Some(Ty::Char),
             Expression::StringLiteral(_) => Some(Ty::String),
             Expression::Binary { ty, .. } => ty.clone(),
             Expression::Identifier(_) => None,

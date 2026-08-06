@@ -1,5 +1,6 @@
 use crate::ast::{AstNode, Expression, FieldDecl, Statement, Type};
 use crate::ir::LogicalType;
+use crate::primitive_contract::PrimitiveKind;
 use crate::types::Ty;
 use std::collections::{BTreeMap, HashSet};
 
@@ -56,18 +57,13 @@ fn resolve_copy_annotation_shape(
     resolve_named: &mut impl FnMut(&str) -> Option<CopyTypeContract>,
 ) -> Option<CopyTypeContract> {
     match annotation {
-        Type::Named(name) if matches!(name.as_str(), "int" | "i32") => Some(CopyTypeContract {
-            ty: Ty::Int,
-            logical_type: LogicalType::Int,
-        }),
-        Type::Named(name) if matches!(name.as_str(), "float" | "f64") => Some(CopyTypeContract {
-            ty: Ty::Float,
-            logical_type: LogicalType::Float,
-        }),
-        Type::Named(name) if name == "bool" => Some(CopyTypeContract {
-            ty: Ty::Bool,
-            logical_type: LogicalType::Bool,
-        }),
+        Type::Named(name) if PrimitiveKind::from_source_name(name).is_some() => {
+            let primitive = PrimitiveKind::from_source_name(name).unwrap();
+            Some(CopyTypeContract {
+                ty: primitive.ty(),
+                logical_type: primitive.logical_type(),
+            })
+        }
         Type::Named(name) => resolve_named(name),
         Type::Array(element, count) => {
             let element = resolve_copy_annotation_shape(element, resolve_named)?;
@@ -103,18 +99,13 @@ fn resolve_copy_ty_shape(
     resolve_named: &mut impl FnMut(&str) -> Option<CopyTypeContract>,
 ) -> Option<CopyTypeContract> {
     match ty {
-        Ty::Int => Some(CopyTypeContract {
-            ty: Ty::Int,
-            logical_type: LogicalType::Int,
-        }),
-        Ty::Float => Some(CopyTypeContract {
-            ty: Ty::Float,
-            logical_type: LogicalType::Float,
-        }),
-        Ty::Bool => Some(CopyTypeContract {
-            ty: Ty::Bool,
-            logical_type: LogicalType::Bool,
-        }),
+        ty if PrimitiveKind::from_ty(ty).is_some() => {
+            let primitive = PrimitiveKind::from_ty(ty).unwrap();
+            Some(CopyTypeContract {
+                ty: primitive.ty(),
+                logical_type: primitive.logical_type(),
+            })
+        }
         Ty::Struct(name) => resolve_named(name),
         Ty::Array(element, count) => {
             let element = resolve_copy_ty_shape(element, resolve_named)?;
@@ -142,6 +133,10 @@ fn resolve_copy_ty_shape(
             })
         }
         Ty::Tuple(_)
+        | Ty::Int
+        | Ty::Float
+        | Ty::Bool
+        | Ty::Char
         | Ty::Void
         | Ty::String
         | Ty::Enum(_)

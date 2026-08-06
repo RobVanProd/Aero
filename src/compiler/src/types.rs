@@ -1,5 +1,6 @@
 // src/compiler/src/types.rs
 
+use crate::primitive_contract::PrimitiveKind;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -7,6 +8,7 @@ pub enum Ty {
     Int,
     Float,
     Bool,
+    Char,
     String,
     Array(Box<Ty>, usize), // element type, size (fixed-size array)
     Tuple(Vec<Ty>),        // product type
@@ -31,6 +33,7 @@ impl fmt::Display for Ty {
             Ty::Int => f.write_str("int"),
             Ty::Float => f.write_str("float"),
             Ty::Bool => f.write_str("bool"),
+            Ty::Char => f.write_str("char"),
             Ty::String => f.write_str("String"),
             Ty::Array(elem, size) => write!(f, "[{}; {}]", elem, size),
             Ty::Tuple(elems) => {
@@ -128,21 +131,20 @@ pub enum OwnershipState {
 
 impl Ty {
     pub fn from_string(s: &str) -> Option<Ty> {
-        match s {
-            "int" | "i32" => Some(Ty::Int),
-            "float" | "f64" => Some(Ty::Float),
-            "bool" => Some(Ty::Bool),
-            "String" => Some(Ty::String),
-            _ => None,
-        }
+        PrimitiveKind::from_source_name(s)
+            .map(PrimitiveKind::ty)
+            .or_else(|| (s == "String").then_some(Ty::String))
     }
 
     /// Returns true if this type is a Copy type (cheap stack copy, no move semantics).
     /// Copy types: integers, floats, booleans, immutable references, and tuples/arrays
     /// of Copy types. Mutable references retain unique alias ownership.
     pub fn is_copy_type(&self) -> bool {
+        if PrimitiveKind::from_ty(self).is_some() {
+            return true;
+        }
         match self {
-            Ty::Int | Ty::Float | Ty::Bool | Ty::Void => true,
+            Ty::Void => true,
             Ty::Reference(_, false) => true,
             Ty::Reference(_, true) => false,
             Ty::Tuple(elems) => elems.iter().all(|t| t.is_copy_type()),
@@ -152,6 +154,9 @@ impl Ty {
             Ty::Option(_) | Ty::Result(_, _) | Ty::Vec(_) | Ty::HashMap(_, _) => false,
             Ty::TypeParam(_) => false, // conservative: generics are not Copy by default
             Ty::Fn(_) => true,         // function pointers are Copy
+            Ty::Int | Ty::Float | Ty::Bool | Ty::Char => {
+                unreachable!("primitive types returned above")
+            }
         }
     }
 
@@ -185,7 +190,14 @@ pub fn infer_binary_type(op: &str, lhs: &Ty, rhs: &Ty) -> Result<Ty, String> {
         },
         // Comparison operations
         "==" | "!=" | "<" | ">" | "<=" | ">=" => match (lhs, rhs) {
-            (Ty::Int, Ty::Int) | (Ty::Float, Ty::Float) | (Ty::Bool, Ty::Bool) => Ok(Ty::Bool),
+            (Ty::Int, Ty::Int)
+            | (Ty::Float, Ty::Float)
+            | (Ty::Bool, Ty::Bool)
+            | (Ty::Char, Ty::Char)
+                if matches!(op, "==" | "!=") =>
+            {
+                Ok(Ty::Bool)
+            }
             (Ty::Int, Ty::Float) | (Ty::Float, Ty::Int) => Ok(Ty::Bool), // allow comparison with promotion
             _ => Err(format!(
                 "Type mismatch in comparison operation `{}`: {} vs {}",

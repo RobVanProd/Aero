@@ -51,12 +51,26 @@ public checks, and pinned exit-193 system lane pass; the CLI, other tools, impor
 recursive graphs, cache identity, external verification, and nondefault option
 semantics remain divergent or unsupported.
 
-Local candidate `CORE-071` adds a pending R-005 control for parsed Rust-like `use`
+Accepted public `CORE-071` adds an R-005 control for parsed Rust-like `use`
 declarations that were silently erased. The exact red proves the false success; the
 shared located semantic and checked-admission rejection, artifact-free library/CLI
-matrix, 8/8 focused target, 81-pass/16-ignore compatibility ring, and complete local
-gates now pass. Positive import/name-resolution semantics and the broader R-006/R-010
-gaps remain open; public exact-head acceptance is still required.
+matrix, 8/8 focused target, 81-pass/16-ignore compatibility ring, complete local
+gates, all eight exact-head public checks, and pinned stable/nightly LLVM/Clang 22.1.8
+exit-193 lanes pass. Positive import/name-resolution semantics and the broader
+R-006/R-010 gaps remain open.
+
+Local candidate `CORE-072` adds pending R-001/R-002/R-005/R-011 controls for Unicode
+characters. Strict lexing accepts exactly one raw Unicode scalar or one frozen escape
+and rejects the complete invalid-literal class without fabrication. Distinct semantic,
+checked, immediate, and verifier identities prevent character/int/bool substitution;
+one primitive authority prevents duplicated phase tables. The existing recursive
+CopyData classifier carries char through every admitted aggregate, ownership, call,
+reference, module, and CLI topology rather than adding container-specific rules. The
+9/9 exhaustive target, 190-library/196-binary complete surface, exact root gate, and
+official local LLVM/Clang 22.1.8 external/machine/object/link/native exit-197 lane pass.
+Public stable/nightly acceptance remains pending. Broader lexical recovery, integer/
+string risks, character arithmetic/order/casts/printing/patterns, stable ABI, and
+general aggregate/ownership safety remain open or only partially controlled.
 
 ## Priority order
 

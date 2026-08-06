@@ -767,6 +767,34 @@ jobs:
         fi
         echo "multi-field enum example passed with exit code 193"
 
+    - name: Test Unicode char CopyData integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/char_copydata/main.aero
+        set +e
+        cargo run -- run ../../examples/char_copydata/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 197 ]; then
+          echo "Public run returned $public_run_exit, expected 197"
+          exit 1
+        fi
+        cargo run -- build ../../examples/char_copydata/main.aero -o ../../char_copydata.ll
+        opt-22 -passes=verify -disable-output ../../char_copydata.ll
+        llc-22 -verify-machineinstrs ../../char_copydata.ll -o /dev/null
+        llc-22 -filetype=obj ../../char_copydata.ll -o ../../char_copydata.o
+        clang-22 -no-pie ../../char_copydata.o -o ../../char_copydata
+        set +e
+        ../../char_copydata
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 197 ]; then
+          echo "Expected exit code 197, got $exit_code"
+          exit 1
+        fi
+        echo "Unicode char CopyData example passed with exit code 197"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

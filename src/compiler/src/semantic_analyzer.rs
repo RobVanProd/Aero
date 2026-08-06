@@ -26,6 +26,7 @@ use crate::ownership_flow::{
     ConditionalOwnershipArm, OwnershipFlowDisposition, classify_conditional_ownership,
     classify_loop_ownership, maybe_moved_diagnostic,
 };
+use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
     OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
     classify_owned_place_assignment,
@@ -114,11 +115,8 @@ impl FunctionTable {
     fn legacy_parameter_type(ty: &crate::ast::Type) -> Option<Ty> {
         match ty {
             crate::ast::Type::Named(type_name) => match type_name.as_str() {
-                "i32" | "int" => Some(Ty::Int),
-                "f64" | "float" => Some(Ty::Float),
-                "bool" => Some(Ty::Bool),
                 "String" => Some(Ty::String),
-                _ => None,
+                _ => PrimitiveKind::from_source_name(type_name).map(PrimitiveKind::ty),
             },
             crate::ast::Type::Array(_, _)
             | crate::ast::Type::Tuple(_)
@@ -1212,10 +1210,12 @@ impl SemanticAnalyzer {
     }
 
     fn helper_contract_type(ty: &crate::ast::Type) -> Option<Ty> {
-        Self::numeric_contract_type(ty).or_else(|| match ty {
-            crate::ast::Type::Named(name) if name == "bool" => Some(Ty::Bool),
+        match ty {
+            crate::ast::Type::Named(name) => {
+                PrimitiveKind::from_source_name(name).map(PrimitiveKind::ty)
+            }
             _ => None,
-        })
+        }
     }
 
     fn is_numeric_type(ty: &Ty) -> bool {
@@ -1414,6 +1414,7 @@ impl SemanticAnalyzer {
         match expr {
             Expression::IntegerLiteral(_) => Ok(Ty::Int),
             Expression::FloatLiteral(_) => Ok(Ty::Float),
+            Expression::CharacterLiteral(_) => Ok(Ty::Char),
             Expression::Identifier(name) => self.readable_identifier_type(name),
             Expression::Binary {
                 op, left, right, ..
@@ -1996,6 +1997,7 @@ impl SemanticAnalyzer {
             }
             Expression::IntegerLiteral(_)
             | Expression::FloatLiteral(_)
+            | Expression::CharacterLiteral(_)
             | Expression::StringLiteral(_)
             | Expression::Identifier(_) => {}
             Expression::Closure { location, .. } => {
@@ -2150,6 +2152,7 @@ impl SemanticAnalyzer {
         match expr {
             Expression::IntegerLiteral(_) => Ok(Ty::Int),
             Expression::FloatLiteral(_) => Ok(Ty::Float),
+            Expression::CharacterLiteral(_) => Ok(Ty::Char),
             Expression::Identifier(name) => self.readable_identifier_type(name),
             Expression::Binary {
                 op, left, right, ..
@@ -2517,10 +2520,25 @@ impl SemanticAnalyzer {
 
     fn validate_comparison_operands(
         &self,
-        _op: &ComparisonOp,
+        op: &ComparisonOp,
         left_type: &Ty,
         right_type: &Ty,
     ) -> Result<(), String> {
+        if matches!(PrimitiveKind::from_ty(left_type), Some(PrimitiveKind::Char))
+            || matches!(
+                PrimitiveKind::from_ty(right_type),
+                Some(PrimitiveKind::Char)
+            )
+        {
+            if left_type == right_type && matches!(op, ComparisonOp::Equal | ComparisonOp::NotEqual)
+            {
+                return Ok(());
+            }
+            return Err(format!(
+                "Error: character comparisons require two `char` operands and `==` or `!=`, found `{}` and `{}`.",
+                left_type, right_type
+            ));
+        }
         if left_type == right_type
             || (left_type == &Ty::Int && right_type == &Ty::Float)
             || (left_type == &Ty::Float && right_type == &Ty::Int)
@@ -3267,20 +3285,19 @@ impl SemanticAnalyzer {
 
     fn ast_type_to_ty(&self, ty: &crate::ast::Type) -> Ty {
         match ty {
-            crate::ast::Type::Named(name) => match name.as_str() {
-                "i32" | "int" => Ty::Int,
-                "f64" | "float" => Ty::Float,
-                "bool" => Ty::Bool,
-                "String" => Ty::String,
-                other => {
-                    // Phase 5: Check if this is a generic type parameter
-                    if self.is_type_param(other) {
-                        Ty::TypeParam(other.to_string())
-                    } else {
-                        Ty::Struct(other.to_string())
+            crate::ast::Type::Named(name) => PrimitiveKind::from_source_name(name)
+                .map(PrimitiveKind::ty)
+                .unwrap_or_else(|| match name.as_str() {
+                    "String" => Ty::String,
+                    other => {
+                        // Phase 5: Check if this is a generic type parameter
+                        if self.is_type_param(other) {
+                            Ty::TypeParam(other.to_string())
+                        } else {
+                            Ty::Struct(other.to_string())
+                        }
                     }
-                }
-            },
+                }),
             crate::ast::Type::Array(elem, size) => {
                 Ty::Array(Box::new(self.ast_type_to_ty(elem)), *size)
             }

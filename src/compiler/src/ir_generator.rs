@@ -34,6 +34,7 @@ use crate::ownership_flow::{
     classify_conditional_ownership, classify_loop_ownership, maybe_moved_diagnostic,
     statement_definitely_returns,
 };
+use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
     OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
     classify_owned_place_assignment, resolve_owned_place_logical_type,
@@ -361,9 +362,7 @@ impl IrGenerator {
 
     fn numeric_contract_type(ty: &Type) -> Option<Ty> {
         match ty {
-            Type::Named(name) if matches!(name.as_str(), "i32" | "int") => Some(Ty::Int),
-            Type::Named(name) if matches!(name.as_str(), "f64" | "float") => Some(Ty::Float),
-            Type::Named(name) if name == "bool" => Some(Ty::Bool),
+            Type::Named(name) => PrimitiveKind::from_source_name(name).map(PrimitiveKind::ty),
             _ => None,
         }
     }
@@ -386,6 +385,7 @@ impl IrGenerator {
                 | Ty::Int
                 | Ty::Float
                 | Ty::Bool
+                | Ty::Char
                 | Ty::Struct(_)
                 | Ty::Array(_, _)
                 | Ty::Tuple(_)
@@ -425,6 +425,7 @@ impl IrGenerator {
             return_type @ (Ty::Int
             | Ty::Float
             | Ty::Bool
+            | Ty::Char
             | Ty::Struct(_)
             | Ty::Array(_, _)
             | Ty::Tuple(_)
@@ -742,7 +743,7 @@ impl IrGenerator {
             || return_type.is_some_and(|return_type| {
                 !matches!(
                     Self::admission_type(return_type),
-                    Ty::Int | Ty::Float | Ty::Bool
+                    Ty::Int | Ty::Float | Ty::Bool | Ty::Char
                 )
             })
         {
@@ -755,7 +756,7 @@ impl IrGenerator {
                 || !parameter_names.insert(parameter.name.as_str())
                 || !matches!(
                     Self::admission_type(&parameter.param_type),
-                    Ty::Int | Ty::Float | Ty::Bool
+                    Ty::Int | Ty::Float | Ty::Bool | Ty::Char
                 )
             {
                 return None;
@@ -1308,7 +1309,7 @@ impl IrGenerator {
                     if reference_contract.is_none()
                         && enum_contract.is_none()
                         && copy_contract.is_none()
-                        && !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool)
+                        && !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool | Ty::Char)
                     {
                         return Err(IrGenerationError::Admission(format!(
                             "function parameter `{}` is not an admitted scalar type",
@@ -1333,7 +1334,7 @@ impl IrGenerator {
                     && return_type.as_ref().is_some_and(|return_type| {
                         !matches!(
                             Self::admission_type(return_type),
-                            Ty::Int | Ty::Float | Ty::Bool
+                            Ty::Int | Ty::Float | Ty::Bool | Ty::Char
                         )
                     })
                 {
@@ -1539,6 +1540,7 @@ impl IrGenerator {
                 Ok(Ty::Int)
             }
             Expression::FloatLiteral(_) => Ok(Ty::Float),
+            Expression::CharacterLiteral(_) => Ok(Ty::Char),
             Expression::StringLiteral(_) => Ok(Ty::String),
             Expression::Identifier(name) => {
                 let binding = bindings.get(name).ok_or_else(|| {
@@ -1808,14 +1810,26 @@ impl IrGenerator {
                         return Ok(Ty::Bool);
                     }
                 }
-                if !matches!(
-                    (&left_ty, &right_ty),
-                    (&Ty::Int, &Ty::Int)
-                        | (&Ty::Float, &Ty::Float)
-                        | (&Ty::Int, &Ty::Float)
-                        | (&Ty::Float, &Ty::Int)
-                        | (&Ty::Bool, &Ty::Bool)
-                ) {
+                let char_comparison = matches!(
+                    (
+                        PrimitiveKind::from_ty(&left_ty),
+                        PrimitiveKind::from_ty(&right_ty)
+                    ),
+                    (Some(PrimitiveKind::Char), Some(PrimitiveKind::Char))
+                ) && matches!(
+                    op,
+                    crate::ast::ComparisonOp::Equal | crate::ast::ComparisonOp::NotEqual
+                );
+                if !char_comparison
+                    && !matches!(
+                        (&left_ty, &right_ty),
+                        (&Ty::Int, &Ty::Int)
+                            | (&Ty::Float, &Ty::Float)
+                            | (&Ty::Int, &Ty::Float)
+                            | (&Ty::Float, &Ty::Int)
+                            | (&Ty::Bool, &Ty::Bool)
+                    )
+                {
                     return Err(admission_error(
                         "comparison operand types are not admitted; expected numeric operands or Bool with Bool",
                     ));
@@ -2278,9 +2292,9 @@ impl IrGenerator {
 
     fn admission_type(ty: &Type) -> Ty {
         match ty {
-            Type::Named(name) if matches!(name.as_str(), "i32" | "int") => Ty::Int,
-            Type::Named(name) if matches!(name.as_str(), "f64" | "float") => Ty::Float,
-            Type::Named(name) if name == "bool" => Ty::Bool,
+            Type::Named(name) if PrimitiveKind::from_source_name(name).is_some() => {
+                PrimitiveKind::from_source_name(name).unwrap().ty()
+            }
             Type::Named(name) if matches!(name.as_str(), "string" | "String") => Ty::String,
             Type::Named(name) => Ty::Struct(name.clone()),
             Type::Array(element, count) => {
@@ -3328,6 +3342,7 @@ impl IrGenerator {
         match expr {
             Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
             Expression::FloatLiteral(f) => (Value::ImmFloat(f), Ty::Float),
+            Expression::CharacterLiteral(character) => (Value::ImmChar(character), Ty::Char),
             Expression::Identifier(name) => {
                 let (storage, var_type) = self
                     .symbol_table
@@ -4327,6 +4342,7 @@ impl IrGenerator {
         match expr {
             Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
             Expression::FloatLiteral(f) => (Value::ImmFloat(f), Ty::Float),
+            Expression::CharacterLiteral(character) => (Value::ImmChar(character), Ty::Char),
             Expression::Identifier(name) => {
                 let (storage, var_type) = self
                     .symbol_table
@@ -4702,10 +4718,9 @@ impl IrGenerator {
             current_function
                 .body
                 .push(Inst::Alloca(place.clone(), variable.clone()));
-            let initial_element = match &element_ty {
-                Ty::Float => Value::ImmFloat(0.0),
-                _ => Value::ImmInt(0),
-            };
+            let initial_element = PrimitiveKind::from_ty(&element_ty)
+                .map(PrimitiveKind::raw_zero_value)
+                .unwrap_or(Value::ImmInt(0));
             current_function
                 .body
                 .push(Inst::Store(place.clone(), initial_element));
@@ -4995,13 +5010,15 @@ impl IrGenerator {
 
     fn ast_type_to_ty(&self, ty: &Type) -> Ty {
         match ty {
-            Type::Named(name) => match name.as_str() {
-                "i32" | "int" => Ty::Int,
-                "f64" | "float" => Ty::Float,
-                "bool" => Ty::Bool,
-                "String" => Ty::String,
-                other => Ty::Struct(other.to_string()),
-            },
+            Type::Named(name) => PrimitiveKind::from_source_name(name)
+                .map(PrimitiveKind::ty)
+                .unwrap_or_else(|| {
+                    if name == "String" {
+                        Ty::String
+                    } else {
+                        Ty::Struct(name.clone())
+                    }
+                }),
             Type::Array(elem, size) => Ty::Array(Box::new(self.ast_type_to_ty(elem)), *size),
             Type::Tuple(types) => Ty::Tuple(types.iter().map(|t| self.ast_type_to_ty(t)).collect()),
             Type::Reference(inner, mutable) => {
@@ -5016,6 +5033,7 @@ impl IrGenerator {
             Ty::Int => "i32".to_string(),
             Ty::Float => "f64".to_string(),
             Ty::Bool => "bool".to_string(),
+            Ty::Char => "char".to_string(),
             Ty::String => "String".to_string(),
             Ty::Void => "void".to_string(),
             Ty::Array(_, _) => "array".to_string(),
@@ -5207,6 +5225,12 @@ impl IrGenerator {
                 }
             }
             (Ty::Bool, Ty::Bool) => Inst::ICmp {
+                op: op_str.to_string(),
+                result: result_reg.clone(),
+                left: left_val,
+                right: right_val,
+            },
+            (Ty::Char, Ty::Char) => Inst::ICmp {
                 op: op_str.to_string(),
                 result: result_reg.clone(),
                 left: left_val,

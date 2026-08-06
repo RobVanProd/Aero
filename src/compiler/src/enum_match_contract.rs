@@ -2,6 +2,7 @@ use crate::ast::{
     AstNode, Expression, MatchArm, Parameter, Pattern, Statement, Type, VariantDeclKind,
 };
 use crate::ir::{EnumSchema, EnumVariantSchema, LogicalType};
+use crate::primitive_contract::PrimitiveKind;
 use crate::struct_contract::StructRegistry;
 use crate::types::Ty;
 use std::collections::{BTreeMap, BTreeSet};
@@ -268,7 +269,7 @@ impl EnumError {
                 "enum match must cover every declared variant exactly once".to_string()
             }
             Self::UnsupportedResult => {
-                "enum match arms must return Int, Float, or Bool".to_string()
+                "enum match arms must return Int, Float, Bool, or Char".to_string()
             }
             Self::ResultMismatch { expected, actual } => {
                 format!("enum match arm result mismatch: expected {expected}, actual {actual}")
@@ -817,7 +818,7 @@ impl EnumRegistry {
         let Some(result) = result_types.first().cloned() else {
             return Err(EnumError::IncompleteCoverage);
         };
-        if !matches!(result, Ty::Int | Ty::Float | Ty::Bool) {
+        if PrimitiveKind::from_ty(&result).is_none() {
             return Err(EnumError::UnsupportedResult);
         }
         for actual in result_types.iter().skip(1) {
@@ -1046,6 +1047,7 @@ fn collect_consumed_owned_values<F, G>(
         }
         Expression::IntegerLiteral(_)
         | Expression::FloatLiteral(_)
+        | Expression::CharacterLiteral(_)
         | Expression::StringLiteral(_)
         | Expression::Identifier(_) => {}
     }
@@ -1108,6 +1110,7 @@ fn expression_mentions_identifier(expression: &Expression, target: &str) -> bool
         }
         Expression::IntegerLiteral(_)
         | Expression::FloatLiteral(_)
+        | Expression::CharacterLiteral(_)
         | Expression::StringLiteral(_) => false,
     }
 }
@@ -1117,6 +1120,7 @@ fn copy_logical_ty(logical_type: &LogicalType) -> Ty {
         LogicalType::Int => Ty::Int,
         LogicalType::Float => Ty::Float,
         LogicalType::Bool => Ty::Bool,
+        LogicalType::Char => Ty::Char,
         LogicalType::Array { element, count } => {
             Ty::Array(Box::new(copy_logical_ty(element)), *count)
         }

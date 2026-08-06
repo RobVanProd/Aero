@@ -1,4 +1,5 @@
 use crate::ast::{Expression, Type};
+use crate::primitive_contract::PrimitiveKind;
 use crate::types::Ty;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,6 +73,7 @@ impl NumericBindingKind {
 pub(crate) enum BindingContractKind {
     NumericScalar(NumericBindingKind),
     Bool,
+    Char,
     String,
     FixedNumericArray {
         element: NumericBindingKind,
@@ -84,6 +86,7 @@ impl BindingContractKind {
         match self {
             Self::NumericScalar(kind) => kind.ty(),
             Self::Bool => Ty::Bool,
+            Self::Char => Ty::Char,
             Self::String => Ty::String,
             Self::FixedNumericArray { element, count } => Ty::Array(Box::new(element.ty()), count),
         }
@@ -96,12 +99,11 @@ impl BindingContractKind {
 
 fn numeric_kind(annotation: &Type) -> Option<NumericBindingKind> {
     match annotation {
-        Type::Named(name) if matches!(name.as_str(), "i32" | "int") => {
-            Some(NumericBindingKind::Int)
-        }
-        Type::Named(name) if matches!(name.as_str(), "f64" | "float") => {
-            Some(NumericBindingKind::Float)
-        }
+        Type::Named(name) => match PrimitiveKind::from_source_name(name) {
+            Some(PrimitiveKind::Int) => Some(NumericBindingKind::Int),
+            Some(PrimitiveKind::Float) => Some(NumericBindingKind::Float),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -178,14 +180,18 @@ pub(crate) fn classify_binding_annotation(
     }
 
     let contract = match annotation {
-        Type::Named(name) if matches!(name.as_str(), "i32" | "int") => {
-            Some(BindingContractKind::NumericScalar(NumericBindingKind::Int))
-        }
-        Type::Named(name) if matches!(name.as_str(), "f64" | "float") => Some(
-            BindingContractKind::NumericScalar(NumericBindingKind::Float),
-        ),
-        Type::Named(name) if name == "bool" => Some(BindingContractKind::Bool),
-        Type::Named(name) if name == "String" => Some(BindingContractKind::String),
+        Type::Named(name) => match PrimitiveKind::from_source_name(name) {
+            Some(PrimitiveKind::Int) => {
+                Some(BindingContractKind::NumericScalar(NumericBindingKind::Int))
+            }
+            Some(PrimitiveKind::Float) => Some(BindingContractKind::NumericScalar(
+                NumericBindingKind::Float,
+            )),
+            Some(PrimitiveKind::Bool) => Some(BindingContractKind::Bool),
+            Some(PrimitiveKind::Char) => Some(BindingContractKind::Char),
+            None if name == "String" => Some(BindingContractKind::String),
+            None => None,
+        },
         Type::Array(element, count) if *count > 0 => {
             numeric_kind(element).map(|element| BindingContractKind::FixedNumericArray {
                 element,

@@ -1,0 +1,43 @@
+mod glyphs;
+
+fn main() -> int {
+    let inferred = '界';
+    let annotated: char = identity(inferred);
+    let glyph = make(annotated);
+    let envelope = Envelope {
+        glyph: glyph,
+        pair: ('😊', glyph),
+        empty: []
+    };
+    let copied = envelope;
+    let repeated = [copied; 2];
+    let mut current: char = 'A';
+    let before = read(&current);
+    { let alias = &mut current; *alias = '界'; }
+    let changed = replace(&mut current);
+    let mut loop_value = 'A';
+    let mut index = 0;
+    while index < 1 {
+        loop_value = '界';
+        index = index + 1;
+    }
+    for item in ['😊'] {
+        if item != '😊' { return 10; }
+    }
+    if before == 'A'
+        && current == '😊'
+        && changed == '😊'
+        && loop_value == '界'
+        && repeated[1].pair.0 == '😊'
+        && repeated[0].pair.1.value == '界'
+        && repeated[0].empty.len() == 0
+        && score(Signal::Idle) == 1
+        && score(Signal::One('界')) == 2
+        && score(Signal::Many('😊', glyph)) == 4
+        && extract(Signal::Idle) == '\0'
+        && extract(Signal::One('界')) == '界'
+        && extract(Signal::Many('😊', glyph)) == '界' {
+        return 197;
+    }
+    1
+}

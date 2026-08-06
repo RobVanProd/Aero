@@ -4,25 +4,39 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 91 `CORE-071` is a locally green fail-closed module-boundary candidate.
-Rust-like `use path::item`, optional `as alias`, and terminal-glob syntax remain
-parsed for future work, now retaining the exact `use` keyword location. One shared
-diagnostic rejects every executable use declaration in semantic preflight, normal
-semantic statement analysis, and independent checked admission before checked IR or
-LLVM. Source-only/file-aware libraries, direct modules, and `check`/`build`/`run`
-preserve exact filenames and spans and leave no requested or native artifact. The
-red boundary was 3 pass/5 false-success failures; the implemented contract is 8/8,
-the nine-target compatibility ring is 81 pass/16 established ignores, and the full
-surface, formatting, checking, correctness Clippy, and docs pass at 188/188 library
-and 194/194 binary tests plus every integration and benchmark target.
+Milestone 92 `CORE-072` is a locally green positive Unicode-`char` candidate. Exact
+raw Unicode scalars and the frozen `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`,
+`\\0`, and `\\xHH` escapes retain character identity from token and AST through
+`Ty::Char`, `LogicalType::Char`, `ImmChar`, independent checked verification, and
+private `i32` LLVM. One shared primitive authority now owns source/type/logical-type,
+CopyData, predicate, physical-type, zero, and alignment facts for all admitted scalar
+kinds. Equality and inequality are executable; arithmetic, ordering, casts, printing,
+literal-pattern execution, runtime strings, and public ABI remain unsupported.
 
-This is containment only. It does not implement the founding dotted `import` grammar,
-name resolution, namespaces, aliases, glob meaning, visibility, re-exports, recursive
-module graphs, cache identity, or import LLVM/runtime behavior. The record-inclusive
-root gate passes at 188/188 library and 194/194 binary tests plus every integration
-and doc target. The immutable commit/push, rendered PR synchronization, all eight
-exact-head public checks, and unchanged pinned LLVM/Clang 22 native exit-193 system
-lane remain before public acceptance.
+The complete existing recursive CopyData transport surface carries `char` through
+bindings and replacement, non-escaping immutable/mutable references, calls/results,
+arrays including zero length, tuples, named structs, unit/unary/multi-field enums,
+identifier-bound Match, control flow, flattened direct modules, library compilation,
+and public `check`/`build`/`run`. The red target first stopped at strict lexing; a
+prepublication completeness audit also exposed the old three-scalar Match-result
+table. The implemented matrix passes 9/9. The full surface passes at 190/190 library and 196/196
+binary tests plus every integration and benchmark target; formatting, checking,
+correctness Clippy, docs, verifier corruption controls, and the exact repository-root
+gate pass. Official LLVM/Clang 22.1.8 externally verifies, machine-verifies,
+object-lowers, links, and executes the two-file candidate locally at exact exit 197.
+The immutable commit/push, rendered PR synchronization, and all eight exact-head
+public checks—including independent stable/nightly exit-197 lanes—remain before
+public acceptance.
+
+Milestone 91 `CORE-071` is accepted public at exact implementation commit
+`5fc15622188e4e80a319e4c7d6c4bab17a7c8366`, tree
+`ed1f33ede282d01bcd975d83d1e1197424403fef`, and stable patch ID
+`e5b9d98b4f9c1a1d47ddf0dbe227f0feec78dc55`. Rust-like direct, aliased, and
+terminal-glob `use` declarations retain their syntax and exact keyword location but
+reject through one shared diagnostic before checked IR. All eight exact-head public
+checks pass and pinned stable/nightly LLVM/Clang 22.1.8 preserve native exit 193.
+This is containment only: it adds no founding dotted `import`, lookup, namespace,
+visibility, recursive graph, cache, backend, or runtime semantics.
 
 Milestone 90 `CORE-070` is accepted public at exact implementation commit
 `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`, tree
@@ -2156,12 +2170,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Run the record-inclusive CORE-071 root gate, then commit and push one immutable
-fail-closed use-containment candidate and synchronize draft PR #4 immediately. Require one
-all-eight exact-head public set plus the unchanged pinned LLVM/Clang 22 composed
-exit-193 system lane before recording public acceptance in rendered PR metadata. Keep
-the PR draft and unmerged. The controlled mega-PR checkpoint strategy, structured
-evidence-manifest generator, and periodic multi-capability system gates remain active
+Commit and push one immutable CORE-072 Unicode-character candidate, then synchronize
+draft PR #4 immediately. Require one all-eight exact-head public set with independent
+stable/nightly pinned LLVM/Clang 22.1.8 external verification, machine verification,
+object/link, public `run`, and exact native exit 197 before recording public acceptance
+in rendered PR metadata. Keep the PR draft and unmerged. The controlled mega-PR
+checkpoint strategy, structured evidence-manifest generator, hard ownership/module/
+runtime/backend work, and periodic multi-capability system gates remain active
 separate controls.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.

@@ -3079,9 +3079,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-067 - Preserve parsed `use` declarations but reject executable use
 
 - Date: 2026-08-05
-- Status: local `CORE-071` candidate; immutable commit, push, rendered PR
-  synchronization, all eight exact-head checks, and pinned-system confirmation remain
-  before public acceptance.
+- Status: accepted public `CORE-071` at exact implementation commit
+  `5fc15622188e4e80a319e4c7d6c4bab17a7c8366`, tree
+  `ed1f33ede282d01bcd975d83d1e1197424403fef`, and stable patch ID
+  `e5b9d98b4f9c1a1d47ddf0dbe227f0feec78dc55`.
 - Decision: retain the prototype's Rust-like direct, optional-alias, and terminal-glob
   `use` AST shapes plus the exact `use` keyword location, but classify every executable
   use declaration as unsupported until name-resolution semantics are specified. One
@@ -3092,10 +3093,51 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   erased use declarations. The implemented target passes 8/8; the nine-target
   compatibility ring passes 81 with 16 established ignores; and all-target/all-feature
   tests pass at 188/188 library and 194/194 binary plus every integration and benchmark
-  target. Formatting, checking, correctness Clippy, and docs also pass.
+  target. Formatting, checking, correctness Clippy, docs, all eight exact-head public
+  checks, and pinned stable/nightly LLVM/Clang 22.1.8 native exit 193 also pass.
 - Exclusions and scaling boundary: no dotted `import` grammar, name resolution,
   qualification, alias/glob meaning, visibility, re-export, recursive graph, prelude,
   unused-import policy, cache, checked-IR identity, backend, ABI, or runtime behavior is
   defined. This selects a hard module correctness boundary without claiming positive
   module progress; mega-PR checkpointing, manifest automation, and periodic composed
   system gates remain separate controls.
+
+## DEC-068 - Preserve Unicode character identity through one primitive authority
+
+- Date: 2026-08-05
+- Status: locally green `CORE-072` candidate; immutable commit/push, rendered PR
+  synchronization, and all-eight stable/nightly exact-head acceptance remain pending.
+- Decision: admit one raw Unicode scalar or one frozen character escape as exact
+  `Ty::Char`, `LogicalType::Char`, and `Value::ImmChar`. One primitive authority maps
+  source annotation, semantic/logical type, CopyData membership, supported integer
+  predicates, private physical LLVM type, zero, and alignment for every admitted
+  primitive kind. Semantic analysis, checked admission, independent verification, and
+  backend lowering consume that authority; no source or checked character may become
+  an integer merely because both privately occupy an `i32` lane.
+- Positive contract: `==` and `!=` compare Unicode scalar identity and return Bool.
+  The complete existing recursive finite CopyData topology carries characters through
+  inferred/exact mutable and immutable bindings, whole-place replacement, non-escaping
+  references, exact calls/results, fixed arrays including zero length, tuples, finite
+  acyclic structs, unit/unary/multi-field owned enums with identifier-bound Match,
+  control flow, flattened direct modules, checked libraries, and public
+  `check`/`build`/`run`.
+- Evidence: the red target failed at the unchanged lexer on the opening quote. A
+  prepublication completeness audit then added a failing ninth control for the old
+  Int/Float/Bool-only Match-result table; the shared primitive authority now admits
+  exact Char there too. The implemented nine-test exhaustive matrix passes, including all escapes, invalid
+  literal topology, logical identity substitutions, forbidden operators/contexts,
+  recursive transport, artifact hygiene, and public CLI behavior. Verifier corruption
+  controls reject char/order, char/int, and `ImmInt`-for-char substitutions. The full
+  surface passes at 190/190 library and 196/196 binary tests plus every integration and
+  benchmark target. Formatting, all-target/all-feature check, correctness Clippy,
+  docs, and exact root `./tools/test.sh` pass. Official LLVM/Clang 22.1.8 externally
+  verifies, machine-verifies, object-lowers, links, and executes the two-file candidate
+  locally at exact exit 197.
+- Exclusions and scaling boundary: character arithmetic/order, casts, normalization,
+  grapheme/locale behavior, strings/printing, executable literal patterns, indexing or
+  methods, generic/trait dispatch, public layout/ABI/FFI, new ownership/lifetime/drop,
+  accelerator, performance, release, safety, stability, and PR merge remain excluded.
+  The exhaustive class reuses one shared primitive predicate instead of adding
+  topology-specific char rules. Mega-PR checkpointing, structured evidence-manifest
+  generation, hard ownership/module/runtime/backend slices, and periodic composed
+  release-eligibility gates remain separately controlled.

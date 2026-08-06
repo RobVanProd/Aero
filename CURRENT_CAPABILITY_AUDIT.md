@@ -8,17 +8,36 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-071` is a locally green containment candidate. Rust-like `use` declarations
+- `CORE-072` is a locally green positive Unicode-character candidate. Exact raw
+  Unicode scalars and the frozen eight escape forms retain distinct `char` identity
+  from token and AST through semantic and logical types, `ImmChar`, independent
+  verification, and private `i32` LLVM. A single primitive authority supplies the
+  source/type/logical/CopyData/predicate/physical/zero/alignment facts consumed across
+  the trusted pipeline. The complete existing recursive CopyData class carries char
+  through bindings/replacement, references, calls/results, arrays, tuples, structs,
+  owned enums and Match, control flow, direct modules, libraries, and public CLI
+  execution. The red target stopped at strict lexing; a prepublication completeness
+  audit added a failing Char Match-result control for the old three-scalar table. The
+  implemented target passes 9/9, and all 190 library and 196 binary tests plus every integration/benchmark target pass,
+  and formatting, checking, correctness Clippy, docs, verifier corruption controls,
+  and the exact root gate pass. Official LLVM/Clang 22.1.8 externally verifies,
+  machine-verifies, object-lowers, links, and executes the two-file candidate locally
+  at exact exit 197. Commit/push, rendered PR synchronization, and the all-eight
+  stable/nightly public set remain. No arithmetic/order/cast/string/printing/pattern,
+  stable ABI, ownership/lifetime, accelerator, or broader primitive semantics follow.
+
+- `CORE-071` is accepted public at exact implementation
+  `5fc15622188e4e80a319e4c7d6c4bab17a7c8366`, tree
+  `ed1f33ede282d01bcd975d83d1e1197424403fef`, and stable patch ID
+  `e5b9d98b4f9c1a1d47ddf0dbe227f0feec78dc55`. Rust-like `use` declarations
   retain their parsed path, alias/glob shape, and exact keyword location, but all
-  trusted semantic routes and independent checked admission now reject them with one
+  trusted semantic routes and independent checked admission reject them with one
   deterministic source-located unsupported diagnostic before checked IR. Source/file
   libraries, direct modules, and `check`/`build`/`run` fail without requested/native
-  artifacts. The red boundary was 3 pass/5 false-success failures; the new contract
-  passes 8/8, its nine-target compatibility ring passes 81 with 16 established
-  ignores, and the complete 188-library/194-binary all-target surface, formatting,
-  checking, correctness Clippy, and docs pass. Publication and exact-head public gates
-  remain. No import, namespace, alias, glob, visibility, resolver, recursive-module,
-  cache, ABI, backend, or runtime semantics are added.
+  artifacts. The exact implementation passes all eight public checks and pinned
+  stable/nightly LLVM/Clang 22.1.8 native exit 193. No import, namespace, alias, glob,
+  visibility, resolver, recursive-module, cache, ABI, backend, or runtime semantics
+  are added.
 
 - `CORE-070` is accepted public at exact implementation
   `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`, tree

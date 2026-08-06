@@ -41,6 +41,7 @@ pub enum Token {
     As,
 
     // String literal
+    CharacterLiteral(char),
     StringLiteral(String),
     FStringLiteral(String), // f"hello {name}"
 
@@ -523,6 +524,112 @@ fn scan_with_locations(
                         Token::IntegerLiteral(int_val),
                         make_location(token_start_line, token_start_column),
                     ));
+                }
+            }
+            // Character literals. A character is exactly one Unicode scalar value or
+            // one of the language's closed escape set; recovery never fabricates a
+            // token for malformed input.
+            '\'' => {
+                let opening_location = make_location(token_start_line, token_start_column);
+                let opening = chars.next().unwrap();
+                advance_position(opening, &mut line, &mut column);
+
+                let value = match chars.peek().copied() {
+                    Some('\n' | '\r' | '\'') | None => None,
+                    Some('\\') => {
+                        let slash = chars.next().unwrap();
+                        advance_position(slash, &mut line, &mut column);
+                        match chars.next() {
+                            Some('n') => {
+                                advance_position('n', &mut line, &mut column);
+                                Some('\n')
+                            }
+                            Some('r') => {
+                                advance_position('r', &mut line, &mut column);
+                                Some('\r')
+                            }
+                            Some('t') => {
+                                advance_position('t', &mut line, &mut column);
+                                Some('\t')
+                            }
+                            Some('\\') => {
+                                advance_position('\\', &mut line, &mut column);
+                                Some('\\')
+                            }
+                            Some('\'') => {
+                                advance_position('\'', &mut line, &mut column);
+                                Some('\'')
+                            }
+                            Some('"') => {
+                                advance_position('"', &mut line, &mut column);
+                                Some('"')
+                            }
+                            Some('0') => {
+                                advance_position('0', &mut line, &mut column);
+                                Some('\0')
+                            }
+                            Some('x') => {
+                                advance_position('x', &mut line, &mut column);
+                                let mut digits = String::with_capacity(2);
+                                for _ in 0..2 {
+                                    match chars.peek().copied() {
+                                        Some(digit) if digit.is_ascii_hexdigit() => {
+                                            let digit = chars.next().unwrap();
+                                            advance_position(digit, &mut line, &mut column);
+                                            digits.push(digit);
+                                        }
+                                        _ => break,
+                                    }
+                                }
+                                if digits.len() == 2 {
+                                    u8::from_str_radix(&digits, 16).ok().map(char::from)
+                                } else {
+                                    None
+                                }
+                            }
+                            Some(other) => {
+                                advance_position(other, &mut line, &mut column);
+                                None
+                            }
+                            None => None,
+                        }
+                    }
+                    Some(_) => {
+                        let raw = chars.next().unwrap();
+                        advance_position(raw, &mut line, &mut column);
+                        Some(raw)
+                    }
+                };
+
+                let terminated = if value.is_some() && matches!(chars.peek(), Some('\'')) {
+                    let closing = chars.next().unwrap();
+                    advance_position(closing, &mut line, &mut column);
+                    true
+                } else {
+                    false
+                };
+
+                if let (Some(value), true) = (value, terminated) {
+                    tokens.push(LocatedToken::new(
+                        Token::CharacterLiteral(value),
+                        opening_location,
+                    ));
+                } else if mode == LexMode::Strict {
+                    return Err(CompilerError::InvalidCharacterLiteral {
+                        location: opening_location,
+                    });
+                } else {
+                    eprintln!("Invalid character literal at {}", opening_location);
+                    while let Some(next) = chars.peek().copied() {
+                        if matches!(next, '\n' | '\r') {
+                            break;
+                        }
+                        let next = chars.next().unwrap();
+                        advance_position(next, &mut line, &mut column);
+                        if next == '\'' {
+                            break;
+                        }
+                    }
                 }
             }
             // String literals
