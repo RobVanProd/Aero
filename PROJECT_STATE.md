@@ -4,20 +4,29 @@ Last updated: 2026-08-06 (America/New_York)
 
 ## Current objective
 
-Milestone 100 `CORE-080` is a locally green candidate for founding dotted-import
-syntax retention and fail-closed executable admission. Page 2 of the original mandate
-defines `import a.b [as c];` but supplies no name-resolution semantics. The lexer and
-parser now retain direct/aliased dotted paths, a distinct `FoundingDottedImport` AST
-identity, and the exact keyword location. One syntax-aware diagnostic authority keeps
-accepted Rust-like `use` wording byte-exact while semantic preflight, ordinary semantic
-analysis, and independent checked admission reject executable founding imports before
-checked IR. The focused target passes 13/13 after an exact 8/9 parser red; malformed
-forms, libraries, collected modules, and check/build/run artifact hygiene are covered.
-The module/closure/parser/Phase-5/CORE-079 ring, complete all-features surface, 195
-library tests, every integration target, doctests, formatting, all-target/all-feature
-check, correctness Clippy, docs, diff hygiene, and the exact root gate pass. Publication
-and all-nine exact-head checks remain pending. This adds no lookup, binding, alias
-meaning, namespace, visibility, recursive graph, cache, backend, runtime, or ABI rule.
+Milestone 101 `CORE-081` is the active canonical-compiler-graph candidate. An exact red
+architecture test proved that the binary and library independently declared the same
+35 compiler modules. Compiler phases now have one library-owned Rust module/type/static
+identity; the binary retains only CLI-specific services and consumes narrow library
+facades. Direct-module AST collection and cache framing remain library-owned without
+exposing resolver representations, and compatibility/optimization tests moved with
+their implementations rather than disappearing. The focused architecture target,
+207 library tests, 32 binary tests, the sensitive integration ring, complete
+all-features surface, formatting, check, correctness Clippy, docs, diff hygiene, and
+the exact root gate pass. Immutable publication and public checks remain pending; no
+public acceptance is claimed. Source behavior, diagnostics, checked
+IR/LLVM, CLI status/output, cache identity, backend behavior, and all language semantics
+are frozen.
+
+Milestone 100 `CORE-080` is accepted public at exact commit
+`063953770ce92f00bae452f312c962c2996977bb`, tree
+`5c33799270fdce9d28984ffa8aaf2cda7cf1404e`, and stable patch ID
+`a8bcc38f684d615305a258399bc5318472e36be7`. The founding direct/aliased dotted
+`import a.b [as c];` syntax retains a distinct AST identity and source location while
+executable use fails closed before checked IR through one shared authority. All nine
+exact-head checks pass; pinned Linux and Windows LLVM/Clang 22.1.8 preserve exits
+149/223/227/229. No lookup, binding, alias, namespace, visibility, recursive graph,
+cache, backend, runtime, or ABI rule follows.
 
 Milestone 99 `CORE-079` is accepted public at exact commit
 `5b1ec7340db72354542ab325a9f75cad398857c2`, tree
@@ -1633,7 +1642,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   stability, compatibility, or release evidence (`CORE-016`, `ea036f2`).
 - Library compiler options: accepted `CORE-020` preserves defaults and rejects
   nondefaults before lexing; option meanings remain unimplemented.
-- Compiler architecture: binary and library declare overlapping modules.
+- Compiler architecture: locally green CORE-081 removes the exact 35-module binary/
+  library overlap; public acceptance and broader tool-path convergence are pending.
 
 ## Known blockers and regressions
 

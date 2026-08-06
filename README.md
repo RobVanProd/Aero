@@ -151,9 +151,9 @@ aero lsp
 | **Control Flow** | Functions, if/else, while/checked fixed-array for/loop, and nearest-loop break/continue are partial. Accepted CORE-066 corrects checked `for` continue and proves fresh per-iteration enum consumption. Accepted CORE-077 adds exact balanced direct enum-owner restoration. Accepted CORE-079 iterates direct-enum header and exit joins to convergence across condition/iterable, fallthrough/continue, and break edges, with return paths excluded and nested transfers attributed to the nearest loop. Labels, loop expressions/break values, non-array checked iterators, non-enum fixed points, and general CFG ownership remain unsupported. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Function calls** | Accepted CORE-068 centralizes exact named-call classification across both semantic paths and checked admission/lowering. Existing nongeneric functions over admitted scalar, recursive CopyData, owned-enum, and reference-parameter contracts remain supported; missing or unsupported signatures, wrong arguments, and `Void` value use fail before checked IR. All eight public checks and the pinned LLVM/Clang 22 native-exit-181 gate pass. Overloads, conversions, generic/trait/closure calls, reference results, and stable callable ABI remain unsupported. |
 | **Intrinsic methods** | Accepted CORE-067 centralizes intrinsic method classification across semantics and checked IR. Exact recursive CopyData fixed-array `.len()`/`.is_empty()`, immutable compile-time String queries, and Array/Vec `.iter()` compatibility are the only admitted executable method forms. Runtime Strings, other collection methods, general dispatch, generic/trait methods, and callable ABI remain unsupported. |
-| **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. Accepted CORE-070 adds public library `compile_file(path, options)` over this exact collector and the checked library frontend; it returns in-memory LLVM and writes no artifact. Accepted CORE-071 preserves Rust-like `use` syntax and source locations but rejects executable use before checked IR. Local CORE-080 likewise preserves the founding direct/aliased dotted `import` syntax with a distinct AST identity and fail-closed diagnostic. Positive import/name-resolution, `pub` visibility semantics, namespaces, recursive modules, cycle graphs, cache convergence, and a thin shared CLI are not implemented. |
+| **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. Accepted CORE-070 adds public library `compile_file(path, options)` over this exact collector and the checked library frontend; it returns in-memory LLVM and writes no artifact. Accepted CORE-071 preserves Rust-like `use` syntax and source locations but rejects executable use before checked IR. Accepted CORE-080 likewise preserves the founding direct/aliased dotted `import` syntax with a distinct AST identity and fail-closed diagnostic. Active CORE-081 makes the collector and compiler phases library-owned while preserving current flattened behavior. Positive import/name-resolution, `pub` visibility semantics, namespaces, recursive modules, cycle graphs, and separate compilation are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
-| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
+| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp`. Locally green CORE-081 removes the binary's duplicate compiler-phase module graph; public acceptance is pending. |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
@@ -175,14 +175,14 @@ aero lsp
 > accelerators, and broader character semantics remain unsupported.
 
 > **Import-declaration status:** accepted public CORE-071 keeps parsed Rust-like direct,
-> optional-`as`, and terminal-glob `use` declarations for future work. Local CORE-080
+> optional-`as`, and terminal-glob `use` declarations for future work. Accepted CORE-080
 > additionally preserves the founding direct and optional-`as` dotted `import` grammar.
 > The AST retains each exact keyword location and distinguishes the two syntax families.
 > Semantic analysis and independent checked admission reject executable declarations
 > through one syntax-aware authority before checked IR; library and CLI routes leave no
 > requested or native artifact. Neither checkpoint defines lookup, bindings, namespaces,
 > alias/glob meaning, visibility, re-exports, recursion, cache identity, backend, or
-> runtime behavior. CORE-080 remains a local candidate pending immutable public evidence.
+> runtime behavior. CORE-080 passes all nine exact-head public checks.
 
 > **Binding-annotation architecture:** Accepted public ARCH-002 normalizes each annotation
 > to one leaf plus an ordered array/reference wrapper path and shares the resulting
@@ -473,13 +473,22 @@ aero lsp
 > 22.1.8 preserves exit 227 and executes exit 229 through public and independent native
 > paths. This adds no broader ownership, storage, borrow, lifetime, ABI, or safety claim.
 
-> CORE-080 is a locally green containment candidate for the founding dotted-import
+> CORE-080 is accepted public containment for the founding dotted-import
 > grammar. Direct and aliased forms retain exact syntax identity and source location;
 > malformed forms fail parsing, while executable forms fail through one deterministic
 > shared diagnostic before checked IR. Focused 13/13, the compatibility ring, complete
 > all-features, static, documentation, diff-hygiene, and exact root gates pass. No lookup,
 > namespace, visibility, package, backend, runtime, or positive import behavior is
-> implemented. Publication and exact-head public evidence remain pending.
+> implemented. Exact implementation `063953770ce92f00bae452f312c962c2996977bb`
+> passes all nine exact-head checks and preserves pinned native exits 149/223/227/229.
+
+> CORE-081 is the locally green canonical-compiler-graph candidate. An exact red architecture
+> test proved 35 compiler modules were independently declared by both binary and
+> library. Compiler phases are now library-owned; the binary retains only CLI-specific
+> modules and consumes narrow service facades without exposing resolver or raw-IR
+> representations. Architecture, unit, integration, all-features, static, documentation,
+> diff-hygiene, and exact root gates pass; immutable public evidence remains pending. This changes no source
+> semantics, diagnostic, checked IR/LLVM, cache identity, CLI status, backend, or ABI.
 
 > **Pattern matching status:** CORE-049 accepts one bounded owned unit-enum class:
 > unique top-level non-generic enums with one or more unit variants, exact payload-free

@@ -16083,3 +16083,151 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   publication, rendered PR #4 candidate metadata, all nine exact-head checks, and
   stable/nightly/Windows preservation of exits 149/223/227/229 remain required. Stop
   and retain candidate status on any failure; do not add resolver semantics as a repair.
+
+### CORE-080 accepted public checkpoint
+
+- Exact accepted identity: commit `063953770ce92f00bae452f312c962c2996977bb`,
+  tree `5c33799270fdce9d28984ffa8aaf2cda7cf1404e`, stable patch ID
+  `a8bcc38f684d615305a258399bc5318472e36be7`. The parent accepted CORE-079 head is
+  `5b1ec7340db72354542ab325a9f75cad398857c2`.
+- All nine exact-head checks pass: aggregate CodeQL `92595331989`; PR compiler run
+  `31095139149`, job `92595210330`; stable/nightly/Windows run `31095139144`, jobs
+  `92595210542`, `92595210546`, and `92595210478`; CodeQL run `31095137115`, Actions/
+  Python/Rust jobs `92595207725`, `92595207746`, and `92595207778`; push compiler run
+  `31095137476`, job `92595205331`.
+- Audited public evidence: both compiler jobs record 195/195 library tests and 13/13
+  import-containment tests. Stable and nightly Linux complete pinned LLVM/Clang 22.1.8
+  integration and preserve exits 149/223/227/229; stable proves the known-invalid LLVM
+  corruption control. Windows records the pinned archive contract, exact LLVM/Clang
+  22.1.8 tools, invalid-IR rejection, invalid-source artifact hygiene, the frozen MSVC
+  triple/layout, external and machine verification, COFF generation, Clang/MSVC linking,
+  public/manual exit 227, and public/independent exit 229.
+- Rendered integration record: PR #4 remains draft, open, unmerged, mergeable, and
+  `CLEAN`; its title and first heading identify CORE-080 accepted public, its head is the
+  unchanged exact commit, all 18 CORE-079/080 evidence links render, all nine current
+  checks pass, and no stale candidate, pending, or not-accepted wording remains. GitHub
+  reports 281 commits, 224 changed files, 102,160 additions, and 1,864 deletions.
+
+## CORE-081 - make the CLI consume one canonical compiler module graph
+
+- Date/task/status: 2026-08-06, `CORE-081`, authorized and active after exact CORE-080
+  public acceptance. PR #4 remains a draft integration program. User-owned untracked
+  `tmp/` remains outside this task.
+- Observed architecture defect: `src/compiler/src/lib.rs` and `main.rs` independently
+  declare 35 overlapping compiler modules: accelerator, AST, annotation/closure/copy/
+  enum/method/function/reference/ownership/primitive/scalar/string/struct/tuple/import
+  contracts, codegen, conformance, errors, GPU/graph/quantization/registry, IR generator/
+  verifier/types, lexer/parser/semantics, LLVM verification, module resolution, and
+  standard lowering support. Rust therefore compiles separate binary and library type/
+  static/module instances. This is the original mandate's explicit canonical-compiler
+  risk and the still-open R-006/tooling-matrix gap.
+- Hypothesis and smallest complete repair: declare compiler-phase modules only in the
+  library crate. Keep genuinely CLI-specific command presentation modules in the binary,
+  but make them and `main.rs` import the library facade. Move binary-only shared
+  compatibility/optimization modules into the library without changing their code or
+  tests; export only the narrow optimizer facade actually consumed by the CLI. Remove
+  every overlapping `mod` declaration from `main.rs`.
+- Frozen behavior: source acceptance/rejection, diagnostics, AST/checked-IR/LLVM bytes,
+  compiler options, module collection, verifier modes/cache behavior, graph/quantization/
+  registry quarantine, CLI arguments/status/output/artifact rules, platform behavior,
+  and all accepted CORE-010 through CORE-080 capabilities remain byte- or behavior-
+  exact. This task changes module ownership and Rust type identity only. It adds no
+  language, resolver, ownership, runtime, ABI, GPU, package, release, safety, stability,
+  or performance semantics and makes no formerly private compiler representation a
+  supported public contract.
+- Red-first plan: add one architecture contract before production mutation. It must
+  enumerate the exact current 35-module overlap and fail until the binary contains zero
+  compiler-module declarations, retains only the frozen CLI-specific module set, imports
+  the library crate, and the library owns the moved compatibility/optimization modules
+  plus the narrow optimizer facade. The current tree must fail at the 35-module count.
+- Allowed files: `src/compiler/src/{main,lib,compatibility,optimizations,
+  performance_optimizations,profiler,doc_generator,lsp}.rs` only as required for crate-
+  path conversion; the directly coupled binary cache/conformance tests; one new
+  `src/compiler/tests/canonical_compiler_graph_tests.rs`; and, only after exact green,
+  the affected task/decision/state/capability/matrix/framework/roadmap/risk/backend/
+  README records and PR #4 metadata. No workflow, example, dependency, master, release,
+  external repository, or `tmp/` change is authorized.
+- Acceptance tests: exact architecture red then green; library and binary compilation;
+  focused canonical-graph, file-compilation, module-pipeline, compiler-options, CLI-
+  status, LLVM-verifier CLI/cache/corruption, graph/quantization/registry, profiler/docs/
+  LSP, and CORE-080 compatibility; byte-identical checked LLVM specimens where existing
+  parity fixtures apply; complete all-feature tests; formatting; all-target/all-feature
+  check; correctness Clippy; docs; diff hygiene; exact repository-root `./tools/test.sh`;
+  all nine exact-head public checks; and unchanged Linux/Windows exits 149/223/227/229.
+- Risks and stop conditions: stop rather than widen semantics if the repair requires a
+  public raw-IR or contract-module API, changes accepted diagnostics/LLVM/CLI behavior,
+  drops or weakens a binary-only test, creates two compiler statics/caches by another
+  path, requires dependency/workflow/backend changes, exposes an unstable representation
+  as supported API, or an unrelated baseline turns red. Preserve tests when moving their
+  owning module; target-level counts may redistribute, but no distinct test may vanish.
+- Scaling controls: this is the queued hard compiler-service architecture class, not an
+  easy syntax feature. It directly reduces the 281-commit integration program's semantic
+  drift risk but does not authorize merge/checkpoint actions. The now 281-commit/224-file
+  PR is an urgent R-018 control: after CORE-081 acceptance, freeze a separately
+  authorized checkpoint/merge-handoff strategy before stacking another language slice.
+  A single module-ownership manifest is mechanically testable and reduces evidence
+  administration. The unchanged composed exits 149/223/227/229 remain the periodic
+  system-level proof, and positive module/runtime/ABI/ownership/GPU work remains queued.
+
+### CORE-081 exact red checkpoint
+
+- Before production mutation,
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  canonical_compiler_graph_tests -- --nocapture` runs 0/1 green. The architecture
+  contract reports exactly 35 compiler modules independently declared by both library
+  and binary, listing the complete expected overlap from `accelerator` through
+  `use_import_contract`.
+- The contract also freezes the post-repair binary-owned set to CLI documentation, LSP,
+  profiler, project initialization, two directly coupled binary test modules, and the
+  inline main tests; it requires a library-crate import and library ownership of the
+  compatibility/optimization helpers plus one narrow `PerformanceOptimizer` facade.
+- This is an architecture red only. The test compiles both existing targets before
+  asserting the duplicate graph, so the accepted CORE-080 baseline remains buildable.
+  No production, workflow, dependency, example, master, release, external-repository,
+  or `tmp/` file changed at the red checkpoint.
+
+### CORE-081 locally green implementation checkpoint
+
+- Architecture result: `main.rs` no longer declares any of the 35 library compiler
+  modules. It retains only `doc_generator`, `lsp`, `profiler`, `project_init`, the two
+  directly coupled test modules, and inline main tests. `lib.rs` now owns compatibility,
+  optimization, and performance-optimization modules and re-exports only the optimizer
+  facade needed by the CLI. The strengthened architecture target also prohibits a
+  direct binary `module_resolver::` bypass and requires the library-owned service.
+- Narrow service result: the library collector extends the caller's AST, invokes a
+  name/path callback, and returns the exact prior big-endian count plus length-framed
+  name/candidate/source cache bytes. Empty-module cache hashing stays on its previous
+  route. Resolver structs and raw IR remain private. Documentation-hidden registry
+  guard/constant bridges preserve the live-transport quarantine without duplicating
+  registry statics. CLI resolved-module text, verifier mode, optimizer cache, output,
+  and artifact behavior remain unchanged.
+- Test ownership/evidence: no test function or test file was deleted. Six compatibility/
+  optimization tests moved from duplicate binary ownership to the library owner. The
+  focused architecture target passes 1/1; `cargo test --lib` passes 207/207; binary unit
+  tests pass 32/32; and the canonical graph, file compilation, module pipeline, compiler
+  options, CLI status, LLVM-verifier CLI/cache, registry quarantine, backend claims, and
+  CORE-080 import-containment targets pass, including import containment 13/13.
+- Complete pre-root evidence: isolated
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --all-features` passes
+  in 176.5 seconds, including 207 library tests, every integration target, and doctests.
+  A prior combined static/all-features orchestration command reached its 120-second
+  wrapper timeout during otherwise progressing tests and emitted no failure; the
+  isolated complete run proves that timeout was orchestration, not a red build.
+- Files changed so far: `src/compiler/src/{lib,main,doc_generator,lsp,profiler,
+  llvm_verifier_cache_tests}.rs`, new
+  `src/compiler/tests/canonical_compiler_graph_tests.rs`, and the authorized ledger,
+  decision, state, capability, matrix, framework, roadmap, risk, backend, and README
+  records. `compatibility.rs`, `optimizations.rs`, and `performance_optimizations.rs`
+  required no code edit. Workflows, examples, dependencies, master, releases, external
+  repositories, and user-owned untracked `tmp/` remain untouched.
+- Final local gates: compiler-manifest formatting, all-target/all-feature check,
+  correctness Clippy, no-dependency docs, and `git diff --check` pass. The exact
+  repository-root `./tools/test.sh`, run through Git Bash with the authenticated Cargo
+  toolchain on PATH, passes in 28.8 seconds with 207 library tests, 32 binary tests,
+  every integration target, and doctests. The first bare PowerShell `cargo` command
+  again proved only that Cargo is absent from that shell's PATH; absolute toolchain and
+  Git Bash invocations succeed and no Windows Security failure occurred.
+- Candidate/public boundary: immutable commit/tree/patch identity, publication,
+  rendered PR #4 candidate metadata,
+  all nine exact-head checks, and pinned Linux/Windows exits 149/223/227/229 remain
+  required before public acceptance. Any failure retains candidate status.

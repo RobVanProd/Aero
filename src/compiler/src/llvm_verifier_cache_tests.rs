@@ -2,7 +2,7 @@ use super::{
     BuildConfig, LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK as ENVIRONMENT_LOCK,
     compile_to_llvm_ir_with_optimizer,
 };
-use crate::performance_optimizations::PerformanceOptimizer;
+use compiler::PerformanceOptimizer;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};

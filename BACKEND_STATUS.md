@@ -41,12 +41,20 @@ stable/nightly Linux preserve exits 149/223/227 and execute exit 229, while the 
 Windows lane preserves exit 227 and executes exit 229 through public and independent
 native paths.
 
-Local CORE-080 changes no checked-IR opcode, LLVM representation, layout, ABI,
+Accepted public CORE-080 changes no checked-IR opcode, LLVM representation, layout, ABI,
 workflow, or native specimen. Both retained import syntax families fail before checked
 IR, and public check/build/run coverage proves artifact hygiene. Focused 13/13,
 compatibility, complete all-features, static, documentation, diff-hygiene, and exact
-root gates pass. The accepted native exits 149/223/227/229 must remain unchanged in all
-exact-head public lanes before CORE-080 can be accepted.
+root gates pass. All nine exact-head checks preserve native exits 149/223/227/229 on
+the pinned Linux/Windows LLVM/Clang 22.1.8 lanes.
+
+Active CORE-081 also changes no checked-IR opcode, LLVM representation, layout, ABI,
+workflow, or native specimen. It removes duplicate Rust compiler-module instances and
+makes compiler phases library-owned. The binary consumes narrow facades; resolver and
+raw-IR representations remain private. Architecture, unit, integration, complete
+all-features, static, documentation, and exact root gates pass, while immutable public
+gates remain pending.
+The accepted exits 149/223/227/229 must remain unchanged before acceptance.
 
 The CPU path can fall back to direct Clang compilation if `llc` is missing. It
 also prints a success message before interpreting a nonzero program exit status,

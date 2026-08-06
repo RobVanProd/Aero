@@ -81,11 +81,19 @@ declarations and exact locations but rejects them consistently in semantics and
 independent checked admission. Its exact implementation passes all eight public checks
 and the unchanged pinned native exit-193 lane; no namespace, visibility, resolver,
 backend, or runtime semantics move.
-Local candidate `CORE-080` additionally preserves the founding direct/aliased dotted
+Accepted public `CORE-080` additionally preserves the founding direct/aliased dotted
 `import` syntax, exact location, and distinct AST identity while routing it through the
 same fail-closed phase boundary. Focused 13/13, compatibility, complete all-features,
 static, documentation, and root gates pass. No positive name-resolution or import
-semantics move; immutable exact-head evidence remains pending.
+semantics move; all nine exact-head checks and pinned exits 149/223/227/229 pass.
+Locally green candidate `CORE-081` now removes the exact 35-module compiler overlap between
+binary and library. Compiler phases and direct-module collection/cache material are
+library-owned, while the binary retains CLI-specific modules. Architecture, unit,
+integration, all-features, static, documentation, and exact root gates pass; immutable
+public evidence remains pending.
+After this checkpoint, the 281-commit/224-file draft integration PR requires an urgent,
+separately authorized controlled-checkpoint strategy before another language slice is
+stacked. No merge, history rewrite, or release is implied.
 Accepted public `CORE-072` then adds exact Unicode `char` as a distinct CopyData leaf
 under one shared primitive authority. Raw/escaped literals, equality/inequality,
 bindings/replacement, references, calls/results, arrays, tuples, structs, owned enums

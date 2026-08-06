@@ -71,10 +71,11 @@ Accepted public `CORE-071` adds exact negative/diagnostic evidence for the alrea
 parsed-only Rust-like `use` subset: parsed path/alias/glob data and source location are
 preserved, while semantics and checked admission fail closed before IR. It does not
 change the combined modules/imports/visibility row or implement name resolution.
-Local `CORE-080` adds syntax evidence for the founding direct/aliased dotted `import`
-grammar under a distinct AST identity and the same syntax-aware unsupported-import
-authority. Executable imports still fail before checked IR, so no positive semantic,
-IR, backend, execution, or stability cell changes and the row remains `PARSED_ONLY`.
+Accepted public `CORE-080` adds syntax evidence for the founding direct/aliased dotted
+`import` grammar under a distinct AST identity and the same syntax-aware unsupported-
+import authority. Executable imports still fail before checked IR, so no positive
+semantic, IR, backend, execution, or stability cell changes and the row remains
+`PARSED_ONLY`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact
@@ -370,8 +371,13 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   generic, composite, method, string, and richer closure contracts remain open.
 - Many declarations lose visibility, bounds, arguments, or source locations in
   the AST; parser presence alone therefore does not imply faithful parsing.
-- The CLI and library declare overlapping compiler modules. Tooling rows cannot
-  claim shared compiler truth until that duplication is removed.
+- Active candidate `CORE-081` removes the exact 35-module CLI/library overlap and makes
+  compiler phases library-owned. The binary retains only CLI-specific modules and uses
+  narrow hidden service bridges for direct-module cache material and registry
+  quarantine without exposing resolver/IR representations. Architecture, unit,
+  integration, all-features, static, documentation, and exact root gates are green;
+  immutable public evidence remains pending, so tooling stays `EXPERIMENTAL` and no
+  language row moves.
 - Current conformance determinism checks are useful regression evidence, not
   formal-semantics proof.
 - `AUDIT-022` at clean public head `c612f3b` reproduces a compiler package version

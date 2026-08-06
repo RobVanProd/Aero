@@ -1,7 +1,7 @@
-use crate::ast::{AstNode, Parameter, Statement, TraitMethod, Type, VariantDecl};
-use crate::lexer::try_tokenize_with_locations;
-use crate::module_resolver::collect_direct_modules;
-use crate::parser::parse_with_locations;
+use compiler::ast::{AstNode, Parameter, Statement, TraitMethod, Type, VariantDecl};
+use compiler::{
+    collect_direct_modules_for_compiler_service, parse_with_locations, try_tokenize_with_locations,
+};
 
 pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, String> {
     let tokens = try_tokenize_with_locations(source_code, Some(input_file.to_string()))
@@ -165,7 +165,8 @@ pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, 
 }
 
 fn validate_direct_modules(input_file: &str, ast: &[AstNode]) -> Result<(), String> {
-    collect_direct_modules(ast, Some(input_file))?;
+    let mut collected_ast = ast.to_vec();
+    collect_direct_modules_for_compiler_service(&mut collected_ast, Some(input_file), |_, _| {})?;
     Ok(())
 }
 
@@ -225,7 +226,7 @@ fn format_named_type(name: &str, type_params: &[String]) -> String {
 }
 
 fn format_variant(variant: &VariantDecl) -> String {
-    use crate::ast::VariantDeclKind;
+    use compiler::ast::VariantDeclKind;
 
     match &variant.kind {
         VariantDeclKind::Unit => variant.name.clone(),

@@ -1,6 +1,5 @@
-use crate::errors::{CompilerError, SourceLocation};
-use crate::lexer::{Token, tokenize_with_locations, try_tokenize_with_locations};
-use crate::parser::parse_with_locations;
+use compiler::errors::{CompilerError, SourceLocation};
+use compiler::{Token, parse_with_locations, tokenize_with_locations, try_tokenize_with_locations};
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
@@ -304,7 +303,7 @@ fn index_symbols(source: &str, filename: Option<String>) -> Vec<IndexedSymbol> {
 }
 
 fn identifier_after(
-    tokens: &[crate::lexer::LocatedToken],
+    tokens: &[compiler::LocatedToken],
     start: usize,
 ) -> Option<(&str, &SourceLocation)> {
     match tokens.get(start).map(|t| &t.token) {

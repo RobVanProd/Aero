@@ -3,6 +3,7 @@ pub mod ast;
 mod binding_annotation;
 mod closure_contract;
 mod code_generator;
+mod compatibility;
 pub mod conformance;
 mod copy_place_contract;
 mod enum_match_contract;
@@ -19,8 +20,10 @@ mod llvm_verifier;
 mod local_reference;
 mod method_call_contract;
 pub mod module_resolver;
+mod optimizations;
 mod ownership_flow;
 pub mod parser;
+mod performance_optimizations;
 mod primitive_contract;
 pub mod quantization;
 pub mod registry;
@@ -46,7 +49,16 @@ pub use llvm_verifier::{
     LlvmVerificationError, LlvmVerificationMode, LlvmVerificationStatus, verify_llvm_module,
 };
 pub use parser::{Parser, parse, parse_with_locations};
+pub use performance_optimizations::PerformanceOptimizer;
 pub use semantic_analyzer::SemanticAnalyzer;
+
+#[doc(hidden)]
+pub const LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE: &str = registry::LIVE_REGISTRY_DISABLED;
+
+#[doc(hidden)]
+pub fn guard_live_registry_transport_for_compiler_service() -> Result<(), String> {
+    registry::live_registry_transport_guard()
+}
 
 use std::path::Path;
 
@@ -88,10 +100,7 @@ fn compile_source(
 
     // File-aware compilation resolves only the existing direct-module compatibility
     // contract. Source-only compilation has no directory from which to resolve files.
-    let direct_modules = module_resolver::collect_direct_modules(&ast, entry_file)?;
-    for module in direct_modules {
-        ast.extend(module.ast);
-    }
+    collect_direct_modules_for_compiler_service(&mut ast, entry_file, |_, _| {})?;
 
     // Semantic analysis
     let mut semantic_analyzer = SemanticAnalyzer::new();
@@ -118,6 +127,46 @@ fn compile_source(
     })?;
 
     Ok(llvm_code)
+}
+
+fn push_direct_module_cache_frame(bytes: &mut Vec<u8>, label: &str, payload: &[u8]) {
+    bytes.extend_from_slice(label.as_bytes());
+    bytes.push(0);
+    bytes.extend_from_slice(&(payload.len() as u64).to_be_bytes());
+    bytes.extend_from_slice(payload);
+}
+
+/// Internal compiler-service bridge used by the CLI-specific crate.
+///
+/// This is deliberately hidden from generated documentation and is not a stable
+/// language or package API. It keeps direct-module parsing, AST identity, and cache
+/// material owned by the library instead of exposing resolver representations.
+#[doc(hidden)]
+pub fn collect_direct_modules_for_compiler_service(
+    ast: &mut Vec<ast::AstNode>,
+    entry_file: Option<&str>,
+    mut on_resolved: impl FnMut(&str, &Path),
+) -> Result<Option<Vec<u8>>, String> {
+    let direct_modules = module_resolver::collect_direct_modules(ast, entry_file)?;
+    if direct_modules.is_empty() {
+        return Ok(None);
+    }
+
+    let mut cache_material = Vec::new();
+    cache_material.extend_from_slice(&(direct_modules.len() as u64).to_be_bytes());
+    for module in direct_modules {
+        on_resolved(&module.name, &module.file_path);
+        push_direct_module_cache_frame(&mut cache_material, "name", module.name.as_bytes());
+        push_direct_module_cache_frame(
+            &mut cache_material,
+            "candidate",
+            module.candidate.as_bytes(),
+        );
+        push_direct_module_cache_frame(&mut cache_material, "source", module.source.as_bytes());
+        ast.extend(module.ast);
+    }
+
+    Ok(Some(cache_material))
 }
 
 /// Compile exact Aero source text through the checked library pipeline.

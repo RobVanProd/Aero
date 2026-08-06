@@ -8,18 +8,27 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-080` is locally green for exact founding dotted-import syntax retention and
-  fail-closed executable admission. Direct and optional-alias `import a.b [as c];`
-  declarations retain their dotted path, a syntax identity distinct from Rust-like
-  `use`, and the exact keyword location. Both forms consume one syntax-aware diagnostic
-  authority; existing CORE-071 wording remains byte-exact. Semantic preflight, normal
-  semantics, and independent checked admission reject executable imports before
-  checked IR, while source/file libraries, collected modules, and check/build/run leave
-  no artifacts. The focused target passes 13/13 after an exact 8/9 parser red; malformed
-  forms, the compatibility ring, all-features, 195-library, integration, doctest,
-  formatting, check, correctness-Clippy, docs, diff, and exact root gates pass. Public
-  exact-head checks remain pending. No lookup, binding, alias meaning, namespace,
-  visibility, graph, cache, backend, runtime, or ABI behavior is implemented.
+- `CORE-081` is an active architecture candidate for one canonical compiler module
+  graph. Its exact red test found 35 compiler modules independently declared by both
+  binary and library. The binary now retains only CLI-specific services and consumes
+  library-owned compiler phases, direct-module collection/cache material, registry
+  quarantine, and performance-optimizer facades. No resolver representation or raw IR
+  became a supported API. The architecture target, 207 library tests, 32 binary tests,
+  the sensitive integration ring, complete all-features surface, formatting, check,
+  correctness Clippy, docs, diff hygiene, and exact root gate pass. Immutable publication
+  and public checks remain pending. This is Rust architecture convergence only, with
+  source behavior, diagnostics, checked IR/LLVM, CLI/cache/backend behavior, and every
+  language capability frozen.
+
+- `CORE-080` is accepted public at exact commit
+  `063953770ce92f00bae452f312c962c2996977bb`, tree
+  `5c33799270fdce9d28984ffa8aaf2cda7cf1404e`, and stable patch
+  `a8bcc38f684d615305a258399bc5318472e36be7`. Direct and optional-alias
+  `import a.b [as c];` declarations retain a founding syntax identity and exact source
+  location while executable use fails closed before checked IR. All nine exact-head
+  checks pass, including pinned Linux/Windows preservation of exits 149/223/227/229.
+  No lookup, binding, alias, namespace, visibility, graph, cache, backend, runtime, or
+  ABI behavior is implemented.
 
 - `CORE-079` is accepted public at exact commit
   `5b1ec7340db72354542ab325a9f75cad398857c2`, tree

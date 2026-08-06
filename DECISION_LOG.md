@@ -3448,11 +3448,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-076 - Preserve founding dotted imports but fail closed before checked IR
 
 - Date: 2026-08-06
-- Status: locally green `CORE-080` implementation candidate. Focused tests pass 13/13;
-  the compatibility ring, complete all-features surface, formatting, all-target/all-
-  feature check, correctness Clippy, docs, diff hygiene, and exact root gate pass.
-  Immutable publication, all-nine exact-head checks, and preservation of pinned exits
-  149/223/227/229 remain pending. No public acceptance is claimed.
+- Status: accepted public at exact commit
+  `063953770ce92f00bae452f312c962c2996977bb`, tree
+  `5c33799270fdce9d28984ffa8aaf2cda7cf1404e`, and stable patch ID
+  `a8bcc38f684d615305a258399bc5318472e36be7`. All nine exact-head checks pass and
+  the pinned Linux/Windows lanes preserve exits 149/223/227/229.
 - Source-grounded decision: page 2 of the founding mandate defines `import` followed by
   one or more dot-separated identifiers, an optional `as` identifier, and `;`. The
   execution-quality framework supplies no lookup, namespace, visibility, conflict,
@@ -3478,3 +3478,33 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   behavior. One shared syntax classification avoids phase-local topology guards. The
   mega-PR checkpoint strategy, structured evidence manifest, positive module/runtime/
   ABI work, and hardware GPU execution remain separately authorized controls.
+
+## DEC-077 - Make the library the sole owner of compiler-phase modules
+
+- Date: 2026-08-06
+- Status: locally green `CORE-081` candidate. The exact architecture red found 35 compiler
+  modules independently declared by binary and library. The focused target, 207 library
+  tests, 32 binary tests, sensitive integration ring, and complete all-features surface
+  now pass, along with formatting, all-target/all-feature check, correctness Clippy,
+  docs, diff hygiene, and the exact root gate. Immutable publication, all nine exact-
+  head checks, and pinned exits 149/223/227/229 remain pending.
+- Decision: every compiler phase has one library-owned Rust module/type/static identity.
+  The binary owns only CLI-specific documentation, LSP, profiling, project-init, and
+  directly coupled test modules, and consumes the library facade. Compatibility and
+  optimization helpers move with their tests into the library; no distinct test is
+  deleted merely because duplicate binary execution disappears.
+- Narrow service boundary: direct-module parsing and resolver representations remain
+  library-private. One documentation-hidden compiler-service bridge extends the caller's
+  AST, reports resolved name/path, and returns the exact length-framed cache material
+  formerly assembled by the binary. A documentation-hidden registry guard/constant and
+  public optimizer facade preserve existing CLI behavior without exposing raw IR or
+  resolver data as a supported contract.
+- Frozen behavior: source acceptance/rejection, diagnostics, AST/checked-IR/LLVM bytes,
+  module collection, cache identity, verifier policy, CLI arguments/status/output,
+  artifacts, platform behavior, and every accepted capability remain unchanged. No
+  language, resolver, ownership, ABI, runtime, GPU, package, safety, performance,
+  release, or stability semantics are added.
+- Integration scaling decision: PR #4 at 281 commits/224 files is now an urgent R-018
+  control, not a background concern. After CORE-081 acceptance, freeze a separately
+  authorized checkpoint/merge-handoff strategy before stacking another language slice.
+  This decision itself authorizes no merge, history rewrite, release, or deletion.

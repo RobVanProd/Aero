@@ -1,11 +1,9 @@
-use crate::ast::AstNode;
-use crate::code_generator;
-use crate::ir_generator::IrGenerator;
-use crate::lexer;
-use crate::llvm_verifier::{LlvmVerificationMode, verify_llvm_module};
-use crate::module_resolver;
-use crate::parser;
-use crate::semantic_analyzer::SemanticAnalyzer;
+use compiler::ast::AstNode;
+use compiler::{
+    CodeGenerationError, IrGenerationError, IrGenerator, LlvmVerificationMode, SemanticAnalyzer,
+    collect_direct_modules_for_compiler_service, parse_with_locations, try_generate_code,
+    try_tokenize_with_locations, verify_llvm_module,
+};
 use serde::Serialize;
 use serde_json::json;
 use std::fs;
@@ -32,13 +30,12 @@ pub fn profile_compilation(
     let mut stages = Vec::new();
 
     let lex_start = Instant::now();
-    let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+    let tokens = try_tokenize_with_locations(source_code, Some(input_file.to_string()))
         .map_err(|err| format!("Lex error: {}", err))?;
     push_stage(&mut stages, "lexing", lex_start.elapsed());
 
     let parse_start = Instant::now();
-    let mut ast =
-        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
+    let mut ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
     push_stage(&mut stages, "parsing", parse_start.elapsed());
 
     let module_start = Instant::now();
@@ -57,16 +54,16 @@ pub fn profile_compilation(
     let ir = ir_gen
         .try_generate_ir(analyzed_ast)
         .map_err(|error| match error {
-            crate::ir_generator::IrGenerationError::Admission(message) => {
+            IrGenerationError::Admission(message) => {
                 format!("IR Generation Error: {message}")
             }
-            crate::ir_generator::IrGenerationError::Verification(error) => error.to_string(),
+            IrGenerationError::Verification(error) => error.to_string(),
         })?;
     push_stage(&mut stages, "ir_generation", ir_start.elapsed());
 
     let codegen_start = Instant::now();
-    let llvm_ir = code_generator::try_generate_code(ir).map_err(|error| match error {
-        code_generator::CodeGenerationError::IrVerification(error) => error.to_string(),
+    let llvm_ir = try_generate_code(ir).map_err(|error| match error {
+        CodeGenerationError::IrVerification(error) => error.to_string(),
         other => format!("Code Generation Error: {other}"),
     })?;
     push_stage(&mut stages, "code_generation", codegen_start.elapsed());
@@ -130,10 +127,7 @@ pub fn print_profile(profile: &CompilationProfile) {
 }
 
 fn resolve_modules(input_file: &str, ast: &mut Vec<AstNode>) -> Result<(), String> {
-    let modules = module_resolver::collect_direct_modules(ast, Some(input_file))?;
-    for module in modules {
-        ast.extend(module.ast);
-    }
+    collect_direct_modules_for_compiler_service(ast, Some(input_file), |_, _| {})?;
     Ok(())
 }
 

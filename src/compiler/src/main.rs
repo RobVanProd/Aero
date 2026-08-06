@@ -1,45 +1,7 @@
-mod accelerator;
-mod ast;
-mod binding_annotation;
-mod closure_contract;
-mod code_generator;
-mod compatibility;
-mod conformance;
-mod copy_place_contract;
 mod doc_generator;
-mod enum_match_contract;
-mod errors;
-mod fixed_array_method;
-mod function_call_contract;
-mod gpu;
-mod graph_compiler;
-mod ir;
-mod ir_generator;
-mod ir_verifier;
-mod lexer;
-mod llvm_verifier;
-mod local_reference;
 mod lsp;
-mod method_call_contract;
-mod module_resolver;
-mod optimizations;
-mod ownership_flow;
-mod parser;
-mod performance_optimizations;
-mod primitive_contract;
 mod profiler;
 mod project_init;
-mod quantization;
-mod registry;
-mod scalar_assignment;
-mod semantic_analyzer;
-mod static_string_equality;
-mod static_string_method;
-mod static_string_predicate;
-mod struct_contract;
-mod tuple_contract;
-mod types;
-mod use_import_contract;
 
 #[cfg(test)]
 mod conformance_checked_ir_tests;
@@ -49,11 +11,15 @@ mod llvm_verifier_cache_tests;
 #[cfg(test)]
 static LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-use crate::ir_generator::IrGenerator;
-use crate::performance_optimizations::PerformanceOptimizer;
-use crate::semantic_analyzer::SemanticAnalyzer;
-use accelerator::AcceleratorBackend;
-use gpu::{DeviceProfile, GpuDevice, default_gpu_arch};
+use compiler::accelerator::AcceleratorBackend;
+use compiler::gpu::{DeviceProfile, GpuDevice, default_gpu_arch};
+use compiler::{
+    CodeGenerationError, IrGenerationError, IrGenerator,
+    LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE, LlvmVerificationMode, PerformanceOptimizer,
+    SemanticAnalyzer, collect_direct_modules_for_compiler_service, conformance, graph_compiler,
+    guard_live_registry_transport_for_compiler_service, lexer, parser, quantization, registry,
+    try_generate_code, verify_llvm_module,
+};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -61,18 +27,18 @@ use std::process::{Command, exit};
 use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn render_ir_generation_error(error: ir_generator::IrGenerationError) -> String {
+fn render_ir_generation_error(error: IrGenerationError) -> String {
     match error {
-        ir_generator::IrGenerationError::Admission(message) => {
+        IrGenerationError::Admission(message) => {
             format!("IR Generation Error: {message}")
         }
-        ir_generator::IrGenerationError::Verification(error) => error.to_string(),
+        IrGenerationError::Verification(error) => error.to_string(),
     }
 }
 
-fn render_code_generation_error(error: code_generator::CodeGenerationError) -> String {
+fn render_code_generation_error(error: CodeGenerationError) -> String {
     match error {
-        code_generator::CodeGenerationError::IrVerification(error) => error.to_string(),
+        CodeGenerationError::IrVerification(error) => error.to_string(),
         other => format!("Code Generation Error: {other}"),
     }
 }
@@ -248,11 +214,11 @@ fn create_run_artifact_paths(
 }
 
 impl BuildConfig {
-    fn llvm_verification_mode(&self) -> llvm_verifier::LlvmVerificationMode {
+    fn llvm_verification_mode(&self) -> LlvmVerificationMode {
         if self.require_llvm_verifier || environment_requires_llvm_verifier() {
-            llvm_verifier::LlvmVerificationMode::Required
+            LlvmVerificationMode::Required
         } else {
-            llvm_verifier::LlvmVerificationMode::PreferExternal
+            LlvmVerificationMode::PreferExternal
         }
     }
 
@@ -745,10 +711,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                     return CliStatus::OperationalFailure;
                 }
             };
-            match llvm_verifier::verify_llvm_module(
-                &input,
-                llvm_verifier::LlvmVerificationMode::Required,
-            ) {
+            match verify_llvm_module(&input, LlvmVerificationMode::Required) {
                 Ok(status) => println!("LLVM input verification: {status}"),
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
@@ -763,10 +726,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
             };
             let (optimized, report) =
                 graph_compiler::apply_advanced_graph_compilation_with_config(&input, &config);
-            match llvm_verifier::verify_llvm_module(
-                &optimized,
-                llvm_verifier::LlvmVerificationMode::Required,
-            ) {
+            match verify_llvm_module(&optimized, LlvmVerificationMode::Required) {
                 Ok(status) => println!("LLVM output verification: {status}"),
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
@@ -902,10 +862,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                     return CliStatus::OperationalFailure;
                 }
             };
-            match llvm_verifier::verify_llvm_module(
-                &input,
-                llvm_verifier::LlvmVerificationMode::Required,
-            ) {
+            match verify_llvm_module(&input, LlvmVerificationMode::Required) {
                 Ok(status) => println!("LLVM input verification: {status}"),
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
@@ -939,10 +896,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
 
             let (quantized_ir, report) =
                 quantization::apply_quantization_interface(&input, &config);
-            match llvm_verifier::verify_llvm_module(
-                &quantized_ir,
-                llvm_verifier::LlvmVerificationMode::Required,
-            ) {
+            match verify_llvm_module(&quantized_ir, LlvmVerificationMode::Required) {
                 Ok(status) => println!("LLVM output verification: {status}"),
                 Err(error) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {error}");
@@ -1055,7 +1009,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                         }
                     }
 
-                    if live && let Err(err) = registry::live_registry_transport_guard() {
+                    if live && let Err(err) = guard_live_registry_transport_for_compiler_service() {
                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
                         return CliStatus::OperationalFailure;
                     }
@@ -1186,7 +1140,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                             }
                         }
                     } else {
-                        if let Err(err) = registry::live_registry_transport_guard() {
+                        if let Err(err) = guard_live_registry_transport_for_compiler_service() {
                             eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
                             return CliStatus::OperationalFailure;
                         }
@@ -1347,7 +1301,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                             }
                         }
                     } else {
-                        if let Err(err) = registry::live_registry_transport_guard() {
+                        if let Err(err) = guard_live_registry_transport_for_compiler_service() {
                             eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
                             return CliStatus::OperationalFailure;
                         }
@@ -1677,9 +1631,9 @@ fn push_compilation_cache_frame(bytes: &mut Vec<u8>, label: &str, payload: &[u8]
 fn compilation_cache_key(
     source_code: &str,
     build_config: &BuildConfig,
-    modules: &[module_resolver::ParsedDirectModule],
+    direct_module_cache_material: Option<&[u8]>,
 ) -> String {
-    if modules.is_empty() {
+    let Some(direct_module_cache_material) = direct_module_cache_material else {
         return format!(
             "{:x}",
             md5::compute(format!(
@@ -1689,7 +1643,7 @@ fn compilation_cache_key(
                 build_config.gpu_arch_or_default()
             ))
         );
-    }
+    };
 
     let mut bytes = b"AERO_MODULE_CACHE_V1\0".to_vec();
     push_compilation_cache_frame(&mut bytes, "root", source_code.as_bytes());
@@ -1703,12 +1657,7 @@ fn compilation_cache_key(
         "gpu",
         build_config.gpu_arch_or_default().as_bytes(),
     );
-    bytes.extend_from_slice(&(modules.len() as u64).to_be_bytes());
-    for module in modules {
-        push_compilation_cache_frame(&mut bytes, "name", module.name.as_bytes());
-        push_compilation_cache_frame(&mut bytes, "candidate", module.candidate.as_bytes());
-        push_compilation_cache_frame(&mut bytes, "source", module.source.as_bytes());
-    }
+    bytes.extend_from_slice(direct_module_cache_material);
 
     format!("{:x}", md5::compute(bytes))
 }
@@ -1749,23 +1698,22 @@ fn compile_to_llvm_ir_with_optimizer(
     println!("Optimized parsing completed in {:?}", parsing_time);
 
     // Phase 7: Module resolution — resolve `mod foo;` to files
-    let direct_modules = module_resolver::collect_direct_modules(&ast, Some(input_file))?;
-    for module in &direct_modules {
-        println!(
-            "  Resolved module `{}` → {}",
-            module.name,
-            module.file_path.display()
-        );
-        ast.extend(module.ast.iter().cloned());
-    }
+    let direct_module_cache_material =
+        collect_direct_modules_for_compiler_service(&mut ast, Some(input_file), |name, path| {
+            println!("  Resolved module `{name}` → {}", path.display())
+        })?;
 
     // Root parsing and exact direct-module collection are mandatory before lookup.
-    let source_hash = compilation_cache_key(source_code, build_config, &direct_modules);
+    let source_hash = compilation_cache_key(
+        source_code,
+        build_config,
+        direct_module_cache_material.as_deref(),
+    );
     if let Some(cached_llvm) = perf_optimizer
         .get_compilation_cache()
         .get_cached_llvm(&source_hash)
     {
-        let status = llvm_verifier::verify_llvm_module(&cached_llvm, verification_mode)
+        let status = verify_llvm_module(&cached_llvm, verification_mode)
             .map_err(|error| error.to_string())?;
         if status.external_verifier().is_some() {
             println!("Using cached compilation result");
@@ -1821,7 +1769,7 @@ fn compile_to_llvm_ir_with_optimizer(
     let control_flow_optimizer = perf_optimizer.get_control_flow_optimizer();
     // Note: In a real implementation, we would optimize control flow generation here
 
-    let llvm_ir = code_generator::try_generate_code(ir).map_err(render_code_generation_error)?;
+    let llvm_ir = try_generate_code(ir).map_err(render_code_generation_error)?;
     let graph_compile_start = Instant::now();
     let graph_backend =
         AcceleratorBackend::from_env("AERO_ACCELERATOR").unwrap_or(match build_config.target {
@@ -1856,8 +1804,8 @@ fn compile_to_llvm_ir_with_optimizer(
         graph_report.total_fused_ops
     );
 
-    let verification_status = llvm_verifier::verify_llvm_module(&llvm_ir, verification_mode)
-        .map_err(|error| error.to_string())?;
+    let verification_status =
+        verify_llvm_module(&llvm_ir, verification_mode).map_err(|error| error.to_string())?;
     println!("LLVM verification: {verification_status}");
 
     // Cache only the exact final bytes that passed the selected verification policy.
@@ -2218,7 +2166,7 @@ fn print_registry_help(program_name: &str) {
     );
     println!(
         "    --live and publish/install without --dry-run fail: {}.",
-        registry::LIVE_REGISTRY_DISABLED
+        LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE
     );
 }
 
@@ -2252,16 +2200,13 @@ fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String>
 fn parse_source_with_direct_modules(
     source_code: &str,
     input_file: &str,
-) -> Result<Vec<crate::ast::AstNode>, String> {
+) -> Result<Vec<compiler::ast::AstNode>, String> {
     let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
         .map_err(|err| format!("Lex error: {}", err))?;
     let mut ast =
         parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
-    let modules = module_resolver::collect_direct_modules(&ast, Some(input_file))?;
-    for module in modules {
-        ast.extend(module.ast);
-    }
+    collect_direct_modules_for_compiler_service(&mut ast, Some(input_file), |_, _| {})?;
 
     Ok(ast)
 }
