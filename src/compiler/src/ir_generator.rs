@@ -2174,6 +2174,7 @@ impl IrGenerator {
                     .resolve_match_patterns(&scrutinee, expr, arms, context)
                     .map_err(|error| admission_error(&error.diagnostic()))?;
                 let mut result_types = Vec::with_capacity(arms.len());
+                let mut arm_owned_consumptions = Vec::with_capacity(arms.len());
                 for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
                     let mut arm_bindings = bindings.clone();
                     for binding in binding {
@@ -2197,6 +2198,21 @@ impl IrGenerator {
                         inside_impl,
                         admit_static_string_equality,
                     )?);
+                    arm_owned_consumptions.push(
+                        program
+                            .enums
+                            .consumed_owned_values(
+                                &arm.body,
+                                |name| arm_bindings.get(name).map(|binding| binding.ty.clone()),
+                                |name| {
+                                    program
+                                        .enum_functions
+                                        .get(name)
+                                        .map(EnumFunctionContract::parameter_types)
+                                },
+                            )
+                            .map_err(|error| admission_error(&error.diagnostic()))?,
+                    );
                 }
                 let consumed = program
                     .enums
@@ -2219,6 +2235,13 @@ impl IrGenerator {
                         arms,
                         &result_types,
                         &consumed,
+                        &arm_owned_consumptions,
+                        |name| {
+                            program
+                                .enum_functions
+                                .get(name)
+                                .map(|contract| contract.result.ty.clone())
+                        },
                         context,
                     )
                     .map(|resolved| resolved.result)
@@ -2458,6 +2481,10 @@ impl IrGenerator {
                     result: Value::Reg(register),
                     ..
                 }
+                | Inst::CheckedEnumMatchResultPlaceAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
                 | Inst::AllocaArray {
                     result: Value::Reg(register),
                     ..
@@ -2531,6 +2558,9 @@ impl IrGenerator {
             match instruction {
                 Inst::Alloca(place, _) => Self::rewrite_place(place, &places),
                 Inst::CheckedMutableOwnedPlaceAlloca { result, .. } => {
+                    Self::rewrite_place(result, &places)
+                }
+                Inst::CheckedEnumMatchResultPlaceAlloca { result, .. } => {
                     Self::rewrite_place(result, &places)
                 }
                 Inst::CheckedOwnedPlaceAssignment { target, .. } => {
@@ -2684,14 +2714,28 @@ impl IrGenerator {
                 EnumExecutionContext::AdmittedFunction,
             )
             .expect("checked enum match was admitted");
+        let owned_result = self
+            .enum_registry
+            .resolve_fresh_owned_match_result(&arms, &|name| {
+                self.function_return_types.get(name).cloned()
+            })
+            .ok();
 
         let result_place_id = self.next_ptr;
         let result_place = Value::Reg(result_place_id);
         self.next_ptr += 1;
-        function.body.push(Inst::Alloca(
-            result_place.clone(),
-            format!("__match_result_{result_place_id}"),
-        ));
+        let result_name = format!("__match_result_{result_place_id}");
+        if let Some(result) = &owned_result {
+            function.body.push(Inst::CheckedEnumMatchResultPlaceAlloca {
+                result: result_place.clone(),
+                schema: result.schema.clone(),
+                dispatch_schema: resolved.contract.schema.clone(),
+            });
+        } else {
+            function
+                .body
+                .push(Inst::Alloca(result_place.clone(), result_name));
+        }
 
         let arm_labels = (0..arms.len())
             .map(|_| {
@@ -2763,7 +2807,15 @@ impl IrGenerator {
             } else {
                 result_ty = Some(ty.clone());
             }
-            function.body.push(Inst::Store(result_place.clone(), value));
+            if let Some(result) = &owned_result {
+                function.body.push(Inst::CheckedOwnedPlaceAssignment {
+                    target: result_place.clone(),
+                    value,
+                    ty: result.schema.logical_type(),
+                });
+            } else {
+                function.body.push(Inst::Store(result_place.clone(), value));
+            }
             function.body.push(Inst::Jump(end_label.clone()));
         }
         function.body.push(Inst::Label(end_label));

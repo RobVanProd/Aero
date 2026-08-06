@@ -1002,6 +1002,7 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
     match instruction {
         Inst::Alloca(result, _)
         | Inst::CheckedMutableOwnedPlaceAlloca { result, .. }
+        | Inst::CheckedEnumMatchResultPlaceAlloca { result, .. }
         | Inst::AllocaArray { result, .. }
         | Inst::GetElementPtr { result, .. }
         | Inst::CheckedCopyStructArrayAlloca { result, .. }
@@ -1149,6 +1150,7 @@ struct FunctionVerifier<'a> {
     element_owners: BTreeMap<PlaceId, PlaceId>,
     mutable_owned_places: BTreeSet<PlaceId>,
     mutable_copy_places: BTreeSet<PlaceId>,
+    enum_match_result_places: BTreeSet<PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
     dominators: Vec<BTreeSet<usize>>,
@@ -1177,6 +1179,7 @@ impl<'a> FunctionVerifier<'a> {
             element_owners: BTreeMap::new(),
             mutable_owned_places: BTreeSet::new(),
             mutable_copy_places: BTreeSet::new(),
+            enum_match_result_places: BTreeSet::new(),
             mutable_reference_origins: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
             dominators,
@@ -1281,6 +1284,11 @@ impl<'a> FunctionVerifier<'a> {
             {
                 consumed.remove(&EnumOwner::Place(place));
             }
+            if let Inst::CheckedEnumMatchResultPlaceAlloca { result, .. } = instruction
+                && let Some(place) = self.enum_place(result)
+            {
+                consumed.insert(EnumOwner::Place(place));
+            }
 
             match instruction {
                 Inst::Store(target, value) if self.enum_place(target).is_some() => {
@@ -1315,6 +1323,22 @@ impl<'a> FunctionVerifier<'a> {
                     self.consume_enum_owner(value, consumed, block, "checked enum assignment")?;
                     consumed.remove(&EnumOwner::Place(target));
                 }
+                Inst::Load(_, source)
+                    if self
+                        .enum_place(source)
+                        .is_some_and(|place| self.enum_match_result_places.contains(&place)) =>
+                {
+                    let place = self.enum_place(source).expect("checked above");
+                    if consumed.contains(&EnumOwner::Place(place)) {
+                        return Err(self.error(
+                            block,
+                            IrVerificationErrorKind::MetadataMismatch(format!(
+                                "checked enum Match result place {} is loaded before every reachable dispatch path initializes it",
+                                place.0
+                            )),
+                        ));
+                    }
+                }
                 Inst::Call {
                     function,
                     arguments,
@@ -1343,6 +1367,210 @@ impl<'a> FunctionVerifier<'a> {
                 _ => {}
             }
             self.reset_enum_result(instruction, consumed);
+        }
+        Ok(())
+    }
+
+    fn verify_enum_match_result_flow(&self) -> Result<(), IrVerificationError> {
+        const UNINITIALIZED: u8 = 1;
+        const INITIALIZED: u8 = 2;
+
+        if self.enum_match_result_places.is_empty() {
+            return Ok(());
+        }
+
+        let labels = self
+            .blocks
+            .iter()
+            .enumerate()
+            .map(|(index, block)| (block.label.as_str(), index))
+            .collect::<HashMap<_, _>>();
+        let mut load_counts = self
+            .enum_match_result_places
+            .iter()
+            .map(|place| (*place, 0usize))
+            .collect::<BTreeMap<_, _>>();
+        let mut assignment_blocks = self
+            .enum_match_result_places
+            .iter()
+            .map(|place| (*place, Vec::<usize>::new()))
+            .collect::<BTreeMap<_, _>>();
+        for (block_index, block) in self.blocks.iter().enumerate() {
+            for (_, instruction) in &block.instructions {
+                if let Inst::Store(target, _) = instruction
+                    && reg(target)
+                        .map(PlaceId)
+                        .is_some_and(|place| self.enum_match_result_places.contains(&place))
+                {
+                    return Err(self.error(
+                        block_index,
+                        IrVerificationErrorKind::MetadataMismatch(
+                            "checked enum Match result places require exact checked arm assignments; generic Store is not admitted"
+                                .to_string(),
+                        ),
+                    ));
+                }
+                if let Inst::Load(_, source) = instruction
+                    && let Some(place) = reg(source).map(PlaceId)
+                    && let Some(count) = load_counts.get_mut(&place)
+                {
+                    *count += 1;
+                }
+                if let Inst::CheckedOwnedPlaceAssignment { target, .. } = instruction
+                    && let Some(place) = reg(target).map(PlaceId)
+                    && let Some(blocks) = assignment_blocks.get_mut(&place)
+                {
+                    blocks.push(block_index);
+                }
+            }
+        }
+        if let Some((place, count)) = load_counts.iter().find(|(_, count)| **count != 1) {
+            return Err(self.error(
+                0,
+                IrVerificationErrorKind::MetadataMismatch(format!(
+                    "checked enum Match result place {} requires exactly one merged load, actual {count}",
+                    place.0
+                )),
+            ));
+        }
+
+        for place in &self.enum_match_result_places {
+            let definition = self
+                .place_definitions
+                .get(place)
+                .expect("checked Match result place definition was collected");
+            let Inst::CheckedEnumDispatch { targets, .. } =
+                self.body.instructions[definition.position + 1]
+            else {
+                unreachable!("checked Match result place adjacency was already verified")
+            };
+            let assignments = &assignment_blocks[place];
+            if assignments.len() != targets.len() {
+                return Err(self.error(
+                    definition.block,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "checked enum Match result place {} requires one static assignment per dispatch target: expected {}, actual {}",
+                        place.0,
+                        targets.len(),
+                        assignments.len()
+                    )),
+                ));
+            }
+            let target_blocks = targets
+                .iter()
+                .map(|target| labels[target.as_str()])
+                .collect::<Vec<_>>();
+            let mut target_assignment_counts = vec![0usize; target_blocks.len()];
+            for assignment in assignments {
+                let dominated_by = target_blocks
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(target, block)| {
+                        self.dominators[*assignment]
+                            .contains(block)
+                            .then_some(target)
+                    })
+                    .collect::<Vec<_>>();
+                if dominated_by.len() != 1 {
+                    return Err(self.error(
+                        *assignment,
+                        IrVerificationErrorKind::MetadataMismatch(format!(
+                            "checked enum Match result place {} assignment must be dominated by exactly one dispatch target",
+                            place.0
+                        )),
+                    ));
+                }
+                target_assignment_counts[dominated_by[0]] += 1;
+            }
+            if target_assignment_counts.iter().any(|count| *count != 1) {
+                return Err(self.error(
+                    definition.block,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "checked enum Match result place {} assignments do not map one-to-one onto its dispatch targets",
+                        place.0
+                    )),
+                ));
+            }
+        }
+
+        let mut incoming = vec![None::<BTreeMap<PlaceId, u8>>; self.blocks.len()];
+        incoming[0] = Some(BTreeMap::new());
+        let mut worklist = VecDeque::from([0]);
+        while let Some(block_index) = worklist.pop_front() {
+            if !self.blocks[block_index].reachable {
+                continue;
+            }
+            let mut state = incoming[block_index]
+                .clone()
+                .expect("reachable Match-result worklist block has an initialization state");
+            for (_, instruction) in &self.blocks[block_index].instructions {
+                match instruction {
+                    Inst::CheckedEnumMatchResultPlaceAlloca { result, .. } => {
+                        let place = PlaceId(reg(result).expect("checked Match result place"));
+                        state.insert(place, UNINITIALIZED);
+                    }
+                    Inst::CheckedOwnedPlaceAssignment { target, .. } => {
+                        let Some(place) = reg(target)
+                            .map(PlaceId)
+                            .filter(|place| self.enum_match_result_places.contains(place))
+                        else {
+                            continue;
+                        };
+                        let actual = state.get(&place).copied().unwrap_or_default();
+                        if actual != UNINITIALIZED {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum Match result place {} must be uninitialized on every path before its arm assignment",
+                                    place.0
+                                )),
+                            ));
+                        }
+                        state.insert(place, INITIALIZED);
+                    }
+                    Inst::Load(_, source) => {
+                        let Some(place) = reg(source)
+                            .map(PlaceId)
+                            .filter(|place| self.enum_match_result_places.contains(place))
+                        else {
+                            continue;
+                        };
+                        let actual = state.get(&place).copied().unwrap_or_default();
+                        if actual != INITIALIZED {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked enum Match result place {} must be initialized on every reachable path before its merged load",
+                                    place.0
+                                )),
+                            ));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            for successor in &self.blocks[block_index].successors {
+                let successor = labels[successor.as_str()];
+                let changed = match &mut incoming[successor] {
+                    Some(existing) => {
+                        let before = existing.clone();
+                        for (place, possible) in &state {
+                            existing
+                                .entry(*place)
+                                .and_modify(|current| *current |= *possible)
+                                .or_insert(*possible);
+                        }
+                        *existing != before
+                    }
+                    slot @ None => {
+                        *slot = Some(state.clone());
+                        true
+                    }
+                };
+                if changed {
+                    worklist.push_back(successor);
+                }
+            }
         }
         Ok(())
     }
@@ -1544,6 +1772,9 @@ impl<'a> FunctionVerifier<'a> {
                                 Inst::CheckedMutableOwnedPlaceAlloca { .. } => {
                                     "checked mutable owned-place alloca"
                                 }
+                                Inst::CheckedEnumMatchResultPlaceAlloca { .. } => {
+                                    "checked enum Match result-place alloca"
+                                }
                                 Inst::AllocaArray { .. } => "alloca array",
                                 Inst::CheckedStructAlloca { .. } => "checked struct alloca",
                                 Inst::CheckedStructFieldPtr { .. } => {
@@ -1610,6 +1841,33 @@ impl<'a> FunctionVerifier<'a> {
                                 _ => PlaceType::Known(ty.clone()),
                             };
                             (place_type, Some(name.clone()))
+                        }
+                        Inst::CheckedEnumMatchResultPlaceAlloca {
+                            schema,
+                            dispatch_schema,
+                            ..
+                        } => {
+                            if !valid_enum_schema(schema)
+                                || !valid_enum_schema(dispatch_schema)
+                                || !matches!(
+                                    self.body.instructions.get(position + 1),
+                                    Some(Inst::CheckedEnumDispatch {
+                                        schema: actual_dispatch_schema,
+                                        ..
+                                    }) if actual_dispatch_schema == dispatch_schema
+                                )
+                            {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(
+                                        "checked enum Match result place requires admitted result/dispatch schemas and an immediately following exact dispatch schema"
+                                            .to_string(),
+                                    ),
+                                ));
+                            }
+                            self.enum_match_result_places.insert(id);
+                            (PlaceType::Known(schema.logical_type()), None)
                         }
                         Inst::Alloca(_, name) => {
                             let parameter_type = self
@@ -2721,18 +2979,19 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
+                        let enum_match_result = self.enum_match_result_places.contains(&target);
                         if !valid_owned_place_type(ty)
-                            || !self.mutable_owned_places.contains(&target)
+                            || (!self.mutable_owned_places.contains(&target) && !enum_match_result)
                         {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(
-                                    "checked owned-place assignment target is not a declared mutable CopyData-or-enum place"
+                                    "checked owned-place assignment target is not a declared mutable CopyData-or-enum place or checked enum Match result place"
                                         .to_string(),
                                 ),
                             ));
                         }
-                        if !initialized_mutable_places.contains(&target) {
+                        if !enum_match_result && !initialized_mutable_places.contains(&target) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
@@ -3740,6 +3999,7 @@ impl<'a> FunctionVerifier<'a> {
             }
         }
 
+        self.verify_enum_match_result_flow()?;
         self.verify_enum_ownership_flow()?;
 
         let declared_mutable_places = self.mutable_owned_places.clone();
@@ -4071,6 +4331,14 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                         schemas,
                         enum_schemas,
                     )?;
+                }
+                Inst::CheckedEnumMatchResultPlaceAlloca {
+                    schema,
+                    dispatch_schema,
+                    ..
+                } => {
+                    register_enum(schema, schemas, enum_schemas)?;
+                    register_enum(dispatch_schema, schemas, enum_schemas)?;
                 }
                 Inst::CheckedEnumVariant { schema, .. }
                 | Inst::CheckedEnumVariantFields { schema, .. }
@@ -7201,6 +7469,178 @@ mod tests {
                     || diagnostic.contains("type mismatch")
                     || diagnostic.contains("owned-place assignment")
                     || diagnostic.contains("schema"),
+                "{label}: {diagnostic}"
+            );
+        }
+    }
+
+    #[test]
+    fn owned_enum_match_result_cfg_and_schema_identity_are_fail_closed() {
+        let input = EnumSchema {
+            name: "Input".to_string(),
+            variants: vec![
+                EnumVariantSchema {
+                    name: "First".to_string(),
+                    payload: None,
+                },
+                EnumVariantSchema {
+                    name: "Second".to_string(),
+                    payload: None,
+                },
+            ],
+        };
+        let output = EnumSchema {
+            name: "Output".to_string(),
+            variants: vec![
+                EnumVariantSchema {
+                    name: "Left".to_string(),
+                    payload: None,
+                },
+                EnumVariantSchema {
+                    name: "Right".to_string(),
+                    payload: None,
+                },
+            ],
+        };
+        let valid = || {
+            vec![
+                checked_variant(Value::Reg(0), input.clone(), 0),
+                Inst::CheckedEnumMatchResultPlaceAlloca {
+                    result: Value::Reg(10),
+                    schema: output.clone(),
+                    dispatch_schema: input.clone(),
+                },
+                checked_dispatch(Value::Reg(0), input.clone(), &["left", "right"]),
+                Inst::Label("left".to_string()),
+                checked_variant(Value::Reg(1), output.clone(), 0),
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(10),
+                    value: Value::Reg(1),
+                    ty: output.logical_type(),
+                },
+                Inst::Jump("merge".to_string()),
+                Inst::Label("right".to_string()),
+                checked_variant(Value::Reg(2), output.clone(), 1),
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(10),
+                    value: Value::Reg(2),
+                    ty: output.logical_type(),
+                },
+                Inst::Jump("merge".to_string()),
+                Inst::Label("merge".to_string()),
+                Inst::Load(Value::Reg(3), Value::Reg(10)),
+                checked_dispatch(Value::Reg(3), output.clone(), &["done_left", "done_right"]),
+                Inst::Label("done_left".to_string()),
+                Inst::Return(Value::ImmInt(0)),
+                Inst::Label("done_right".to_string()),
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+
+        verify_ir(function(valid()))
+            .expect("exact all-path initialized owned-enum Match result must verify");
+
+        let mut generic_alloca = valid();
+        generic_alloca[1] = Inst::Alloca(Value::Reg(10), "result".to_string());
+
+        let mut generic_store = valid();
+        generic_store[5] = Inst::Store(Value::Reg(10), Value::Reg(1));
+
+        let mut missing_arm_assignment = valid();
+        missing_arm_assignment.remove(9);
+
+        let mut bypass_edge = valid();
+        bypass_edge[2] = checked_dispatch(Value::Reg(0), input.clone(), &["left", "merge"]);
+
+        let mut wrong_dispatch_identity = valid();
+        wrong_dispatch_identity[1] = Inst::CheckedEnumMatchResultPlaceAlloca {
+            result: Value::Reg(10),
+            schema: output.clone(),
+            dispatch_schema: output.clone(),
+        };
+
+        let other_output = EnumSchema {
+            name: "OtherOutput".to_string(),
+            variants: output.variants.clone(),
+        };
+        let mut wrong_result_identity = valid();
+        wrong_result_identity[1] = Inst::CheckedEnumMatchResultPlaceAlloca {
+            result: Value::Reg(10),
+            schema: other_output,
+            dispatch_schema: input.clone(),
+        };
+
+        let mut wrong_assignment_schema = valid();
+        wrong_assignment_schema[5] = Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(10),
+            value: Value::Reg(1),
+            ty: input.logical_type(),
+        };
+
+        let mut non_dominating_value = valid();
+        non_dominating_value[9] = Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(10),
+            value: Value::Reg(1),
+            ty: output.logical_type(),
+        };
+
+        let mut premature_load = valid();
+        premature_load.insert(5, Inst::Load(Value::Reg(4), Value::Reg(10)));
+
+        let mut repeated_assignment = valid();
+        repeated_assignment.insert(
+            6,
+            Inst::CheckedOwnedPlaceAssignment {
+                target: Value::Reg(10),
+                value: Value::Reg(1),
+                ty: output.logical_type(),
+            },
+        );
+
+        let mut duplicate_merged_load = valid();
+        duplicate_merged_load.insert(13, Inst::Load(Value::Reg(4), Value::Reg(10)));
+
+        let mut post_merge_single_assignment = valid();
+        post_merge_single_assignment.remove(9);
+        post_merge_single_assignment.remove(5);
+        post_merge_single_assignment.insert(10, checked_variant(Value::Reg(4), output.clone(), 0));
+        post_merge_single_assignment.insert(
+            11,
+            Inst::CheckedOwnedPlaceAssignment {
+                target: Value::Reg(10),
+                value: Value::Reg(4),
+                ty: output.logical_type(),
+            },
+        );
+
+        for (label, body) in [
+            ("generic result allocation", generic_alloca),
+            ("generic arm store", generic_store),
+            ("missing arm assignment", missing_arm_assignment),
+            ("dispatch bypass edge", bypass_edge),
+            ("wrong dispatch identity", wrong_dispatch_identity),
+            ("wrong result identity", wrong_result_identity),
+            ("wrong assignment schema", wrong_assignment_schema),
+            ("non-dominating arm value", non_dominating_value),
+            ("premature arm load", premature_load),
+            ("repeated arm assignment", repeated_assignment),
+            ("duplicate merged load", duplicate_merged_load),
+            (
+                "post-merge fabricated assignment",
+                post_merge_single_assignment,
+            ),
+        ] {
+            let error = match verify_ir(function(body)) {
+                Err(error) => error,
+                Ok(_) => panic!("{label} passed checked IR verification"),
+            };
+            let diagnostic = error.to_string().to_ascii_lowercase();
+            assert!(
+                diagnostic.contains("match result")
+                    || diagnostic.contains("owned-place assignment")
+                    || diagnostic.contains("domin")
+                    || diagnostic.contains("schema")
+                    || diagnostic.contains("terminator"),
                 "{label}: {diagnostic}"
             );
         }

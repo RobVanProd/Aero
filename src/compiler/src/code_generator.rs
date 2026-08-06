@@ -272,6 +272,9 @@ impl CodeGenerator {
                 | Inst::CheckedOwnedPlaceAssignment { ty, .. } => {
                     Self::collect_logical_struct_schema(ty, schemas);
                 }
+                Inst::CheckedEnumMatchResultPlaceAlloca { schema, .. } => {
+                    Self::collect_logical_struct_schema(&schema.logical_type(), schemas);
+                }
                 Inst::CheckedImmutableBorrow { pointee, .. }
                 | Inst::CheckedMutableBorrow { pointee, .. }
                 | Inst::CheckedMutableDereferenceAssignment { pointee, .. }
@@ -395,6 +398,7 @@ impl CodeGenerator {
                 }
                 Inst::Alloca(ptr, _)
                 | Inst::CheckedMutableOwnedPlaceAlloca { result: ptr, .. }
+                | Inst::CheckedEnumMatchResultPlaceAlloca { result: ptr, .. }
                 | Inst::AllocaArray { result: ptr, .. }
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
@@ -822,6 +826,7 @@ impl CodeGenerator {
                 | Inst::FDiv(..)
                 | Inst::Alloca(..)
                 | Inst::CheckedMutableOwnedPlaceAlloca { .. }
+                | Inst::CheckedEnumMatchResultPlaceAlloca { .. }
                 | Inst::CheckedOwnedPlaceAssignment { .. }
                 | Inst::CheckedMutableDereferenceAssignment { .. }
                 | Inst::Store(..)
@@ -1212,6 +1217,13 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!(
                         "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
                     ));
+                }
+                Inst::CheckedEnumMatchResultPlaceAlloca { result, schema, .. } => {
+                    let Value::Reg(ptr_id) = result else {
+                        panic!("Expected register for checked enum Match result-place alloca")
+                    };
+                    let enum_type = Self::logical_type_to_llvm(&schema.logical_type());
+                    llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca {enum_type}, align 8\n"));
                 }
                 Inst::Alloca(ptr_reg, name) => {
                     let ptr_id = match ptr_reg {

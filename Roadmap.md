@@ -91,15 +91,25 @@ root gate, and local official LLVM/Clang 22.1.8 system lane pass. Character arit
 ordering, casts, strings/printing, literal-pattern execution, generic behavior, stable
 ABI/FFI, and accelerators remain excluded. All eight exact-head public checks and the
 stable/nightly pinned LLVM/Clang 22.1.8 exit-197 lanes pass.
-Local candidate `CORE-073` adds the next hard ownership slice: exact acyclic whole-owner
+Accepted public `CORE-073` adds the next hard ownership slice: exact acyclic whole-owner
 reinitialization for already admitted destructor-free enums. One shared transition
 classifier permits `Moved`/`MaybeMoved` to become exactly `Owned`; the verifier
 independently proves predecessor consumption, schema/value identity, dominance, and
 the checked write kill. The exhaustive source-to-native surface and local official
 LLVM/Clang 22.1.8 exit-199 gate pass. Every loop-contained reinitialization, partial
 move/projection, borrow/storage expansion, drop/lifetime behavior, and general CFG
-fixed point remains excluded pending separate semantics and evidence. Immutable
-publication and all-eight exact-head acceptance remain pending.
+fixed point remains excluded pending separate semantics and evidence. All eight
+exact-head public checks and pinned LLVM/Clang 22.1.8 exit-199 lanes pass.
+Local candidate `CORE-074` then adds a hard ADT/control-flow/ownership slice: an
+exhaustive Match may yield one fresh owned enum when all arms have the same admitted
+schema and their origin is a constructor, exact non-consuming enum-returning call, or
+recursively fresh nested Match. Exact checked result/dispatch identities and verifier
+CFG proof prevent missing, bypassed, repeated, post-merge, or wrong-schema fabrication.
+The composed direct-module/check/build and local complete gates pass; immutable
+publication, pinned native exit 203, and all-eight public acceptance remain pending.
+Identifier/conditional owner transport, aggregate results, broader patterns, storage/
+borrowing/projection, partial moves, drop/lifetimes, stable ABI, and generic/closure
+semantics remain separate work.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

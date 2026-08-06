@@ -172,6 +172,7 @@ pub(crate) enum EnumError {
     DuplicateArm(String),
     IncompleteCoverage,
     UnsupportedResult,
+    UnsupportedOwnedResultOrigin(usize),
     ResultMismatch {
         expected: Ty,
         actual: Ty,
@@ -269,8 +270,12 @@ impl EnumError {
                 "enum match must cover every declared variant exactly once".to_string()
             }
             Self::UnsupportedResult => {
-                "enum match arms must return Int, Float, Bool, or Char".to_string()
+                "enum match arms must return Int, Float, Bool, Char, or one fresh admitted enum"
+                    .to_string()
             }
+            Self::UnsupportedOwnedResultOrigin(arm) => format!(
+                "owned enum match result arm {arm} must produce a fresh constructor, exact enum-returning call without additional owned-enum consumption, or nested fresh-result Match"
+            ),
             Self::ResultMismatch { expected, actual } => {
                 format!("enum match arm result mismatch: expected {expected}, actual {actual}")
             }
@@ -799,6 +804,8 @@ impl EnumRegistry {
         arms: &[MatchArm],
         result_types: &[Ty],
         externally_consumed: &[String],
+        arm_owned_consumptions: &[Vec<String>],
+        lookup_call_result: impl Fn(&str) -> Option<Ty>,
         context: EnumExecutionContext,
     ) -> Result<ResolvedEnumMatch, EnumError> {
         if context != EnumExecutionContext::AdmittedFunction {
@@ -818,8 +825,29 @@ impl EnumRegistry {
         let Some(result) = result_types.first().cloned() else {
             return Err(EnumError::IncompleteCoverage);
         };
-        if PrimitiveKind::from_ty(&result).is_none() {
-            return Err(EnumError::UnsupportedResult);
+        match &result {
+            result if PrimitiveKind::from_ty(result).is_some() => {}
+            Ty::Enum(_) => {
+                let result_contract =
+                    self.resolve_fresh_owned_match_result(arms, &lookup_call_result)?;
+                if result_contract.ty() != result {
+                    return Err(EnumError::ResultMismatch {
+                        expected: result,
+                        actual: result_contract.ty(),
+                    });
+                }
+                if arm_owned_consumptions.len() != arms.len() {
+                    return Err(EnumError::IncompleteCoverage);
+                }
+                if let Some((arm, _)) = arm_owned_consumptions
+                    .iter()
+                    .enumerate()
+                    .find(|(_, consumed)| !consumed.is_empty())
+                {
+                    return Err(EnumError::UnsupportedOwnedResultOrigin(arm + 1));
+                }
+            }
+            _ => return Err(EnumError::UnsupportedResult),
         }
         for actual in result_types.iter().skip(1) {
             if actual != &result {
@@ -835,6 +863,65 @@ impl EnumRegistry {
             payload_bindings,
             result,
         })
+    }
+
+    fn fresh_owned_result_origin_type<F>(
+        &self,
+        expression: &Expression,
+        lookup_call_result: &F,
+    ) -> Option<Ty>
+    where
+        F: Fn(&str) -> Option<Ty>,
+    {
+        let ty = match expression {
+            Expression::EnumVariant { enum_name, .. } => Ty::Enum(enum_name.clone()),
+            Expression::FunctionCall { name, .. } => lookup_call_result(name)?,
+            Expression::Match { arms, .. } => {
+                return self
+                    .resolve_fresh_owned_match_result(arms, lookup_call_result)
+                    .ok()
+                    .map(|contract| contract.ty());
+            }
+            _ => return None,
+        };
+        match &ty {
+            Ty::Enum(name) if self.contract(name).is_ok() => Some(ty),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn resolve_fresh_owned_match_result<F>(
+        &self,
+        arms: &[MatchArm],
+        lookup_call_result: &F,
+    ) -> Result<EnumContract, EnumError>
+    where
+        F: Fn(&str) -> Option<Ty>,
+    {
+        let Some(first_arm) = arms.first() else {
+            return Err(EnumError::IncompleteCoverage);
+        };
+        let Some(result) = self.fresh_owned_result_origin_type(&first_arm.body, lookup_call_result)
+        else {
+            return Err(EnumError::UnsupportedOwnedResultOrigin(1));
+        };
+        for (arm, expression) in arms.iter().enumerate().skip(1) {
+            let Some(actual) =
+                self.fresh_owned_result_origin_type(&expression.body, lookup_call_result)
+            else {
+                return Err(EnumError::UnsupportedOwnedResultOrigin(arm + 1));
+            };
+            if actual != result {
+                return Err(EnumError::ResultMismatch {
+                    expected: result,
+                    actual,
+                });
+            }
+        }
+        let Ty::Enum(name) = result else {
+            return Err(EnumError::UnsupportedResult);
+        };
+        self.contract(&name)
     }
 
     pub(crate) fn consumed_owned_values<F, G>(

@@ -1656,11 +1656,14 @@ impl SemanticAnalyzer {
                     .resolve_match_patterns(&scrutinee, expr, arms, self.enum_execution_context())
                     .map_err(|error| error.diagnostic())?;
                 let mut result_types = Vec::with_capacity(arms.len());
+                let mut arm_owned_consumptions = Vec::with_capacity(arms.len());
                 for (arm, binding) in arms.iter_mut().zip(patterns.payload_bindings.iter()) {
                     self.push_enum_payload_bindings(binding);
                     let result = self.infer_and_validate_expression(&mut arm.body);
+                    let consumed = self.enum_consumed_names(&arm.body);
                     self.pop_enum_payload_binding();
                     result_types.push(result?);
+                    arm_owned_consumptions.push(consumed?);
                 }
                 let consumed = self.enum_consumed_names(expr)?;
                 self.enum_registry
@@ -1670,6 +1673,12 @@ impl SemanticAnalyzer {
                         arms,
                         &result_types,
                         &consumed,
+                        &arm_owned_consumptions,
+                        |name| {
+                            self.function_table
+                                .get_admitted_contract(name)
+                                .map(|contract| contract.return_type.clone())
+                        },
                         self.enum_execution_context(),
                     )
                     .map(|resolved| resolved.result)
@@ -2410,12 +2419,15 @@ impl SemanticAnalyzer {
                     .resolve_match_patterns(&scrutinee, expr, arms, self.enum_execution_context())
                     .map_err(|error| error.diagnostic())?;
                 let mut result_types = Vec::with_capacity(arms.len());
+                let mut arm_owned_consumptions = Vec::with_capacity(arms.len());
                 for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
                     self.push_enum_payload_bindings(binding);
                     let result = self
                         .infer_and_validate_expression_immutable_with_cache(&arm.body, array_types);
+                    let consumed = self.enum_consumed_names(&arm.body);
                     self.pop_enum_payload_binding();
                     result_types.push(result?);
+                    arm_owned_consumptions.push(consumed?);
                 }
                 let consumed = self.enum_consumed_names(expr)?;
                 self.enum_registry
@@ -2425,6 +2437,12 @@ impl SemanticAnalyzer {
                         arms,
                         &result_types,
                         &consumed,
+                        &arm_owned_consumptions,
+                        |name| {
+                            self.function_table
+                                .get_admitted_contract(name)
+                                .map(|contract| contract.return_type.clone())
+                        },
                         self.enum_execution_context(),
                     )
                     .map(|resolved| resolved.result)

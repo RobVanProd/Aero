@@ -70,6 +70,14 @@ pub enum Inst {
         name: String,
         ty: LogicalType,
     },
+    /// Verified compiler-owned storage for one exhaustive owned-enum Match result.
+    /// The place begins uninitialized and every reachable dispatch arm must write one
+    /// exact-schema value before the single merged load.
+    CheckedEnumMatchResultPlaceAlloca {
+        result: Value,
+        schema: EnumSchema,
+        dispatch_schema: EnumSchema,
+    },
     /// Verified whole-value reassignment of an existing admitted mutable owned place.
     CheckedOwnedPlaceAssignment {
         target: Value,

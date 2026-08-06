@@ -43,6 +43,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Positional multi-field recursive CopyData enum variants | Y | - | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Enums and construction | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Pattern matching | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Fresh owned-enum Match-expression results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
@@ -77,14 +78,24 @@ evidence. Arithmetic/order/casts, strings/printing, executable literal patterns,
 generic/trait behavior, public layout/ABI/FFI, accelerators, and stability remain
 unsupported; the row cannot move beyond `PARTIAL`.
 
-Local candidate `CORE-073` adds only acyclic whole-owner reinitialization for the
+Accepted public `CORE-073` adds only acyclic whole-owner reinitialization for the
 already admitted destructor-free enum class. Exact writes from `Moved` or
 `MaybeMoved` restore the target to `Owned` through one shared transition authority,
 while independent verification proves predecessor consumption, exact schema/value,
 dominance, and the checked write kill. Every loop-contained reinitialization, partial
 move/projection, enum aggregate storage or borrowing, destructor/drop/lifetime rule,
-and general CFG fixed point remains unsupported; the row stays `PARTIAL` until public
-acceptance and does not broaden the aggregate topology.
+and general CFG fixed point remains unsupported; the row stays `PARTIAL` and does not
+broaden the aggregate topology.
+
+Local candidate `CORE-074` admits only fresh owned-enum results from exhaustive
+identifier-bound Match expressions. Every arm must produce the same already admitted
+enum through a constructor, exact call without additional owned-enum consumption, or
+recursively fresh nested Match. Exact checked result/dispatch schemas, one distinct
+target-dominated assignment per arm, all-path initialization, one merged load, and
+later ownership are independently verified. Identifier/conditional owner transport,
+aggregate Match results, broader patterns, enum storage/borrowing/projection, partial
+moves, drop/lifetimes, stable ABI, and general CFG semantics remain excluded; the row
+is `PARTIAL` and public acceptance is pending.
 
 ## Compiler, tooling, and ecosystem surfaces
 

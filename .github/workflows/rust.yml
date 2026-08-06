@@ -823,6 +823,34 @@ jobs:
         fi
         echo "acyclic owned enum reinitialization example passed with exit code 199"
 
+    - name: Test fresh owned enum Match result integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/owned_enum_match_results/main.aero
+        set +e
+        cargo run -- run ../../examples/owned_enum_match_results/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 203 ]; then
+          echo "Public run returned $public_run_exit, expected 203"
+          exit 1
+        fi
+        cargo run -- build ../../examples/owned_enum_match_results/main.aero -o ../../owned_enum_match_results.ll
+        opt-22 -passes=verify -disable-output ../../owned_enum_match_results.ll
+        llc-22 -verify-machineinstrs ../../owned_enum_match_results.ll -o /dev/null
+        llc-22 -filetype=obj ../../owned_enum_match_results.ll -o ../../owned_enum_match_results.o
+        clang-22 -no-pie ../../owned_enum_match_results.o -o ../../owned_enum_match_results
+        set +e
+        ../../owned_enum_match_results
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 203 ]; then
+          echo "Expected exit code 203, got $exit_code"
+          exit 1
+        fi
+        echo "fresh owned enum Match result example passed with exit code 203"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

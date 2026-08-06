@@ -1,0 +1,35 @@
+enum Input {
+    Empty,
+    Count(int)
+}
+
+enum Output {
+    Empty,
+    Count(int)
+}
+
+fn make_empty() -> Output { Output::Empty }
+
+fn translate(input: Input) -> Output {
+    match input {
+        Input::Empty => make_empty(),
+        Input::Count(number) => match Input::Count(number) {
+            Input::Empty => Output::Empty,
+            Input::Count(inner) => Output::Count(inner)
+        }
+    }
+}
+
+fn score(value: Output) -> int {
+    match value {
+        Output::Empty => 0,
+        Output::Count(number) => number
+    }
+}
+
+fn exercise() -> int {
+    let mut result = translate(Input::Count(1));
+    let consumed = score(result);
+    result = translate(Input::Count(203));
+    score(result)
+}

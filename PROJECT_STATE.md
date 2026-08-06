@@ -4,27 +4,39 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 93 `CORE-073` is a locally green acyclic whole-owner reinitialization
-candidate for the already admitted destructor-free enum class. One shared assignment
-authority now classifies an exact whole-place write as ordinary replacement,
-`Moved` reinitialization, or `MaybeMoved` reinitialization. Semantic analysis and
-checked admission consume the same transition and establish exactly `Owned`; the
-independent verifier reconstructs predecessor consumption and proves that only the
-checked write kills the prior state. Generic stores, missing writes, wrong schemas,
-and non-dominating values fail verification.
+Milestone 94 `CORE-074` is a locally green fresh owned-enum Match-result candidate.
+One shared result-origin classifier admits exhaustive Match expressions only when every
+arm produces the same admitted enum through a fresh constructor, an exact enum-returning
+call with no additional owned-enum consumption, or a recursively fresh nested Match.
+Identifier transport, external enum consumption, aggregate results, and mixed result
+schemas fail before checked IR.
 
-The complete red-first target covers alias/call/Match/assignment consumption,
-straight-line and nested blocks, all-arm and partial-arm joins, condition consumption,
-returning arms, repeated writes, direct modules, and later Match/call/return. Every
-lexically `while`/`for`/`loop`-contained reinitialization remains rejected before
-checked IR because break/continue and backedge joins are not frozen. The all-target/
-all-feature surface passes at 190/190 library and 196/196 binary tests plus every
-integration and benchmark target. Official LLVM/Clang 22.1.8 public check/run/build,
-external and machine verification, object lowering, link, and native execution pass
-locally at exact exit 199. Formatting, checking, correctness Clippy, docs, verifier
-corruption controls, all-target/all-feature testing, and the exact repository-root gate
-pass. The immutable commit/push, rendered PR synchronization, and all eight exact-head
-public checks remain candidate gates; no public acceptance is claimed yet.
+The checked pipeline introduces one exact result-place identity carrying independent
+result and dispatch schemas. The verifier proves one distinct dispatch-target-dominated
+assignment per arm, exact schema/value identity, all-path initialization, one merged
+load, and later ownership consumption; generic stores, bypass edges, post-merge
+fabrication, repeated/missing writes, and non-dominating values fail closed. The
+complete product covers every already admitted enum payload schema, different/same
+scrutinee identity, constructor/call/nested origins, binding/call/return/re-Match,
+replacement and acyclic reinitialization, direct modules, public check/build artifact
+hygiene, deterministic LLVM, 191/191 library tests, 197/197 binary tests, formatting,
+all-target/all-feature check and correctness Clippy, docs, and the exact root gate.
+This Windows host has no LLVM 22 verifier, so pinned public LLVM/Clang 22.1.8 external/
+machine/object/link/native exit-203 evidence, immutable publication, PR synchronization,
+and all eight exact-head checks remain candidate gates; no public CORE-074 acceptance is
+claimed.
+
+Milestone 93 `CORE-073` is accepted public at exact implementation commit
+`ef2eaa380cccf32e21df8938479e30bcd467cdaa`, tree
+`88f3b0c0d542bcce77e2b53de0c3bf737fb6f629`, and stable patch ID
+`0714282415bb51f11fedb6dada583dcb8d136f6d`. One shared assignment authority
+classifies ordinary enum replacement and exact acyclic `Moved`/`MaybeMoved`
+reinitialization, while independent checked verification proves predecessor
+consumption and the checked write kill. All eight exact-head public checks pass;
+stable/nightly pinned LLVM/Clang 22.1.8 externally and machine verify, object-lower,
+link, and execute exact exit 199. Every loop-contained reinitialization, partial move/
+projection, enum borrow/storage expansion, drop/lifetime rule, and general CFG fixed
+point remains unsupported.
 
 Milestone 92 `CORE-072` is accepted public at exact implementation commit
 `4693f11d18135d76b5a7ec16b385563c07272955`, tree
@@ -2194,10 +2206,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push one immutable CORE-073 acyclic enum-owner reinitialization candidate,
+Commit and push one immutable CORE-074 fresh owned-enum Match-result candidate,
 then synchronize draft PR #4 immediately. Require one all-eight exact-head public set
 with independent stable/nightly pinned LLVM/Clang 22.1.8 external verification,
-machine verification, object/link, public `run`, and exact native exit 199 before
+machine verification, object/link, public `run`, and exact native exit 203 before
 recording public acceptance in rendered PR metadata. Keep the PR draft and unmerged.
 The controlled mega-PR
 checkpoint strategy, structured evidence-manifest generator, hard ownership/module/

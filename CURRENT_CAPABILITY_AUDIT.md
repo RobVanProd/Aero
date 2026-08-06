@@ -8,7 +8,24 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-073` is a locally green acyclic whole-owner enum-reinitialization candidate.
+- `CORE-074` is a locally green fresh owned-enum Match-result candidate. One shared
+  recursive origin classifier admits identical admitted enum results from constructors,
+  exact calls without additional enum-owner consumption, and nested fresh Matches.
+  One checked result-place identity retains distinct result/dispatch schemas; independent
+  verification proves one target-dominated write per arm, all-path initialization, exact
+  schema/value identity, one merged load, and subsequent ownership. The every-schema,
+  context, module, CLI, deterministic-LLVM, and malformed-IR matrix passes with 191
+  library and 197 binary tests, full check/Clippy/docs/root gates, and no rejected-path
+  artifact. Identifier/conditional transport, aggregate results, broader patterns,
+  enum storage/borrowing/projection, partial moves, drop/lifetimes, stable ABI, and
+  general closure/generic semantics remain excluded. This host lacks LLVM 22; immutable
+  publication, pinned LLVM/Clang 22.1.8 native exit 203, rendered PR synchronization,
+  and the all-eight exact-head public set remain candidate gates.
+
+- `CORE-073` is accepted public for acyclic whole-owner enum reinitialization at
+  `ef2eaa380cccf32e21df8938479e30bcd467cdaa`, tree
+  `88f3b0c0d542bcce77e2b53de0c3bf737fb6f629`, and stable patch
+  `0714282415bb51f11fedb6dada583dcb8d136f6d`.
   One shared assignment authority classifies ordinary replacement and exact
   `Moved`/`MaybeMoved` reinitialization; semantic analysis and checked admission
   consume the same transition and establish `Owned`. Independent checked verification
@@ -19,10 +36,10 @@ Branch: `agent/aero-integration`
   assignment consumption; constructor/call/distinct-owner origins; exact acyclic joins;
   later Match/call/return; and deterministic LLVM. All 190 library and 196 binary tests
   plus every integration/benchmark target pass, as do formatting, check, correctness
-  Clippy, docs, verifier corruption controls, and the exact root gate. Official
-  LLVM/Clang 22.1.8 externally verifies, machine-verifies, object-lowers, links, and
-  executes exact exit 199 locally. Commit/push, rendered PR synchronization, and the
-  all-eight exact-head public set remain. Every loop-contained reinitialization,
+  Clippy, docs, verifier corruption controls, and the exact root gate. All eight
+  exact-head public checks pass, while pinned stable/nightly LLVM/Clang 22.1.8
+  externally verifies, machine-verifies, object-lowers, links, and executes exact exit
+  199. Every loop-contained reinitialization,
   projection/partial move, borrow/storage expansion, destructor/drop/lifetime rule,
   stable ABI, and general CFG fixed point remains unsupported.
 
@@ -2082,8 +2099,8 @@ promise future compatibility.
   entry state, while a definitely returning arm contributes no fallthrough state.
 - Loop-condition consumption and ownership changes reaching a loop backedge reject
   through the same classifier. Loop fixed points, `break`/`continue` transport,
-  conditional reinitialization, and general CFG ownership were not admitted. Local
-  candidate CORE-073 later supersedes only the exact acyclic whole-owner
+  conditional reinitialization, and general CFG ownership were not admitted. Accepted
+  CORE-073 later supersedes only the exact acyclic whole-owner
   reinitialization boundary; loop-contained reinitialization remains rejected.
 - The verifier independently maps enum-valued loads back to their owning place and
   computes consumed-owner unions through the checked CFG. It accepts mutually
@@ -2119,7 +2136,8 @@ promise future compatibility.
 
 - The exact selected grammar is a unique nongeneric nonempty enum whose variants are
   unit or contain exactly one value from the accepted recursive `CopyData` grammar.
-  Enum values remain non-Copy and Match results remain scalar.
+  Enum values remain non-Copy. Match results were scalar at this checkpoint; local
+  candidate CORE-074 later supersedes only the exact fresh owned-enum result class.
 - `EnumRegistry` delegates payload annotation classification to `StructRegistry`;
   semantic initialization/preflight/inference and checked admission consume resolved
   arm binding types instead of scalar placeholders or topology-specific rules.

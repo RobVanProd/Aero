@@ -14605,3 +14605,231 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   remain separately authorized scaling tasks. The recommended next action is the exact
   immutable publication sequence only; do not stack another implementation on a red
   public candidate.
+
+## CORE-074 - Fresh owned-enum results from exhaustive Match expressions
+
+- Task ID/date/owner: `CORE-074`, 2026-08-05, lead-owned red-first coupled
+  source-to-native vertical slice starting from accepted-public CORE-073 commit
+  `ef2eaa380cccf32e21df8938479e30bcd467cdaa`, tree
+  `88f3b0c0d542bcce77e2b53de0c3bf737fb6f629`, and stable patch ID
+  `0714282415bb51f11fedb6dada583dcb8d136f6d`. Local, origin integration, and
+  draft PR #4 heads are identical; all eight exact-head public checks pass and stable/
+  nightly LLVM/Clang 22.1.8 execute exact exit 199. `master` and `origin/master`
+  remain `8f8c7337a4008082fd2a443fcc814b5847b8663f`. User-owned untracked `tmp/`
+  remains outside this task and must stay untouched.
+- Authoritative source and selection: the founding framework grammar defines `match`
+  over an expression with expression-valued arms, calls it a powerful exhaustive
+  pattern-matching expression over enums, requires strong static typing/type inference,
+  and assigns each value one owner. The current shared enum-Match contract nevertheless
+  rejects every non-primitive result after accepting only `Int`, `Float`, `Bool`, and
+  `Char`. The existing checked lowerer already dispatches by exact schema, stores one
+  arm result into a merge place, and loads it after the join. This is therefore a hard
+  ADT/control-flow/ownership/backend capability with an explicit founding basis, not an
+  invented generic pattern or another convenient primitive leaf.
+- Observed behavior and initial hypothesis: an exhaustive Match whose arms each build
+  the same admitted enum currently stops in semantic analysis at
+  `enum match arms must return Int, Float, Bool, or Char`; no owned result reaches
+  checked IR or LLVM. One shared result classifier can admit an identical
+  `Ty::Enum` only when its registry schema is already admitted and every arm is a fresh
+  owned producer. Lowering can use one exact checked owned result place, one store on
+  every dispatch predecessor, and one post-dominating load; the verifier can prove
+  schema identity, all-path initialization, dominance, consumption, and later use
+  independently.
+- Frozen result class: the scrutinee and explicit exhaustive identifier-bound patterns
+  remain exactly the CORE-049/051/063/069 class. Every reachable arm result has the
+  identical admitted non-generic enum type. A supported result origin is exactly an
+  already admitted enum constructor, an exact named call whose result has that enum
+  type and whose arguments introduce no additional owned-enum consumption, or a nested
+  CORE-074 Match whose own scrutinee/result origins are fresh and introduce no external
+  owned-enum consumption. Constructor payloads remain recursively finite CopyData and
+  are evaluated once only in the selected arm. Result enums may differ from the
+  scrutinee enum and may use unit, unary, positional multi-field, Char, fixed-array,
+  tuple, finite named-struct, and matrix payload schemas already admitted.
+- Ownership contract: matching an identifier scrutinee consumes it under the existing
+  rule. Only the dynamically selected arm constructs one fresh result owner; unselected
+  arms do not evaluate. The merged Match expression yields exactly one owned enum value.
+  It may initialize an inferred or exact immutable/mutable local, be passed or returned,
+  be consumed by another exhaustive Match, replace an `Owned` mutable target, or
+  reinitialize a `Moved`/`MaybeMoved` target under CORE-073 outside loops. No source
+  binding is rehabilitated merely because it appears in an unselected arm.
+- Explicit result exclusions: a bare identifier arm result, a call arm that consumes an
+  additional owned enum, a nested Match over an externally owned identifier, borrowed/
+  dereferenced/projected/indexed results, struct/array/tuple results, String/collection,
+  Option/Result, generic/named-field/cyclic/invalid enum definitions, wildcard/guard/
+  nested destructuring, and different arm types remain rejected through one shared
+  deterministic result diagnostic. These exclusions prevent conditional owner
+  transport, aggregate-result expansion, partial move, or drop/lifetime semantics from
+  entering under an enum-result label.
+- Checked IR and verifier contract: no source syntax, AST shape, public enum layout, or
+  stable ABI changes. Reuse exact `CheckedEnumDispatch`, admitted enum constructor/call
+  values, and a checked owned result place carrying the exact `LogicalType::Enum`.
+  Every dispatch target must store one exact-schema value before the shared end block;
+  the merged load defines one enum value tied to that result place. Independent
+  verification must reject a generic/untyped result allocation, a missing predecessor
+  store, wrong schema/value/place, non-dominating arm value, bypass edge, result load
+  before complete initialization, double later consumption, and raw checked identity
+  activation. If this requires a new IR opcode or representation contract rather than
+  a precise reuse of existing checked identities, stop and amend the authorization
+  before production mutation.
+- Red-first and exhaustive positive evidence: after this record and before production
+  changes, add one focused target whose smallest constructor-result Match parses and
+  fails at the current primitive-only diagnostic. The complete product must cover every
+  admitted result schema; same/different scrutinee schema; inferred/exact mutable and
+  immutable bindings; constructor, zero-owned-argument enum-returning call, and nested
+  fresh Match origins; direct expression return/call/re-Match; CORE-064 replacement and
+  CORE-073 moved/maybe-moved reinitialization; condition/nested block and returning-arm
+  contexts; direct modules; deterministic checked metadata/LLVM; library and public
+  check/build/run; requested-artifact hygiene; workflow anchors; and exact native exit
+  203.
+- Negative completion surface: all result-origin and topology exclusions above; arm
+  result type/schema mismatch; non-exhaustive/duplicate/foreign patterns; scrutinee or
+  arm reuse after move; extra owned argument consumption; identifier result transport;
+  nested external-owner Match; loop-contained CORE-073 reinitialization; enum aggregate
+  storage/borrowing/projection; malformed checked result-place CFG; closure/use/generic/
+  trait/runtime quarantines; and no-artifact behavior on every rejected public command.
+  Existing primitive Match results and CORE-043 through CORE-073 must remain unchanged.
+- Allowed files: this ledger; `src/compiler/src/enum_match_contract.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs`; only if the frozen
+  checked-result proof demonstrates an unavoidable identity gap and this record is
+  amended first, `ir.rs` and `code_generator.rs`; one new exhaustive
+  `src/compiler/tests/owned_enum_match_result_tests.rs`; only directly superseded Match
+  negative expectations; one tracked two-file
+  `examples/owned_enum_match_results/{main,values}.aero`; `.github/workflows/rust.yml`;
+  and, only after exact green, current state/capability/matrix/framework/roadmap/
+  decision/risk/README records plus draft PR #4. Parser, lexer, AST, type shapes,
+  dependencies, runtime, claim-verification, unrelated tests, and `master` are frozen.
+- Acceptance gates: exact red then green; focused unit/unary/recursive/multi-field enum
+  Match, transport, reassignment, conditional, loop-local, Char, CORE-073, function/
+  reference/module/closure compatibility targets; verifier corruption controls;
+  all-target/all-feature tests and check; formatting; correctness Clippy; docs; exact
+  root `./tools/test.sh`; public check/build/run and artifact hygiene; official
+  LLVM/Clang 22 external and machine verification, object/link/native exit 203; one
+  immutable commit; immediate draft PR #4 candidate synchronization; all eight exact-
+  head public checks; then accepted-public PR wording without a records-only commit.
+- Risks and stop conditions: stop rather than approximate if arm evaluation becomes
+  eager, a result can exist without one dominating exact store, ownership soundness
+  depends on verifier-only rejection, conditional identifier-owner transport is needed,
+  the shared contract cannot classify the complete fresh-result class, a new layout/
+  opcode/drop/lifetime rule is required, more than the frozen coupled phases must
+  change, a test/spec must be weakened, or an unrelated baseline is red. No general
+  aggregate Match results, partial moves, loop fixed points, drop/lifetimes, stable
+  layout/ABI/FFI, accelerators, benchmarks, releases, safety/stability claims, merge,
+  force-push, or history rewrite are authorized.
+- Scaling controls: CORE-074 is a hard multi-phase ADT/ownership execution class after
+  CORE-073's hard CFG slice. One result-origin classifier and one exhaustive product
+  prevent per-schema/arm guard growth; the two-file source-to-native specimen supplies
+  the periodic composed system gate. PR #4 remains a 271-commit integration program
+  requiring separately authorized checkpoint/merge strategy, and structured evidence-
+  manifest generation remains incidental future workflow work rather than the primary
+  milestone.
+- Red-first evidence: after this authorization and before any production mutation,
+  `cargo test --manifest-path src/compiler/Cargo.toml --test
+  owned_enum_match_result_tests -- --nocapture` builds and runs the new focused target
+  but exits 1 at 0/1. The exact fresh constructor-result program parses, resolves both
+  admitted enum schemas, and stops in semantic Match result validation at
+  `enum match arms must return Int, Float, Bool, or Char`. No checked IR, LLVM, or
+  executable result is produced. This is the required behavioral red on accepted CORE-
+  073, not a parser, Cargo, subprocess, Windows Security, or missing-tool failure.
+
+### CORE-074 checked-result identity amendment
+
+- Discovery before further production: the first admitted semantic attempt reached
+  checked IR, where the verifier rejected a generic branch-local `Store` because a
+  checked mutable place permits that opcode only as its single adjacent initializer.
+  Replacing the arm stores with `CheckedOwnedPlaceAssignment` was also rejected because
+  that identity intentionally requires the target to have an adjacent declaration
+  initializer. Both failures are correct and prove that the existing binding/replacement
+  identities cannot honestly represent an uninitialized branch-merge result place.
+- Amended checked contract: add one explicit
+  `CheckedEnumMatchResultPlaceAlloca { result, schema }` identity for compiler-owned,
+  initially uninitialized storage created immediately before one exact
+  `CheckedEnumDispatch`. Reuse `CheckedOwnedPlaceAssignment` for each arm write only
+  after the verifier distinguishes this result-place identity from an initialized
+  source binding. The verifier must compute definite initialization across CFG
+  predecessors and allow a result-place `Load` only when every reachable dispatch arm
+  has executed an exact-schema assignment. A generic `Store`, non-dispatch write,
+  missing/bypassed arm, wrong schema, non-dominating value, premature load, or repeated
+  initialization on one path must reject. This identity does not manufacture a default
+  enum and adds no source-visible mutation or layout.
+- Amended files and stop condition: `src/compiler/src/ir.rs` and
+  `code_generator.rs` are now allowed solely for the new checked result-place identity
+  and its unchanged private enum alloca lowering; `ir_verifier.rs` owns independent CFG
+  validation. No other opcode, generic aggregate result place, public ABI, or runtime
+  representation is authorized. Stop again if definite initialization cannot be
+  proven within this exact dispatch/result-place contract or if backend lowering needs
+  more than the existing enum physical type.
+
+#### CORE-074 result/dispatch schema correction
+
+- The first executable candidate correctly exposed that the checked result schema and
+  the dispatch scrutinee schema are independent: the founding/frozen class explicitly
+  permits a Match from one enum to another. The initial amendment's singular `schema`
+  wording therefore over-constrained the identity rather than the language. The exact
+  opcode carries both `schema` (the result place type) and `dispatch_schema` (the
+  immediately following dispatch identity); the verifier validates and registers both,
+  requires the adjacent dispatch to equal only `dispatch_schema`, and still requires
+  every arm assignment/load to equal `schema`. No result class, layout, or ownership
+  rule changes. The minimal different-schema source now passes checked IR and LLVM,
+  while corruption coverage must prove that changing either identity fails closed.
+
+### CORE-074 locally green candidate evidence
+
+- Implementation result: one shared recursive result-origin classifier now admits
+  exhaustive Match expressions whose arms produce the identical already admitted enum
+  from a constructor, an exact named call with no additional owned-enum consumption,
+  or a recursively fresh nested Match. Both semantic inference paths and checked
+  admission consume the classifier plus the existing ownership-consumption authority.
+  Bare identifiers, extra enum-owner consumption, nested external scrutinees, mixed
+  enums, arrays/structs/references, incomplete/foreign patterns, reuse, and loop-
+  contained reinitialization fail before trusted LLVM.
+- Checked identity and proof: `CheckedEnumMatchResultPlaceAlloca` records independent
+  result and dispatch schemas and lowers only to the existing exact private enum type.
+  Verification requires the immediately adjacent exact dispatch, one static assignment
+  dominated by each distinct dispatch target, a one-to-one target/write mapping, exact
+  schema/value/dominance, all-path initialization, exactly one merged load, and valid
+  subsequent ownership. Twelve corruption controls cover generic allocation/store,
+  missing/bypass/repeated/post-merge writes, changed result/dispatch/assignment schemas,
+  non-dominating values, premature and duplicate loads; all fail closed. The deprecated
+  raw generator cannot activate the checked identity.
+- Positive evidence: the exhaustive product covers every admitted unit, unary,
+  positional multi-field, Char, fixed-array, tuple, finite named-struct, and matrix
+  payload schema; same/different input/result enum identities; inferred/exact bindings;
+  constructor, scalar-only/zero-owned-argument call, and nested fresh origins; direct
+  call/return/re-Match; owned replacement; moved/maybe-moved reinitialization; returning
+  arms; flattened direct modules; deterministic checked metadata/LLVM; and tracked
+  public check/build/run/native workflow anchors at exact sentinel 203.
+- Commands and results: focused `owned_enum_match_result_tests` passes 3/3; the focused
+  verifier corruption unit passes; all 191 library and all 197 binary tests pass; the
+  enum/ownership/function/reference/module/closure/Char compatibility ring passes;
+  `cargo test --all-features`, `cargo check --all-targets --all-features`, formatting,
+  correctness Clippy, and no-dependency docs pass. The final exact Git Bash repository
+  root `./tools/test.sh` rerun exits 0 in 24.2 seconds after documentation synchronization.
+  An exploratory `cargo test --all-targets --all-features` exceeded the 240-second
+  orchestration timeout while compiling benchmark targets and is not claimed; its exact
+  child processes completed before the authoritative gates. The repository gate does
+  not define benchmark execution as a test requirement.
+- CLI/native boundary: the tracked two-file example passes local public `check` and
+  `build`, emits deterministic LLVM, and rejected programs leave no requested artifact.
+  Local `run` stops at the required verifier boundary because this Windows host has no
+  `opt-22`/`llvm-as-22`; no local native result is claimed. Pinned stable/nightly
+  LLVM/Clang 22.1.8 external/machine/object/link/native exit 203 remains a public
+  acceptance gate. The one accidental exploratory `tmp/core074_candidate.ll` file was
+  identified immediately and removed exactly; all pre-existing user-owned untracked
+  `tmp/` content remains untouched and outside staging.
+- Files changed: `.github/workflows/rust.yml`; this ledger; current state, capability,
+  matrix, framework, roadmap, decision, risk, and README records;
+  `src/compiler/src/{enum_match_contract,semantic_analyzer,ir,ir_generator,
+  ir_verifier,code_generator}.rs`; the directly superseded unit-enum diagnostic
+  expectation; new `src/compiler/tests/owned_enum_match_result_tests.rs`; and new
+  tracked `examples/owned_enum_match_results/{main,values}.aero`.
+- Candidate/public separation and remaining risk: this is locally green only until one
+  immutable commit is pushed, draft PR #4 is synchronized to that exact head, all eight
+  exact-head checks pass, and pinned stable/nightly native exit 203 is independently
+  observed. Conditional or identifier-owner result transport, non-enum aggregate
+  Match results, borrowed/projected/indexed results, wider patterns, enum fields/arrays/
+  storage/borrowing, partial moves, loop-contained reinitialization, drop/destructor/
+  lifetime rules, stable layout/ABI/FFI, general CFG ownership, generic/closure semantics,
+  accelerators, performance, release, safety/stability, merge, mega-PR checkpoint policy,
+  and structured checkpoint-manifest generation remain excluded or separately
+  authorized. Recommended next action is immutable candidate publication only; do not
+  stack another implementation on an unaccepted public head.

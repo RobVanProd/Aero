@@ -3147,8 +3147,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-069 - Admit exact acyclic whole-owner enum reinitialization
 
 - Date: 2026-08-05
-- Status: locally green `CORE-073` candidate; immutable commit/push, rendered PR
-  synchronization, and all-eight stable/nightly exact-head acceptance remain pending.
+- Status: accepted public `CORE-073` at exact implementation commit
+  `ef2eaa380cccf32e21df8938479e30bcd467cdaa`, tree
+  `88f3b0c0d542bcce77e2b53de0c3bf737fb6f629`, and stable patch ID
+  `0714282415bb51f11fedb6dada583dcb8d136f6d`; all eight exact-head checks pass.
 - Decision: for an originally initialized mutable local of the already admitted
   destructor-free enum class, an exact whole-place write may transition `Owned`,
   `Moved`, or `MaybeMoved` to exactly `Owned` when the assignment is outside every
@@ -3176,8 +3178,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   CLI artifact hygiene; corruption controls; and deterministic LLVM. All 190 library
   and 196 binary tests plus every integration/benchmark target pass. Formatting,
   all-target/all-feature check, correctness Clippy, docs, and the exact root gate pass.
-  Official LLVM/Clang 22.1.8 externally verifies, machine-verifies, object-lowers,
-  links, and executes the two-file candidate locally at exact exit 199.
+  Pinned stable/nightly LLVM/Clang 22.1.8 externally verifies, machine-verifies,
+  object-lowers, links, and executes the two-file program at exact exit 199.
 - Exclusions and scaling boundary: every loop-contained reinitialization, outer-owner
   loop/backedge/break/continue join, partial move or projection, enum borrowing or
   aggregate storage expansion, destructor/drop/lifetime behavior, general CFG
@@ -3185,3 +3187,44 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   stability, and PR merge remain excluded. The shared transition classifier and one
   exhaustive class target contain rule/evidence growth; mega-PR checkpointing and a
   structured checkpoint manifest remain separately authorized future work.
+
+## DEC-070 - Admit fresh owned-enum results from exhaustive Match expressions
+
+- Date: 2026-08-05
+- Status: locally green `CORE-074` candidate; immutable commit/push, rendered PR
+  synchronization, pinned native exit 203, and all-eight exact-head public acceptance
+  remain pending.
+- Decision: an exhaustive identifier-bound Match over an already admitted enum may
+  yield one owned enum value when every reachable arm has the identical admitted result
+  schema and its result origin is exactly a fresh constructor, an exact named call with
+  no additional owned-enum consumption, or a recursively fresh nested Match. The result
+  may initialize an inferred/exact local, be passed/returned/re-Matched, replace an
+  owned mutable target, or reinitialize a moved/maybe-moved target under CORE-073.
+- Shared authority: `EnumRegistry::resolve_fresh_owned_match_result` recursively owns
+  the result-origin/schema partition. Both semantic inference paths and independent
+  checked admission combine it with the existing exhaustive-pattern and owner-
+  consumption authorities. Bare identifier results, calls consuming an additional
+  enum owner, nested Matches consuming an external enum, mixed schemas, and non-enum
+  aggregate results reject deterministically before trusted lowering.
+- Independent proof and lowering: `CheckedEnumMatchResultPlaceAlloca` carries distinct
+  result and dispatch schemas and begins uninitialized. The verifier requires its exact
+  adjacent dispatch, one static assignment dominated by each distinct dispatch target,
+  exact assignment schema/value/dominance, all-path initialization, one merged load,
+  and valid later ownership. Generic allocation/store, bypass, missing/repeated write,
+  post-merge fabrication, wrong schema, premature/duplicate load, and non-dominating
+  values fail closed. LLVM reuses the existing private enum physical type and adds no
+  default value, new layout, public ABI, or runtime rule.
+- Evidence: the red constructor-result program stopped at the former primitive-only
+  Match-result diagnostic. The green product covers every existing enum payload schema,
+  same/different input/result schemas, constructor/call/nested origins, all frozen use
+  contexts, direct modules, deterministic checked IR/LLVM, CLI artifact hygiene, and 12
+  malformed-IR controls. The complete local surface passes at 191 library and 197
+  binary tests, formatting, all-target/all-feature check, correctness Clippy, docs, and
+  exact root `./tools/test.sh`. This Windows host has no LLVM 22 verifier, so no local
+  native claim is made.
+- Exclusions and scaling boundary: conditional/bare-identifier owner transport,
+  aggregate Match results, borrowed/projected/indexed results, wider patterns, enum
+  fields/arrays/general storage, partial moves, drop/destructor/lifetime rules, loop-
+  contained reinitialization, stable layout/ABI/FFI, generic/closure semantics,
+  accelerators, performance, release, safety, stability, PR merge, mega-PR checkpoint
+  policy, and checkpoint-manifest automation remain separate work.
