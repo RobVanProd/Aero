@@ -4,8 +4,13 @@ Last updated: 2026-08-06 (America/New_York)
 
 ## Current objective
 
-Milestone 98 `CORE-078` is a locally green pinned Windows x86_64 native-system-gate
-candidate. It changes no compiler source or language semantics. One new
+Milestone 98 `CORE-078` is in a locally green pinned Windows x86_64
+native-system-gate replacement candidate. Exact public candidate
+`3e3910f522bc18cd34271adb1db306904a6dbe63` was correctly rejected by Windows job
+`92569807493`: the official installer digest and invocation passed, but the disproven
+custom destination contained no `opt.exe`. The red-first repair now uses LLVM's
+official `$PROGRAMFILES64\LLVM` default and forbids that `/D=` override. It changes no
+compiler source or language semantics. One new
 `windows-latest` job downloads the official LLVM 22.1.8 win64 installer, verifies exact
 SHA-256 `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`
 before installation, and requires exact `opt`/`llvm-as`/`llc`/`clang` 22.1.8. The job
@@ -14,8 +19,8 @@ artifact hygiene, external and machine verification, COFF object generation,
 Clang/MSVC linking, public `run`, manual execution, and exact exit 227. The focused
 red/green target passes 1/1; all 195 library and 201 binary tests, every integration/doc
 target, formatting, check, correctness Clippy, docs, and exact root gate pass locally.
-Immutable publication and the expanded nine-check public set remain pending; no local
-LLVM 22 or Windows-native acceptance claim is made.
+Replacement publication and the expanded nine-check public set remain pending; no
+local LLVM 22 or Windows-native acceptance claim is made.
 
 Milestone 97 `CORE-077` is accepted public at exact commit
 `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree
@@ -2246,7 +2251,7 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push one immutable CORE-078 pinned Windows x86_64 system-gate candidate,
+Commit and push one immutable CORE-078 pinned Windows x86_64 system-gate replacement,
 then synchronize draft PR #4 immediately. Require the expanded all-nine exact-head
 public set: the existing Linux stable/nightly pinned LLVM/Clang 22.1.8 exits 149/223/
 227 plus the SHA-256-pinned Windows LLVM/Clang 22.1.8 external/machine/COFF/link/public-

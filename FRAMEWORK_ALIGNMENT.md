@@ -241,8 +241,11 @@ Local candidate `CORE-078` advances the framework's portability/reproducibility
 direction without changing the language. The official Windows x86_64 LLVM/Clang
 22.1.8 installer is pinned by release SHA-256, and one public MSVC lane must prove the
 existing host target header, invalid-build hygiene, external/machine verification,
-COFF object generation, linking, public `run`, manual execution, and exit 227. Local
-contract and complete gates pass; public Windows evidence remains pending.
+COFF object generation, linking, public `run`, manual execution, and exit 227. The
+first public candidate was rejected at its disproven custom installer destination; a
+red/green repair now requires LLVM's official `$PROGRAMFILES64\LLVM` default and
+forbids `/D=`. Local contract and complete gates pass; public Windows evidence remains
+pending.
 
 | Framework direction | Current evidence | Required next proof |
 |---|---|---|

@@ -8,8 +8,13 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-078` is a locally green public-Windows-system-gate candidate and changes no
-  compiler source or language semantics. One `windows-latest` stable job downloads the
+- `CORE-078` is in a locally green public-Windows-system-gate replacement and changes
+  no compiler source or language semantics. Exact candidate
+  `3e3910f522bc18cd34271adb1db306904a6dbe63` was rejected by Windows job
+  `92569807493` after its pinned digest/install step because the disproven custom
+  destination contained no `opt.exe`. A correction red now forbids `/D=` and the
+  repaired job requires LLVM's official `$PROGRAMFILES64\LLVM` default. One
+  `windows-latest` stable job downloads the
   official LLVM 22.1.8 win64 installer, verifies release SHA-256
   `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`,
   requires exact `opt`/`llvm-as`/`llc`/`clang` versions, and freezes the existing
@@ -17,9 +22,9 @@ Branch: `agent/aero-integration`
   machine verification, COFF object generation, Clang/MSVC linking, public `run`,
   manual native execution, and exact exit 227. The red/green contract passes 1/1, as
   do the 195-library/201-binary complete surface, every integration/doc target,
-  formatting, check, correctness Clippy, docs, and exact root gate. Publication and
-  the expanded nine-check public result remain pending; Windows public acceptance is
-  not yet claimed.
+  formatting, check, correctness Clippy, docs, and exact root gate. Replacement
+  publication and the expanded nine-check public result remain pending; Windows
+  public acceptance is not yet claimed.
 
 - `CORE-077` is accepted public for balanced loop-carried owned-enum reinitialization
   at exact commit `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree

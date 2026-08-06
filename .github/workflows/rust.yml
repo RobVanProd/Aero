@@ -971,13 +971,17 @@ jobs:
         if ($actualSha256 -ne $expectedSha256) {
           throw "LLVM installer SHA-256 mismatch: expected $expectedSha256, got $actualSha256"
         }
-        $llvmRoot = Join-Path $env:RUNNER_TEMP "llvm-22.1.8"
-        $install = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$llvmRoot") -WindowStyle Hidden -Wait -PassThru
+        $llvmRoot = Join-Path $env:ProgramW6432 "LLVM"
+        $install = Start-Process -FilePath $installer -ArgumentList @("/S") -WindowStyle Hidden -Wait -PassThru
         if ($install.ExitCode -ne 0) {
           throw "LLVM installer failed with exit code $($install.ExitCode)"
         }
+        $llvmBin = Join-Path $llvmRoot "bin"
+        if (-not (Test-Path -LiteralPath $llvmBin -PathType Container)) {
+          throw "official LLVM installer did not populate $llvmRoot\bin"
+        }
         "LLVM_ROOT=$llvmRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-        (Join-Path $llvmRoot "bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        $llvmBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Assert pinned Windows LLVM and Clang versions
       shell: pwsh

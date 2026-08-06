@@ -33,6 +33,9 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
         LLVM_INSTALLER_SHA256,
         "Get-FileHash -LiteralPath $installer -Algorithm SHA256",
         "Install pinned LLVM 22.1.8 for Windows",
+        "$llvmRoot = Join-Path $env:ProgramW6432 \"LLVM\"",
+        "official LLVM installer did not populate $llvmRoot\\bin",
+        "-ArgumentList @(\"/S\")",
         "Assert pinned Windows LLVM and Clang versions",
         "AERO_REQUIRE_LLVM_VERIFIER: \"true\"",
         "AERO_LLVM_OPT=$llvmBin\\opt.exe",
@@ -71,6 +74,14 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
         if count != 1 {
             failures.push(format!(
                 "Linux preservation anchor {preserved_linux_anchor:?} must remain unique, found {count}"
+            ));
+        }
+    }
+
+    for rejected_installer_anchor in ["/D=$llvmRoot"] {
+        if workflow.contains(rejected_installer_anchor) {
+            failures.push(format!(
+                "rejected Windows installer anchor {rejected_installer_anchor:?} must remain absent"
             ));
         }
     }

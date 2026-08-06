@@ -139,7 +139,10 @@ and changes no language behavior. One official Windows x86_64 LLVM/Clang 22.1.8 
 is pinned by release SHA-256; the new job requires exact versions, invalid-build
 artifact hygiene, MSVC-target LLVM, external/machine verification, COFF object/link,
 public `run`, manual execution, and exit 227. The focused and complete local gates pass,
-but immutable publication and the expanded nine-check public result remain pending.
+but the first public candidate was rejected at its disproven custom installer
+destination. The red/green repair uses LLVM's official `$PROGRAMFILES64\LLVM` default
+and forbids `/D=`; replacement publication and the expanded nine-check public result
+remain pending.
 This does not establish a stable ABI, general Windows support, packaging, release,
 safety, performance, accelerator execution, or a fully pinned Rust toolchain.
 

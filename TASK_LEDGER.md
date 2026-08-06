@@ -15526,7 +15526,8 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   is being invented.
 - Frozen positive capability: add one `windows-latest`/stable-Rust public job that
   downloads only that official asset, verifies the exact SHA-256 before execution,
-  installs it noninteractively into a job-local path, places its `bin` directory on
+  installs it noninteractively into the official `$PROGRAMFILES64\LLVM` path on the
+  ephemeral job, places its `bin` directory on
   `PATH`, and proves `opt`, `llvm-as`, `llc`, and `clang` all report 22.1.8. It must
   set the existing required-verifier environment to those exact tools. The job must
   run the tracked two-module balanced-loop specimen through public `check`, public
@@ -15594,7 +15595,7 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   `windows-native` job on `windows-latest` with stable Rust. It downloads only the
   official `llvmorg-22.1.8/LLVM-22.1.8-win64.exe`, verifies exact SHA-256
   `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`
-  before a hidden/noninteractive install, publishes the job-local tool paths through
+  before a hidden/noninteractive install, publishes the official default tool paths through
   `GITHUB_ENV`/`GITHUB_PATH`, and requires exact 22.1.8 from `opt`, `llvm-as`, `llc`,
   and `clang`. A known-invalid LLVM module must be rejected by that exact `opt`, so a
   version-reporting no-op cannot satisfy the gate. No third-party LLVM installer action
@@ -15628,3 +15629,63 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   attempted optional local temporary-header probe was rejected by host command policy
   before execution and supplied no result; existing checked CLI target contracts and
   the public job remain the evidence path. User-owned `tmp/` is untouched.
+
+### CORE-078 first public candidate rejected and repair frozen
+
+- Rejected identity/evidence: immutable candidate
+  `3e3910f522bc18cd34271adb1db306904a6dbe63`, tree
+  `74a3654b0463b5681b82cf7737df903ac3aca75b`, stable patch ID
+  `dc613cb11f155b1c7abcf65ccb114eb01215cd46` was pushed and rendered as
+  candidate-only PR #4 metadata. Rust run `31087338108`, Windows job
+  `92569807493` rejected it at `Assert pinned Windows LLVM and Clang versions`.
+  The candidate is not accepted public and will not be relabeled as such.
+- Exact observation: the official 455,545,840-byte installer downloaded, matched
+  SHA-256 `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`,
+  completed its silent invocation with exit 0, and then
+  `D:\a\_temp\llvm-22.1.8\bin\opt.exe` was absent. No Aero compiler, verifier,
+  object/link, or execution step ran. The rejection is an installer-destination
+  contract defect, not a tool-version mismatch or compiler failure.
+- Primary-source correction: `llvm/CMakeLists.txt` at official tag
+  `llvmorg-22.1.8` sets `CPACK_PACKAGE_INSTALL_DIRECTORY` to `LLVM`, enables
+  `CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL`, and on 64-bit Windows sets
+  `CPACK_NSIS_INSTALL_ROOT` to `$PROGRAMFILES64`. The repair therefore removes the
+  disproven custom NSIS `/D=` argument and deterministically requires
+  `$env:ProgramW6432\LLVM\bin`; it will not search arbitrary roots, accept a
+  runner-provided tool by `PATH`, relax exact 22.1.8 checks, change the asset/digest,
+  or substitute an unpinned action.
+- Repair red-first contract: extend the focused workflow contract before production
+  mutation so it requires the exact official default-root assignment, an explicit
+  post-install `bin` existence check, and the silent-only installer argument, while
+  forbidding the rejected `/D=$llvmRoot` override. The current workflow must fail that
+  test before repair. Allowed files remain `.github/workflows/rust.yml`,
+  `src/compiler/tests/windows_native_system_gate_tests.rs`, and task/state records;
+  no compiler source or semantics change is authorized. All original local and
+  expanded nine-check acceptance gates remain mandatory.
+
+### CORE-078 installer-root repair red checkpoint
+
+- Before the repair workflow mutation,
+  `cargo test --test windows_native_system_gate_tests` fails 0/1 for exactly four
+  reasons: the official `$env:ProgramW6432\LLVM` root assignment is absent, the
+  post-install `bin` existence diagnostic is absent, the silent-only argument is
+  absent, and rejected `/D=$llvmRoot` remains present. All prior URL, SHA-256,
+  version, verifier, MSVC, object/link, exit, and Linux-preservation anchors remain
+  satisfied. This is the required correction red; compiler source and `tmp/` remain
+  untouched.
+
+### CORE-078 installer-root repair local green checkpoint
+
+- `.github/workflows/rust.yml` now invokes the exact verified NSIS installer with
+  silent `/S` only, derives `$llvmRoot` deterministically as
+  `$env:ProgramW6432\LLVM`, requires that root's `bin` directory immediately after
+  installer exit 0, and exports only that exact root. No directory search, runner
+  `PATH` fallback, asset/digest/version relaxation, compiler source change, or new
+  semantics exists.
+- The correction contract transitions from the exact four-reason 0/1 red to 1/1
+  green, with the rejected `/D=$llvmRoot` text absent. Formatting and `git diff
+  --check` pass. The exact repository-root `./tools/test.sh` rerun exits 0 with 195
+  library tests, 201 binary tests, every integration target including CORE-078, and
+  doc tests green. The replacement still requires a new immutable commit, immediate
+  candidate PR synchronization, and an all-nine exact-head public result; the rejected
+  first candidate remains preserved evidence and CORE-077 remains the latest accepted
+  public checkpoint.

@@ -140,8 +140,11 @@ public Windows x86_64 CPU evidence lane using the official LLVM/Clang 22.1.8 win
 installer pinned by SHA-256. The lane must preserve the existing MSVC triple/layout,
 fail artifact-free on invalid source, externally and machine verify, emit a COFF
 object, link through Clang/MSVC, and execute the public and manual paths at exit 227.
-Focused and complete local gates pass; the CPU row remains `PARTIAL` and cannot gain
-Windows public evidence until the expanded nine-check exact candidate is green.
+The first public candidate was rejected at the disproven custom installer destination;
+the red/green repair requires LLVM's official `$PROGRAMFILES64\LLVM` default and
+forbids `/D=`. Focused and complete local gates pass; the CPU row remains `PARTIAL`
+and cannot gain Windows public evidence until an expanded nine-check exact replacement
+is green.
 
 ## Compiler, tooling, and ecosystem surfaces
 

@@ -28,7 +28,10 @@ on pinned stable/nightly Linux LLVM/Clang 22.1.8. Local CORE-078 adds a separate
 release SHA-256 and requires MSVC-target LLVM, external/machine verification, COFF
 object generation, Clang/MSVC linking, public `run`, manual execution, invalid-build
 artifact hygiene, and exit 227. That is candidate workflow evidence only until the
-exact public Windows job passes; the current local host still lacks LLVM 22.
+exact public Windows job passes. The first candidate was rejected because the verified
+installer did not populate its custom destination; the local red/green replacement
+uses LLVM's official `$PROGRAMFILES64\LLVM` default and forbids `/D=`. The current
+local host still lacks LLVM 22.
 
 The CPU path can fall back to direct Clang compilation if `llc` is missing. It
 also prints a success message before interpreting a nonzero program exit status,

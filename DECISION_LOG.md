@@ -3363,8 +3363,11 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-074 - Require a pinned Windows x86_64 native system lane
 
 - Date: 2026-08-06
-- Status: locally green `CORE-078` candidate; immutable commit/push, rendered PR
-  synchronization, and the expanded all-nine exact-head public set remain pending.
+- Status: exact candidate `3e3910f522bc18cd34271adb1db306904a6dbe63` was rejected
+  by Windows job `92569807493` at its disproven custom installer destination. The
+  official-default-root repair is locally green; immutable replacement commit/push,
+  rendered PR synchronization, and the expanded all-nine exact-head public set remain
+  pending.
 - Decision: add one public `windows-latest` stable-Rust system job without changing
   compiler source or language semantics. It downloads the official LLVM 22.1.8 win64
   installer and verifies exact release SHA-256
@@ -3383,6 +3386,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   surface, every integration/doc target, formatting, all-target/all-feature check,
   correctness Clippy, docs, and exact repository-root gate pass locally. This host has
   no LLVM 22, so no local pinned-native claim is made.
+- Public correction evidence: the rejected job proved the exact asset digest and silent
+  installer exit 0, then found no `opt.exe` under the requested custom root. Official
+  `llvmorg-22.1.8` CPack configuration installs to `$PROGRAMFILES64\LLVM` and enables
+  uninstall-before-install. The repair's focused test first failed 0/1, now requires
+  that exact default, and forbids the disproven `/D=` override without relaxing any
+  version or native-system proof.
 - Exclusions and scaling boundary: this proves only the bounded current private CPU
   subset on GitHub's x86_64 MSVC runner after public green. It adds no Windows ARM,
   MinGW, macOS, stable ABI/FFI, Aero installer/package, language feature, memory-safety,
