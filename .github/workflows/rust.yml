@@ -795,6 +795,34 @@ jobs:
         fi
         echo "Unicode char CopyData example passed with exit code 197"
 
+    - name: Test acyclic owned enum reinitialization integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/owned_enum_reinitialization/main.aero
+        set +e
+        cargo run -- run ../../examples/owned_enum_reinitialization/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 199 ]; then
+          echo "Public run returned $public_run_exit, expected 199"
+          exit 1
+        fi
+        cargo run -- build ../../examples/owned_enum_reinitialization/main.aero -o ../../owned_enum_reinitialization.ll
+        opt-22 -passes=verify -disable-output ../../owned_enum_reinitialization.ll
+        llc-22 -verify-machineinstrs ../../owned_enum_reinitialization.ll -o /dev/null
+        llc-22 -filetype=obj ../../owned_enum_reinitialization.ll -o ../../owned_enum_reinitialization.o
+        clang-22 -no-pie ../../owned_enum_reinitialization.o -o ../../owned_enum_reinitialization
+        set +e
+        ../../owned_enum_reinitialization
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 199 ]; then
+          echo "Expected exit code 199, got $exit_code"
+          exit 1
+        fi
+        echo "acyclic owned enum reinitialization example passed with exit code 199"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

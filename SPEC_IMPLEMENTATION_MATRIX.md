@@ -49,6 +49,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Direct mutable owned-enum reassignment | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Acyclic conditional owned-enum joins | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Acyclic moved/maybe-moved enum reinitialization | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fresh per-iteration owned enums in statement loops | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
@@ -67,7 +68,7 @@ preserved, while semantics and checked admission fail closed before IR. It does 
 change the combined modules/imports/visibility row or implement the founding dotted
 `import` grammar or name resolution.
 
-Local candidate `CORE-072` splits the prior combined Boolean/character row and moves
+Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact
 raw/escaped scalars, type identity, equality/inequality, the complete existing
 recursive CopyData transport class, checked IR, independent verification, private
@@ -75,6 +76,15 @@ LLVM, public CLI execution, and native exit 197 have positive/negative/diagnosti
 evidence. Arithmetic/order/casts, strings/printing, executable literal patterns,
 generic/trait behavior, public layout/ABI/FFI, accelerators, and stability remain
 unsupported; the row cannot move beyond `PARTIAL`.
+
+Local candidate `CORE-073` adds only acyclic whole-owner reinitialization for the
+already admitted destructor-free enum class. Exact writes from `Moved` or
+`MaybeMoved` restore the target to `Owned` through one shared transition authority,
+while independent verification proves predecessor consumption, exact schema/value,
+dominance, and the checked write kill. Every loop-contained reinitialization, partial
+move/projection, enum aggregate storage or borrowing, destructor/drop/lifetime rule,
+and general CFG fixed point remains unsupported; the row stays `PARTIAL` until public
+acceptance and does not broaden the aggregate topology.
 
 ## Compiler, tooling, and ecosystem surfaces
 

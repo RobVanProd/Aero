@@ -528,10 +528,14 @@ impl ScopeManager {
         Err(format!("Error: Variable `{}` not found.", name))
     }
 
-    pub fn mark_replaced(&mut self, name: &str) -> Result<(), String> {
+    pub fn apply_assignment_result(
+        &mut self,
+        name: &str,
+        ownership: OwnershipState,
+    ) -> Result<(), String> {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(var_info) = scope.get_mut(name) {
-                var_info.ownership = OwnershipState::Owned;
+                var_info.ownership = ownership;
                 var_info.initialized = true;
                 return Ok(());
             }
@@ -2872,6 +2876,7 @@ impl SemanticAnalyzer {
                     Some(value),
                     &rhs,
                     inside_admitted_function,
+                    self.scope_manager.get_loop_depth() > 0,
                     &self.struct_registry,
                     &self.enum_registry,
                 ) {
@@ -2880,7 +2885,10 @@ impl SemanticAnalyzer {
                             self.scope_manager.mark_moved(&source)?;
                         }
                         self.apply_enum_match_moves(value)?;
-                        self.scope_manager.mark_replaced(&contract.name)?;
+                        self.scope_manager.apply_assignment_result(
+                            &contract.name,
+                            contract.transition.resulting_ownership(),
+                        )?;
                         Ok(())
                     }
                     OwnedPlaceAssignmentDisposition::ExplicitlyRejected(message) => Err(message),

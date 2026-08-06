@@ -1,0 +1,34 @@
+enum Packet {
+    Empty,
+    Count(int),
+    Pair(int, bool),
+    Mark(char)
+}
+
+fn bool_score(value: bool, score: int) -> int {
+    if value { return score; }
+    0
+}
+
+fn char_score(value: char, score: int) -> int {
+    if value == 'λ' { return score; }
+    0
+}
+
+fn score(value: Packet) -> int {
+    match value {
+        Packet::Empty => 0,
+        Packet::Count(number) => number,
+        Packet::Pair(number, flag) => number + bool_score(flag, 2),
+        Packet::Mark(glyph) => char_score(glyph, 3)
+    }
+}
+
+fn reinitialize(flag: bool) -> int {
+    let mut value: Packet = Packet::Pair(1, 1 < 2);
+    if flag {
+        let consumed = score(value);
+    }
+    value = Packet::Count(199);
+    score(value)
+}

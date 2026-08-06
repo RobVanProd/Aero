@@ -298,6 +298,13 @@ fn conditional_enum_ownership_class_is_complete_checked_and_executable() {
         }
     }
 
+    let reinitialized_join = "enum E { A, B } fn main() { let mut target = E::A; if 1 < 2 { let moved = target; } target = E::B; }";
+    if let Err(error) = checked_ir_and_llvm(reinitialized_join) {
+        failures.push(format!(
+            "CORE-073 whole-place write did not close the prior maybe-moved target: {error}"
+        ));
+    }
+
     for (label, source, expected) in [
         (
             "no-else partial move then Match",
@@ -327,11 +334,6 @@ fn conditional_enum_ownership_class_is_complete_checked_and_executable() {
         (
             "maybe-moved assignment source",
             "enum E { A, B } fn main() { let source = E::A; let mut target = E::B; if 1 < 2 { let moved = source; } target = source; }",
-            vec!["may have been moved"],
-        ),
-        (
-            "maybe-moved target replacement",
-            "enum E { A, B } fn main() { let mut target = E::A; if 1 < 2 { let moved = target; } target = E::B; }",
             vec!["may have been moved"],
         ),
         (

@@ -4,8 +4,33 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 92 `CORE-072` is a locally green positive Unicode-`char` candidate. Exact
-raw Unicode scalars and the frozen `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`,
+Milestone 93 `CORE-073` is a locally green acyclic whole-owner reinitialization
+candidate for the already admitted destructor-free enum class. One shared assignment
+authority now classifies an exact whole-place write as ordinary replacement,
+`Moved` reinitialization, or `MaybeMoved` reinitialization. Semantic analysis and
+checked admission consume the same transition and establish exactly `Owned`; the
+independent verifier reconstructs predecessor consumption and proves that only the
+checked write kills the prior state. Generic stores, missing writes, wrong schemas,
+and non-dominating values fail verification.
+
+The complete red-first target covers alias/call/Match/assignment consumption,
+straight-line and nested blocks, all-arm and partial-arm joins, condition consumption,
+returning arms, repeated writes, direct modules, and later Match/call/return. Every
+lexically `while`/`for`/`loop`-contained reinitialization remains rejected before
+checked IR because break/continue and backedge joins are not frozen. The all-target/
+all-feature surface passes at 190/190 library and 196/196 binary tests plus every
+integration and benchmark target. Official LLVM/Clang 22.1.8 public check/run/build,
+external and machine verification, object lowering, link, and native execution pass
+locally at exact exit 199. Formatting, checking, correctness Clippy, docs, verifier
+corruption controls, all-target/all-feature testing, and the exact repository-root gate
+pass. The immutable commit/push, rendered PR synchronization, and all eight exact-head
+public checks remain candidate gates; no public acceptance is claimed yet.
+
+Milestone 92 `CORE-072` is accepted public at exact implementation commit
+`4693f11d18135d76b5a7ec16b385563c07272955`, tree
+`42d6262bdd82e9934f47db8a42f103aa18b6448c`, and stable patch ID
+`5104478eec2ca922fa70200720d3a3bb1ed2fc98`. Exact raw Unicode scalars and the
+frozen `\\n`, `\\r`, `\\t`, `\\\\`, `\\'`, `\\\"`,
 `\\0`, and `\\xHH` escapes retain character identity from token and AST through
 `Ty::Char`, `LogicalType::Char`, `ImmChar`, independent checked verification, and
 private `i32` LLVM. One shared primitive authority now owns source/type/logical-type,
@@ -23,10 +48,9 @@ table. The implemented matrix passes 9/9. The full surface passes at 190/190 lib
 binary tests plus every integration and benchmark target; formatting, checking,
 correctness Clippy, docs, verifier corruption controls, and the exact repository-root
 gate pass. Official LLVM/Clang 22.1.8 externally verifies, machine-verifies,
-object-lowers, links, and executes the two-file candidate locally at exact exit 197.
-The immutable commit/push, rendered PR synchronization, and all eight exact-head
-public checks—including independent stable/nightly exit-197 lanes—remain before
-public acceptance.
+object-lowers, links, and executes the two-file program at exact exit 197. All eight
+exact-head public checks pass, including independent stable/nightly pinned
+LLVM/Clang 22.1.8 exit-197 lanes.
 
 Milestone 91 `CORE-071` is accepted public at exact implementation commit
 `5fc15622188e4e80a319e4c7d6c4bab17a7c8366`, tree
@@ -2170,11 +2194,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push one immutable CORE-072 Unicode-character candidate, then synchronize
-draft PR #4 immediately. Require one all-eight exact-head public set with independent
-stable/nightly pinned LLVM/Clang 22.1.8 external verification, machine verification,
-object/link, public `run`, and exact native exit 197 before recording public acceptance
-in rendered PR metadata. Keep the PR draft and unmerged. The controlled mega-PR
+Commit and push one immutable CORE-073 acyclic enum-owner reinitialization candidate,
+then synchronize draft PR #4 immediately. Require one all-eight exact-head public set
+with independent stable/nightly pinned LLVM/Clang 22.1.8 external verification,
+machine verification, object/link, public `run`, and exact native exit 199 before
+recording public acceptance in rendered PR metadata. Keep the PR draft and unmerged.
+The controlled mega-PR
 checkpoint strategy, structured evidence-manifest generator, hard ownership/module/
 runtime/backend work, and periodic multi-capability system gates remain active
 separate controls.

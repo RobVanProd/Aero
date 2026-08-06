@@ -3105,8 +3105,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-068 - Preserve Unicode character identity through one primitive authority
 
 - Date: 2026-08-05
-- Status: locally green `CORE-072` candidate; immutable commit/push, rendered PR
-  synchronization, and all-eight stable/nightly exact-head acceptance remain pending.
+- Status: accepted public `CORE-072` at exact implementation commit
+  `4693f11d18135d76b5a7ec16b385563c07272955`, tree
+  `42d6262bdd82e9934f47db8a42f103aa18b6448c`, and stable patch ID
+  `5104478eec2ca922fa70200720d3a3bb1ed2fc98`; all eight exact-head checks pass.
 - Decision: admit one raw Unicode scalar or one frozen character escape as exact
   `Ty::Char`, `LogicalType::Char`, and `Value::ImmChar`. One primitive authority maps
   source annotation, semantic/logical type, CopyData membership, supported integer
@@ -3131,8 +3133,8 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   surface passes at 190/190 library and 196/196 binary tests plus every integration and
   benchmark target. Formatting, all-target/all-feature check, correctness Clippy,
   docs, and exact root `./tools/test.sh` pass. Official LLVM/Clang 22.1.8 externally
-  verifies, machine-verifies, object-lowers, links, and executes the two-file candidate
-  locally at exact exit 197.
+  verifies, machine-verifies, object-lowers, links, and executes the two-file program
+  at exact exit 197 in both stable and nightly public lanes.
 - Exclusions and scaling boundary: character arithmetic/order, casts, normalization,
   grapheme/locale behavior, strings/printing, executable literal patterns, indexing or
   methods, generic/trait dispatch, public layout/ABI/FFI, new ownership/lifetime/drop,
@@ -3141,3 +3143,45 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   topology-specific char rules. Mega-PR checkpointing, structured evidence-manifest
   generation, hard ownership/module/runtime/backend slices, and periodic composed
   release-eligibility gates remain separately controlled.
+
+## DEC-069 - Admit exact acyclic whole-owner enum reinitialization
+
+- Date: 2026-08-05
+- Status: locally green `CORE-073` candidate; immutable commit/push, rendered PR
+  synchronization, and all-eight stable/nightly exact-head acceptance remain pending.
+- Decision: for an originally initialized mutable local of the already admitted
+  destructor-free enum class, an exact whole-place write may transition `Owned`,
+  `Moved`, or `MaybeMoved` to exactly `Owned` when the assignment is outside every
+  lexical `while`, `for`, and `loop`. The right-hand side is evaluated once, must have
+  the identical enum identity, may not read the target, and may come only from an
+  independently admitted constructor, exact enum-returning call, Match result, or
+  distinct initialized owner.
+- Shared authority: `scalar_assignment` classifies ordinary replacement,
+  `Moved` reinitialization, and `MaybeMoved` reinitialization. Semantic analysis and
+  checked admission consume that transition rather than duplicating topology-specific
+  rules. Successful writes establish exactly `Owned`; borrowed, immutable,
+  uninitialized, wrong-type, self-reading, and loop-contained cases remain rejected
+  before checked IR.
+- Independent proof: the existing checked owned-place allocation/assignment identities
+  and private enum representation remain unchanged. Verifier CFG dataflow independently
+  reconstructs predecessor consumption and proves target initialization/mutability,
+  exact schema/value identity, right-hand-side dominance, single consumption, the
+  checked write kill, and legality of later use. Missing writes, generic-store
+  substitutions, wrong schemas, and non-dominating values fail verification.
+- Evidence: the red-first exhaustive target stopped at the prior moved-target semantic
+  diagnostic before checked IR. The green class spans unit/scalar/char/multi-field/
+  array/struct/matrix payloads; alias/call/Match/assignment consumption;
+  constructor/call/distinct-owner origins; straight, nested, all-arm, partial-arm,
+  condition, returning-arm, and repeated flows; later Match/call/return; direct modules;
+  CLI artifact hygiene; corruption controls; and deterministic LLVM. All 190 library
+  and 196 binary tests plus every integration/benchmark target pass. Formatting,
+  all-target/all-feature check, correctness Clippy, docs, and the exact root gate pass.
+  Official LLVM/Clang 22.1.8 externally verifies, machine-verifies, object-lowers,
+  links, and executes the two-file candidate locally at exact exit 199.
+- Exclusions and scaling boundary: every loop-contained reinitialization, outer-owner
+  loop/backedge/break/continue join, partial move or projection, enum borrowing or
+  aggregate storage expansion, destructor/drop/lifetime behavior, general CFG
+  ownership, stable layout/ABI/FFI, accelerators, performance, release, safety,
+  stability, and PR merge remain excluded. The shared transition classifier and one
+  exhaustive class target contain rule/evidence growth; mega-PR checkpointing and a
+  structured checkpoint manifest remain separately authorized future work.

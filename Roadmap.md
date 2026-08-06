@@ -81,7 +81,7 @@ declarations and exact locations but rejects them consistently in semantics and
 independent checked admission. Its exact implementation passes all eight public checks
 and the unchanged pinned native exit-193 lane; no founding dotted-import, namespace,
 visibility, resolver, backend, or runtime semantics move.
-Local candidate `CORE-072` then adds exact Unicode `char` as a distinct CopyData leaf
+Accepted public `CORE-072` then adds exact Unicode `char` as a distinct CopyData leaf
 under one shared primitive authority. Raw/escaped literals, equality/inequality,
 bindings/replacement, references, calls/results, arrays, tuples, structs, owned enums
 and Match, control flow, direct modules, libraries, public CLI paths, checked IR,
@@ -89,7 +89,17 @@ independent verification, and private LLVM compose in one two-file native exit-1
 system specimen. The 9/9 focused target, 190-library/196-binary complete surface, exact
 root gate, and local official LLVM/Clang 22.1.8 system lane pass. Character arithmetic,
 ordering, casts, strings/printing, literal-pattern execution, generic behavior, stable
-ABI/FFI, and accelerators remain excluded; public stable/nightly acceptance is pending.
+ABI/FFI, and accelerators remain excluded. All eight exact-head public checks and the
+stable/nightly pinned LLVM/Clang 22.1.8 exit-197 lanes pass.
+Local candidate `CORE-073` adds the next hard ownership slice: exact acyclic whole-owner
+reinitialization for already admitted destructor-free enums. One shared transition
+classifier permits `Moved`/`MaybeMoved` to become exactly `Owned`; the verifier
+independently proves predecessor consumption, schema/value identity, dominance, and
+the checked write kill. The exhaustive source-to-native surface and local official
+LLVM/Clang 22.1.8 exit-199 gate pass. Every loop-contained reinitialization, partial
+move/projection, borrow/storage expansion, drop/lifetime behavior, and general CFG
+fixed point remains excluded pending separate semantics and evidence. Immutable
+publication and all-eight exact-head acceptance remain pending.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

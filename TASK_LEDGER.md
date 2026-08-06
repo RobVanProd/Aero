@@ -14396,3 +14396,212 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   ownership/lifetime/drop, accelerators, performance, releases, safety/stability, and
   PR merge remain excluded. The recommended next action is the frozen publication
   sequence only; do not stack another implementation on a failing public candidate.
+
+## CORE-073 - Acyclic whole-owner reinitialization for admitted enums
+
+- Task ID and owner: `CORE-073`; lead compiler engineer and one coupled
+  source-to-native vertical-slice owner.
+- Status and starting identity: authorized and ledger-frozen; no behavioral test or
+  production mutation exists yet. The starting point is accepted-public CORE-072
+  commit `4693f11d18135d76b5a7ec16b385563c07272955`, tree
+  `42d6262bdd82e9934f47db8a42f103aa18b6448c`, stable patch ID
+  `5104478eec2ca922fa70200720d3a3bb1ed2fc98`, with local, origin integration, and
+  draft PR #4 heads identical. All eight exact-head public checks and the pinned
+  LLVM/Clang 22.1.8 native exit-197 lane are green. `master` and `origin/master`
+  remain `8f8c7337a4008082fd2a443fcc814b5847b8663f`; user-owned untracked `tmp/` is
+  outside this task and must remain untouched.
+- Selection evidence: runtime String/collection ownership requires unfrozen allocation,
+  UTF-8, drop, lifetime, and ABI decisions. Recursive module imports require unfrozen
+  namespace, visibility, lookup, and cycle semantics. In contrast, the tracked grammar
+  already defines direct assignment, the ownership specification defines move
+  invalidation, CORE-064 accepts exact whole-value replacement for the destructor-free
+  admitted enum class, and CORE-065 already computes exact acyclic `Owned`, `Moved`, and
+  `MaybeMoved` joins. CORE-064/065 deliberately left moved-target and conditional
+  reinitialization for a separately frozen task. This task closes that exact hard
+  ownership boundary without inventing runtime resources or module policy.
+- Observed behavior: a mutable admitted enum local owns an initialized checked place and
+  may be replaced while `Owned`. Moving it through an alias, by-value call, exhaustive
+  Match, or another admitted transport changes its source state to `Moved`; an acyclic
+  branch join may produce `MaybeMoved`. The shared owned-place assignment classifier
+  rejects both states before lowering, even when the RHS is an exact fresh enum value.
+  The independent verifier already models a checked whole-place write as a kill of the
+  target's prior consumed state, so the current source rejection is stricter than the
+  trusted IR ownership proof rather than a missing layout or backend operation.
+- Primary hypothesis: one shared ownership-transition classification can admit an exact
+  whole-place write from `Moved` or `MaybeMoved` to `Owned` for the already-admitted
+  non-generic enum class. Because every admitted payload is recursively finite CopyData,
+  no destructor, partial move, field validity, allocation, or runtime drop behavior is
+  introduced. Semantic analysis and checked admission will consume the same transition;
+  the verifier will continue to reconstruct and prove the kill independently.
+- Frozen source class: the target is an originally initialized, mutable, local owned
+  binding of one exact enum schema already admitted through CORE-049 through CORE-064.
+  Immediately before the assignment it may be `Owned`, `Moved`, or `MaybeMoved`; a
+  borrowed state remains rejected. The RHS is evaluated exactly once, must have the
+  identical enum type, and may use any already-admitted fresh constructor, exact
+  enum-returning call, Match result if independently admitted, or distinct initialized
+  enum owner. It may not read the target directly or indirectly. A distinct local RHS
+  moves that source. On success the target is definitely `Owned`, may be read, moved,
+  matched, passed, returned, replaced, or reinitialized again, and no other binding is
+  rehabilitated.
+- Frozen acyclic-flow class: straight-line moves, nested lexical blocks, condition
+  expressions, and acyclic `if`/`else` joins are in scope. Reinitialization after all
+  reachable arms moved the target and after only some reachable arms moved it are both
+  admitted; the whole write kills the prior `Moved`/`MaybeMoved` state. Returning arms
+  remain excluded from the join exactly as in CORE-065. A read, borrow, Match, call,
+  return, RHS use, or second move before the reinitializing write still fails with the
+  existing deterministic moved/may-have-been-moved diagnostic.
+- Frozen loop/control boundary: no reinitialization whose assignment is lexically inside
+  `while`, `for`, or `loop` is admitted in CORE-073, even if a hand-written path appears
+  balanced. `break` and `continue` require exit/backedge-specific reachability that the
+  source analyzer does not yet freeze. Pre-loop moves followed by an acyclic
+  reinitialization before loop entry remain ordinary in-class source order. Loop-carried
+  reinitialization, break-exit joins, continue-backedge joins, general fixed points,
+  labels, and loop expressions remain explicit future work and must fail before checked
+  IR rather than relying on the independent verifier to repair source analysis.
+- Shared classification contract: extend the existing `scalar_assignment` authority
+  with an explicit prior-state transition (`replacement` versus exact acyclic
+  `reinitialization`) instead of adding topology-specific guards to semantic analysis
+  or checked admission. The classifier receives the existing ownership facts plus the
+  lexical loop context and returns supported, explicitly rejected, or preserved. Both
+  consumers apply only the returned transition. `ownership_flow` remains the sole
+  authority for acyclic joins and is not generalized into a loop fixed point.
+- Checked IR, verifier, and backend contract: reuse the existing exact
+  `CheckedMutableOwnedPlaceAlloca` and `CheckedOwnedPlaceAssignment` identities and the
+  admitted private enum value/layout. No IR opcode or LLVM representation change is
+  expected. The verifier must independently prove target declaration/initialization,
+  mutable place and exact schema/value identity, RHS dominance and single consumption,
+  prior-path consumption, post-write state kill, and later-use legality across joins.
+  Corruption controls must prove that a generic `Store`, wrong schema/value/place,
+  self-source, bypassed write, or write missing on any required path cannot manufacture
+  reinitialization or trusted LLVM.
+- Red-first and exhaustive positive proof: after this record and before production
+  mutation, add one focused test that parses but fails at the current moved-target
+  diagnostic. Its complete class covers unit, scalar, recursive array/tuple/struct, and
+  mixed admitted enum schemas; inferred and exact annotations; alias/call/Match/
+  assignment consumption; constructor/call/distinct-owner origins; straight-line,
+  nested-block, all-arm-`Moved`, mixed-arm-`MaybeMoved`, condition-consumption, and
+  returning-arm forms; repeated reinitialization; post-write Match/call/return; direct
+  modules; exact checked metadata; deterministic LLVM; CLI check/build/run hygiene; one
+  tracked native sentinel; and workflow anchors.
+- Negative completion surface: immutable or originally uninitialized targets;
+  nonlocals; borrowed targets; target self-use or self-replacement; wrong enum identity;
+  moved/MaybeMoved RHS sources; read/borrow/move/Match/call/return before the kill;
+  projected or partial writes; enum references, arrays, and struct fields; unsupported
+  generic/recursive/invalid declarations or payloads; every while/for/loop-contained
+  reinitialization including apparent fallthrough/break/continue balancing; raw checked
+  identity activation; generic-store and ownership-flow corruption; requested-artifact
+  residue; and every still-quarantined closure/module/generic/trait/runtime topology.
+- Allowed files: this ledger; `src/compiler/src/scalar_assignment.rs`,
+  `ownership_flow.rs`, `semantic_analyzer.rs`, `ir_generator.rs`, and only if an
+  independent proof gap is demonstrated, `ir_verifier.rs`; one new exhaustive
+  `owned_enum_reinitialization_tests.rs`; directly superseded CORE-064/065/066 test
+  expectations; one tracked `examples/owned_enum_reinitialization/` two-file tree;
+  `.github/workflows/rust.yml`; and, only after the exact candidate is green, current
+  state/capability/matrix/framework/roadmap/decision/risk/README/language-design records
+  plus draft PR #4. Parser, AST, type shapes, IR opcodes, code generator, dependencies,
+  runtime, claim-verification, and `master` are frozen.
+- Forbidden actions and stop conditions: no loop reinitialization or CFG fixed point;
+  partial move, projection, borrow/reborrow/NLL, lifetime, drop/destructor, heap/runtime
+  ownership, enum storage expansion, new enum topology, stable layout/ABI/FFI,
+  accelerator, benchmark, release/package/registry, PR merge, force-push, or history
+  rewrite. Stop rather than narrow or approximate if an admitted path can reach backend
+  without the shared transition, if `MaybeMoved` overwrite requires destructor policy,
+  if source soundness depends on verifier-only rejection, if more than the frozen
+  semantic/admission ownership phases or an unlisted representation must change, if a
+  test/spec must be weakened, or if an unrelated baseline is red.
+- Acceptance and publication gates: exact red then green; focused CORE-049 through
+  CORE-066 enum/ownership/reassignment/loop/reference/module/closure targets; verifier
+  corruption controls; all-target/all-feature tests and check; formatting; correctness
+  Clippy; docs; exact root `./tools/test.sh`; public check/build/run and requested-
+  artifact hygiene; official LLVM/Clang 22 external IR verification, machine
+  verification, object/link/native sentinel; one immutable commit; immediate draft PR
+  #4 candidate synchronization; all eight exact-head public checks; then accepted-public
+  PR wording without a records-only closure commit. Candidate and public acceptance must
+  remain separate.
+- Scaling controls: CORE-073 is a hard ownership/CFG slice rather than another easy
+  primitive leaf. One shared transition classifier and one exhaustive class target cap
+  topology/evidence growth. The 270-commit mega-PR still needs a separately authorized
+  controlled checkpoint strategy; structured checkpoint-manifest generation remains
+  separate; and the tracked source-through-native gate supplies the periodic composed
+  system proof. None of those scaling problems is represented as solved here.
+- Red-first evidence: after this authorization and before production mutation, the new
+  exhaustive `owned_enum_reinitialization_tests` target parsed the complete source and
+  ran 0/1. The positive class stopped at the exact existing
+  `cannot assign to moved value 'value'` semantic boundary; no checked IR, LLVM, or
+  executable result was produced. The wrong-schema moved target and all three
+  loop-contained cases also retained the old generic moved-target diagnostic, proving
+  that neither exact type ordering nor the frozen loop quarantine had been implemented
+  accidentally. Immutable, uninitialized, self-use, maybe-moved RHS, premature reuse,
+  enum borrow/storage, raw-IR, and requested-artifact controls already rejected. The
+  command was `cargo test --manifest-path src/compiler/Cargo.toml --test
+  owned_enum_reinitialization_tests -- --nocapture` with the authenticated user's Cargo
+  bin directory inherited by this PowerShell process. This is the required behavioral
+  red, not a parser, Cargo, Windows Security, subprocess, or missing-tool failure.
+
+### CORE-073 local-candidate result
+
+- Implementation summary: `scalar_assignment` now returns an explicit
+  `Replacement`, `ReinitializeMoved`, or `ReinitializeMaybeMoved` transition after
+  exact type, target, ownership, and lexical-loop classification. Semantic analysis and
+  checked admission both consume that transition and establish exactly `Owned`.
+  Borrowed/immutable/uninitialized/non-enum targets retain their existing failures, and
+  every enum reinitialization lexically inside `while`, `for`, or `loop` fails through
+  one deterministic unsupported-loop diagnostic before checked IR. No parser, AST,
+  type shape, IR opcode, enum representation, or backend layout changed.
+- Independent proof: checked IR continues to use only
+  `CheckedMutableOwnedPlaceAlloca` and `CheckedOwnedPlaceAssignment`. The verifier's
+  existing CFG consumed-owner reconstruction proves that the exact checked assignment
+  kills a prior `Moved`/`MaybeMoved` state. Added corruption controls accept a valid
+  maybe-moved-predecessor write and reject an omitted write, generic `Store`
+  substitution, wrong enum schema, and non-dominating fresh value. No verifier-only
+  repair is required for a source path outside the frozen class.
+- Exhaustive focused evidence: `cargo test --manifest-path src/compiler/Cargo.toml
+  --test owned_enum_reinitialization_tests -- --nocapture` passes 1/1. Its single
+  class test covers unit, scalar, char, multi-field, recursive array/struct/matrix
+  payloads; inferred and exact bindings; alias/call/Match/assignment consumption;
+  constructor/call/distinct-owner origins; straight/nested/all-arm/partial-arm/
+  condition/returning-arm/repeated flow; pre-loop reinitialization; later Match/call/
+  return; direct modules; checked metadata; deterministic LLVM; public check/build/run;
+  artifact hygiene; exact loop and type diagnostics; raw-IR controls; and workflow
+  anchors. The two-file tracked specimen returns exact 199.
+- Regression evidence: focused classifier and verifier unit tests pass, as do
+  `owned_enum_reassignment_tests`, `conditional_enum_ownership_tests`,
+  `loop_local_enum_ownership_tests`, `multi_field_enum_tests`, and
+  `char_copydata_tests`. The directly superseded CORE-065 maybe-moved replacement
+  assertion is now a positive checked-compilation contract; CORE-064's prior consumed-
+  target negative remains as an explicit loop-contained rejection. Ordinary functions,
+  references, enums, Match, tuples, arrays, structs, direct modules, and CORE-043
+  through CORE-072 retain their complete green surface.
+- Complete local gate: all-target/all-feature `cargo test` exits 0 in 176.6 seconds at
+  190/190 library and 196/196 binary tests plus every integration and benchmark target.
+  `cargo fmt --all -- --check`, all-target/all-feature `cargo check`, correctness-only
+  Clippy with `-D clippy::correctness`, and `cargo doc --all-features --no-deps` exit 0
+  with only the established advisory warnings. The first root-script invocation was
+  interrupted by the command runner's short timeout and closed the Rust test harness
+  pipe; it is not evidence. The immediate uninterrupted Git Bash rerun of exact root
+  `./tools/test.sh` exits 0 in 24.4 seconds with all integration and doc targets.
+- Pinned system evidence: official LLVM/Clang 22.1.8 public `check` passes; public
+  `run` returns 199; public `build` reports external verification by `opt 22.1.8`;
+  independent `opt -passes=verify`, `llc -verify-machineinstrs`, object lowering,
+  Clang private non-PIE link, and native execution all pass at exact exit 199. The
+  tracked stable/nightly workflow matrix repeats this source-to-native gate after
+  publication.
+- Files changed: `.github/workflows/rust.yml`; this ledger;
+  `src/compiler/src/{scalar_assignment,semantic_analyzer,ir_generator,ir_verifier}.rs`;
+  `src/compiler/tests/{owned_enum_reassignment_tests,
+  conditional_enum_ownership_tests}.rs`; new
+  `src/compiler/tests/owned_enum_reinitialization_tests.rs`; new tracked
+  `examples/owned_enum_reinitialization/{main,values}.aero`; and the directly affected
+  current project-state, capability, matrix, framework, roadmap, decision, risk, and
+  README records. User-owned untracked `tmp/` remains untouched and outside staging.
+- Remaining uncertainty and regression risks: candidate status is local until its one
+  immutable commit is pushed and all eight exact-head checks pass. CI must independently
+  reproduce stable/nightly external verification and exit 199. Every loop-contained
+  reinitialization, outer-owner backedge/exit join, partial move/projection, enum
+  borrowing/storage expansion, drop/destructor/lifetime rule, stable ABI/FFI, general
+  CFG ownership, accelerators, performance, releases, safety/stability, and PR merge
+  remains excluded. The shared classifier avoids duplicating this boundary across
+  phases; the controlled mega-PR checkpoint and structured evidence-manifest work
+  remain separately authorized scaling tasks. The recommended next action is the exact
+  immutable publication sequence only; do not stack another implementation on a red
+  public candidate.

@@ -8,7 +8,28 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-072` is a locally green positive Unicode-character candidate. Exact raw
+- `CORE-073` is a locally green acyclic whole-owner enum-reinitialization candidate.
+  One shared assignment authority classifies ordinary replacement and exact
+  `Moved`/`MaybeMoved` reinitialization; semantic analysis and checked admission
+  consume the same transition and establish `Owned`. Independent checked verification
+  reconstructs predecessor consumption and proves exact schema/value identity,
+  dominance, and the checked write kill; missing writes, generic stores, wrong schemas,
+  and non-dominating values fail closed. Exhaustive source/CLI/module/IR evidence spans
+  unit, scalar, char, multi-field, array/struct/matrix payloads; alias/call/Match/
+  assignment consumption; constructor/call/distinct-owner origins; exact acyclic joins;
+  later Match/call/return; and deterministic LLVM. All 190 library and 196 binary tests
+  plus every integration/benchmark target pass, as do formatting, check, correctness
+  Clippy, docs, verifier corruption controls, and the exact root gate. Official
+  LLVM/Clang 22.1.8 externally verifies, machine-verifies, object-lowers, links, and
+  executes exact exit 199 locally. Commit/push, rendered PR synchronization, and the
+  all-eight exact-head public set remain. Every loop-contained reinitialization,
+  projection/partial move, borrow/storage expansion, destructor/drop/lifetime rule,
+  stable ABI, and general CFG fixed point remains unsupported.
+
+- `CORE-072` is accepted public at exact implementation commit
+  `4693f11d18135d76b5a7ec16b385563c07272955`, tree
+  `42d6262bdd82e9934f47db8a42f103aa18b6448c`, and stable patch ID
+  `5104478eec2ca922fa70200720d3a3bb1ed2fc98`. Exact raw
   Unicode scalars and the frozen eight escape forms retain distinct `char` identity
   from token and AST through semantic and logical types, `ImmChar`, independent
   verification, and private `i32` LLVM. A single primitive authority supplies the
@@ -22,8 +43,8 @@ Branch: `agent/aero-integration`
   and formatting, checking, correctness Clippy, docs, verifier corruption controls,
   and the exact root gate pass. Official LLVM/Clang 22.1.8 externally verifies,
   machine-verifies, object-lowers, links, and executes the two-file candidate locally
-  at exact exit 197. Commit/push, rendered PR synchronization, and the all-eight
-  stable/nightly public set remain. No arithmetic/order/cast/string/printing/pattern,
+  at exact exit 197. All eight exact-head public checks pass, including independent
+  stable/nightly pinned LLVM/Clang 22.1.8 exit-197 lanes. No arithmetic/order/cast/string/printing/pattern,
   stable ABI, ownership/lifetime, accelerator, or broader primitive semantics follow.
 
 - `CORE-071` is accepted public at exact implementation
@@ -2057,11 +2078,13 @@ promise future compatibility.
   owners join independently.
 - Reachable `Owned`/`Moved` states join exactly. A mixed reachable state becomes
   `MaybeMoved`; later use, borrow, move, Match, call, return, assignment-source use, or
-  target replacement rejects deterministically. A missing `else` contributes the
+  target replacement rejected deterministically at this checkpoint. A missing `else` contributes the
   entry state, while a definitely returning arm contributes no fallthrough state.
 - Loop-condition consumption and ownership changes reaching a loop backedge reject
   through the same classifier. Loop fixed points, `break`/`continue` transport,
-  conditional reinitialization, and general CFG ownership are not admitted.
+  conditional reinitialization, and general CFG ownership were not admitted. Local
+  candidate CORE-073 later supersedes only the exact acyclic whole-owner
+  reinitialization boundary; loop-contained reinitialization remains rejected.
 - The verifier independently maps enum-valued loads back to their owning place and
   computes consumed-owner unions through the checked CFG. It accepts mutually
   exclusive sibling consumption and exact place replacement, while rejecting serial,

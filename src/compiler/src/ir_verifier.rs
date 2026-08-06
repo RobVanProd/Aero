@@ -7531,6 +7531,70 @@ mod tests {
         verify_ir(program(replaced_place))
             .expect("exact replacement must restore one consumable enum place owner");
 
+        let maybe_moved_then_reinitialized = vec![
+            checked_variant(Value::Reg(0), schema.clone(), 0),
+            place(5),
+            Inst::Store(Value::Reg(5), Value::Reg(0)),
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(6),
+                left: Value::ImmInt(0),
+                right: Value::ImmInt(0),
+            },
+            Inst::Branch {
+                condition: Value::Reg(6),
+                true_label: "then".to_string(),
+                false_label: "else".to_string(),
+            },
+            Inst::Label("then".to_string()),
+            load(1),
+            place_call(1, 2),
+            Inst::Jump("merge".to_string()),
+            Inst::Label("else".to_string()),
+            Inst::Jump("merge".to_string()),
+            Inst::Label("merge".to_string()),
+            checked_variant(Value::Reg(3), schema.clone(), 1),
+            replace(3),
+            load(4),
+            place_call(4, 7),
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        verify_ir(program(maybe_moved_then_reinitialized.clone()))
+            .expect("exact checked assignment must kill a maybe-consumed enum place at a CFG join");
+
+        let mut missing_reinitialization = maybe_moved_then_reinitialized.clone();
+        missing_reinitialization.remove(13);
+        assert!(
+            verify_ir(program(missing_reinitialization)).is_err(),
+            "post-join enum consumption passed after removing the reinitializing write"
+        );
+
+        let mut generic_reinitialization = maybe_moved_then_reinitialized.clone();
+        generic_reinitialization[13] = Inst::Store(Value::Reg(5), Value::Reg(3));
+        assert!(
+            verify_ir(program(generic_reinitialization)).is_err(),
+            "generic Store manufactured enum reinitialization at a CFG join"
+        );
+
+        let mut wrong_reinitialization_schema = maybe_moved_then_reinitialized.clone();
+        wrong_reinitialization_schema[13] = Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(5),
+            value: Value::Reg(3),
+            ty: unit_schema("Other", &["A", "B"]).logical_type(),
+        };
+        assert!(
+            verify_ir(program(wrong_reinitialization_schema)).is_err(),
+            "wrong-schema checked assignment manufactured enum reinitialization"
+        );
+
+        let mut nondominating_reinitialization = maybe_moved_then_reinitialized.clone();
+        nondominating_reinitialization.remove(12);
+        nondominating_reinitialization.insert(8, checked_variant(Value::Reg(3), schema.clone(), 1));
+        assert!(
+            verify_ir(program(nondominating_reinitialization)).is_err(),
+            "one-arm enum result manufactured reinitialization without dominating the join"
+        );
+
         let fresh_place_cycle = vec![
             Inst::Jump("cycle".to_string()),
             Inst::Label("cycle".to_string()),

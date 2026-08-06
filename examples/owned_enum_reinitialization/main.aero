@@ -1,0 +1,7 @@
+mod values;
+
+fn main() -> int {
+    let result = reinitialize(1 < 2);
+    if result == 199 { return 199; }
+    1
+}

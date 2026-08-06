@@ -1146,6 +1146,7 @@ impl IrGenerator {
                     Some(value),
                     &rhs,
                     inside_admitted_function,
+                    inside_loop,
                     &program.structs,
                     &program.enums,
                 ) {
@@ -1159,7 +1160,7 @@ impl IrGenerator {
                         bindings
                             .get_mut(&contract.name)
                             .expect("shared owned-place classifier resolved target binding")
-                            .ownership = OwnershipState::Owned;
+                            .ownership = contract.transition.resulting_ownership();
                     }
                     OwnedPlaceAssignmentDisposition::ExplicitlyRejected(message) => {
                         return Err(IrGenerationError::Admission(message));

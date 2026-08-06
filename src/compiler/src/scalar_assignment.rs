@@ -13,6 +13,20 @@ pub(crate) struct OwnedPlaceAssignmentContract {
     pub ty: Ty,
     pub logical_type: LogicalType,
     pub moved_source: Option<String>,
+    pub transition: OwnedPlaceAssignmentTransition,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum OwnedPlaceAssignmentTransition {
+    Replacement,
+    ReinitializeMoved,
+    ReinitializeMaybeMoved,
+}
+
+impl OwnedPlaceAssignmentTransition {
+    pub(crate) fn resulting_ownership(&self) -> OwnershipState {
+        OwnershipState::Owned
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +72,7 @@ pub(crate) fn classify_owned_place_assignment(
     rhs_expression: Option<&Expression>,
     rhs: &Ty,
     inside_admitted_function: bool,
+    inside_loop: bool,
     structs: &StructRegistry,
     enums: &EnumRegistry,
 ) -> OwnedPlaceAssignmentDisposition {
@@ -103,8 +118,28 @@ pub(crate) fn classify_owned_place_assignment(
         ));
     }
 
-    match facts.ownership {
-        OwnershipState::Owned => {}
+    if facts.ty != *rhs {
+        return OwnedPlaceAssignmentDisposition::ExplicitlyRejected(format!(
+            "assignment to `{name}` type mismatch: expected {}, actual {rhs}",
+            facts.ty
+        ));
+    }
+
+    let transition = match facts.ownership {
+        OwnershipState::Owned => OwnedPlaceAssignmentTransition::Replacement,
+        OwnershipState::Moved | OwnershipState::MaybeMoved
+            if inside_loop && matches!(facts.ty, Ty::Enum(_)) =>
+        {
+            return OwnedPlaceAssignmentDisposition::ExplicitlyRejected(format!(
+                "enum owner reinitialization of `{name}` inside a loop is not admitted; break/continue and backedge ownership require a separately frozen flow proof"
+            ));
+        }
+        OwnershipState::Moved if matches!(facts.ty, Ty::Enum(_)) => {
+            OwnedPlaceAssignmentTransition::ReinitializeMoved
+        }
+        OwnershipState::MaybeMoved if matches!(facts.ty, Ty::Enum(_)) => {
+            OwnedPlaceAssignmentTransition::ReinitializeMaybeMoved
+        }
         OwnershipState::Moved => {
             return OwnedPlaceAssignmentDisposition::ExplicitlyRejected(format!(
                 "cannot assign to moved value `{name}`"
@@ -120,14 +155,7 @@ pub(crate) fn classify_owned_place_assignment(
                 "cannot assign to `{name}` while it is borrowed"
             ));
         }
-    }
-
-    if facts.ty != *rhs {
-        return OwnedPlaceAssignmentDisposition::ExplicitlyRejected(format!(
-            "assignment to `{name}` type mismatch: expected {}, actual {rhs}",
-            facts.ty
-        ));
-    }
+    };
 
     let moved_source = if matches!(facts.ty, Ty::Enum(_)) {
         match rhs_expression {
@@ -148,6 +176,7 @@ pub(crate) fn classify_owned_place_assignment(
         ty: facts.ty.clone(),
         logical_type,
         moved_source,
+        transition,
     })
 }
 
@@ -184,7 +213,16 @@ mod tests {
         let (structs, enums) = registries();
         let target = Expression::Identifier("value".to_string());
         assert!(matches!(
-            classify_owned_place_assignment(None, None, None, &Ty::Int, true, &structs, &enums,),
+            classify_owned_place_assignment(
+                None,
+                None,
+                None,
+                &Ty::Int,
+                true,
+                false,
+                &structs,
+                &enums,
+            ),
             OwnedPlaceAssignmentDisposition::PreserveExistingBehavior
         ));
 
@@ -236,6 +274,7 @@ mod tests {
                     None,
                     &ty,
                     true,
+                    false,
                     &structs,
                     &enums,
                 ),
@@ -244,6 +283,7 @@ mod tests {
                     ty: actual,
                     logical_type: actual_logical,
                     moved_source: None,
+                    transition: OwnedPlaceAssignmentTransition::Replacement,
                 }) if name == "value" && actual == ty && actual_logical == logical_type
             ));
         }
@@ -256,6 +296,7 @@ mod tests {
                 Some(&source),
                 &Ty::Enum("E".to_string()),
                 true,
+                false,
                 &structs,
                 &enums,
             ),
@@ -271,6 +312,7 @@ mod tests {
                 Some(&target),
                 &Ty::Enum("E".to_string()),
                 true,
+                false,
                 &structs,
                 &enums,
             ),
@@ -286,6 +328,7 @@ mod tests {
                 None,
                 &Ty::Int,
                 true,
+                false,
                 &structs,
                 &enums,
             ),
@@ -341,11 +384,58 @@ mod tests {
                     None,
                     &rhs,
                     true,
+                    false,
                     &structs,
                     &enums,
                 ),
                 OwnedPlaceAssignmentDisposition::ExplicitlyRejected(message)
                     if message.contains(expected)
+            ));
+        }
+
+        for (ownership, expected) in [
+            (
+                OwnershipState::Moved,
+                OwnedPlaceAssignmentTransition::ReinitializeMoved,
+            ),
+            (
+                OwnershipState::MaybeMoved,
+                OwnedPlaceAssignmentTransition::ReinitializeMaybeMoved,
+            ),
+        ] {
+            let target_facts = OwnedPlaceAssignmentTargetFacts {
+                ownership,
+                ..facts(Ty::Enum("E".to_string()))
+            };
+            assert!(matches!(
+                classify_owned_place_assignment(
+                    Some(&target),
+                    Some(&target_facts),
+                    None,
+                    &Ty::Enum("E".to_string()),
+                    true,
+                    false,
+                    &structs,
+                    &enums,
+                ),
+                OwnedPlaceAssignmentDisposition::Supported(OwnedPlaceAssignmentContract {
+                    transition,
+                    ..
+                }) if transition == expected
+            ));
+            assert!(matches!(
+                classify_owned_place_assignment(
+                    Some(&target),
+                    Some(&target_facts),
+                    None,
+                    &Ty::Enum("E".to_string()),
+                    true,
+                    true,
+                    &structs,
+                    &enums,
+                ),
+                OwnedPlaceAssignmentDisposition::ExplicitlyRejected(message)
+                    if message.contains("reinitialization") && message.contains("loop")
             ));
         }
     }
