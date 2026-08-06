@@ -13763,3 +13763,155 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   public checks pass. No records-only acceptance commit will follow; public acceptance
   belongs in rendered PR metadata. All exclusions and four scaling controls remain
   active.
+
+### CORE-069 accepted-public evidence
+
+- Exact immutable identity: implementation commit
+  `99ea287843bc0c1262045d31a60f18b03fa0558f`, tree
+  `175b44d7ea2e10615553d4cd062ad13fd1e2e6e0`, stable patch ID
+  `143a4cf9669e2c4168ba899d7edebeea7e1cd297`, and parent/accepted CORE-068
+  records head `9175add20896a3ac79d99acec053b82cd12b48a1`. Local, remote, and PR
+  heads match this exact candidate; `master` and `origin/master` remain
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Public evidence: push CI run `31062826695` / job `92494166856`, PR CI run
+  `31062829326` / job `92494175326`, Rust CI run `31062829328` stable job
+  `92494175265` and nightly job `92494175189`, CodeQL run `31062827135`
+  Actions job `92494170174`, Python job `92494170074`, Rust job `92494170111`,
+  and aggregate `92494246807` all pass on exact head `99ea2878`.
+- Pinned native evidence: stable and nightly independently report
+  `ExternalVerified: opt 22.1.8 at /usr/bin/opt-22`, machine-verify with
+  `llc-22 -verify-machineinstrs`, object-lower, link with `clang-22 -no-pie`,
+  and execute the tracked multi-field enum system program with exact exit 193.
+  The rendered PR title/body records CORE-069 as accepted public while PR #4
+  remains open, draft, and unmerged. No records-only acceptance commit was made.
+- Acceptance remains limited to the frozen positional recursive-CopyData enum
+  class above. Every named-field/generic/Option/Result, wildcard/guard/nested
+  pattern, aggregate-storage/borrow/projection, partial-ownership, new CFG/lifetime/
+  drop, stable ABI/FFI, accelerator, performance, release, safety, and merge
+  exclusion remains active.
+
+## ARCH-002 - Normalize binding-annotation topology classification without behavior change
+
+- Task ID/date/owner: `ARCH-002`, 2026-08-05, lead-owned architecture checkpoint.
+  Starting identity is accepted public CORE-069 implementation
+  `99ea287843bc0c1262045d31a60f18b03fa0558f` on `agent/aero-integration`;
+  local, remote, and PR heads match, all eight checks are green, PR #4 is open,
+  draft, and unmerged, and user-owned untracked `tmp/` remains outside the task.
+- Observed behavior: `binding_annotation.rs` already supplies one three-way
+  disposition to semantic analysis and checked admission, but its rejection policy
+  recognizes five wrapper/tuple shapes through nested AST matches. Both trusted
+  consumers then repeat phase-routing questions for uninitialized rejection,
+  initialized reference override, tuple validation, and admitted contract use. The
+  outcomes are safe and characterized, but adding another wrapper depth or topology
+  would extend a combinatorial table and risks phase drift.
+- Primary hypothesis and frozen architecture: recursively decompose an annotation
+  into one exact leaf plus an ordered wrapper path, then apply one finite policy to
+  return exactly `SupportedBindingAnnotation`,
+  `ExplicitlyRejectedAnnotationTopology`, or
+  `PreservedQuarantinedTopology`. Shared policy methods may answer the existing
+  phase-routing questions, but semantic analysis and checked admission retain their
+  established diagnostic prefixes and expression-validation precedence. This is a
+  representation/refactor checkpoint, not a language feature.
+- Frozen supported classification: only the already admitted scalar contracts
+  `int`/`i32`, `float`/`f64`, `bool`, canonical `String`, and positive-length fixed
+  numeric arrays are `SupportedBindingAnnotation`; the established exact empty
+  numeric-array literal exception remains unchanged. Exactly the current five
+  topology classes remain explicit rejections: direct tuple, tuple below one array,
+  tuple below two arrays, tuple below one reference, and tuple below one array below
+  one reference, with their current initialized/count qualifications. Every other
+  name, generic, tuple/wrapper depth, zero-count exception, initialized direct/array
+  tuple classification, and compatibility context remains preserved/quarantined.
+  The separate tuple, struct, enum, and reference classifiers keep final authority
+  over their already admitted or rejected slices.
+- Behavior-neutral gate: add a passing characterization matrix before production
+  edits covering initialized/uninitialized bindings; reference mutability; zero and
+  positive array counts; tuple arities; wrapper paths through at least four layers;
+  supported scalar/array contracts; generic/custom/string spellings; and every
+  near-neighbor around the five explicit rejections. For every case, direct semantics
+  and checked admission must retain exact accept/reject disposition, diagnostic text,
+  and phase precedence. Representative valid programs must emit byte-identical LLVM
+  before and after the refactor.
+- Allowed files: this ledger; `src/compiler/src/binding_annotation.rs`;
+  `src/compiler/src/semantic_analyzer.rs`; `src/compiler/src/ir_generator.rs`; and
+  `src/compiler/tests/binding_type_contract_tests.rs`. After the exact candidate is
+  green, only directly affected project-state, capability, framework, roadmap,
+  decision, risk, README, and PR metadata records may be synchronized. Parser, AST,
+  tuple/struct/enum/reference semantics, checked-IR identities, verifier, codegen,
+  workflows, dependencies, runtime, backend, examples, and `master` are frozen.
+- Stop conditions: stop if any formerly accepted or rejected source changes outcome
+  or essential diagnostic; any previously preserved topology becomes supported or
+  explicitly rejected; generic/impl/trait behavior changes; valid LLVM bytes differ;
+  a parser/AST/IR/verifier/codegen change appears necessary; or the refactor reaches a
+  third compiler phase. Do not add annotation recursion semantics, new tuple/reference/
+  generic support, conversions, ownership/lifetime/layout/ABI behavior, or capability
+  claims.
+- Verification and publication: because behavior must not change, no red production
+  test is required. First land the characterization-only green baseline, capture
+  baseline LLVM hashes, then make the smallest refactor. Run binding-classifier units,
+  the exhaustive binding contract target, directly affected tuple/reference/array/
+  struct/enum/generic compatibility targets, byte-identity comparison, formatting,
+  all-target/all-feature check and tests, correctness Clippy, docs, exact root
+  `./tools/test.sh`, and the existing public all-eight/pinned LLVM 22 system gates.
+  Commit and push one candidate only after local green; synchronize PR #4 candidate
+  metadata immediately and record acceptance there only after exact-head public green.
+- Scaling controls: this separately frozen task directly addresses annotation-rule
+  combinatorics and phase drift. It adds no easy capability leaf, does not postpone
+  the next hard module/runtime/ownership/execution slice, creates no records-only
+  closure commit, and preserves the periodic composed native gate. Structured
+  checkpoint-manifest generation and the mega-PR merge/checkpoint strategy remain
+  separate. Status at authorization: no production edit or capability movement has
+  occurred; next action is the characterization-only green baseline and pre-refactor
+  LLVM hash capture.
+
+### ARCH-002 local candidate result
+
+- Implementation summary: `binding_annotation.rs` now recursively decomposes an
+  annotation into one terminal leaf plus an ordered `Array { count }` / `Reference {
+  mutable }` wrapper path. One finite wrapper-path table recognizes only the frozen
+  five explicit tuple-topology rejections. The shared disposition variants are named
+  exactly `SupportedBindingAnnotation`, `ExplicitlyRejectedAnnotationTopology`, and
+  `PreservedQuarantinedTopology`; shared methods expose the supported contract,
+  rejected topology, and tuple-contract deferral decision to semantic analysis and
+  checked admission. No parser, AST, checked-IR identity, verifier, codegen, workflow,
+  dependency, runtime, backend, example, or capability-matrix change was made.
+- Characterization and parity evidence: the new unit product enumerates all 781
+  wrapper paths through depth four, both initialized states, and tuple arities 0, 1,
+  and 3. It passes after first passing on the accepted baseline. The existing end-to-
+  end binding-disposition/diagnostic characterization remains green. The affected ring
+  passes: 28 binding-contract cases; copy-place reference, fixed CopyData array
+  transport, local scalar reference, multi-field enum, mutable copy-place reference,
+  mutable scalar reference, and recursive CopyData aggregate targets; 18 numeric
+  annotation cases; and 16 unsupported-tuple cases.
+- Byte identity: pre-refactor and post-refactor LLVM files are byte-identical for
+  typed-empty array, CopyData arrays, tuples, multi-field enums, and mutable reference
+  transport. Their SHA-256 values are respectively
+  `71AC916DFD67AE6D78278DFE9CAE432D773E538B30AD6718AC0B5C72E5115D4D`,
+  `7A49A77427F0BF5A38908937DA7D7AA4D901A8A21CA161ADE15324755C3794BD`,
+  `C643B509F86C4075517520109DEE7A281ED9D16B0455152AA7696F10C15560C9`,
+  `5387F24C4586DCA3615F4283DFE770ABD21B8184CC04299790BB53F3058F198E`,
+  and `52839D143B3FBA0002713461101CE825E4F46A45564B25C1C4A043B8593E7A4C`.
+- Complete local gates: `cargo test --manifest-path src/compiler/Cargo.toml
+  --all-targets --all-features` exits 0 with 187/187 library tests and all integration/
+  benchmark harnesses. `cargo fmt --all -- --check`, all-target/all-feature `cargo
+  check`, `cargo clippy -- -D clippy::correctness`, and `cargo doc --no-deps
+  --all-features` all exit 0. The exact serialized root `./tools/test.sh` exits 0 with
+  187/187 library tests, 193/193 binary tests, all integration targets, and doc tests.
+- Corrected non-product failures: an initial compile-only edit unnecessarily derived
+  equality for a topology containing borrowed AST `Type`; it was removed immediately
+  before behavior tests ran. Two evidence-shell attempts failed only in PowerShell
+  comparison syntax (`AsSpan` availability, then a direct pipeline parse); both
+  compilations had succeeded, and the corrected SHA comparison proves all five exact
+  equalities. No compiler test, source program, or repository gate failed.
+- Files changed: `src/compiler/src/binding_annotation.rs`,
+  `src/compiler/src/semantic_analyzer.rs`, `src/compiler/src/ir_generator.rs`, this
+  ledger, and the directly affected state/capability/framework/roadmap/decision/risk/
+  README records. The characterization remains colocated with the private classifier;
+  `binding_type_contract_tests.rs` required no source change. User-owned untracked
+  `tmp/` remains untouched.
+- Remaining uncertainty and risk: the normalization intentionally stops at a generic
+  leaf, does not recursively classify generic arguments, and recognizes no topology
+  beyond the frozen five. Any future expansion still requires separately frozen
+  semantics and tests. The immutable commit, push, rendered PR candidate metadata,
+  all eight exact-head public checks, and unchanged pinned LLVM/Clang 22 native system
+  gate remain before public acceptance. The next capability slice must address a hard
+  module/runtime/ownership/execution class rather than another convenient leaf.

@@ -18,7 +18,7 @@ identifier-bound Match, internal transport, checked IR, independent verification
 private typed LLVM, direct modules, and the pinned LLVM/Clang 22 native-exit-113 gate.
 Accepted CORE-061 keeps closures parsed-only/fail-closed and
 accepted CORE-062 supplies the recursive CopyData classifier. Projected borrows/writes,
-deeper CFG ownership, stable ABI, full module semantics, generic/multi-field enums, and
+deeper CFG ownership, stable ABI, full module semantics, generic/named-field enums, and
 real GPU execution remain unresolved.
 Accepted `CORE-064` adds exact direct whole-owner replacement
 for that admitted enum class through a shared owned-place classifier, generalized
@@ -57,6 +57,18 @@ rejects the invalid control, externally and machine-verifies, object-lowers, lin
 and executes exit 181, while nightly repeats verification and exit 181. Generic/trait/
 closure calls, overloads/conversions, reference results, new ownership/lifetime
 behavior, stable ABI, and runtime collection semantics do not move.
+Accepted public `CORE-069` admits exact positional variants with two or more fields
+when every field is in the already accepted recursive finite CopyData class. One
+schema authority covers construction, ordered bound Match, internal transport,
+whole-owner reassignment/control flow, checked IR, verification, private LLVM, and the
+pinned stable/nightly LLVM/Clang 22.1.8 native-exit-193 system gate. Named-field/
+generic variants, broader patterns, enum storage/borrowing/projection, partial moves,
+stable ABI, and accelerators remain excluded.
+Local candidate `ARCH-002` then normalizes binding annotations to a leaf plus ordered
+wrapper path and routes semantic analysis and checked admission through one supported/
+explicitly-rejected/preserved policy. Depth-four characterization and byte-identical
+LLVM evidence protect the boundary; no language feature, matrix cell, or runtime
+behavior moves. Public exact-head acceptance remains pending.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

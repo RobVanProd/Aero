@@ -56,6 +56,11 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
 | C/foreign-function interface | P | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | P | DESIGNED |
 
+Accepted public `CORE-069` supplies the evidence for the existing positional multi-
+field recursive CopyData enum row without promoting it beyond `PARTIAL`. Local
+candidate `ARCH-002` only normalizes binding-annotation classification and phase
+routing; it changes no language-feature stage, evidence cell, or feature-level class.
+
 ## Compiler, tooling, and ecosystem surfaces
 
 | Surface | Interface | Shared compiler truth | Artifact/result | Failure tests | Integration evidence | Docs | Class |

@@ -36,6 +36,15 @@ public workflows and the pinned system lane remain required before this control 
 publicly accepted. Captures, calls, transport, ABI, lifetime, and other positive
 closure semantics remain open.
 
+Local candidate `ARCH-002` reduces administration and phase-drift exposure inside
+R-002 without changing its status. It replaces nested binding-annotation AST-shape
+rules with one normalized leaf/wrapper-path classifier shared by semantic analysis and
+checked admission. Depth-four characterization, diagnostic parity, an affected
+compatibility ring, and five byte-identical LLVM specimens are locally green. The
+accepted supported set, the same five explicitly rejected tuple-wrapper topologies,
+and every preserved/quarantined topology remain unchanged; no R-002 capability closes
+and public exact-head acceptance remains pending.
+
 ## Priority order
 
 1. Stop silent source corruption and invented semantics at phase boundaries.

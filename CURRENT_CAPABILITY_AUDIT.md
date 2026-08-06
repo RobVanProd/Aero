@@ -8,6 +8,34 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
+- `ARCH-002` is a locally green behavior-neutral architecture candidate on top of
+  accepted public `CORE-069`. Binding annotations are now decomposed into one leaf
+  plus an ordered array/reference wrapper path, and one shared classifier returns
+  exactly supported binding annotation, explicitly rejected annotation topology, or
+  preserved/quarantined topology to semantic analysis and checked admission. A
+  characterization-first product covers every wrapper path through depth four; the
+  existing end-to-end disposition/diagnostic matrix and affected compatibility ring
+  pass. Five representative accepted programs emit byte-identical LLVM before and
+  after the refactor, and the complete all-target/all-feature Rust test surface passes
+  with 187/187 library tests. Formatting, checking, correctness Clippy, docs, and the
+  exact serialized root gate pass; the root gate reports 187/187 library and 193/193
+  binary tests plus every integration target and doc tests. Immutable publication and
+  public exact-head gates still remain. No supported, rejected, or quarantined
+  behavior changes, and no matrix cell moves.
+
+- `CORE-069` is accepted public at exact implementation
+  `99ea287843bc0c1262045d31a60f18b03fa0558f`, tree
+  `175b44d7ea2e10615553d4cd062ad13fd1e2e6e0`, and stable patch ID
+  `143a4cf9669e2c4168ba899d7edebeea7e1cd297`. Exact positional variants with two or
+  more fields are admitted when every field belongs to the existing recursive finite
+  CopyData class. Construction, exhaustive identifier-bound Match, ordered checked-IR
+  fields, independent verification, private LLVM, transport, reassignment, and
+  composed control flow retain one shared schema authority. All eight public checks
+  pass. Stable and nightly LLVM/Clang 22.1.8 externally verify, machine-verify,
+  object-lower, link, and execute the tracked direct-module program with exact exit
+  193. Named-field/generic variants, broader patterns, enum storage/borrowing/
+  projection, partial moves, stable ABI, and accelerator claims remain excluded.
+
 - `CORE-068` is accepted public at exact implementation
   `55b61c31fc6dd822097daa5d4f371d04ec0d6264`, tree
   `81c2be5d1ee6abdd7382c8674f68f553613efd6f`, and stable patch ID

@@ -3010,3 +3010,34 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   than a convenient compile-time leaf. It uses one classifier, one exhaustive product,
   and one composed exit-181 gate. PR checkpoint strategy and structured evidence-
   manifest generation remain separately authorized controls.
+
+## DEC-065 - Normalize binding-annotation topology before phase routing
+
+- Date: 2026-08-05
+- Status: local `ARCH-002` candidate; immutable commit, push, PR synchronization, and
+  exact-head public acceptance remain pending.
+- Decision: decompose every binding annotation into one terminal leaf plus an ordered
+  array/reference wrapper path. One classifier returns exactly
+  `SupportedBindingAnnotation`, `ExplicitlyRejectedAnnotationTopology`, or
+  `PreservedQuarantinedTopology`; shared methods route semantic analysis and checked
+  admission without duplicating topology decisions.
+- Frozen behavior: the supported set remains exact admitted scalars and positive fixed
+  numeric arrays. The explicitly rejected set remains the same five qualified tuple-
+  wrapper topologies. All other names, generics, tuple/wrapper depths, exceptions, and
+  compatibility contexts remain preserved or quarantined. Diagnostic wording,
+  initializer-validation precedence, type/ownership behavior, checked IR, verifier,
+  LLVM, and backend output do not change.
+- Local evidence: a characterization-first product covers every wrapper path through
+  depth four across initialization, counts, mutability, and tuple arity. Classifier
+  units, the end-to-end disposition/diagnostic target, and the affected compatibility
+  ring pass. Five representative accepted programs produce byte-identical LLVM before
+  and after the refactor; the full all-target/all-feature test surface passes with
+  187/187 library tests. Formatting, all-target/all-feature checking, correctness
+  Clippy, docs, and the exact serialized root gate pass; the root gate reports 187/187
+  library and 193/193 binary tests plus every integration target and doc tests.
+  Immutable publication and public gates remain before acceptance.
+- Exclusions and scaling boundary: no annotation recursion, new tuple/reference/
+  generic semantics, conversions, ownership/lifetime/layout/ABI behavior, capability
+  claim, or matrix movement is authorized. This checkpoint reduces combinatorial rule
+  growth and phase drift; manifest automation, the mega-PR checkpoint strategy, and
+  the next hard module/runtime/ownership/execution slice remain separate controls.

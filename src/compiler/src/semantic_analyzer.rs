@@ -2601,13 +2601,12 @@ impl SemanticAnalyzer {
                 }
 
                 let disposition = type_annotation.as_ref().map_or(
-                    BindingAnnotationDisposition::PreserveExistingBehavior,
+                    BindingAnnotationDisposition::PreservedQuarantinedTopology,
                     |annotation| classify_binding_annotation(annotation, value.is_some()),
                 );
 
                 if value.is_none()
-                    && let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
-                        disposition
+                    && let Some(kind) = disposition.rejected_topology()
                 {
                     return Err(format!(
                         "Error: Variable `{}` uses an unsupported {} for an uninitialized binding.",
@@ -2641,10 +2640,7 @@ impl SemanticAnalyzer {
                 };
 
                 if let Some(initializer) = value {
-                    if !matches!(
-                        disposition,
-                        BindingAnnotationDisposition::ExistingExplicitRejection(_)
-                    ) {
+                    if disposition.defers_to_tuple_contract() {
                         match validate_tuple_binding(
                             type_annotation.as_ref(),
                             &inferred_type,
@@ -2704,8 +2700,7 @@ impl SemanticAnalyzer {
                     LocalReferenceDisposition::Preserved
                 };
                 if value.is_some()
-                    && let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
-                        disposition
+                    && let Some(kind) = disposition.rejected_topology()
                     && !matches!(
                         &reference_annotation,
                         LocalReferenceDisposition::Supported(_)
@@ -2723,8 +2718,7 @@ impl SemanticAnalyzer {
                 }
 
                 let binding_type = if value.is_some()
-                    && let BindingAnnotationDisposition::MatchesExistingContractShape(contract) =
-                        disposition
+                    && let Some(contract) = disposition.supported_contract()
                     && (self.type_param_scopes.is_empty() || contract.is_numeric_scalar())
                 {
                     let expected_type = contract.ty();

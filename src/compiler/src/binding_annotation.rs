@@ -3,13 +3,35 @@ use crate::types::Ty;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BindingAnnotationDisposition {
-    ExistingExplicitRejection(BindingAnnotationRejectKind),
-    MatchesExistingContractShape(BindingContractKind),
-    PreserveExistingBehavior,
+    SupportedBindingAnnotation(BindingContractKind),
+    ExplicitlyRejectedAnnotationTopology(RejectedAnnotationTopology),
+    PreservedQuarantinedTopology,
+}
+
+impl BindingAnnotationDisposition {
+    pub(crate) fn supported_contract(self) -> Option<BindingContractKind> {
+        match self {
+            Self::SupportedBindingAnnotation(contract) => Some(contract),
+            Self::ExplicitlyRejectedAnnotationTopology(_) | Self::PreservedQuarantinedTopology => {
+                None
+            }
+        }
+    }
+
+    pub(crate) fn rejected_topology(self) -> Option<RejectedAnnotationTopology> {
+        match self {
+            Self::ExplicitlyRejectedAnnotationTopology(topology) => Some(topology),
+            Self::SupportedBindingAnnotation(_) | Self::PreservedQuarantinedTopology => None,
+        }
+    }
+
+    pub(crate) fn defers_to_tuple_contract(self) -> bool {
+        self.rejected_topology().is_none()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum BindingAnnotationRejectKind {
+pub(crate) enum RejectedAnnotationTopology {
     Tuple,
     ArrayTuple,
     DoubleArrayTuple,
@@ -17,7 +39,7 @@ pub(crate) enum BindingAnnotationRejectKind {
     ReferenceArrayTuple,
 }
 
-impl BindingAnnotationRejectKind {
+impl RejectedAnnotationTopology {
     pub(crate) fn topology(self) -> &'static str {
         match self {
             Self::Tuple => "tuple type annotation",
@@ -88,34 +110,61 @@ pub(crate) fn is_legacy_numeric_array_annotation(annotation: &Type) -> bool {
     matches!(annotation, Type::Array(element, _) if numeric_kind(element).is_some())
 }
 
-fn explicit_rejection(annotation: &Type, initialized: bool) -> Option<BindingAnnotationRejectKind> {
-    match annotation {
-        Type::Tuple(_) if !initialized => Some(BindingAnnotationRejectKind::Tuple),
-        Type::Array(inner, _) if !initialized && matches!(inner.as_ref(), Type::Tuple(_)) => {
-            Some(BindingAnnotationRejectKind::ArrayTuple)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AnnotationWrapper {
+    Array { count: usize },
+    Reference { mutable: bool },
+}
+
+#[derive(Debug, Clone)]
+struct AnnotationTopology<'a> {
+    wrappers: Vec<AnnotationWrapper>,
+    leaf: &'a Type,
+}
+
+impl<'a> AnnotationTopology<'a> {
+    fn decompose(annotation: &'a Type) -> Self {
+        let mut wrappers = Vec::new();
+        let mut leaf = annotation;
+        loop {
+            match leaf {
+                Type::Array(inner, count) => {
+                    wrappers.push(AnnotationWrapper::Array { count: *count });
+                    leaf = inner;
+                }
+                Type::Reference(inner, mutable) => {
+                    wrappers.push(AnnotationWrapper::Reference { mutable: *mutable });
+                    leaf = inner;
+                }
+                Type::Named(_) | Type::Tuple(_) | Type::Generic(_, _) => break,
+            }
         }
-        Type::Array(first, _)
-            if !initialized
-                && matches!(
-                    first.as_ref(),
-                    Type::Array(second, _) if matches!(second.as_ref(), Type::Tuple(_))
-                ) =>
-        {
-            Some(BindingAnnotationRejectKind::DoubleArrayTuple)
+        Self { wrappers, leaf }
+    }
+}
+
+fn explicit_rejection(annotation: &Type, initialized: bool) -> Option<RejectedAnnotationTopology> {
+    let topology = AnnotationTopology::decompose(annotation);
+    if !matches!(topology.leaf, Type::Tuple(_)) {
+        return None;
+    }
+
+    match topology.wrappers.as_slice() {
+        [] if !initialized => Some(RejectedAnnotationTopology::Tuple),
+        [AnnotationWrapper::Array { .. }] if !initialized => {
+            Some(RejectedAnnotationTopology::ArrayTuple)
         }
-        Type::Reference(inner, _) if matches!(inner.as_ref(), Type::Tuple(_)) => {
-            Some(BindingAnnotationRejectKind::ReferenceTuple)
+        [
+            AnnotationWrapper::Array { .. },
+            AnnotationWrapper::Array { .. },
+        ] if !initialized => Some(RejectedAnnotationTopology::DoubleArrayTuple),
+        [AnnotationWrapper::Reference { mutable: _ }] => {
+            Some(RejectedAnnotationTopology::ReferenceTuple)
         }
-        Type::Reference(inner, _)
-            if matches!(
-                inner.as_ref(),
-                Type::Array(element, count)
-                    if matches!(element.as_ref(), Type::Tuple(_))
-                        && (!initialized || *count > 0)
-            ) =>
-        {
-            Some(BindingAnnotationRejectKind::ReferenceArrayTuple)
-        }
+        [
+            AnnotationWrapper::Reference { mutable: _ },
+            AnnotationWrapper::Array { count },
+        ] if !initialized || *count > 0 => Some(RejectedAnnotationTopology::ReferenceArrayTuple),
         _ => None,
     }
 }
@@ -125,7 +174,7 @@ pub(crate) fn classify_binding_annotation(
     initialized: bool,
 ) -> BindingAnnotationDisposition {
     if let Some(kind) = explicit_rejection(annotation, initialized) {
-        return BindingAnnotationDisposition::ExistingExplicitRejection(kind);
+        return BindingAnnotationDisposition::ExplicitlyRejectedAnnotationTopology(kind);
     }
 
     let contract = match annotation {
@@ -147,8 +196,8 @@ pub(crate) fn classify_binding_annotation(
     };
 
     contract.map_or(
-        BindingAnnotationDisposition::PreserveExistingBehavior,
-        BindingAnnotationDisposition::MatchesExistingContractShape,
+        BindingAnnotationDisposition::PreservedQuarantinedTopology,
+        BindingAnnotationDisposition::SupportedBindingAnnotation,
     )
 }
 
@@ -181,16 +230,101 @@ mod tests {
         Type::Tuple((0..arity).map(|_| named("int")).collect())
     }
 
+    #[derive(Debug, Clone, Copy)]
+    enum WrapperSpec {
+        Array(usize),
+        Reference(bool),
+        Generic,
+    }
+
+    fn wrap_tuple(arity: usize, wrappers: &[WrapperSpec]) -> Type {
+        wrappers
+            .iter()
+            .rev()
+            .fold(tuple(arity), |inner, wrapper| match wrapper {
+                WrapperSpec::Array(count) => Type::Array(Box::new(inner), *count),
+                WrapperSpec::Reference(mutable) => Type::Reference(Box::new(inner), *mutable),
+                WrapperSpec::Generic => Type::Generic("Vec".to_string(), vec![inner]),
+            })
+    }
+
+    fn expected_tuple_path_disposition(
+        wrappers: &[WrapperSpec],
+        initialized: bool,
+    ) -> BindingAnnotationDisposition {
+        let rejection = match wrappers {
+            [] if !initialized => Some(RejectedAnnotationTopology::Tuple),
+            [WrapperSpec::Array(_)] if !initialized => Some(RejectedAnnotationTopology::ArrayTuple),
+            [WrapperSpec::Array(_), WrapperSpec::Array(_)] if !initialized => {
+                Some(RejectedAnnotationTopology::DoubleArrayTuple)
+            }
+            [WrapperSpec::Reference(_)] => Some(RejectedAnnotationTopology::ReferenceTuple),
+            [WrapperSpec::Reference(_), WrapperSpec::Array(count)]
+                if !initialized || *count > 0 =>
+            {
+                Some(RejectedAnnotationTopology::ReferenceArrayTuple)
+            }
+            _ => None,
+        };
+        rejection.map_or(
+            BindingAnnotationDisposition::PreservedQuarantinedTopology,
+            BindingAnnotationDisposition::ExplicitlyRejectedAnnotationTopology,
+        )
+    }
+
+    fn wrapper_paths(max_depth: usize) -> Vec<Vec<WrapperSpec>> {
+        fn extend(
+            paths: &mut Vec<Vec<WrapperSpec>>,
+            current: &mut Vec<WrapperSpec>,
+            max_depth: usize,
+        ) {
+            paths.push(current.clone());
+            if current.len() == max_depth {
+                return;
+            }
+            for wrapper in [
+                WrapperSpec::Array(0),
+                WrapperSpec::Array(1),
+                WrapperSpec::Reference(false),
+                WrapperSpec::Reference(true),
+                WrapperSpec::Generic,
+            ] {
+                current.push(wrapper);
+                extend(paths, current, max_depth);
+                current.pop();
+            }
+        }
+
+        let mut paths = Vec::new();
+        extend(&mut paths, &mut Vec::new(), max_depth);
+        paths
+    }
+
     #[test]
-    fn exact_nonrecursive_disposition_table_is_finite() {
+    fn exhaustive_wrapper_path_policy_is_behavior_neutral() {
+        for wrappers in wrapper_paths(4) {
+            for initialized in [false, true] {
+                for arity in [0, 1, 3] {
+                    assert_eq!(
+                        classify_binding_annotation(&wrap_tuple(arity, &wrappers), initialized,),
+                        expected_tuple_path_disposition(&wrappers, initialized),
+                        "wrapper path {wrappers:?}, initialized {initialized}, tuple arity {arity}",
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn exact_frozen_disposition_table_is_finite() {
         for initialized in [false, true] {
             assert_eq!(
                 classify_binding_annotation(&tuple(0), initialized),
                 if initialized {
-                    BindingAnnotationDisposition::PreserveExistingBehavior
+                    BindingAnnotationDisposition::PreservedQuarantinedTopology
                 } else {
-                    BindingAnnotationDisposition::ExistingExplicitRejection(
-                        BindingAnnotationRejectKind::Tuple,
+                    BindingAnnotationDisposition::ExplicitlyRejectedAnnotationTopology(
+                        RejectedAnnotationTopology::Tuple,
                     )
                 }
             );
@@ -201,10 +335,10 @@ mod tests {
                         initialized,
                     ),
                     if initialized {
-                        BindingAnnotationDisposition::PreserveExistingBehavior
+                        BindingAnnotationDisposition::PreservedQuarantinedTopology
                     } else {
-                        BindingAnnotationDisposition::ExistingExplicitRejection(
-                            BindingAnnotationRejectKind::ArrayTuple,
+                        BindingAnnotationDisposition::ExplicitlyRejectedAnnotationTopology(
+                            RejectedAnnotationTopology::ArrayTuple,
                         )
                     }
                 );
@@ -214,10 +348,10 @@ mod tests {
                         initialized,
                     ),
                     if initialized {
-                        BindingAnnotationDisposition::PreserveExistingBehavior
+                        BindingAnnotationDisposition::PreservedQuarantinedTopology
                     } else {
-                        BindingAnnotationDisposition::ExistingExplicitRejection(
-                            BindingAnnotationRejectKind::DoubleArrayTuple,
+                        BindingAnnotationDisposition::ExplicitlyRejectedAnnotationTopology(
+                            RejectedAnnotationTopology::DoubleArrayTuple,
                         )
                     }
                 );
@@ -227,17 +361,17 @@ mod tests {
                             &Type::Reference(Box::new(tuple(1)), mutable),
                             initialized,
                         ),
-                        BindingAnnotationDisposition::ExistingExplicitRejection(
-                            BindingAnnotationRejectKind::ReferenceTuple,
+                        BindingAnnotationDisposition::ExplicitlyRejectedAnnotationTopology(
+                            RejectedAnnotationTopology::ReferenceTuple,
                         )
                     );
                     let reference_array =
                         Type::Reference(Box::new(Type::Array(Box::new(tuple(3)), count)), mutable);
                     let expected = if initialized && count == 0 {
-                        BindingAnnotationDisposition::PreserveExistingBehavior
+                        BindingAnnotationDisposition::PreservedQuarantinedTopology
                     } else {
-                        BindingAnnotationDisposition::ExistingExplicitRejection(
-                            BindingAnnotationRejectKind::ReferenceArrayTuple,
+                        BindingAnnotationDisposition::ExplicitlyRejectedAnnotationTopology(
+                            RejectedAnnotationTopology::ReferenceArrayTuple,
                         )
                     };
                     assert_eq!(
@@ -254,7 +388,7 @@ mod tests {
         );
         assert_eq!(
             classify_binding_annotation(&triple_array, false),
-            BindingAnnotationDisposition::PreserveExistingBehavior
+            BindingAnnotationDisposition::PreservedQuarantinedTopology
         );
     }
 
@@ -268,13 +402,13 @@ mod tests {
         ] {
             assert_eq!(
                 classify_binding_annotation(&named(name), true),
-                BindingAnnotationDisposition::MatchesExistingContractShape(
+                BindingAnnotationDisposition::SupportedBindingAnnotation(
                     BindingContractKind::NumericScalar(expected)
                 )
             );
             assert_eq!(
                 classify_binding_annotation(&Type::Array(Box::new(named(name)), 2), true,),
-                BindingAnnotationDisposition::MatchesExistingContractShape(
+                BindingAnnotationDisposition::SupportedBindingAnnotation(
                     BindingContractKind::FixedNumericArray {
                         element: expected,
                         count: 2,
@@ -284,7 +418,7 @@ mod tests {
             let zero = Type::Array(Box::new(named(name)), 0);
             assert_eq!(
                 classify_binding_annotation(&zero, true),
-                BindingAnnotationDisposition::PreserveExistingBehavior
+                BindingAnnotationDisposition::PreservedQuarantinedTopology
             );
             assert_eq!(
                 typed_empty_numeric_array_contract(&zero, &Expression::ArrayLiteral(Vec::new())),

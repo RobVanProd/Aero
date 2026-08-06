@@ -132,7 +132,7 @@ same exit, with nightly repeating verification and exit 181. Generic/trait/closu
 calls, overloads/conversions, reference results, new ownership/lifetime behavior,
 layout, stable ABI, and accelerators remain excluded.
 
-Candidate `CORE-069` follows the founding enum grammar directly: a variant's optional
+Accepted public `CORE-069` follows the founding enum grammar directly: a variant's optional
 parenthesized `type_list` can now contain two or more positional fields when every
 field belongs to the already accepted recursive finite CopyData class. The same enum
 classifier owns declaration, construction, Match binding, transport, and whole-owner
@@ -141,17 +141,25 @@ private LLVM uses one product lane per multi-field variant while unchanged unit 
 unary schemas retain their prior identities and representation. The composed
 direct-module candidate crosses structs, tuples, arrays, source-order mutation,
 owned enum transport/reassignment/control flow, exhaustive Match, checked IR,
-verification, deterministic LLVM, local native linking, and exact exit 193. It is not
-publicly accepted until the immutable candidate passes pinned LLVM/Clang 22 and all
-eight public checks. Named-field/generic variants, nested/wildcard/guard patterns,
-enum storage/borrowing/projection, partial moves, new lifetime/drop/CFG semantics,
-stable ABI, and accelerators remain excluded.
+verification, deterministic LLVM, and exact exit 193. All eight public checks pass;
+stable and nightly LLVM/Clang 22.1.8 independently externally verify, machine-verify,
+object-lower, link, and execute exact exit 193. Named-field/generic variants, nested/
+wildcard/guard patterns, enum storage/borrowing/projection, partial moves, new lifetime/
+drop/CFG semantics, stable ABI, and accelerators remain excluded.
+
+Candidate `ARCH-002` addresses the growing annotation-policy topology without adding a
+language feature. It normalizes an annotation to one leaf plus an ordered wrapper path,
+then returns one shared supported, explicitly rejected, or preserved/quarantined
+disposition to semantic analysis and checked admission. A characterization-first
+depth-four product and byte-identical LLVM corpus protect every accepted and
+quarantined boundary. This improves the compiler-integrity process while leaving every
+framework capability and exclusion unchanged.
 
 | Framework direction | Current evidence | Required next proof |
 |---|---|---|
-| Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze closure typing/capture/call semantics before any positive closure path |
+| Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. Candidate ARCH-002 normalizes binding-annotation topology and phase routing without changing any accepted or quarantined type behavior. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze closure typing/capture/call semantics before any positive closure path |
 | Ownership-based safety | Shallow move checks remain partial. CORE-048/053 through accepted CORE-066 establish bounded immutable/mutable whole-place ownership, internal reference transport, recursive finite CopyData composition, direct CopyData owner reassignment, owned enum transport/replacement, exact acyclic conditional joins, independent enum-owner CFG consumption proof, and fresh per-iteration enum owners without transporting an outer moved owner. Mutable projections, reference results, escaping provenance, outer-owner loop joins, stable reference ABI, general CFG ownership, NLL, drop, lifetime inference, and memory-safety claims remain absent; 16 broader semantic/lossy-shape Phase 5 tests remain quarantined. | Freeze another hard module, runtime, ownership, or execution slice |
-| Structs, arrays, enums, traits, and Match | CORE-043 through CORE-047 accept bounded all-Copy scalar/named-struct construction, projection, arrays, transport, and finite acyclic graphs. CORE-049 through CORE-052 accept unit/unary-scalar enums, exhaustive bound Match, and owned internal transport. CORE-058 through CORE-061 add flat tuples, whole-place references, and direct CopyData owner replacement. Accepted CORE-062 removes the executable CopyData topology whitelist. Accepted CORE-063 carries that recursive class through unary owned-enum payloads and exact bound Match under a pinned native exit-113 gate. Accepted CORE-064 adds exact whole-owner enum replacement under a pinned native exit-131 gate. Accepted CORE-065 composes those operations across acyclic `if` joins under a pinned native exit-137 gate. Candidate CORE-069 generalizes positional variants to two or more recursive CopyData fields and exact field bindings under a local exit-193 gate. Generic/named-field enums, Option/Result Match, wildcard/guard/nested destructuring, enum fields/arrays/borrowing/projection, unit/unary tuples, unsupported/cyclic structs, dynamic arrays, traits, and stable aggregate/reference ABI remain open. | Publish CORE-069 only after pinned LLVM 22 and all-eight evidence, then address another hard generic/module/runtime/ownership class under separately frozen semantics |
+| Structs, arrays, enums, traits, and Match | CORE-043 through CORE-047 accept bounded all-Copy scalar/named-struct construction, projection, arrays, transport, and finite acyclic graphs. CORE-049 through CORE-052 accept unit/unary-scalar enums, exhaustive bound Match, and owned internal transport. CORE-058 through CORE-061 add flat tuples, whole-place references, and direct CopyData owner replacement. Accepted CORE-062 removes the executable CopyData topology whitelist. Accepted CORE-063 carries that recursive class through unary owned-enum payloads and exact bound Match under a pinned native exit-113 gate. Accepted CORE-064 adds exact whole-owner enum replacement under a pinned native exit-131 gate. Accepted CORE-065 composes those operations across acyclic `if` joins under a pinned native exit-137 gate. Accepted CORE-069 generalizes positional variants to two or more recursive CopyData fields and exact field bindings under pinned native exit 193. Generic/named-field enums, Option/Result Match, wildcard/guard/nested destructuring, enum fields/arrays/borrowing/projection, unit/unary tuples, unsupported/cyclic structs, dynamic arrays, traits, and stable aggregate/reference ABI remain open. | Separately freeze another hard generic/module/runtime/ownership class; do not infer broader enum or ABI support from CORE-069 |
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist; typed-IR invariants and verification are incomplete | Fallible typed IR, structural verifier, LLVM verifier, object/link/runtime gates on supported platforms |
 | Zero-cost performance | A benchmark protocol now exists, but no audited public Aero runtime or device performance claim passes it | Correct real programs, raw samples, reproducible baselines, and separately reported compile/runtime/resource costs |
 | Modern concurrency | Interfaces and library-like helpers exist, but the language/runtime concurrency model is not end-to-end | Ownership-safe tasks/channels or another frozen model with race and runtime evidence |

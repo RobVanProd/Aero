@@ -4,35 +4,40 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 88 `CORE-069` is a locally green candidate, not yet an accepted public
-checkpoint. It admits positional multi-field variants for non-generic owned enums
-when every field is in the complete existing recursive finite CopyData class. One
-shared enum classifier preserves exact declaration order, field count, field types,
-constructor arity, Match bindings, and whole-enum ownership. Unit and unary schemas
-retain their established checked identities and private representation; multi-field
-schemas use separate field-vector construction and field-indexed extraction identities
-with an independently verified private product lane. The verifier rejects wrong
-arity/type/index/schema, unguarded extraction, nested private products, and attempts
-to route multi-field data through unary identities.
+Milestone 89 `ARCH-002` is a locally green behavior-neutral architecture candidate.
+It replaces the binding annotation classifier's nested AST-shape rejection table with
+one normalized tuple leaf plus ordered array/reference wrapper path. The shared result
+is now named exactly as supported binding annotation, explicitly rejected annotation
+topology, or preserved/quarantined topology, and shared methods route both semantic
+analysis and checked admission. The accepted supported, rejected, and preserved sets,
+diagnostic text and precedence, generic/impl/trait quarantine, type/ownership behavior,
+checked IR, verifier, LLVM, and backend remain unchanged.
 
-The exhaustive target covers mixed unit/unary/multi-field definitions, unary tuples
-versus multiple fields, every recursive CopyData field topology, left-to-right
-evaluation, calls/results, Match, reassignment, conditionals, loop-local owners,
-negative syntax/type/ownership/storage boundaries, CLI no-artifact behavior, raw-IR
-quarantine, deterministic LLVM, and direct verifier corruption controls. The full
-all-target/all-feature suite passes at 186/186 library tests plus every integration
-target and benchmark harness. The tracked two-file direct-module example emits a
-byte-identical 43,749-byte LLVM artifact with SHA-256
-`5387f24c4586dca3615f4283dfe770abd21b8184cc04299790bb53f3058f198e`; Visual
-Studio Clang 19.1.5 links it and it executes exact exit 193. This host accurately
-reports `InternalOnly` because LLVM 22 is absent. Formatting, all-target/all-feature
-checking and tests, correctness Clippy, docs, and the exact serialized root gate pass.
-An immutable commit, push, rendered PR synchronization, pinned LLVM 22 evidence, and
-all eight public checks remain candidate gates; no public acceptance is claimed.
-Named-field/generic variants, Option/Result admission, wildcard/guard/nested Match,
-enum aggregate storage/borrowing/projection, partial ownership, new lifetime/drop/CFG
-semantics, stable ABI/FFI, accelerators, release, performance, safety, and merge remain
-excluded.
+A characterization-first matrix proves every wrapper path through depth four across
+initialization, array count, reference mutability, and tuple arity. The existing
+end-to-end disposition/diagnostic matrix and the full affected tuple/reference/array/
+aggregate/generic ring pass. Five representative accepted programs emit byte-identical
+LLVM before and after the refactor. `cargo test --all-targets --all-features` passes
+187/187 library tests plus every integration target and benchmark harness. Formatting,
+all-target checking, correctness Clippy, docs, and the exact serialized root gate pass;
+the root gate reports 187/187 library and 193/193 binary tests plus every integration
+target and doc tests. An immutable commit, push, PR candidate synchronization, and
+exact-head public gates remain before ARCH-002 acceptance. No language feature or
+matrix cell moves.
+
+Milestone 88 `CORE-069` is accepted public at exact implementation commit
+`99ea287843bc0c1262045d31a60f18b03fa0558f`, tree
+`175b44d7ea2e10615553d4cd062ad13fd1e2e6e0`, and stable patch ID
+`143a4cf9669e2c4168ba899d7edebeea7e1cd297`. It admits positional multi-field
+variants for non-generic owned enums when every field is in the complete existing
+recursive finite CopyData class, while preserving unit/unary identities and whole-enum
+ownership. All eight public checks pass on the exact candidate. Stable and nightly
+LLVM/Clang 22.1.8 independently externally verify, machine-verify, object-lower, link,
+and execute the tracked direct-module program with exact exit 193. PR #4 remains open,
+draft, and unmerged. Named-field/generic variants, Option/Result admission, wildcard/
+guard/nested Match, enum aggregate storage/borrowing/projection, partial ownership,
+new lifetime/drop/CFG semantics, stable ABI/FFI, accelerators, release, performance,
+safety, and merge remain excluded.
 
 Milestone 87 `CORE-068` has an accepted public implementation at exact commit
 `55b61c31fc6dd822097daa5d4f371d04ec0d6264`, tree
@@ -2133,14 +2138,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Finish the exact CORE-069 candidate gates, commit and push the single implementation
-checkpoint, immediately synchronize draft PR #4 to that candidate head, and require
-one all-eight public set plus pinned LLVM/Clang 22 exit-193 evidence before recording
-public acceptance in rendered PR metadata. Keep the PR draft and unmerged. The
-controlled mega-PR checkpoint strategy and structured evidence-manifest generator
-remain separate tasks, hard capability
-classes must not be deferred for convenient slices, and periodic multi-capability
-system gates remain mandatory.
+Commit and push ARCH-002 as one immutable behavior-neutral candidate; synchronize
+draft PR #4 immediately; and require one
+all-eight public set plus the unchanged pinned LLVM/Clang 22 composed system lane
+before recording acceptance in rendered PR metadata. Keep the PR draft and unmerged.
+After acceptance, select and separately freeze a hard module/runtime/ownership/
+execution slice rather than another convenient leaf. The controlled mega-PR checkpoint
+strategy, structured evidence-manifest generator, and periodic multi-capability system
+gates remain active separate controls.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.
 

@@ -890,12 +890,11 @@ impl IrGenerator {
                 value,
             } => {
                 let disposition = type_annotation.as_ref().map_or(
-                    BindingAnnotationDisposition::PreserveExistingBehavior,
+                    BindingAnnotationDisposition::PreservedQuarantinedTopology,
                     |annotation| classify_binding_annotation(annotation, value.is_some()),
                 );
                 if value.is_none()
-                    && let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
-                        disposition
+                    && let Some(kind) = disposition.rejected_topology()
                 {
                     return Err(IrGenerationError::Admission(format!(
                         "checked IR binding `{}` uses an unsupported {} for an uninitialized binding",
@@ -905,12 +904,8 @@ impl IrGenerator {
                 }
                 if let Some(value) = value {
                     let static_string = if type_annotation.is_none()
-                        || matches!(
-                            disposition,
-                            BindingAnnotationDisposition::MatchesExistingContractShape(
-                                BindingContractKind::String
-                            )
-                        ) {
+                        || disposition.supported_contract() == Some(BindingContractKind::String)
+                    {
                         Self::static_string_value(value, bindings)
                     } else {
                         None
@@ -948,10 +943,7 @@ impl IrGenerator {
                             "Void expressions cannot be stored in a binding".to_string(),
                         ));
                     }
-                    if !matches!(
-                        disposition,
-                        BindingAnnotationDisposition::ExistingExplicitRejection(_)
-                    ) {
+                    if disposition.defers_to_tuple_contract() {
                         match validate_tuple_binding(
                             type_annotation.as_ref(),
                             &ty,
@@ -1012,8 +1004,7 @@ impl IrGenerator {
                     } else {
                         LocalReferenceDisposition::Preserved
                     };
-                    if let BindingAnnotationDisposition::ExistingExplicitRejection(kind) =
-                        disposition
+                    if let Some(kind) = disposition.rejected_topology()
                         && !matches!(
                             &reference_annotation,
                             LocalReferenceDisposition::Supported(_)
@@ -1030,9 +1021,7 @@ impl IrGenerator {
                     {
                         return Err(IrGenerationError::Admission(message));
                     }
-                    if !inside_generic_impl
-                        && let BindingAnnotationDisposition::MatchesExistingContractShape(contract) =
-                            disposition
+                    if !inside_generic_impl && let Some(contract) = disposition.supported_contract()
                     {
                         let expected = contract.ty();
                         if ty != expected {
