@@ -10,7 +10,7 @@ execution, numerical correctness, or performance.
 
 | Backend | Interface | IR transformation | Object generation | Linking | Real execution | Numerical correctness | Performance evidence | Classification |
 |---|---|---|---|---|---|---|---|---|
-| CPU | `build`/`run` selectable | Host LLVM text generated | Implemented through `llc` when available | Implemented through `clang` when available | Process execution implemented; small Linux CI exit-code programs exist | Small integer/float exit-code checks only | Current README compilation series is invalid; no accepted runtime claim in this audit | PARTIAL |
+| CPU | `build`/`run` selectable | Host LLVM text generated | Implemented through `llc` when available | Implemented through `clang` when available | Process execution implemented; accepted Linux CI exits exist; pinned Windows x86_64 public candidate pending | Small bounded exit-code checks only | Current README compilation series is invalid; no accepted performance claim | PARTIAL |
 | ROCm | Explicit `rocm` target/backend selectable; ambiguous `gpu` is rejected | Module triple/data layout retargeted; backend-named graph/quant scalar helpers | `run` can ask `llc` for a temporary regular file; existence is not object validity | No HIP launcher/link path | Absent; `run` returns status 1 and states that no program ran | No Aero hardware result comparison | Tracked GGUF result is external llama.cpp only; not Aero execution | EXPERIMENTAL |
 | CUDA | Explicit `cuda` target/backend selectable; ambiguous `gpu` is rejected | Target metadata/backend-named scalar helpers only | Absent from active `run` | Absent | Absent; `run` returns status 1 and recommends CPU | Absent | Absent | PARSED_ONLY |
 
@@ -20,11 +20,15 @@ execution, numerical correctness, or performance.
 `clang`, and executes the resulting process (`run_aero_program` in
 `src/compiler/src/main.rs`, roughly lines 1869–1985). This is a real execution path
 when those external tools exist.
-The secondary Rust workflow verifies four small examples on Ubuntu by expected
-exit status, and `CORE-014` adds the generated `Hello, Aero!` project with explicit
-status and anchored-output proof. The current Windows audit environment has not yet
-provided local LLVM/linker execution evidence, so Windows support is not classified
-end-to-end.
+The secondary Rust workflow verifies the accumulated bounded examples on Ubuntu by
+expected exit status, and `CORE-014` adds the generated `Hello, Aero!` project with
+explicit status and anchored-output proof. Accepted CORE-077 reaches native exit 227
+on pinned stable/nightly Linux LLVM/Clang 22.1.8. Local CORE-078 adds a separate
+`windows-latest` x86_64 job that pins the official LLVM/Clang 22.1.8 installer by
+release SHA-256 and requires MSVC-target LLVM, external/machine verification, COFF
+object generation, Clang/MSVC linking, public `run`, manual execution, invalid-build
+artifact hygiene, and exit 227. That is candidate workflow evidence only until the
+exact public Windows job passes; the current local host still lacks LLVM 22.
 
 The CPU path can fall back to direct Clang compilation if `llc` is missing. It
 also prints a success message before interpreting a nonzero program exit status,

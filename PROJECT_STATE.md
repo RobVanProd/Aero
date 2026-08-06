@@ -1,31 +1,36 @@
 # Aero Project State
 
-Last updated: 2026-08-05 (America/New_York)
+Last updated: 2026-08-06 (America/New_York)
 
 ## Current objective
 
-Milestone 97 `CORE-077` is a locally green balanced loop-carried owned-enum
-reinitialization candidate. A direct mutable admitted destructor-free enum that is
-exactly `Owned` at loop entry may be consumed and reinitialized inside `while`,
-fixed-array `for`, or `loop` only when every reachable condition/iterable edge,
-fallthrough or `continue` backedge, and `break` exit restores that same owner to
-exactly `Owned`. Return paths do not join; nested loops attribute transfers to the
-nearest loop; and zero-iteration paths preserve entry ownership.
+Milestone 98 `CORE-078` is a locally green pinned Windows x86_64 native-system-gate
+candidate. It changes no compiler source or language semantics. One new
+`windows-latest` job downloads the official LLVM 22.1.8 win64 installer, verifies exact
+SHA-256 `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`
+before installation, and requires exact `opt`/`llvm-as`/`llc`/`clang` 22.1.8. The job
+freezes the existing `x86_64-pc-windows-msvc` target and data layout, invalid-build
+artifact hygiene, external and machine verification, COFF object generation,
+Clang/MSVC linking, public `run`, manual execution, and exact exit 227. The focused
+red/green target passes 1/1; all 195 library and 201 binary tests, every integration/doc
+target, formatting, check, correctness Clippy, docs, and exact root gate pass locally.
+Immutable publication and the expanded nine-check public set remain pending; no local
+LLVM 22 or Windows-native acceptance claim is made.
 
-Semantic analysis and independent checked admission collect their own snapshots but
-feed one phase-neutral edge classifier. Existing exact checked assignment remains the
-only ownership-restoring write, while verifier CFG corruption controls reject missing,
-bypassed, one-path, generic-store, and wrong-schema repairs. The tracked direct-module
-specimen covers all three loop forms, admitted enum schemas/reinitialization origins,
-conditional/return/nested control flow, later use, CLI artifact hygiene, and
-deterministic private LLVM; it is pinned for LLVM/Clang 22 native exit 227. The
-complete surface passes 195/195 library and 201/201 binary tests plus every integration
-and doc target; formatting, all-target/all-feature check, correctness Clippy, docs,
-focused corruption controls, and the repository-root gate pass locally. Immutable
-commit/push, rendered PR synchronization, all eight exact-head checks, and pinned
-stable/nightly native exit 227 remain candidate gates. No general loop fixed point,
-borrow checker, drop/lifetime, stable ABI, import, accelerator, release, safety, or
-merge claim follows.
+Milestone 97 `CORE-077` is accepted public at exact commit
+`a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree
+`2efbeed06e0a303aa5c07d3352d7c536fcd92dcd`, and stable patch ID
+`d64092de918ad990b79d94f6193607783e3acc55`. A direct mutable admitted
+destructor-free enum may be consumed and reinitialized inside `while`, fixed-array
+`for`, or `loop` only when every reachable condition/iterable edge, fallthrough or
+`continue` backedge, and `break` exit restores exact `Owned`. Semantic analysis and
+independent checked admission feed one phase-neutral edge classifier; verifier CFG
+controls reject missing, bypassed, one-path, generic-store, and wrong-schema repair.
+All eight exact-head checks pass in push CI `31085620279`, PR CI `31085622212`, Rust
+`31085622180`, CodeQL `31085620081`, and aggregate check `92564358585`. Stable and
+nightly LLVM/Clang 22.1.8 preserve exits 149/223 and execute exact exit 227. No general
+loop fixed point, borrow checker, drop/lifetime, stable ABI, import, accelerator,
+release, safety, or merge claim follows.
 
 Milestone 96 `CORE-076` is accepted public at exact implementation commit
 `aefeb2d81fb5374e7373a4819f3c92f83a95eb35`, tree
@@ -2241,12 +2246,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push one immutable CORE-077 balanced loop-carried enum-owner candidate, then
-synchronize draft PR #4 immediately. Require one all-eight exact-head public set with
-independent stable/nightly pinned LLVM/Clang 22.1.8 external verification, machine
-verification, object/link, public `run`, exact native exit 227, and preservation of the
-older exit-149/223 specimens before recording public acceptance in rendered PR metadata.
-Keep the PR draft and unmerged.
+Commit and push one immutable CORE-078 pinned Windows x86_64 system-gate candidate,
+then synchronize draft PR #4 immediately. Require the expanded all-nine exact-head
+public set: the existing Linux stable/nightly pinned LLVM/Clang 22.1.8 exits 149/223/
+227 plus the SHA-256-pinned Windows LLVM/Clang 22.1.8 external/machine/COFF/link/public-
+run/manual-native exit-227 lane. Record public acceptance in rendered PR metadata only
+after the exact Windows job is green. Keep the PR draft and unmerged.
 The controlled mega-PR
 checkpoint strategy, structured evidence-manifest generator, hard ownership/module/
 runtime/backend work, and periodic multi-capability system gates remain active

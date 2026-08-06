@@ -1,6 +1,6 @@
 # Aero Development Roadmap
 
-Last updated: 2026-08-05 (America/New_York)
+Last updated: 2026-08-06 (America/New_York)
 
 This roadmap translates Aero's founding Design -> Minimal Prototype -> Self-Host
 -> Stabilize -> Optimize path into evidence-gated engineering milestones. A
@@ -130,17 +130,25 @@ older exit-149 specimen. Strings, references,
 unit/unary tuples, dynamic collections, cyclic/unsupported structs, enum aggregate
 storage, wider patterns, stable ABI, runtime, drop/lifetimes, and general ownership
 remain separately frozen.
-Local candidate `CORE-077` admits exact balanced loop-carried reinitialization for a
+Accepted public `CORE-077` admits exact balanced loop-carried reinitialization for a
 direct mutable admitted destructor-free enum. `while`, fixed-array `for`, and `loop`
 share one rule: entry, condition/iterable, every reachable fallthrough or `continue`
 backedge, and every `break` exit must be exactly `Owned`; return paths do not join and
 nested transfers attach to the nearest loop. Semantic analysis and independent checked
 admission provide snapshots to one phase-neutral classifier, while verifier CFG controls
 reject missing, bypassed, one-path, generic-store, wrong-schema, cycle, and exit repairs.
-The complete 195-library/201-binary local gates pass and the tracked direct-module
-specimen is pinned for native exit 227. Loop-carried moved state, partial moves,
+Exact implementation `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, all eight
+exact-head checks, and pinned stable/nightly LLVM/Clang 22.1.8 native exit 227 pass
+while preserving exits 149/223. Loop-carried moved state, partial moves,
 projections, enum storage/borrowing, drop/lifetimes, stable ABI, imports, accelerators,
 release, safety, and general loop fixed-point semantics remain separate.
+Local candidate `CORE-078` adds no language behavior. It pins the official Windows
+x86_64 LLVM/Clang 22.1.8 installer by release SHA-256 and adds a public MSVC system
+lane for external/machine verification, COFF object generation, Clang/MSVC linking,
+public `run`, manual execution, invalid-build artifact hygiene, and exact exit 227.
+The focused and complete local gates pass; immutable publication and the expanded
+nine-check exact-head public result remain pending. No stable ABI, general Windows,
+packaging, accelerator, release, safety, or performance claim follows.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

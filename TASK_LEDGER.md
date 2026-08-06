@@ -15469,11 +15469,162 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   exact repository-root `./tools/test.sh` exit 0. One initial full-test wrapper timed
   out while its Windows Cargo children completed; it supplied no candidate result and
   the clean single-job rerun passed. No test was weakened or skipped.
-- Candidate/public status: local implementation and records are green, but CORE-077 is
-  not public acceptance. Next action is one explicit immutable commit and push,
+- Candidate/public status at this local checkpoint: implementation and records are
+  green, but CORE-077 is not yet public acceptance. Next action is one explicit immutable commit and push,
   immediate rendered PR #4 candidate synchronization, and monitoring of all eight
   exact-head checks plus both pinned native lanes. PR remains draft/unmerged; release,
   merge, performance, accelerator, stable ABI, import, general ownership, and safety
   claims remain unauthorized. The four scaling controls remain active: separately
   authorized mega-PR checkpointing, hard-slice selection, later structured evidence
   manifest generation, and periodic composed source-through-native gates.
+
+### CORE-077 accepted public checkpoint
+
+- Exact accepted identity: commit
+  `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree
+  `2efbeed06e0a303aa5c07d3352d7c536fcd92dcd`, stable patch ID
+  `d64092de918ad990b79d94f6193607783e3acc55`, with subject
+  `CORE-077 admit balanced loop enum ownership`. The branch was pushed without
+  rewriting history; `master` and release state were untouched.
+- Exact-head public evidence: push CI run `31085620279` / job `92564238404` and PR
+  CI run `31085622212` / job `92564245294` passed; Rust run `31085622180` passed
+  stable job `92564244995` and nightly job `92564245040`; CodeQL run
+  `31085620081` passed Actions job `92564243148`, Python job `92564243368`, and
+  Rust job `92564243208`. Aggregate check-run evidence is
+  `https://github.com/RobVanProd/Aero/runs/92564358585`.
+- Native evidence: both pinned Linux lanes reported LLVM/Clang 22.1.8, preserved
+  exits 149 and 223, and executed the balanced-loop specimen at exact exit 227.
+  All eight required checks were green for the same immutable head before public
+  acceptance was recorded.
+- Rendered integration record: draft PR #4 is open, unmerged, and cleanly
+  mergeable; its title and first heading identify CORE-077 accepted public and its
+  body records the exact identity, executable boundary, evidence links, and
+  remaining exclusions. At this accepted head the integration branch is 276 commits,
+  220 files, 99,565 additions, and 1,844 deletions relative to `master`.
+
+## CORE-078 - pinned Windows x86_64 native system gate
+
+- Date/task/status: 2026-08-06, `CORE-078`, authorized and active after exact CORE-077
+  public acceptance at `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`. PR #4 is
+  draft, open, cleanly mergeable, and unmerged. User-owned untracked `tmp/` remains
+  outside this task.
+- Observed behavior: the public CLI already retargets final CPU LLVM to the build
+  host. On x86_64 Windows it selects `x86_64-pc-windows-msvc` and the established
+  MSVC data layout, requires external LLVM 22 before native publication, asks `llc`
+  for a COFF object, asks `clang` to link an `.exe`, executes it, and cleans its run
+  artifacts. Earlier local specimens linked and executed under Visual Studio Clang
+  19.1.5, but the public Rust workflow runs only Ubuntu. Consequently Windows remains
+  `InternalOnly`: no exact public head has installed the pinned LLVM/Clang 22.1.8
+  Windows toolchain and proved external verification, machine verification, COFF
+  object generation, MSVC linking, public `run`, and native execution together.
+- Source and supply-chain evidence: official LLVM release `llvmorg-22.1.8` publishes
+  `LLVM-22.1.8-win64.exe` at the exact GitHub release URL with size 455,545,840 bytes
+  and release/API digest
+  `sha256:16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`.
+  Rust's bundled LLVM 22.1.6 target specification independently reports the existing
+  Windows triple and data layout already used by `BuildConfig`; no target or ABI fact
+  is being invented.
+- Frozen positive capability: add one `windows-latest`/stable-Rust public job that
+  downloads only that official asset, verifies the exact SHA-256 before execution,
+  installs it noninteractively into a job-local path, places its `bin` directory on
+  `PATH`, and proves `opt`, `llvm-as`, `llc`, and `clang` all report 22.1.8. It must
+  set the existing required-verifier environment to those exact tools. The job must
+  run the tracked two-module balanced-loop specimen through public `check`, public
+  `build`, and public `run`; assert the emitted MSVC target triple/data layout; run
+  `opt -passes=verify`; run `llc -verify-machineinstrs`; produce an explicit COFF
+  object; link with Clang/MSVC; execute the resulting `.exe`; and observe exact exit
+  227 from both the public run path and the independently linked executable.
+- Frozen preservation/system scope: Linux stable and nightly remain unchanged and
+  continue to prove pinned LLVM/Clang 22.1.8 plus exits 149, 223, and 227. The new
+  Windows lane is one additional exact-head required check, increasing the public
+  acceptance set from eight to nine. It establishes only the bounded current private
+  CPU subset on GitHub's x86_64 MSVC runner. It does not certify Windows ARM, MinGW,
+  macOS, a stable ABI, FFI, packaging, installer behavior for Aero, general language
+  safety, performance, release readiness, GPU execution, or the user's local machine.
+- Red-first plan and allowed files: first add one focused workflow-contract test that
+  requires the exact job, official URL, SHA-256, version assertions, MSVC triple/data
+  layout, verifier/machine/object/link/public-run/native-exit anchors, and unchanged
+  Linux exit anchors. Before `.github/workflows/rust.yml` changes, that test must fail
+  because no Windows job exists. Production work may then change only that workflow
+  and the focused test. After exact green, update `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `FRAMEWORK_ALIGNMENT.md`, `Roadmap.md`, `BACKEND_STATUS.md`, `README.md`,
+  `INITIAL_RISK_REGISTER.md`, `DECISION_LOG.md`, this ledger, and rendered PR #4
+  metadata. No compiler source, language test expectation, dependency, example,
+  module/runtime/ABI/GPU implementation, `master`, or `tmp/` change is authorized.
+- Acceptance tests: exact red/green focused target; YAML parse/anchor uniqueness;
+  formatting, all-target/all-feature check and tests, correctness Clippy, docs, exact
+  repository-root `./tools/test.sh`; all public workflows on one immutable candidate;
+  exact Windows tool versions and digest; MSVC target header; external and machine
+  verification; COFF object and executable; public `run` and manual native exit 227;
+  unchanged Linux stable/nightly 149/223/227 evidence; deterministic diagnostics and
+  no artifacts from a deliberately invalid Windows build control.
+- Risks and stop conditions: stop rather than weaken the gate if the official digest
+  differs, the installer cannot be pinned or installed noninteractively, the runner
+  cannot locate a valid MSVC linker environment, CLI output is not the frozen MSVC
+  target, verifier or machine verification fails, public `run` and manual linking
+  disagree, invalid input leaves an artifact, any compiler source/semantic/ABI change
+  becomes necessary, Linux preservation changes, or the workflow would use an
+  unpinned third-party LLVM action. A public candidate caught by this new job is
+  rejected evidence, not acceptance, until an immutable replacement passes all nine
+  checks.
+- Scaling controls: this is the requested periodic cross-platform source-to-native
+  system gate rather than another easy compile-time feature. The 276-commit mega-PR
+  still needs a separately authorized checkpoint strategy; structured evidence
+  manifests remain queued; runtime/module/ABI/real RX 7800 XT work remains explicit;
+  and no new capability claim is allowed until the exact Windows public evidence
+  exists.
+
+### CORE-078 exact red checkpoint
+
+- Before any workflow mutation,
+  `cargo test --test windows_native_system_gate_tests` compiles and runs 0/1 green.
+  The one target reports every frozen Windows job, official URL/digest, version,
+  verifier, MSVC target, public-run, object/link, and native-exit anchor absent. The
+  existing Linux exit-149, exit-223, and exit-227 preservation anchors remain exactly
+  unique. This is the required missing-system-gate red, not a compiler, Cargo, source,
+  parser, subprocess, local LLVM, or Windows Security failure. Task-owned changes are
+  only this ledger authorization/red record and the focused test; `.github/workflows/
+  rust.yml` has not changed, compiler source is untouched, and user-owned `tmp/`
+  remains untouched.
+
+### CORE-078 local green checkpoint
+
+- Implementation: `.github/workflows/rust.yml` now has one bounded
+  `windows-native` job on `windows-latest` with stable Rust. It downloads only the
+  official `llvmorg-22.1.8/LLVM-22.1.8-win64.exe`, verifies exact SHA-256
+  `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`
+  before a hidden/noninteractive install, publishes the job-local tool paths through
+  `GITHUB_ENV`/`GITHUB_PATH`, and requires exact 22.1.8 from `opt`, `llvm-as`, `llc`,
+  and `clang`. A known-invalid LLVM module must be rejected by that exact `opt`, so a
+  version-reporting no-op cannot satisfy the gate. No third-party LLVM installer action
+  or compiler-source change exists.
+- Windows system path: the job runs invalid source through public `build` and requires
+  nonzero status/no requested artifact. It then runs the tracked two-module CORE-077
+  specimen through public `check` and required-verifier `build`, asserts exact
+  `x86_64-pc-windows-msvc` triple and MSVC data layout, invokes `opt` verification,
+  `llc -verify-machineinstrs`, COFF object generation, and Clang/MSVC linking. Public
+  `run` and the independently linked `.exe` must each return 227. Expected nonzero
+  native statuses are explicitly captured and reset so PowerShell step epilogues do
+  not convert evidence into a false workflow failure.
+- Red/green and local gates: the focused target first failed 0/1 with all frozen
+  Windows anchors absent and all Linux exit anchors preserved. It now passes 1/1 and
+  enforces anchor uniqueness plus all three expected-status resets. `cargo test
+  --all-features`, `cargo check --all-targets --all-features`, correctness Clippy,
+  docs, formatting, and exact repository-root `./tools/test.sh` all exit 0. The
+  complete surface remains 195 library and 201 binary tests plus every integration/doc
+  target; the new workflow contract is an additional integration target. After the
+  known-invalid-IR control was added, the focused target, formatting check, and exact
+  repository-root gate were rerun cleanly. An initial PowerShell invocation did not
+  inherit `%USERPROFILE%\.cargo\bin`; rerunning with the required explicit Cargo path
+  passed and supplied the candidate result. This was a shell environment miss, not a
+  compiler, test, verifier, or Windows Security failure.
+- Status and remaining uncertainty: this is a locally green candidate only. The local
+  Windows host still has no LLVM 22, so installer behavior, exact tool execution,
+  MSVC linking, public `run`, and manual exit 227 require the immutable public job.
+  Acceptance expands from eight to nine exact checks; any Windows failure rejects the
+  candidate until an immutable replacement passes. Linux stable/nightly 149/223/227,
+  CodeQL, CI, draft/unmerged PR state, and all exclusions remain mandatory. The
+  attempted optional local temporary-header probe was rejected by host command policy
+  before execution and supplied no result; existing checked CLI target contracts and
+  the public job remain the evidence path. User-owned `tmp/` is untouched.

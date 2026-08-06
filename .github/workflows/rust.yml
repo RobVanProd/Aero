@@ -943,4 +943,162 @@ jobs:
       run: cargo clippy --all-targets --all-features -- -D clippy::correctness
       working-directory: src/compiler
 
+  windows-native:
+    name: Windows LLVM 22 native system gate
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust stable for Windows
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+
+    - name: Install pinned LLVM 22.1.8 for Windows
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $installer = Join-Path $env:RUNNER_TEMP "LLVM-22.1.8-win64.exe"
+        $downloadUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-win64.exe"
+        curl.exe --fail --location --retry 3 --output $installer $downloadUrl
+        if ($LASTEXITCODE -ne 0) {
+          throw "official LLVM installer download failed with exit code $LASTEXITCODE"
+        }
+        $expectedSha256 = "16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c"
+        $actualSha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actualSha256 -ne $expectedSha256) {
+          throw "LLVM installer SHA-256 mismatch: expected $expectedSha256, got $actualSha256"
+        }
+        $llvmRoot = Join-Path $env:RUNNER_TEMP "llvm-22.1.8"
+        $install = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$llvmRoot") -WindowStyle Hidden -Wait -PassThru
+        if ($install.ExitCode -ne 0) {
+          throw "LLVM installer failed with exit code $($install.ExitCode)"
+        }
+        "LLVM_ROOT=$llvmRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        (Join-Path $llvmRoot "bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: Assert pinned Windows LLVM and Clang versions
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+        foreach ($tool in @("opt", "llvm-as", "llc", "clang")) {
+          $toolPath = Join-Path $llvmBin "$tool.exe"
+          $versionOutput = & $toolPath --version 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            throw "$toolPath --version failed with exit code $LASTEXITCODE"
+          }
+          $versionText = $versionOutput -join "`n"
+          Write-Host $versionText
+          if ($versionText -notmatch "22\.1\.8") {
+            throw "$toolPath did not report exact version 22.1.8"
+          }
+        }
+        "AERO_LLVM_OPT=$llvmBin\opt.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        "AERO_LLVM_AS=$llvmBin\llvm-as.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Build Aero compiler on Windows
+      shell: pwsh
+      run: cargo build --locked --manifest-path src/compiler/Cargo.toml
+
+    - name: Confirm Windows LLVM 22 rejects known-invalid IR
+      shell: pwsh
+      run: |
+        $PSNativeCommandUseErrorActionPreference = $false
+        $invalidIr = Join-Path $env:RUNNER_TEMP "core078-known-invalid.ll"
+        @(
+          'define i32 @known_invalid() {'
+          'entry:'
+          '  ret i64 0'
+          '}'
+        ) | Set-Content -LiteralPath $invalidIr
+        & "$env:LLVM_ROOT\bin\opt.exe" -passes=verify -disable-output $invalidIr
+        $verifierExit = $LASTEXITCODE
+        if ($verifierExit -eq 0) {
+          throw "Windows opt accepted known-invalid LLVM IR"
+        }
+        Write-Host "Windows opt rejected the known-invalid LLVM IR fixture as required"
+        $global:LASTEXITCODE = 0
+
+    - name: Test invalid Windows build artifact hygiene
+      shell: pwsh
+      run: |
+        $PSNativeCommandUseErrorActionPreference = $false
+        $invalidSource = Join-Path $env:RUNNER_TEMP "core078-invalid.aero"
+        $invalidArtifact = Join-Path $env:RUNNER_TEMP "core078-invalid.ll"
+        Set-Content -LiteralPath $invalidSource -NoNewline -Value "fn main() { let value = 1@; }"
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $invalidSource -o $invalidArtifact --require-llvm-verifier
+        $invalidExit = $LASTEXITCODE
+        if ($invalidExit -eq 0) {
+          throw "invalid Windows source unexpectedly compiled"
+        }
+        if (Test-Path -LiteralPath $invalidArtifact) {
+          throw "invalid Windows build left requested LLVM artifact"
+        }
+        Write-Host "invalid Windows build failed without an artifact as required"
+        $global:LASTEXITCODE = 0
+
+    - name: Test Windows balanced loop enum ownership system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/balanced_loop_enum_ownership/main.aero"
+        $llvmPath = Join-Path $env:RUNNER_TEMP "balanced_loop_enum_ownership.windows.ll"
+        $machinePath = Join-Path $env:RUNNER_TEMP "balanced_loop_enum_ownership.windows.s"
+        $objectPath = Join-Path $env:RUNNER_TEMP "balanced_loop_enum_ownership.windows.obj"
+        $executablePath = Join-Path $env:RUNNER_TEMP "balanced_loop_enum_ownership.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check examples/balanced_loop_enum_ownership/main.aero
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $llvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $llvmPath)) {
+          throw "Windows public build failed or omitted its LLVM artifact"
+        }
+
+        $llvmText = Get-Content -LiteralPath $llvmPath -Raw
+        if (-not $llvmText.Contains('target triple = "x86_64-pc-windows-msvc"')) {
+          throw "Windows LLVM omitted the frozen x86_64 MSVC triple"
+        }
+        if (-not $llvmText.Contains('target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"')) {
+          throw "Windows LLVM omitted the frozen x86_64 MSVC data layout"
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $llvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $llvmPath -o $machinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $machinePath)) {
+          throw "Windows machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $llvmPath -o $objectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $objectPath)) {
+          throw "Windows object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $objectPath -o $executablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $executablePath)) {
+          throw "Windows Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run examples/balanced_loop_enum_ownership/main.aero
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 227) {
+          throw "Windows public run returned $publicRunExit, expected 227"
+        }
+        Write-Host "Windows public run passed with exit code 227"
+
+        & $executablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 227) {
+          throw "Windows manual native execution returned $manualExit, expected 227"
+        }
+        Write-Host "Windows manual native execution passed with exit code 227"
+        $global:LASTEXITCODE = 0
+
 

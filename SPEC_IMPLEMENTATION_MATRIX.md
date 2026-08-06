@@ -122,18 +122,26 @@ semantics remain excluded; the row stays `PARTIAL`. All eight exact-head checks 
 pinned stable/nightly LLVM/Clang 22.1.8 native exit 223 pass at exact implementation
 `aefeb2d81fb5374e7373a4819f3c92f83a95eb35`.
 
-Local candidate `CORE-077` adds only the balanced loop-carried row. An exact direct
+Accepted public `CORE-077` adds only the balanced loop-carried row. An exact direct
 mutable admitted enum must enter `while`, fixed-array `for`, or `loop` as `Owned` and
 must be restored to exactly `Owned` on every reachable condition/iterable edge,
 fallthrough or `continue` backedge, and `break` exit. Return paths do not join and
 nested transfers belong to the nearest loop. Semantic analysis and independent checked
 admission collect snapshots but consume one edge classifier; verifier CFG proof rejects
 missing, bypassed, one-path, generic-store, wrong-schema, cycle, and exit repairs. The
-complete 195-library/201-binary local gates pass and the composed specimen is pinned for
-native exit 227. Loop-carried `Moved`/`MaybeMoved`, projections/partial moves, enum
+Exact implementation `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, all eight
+exact-head checks, and pinned stable/nightly LLVM/Clang 22.1.8 native exit 227 pass
+while preserving exits 149/223. Loop-carried `Moved`/`MaybeMoved`, projections/partial moves, enum
 storage/borrowing, drop/lifetimes, stable ABI, imports, accelerators, release, safety,
-and general loop fixed-point semantics remain excluded; the row stays `PARTIAL` and
-public acceptance is pending.
+and general loop fixed-point semantics remain excluded; the row stays `PARTIAL`.
+
+Local candidate `CORE-078` changes no language or matrix row. It adds one exact
+public Windows x86_64 CPU evidence lane using the official LLVM/Clang 22.1.8 win64
+installer pinned by SHA-256. The lane must preserve the existing MSVC triple/layout,
+fail artifact-free on invalid source, externally and machine verify, emit a COFF
+object, link through Clang/MSVC, and execute the public and manual paths at exit 227.
+Focused and complete local gates pass; the CPU row remains `PARTIAL` and cannot gain
+Windows public evidence until the expanded nine-check exact candidate is green.
 
 ## Compiler, tooling, and ecosystem surfaces
 
@@ -162,7 +170,7 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 | Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| CPU | Y | Y | P | P | P | P | P | PARTIAL |
+| CPU | Y | Y | P | P | P; Linux accepted, pinned Windows candidate pending | P | P | PARTIAL |
 | ROCm | Y | Y | P, temporary/unchecked at AUDIT-024 | N | N | N | External llama.cpp only | EXPERIMENTAL |
 | CUDA | Y | P | N | N | N | N | N | PARSED_ONLY |
 | Graph compilation | Y | Y | — | — | Internal scalar-helper transform only | N | N | EXPERIMENTAL |

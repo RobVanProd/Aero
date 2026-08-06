@@ -3319,9 +3319,12 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-073 - Admit exact balanced loop-carried enum-owner restoration
 
 - Date: 2026-08-05
-- Status: locally green `CORE-077` candidate; immutable commit/push, rendered PR
-  synchronization, all-eight exact-head public checks, and pinned stable/nightly
-  LLVM/Clang 22.1.8 native exit 227 remain pending.
+- Status: accepted public `CORE-077` at exact implementation
+  `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree
+  `2efbeed06e0a303aa5c07d3352d7c536fcd92dcd`, and stable patch
+  `d64092de918ad990b79d94f6193607783e3acc55`; all eight exact-head checks pass,
+  and pinned stable/nightly LLVM/Clang 22.1.8 execute exit 227 while preserving exits
+  149/223.
 - Decision: an exact direct mutable local of an already admitted destructor-free enum
   may be consumed and reinitialized within statement `while`, fixed-array `for`, or
   `loop` only when it is exactly `Owned` at loop entry and on every reachable
@@ -3356,3 +3359,33 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   semantics remain frozen. This is a hard ownership/CFG system slice; the mega-PR
   checkpoint strategy, structured evidence-manifest generator, and broader periodic
   architecture gates remain separate controls.
+
+## DEC-074 - Require a pinned Windows x86_64 native system lane
+
+- Date: 2026-08-06
+- Status: locally green `CORE-078` candidate; immutable commit/push, rendered PR
+  synchronization, and the expanded all-nine exact-head public set remain pending.
+- Decision: add one public `windows-latest` stable-Rust system job without changing
+  compiler source or language semantics. It downloads the official LLVM 22.1.8 win64
+  installer and verifies exact release SHA-256
+  `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`
+  before noninteractive installation. `opt`, `llvm-as`, `llc`, and `clang` must each
+  report exact 22.1.8; an unpinned third-party LLVM action is not accepted.
+- System proof: the job must retain the existing `x86_64-pc-windows-msvc` triple and
+  MSVC data layout, reject invalid source without the requested artifact, externally
+  verify with `opt`, machine-verify with `llc -verify-machineinstrs`, emit a COFF
+  object, link through Clang/MSVC, and run the tracked two-module balanced-loop
+  specimen through both public `run` and the independently linked executable at exact
+  exit 227. Existing Linux stable/nightly exits 149/223/227 remain mandatory.
+- Evidence: the focused workflow contract was red before workflow mutation because all
+  Windows anchors were absent while Linux preservation anchors remained unique. It is
+  green 1/1 after the bounded job addition. The complete 195-library/201-binary
+  surface, every integration/doc target, formatting, all-target/all-feature check,
+  correctness Clippy, docs, and exact repository-root gate pass locally. This host has
+  no LLVM 22, so no local pinned-native claim is made.
+- Exclusions and scaling boundary: this proves only the bounded current private CPU
+  subset on GitHub's x86_64 MSVC runner after public green. It adds no Windows ARM,
+  MinGW, macOS, stable ABI/FFI, Aero installer/package, language feature, memory-safety,
+  release, performance, or accelerator claim. The mega-PR checkpoint strategy,
+  structured evidence manifest, hard runtime/module/ABI work, and real RX 7800 XT
+  execution remain separate controls.

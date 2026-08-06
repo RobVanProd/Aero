@@ -8,19 +8,34 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-077` is a locally green balanced loop-carried owned-enum reinitialization
-  candidate. One shared edge classifier requires each direct mutable admitted enum to
+- `CORE-078` is a locally green public-Windows-system-gate candidate and changes no
+  compiler source or language semantics. One `windows-latest` stable job downloads the
+  official LLVM 22.1.8 win64 installer, verifies release SHA-256
+  `16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c`,
+  requires exact `opt`/`llvm-as`/`llc`/`clang` versions, and freezes the existing
+  x86_64 MSVC target header. It must prove invalid-build artifact hygiene, external and
+  machine verification, COFF object generation, Clang/MSVC linking, public `run`,
+  manual native execution, and exact exit 227. The red/green contract passes 1/1, as
+  do the 195-library/201-binary complete surface, every integration/doc target,
+  formatting, check, correctness Clippy, docs, and exact root gate. Publication and
+  the expanded nine-check public result remain pending; Windows public acceptance is
+  not yet claimed.
+
+- `CORE-077` is accepted public for balanced loop-carried owned-enum reinitialization
+  at exact commit `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`, tree
+  `2efbeed06e0a303aa5c07d3352d7c536fcd92dcd`, and stable patch
+  `d64092de918ad990b79d94f6193607783e3acc55`. One shared edge classifier requires
+  each direct mutable admitted enum to
   be exactly `Owned` at loop entry and at every reachable `while` condition, `for`
   iterable, fallthrough/`continue` backedge, and `break` exit. Semantic analysis and
   independent checked admission provide phase-specific snapshots to that same rule;
   verifier CFG controls independently reject missing, bypassed, one-path, generic-
   store, wrong-schema, cycle, and exit repairs. `while`, fixed-array `for`, `loop`,
   return/nonjoining paths, nearest nested-loop transfers, every admitted enum schema,
-  and every CORE-073 origin are covered. The 195-library/201-binary complete surface,
-  every integration/doc target, formatting, all-target/all-feature check, correctness
-  Clippy, docs, CLI artifact hygiene, and the exact root gate pass locally. The tracked
-  composed specimen is pinned for stable/nightly LLVM/Clang 22 native exit 227;
-  immutable publication and exact public/native acceptance remain pending. Loop-
+  and every CORE-073 origin are covered. All eight exact-head checks pass in push CI
+  `31085620279`, PR CI `31085622212`, Rust `31085622180`, CodeQL `31085620081`, and
+  aggregate check `92564358585`; stable/nightly pinned LLVM/Clang 22.1.8 preserve
+  exits 149/223 and execute exact exit 227. Loop-
   carried `Moved`/`MaybeMoved`, projections/partial moves, enum storage/borrowing,
   drop/lifetimes, stable ABI, imports, accelerators, release, and safety remain excluded.
 
