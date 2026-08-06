@@ -2968,3 +2968,40 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   classification before topology rules grow further. It follows a hard CFG/runtime
   milestone and includes a composed system gate, while PR checkpoint strategy and
   structured evidence-manifest generation remain separately authorized controls.
+
+## DEC-064 - Centralize exact function-call contracts before trusted IR
+
+- Date: 2026-08-05
+- Status: local CORE-068 implementation candidate on accepted records head
+  `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656`; immutable identity and public evidence
+  pending, not accepted public.
+- Decision: one phase-aware classifier is the sole authority for named-call target
+  availability, exact parameters/result, actual argument types, value-versus-discarded
+  use, and preserved context. Mutable and immutable semantic inference plus checked
+  admission/lowering consume that disposition. No absent or unsupported signature may
+  become `Int`, reach checked IR, or manufacture an LLVM call/result layout.
+- Positive contract: preserve already admitted nongeneric top-level and flattened
+  direct-module functions over `Void`, `Int`, `Float`, `Bool`, recursive finite
+  CopyData, admitted owned enums, and exact immutable/mutable reference parameters.
+  Forward calls, terminating direct recursion, exact returns, discarded `Void` calls,
+  source-order arguments, and established callable-binding compatibility remain
+  bounded to their existing contracts.
+- Rejection/quarantine: missing/case-mismatched and declared-but-unadmitted targets,
+  wrong arity/type, unsupported parameter/result annotations, `Void` value use,
+  generic/trait/impl and closure calls, constructor lookalikes, and raw checked
+  admission reject deterministically. Legacy unchecked lowering is explicitly
+  quarantined and unreachable from `try_generate_ir`.
+- Local evidence: red-first proof reproduced every phase-local false success. Two
+  classifier unit products, the exhaustive source/semantic/checked-IR/LLVM/CLI target,
+  affected compatibility ring, formatting, all-target/all-feature check, correctness
+  Clippy, docs, and exact root gate pass at 185/185 library tests. The two-file system
+  specimen emits deterministic LLVM, links with local Clang 19.1.5, and executes exit
+  181. Pinned LLVM/Clang 22 and all public evidence remain pending.
+- Exclusions: overloads, conversions, default/variadic arguments, generic/trait
+  dispatch, closure semantics, new function pointers, reference results, lifetime/
+  escape or ownership rules, layout/stable ABI/FFI, runtime Strings/collections,
+  accelerators, benchmarks, releases, stability/safety claims, and PR merge.
+- Scaling boundary: this is a cross-function/ownership/backend system slice rather
+  than a convenient compile-time leaf. It uses one classifier, one exhaustive product,
+  and one composed exit-181 gate. PR checkpoint strategy and structured evidence-
+  manifest generation remain separately authorized controls.

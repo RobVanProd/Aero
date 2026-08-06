@@ -12,7 +12,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const EXPECTED_INNER_DIAGNOSTIC: &str = "Struct construction expressions are not supported.";
 const FIELD_DIAGNOSTIC: &str = "Field access expressions are not supported.";
 const MATCH_DIAGNOSTIC: &str = "Match expressions are not supported.";
-const VOID_DIAGNOSTIC: &str = "Error: void function `sink` cannot be used as a value.";
+const VOID_DIAGNOSTIC: &str =
+    "Unsupported function call `sink`: Error: void function `sink` cannot be used as a value.";
 
 const PUBLIC_DECLARATION_AND_SCALAR_CONTROL_SOURCE: &str = r#"
 struct Point { x: int, y: int }

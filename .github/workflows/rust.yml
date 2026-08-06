@@ -729,6 +729,25 @@ jobs:
         fi
         echo "intrinsic method contract example passed with exit code 167"
 
+    - name: Test function call contract integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/function_call_contract/main.aero -o ../../function_call_contract.ll
+        opt-22 -passes=verify -disable-output ../../function_call_contract.ll
+        llc-22 -verify-machineinstrs ../../function_call_contract.ll -o /dev/null
+        llc-22 -filetype=obj ../../function_call_contract.ll -o ../../function_call_contract.o
+        clang-22 -no-pie ../../function_call_contract.o -o ../../function_call_contract
+        set +e
+        ../../function_call_contract
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 181 ]; then
+          echo "Expected exit code 181, got $exit_code"
+          exit 1
+        fi
+        echo "function call contract example passed with exit code 181"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

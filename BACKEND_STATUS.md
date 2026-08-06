@@ -86,6 +86,17 @@ independently repeats exit 167. This is public evidence only for the exact bound
 intrinsic-method class and establishes no general method, layout, ABI, backend-
 stability, or performance class.
 
+Local candidate `CORE-068` changes no call ABI, aggregate representation, checked-IR
+opcode, or verifier rule. One shared call classifier admits only an exact existing
+nongeneric signature and exact argument/result contract before trusted lowering;
+missing, declared-but-unadmitted, generic, closure, unsupported-annotation, wrong-
+arity/type, and `Void`-in-value calls reject before checked IR instead of manufacturing
+`Int` or an LLVM call. The tracked direct-module specimen emits deterministic Windows
+LLVM, links with Visual Studio Clang 19.1.5, and executes exact exit 181. This host has
+no LLVM 22, so external verification, machine verification, object/link evidence, the
+pinned exit-181 system gate, and every public claim remain pending an immutable pushed
+candidate and public checks.
+
 ## ROCm path
 
 The CLI can retarget module metadata and invoke `llc` with AMDGPU flags, but it

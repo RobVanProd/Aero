@@ -10,6 +10,7 @@ mod doc_generator;
 mod enum_match_contract;
 mod errors;
 mod fixed_array_method;
+mod function_call_contract;
 mod gpu;
 mod graph_compiler;
 mod ir;

@@ -1007,9 +1007,9 @@ fn test_semantic_unsatisfied_trait_bound() {
 }
 
 #[test]
-fn test_semantic_trait_bound_satisfied_ok() {
-    // Calling a function with trait-bounded generic using a type
-    // that DOES implement the trait should pass
+fn test_semantic_satisfied_trait_bound_call_remains_quarantined() {
+    // A satisfied bound does not supply generic substitution, a callable ABI, or an
+    // admitted lowering contract. Preserve the syntax and fail closed at the call.
     let source = r#"
         trait Display {
             fn display(&self) -> String;
@@ -1029,10 +1029,11 @@ fn test_semantic_trait_bound_satisfied_ok() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
+    let error = result.expect_err("satisfied trait bound must not activate generic calls");
     assert!(
-        result.is_ok(),
-        "Satisfied trait bound should pass: {:?}",
-        result
+        error.contains("Unsupported function call `print_item`")
+            && error.contains("no admitted executable signature"),
+        "satisfied trait-bound call escaped the shared quarantine: {error}"
     );
 }
 

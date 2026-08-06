@@ -8,6 +8,7 @@ mod copy_place_contract;
 mod enum_match_contract;
 pub mod errors;
 mod fixed_array_method;
+mod function_call_contract;
 pub mod gpu;
 pub mod graph_compiler;
 mod ir;

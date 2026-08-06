@@ -4,32 +4,37 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 86 `CORE-067` has an accepted public implementation at exact commit
-`e7525bf039339909c8f4f5cc68262fdf498079e0`; the additive records-only closure and
-its fresh all-eight public check set remain pending. One shared intrinsic-method
-classifier now owns receiver,
-method, arity, static-String provenance, phase, and preserved-context classification
-for both semantic inference paths and checked admission/lowering. Unknown and
-unimplemented methods no longer fabricate semantic scalar/composite types, and trusted
-checked lowering has no zero-value fallback. The specialized fixed-array and String
-helpers receive normalized query kinds and do not independently decide method
-topology.
+Milestone 87 `CORE-068` is a local implementation candidate derived from accepted
+records head `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656`; it has no published immutable
+candidate identity or public acceptance yet. One shared function-call classifier now
+owns named-target availability, exact parameter and result contracts, argument types,
+value-versus-discarded use, and preserved context for both semantic inference paths
+and checked admission/lowering. Missing or unsupported signatures no longer become
+`Int`, and the trusted checked path cannot emit a call or choose a result layout
+without an accepted exact contract. Legacy unchecked lowering remains explicitly
+quarantined from `try_generate_ir`.
 
-The executable positive slice admits exact zero-argument `.len()` and `.is_empty()`
-for every fixed array whose element is already in the recursive finite CopyData
-universe. Length lowers to the exact static Aero `int`; emptiness lowers to the exact
-static `bool`. Existing compile-time immutable String queries and exact Array/Vec
-`.iter()` compatibility remain unchanged. Runtime/dynamic Strings, collection
-methods, general dispatch, generics/impl execution, closures, iterator ABI, heap
-storage, new ownership, layout, and stable ABI remain unsupported or quarantined.
-Red-first evidence reproduced the old fabricated method results and missing recursive
-queries. The focused aggregate, four classifier unit products, 29-target compatibility
-ring, formatting, correctness Clippy, docs, all integration targets, and exact root
-gate pass at 183/183 library tests. The tracked two-file system specimen resolves its
-direct module, emits Windows LLVM, links with Visual Studio Clang 19.1.5, and executes
-exact exit 167. This host accurately reports `InternalOnly` because LLVM 22 is absent;
-all pinned/public evidence remains pending. Candidate status must not be described as
-accepted public.
+The supported slice preserves exact nongeneric functions over `Void`, scalar types,
+recursive finite CopyData, admitted owned enums, and established immutable/mutable
+reference parameters. It does not add overloading, conversion, generic/trait or
+closure calls, reference results, callable ABI, layout, lifetime, or dispatch
+semantics. Red-first evidence reproduced the semantic, legacy-validator, raw-admission,
+and trusted-lowering false-successes. The classifier units, exhaustive contract target,
+affected compatibility ring, formatting, all-target/all-feature checks, correctness
+Clippy, docs, and exact root gate pass at 185/185 library tests. The tracked two-file
+system specimen resolves its direct module, emits deterministic Windows LLVM, links
+with Visual Studio Clang 19.1.5, and executes exact exit 181. This host accurately
+reports `InternalOnly` because LLVM 22 is absent; the immutable candidate, PR sync,
+all-eight public checks, and pinned LLVM/Clang 22 gate remain pending. Candidate status
+must not be described as accepted public.
+
+Milestone 86 `CORE-067` is accepted public at exact implementation commit
+`e7525bf039339909c8f4f5cc68262fdf498079e0` and additive records head
+`41eb0ee61eec53964ee21e7cb5cc5eabbefcf656`. One shared intrinsic-method classifier
+closes fabricated result and lowering fallbacks while admitting only the exact
+recursive CopyData fixed-array and established static String/Array/Vec query class.
+Both implementation-head and records-head all-eight public sets pass; pinned stable
+LLVM/Clang 22.1.8 executes exact exit 167 and nightly repeats it.
 
 Milestone 85 `CORE-066` is accepted public at exact implementation commit
 `e40804ea86888b38548fd5bf42926be2be7eb5ed`, tree
@@ -2092,12 +2097,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push the additive CORE-067 public-acceptance records only, immediately
-synchronize draft PR #4 to that records head, and require a fresh all-eight public
-check set before administrative closure. Keep the PR draft and unmerged. The controlled
-mega-PR checkpoint strategy and structured evidence-manifest generator remain separate
-tasks, hard capability classes must not be deferred for convenient slices, and
-periodic multi-capability system gates remain mandatory.
+Freeze and publish one exact CORE-068 implementation candidate, immediately synchronize
+draft PR #4 as candidate-only, and require all eight public checks plus the pinned
+LLVM/Clang 22 invalid-control/external/machine/object/link/native-exit-181 evidence.
+Only then may additive acceptance records be published and a second all-eight public
+closure required. Keep the PR draft and unmerged. The controlled mega-PR checkpoint
+strategy and structured evidence-manifest generator remain separate tasks, hard
+capability classes must not be deferred for convenient slices, and periodic multi-
+capability system gates remain mandatory.
 Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
 force-push, or touch `master`.
 

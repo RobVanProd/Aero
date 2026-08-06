@@ -1108,7 +1108,7 @@ fn initialized_immediate_reference_to_tuple_annotations_fail_closed_after_value_
         &mut failures,
         "Void RHS checked child precedence",
         checked_source(VOID_SOURCE),
-        "Void function calls cannot be used as values",
+        "Unsupported function call `notify`: Error: void function `notify` cannot be used as a value.",
     );
 
     for (label, source, semantic_error, checked_error) in [
@@ -1466,7 +1466,7 @@ fn initialized_positive_count_reference_array_tuple_annotations_fail_closed_afte
         &mut failures,
         "Void RHS checked child precedence",
         checked_source(VOID_SOURCE),
-        "Void function calls cannot be used as values",
+        "Unsupported function call `notify`: Error: void function `notify` cannot be used as a value.",
     );
 
     for (label, source, semantic_error, checked_error) in [
@@ -3577,7 +3577,7 @@ fn binding_annotation_disposition_characterization_is_exhaustive_and_behavior_ne
         &mut failures,
         "Void RHS checked precedence",
         checked_source(VOID_SOURCE),
-        "Void function calls cannot be used as values",
+        "Unsupported function call `notify`: Error: void function `notify` cannot be used as a value.",
     );
 
     let generic_impl = generic_impl_with(binding(

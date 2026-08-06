@@ -7,6 +7,10 @@ use crate::binding_annotation::{
 };
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::enum_match_contract::{EnumExecutionContext, EnumFunctionContract, EnumRegistry};
+use crate::function_call_contract::{
+    FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
+    FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
+};
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
@@ -96,6 +100,30 @@ impl Default for FunctionTable {
 }
 
 impl FunctionTable {
+    fn classified_result(disposition: FunctionCallDisposition) -> Result<Ty, String> {
+        match disposition {
+            FunctionCallDisposition::Supported(contract) => Ok(contract.result),
+            FunctionCallDisposition::ExplicitlyRejected(diagnostic)
+            | FunctionCallDisposition::PreservedContext(diagnostic) => Err(diagnostic),
+        }
+    }
+
+    fn legacy_parameter_type(ty: &crate::ast::Type) -> Option<Ty> {
+        match ty {
+            crate::ast::Type::Named(type_name) => match type_name.as_str() {
+                "i32" | "int" => Some(Ty::Int),
+                "f64" | "float" => Some(Ty::Float),
+                "bool" => Some(Ty::Bool),
+                "String" => Some(Ty::String),
+                _ => None,
+            },
+            crate::ast::Type::Array(_, _)
+            | crate::ast::Type::Tuple(_)
+            | crate::ast::Type::Reference(_, _)
+            | crate::ast::Type::Generic(_, _) => None,
+        }
+    }
+
     pub fn define_function(&mut self, info: FunctionInfo) -> Result<(), String> {
         if self.functions.contains_key(&info.name) {
             return Err(format!(
@@ -112,44 +140,36 @@ impl FunctionTable {
     }
 
     pub fn validate_call(&self, name: &str, args: &[Ty]) -> Result<Ty, String> {
-        if let Some(func) = self.functions.get(name) {
-            if func.parameters.len() != args.len() {
-                return Err(format!(
-                    "Error: Function `{}` expects {} arguments, but {} were provided.",
-                    name,
-                    func.parameters.len(),
-                    args.len()
-                ));
-            }
-
-            for (i, (param, arg_type)) in func.parameters.iter().zip(args.iter()).enumerate() {
-                let expected_type = match &param.param_type {
-                    crate::ast::Type::Named(type_name) => match type_name.as_str() {
-                        "i32" | "int" => Ty::Int,
-                        "f64" | "float" => Ty::Float,
-                        "bool" => Ty::Bool,
-                        "String" => Ty::String,
-                        _ => Ty::Int,
+        let target = match self.functions.get(name) {
+            Some(function) => {
+                let parameters = function
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        Self::legacy_parameter_type(&parameter.param_type).map(|ty| {
+                            FunctionCallParameter {
+                                name: Some(parameter.name.clone()),
+                                ty,
+                            }
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>();
+                match parameters {
+                    Some(parameters) => FunctionCallTarget::Admitted {
+                        parameters: Some(parameters),
+                        result: function.return_type.clone(),
                     },
-                    crate::ast::Type::Array(_, _) | crate::ast::Type::Tuple(_) => Ty::Int,
-                    crate::ast::Type::Reference(_, _) | crate::ast::Type::Generic(_, _) => Ty::Int,
-                };
-
-                if expected_type != *arg_type {
-                    return Err(format!(
-                        "Error: Function `{}` expects type `{}` for argument {}, but `{}` was provided.",
-                        name,
-                        expected_type,
-                        i + 1,
-                        arg_type
-                    ));
+                    None => FunctionCallTarget::DeclaredUnadmitted,
                 }
             }
-
-            Ok(func.return_type.clone())
-        } else {
-            Err(format!("Error: Function `{}` is not defined.", name))
-        }
+            None => FunctionCallTarget::Missing,
+        };
+        Self::classified_result(classify_function_call(FunctionCallFacts {
+            name: name.to_string(),
+            target,
+            arguments: args.to_vec(),
+            use_context: FunctionCallUse::Discarded,
+        }))
     }
 
     fn define_admitted_contract(&mut self, contract: AdmittedFunctionContract) {
@@ -162,30 +182,40 @@ impl FunctionTable {
     }
 
     fn validate_admitted_call(&self, name: &str, args: &[Ty]) -> Result<Ty, String> {
-        let contract = self
-            .admitted_contracts
-            .get(name)
-            .expect("admitted function contract must be registered");
+        self.validate_resolved_call(name, args, FunctionCallUse::Value)
+    }
 
-        if contract.parameters.len() != args.len() {
-            return Err(format!(
-                "Error: Function `{}` arity mismatch: expected {}, actual {}.",
-                name,
-                contract.parameters.len(),
-                args.len()
-            ));
-        }
-
-        for ((param_name, expected_type), arg_type) in contract.parameters.iter().zip(args.iter()) {
-            if expected_type != arg_type {
-                return Err(format!(
-                    "Error: Function `{}` parameter `{}` type mismatch: expected {}, actual {}.",
-                    name, param_name, expected_type, arg_type
-                ));
+    fn validate_resolved_call(
+        &self,
+        name: &str,
+        args: &[Ty],
+        use_context: FunctionCallUse,
+    ) -> Result<Ty, String> {
+        let target = if let Some(contract) = self.admitted_contracts.get(name) {
+            FunctionCallTarget::Admitted {
+                parameters: Some(
+                    contract
+                        .parameters
+                        .iter()
+                        .map(|(parameter, ty)| FunctionCallParameter {
+                            name: Some(parameter.clone()),
+                            ty: ty.clone(),
+                        })
+                        .collect(),
+                ),
+                result: contract.return_type.clone(),
             }
-        }
-
-        Ok(contract.return_type.clone())
+        } else if self.functions.contains_key(name) {
+            FunctionCallTarget::DeclaredUnadmitted
+        } else {
+            FunctionCallTarget::Missing
+        };
+        Self::classified_result(classify_function_call(FunctionCallFacts {
+            name: name.to_string(),
+            target,
+            arguments: args.to_vec(),
+            use_context,
+        }))
     }
 
     pub fn list_functions(&self) -> Vec<&String> {
@@ -1233,9 +1263,9 @@ impl SemanticAnalyzer {
         }
 
         if let Expression::FunctionCall { name, .. } = expr {
-            Err(format!(
-                "Error: void function `{}` cannot be used as a value.",
-                name
+            Err(unsupported_function_call_diagnostic(
+                name,
+                &format!("Error: void function `{name}` cannot be used as a value."),
             ))
         } else {
             Err("Error: Void expression cannot be used as a value.".to_string())
@@ -1403,10 +1433,15 @@ impl SemanticAnalyzer {
                     }
                     ReferenceCallDisposition::Preserved => {}
                 }
+                let mut argument_types = Vec::with_capacity(arguments.len());
                 for arg in arguments {
-                    self.infer_and_validate_expression(arg)?;
+                    argument_types.push(self.infer_and_validate_expression(arg)?);
                 }
-                Ok(Ty::Int)
+                self.function_table.validate_resolved_call(
+                    name,
+                    &argument_types,
+                    FunctionCallUse::Value,
+                )
             }
             Expression::Print {
                 format_string,
@@ -1717,15 +1752,22 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::FunctionCall { name, arguments } => {
-                if self
-                    .function_table
-                    .get_admitted_contract(name)
-                    .is_some_and(|contract| contract.return_type == Ty::Void)
-                {
-                    return Err(format!(
-                        "Error: void function `{}` cannot be used as a value.",
-                        name
-                    ));
+                if let Some(contract) = self.function_table.get_admitted_contract(name) {
+                    match classify_function_call(FunctionCallFacts {
+                        name: name.clone(),
+                        target: FunctionCallTarget::Admitted {
+                            parameters: None,
+                            result: contract.return_type.clone(),
+                        },
+                        arguments: Vec::new(),
+                        use_context: FunctionCallUse::Value,
+                    }) {
+                        FunctionCallDisposition::Supported(_) => {}
+                        FunctionCallDisposition::ExplicitlyRejected(diagnostic)
+                        | FunctionCallDisposition::PreservedContext(diagnostic) => {
+                            return Err(diagnostic);
+                        }
+                    }
                 }
                 for argument in arguments {
                     self.preflight_expression_with_array_mode(
@@ -2056,17 +2098,46 @@ impl SemanticAnalyzer {
     }
 
     fn infer_discarded_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
-        if let Expression::FunctionCall { name, .. } = expr
-            && self
-                .function_table
-                .get_admitted_contract(name)
-                .is_some_and(|contract| contract.return_type == Ty::Void)
-        {
+        if let Expression::FunctionCall { name, arguments } = expr {
             let mut array_types = ArrayInferenceCache::new();
-            return self.infer_expression_immutable_with_cache(expr, &mut array_types);
+            return self.infer_function_call_immutable(
+                name,
+                arguments,
+                &mut array_types,
+                FunctionCallUse::Discarded,
+            );
         }
 
         self.infer_and_validate_expression_immutable(expr)
+    }
+
+    fn infer_function_call_immutable(
+        &self,
+        name: &str,
+        arguments: &[Expression],
+        array_types: &mut ArrayInferenceCache,
+        use_context: FunctionCallUse,
+    ) -> Result<Ty, String> {
+        let direct_mutable_call = match self.reference_call_disposition(name, arguments) {
+            ReferenceCallDisposition::Supported(contract) => Some(contract),
+            ReferenceCallDisposition::ExplicitlyRejected(message) => {
+                return Err(message);
+            }
+            ReferenceCallDisposition::Preserved => None,
+        };
+        let mut argument_types = Vec::with_capacity(arguments.len());
+        if let Some(contract) = direct_mutable_call {
+            argument_types.push(contract.reference_type());
+        } else {
+            for argument in arguments {
+                argument_types.push(
+                    self.infer_and_validate_expression_immutable_with_cache(argument, array_types)?,
+                );
+            }
+        }
+
+        self.function_table
+            .validate_resolved_call(name, &argument_types, use_context)
     }
 
     fn infer_expression_immutable_with_cache(
@@ -2087,37 +2158,12 @@ impl SemanticAnalyzer {
                     self.infer_and_validate_expression_immutable_with_cache(right, array_types)?;
                 infer_binary_type(op.as_str(), &lhs_type, &rhs_type)
             }
-            Expression::FunctionCall { name, arguments } => {
-                let direct_mutable_call = match self.reference_call_disposition(name, arguments) {
-                    ReferenceCallDisposition::Supported(contract) => Some(contract),
-                    ReferenceCallDisposition::ExplicitlyRejected(message) => {
-                        return Err(message);
-                    }
-                    ReferenceCallDisposition::Preserved => None,
-                };
-                let mut argument_types = Vec::with_capacity(arguments.len());
-                if let Some(contract) = direct_mutable_call {
-                    argument_types.push(contract.reference_type());
-                } else {
-                    for arg in arguments {
-                        argument_types.push(
-                            self.infer_and_validate_expression_immutable_with_cache(
-                                arg,
-                                array_types,
-                            )?,
-                        );
-                    }
-                }
-
-                if self.function_table.get_admitted_contract(name).is_some() {
-                    self.function_table
-                        .validate_admitted_call(name, &argument_types)
-                } else if self.function_table.get_function(name).is_some() {
-                    Ok(Ty::Int)
-                } else {
-                    Err(format!("Error: Function `{}` is not defined.", name))
-                }
-            }
+            Expression::FunctionCall { name, arguments } => self.infer_function_call_immutable(
+                name,
+                arguments,
+                array_types,
+                FunctionCallUse::Value,
+            ),
             Expression::Print {
                 format_string,
                 arguments,

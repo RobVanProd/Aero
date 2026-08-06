@@ -1,0 +1,23 @@
+mod calls;
+
+fn main() -> int {
+    let base = 170;
+    let seen = read(&base);
+    let mut adjusted = seen;
+    let changed = bump(&mut adjusted);
+    observe(changed);
+    let flags = [1 < 2, 2 < 1];
+    if seen == 170
+        && changed == 171
+        && adjusted == 171
+        && score(Payload::Item(roundtrip(make_frame(3)))) == 7
+        && loop_score() == 11
+        && countdown(2) == 2
+        && flags.len() == 2
+        && !flags.is_empty()
+        && [1 < 2; 0].is_empty()
+    {
+        return 181;
+    }
+    1
+}

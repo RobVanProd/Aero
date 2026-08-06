@@ -211,18 +211,6 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
         }
     }
 
-    fn assert_verification(ast: Vec<AstNode>, expected_fragment: &str, label: &str) {
-        match checked_error(ast, label) {
-            IrGenerationError::Verification(error) => assert!(
-                error.to_string().contains(expected_fragment),
-                "{label}: wrong verifier diagnostic: {error}"
-            ),
-            IrGenerationError::Admission(message) => {
-                panic!("{label}: verifier precedence changed to Admission: {message}")
-            }
-        }
-    }
-
     fn assert_checked(ast: Vec<AstNode>, label: &str) {
         if let Err(error) = IrGenerator::new().try_generate_ir(ast) {
             panic!("{label}: valid checked AST failed: {error}");
@@ -281,7 +269,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 value: Some(call("consume", Vec::new())),
             }]),
         ],
-        "Void function calls cannot be used as values",
+        "Unsupported function call `consume`: Error: void function `consume` cannot be used as a value.",
         "Void-as-value precedence",
     );
 
@@ -371,23 +359,23 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
         "discarded Void exact-arity call",
     );
 
-    assert_verification(
+    assert_admission(
         vec![
             int_function("bad-name", vec![parameter("value", named("int"))]),
             main_function(vec![Statement::Expression(call("bad-name", Vec::new()))]),
         ],
-        "function symbol `bad-name` is not admitted for LLVM emission",
+        "Unsupported function call `bad-name`: Error: Function `bad-name` has no admitted executable signature.",
         "invalid function symbol",
     );
-    assert_verification(
+    assert_admission(
         vec![
             int_function("printf", vec![parameter("value", named("int"))]),
             main_function(vec![Statement::Expression(call("printf", Vec::new()))]),
         ],
-        "`printf` is reserved by the checked runtime ABI",
+        "Unsupported function call `printf`: Error: Function `printf` has no admitted executable signature.",
         "reserved function symbol",
     );
-    assert_verification(
+    assert_admission(
         vec![
             int_function("bad_parameter", vec![parameter("bad-name", named("int"))]),
             main_function(vec![Statement::Expression(call(
@@ -395,10 +383,10 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 Vec::new(),
             ))]),
         ],
-        "parameter symbol `bad-name` is not admitted for LLVM emission",
+        "Unsupported function call `bad_parameter`: Error: Function `bad_parameter` has no admitted executable signature.",
         "invalid parameter symbol",
     );
-    assert_verification(
+    assert_admission(
         vec![
             int_function(
                 "duplicate_parameter",
@@ -412,10 +400,10 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 Vec::new(),
             ))]),
         ],
-        "function signature defines duplicate parameter `value`",
+        "Unsupported function call `duplicate_parameter`: Error: Function `duplicate_parameter` has no admitted executable signature.",
         "duplicate parameter symbol",
     );
-    assert_verification(
+    assert_admission(
         vec![
             int_function("duplicate", vec![parameter("first", named("int"))]),
             int_function(
@@ -427,11 +415,11 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
             ),
             main_function(vec![Statement::Expression(call("duplicate", Vec::new()))]),
         ],
-        "duplicate result definition",
+        "Unsupported function call `duplicate`: Error: Function `duplicate` has no admitted executable signature.",
         "duplicate top-level declaration",
     );
 
-    assert_verification(
+    assert_admission(
         vec![
             int_function("entry_caller", Vec::new()),
             main_function(vec![Statement::Expression(call(
@@ -439,7 +427,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 vec![Expression::IntegerLiteral(1)],
             ))]),
         ],
-        "call to `main` has 1 arguments but its signature requires 0",
+        "Unsupported function call `main`: Error: Function `main` has no admitted executable signature.",
         "entry behavior remains ineligible",
     );
     assert_admission(
@@ -453,7 +441,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
             ),
         ],
-        "generic function IR is not admitted in CORE-010",
+        "Unsupported function call `generic`: Error: Function `generic` has no admitted executable signature.",
         "generic signature remains ineligible",
     );
     assert_admission(
@@ -464,7 +452,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 vec![parameter("value", Type::Array(Box::new(named("int")), 1))],
             ),
         ],
-        "call to `ineligible` has 0 arguments but its signature requires 1",
+        "Unsupported function call `ineligible`: Error: Function `ineligible` arity mismatch: expected 1, actual 0.",
         "fixed numeric array signature now participates in exact arity admission",
     );
     assert_admission(
@@ -478,7 +466,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 )],
             ),
         ],
-        "call to `ineligible` has 0 arguments but its signature requires 1",
+        "Unsupported function call `ineligible`: Error: Function `ineligible` arity mismatch: expected 1, actual 0.",
         "reference signature now participates in exact arity admission",
     );
     assert_admission(
@@ -495,7 +483,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                 vec![Statement::Return(Some(Expression::IntegerLiteral(1)))],
             ),
         ],
-        "call to `ineligible_result` has 1 arguments but its signature requires 0",
+        "Unsupported function call `ineligible_result`: Error: Function `ineligible_result` arity mismatch: expected 0, actual 1.",
         "fixed numeric array result now participates in exact arity admission",
     );
     assert_admission(
@@ -532,7 +520,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                     vec![Expression::IntegerLiteral(1)],
                 ))]),
             ],
-            "call to `needs_two` has 1 arguments but its signature requires 2",
+            "Unsupported function call `needs_two`: Error: Function `needs_two` arity mismatch: expected 2, actual 1.",
         ),
         (
             "too many",
@@ -543,7 +531,7 @@ fn known_scalar_top_level_call_arity_fails_at_checked_admission() {
                     vec![Expression::IntegerLiteral(1), Expression::IntegerLiteral(2)],
                 ))]),
             ],
-            "call to `needs_one` has 2 arguments but its signature requires 1",
+            "Unsupported function call `needs_one`: Error: Function `needs_one` arity mismatch: expected 1, actual 2.",
         ),
     ];
     let observed = wrong_arity

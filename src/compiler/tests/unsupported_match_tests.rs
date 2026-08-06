@@ -12,7 +12,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const EXPECTED_INNER_DIAGNOSTIC: &str = "Match expressions are not supported.";
 const FIELD_DIAGNOSTIC: &str = "Field access expressions are not supported.";
 const TUPLE_DIAGNOSTIC: &str = "Tuple expressions are not supported.";
-const VOID_DIAGNOSTIC: &str = "Error: void function `sink` cannot be used as a value.";
+const VOID_DIAGNOSTIC: &str =
+    "Unsupported function call `sink`: Error: void function `sink` cannot be used as a value.";
 
 const NUMERIC_CONTROL_SOURCE: &str = r#"
 fn add(left: int, right: int) -> int {

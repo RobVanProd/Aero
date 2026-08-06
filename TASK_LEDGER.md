@@ -13390,3 +13390,166 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   or public claim boundary. Its exact successor commit must be pushed to
   `agent/aero-integration`, draft PR #4 must be synchronized immediately, and all
   eight checks must pass again before administrative closure.
+
+## CORE-068 - Shared function-call classification and trusted call containment
+
+- Task ID/date/owner: `CORE-068`, 2026-08-05, lead-owned tests-first vertical slice.
+  Starting identity is accepted CORE-067 records head
+  `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656` on
+  `agent/aero-integration`; local and remote heads match, `master` remains unchanged,
+  draft PR #4 is open and unmerged, and both CORE-067 all-eight public sets pass.
+  Existing untracked `tmp/` is preserved user state and remains outside this task.
+- Selection/specification evidence: the founding language PDF freezes globally visible
+  function signatures, compile-time type checking, source-order evaluation, ownership
+  transfer or explicit borrowing at calls, and a typed IR/LLVM pipeline. The tracked
+  formal specification further requires exact argument arity/types and return-type
+  unification. In contrast, the founding documents do not freeze moved-target
+  reinitialization, loop ownership joins, recursive module namespaces, reference-result
+  lifetimes, runtime String/collection allocation, stable ABI policy, or hardware GPU
+  execution. CORE-068 therefore selects the specified call contract rather than
+  inventing one of those hard but ambiguous semantics.
+- Observed behavior: mutable semantic expression inference evaluates call arguments and
+  returns `Ty::Int` for every non-reference call without consulting the admitted
+  signature. Immutable inference returns `Ty::Int` for a declared but unadmitted
+  function. The legacy `FunctionTable::validate_call` maps every unknown named,
+  array, tuple, reference, or generic parameter annotation to `Ty::Int`. Checked
+  admission returns `Ty::Int` when no function/callable contract exists. Trusted call
+  construction defaults every missing or unsupported return contract to `Ty::Int` and
+  can emit a call result for an undefined symbol. Public compilation often rejects
+  some forms in an earlier/later pass, but the phase-local false-success boundaries are
+  real and raw checked/trusted paths retain fabricated scalar escape hatches.
+- Primary hypothesis: one normalized, phase-aware function-call classifier can be the
+  sole authority for supported, explicitly rejected, and preserved/quarantined named
+  calls. Both semantic inference paths and checked admission can supply normalized
+  signature, callable-binding, argument-type, use-context, and generic/impl facts; the
+  trusted checked lowerer can consume only the accepted exact result. No absent or
+  unsupported call contract may become `Int`, emit an undefined LLVM call, or reach a
+  trusted scalar-return fallback.
+- Frozen supported behavior: preserve every already accepted nongeneric top-level or
+  flattened direct-module function contract over `Void`, `Int`, `Float`, `Bool`,
+  recursive finite CopyData aggregates, admitted owned enums, and exact immutable/
+  mutable reference parameters. Preserve forward calls, terminating direct recursion,
+  exact explicit/tail returns, discarded `Void` calls, source-order argument
+  evaluation, exact callable-binding compatibility already admitted by checked IR,
+  and constructor syntax already classified outside ordinary named calls. This task
+  adds no overload, implicit conversion, generic substitution, method dispatch,
+  closure call, runtime, layout, or public ABI semantics.
+- Executable completion surface: one tracked two-file direct-module program must compose
+  ordinary calls with recursive CopyData structs/tuples/arrays, fixed-array queries,
+  owned unary-enum construction/transport/Match, immutable and mutable whole-place
+  references, conditional and statement-loop execution, and exact return flow. It must
+  cross source, semantics, checked IR, independent verification, LLVM, pinned machine
+  verification, object/link, and exact native exit 181. This periodic system checkpoint
+  is required so the milestone cannot close as rejection-only evidence.
+- Negative completion surface: undefined and case-mismatched calls; declared but
+  unadmitted signatures; wrong arity/type; unsupported parameter/return annotations;
+  `Void` in value context; nested calls in inferred/exact bindings, comparisons,
+  arguments, returns, arrays/struct fields, conditions, and direct modules; generic,
+  impl/trait, closure, constructor-lookalike, and callable-binding boundaries; raw
+  checked-admission attempts; and trusted lowering without an accepted contract.
+  Public `check`, `build`, and `run` must reject invalid executable calls before checked
+  IR and without requested artifacts or native execution. Diagnostics and child
+  evaluation order must be deterministic and source-oriented.
+- Allowed files: this ledger; one shared function-call classifier; existing semantic
+  and checked/lowering call consumers; `src/compiler/src/{lib,main}.rs` module
+  declarations; one exhaustive `function_call_contract_tests.rs`; directly superseded
+  function/call expectations; one tracked two-file direct-module example;
+  `.github/workflows/rust.yml`; and, only after the exact implementation candidate is
+  green, current project/capability/framework/decision/audit/README/roadmap/backend
+  records plus draft PR #4. Parser, lexer, AST, checked-IR opcodes, verifier semantics,
+  runtime, dependencies, and `master` are frozen.
+- Stop/forbidden boundary: stop rather than approximate if exact existing function
+  facts cannot be normalized without a new signature semantic, if callable bindings
+  require closure/generic behavior, if a second call-topology guard is needed in a
+  source phase, if the implementation crosses more than semantic and IR/lowering
+  compiler phases, or if an unrelated baseline becomes red. Do not add overloading,
+  conversions, default/variadic arguments, generic/trait dispatch, closures/captures,
+  function pointers beyond existing compatibility, lifetime/escape behavior, new
+  ownership or drop rules, layout/stable ABI/FFI, runtime collections/Strings,
+  accelerators, benchmarks, releases, claims, merge, force-push, or history rewrite.
+- Acceptance gates: exact behavioral red before production; exhaustive shared-
+  classifier product; affected function/reference/enum/Match/aggregate/loop/module/
+  closure/intrinsic-method/checked-IR/verifier compatibility ring; formatting;
+  all-target/all-feature check; correctness Clippy; docs; exact repository-root
+  `./tools/test.sh`; deterministic tracked source through checked IR and LLVM; one
+  immutable candidate; immediate PR #4 candidate synchronization; all eight public
+  checks; pinned stable LLVM/Clang 22 known-invalid control plus external/machine/
+  object/link/native exit 181; additive acceptance records; and a second all-eight
+  public closure. Candidate and accepted status remain explicitly separate.
+- Scaling controls: PR #4 remains a 263-commit integration program requiring separate
+  checkpoint/merge authorization; this is a cross-function/ownership/ABI-path system
+  slice rather than another compile-time leaf; one classifier, one exhaustive product,
+  and one composed specimen constrain evidence administration; and the exact native
+  program is the required periodic multi-capability system gate. Structured checkpoint-
+  manifest generation remains separately authorized future work.
+- Status at authorization: no CORE-068 test, example, workflow anchor, production
+  mutation, capability record, candidate, or public claim exists. Next action is the
+  exhaustive behavioral red on exact accepted head `41eb0ee`; production remains
+  frozen until that red independently proves the phase-local false-successes.
+- First red before production: the new exhaustive target compiles and runs 0/1 on
+  accepted head `41eb0ee`. Its composed ordinary-function/recursive-CopyData/owned-
+  enum/Match/reference/loop/fixed-array-query program parses, reaches checked IR, and
+  emits deterministic LLVM without fallback casts. Every intended boundary remains
+  red: all eleven invalid semantic topologies use divergent legacy diagnostics; the
+  legacy validator accepts unknown named, array, tuple, reference, and generic
+  annotations as `Int`-compatible; raw admission defers an unresolved symbol until
+  verifier rejection; the shared classifier and both consumers are absent; CLI
+  `check`/`run` use the old diagnostic; and the tracked example plus six stable-
+  workflow anchors are absent. The only initial test-harness mismatch was the guessed
+  checked-IR debug marker `CheckedCall`; changing that test-only evidence anchor to the
+  actual `Call {` representation and rerunning preserved every intended failure with
+  no positive-path failure. That corrected red authorizes the smallest classifier and
+  semantic/IR consumer change; no production mutation exists yet.
+
+### CORE-068 local implementation candidate evidence
+
+- Implementation: `function_call_contract.rs` supplies one normalized supported,
+  explicitly rejected, or preserved disposition over target availability, exact
+  parameters/result, actual arguments, and value/discarded use. Both semantic
+  inference paths and checked admission/lowering consume it. The legacy validator no
+  longer maps unknown named, array, tuple, reference, or generic annotations to
+  `Int`; checked admission rejects missing or unadmitted targets; trusted checked
+  lowering cannot emit a call or choose a result layout without the accepted exact
+  contract. The old unchecked lowerer is isolated and explicitly quarantined from
+  `try_generate_ir`.
+- Negative/positive proof: the exhaustive target now passes every inferred/exact
+  binding, comparison, argument, return, array/struct storage, condition, direct-
+  module, generic/trait/closure, callable, raw-admission, CLI rejection, no-artifact,
+  deterministic-diagnostic, and trusted-lowering boundary. Its positive program
+  preserves ordinary forward/recursive functions, `Void` discard, exact returns,
+  recursive CopyData structures, arrays/tuples, owned enums/Match, whole-place
+  immutable/mutable references, conditions, loops, and established intrinsic queries.
+- Focused and compatibility evidence: the classifier unit product passes 2/2; the
+  exhaustive contract target passes 1/1; all affected function, frontend, checked-IR,
+  binding, closure, intrinsic, direct-module, reference, enum/Match, aggregate, loop,
+  array, and tuple targets pass. Directly superseded tests now require the shared
+  admission diagnostic instead of verifier deferral or a fabricated generic result.
+- Local system evidence: the tracked two-file direct-module specimen resolves,
+  completes semantic analysis and checked-IR verification, and emits deterministic
+  Windows LLVM with SHA-256
+  `9D487E37D24522A132421DF6B3CCE530A137F67AB7D60B2A463914F363DD0295`.
+  Visual Studio Clang 19.1.5 links it and the native program exits exactly 181; the
+  LLVM digest remains unchanged. This host accurately reports `InternalOnly` because
+  LLVM 22 is absent.
+- Repository evidence: the first exact root run exposed only three directly
+  superseded tests that still expected the old nested-`Void` wording; updating those
+  exact expectations to the shared diagnostic made their focused targets green. The
+  subsequent exact repository-root `bash ./tools/test.sh` passes with 185/185 library
+  tests, every integration target, formatting, all-target/all-feature checks,
+  correctness Clippy, docs, and doc tests. No failing test was weakened or deleted.
+- Candidate boundary: this is local implementation evidence only. No immutable CORE-
+  068 commit/tree/patch identity, pushed branch head, PR candidate synchronization,
+  all-eight public check set, or pinned stable LLVM/Clang 22 invalid-control/external/
+  machine/object/link/native-exit-181 evidence exists yet. Acceptance records and
+  public claims remain frozen until that exact candidate is green.
+- Remaining exclusions/risks: overloads, conversions, default/variadic arguments,
+  generic/trait dispatch, closures/captures, new function-pointer semantics,
+  reference results, lifetime/escape or ownership rules, layout/stable ABI/FFI,
+  runtime Strings/collections, accelerators, benchmarks, releases, stability/safety,
+  and merge remain unsupported or separately authorized. The four scaling controls
+  remain active.
+- Next action: format and re-run the exact root gate after these candidate records,
+  review/stage only the authorized files plus the force-added tracked specimen, freeze
+  one immutable implementation candidate, push it, and immediately synchronize draft
+  PR #4 as candidate-only before requiring all eight public checks and pinned LLVM 22
+  native exit 181.

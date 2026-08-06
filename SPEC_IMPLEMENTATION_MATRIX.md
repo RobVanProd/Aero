@@ -24,6 +24,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Comparisons/logical/unary ops | Y | Y | P | — | P | — | P | P | ? | Y | P | P | Y | PARTIAL |
 | Functions and returns | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Function-call signatures | Y | Y | Y | P | P | N | P | P | P | Y | P | P | Y | PARTIAL |
+| Shared function-call classification | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | If/else | Y | Y | P | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | While/for/loop/break/continue | Y | Y | P | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
@@ -87,6 +88,20 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 | Quantization | Y | Y | — | — | Scalar-double helper transform only | N | N | EXPERIMENTAL |
 
 ## Evidence notes
+
+- Local `CORE-068` candidate on accepted records head
+  `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656` removes semantic and checked-call
+  fallbacks that fabricated `Int` or deferred undefined calls. One phase-aware
+  supported/explicitly-rejected/preserved classifier supplies both semantic paths and
+  checked admission/lowering with exact target, parameter, result, argument, and use-
+  context facts. Existing nongeneric signatures over admitted scalars, recursive
+  CopyData, owned enums, and reference parameters remain bounded; unsupported
+  annotations, generic/trait/closure calls, wrong arity/type, and `Void` value use
+  reject before checked IR. Classifier units, the exhaustive topology target,
+  compatibility ring, and exact root gate pass at 185/185 library tests. The tracked
+  direct-module specimen links locally with Clang 19.1.5 and executes exit 181. The
+  immutable candidate, all public checks, and pinned LLVM/Clang 22 evidence remain
+  pending; no row becomes `END_TO_END` or `STABLE`.
 
 - Accepted public `CORE-067` implementation
   `e7525bf039339909c8f4f5cc68262fdf498079e0` removes both duplicate semantic method

@@ -8,6 +8,19 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
+- `CORE-068` is a local implementation candidate on accepted records head
+  `41eb0ee61eec53964ee21e7cb5cc5eabbefcf656`; no immutable candidate identity or
+  public acceptance exists yet. One shared function-call classifier supplies exact
+  semantic results and checked admission/lowering for already admitted nongeneric
+  signatures. Missing or unsupported contracts, legacy unknown annotation shapes,
+  wrong arguments, and `Void` value use reject deterministically instead of becoming
+  `Int` or an undefined LLVM call. Classifier units, the exhaustive topology target,
+  the affected compatibility ring, and the exact root gate pass at 185/185 library
+  tests. The tracked direct-module system specimen links with local Clang 19.1.5 and
+  executes exact exit 181. All public checks and pinned LLVM/Clang 22 evidence remain
+  pending; no generic/trait/closure call, conversion, overload, reference-result,
+  callable ABI, lifetime, layout, stability, safety, or performance claim follows.
+
 - `CORE-067` is accepted public at exact implementation
   `e7525bf039339909c8f4f5cc68262fdf498079e0`, tree
   `a41eb54122cd1b358ddd3d5c590d738bce98ae29`, and stable patch ID

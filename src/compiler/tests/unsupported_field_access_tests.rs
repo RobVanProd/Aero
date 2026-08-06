@@ -10,7 +10,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const EXPECTED_INNER_DIAGNOSTIC: &str = "Field access expressions are not supported.";
-const VOID_RECEIVER_DIAGNOSTIC: &str = "Error: void function `sink` cannot be used as a value.";
+const VOID_RECEIVER_DIAGNOSTIC: &str =
+    "Unsupported function call `sink`: Error: void function `sink` cannot be used as a value.";
 
 const ADJACENT_CONTROLS_SOURCE: &str = r#"
 struct Point { x: int, y: int }

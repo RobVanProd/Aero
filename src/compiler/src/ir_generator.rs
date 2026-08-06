@@ -10,6 +10,10 @@ use crate::copy_place_contract::{
 use crate::enum_match_contract::{
     EnumError, EnumExecutionContext, EnumFunctionContract, EnumRegistry,
 };
+use crate::function_call_contract::{
+    FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
+    FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
+};
 use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::local_reference::{
@@ -367,6 +371,87 @@ impl IrGenerator {
         let function_name = self.resolve_callable_name(&name);
         let return_type = self.function_return_types.get(&function_name).cloned();
 
+        if !self.checked_mode {
+            return self.build_quarantined_unchecked_function_call(
+                function_name,
+                arguments,
+                return_type,
+            );
+        }
+
+        let target = match return_type {
+            Some(
+                result @ (Ty::Void
+                | Ty::Int
+                | Ty::Float
+                | Ty::Bool
+                | Ty::Struct(_)
+                | Ty::Array(_, _)
+                | Ty::Tuple(_)
+                | Ty::Enum(_)),
+            ) => FunctionCallTarget::Admitted {
+                parameters: None,
+                result,
+            },
+            Some(_) => FunctionCallTarget::DeclaredUnadmitted,
+            None => FunctionCallTarget::Missing,
+        };
+        let return_type = match classify_function_call(FunctionCallFacts {
+            name: function_name.clone(),
+            target,
+            arguments: Vec::new(),
+            use_context: FunctionCallUse::Discarded,
+        }) {
+            FunctionCallDisposition::Supported(contract) => contract.result,
+            FunctionCallDisposition::ExplicitlyRejected(diagnostic)
+            | FunctionCallDisposition::PreservedContext(diagnostic) => {
+                unreachable!(
+                    "checked function-call lowering escaped independent admission: {diagnostic}"
+                )
+            }
+        };
+
+        match return_type {
+            Ty::Void => (
+                Inst::Call {
+                    function: function_name,
+                    arguments,
+                    result: None,
+                },
+                Value::ImmInt(0),
+                Ty::Void,
+            ),
+            return_type @ (Ty::Int
+            | Ty::Float
+            | Ty::Bool
+            | Ty::Struct(_)
+            | Ty::Array(_, _)
+            | Ty::Tuple(_)
+            | Ty::Enum(_)) => {
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                (
+                    Inst::Call {
+                        function: function_name,
+                        arguments,
+                        result: Some(result_reg.clone()),
+                    },
+                    result_reg,
+                    return_type,
+                )
+            }
+            _ => unreachable!("checked function-call result escaped admitted lowering"),
+        }
+    }
+
+    fn build_quarantined_unchecked_function_call(
+        &mut self,
+        function_name: String,
+        arguments: Vec<Value>,
+        return_type: Option<Ty>,
+    ) -> (Inst, Value, Ty) {
+        // Compatibility-only unchecked generation predates checked admission. Its
+        // scalar fallback is quarantined here and is unreachable from try_generate_ir.
         match return_type {
             Some(Ty::Void) => (
                 Inst::Call {
@@ -1577,48 +1662,60 @@ impl IrGenerator {
                 }
                 if let Some(binding) = bindings.get(name) {
                     if binding.callable {
-                        return match &binding.ty {
-                            Ty::Fn(signature) => Self::callable_result_type(signature),
-                            _ => Err(admission_error("callable binding lost its signature")),
+                        let result = match &binding.ty {
+                            Ty::Fn(signature) => Self::callable_result_type(signature)?,
+                            _ => {
+                                return Err(admission_error("callable binding lost its signature"));
+                            }
                         };
-                    }
-                }
-                if let Some(function) = program.functions.get(name) {
-                    if function.result == Ty::Void && expression_use != ExpressionUse::Discarded {
-                        return Err(admission_error(
-                            "Void function calls cannot be used as values",
+                        return Self::classified_call_result(classify_function_call(
+                            FunctionCallFacts {
+                                name: name.clone(),
+                                target: FunctionCallTarget::Callable { result },
+                                arguments: argument_types,
+                                use_context: if expression_use == ExpressionUse::Discarded {
+                                    FunctionCallUse::Discarded
+                                } else {
+                                    FunctionCallUse::Value
+                                },
+                            },
                         ));
                     }
-                    if let Some(expected) = function.arity
-                        && arguments.len() != expected
-                    {
-                        return Err(admission_error(&format!(
-                            "call to `{name}` has {} arguments but its signature requires {expected}",
-                            arguments.len()
-                        )));
-                    }
-                    if let Some(expected_types) = &function.parameter_types {
-                        for (index, (expected, actual)) in
-                            expected_types.iter().zip(&argument_types).enumerate()
-                        {
-                            if expected != actual {
-                                return Err(admission_error(&format!(
-                                    "call to `{name}` argument {} type mismatch: expected {}, actual {}",
-                                    index + 1,
-                                    expected,
-                                    actual
-                                )));
-                            }
-                        }
-                    }
-                    return Ok(function.result.clone());
                 }
-                if !program.functions.contains_key(name) && matches!(name.as_str(), "Some" | "Ok") {
-                    return Err(admission_error(
-                        "enum and Option/Result construction is not admitted in checked IR",
-                    ));
-                }
-                Ok(Ty::Int)
+                let target = if let Some(function) = program.functions.get(name) {
+                    match (&function.parameter_types, function.arity) {
+                        (Some(parameter_types), Some(_)) => FunctionCallTarget::Admitted {
+                            parameters: Some(
+                                parameter_types
+                                    .iter()
+                                    .cloned()
+                                    .map(|ty| FunctionCallParameter { name: None, ty })
+                                    .collect(),
+                            ),
+                            result: function.result.clone(),
+                        },
+                        _ => FunctionCallTarget::DeclaredUnadmitted,
+                    }
+                } else if matches!(name.as_str(), "Some" | "Ok") {
+                    FunctionCallTarget::PreservedContext {
+                        diagnostic: unsupported_function_call_diagnostic(
+                            name,
+                            "enum and Option/Result construction is not admitted in checked IR",
+                        ),
+                    }
+                } else {
+                    FunctionCallTarget::Missing
+                };
+                Self::classified_call_result(classify_function_call(FunctionCallFacts {
+                    name: name.clone(),
+                    target,
+                    arguments: argument_types,
+                    use_context: if expression_use == ExpressionUse::Discarded {
+                        FunctionCallUse::Discarded
+                    } else {
+                        FunctionCallUse::Value
+                    },
+                }))
             }
             Expression::MethodCall {
                 object,
@@ -2236,6 +2333,18 @@ impl IrGenerator {
             _ => Err(IrGenerationError::Admission(
                 "callable signature is not an admitted scalar signature".to_string(),
             )),
+        }
+    }
+
+    fn classified_call_result(
+        disposition: FunctionCallDisposition,
+    ) -> Result<Ty, IrGenerationError> {
+        match disposition {
+            FunctionCallDisposition::Supported(contract) => Ok(contract.result),
+            FunctionCallDisposition::ExplicitlyRejected(diagnostic)
+            | FunctionCallDisposition::PreservedContext(diagnostic) => {
+                Err(IrGenerationError::Admission(diagnostic))
+            }
         }
     }
 
