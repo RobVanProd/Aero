@@ -100,16 +100,22 @@ LLVM/Clang 22.1.8 exit-199 gate pass. Every loop-contained reinitialization, par
 move/projection, borrow/storage expansion, drop/lifetime behavior, and general CFG
 fixed point remains excluded pending separate semantics and evidence. All eight
 exact-head public checks and pinned LLVM/Clang 22.1.8 exit-199 lanes pass.
-Local candidate `CORE-074` then adds a hard ADT/control-flow/ownership slice: an
+Accepted public `CORE-074` then adds a hard ADT/control-flow/ownership slice: an
 exhaustive Match may yield one fresh owned enum when all arms have the same admitted
 schema and their origin is a constructor, exact non-consuming enum-returning call, or
 recursively fresh nested Match. Exact checked result/dispatch identities and verifier
 CFG proof prevent missing, bypassed, repeated, post-merge, or wrong-schema fabrication.
-The composed direct-module/check/build and local complete gates pass; immutable
-publication, pinned native exit 203, and all-eight public acceptance remain pending.
-Identifier/conditional owner transport, aggregate results, broader patterns, storage/
-borrowing/projection, partial moves, drop/lifetimes, stable ABI, and generic/closure
-semantics remain separate work.
+The composed direct-module/check/build gates, all-eight public set, and pinned native
+exit 203 pass.
+Local candidate `CORE-075` adds exact initialized direct local/owned-parameter result
+origins and a shared dynamic-path ownership join. Same-owner mutually exclusive arms,
+different owners, fresh/direct mixtures, and recursively admitted leaves compose;
+same-path duplicates, loop effects, additional owned call consumption, and external
+nested scrutinees reject. It reuses the existing checked result place, enum-value/place-
+load provenance, verifier CFG ownership proof, and private enum layout. Aggregate
+results/storage, broader patterns, borrowing/projection, partial moves, drop/lifetimes,
+stable ABI, and generic/closure semantics remain separate work; pinned native exit 211
+and public acceptance are pending.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

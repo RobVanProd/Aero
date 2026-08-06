@@ -4,27 +4,34 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 94 `CORE-074` is a locally green fresh owned-enum Match-result candidate.
-One shared result-origin classifier admits exhaustive Match expressions only when every
-arm produces the same admitted enum through a fresh constructor, an exact enum-returning
-call with no additional owned-enum consumption, or a recursively fresh nested Match.
-Identifier transport, external enum consumption, aggregate results, and mixed result
-schemas fail before checked IR.
+Milestone 95 `CORE-075` is a locally green conditional direct-owner enum Match-result
+candidate. The shared result-origin classifier now admits an initialized direct local
+or owned parameter of the exact result enum alongside CORE-074's fresh constructor,
+exact non-consuming call, and recursively admitted nested-Match origins. One shared
+path classifier distinguishes duplicate moves on one dynamic path from legal reuse
+across mutually exclusive arms and derives exact `Moved`/`MaybeMoved`/`Owned` merge
+states. Direct-owner transport inside loops, calls that consume another owner, nested
+Matches with an external owned scrutinee, aggregate storage, and broader ownership
+semantics still fail before checked IR.
 
-The checked pipeline introduces one exact result-place identity carrying independent
-result and dispatch schemas. The verifier proves one distinct dispatch-target-dominated
-assignment per arm, exact schema/value identity, all-path initialization, one merged
-load, and later ownership consumption; generic stores, bypass edges, post-merge
-fabrication, repeated/missing writes, and non-dominating values fail closed. The
-complete product covers every already admitted enum payload schema, different/same
-scrutinee identity, constructor/call/nested origins, binding/call/return/re-Match,
-replacement and acyclic reinitialization, direct modules, public check/build artifact
-hygiene, deterministic LLVM, 191/191 library tests, 197/197 binary tests, formatting,
-all-target/all-feature check and correctness Clippy, docs, and the exact root gate.
-This Windows host has no LLVM 22 verifier, so pinned public LLVM/Clang 22.1.8 external/
-machine/object/link/native exit-203 evidence, immutable publication, PR synchronization,
-and all eight exact-head checks remain candidate gates; no public CORE-074 acceptance is
-claimed.
+The existing checked result place, enum parameter/value or checked mutable-place load,
+and checked owned-place assignment carry the selected owner without a new opcode,
+layout, ABI, or runtime rule. Independent verifier CFG ownership proof rejects source
+reuse after all-path or partial-path consumption. The complete compiler test surface is
+green at 192/192 library and 198/198 binary tests plus every integration target;
+formatting, all-target/all-feature check, correctness Clippy, docs, focused corruption
+controls, direct-module `check`/`build`, deterministic LLVM, artifact hygiene, and the
+exact repository-root gate pass. Immutable publication, rendered PR synchronization,
+all eight exact-head checks, and pinned stable/nightly LLVM/Clang 22.1.8 native exit 211
+remain candidate gates. No public CORE-075 acceptance is claimed.
+
+Milestone 94 `CORE-074` is accepted public at exact implementation commit
+`b2bd320e6960c2e4f539911b28a251b32b2b9b89`, tree
+`fc330eacc2a014a22a5e4805bcad337ee67565be`, and stable patch ID
+`ba5e862467387eb2b4043e6c7384d88462832093`. All eight exact-head checks pass;
+stable and nightly pinned LLVM/Clang 22.1.8 externally verify, machine-verify,
+object-lower, link, and execute exact exit 203. It admits only fresh owned-enum
+Match results; CORE-075 separately supersedes that direct-owner exclusion locally.
 
 Milestone 93 `CORE-073` is accepted public at exact implementation commit
 `ef2eaa380cccf32e21df8938479e30bcd467cdaa`, tree
@@ -2206,10 +2213,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push one immutable CORE-074 fresh owned-enum Match-result candidate,
+Commit and push one immutable CORE-075 conditional direct-owner enum Match-result candidate,
 then synchronize draft PR #4 immediately. Require one all-eight exact-head public set
 with independent stable/nightly pinned LLVM/Clang 22.1.8 external verification,
-machine verification, object/link, public `run`, and exact native exit 203 before
+machine verification, object/link, public `run`, and exact native exit 211 before
 recording public acceptance in rendered PR metadata. Keep the PR draft and unmerged.
 The controlled mega-PR
 checkpoint strategy, structured evidence-manifest generator, hard ownership/module/

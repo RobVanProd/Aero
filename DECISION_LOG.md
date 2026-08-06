@@ -3191,16 +3191,18 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-070 - Admit fresh owned-enum results from exhaustive Match expressions
 
 - Date: 2026-08-05
-- Status: locally green `CORE-074` candidate; immutable commit/push, rendered PR
-  synchronization, pinned native exit 203, and all-eight exact-head public acceptance
-  remain pending.
+- Status: accepted public `CORE-074` at exact implementation commit
+  `b2bd320e6960c2e4f539911b28a251b32b2b9b89`, tree
+  `fc330eacc2a014a22a5e4805bcad337ee67565be`, and stable patch ID
+  `ba5e862467387eb2b4043e6c7384d88462832093`; all eight exact-head checks and
+  pinned stable/nightly native exit 203 pass.
 - Decision: an exhaustive identifier-bound Match over an already admitted enum may
   yield one owned enum value when every reachable arm has the identical admitted result
   schema and its result origin is exactly a fresh constructor, an exact named call with
   no additional owned-enum consumption, or a recursively fresh nested Match. The result
   may initialize an inferred/exact local, be passed/returned/re-Matched, replace an
   owned mutable target, or reinitialize a moved/maybe-moved target under CORE-073.
-- Shared authority: `EnumRegistry::resolve_fresh_owned_match_result` recursively owns
+- Shared authority: the CORE-074 enum Match-result origin resolver recursively owns
   the result-origin/schema partition. Both semantic inference paths and independent
   checked admission combine it with the existing exhaustive-pattern and owner-
   consumption authorities. Bare identifier results, calls consuming an additional
@@ -3228,3 +3230,42 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   contained reinitialization, stable layout/ABI/FFI, generic/closure semantics,
   accelerators, performance, release, safety, stability, PR merge, mega-PR checkpoint
   policy, and checkpoint-manifest automation remain separate work.
+
+## DEC-071 - Admit conditional direct-owner enum Match results
+
+- Date: 2026-08-05
+- Status: locally green `CORE-075` candidate; immutable commit/push,
+  rendered PR synchronization, pinned native exit 211, and all-eight exact-head public
+  acceptance remain pending.
+- Decision: an exhaustive admitted enum Match may yield an already initialized direct
+  local owner or owned parameter of the exact result schema. Fresh and direct origins
+  may mix, distinct arms may select distinct owners, and the same owner may appear on
+  mutually exclusive paths. Duplicate moves on one dynamic path reject. At the merge,
+  all-path consumption yields `Moved`, strict-subset consumption yields `MaybeMoved`,
+  and no consumption preserves `Owned`; CORE-073 may later reinitialize the whole owner.
+- Shared authority: `EnumRegistry::resolve_owned_match_result` owns recursive origin,
+  exact schema, and dynamic result-leaf paths. `classify_owned_consumption_paths` owns
+  duplicate-path rejection and the conditional ownership join. Semantic analysis and
+  independent checked admission consume those authorities; their small expression-
+  context adapters only combine paths for admitted function-call arguments.
+- Independent proof and lowering: no checked opcode changes. Direct enum parameters or
+  checked mutable-place loads feed the existing `CheckedEnumMatchResultPlaceAlloca`
+  through `CheckedOwnedPlaceAssignment`. Existing verifier CFG ownership dataflow
+  independently rejects source reuse after full or partial consumption while retaining
+  one-write-per-target, all-path initialization, exact schema/value, dominance, and one
+  merged-load proof. LLVM reuses the existing private enum layout.
+- Evidence: the red-first target stopped at CORE-074's fresh-only origin boundary. The
+  green class covers same/different owners, fresh/direct mixtures, nested leaves,
+  inferred/exact bindings, call arguments, returns, re-Match, replacement and acyclic
+  reinitialization across the recursive CopyData enum payload universe. Same-path
+  duplicates, consumed scrutinees, wrong schemas, owned call arguments, external nested
+  scrutinees, loops, nested conditional consumption inside result calls, aggregate
+  storage, and semantic-bypass post-merge reuse reject. The complete compiler surface
+  passes at 192 library and 198 binary tests; formatting, all-target/all-feature check,
+  correctness Clippy, docs, focused corruption controls, direct modules, CLI check/build,
+  deterministic LLVM, artifact hygiene, and the exact repository-root gate pass locally.
+- Exclusions and scaling boundary: no call-owner expansion, loop fixed point, aggregate
+  Match result/storage, borrowing/projection, partial move, drop/lifetime, stable layout/
+  ABI/FFI, generic/closure, runtime, accelerator, release, safety, or merge semantics are
+  added. The shared path classifier prevents another topology-rule multiplication; the
+  mega-PR checkpoint strategy and structured evidence-manifest generator remain separate.

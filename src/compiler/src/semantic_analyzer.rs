@@ -24,7 +24,7 @@ use crate::local_reference::{
 use crate::method_call_contract::{IntrinsicMethodPhase, classify_intrinsic_method};
 use crate::ownership_flow::{
     ConditionalOwnershipArm, OwnershipFlowDisposition, classify_conditional_ownership,
-    classify_loop_ownership, maybe_moved_diagnostic,
+    classify_loop_ownership, classify_owned_consumption_paths, maybe_moved_diagnostic,
 };
 use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
@@ -851,6 +851,14 @@ impl SemanticAnalyzer {
             })
     }
 
+    fn direct_owned_enum_result_type(&self, name: &str) -> Option<Ty> {
+        self.scope_manager
+            .is_in_function()
+            .then(|| self.local_binding_type(name))
+            .flatten()
+            .filter(|ty| matches!(ty, Ty::Enum(_)))
+    }
+
     fn enum_consumed_names(&self, expression: &Expression) -> Result<Vec<String>, String> {
         self.enum_registry
             .consumed_owned_values(
@@ -886,10 +894,84 @@ impl SemanticAnalyzer {
         self.enum_payload_binding_scopes.borrow_mut().pop();
     }
 
+    fn owned_match_consumption_paths(&self, expression: &Expression) -> Option<Vec<Vec<String>>> {
+        match expression {
+            Expression::Match { arms, .. } => self
+                .enum_registry
+                .resolve_owned_match_result(
+                    arms,
+                    &|name| self.direct_owned_enum_result_type(name),
+                    &|name| {
+                        self.function_table
+                            .get_admitted_contract(name)
+                            .map(|contract| contract.return_type.clone())
+                    },
+                )
+                .ok()
+                .map(|result| result.consumption_paths),
+            Expression::FunctionCall { arguments, .. } => {
+                let mut combined = vec![Vec::new()];
+                let mut found = false;
+                for argument in arguments {
+                    let Some(paths) = self.owned_match_consumption_paths(argument) else {
+                        continue;
+                    };
+                    found = true;
+                    combined = combined
+                        .into_iter()
+                        .flat_map(|prefix| {
+                            paths.iter().map(move |path| {
+                                let mut combined = prefix.clone();
+                                combined.extend(path.iter().cloned());
+                                combined
+                            })
+                        })
+                        .collect();
+                }
+                found.then_some(combined)
+            }
+            _ => None,
+        }
+    }
+
     fn apply_enum_match_moves(&mut self, expression: &Expression) -> Result<(), String> {
         let consumed = self.enum_consumed_names(expression)?;
-        for name in consumed {
-            self.scope_manager.mark_moved(&name)?;
+        let Some(mut paths) = self.owned_match_consumption_paths(expression) else {
+            for name in consumed {
+                self.scope_manager.mark_moved(&name)?;
+            }
+            return Ok(());
+        };
+        for path in &mut paths {
+            path.extend(consumed.iter().cloned());
+        }
+        let mut names = paths
+            .iter()
+            .flat_map(|path| path.iter().cloned())
+            .collect::<Vec<_>>();
+        names.sort();
+        names.dedup();
+        for name in names {
+            let binding = self
+                .scope_manager
+                .get_variable(&name)
+                .ok_or_else(|| format!("Error: Variable `{name}` not found."))?;
+            let ty = binding.var_type.clone();
+            let entry = binding.ownership.clone();
+            match classify_owned_consumption_paths(
+                &name,
+                &ty,
+                &entry,
+                &paths,
+                self.scope_manager.get_loop_depth() > 0,
+            ) {
+                OwnershipFlowDisposition::Joined(Some(state)) => {
+                    self.scope_manager.apply_assignment_result(&name, state)?;
+                }
+                OwnershipFlowDisposition::Joined(None)
+                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                OwnershipFlowDisposition::ExplicitlyRejected(message) => return Err(message),
+            }
         }
         Ok(())
     }
@@ -1674,6 +1756,7 @@ impl SemanticAnalyzer {
                         &result_types,
                         &consumed,
                         &arm_owned_consumptions,
+                        |name| self.direct_owned_enum_result_type(name),
                         |name| {
                             self.function_table
                                 .get_admitted_contract(name)
@@ -2438,6 +2521,7 @@ impl SemanticAnalyzer {
                         &result_types,
                         &consumed,
                         &arm_owned_consumptions,
+                        |name| self.direct_owned_enum_result_type(name),
                         |name| {
                             self.function_table
                                 .get_admitted_contract(name)

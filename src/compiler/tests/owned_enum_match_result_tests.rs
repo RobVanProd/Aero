@@ -465,7 +465,7 @@ fn fresh_owned_enum_match_result_class_is_complete_checked_and_executable() {
     let invalid_output = invalid_workspace.path("invalid.ll");
     fs::write(
         &invalid,
-        "enum I { A } enum O { X } fn main() { let existing = O::X; let result = match I::A { I::A => existing }; }",
+        "enum I { A } enum O { X } fn forward(value: O) -> O { value } fn main() { let existing = O::X; let result = match I::A { I::A => forward(existing) }; }",
     )
     .expect("write excluded owned-enum Match result source");
     let check = run_cli(&invalid_workspace, &[Path::new("check"), &invalid]);
@@ -521,11 +521,6 @@ fn excluded_owned_enum_match_result_origins_fail_closed() {
     let mut failures = Vec::new();
     for (label, source, expected) in [
         (
-            "identifier result",
-            "enum I { A } enum O { X } fn main() { let existing = O::X; let result = match I::A { I::A => existing }; }",
-            vec!["owned enum match result arm 1"],
-        ),
-        (
             "owned call argument",
             "enum I { A } enum O { X } fn forward(value: O) -> O { value } fn main() { let existing = O::X; let result = match I::A { I::A => forward(existing) }; }",
             vec!["owned enum match result arm 1"],
@@ -543,18 +538,12 @@ fn excluded_owned_enum_match_result_origins_fail_closed() {
         (
             "array results",
             "enum I { A } fn main() { let result = match I::A { I::A => [1, 2] }; }",
-            vec![
-                "must return Int, Float, Bool, Char, or one fresh admitted enum",
-                "not admitted",
-            ],
+            vec!["must return Int, Float, Bool, Char, or one admitted owned enum result"],
         ),
         (
             "struct results",
             "enum I { A } struct Cell { value: int } fn main() { let result = match I::A { I::A => Cell { value: 1 } }; }",
-            vec![
-                "must return Int, Float, Bool, Char, or one fresh admitted enum",
-                "not admitted",
-            ],
+            vec!["must return Int, Float, Bool, Char, or one admitted owned enum result"],
         ),
         (
             "borrowed result",

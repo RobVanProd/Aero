@@ -31,8 +31,8 @@ use crate::method_call_contract::{
 };
 use crate::ownership_flow::{
     ConditionalOwnershipArm, OwnershipFlowDisposition, block_definitely_returns,
-    classify_conditional_ownership, classify_loop_ownership, maybe_moved_diagnostic,
-    statement_definitely_returns,
+    classify_conditional_ownership, classify_loop_ownership, classify_owned_consumption_paths,
+    maybe_moved_diagnostic, statement_definitely_returns,
 };
 use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
@@ -793,6 +793,7 @@ impl IrGenerator {
                 inside_impl,
                 !inside_impl,
             )?;
+            Self::apply_enum_expression_ownership(expression, bindings, program, inside_loop)?;
         }
         Ok(())
     }
@@ -872,6 +873,130 @@ impl IrGenerator {
             }
         }
         *bindings = entry.clone();
+        Ok(())
+    }
+
+    fn admission_direct_owned_enum_result_type(
+        name: &str,
+        bindings: &HashMap<String, AdmissionBinding>,
+    ) -> Option<Ty> {
+        let binding = bindings.get(name)?;
+        (bindings.contains_key(STRUCT_ADMISSION_BINDING)
+            && binding.initialized
+            && binding.ownership == OwnershipState::Owned
+            && matches!(binding.ty, Ty::Enum(_)))
+        .then(|| binding.ty.clone())
+    }
+
+    fn owned_match_consumption_paths(
+        expression: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+    ) -> Option<Vec<Vec<String>>> {
+        match expression {
+            Expression::Match { arms, .. } => program
+                .enums
+                .resolve_owned_match_result(
+                    arms,
+                    &|name| Self::admission_direct_owned_enum_result_type(name, bindings),
+                    &|name| {
+                        program
+                            .enum_functions
+                            .get(name)
+                            .map(|contract| contract.result.ty.clone())
+                    },
+                )
+                .ok()
+                .map(|result| result.consumption_paths),
+            Expression::FunctionCall { arguments, .. } => {
+                let mut combined = vec![Vec::new()];
+                let mut found = false;
+                for argument in arguments {
+                    let Some(paths) =
+                        Self::owned_match_consumption_paths(argument, bindings, program)
+                    else {
+                        continue;
+                    };
+                    found = true;
+                    combined = combined
+                        .into_iter()
+                        .flat_map(|prefix| {
+                            paths.iter().map(move |path| {
+                                let mut combined = prefix.clone();
+                                combined.extend(path.iter().cloned());
+                                combined
+                            })
+                        })
+                        .collect();
+                }
+                found.then_some(combined)
+            }
+            _ => None,
+        }
+    }
+
+    fn apply_enum_expression_ownership(
+        expression: &Expression,
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        inside_loop: bool,
+    ) -> Result<(), IrGenerationError> {
+        let consumed = program
+            .enums
+            .consumed_owned_values(
+                expression,
+                |name| bindings.get(name).map(|binding| binding.ty.clone()),
+                |name| {
+                    program
+                        .enum_functions
+                        .get(name)
+                        .map(EnumFunctionContract::parameter_types)
+                },
+            )
+            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+        let Some(mut paths) = Self::owned_match_consumption_paths(expression, bindings, program)
+        else {
+            for name in consumed {
+                let binding = bindings.get_mut(&name).ok_or_else(|| {
+                    IrGenerationError::Admission(format!(
+                        "checked IR has no binding for consumed enum owner `{name}`"
+                    ))
+                })?;
+                binding.ownership = OwnershipState::Moved;
+            }
+            return Ok(());
+        };
+        for path in &mut paths {
+            path.extend(consumed.iter().cloned());
+        }
+        let mut names = paths
+            .iter()
+            .flat_map(|path| path.iter().cloned())
+            .collect::<Vec<_>>();
+        names.sort();
+        names.dedup();
+        for name in names {
+            let binding = bindings.get(&name).ok_or_else(|| {
+                IrGenerationError::Admission(format!(
+                    "checked IR has no binding for consumed enum owner `{name}`"
+                ))
+            })?;
+            let ty = binding.ty.clone();
+            let entry = binding.ownership.clone();
+            match classify_owned_consumption_paths(&name, &ty, &entry, &paths, inside_loop) {
+                OwnershipFlowDisposition::Joined(Some(state)) => {
+                    bindings
+                        .get_mut(&name)
+                        .expect("consumed enum owner remains admitted")
+                        .ownership = state;
+                }
+                OwnershipFlowDisposition::Joined(None)
+                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                OwnershipFlowDisposition::ExplicitlyRejected(message) => {
+                    return Err(IrGenerationError::Admission(message));
+                }
+            }
+        }
         Ok(())
     }
 
@@ -1075,6 +1200,7 @@ impl IrGenerator {
                             }
                         };
                     }
+                    Self::apply_enum_expression_ownership(value, bindings, program, inside_loop)?;
                     bindings.insert(
                         name.clone(),
                         AdmissionBinding {
@@ -1097,6 +1223,7 @@ impl IrGenerator {
                     inside_impl,
                     !inside_impl,
                 )?;
+                Self::apply_enum_expression_ownership(value, bindings, program, inside_loop)?;
                 let inside_admitted_function = bindings.contains_key(STRUCT_ADMISSION_BINDING)
                     && !inside_impl
                     && !inside_generic_impl;
@@ -1180,6 +1307,12 @@ impl IrGenerator {
                         inside_impl,
                         !inside_impl,
                     )?;
+                    Self::apply_enum_expression_ownership(
+                        expression,
+                        bindings,
+                        program,
+                        inside_loop,
+                    )?;
                 }
             }
             Statement::Expression(expression) => {
@@ -1191,6 +1324,7 @@ impl IrGenerator {
                     inside_impl,
                     !inside_impl,
                 )?;
+                Self::apply_enum_expression_ownership(expression, bindings, program, inside_loop)?;
             }
             Statement::Block(block) => {
                 let mut nested = bindings.clone();
@@ -1365,6 +1499,7 @@ impl IrGenerator {
                     inside_impl,
                     !inside_impl,
                 )?;
+                Self::apply_enum_expression_ownership(condition, bindings, program, inside_loop)?;
                 let entry_bindings = bindings.clone();
                 let mut then_bindings = entry_bindings.clone();
                 Self::validate_block(
@@ -1412,6 +1547,7 @@ impl IrGenerator {
                     inside_impl,
                     !inside_impl,
                 )?;
+                Self::apply_enum_expression_ownership(condition, bindings, program, true)?;
                 let condition_bindings = bindings.clone();
                 Self::reject_loop_admission_changes(
                     bindings,
@@ -1449,6 +1585,7 @@ impl IrGenerator {
                     inside_impl,
                     !inside_impl,
                 )?;
+                Self::apply_enum_expression_ownership(iterable, bindings, program, true)?;
                 let mut nested = bindings.clone();
                 let element_ty = match iterable_ty {
                     Ty::Array(element, _) | Ty::Vec(element) => *element,
@@ -2236,6 +2373,7 @@ impl IrGenerator {
                         &result_types,
                         &consumed,
                         &arm_owned_consumptions,
+                        |name| Self::admission_direct_owned_enum_result_type(name, bindings),
                         |name| {
                             program
                                 .enum_functions
@@ -2716,9 +2854,11 @@ impl IrGenerator {
             .expect("checked enum match was admitted");
         let owned_result = self
             .enum_registry
-            .resolve_fresh_owned_match_result(&arms, &|name| {
-                self.function_return_types.get(name).cloned()
-            })
+            .resolve_owned_match_result(
+                &arms,
+                &|name| self.symbol_table.get(name).map(|(_, ty)| ty.clone()),
+                &|name| self.function_return_types.get(name).cloned(),
+            )
             .ok();
 
         let result_place_id = self.next_ptr;
@@ -2728,7 +2868,7 @@ impl IrGenerator {
         if let Some(result) = &owned_result {
             function.body.push(Inst::CheckedEnumMatchResultPlaceAlloca {
                 result: result_place.clone(),
-                schema: result.schema.clone(),
+                schema: result.contract.schema.clone(),
                 dispatch_schema: resolved.contract.schema.clone(),
             });
         } else {
@@ -2811,7 +2951,7 @@ impl IrGenerator {
                 function.body.push(Inst::CheckedOwnedPlaceAssignment {
                     target: result_place.clone(),
                     value,
-                    ty: result.schema.logical_type(),
+                    ty: result.contract.schema.logical_type(),
                 });
             } else {
                 function.body.push(Inst::Store(result_place.clone(), value));

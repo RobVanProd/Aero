@@ -851,6 +851,34 @@ jobs:
         fi
         echo "fresh owned enum Match result example passed with exit code 203"
 
+    - name: Test conditional direct-owner enum Match result integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/conditional_owned_enum_match_results/main.aero
+        set +e
+        cargo run -- run ../../examples/conditional_owned_enum_match_results/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 211 ]; then
+          echo "Public run returned $public_run_exit, expected 211"
+          exit 1
+        fi
+        cargo run -- build ../../examples/conditional_owned_enum_match_results/main.aero -o ../../conditional_owned_enum_match_results.ll
+        opt-22 -passes=verify -disable-output ../../conditional_owned_enum_match_results.ll
+        llc-22 -verify-machineinstrs ../../conditional_owned_enum_match_results.ll -o /dev/null
+        llc-22 -filetype=obj ../../conditional_owned_enum_match_results.ll -o ../../conditional_owned_enum_match_results.o
+        clang-22 -no-pie ../../conditional_owned_enum_match_results.o -o ../../conditional_owned_enum_match_results
+        set +e
+        ../../conditional_owned_enum_match_results
+        conditional_exit_code=$?
+        set -e
+        if [ $conditional_exit_code -ne 211 ]; then
+          echo "Expected conditional exit code 211, got $conditional_exit_code"
+          exit 1
+        fi
+        echo "conditional direct-owner enum Match result example passed with exit code 211"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler

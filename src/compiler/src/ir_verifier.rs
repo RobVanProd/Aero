@@ -7839,6 +7839,63 @@ mod tests {
             result: Some(Value::Reg(result)),
         };
 
+        let direct_match_result = |same_owner: bool, reuse_left: bool| {
+            let mut body = vec![
+                checked_variant(Value::Reg(0), schema.clone(), 0),
+                checked_variant(Value::Reg(1), schema.clone(), 0),
+                checked_variant(Value::Reg(2), schema.clone(), 1),
+                Inst::CheckedEnumMatchResultPlaceAlloca {
+                    result: Value::Reg(10),
+                    schema: schema.clone(),
+                    dispatch_schema: schema.clone(),
+                },
+                checked_dispatch(Value::Reg(0), schema.clone(), &["left", "right"]),
+                Inst::Label("left".to_string()),
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(10),
+                    value: Value::Reg(1),
+                    ty: logical.clone(),
+                },
+                Inst::Jump("merge".to_string()),
+                Inst::Label("right".to_string()),
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(10),
+                    value: Value::Reg(if same_owner { 1 } else { 2 }),
+                    ty: logical.clone(),
+                },
+                Inst::Jump("merge".to_string()),
+                Inst::Label("merge".to_string()),
+                Inst::Load(Value::Reg(3), Value::Reg(10)),
+            ];
+            if reuse_left {
+                body.extend([
+                    checked_dispatch(Value::Reg(1), schema.clone(), &["done_a", "done_b"]),
+                    Inst::Label("done_a".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                    Inst::Label("done_b".to_string()),
+                    Inst::Return(Value::ImmInt(0)),
+                ]);
+            } else {
+                body.push(Inst::Return(Value::ImmInt(0)));
+            }
+            body
+        };
+
+        verify_ir(program(direct_match_result(true, false))).expect(
+            "one direct owner repeated only across mutually exclusive result arms must verify",
+        );
+        verify_ir(program(direct_match_result(false, false))).expect(
+            "different direct owners selected by mutually exclusive result arms must verify",
+        );
+        assert!(
+            verify_ir(program(direct_match_result(true, true))).is_err(),
+            "all-path direct Match-result owner reuse passed ownership verification"
+        );
+        assert!(
+            verify_ir(program(direct_match_result(false, true))).is_err(),
+            "partial-path direct Match-result owner reuse passed ownership verification"
+        );
+
         let mut exclusive = construct_and_branch();
         exclusive.extend([
             Inst::Label("then".to_string()),

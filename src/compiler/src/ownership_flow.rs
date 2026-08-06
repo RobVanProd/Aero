@@ -1,5 +1,6 @@
 use crate::ast::{Block, Statement};
 use crate::types::{OwnershipState, Ty};
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConditionalOwnershipArm {
@@ -91,6 +92,51 @@ pub(crate) fn classify_conditional_ownership(
         ));
     }
     OwnershipFlowDisposition::Joined(joined)
+}
+
+pub(crate) fn classify_owned_consumption_paths(
+    name: &str,
+    ty: &Ty,
+    entry: &OwnershipState,
+    paths: &[Vec<String>],
+    inside_loop: bool,
+) -> OwnershipFlowDisposition {
+    if !matches!(ty, Ty::Enum(_)) {
+        return OwnershipFlowDisposition::PreserveExistingBehavior;
+    }
+    let mut arms = Vec::with_capacity(paths.len());
+    for path in paths {
+        let mut seen = BTreeSet::new();
+        for consumed in path {
+            if !seen.insert(consumed.as_str()) {
+                return OwnershipFlowDisposition::ExplicitlyRejected(format!(
+                    "enum `{consumed}` is consumed more than once on one Match result path"
+                ));
+            }
+        }
+        let consumed = seen.contains(name);
+        if consumed && !matches!(entry, OwnershipState::Owned) {
+            return OwnershipFlowDisposition::ExplicitlyRejected(match entry {
+                OwnershipState::Moved => {
+                    format!("Error: Use of moved value `{name}`. Value was previously moved.")
+                }
+                OwnershipState::MaybeMoved => maybe_moved_diagnostic(name),
+                OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
+                    format!("enum owner `{name}` cannot move while it is borrowed")
+                }
+                OwnershipState::Owned => unreachable!("consumed owner was checked as non-owned"),
+            });
+        }
+        arms.push(ConditionalOwnershipArm {
+            state: if consumed {
+                OwnershipState::Moved
+            } else {
+                entry.clone()
+            },
+            reaches_merge: true,
+        });
+    }
+    classify_conditional_ownership(name, ty, entry, &arms, inside_loop)
 }
 
 pub(crate) fn classify_loop_ownership(
@@ -209,5 +255,52 @@ mod tests {
             ),
             OwnershipFlowDisposition::PreserveExistingBehavior
         );
+    }
+
+    #[test]
+    fn owned_consumption_paths_distinguish_exclusive_partial_and_duplicate_moves() {
+        let ty = Ty::Enum("E".to_string());
+        assert_eq!(
+            classify_owned_consumption_paths(
+                "value",
+                &ty,
+                &OwnershipState::Owned,
+                &[vec!["value".to_string()], vec!["value".to_string()]],
+                false,
+            ),
+            OwnershipFlowDisposition::Joined(Some(OwnershipState::Moved))
+        );
+        assert_eq!(
+            classify_owned_consumption_paths(
+                "value",
+                &ty,
+                &OwnershipState::Owned,
+                &[vec!["value".to_string()], Vec::new()],
+                false,
+            ),
+            OwnershipFlowDisposition::Joined(Some(OwnershipState::MaybeMoved))
+        );
+        assert!(matches!(
+            classify_owned_consumption_paths(
+                "value",
+                &ty,
+                &OwnershipState::Owned,
+                &[vec!["value".to_string(), "value".to_string()]],
+                false,
+            ),
+            OwnershipFlowDisposition::ExplicitlyRejected(message)
+                if message.contains("one Match result path")
+        ));
+        assert!(matches!(
+            classify_owned_consumption_paths(
+                "value",
+                &ty,
+                &OwnershipState::Owned,
+                &[vec!["value".to_string()], Vec::new()],
+                true,
+            ),
+            OwnershipFlowDisposition::ExplicitlyRejected(message)
+                if message.contains("inside a loop")
+        ));
     }
 }

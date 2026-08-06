@@ -14833,3 +14833,196 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   and structured checkpoint-manifest generation remain excluded or separately
   authorized. Recommended next action is immutable candidate publication only; do not
   stack another implementation on an unaccepted public head.
+
+## CORE-075 - Conditional direct-owner enum Match-result transport
+
+- Task ID/date/owner: `CORE-075`, 2026-08-05, lead-owned red-first hard ownership/
+  ADT/control-flow vertical slice. The starting identity is accepted public CORE-074
+  commit `b2bd320e6960c2e4f539911b28a251b32b2b9b89`, tree
+  `fc330eacc2a014a22a5e4805bcad337ee67565be`, and stable patch ID
+  `ba5e862467387eb2b4043e6c7384d88462832093`. Local, origin, and PR heads match;
+  `master`/`origin/master` remain `8f8c7337a4008082fd2a443fcc814b5847b8663f`;
+  PR #4 is open, draft, and unmerged. All eight exact-head checks pass. Stable and
+  nightly independently report LLVM/Clang 22.1.8, external verification,
+  `llc-22 -verify-machineinstrs`, object lowering, `clang-22 -no-pie`, and exact
+  native exit 203. No records-only acceptance commit was created. User-owned
+  untracked `tmp/` remains outside this task.
+- Selection and founding basis: the primary founding document requires exhaustive
+  enum Match and a unique-owner, compile-time-enforced memory model; the mandate
+  requires ownership-intensive executable programs and forbids treating parsed syntax
+  or LLVM shape as capability. CORE-074 admits only fresh owned enum Match results and
+  explicitly excludes identifier-owner transport. CORE-075 closes that one remaining
+  direct-origin class instead of selecting another primitive/compile-time convenience.
+  Read-only inspection confirms that the existing shared enum classifier already sees
+  per-arm owned consumptions, the existing conditional ownership authority already
+  joins `Owned`/`Moved` to `MaybeMoved`, and the checked verifier already models
+  branch-local owned-place loads. The missing rule is path-sensitive admission and
+  post-Match ownership application, not new syntax, representation, layout, or ABI.
+- Observed behavior and red hypothesis: for an exhaustive Match whose arms all have
+  one admitted enum result schema, a direct identifier arm such as `Left => left`
+  infers the enum type but is rejected by CORE-074's fresh-origin rule with
+  `owned enum match result arm {arm} must produce a fresh constructor, exact
+  enum-returning call without additional owned-enum consumption, or nested
+  fresh-result Match`. The current flat consumption collector would also treat the
+  same identifier in mutually exclusive arms as duplicate consumption and cannot
+  express `Moved` versus `MaybeMoved` after the merge. No checked result or executable
+  behavior is therefore admitted for this class.
+- Frozen positive semantics: an exhaustive already-admitted enum Match may produce an
+  already-admitted owned enum when every dynamic result leaf is either a CORE-074
+  fresh origin or one direct identifier bound to an initialized, currently `Owned`
+  local or owned parameter of the exact result schema. Fresh and direct origins may
+  mix; different arms may consume different owners; the same owner may appear in
+  mutually exclusive arms; and nested fresh-scrutinee Match results may recursively
+  contain the same leaf class. All result leaves must retain one exact schema. The
+  selected arm performs exactly one runtime move into the existing checked Match-result
+  place; the result becomes one new `Owned` value.
+- Frozen path-sensitive ownership: classification returns deterministic dynamic-path
+  consumption sets, not one topology-specific Boolean. Duplicate consumption of one
+  owner on the same dynamic path rejects. Repetition only across mutually exclusive
+  paths is valid. At the merge, an entry-`Owned` source consumed on every reachable
+  path becomes `Moved`; one consumed on only a strict subset becomes `MaybeMoved`;
+  one consumed on none remains `Owned`. Later read, borrow, Match, call, return, or
+  move from `Moved`/`MaybeMoved` retains the established diagnostic. Exact acyclic
+  whole-owner reinitialization from CORE-073 may restore it. Semantic analysis and
+  checked admission must consume one shared origin/effect classification rather than
+  add phase-local arm-topology tables.
+- Frozen containment: a Match scrutinee is consumed before its arms and cannot also be
+  a result identifier. Moved, maybe-moved, borrowed, uninitialized, payload-binding,
+  wrong-schema, unknown, projected, indexed, dereferenced, field, tuple/array/struct-
+  stored, or non-enum origins reject before trusted LLVM. Calls that consume any
+  additional external enum owner, nested Match with an external owned scrutinee,
+  direct-owner result transport lexically inside `while`/`for`/`loop`, and all
+  backedge/break/continue effects remain unsupported. Constructors and exact enum-
+  returning calls with no external owned consumption retain CORE-074 behavior.
+- Checked-IR/verifier/backend contract: reuse
+  `CheckedEnumMatchResultPlaceAlloca`; do not add a second result-place opcode or alter
+  private enum layout. Each direct-owner arm assignment must be dominated by its exact
+  dispatch target and use an exact checked owned-place load of the same schema. The
+  verifier must independently reject a generic load/store, wrong owner/schema,
+  non-dominating load/value, duplicate same-path move, fabricated post-merge value,
+  source reuse after an all-path move, and source reuse after a partial-path move.
+  Existing one-write-per-target, all-path initialization, single merged load, and
+  ownership-flow proofs remain mandatory. Trusted LLVM may only lower the verified
+  existing identities; no public layout, calling convention, ABI, FFI, or drop rule is
+  established.
+- Exhaustive red/green surface: unit, unary, positional multi-field, `char`, recursive
+  fixed-array/tuple/struct/matrix payload schemas; owned locals and parameters;
+  inferred/exact bindings; same owner in every arm, different owners by arm, mixed
+  fresh/direct leaves, and recursively nested leaves; same and different scrutinee/
+  result enum identities; direct binding/call argument/return/re-Match/replacement;
+  full- and partial-path post-state diagnostics; CORE-073 reinitialization; direct
+  modules; deterministic checked metadata/LLVM; CLI check/build/run artifact hygiene;
+  tracked native sentinel 211; and workflow anchors. Negative completion includes
+  every containment case above plus raw checked-IR corruption and preservation of
+  CORE-043 through CORE-074, ordinary functions, references, structs, tuples, arrays,
+  modules, `char`, and closure containment.
+- Red-first workflow and allowed files: after this authorization and before production
+  mutation, add one new exhaustive
+  `src/compiler/tests/conditional_owned_enum_match_result_tests.rs` target proving the
+  current fresh-origin failure while all preservation controls remain green. Only
+  after exact red may production work touch
+  `src/compiler/src/{enum_match_contract,ownership_flow,semantic_analyzer,
+  ir_generator,ir_verifier}.rs`; directly superseded CORE-074 expectations; one new
+  tracked `examples/conditional_owned_enum_match_results/{main,values}.aero`; and
+  `.github/workflows/rust.yml`. `ast.rs`, lexer, parser, type shapes, generic function
+  contracts, checked-IR opcodes, codegen representation, module resolver, dependencies,
+  runtime, accelerator paths, claims, cache, and `master` are frozen. After exact green
+  only directly affected state/capability/matrix/framework/roadmap/decision/risk/README
+  records and rendered draft PR #4 metadata may change.
+- Stop conditions: stop rather than narrow or approximate if path effects cannot be
+  enumerated without ambiguity, an owner can be consumed twice on one runtime path, a
+  source use can reach trusted LLVM after a full/partial move, nested support requires
+  an external owned scrutinee, loop placement requires a fixed point, source soundness
+  depends only on backend behavior, a new representation/layout/drop/lifetime/ABI rule
+  is needed, an unrelated baseline is red, or any existing test/spec must be weakened.
+  Do not opportunistically add function-call owner consumption, aggregate storage,
+  borrowing/projection, loop reinitialization, modules/imports/visibility, runtime
+  String/heap behavior, C ABI, GPU execution, generics, closures, or wider patterns.
+- Verification/publication gate: exact red then green; focused classifier and verifier
+  corruption controls; complete enum/ownership/function/reference/module/closure/char
+  compatibility ring; all-feature tests; all-target/all-feature check; formatting;
+  correctness Clippy; docs; exact root `./tools/test.sh`; public check/build/run and
+  artifact hygiene; pinned LLVM/Clang 22 external and machine verification,
+  object/link, and exact native exit 211. Commit and push one immutable candidate only
+  after local green, synchronize PR #4 immediately, and record accepted-public PR
+  wording only after all eight exact-head checks and both pinned native lanes pass.
+- Scaling controls: this is a hard ownership/control-flow result class and introduces
+  one path-effect classification instead of multiplying phase-local topology guards.
+  The 272-commit mega-PR still needs a separately authorized checkpoint/merge strategy;
+  structured checkpoint-manifest generation remains separate; module/runtime/ABI and
+  real RX 7800 XT execution remain explicitly queued; and the tracked source-through-
+  native specimen supplies the periodic composed system gate without claiming release
+  eligibility.
+- Red evidence before production mutation: formatting check identified only two
+  mechanical wraps in the new test target. The focused target compiled and ran 0/2
+  green, with both tests failing for the intended behavioral boundary rather than a
+  parser, environment, or harness defect. Six isolated positive rows plus the composed
+  program all reached CORE-074's exact fresh-only diagnostic. Full-path, partial-path,
+  wrong-schema, and loop post-state assertions were likewise blocked by that same
+  admission boundary. Existing controls for consumed Match scrutinees, owner-consuming
+  calls, external-scrutinee nested Match, and the complete CORE-074 fresh-origin class
+  remained green. No production file had been mutated at red; only this ledger and
+  `conditional_owned_enum_match_result_tests.rs` differed from accepted CORE-074.
+
+### CORE-075 locally green candidate evidence
+
+- Implementation summary: `EnumRegistry::resolve_owned_match_result` replaces the
+  fresh-only resolver with one exact recursive origin/schema authority and returns
+  deterministic dynamic result-leaf consumption paths. Direct origins are limited to
+  initialized in-function local owners or owned parameters with the exact admitted enum
+  schema. `classify_owned_consumption_paths` is shared by semantic analysis and checked
+  admission to reject duplicate same-path moves, derive all-path `Moved`, partial-path
+  `MaybeMoved`, and no-path `Owned`, and reject every ownership-changing loop placement.
+  Small phase adapters Cartesian-compose paths only when a direct-owner Match is used as
+  an admitted call argument. Additional owned call consumption and external nested
+  scrutinees remain rejected by the pre-existing flat consumption authority.
+- Checked-IR identity correction: the frozen wording "exact checked owned-place load"
+  was too narrow. Immutable direct enum parameters/locals can be represented by verified
+  checked enum values such as `CheckedEnumParameter`; mutable owned places use the
+  existing checked load path. Both feed `CheckedOwnedPlaceAssignment` into the existing
+  `CheckedEnumMatchResultPlaceAlloca`. No `CheckedOwnedPlaceLoad` opcode exists or was
+  added. The invariant is exact verified owner provenance, result schema, dominance,
+  and ownership state—not one mandatory load opcode.
+- Independent verification: no verifier production rule or IR opcode changed. Existing
+  enum-owner CFG dataflow already transfers ownership through checked result-place
+  assignments and unions predecessor consumption. Additive corruption controls prove
+  same-owner and different-owner mutually exclusive assignments verify, while source
+  reuse after all-path and partial-path consumption fails. Existing result-place proof
+  still requires one target-dominated exact-schema assignment per arm, all-path
+  initialization, and one merged load.
+- Positive/negative surface: the new two-test aggregate covers same/different owners,
+  fresh/direct mixtures, recursive nested leaves, inferred/exact bindings, recursive
+  CopyData payload schemas, call arguments, returns, re-Match, replacement, acyclic
+  reinitialization, direct modules, deterministic checked IR/LLVM, and the tracked
+  exit-211 specimen. It rejects full/partial post-merge reuse in semantics and direct
+  checked admission, consumed scrutinees, wrong schemas, owned call arguments, external
+  nested scrutinees, loop effects, same-path duplicates, nested conditional consumption
+  inside a result call, and aggregate storage. Superseded fresh-only expectations now
+  retain deterministic unsupported-origin diagnostics for still-excluded topologies.
+- Files changed so far: `.github/workflows/rust.yml`; `TASK_LEDGER.md`;
+  `src/compiler/src/{enum_match_contract,ownership_flow,semantic_analyzer,ir_generator,
+  ir_verifier}.rs`; `src/compiler/tests/{conditional_owned_enum_match_result_tests,
+  owned_enum_match_result_tests,unit_enum_match_tests}.rs`; tracked
+  `examples/conditional_owned_enum_match_results/{main,values}.aero`; and the directly
+  affected project state, capability audit, specification matrix, framework alignment,
+  roadmap, decision, risk, and README records. User-owned untracked `tmp/` remains
+  untouched and excluded.
+- Commands/evidence already green: focused CORE-075 target 2/2; superseded owned-result
+  target 3/3; unit-enum Match target 1/1; shared ownership classifier unit; verifier
+  conditional ownership unit; reference-parameter workflow-anchor control 1/1; tracked
+  example public `check` and `build` with exact temporary artifact removal; complete
+  `cargo test --manifest-path src/compiler/Cargo.toml --quiet` with 192/192 library,
+  198/198 binary, and every integration target passing; `cargo fmt --all -- --check`;
+  `cargo check --all-targets --all-features`; correctness-only Clippy with all targets/
+  features; `cargo doc --all-features --no-deps`; and the exact repository-root
+  `./tools/test.sh` on the final implementation/record set. Existing baseline warnings
+  remain warnings and no new correctness lint failed. This Windows host has no official
+  LLVM 22 installation, so no local external/native claim is made.
+- Remaining candidate gates and uncertainty: recheck deterministic diffs and artifact
+  hygiene, commit/push one immutable candidate, synchronize rendered draft PR
+  #4 to that candidate (not acceptance), and require all eight exact-head checks plus
+  stable/nightly LLVM/Clang 22.1.8 external/machine/object/link/native exit 211 before
+  public acceptance. Regression risk remains concentrated in expression-context path
+  composition and interaction with older flat call/scrutinee consumption; exhaustive
+  positive, negative, semantic-bypass, verifier, complete-suite, and root controls bound
+  that risk without claiming general CFG ownership.

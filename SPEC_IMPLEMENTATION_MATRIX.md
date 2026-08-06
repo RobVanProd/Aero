@@ -87,15 +87,22 @@ move/projection, enum aggregate storage or borrowing, destructor/drop/lifetime r
 and general CFG fixed point remains unsupported; the row stays `PARTIAL` and does not
 broaden the aggregate topology.
 
-Local candidate `CORE-074` admits only fresh owned-enum results from exhaustive
+Accepted public `CORE-074` admits only fresh owned-enum results from exhaustive
 identifier-bound Match expressions. Every arm must produce the same already admitted
 enum through a constructor, exact call without additional owned-enum consumption, or
 recursively fresh nested Match. Exact checked result/dispatch schemas, one distinct
 target-dominated assignment per arm, all-path initialization, one merged load, and
-later ownership are independently verified. Identifier/conditional owner transport,
-aggregate Match results, broader patterns, enum storage/borrowing/projection, partial
-moves, drop/lifetimes, stable ABI, and general CFG semantics remain excluded; the row
-is `PARTIAL` and public acceptance is pending.
+later ownership are independently verified. The row remains `PARTIAL`.
+
+Local candidate `CORE-075` adds direct initialized local/owned-parameter result origins
+of the exact enum schema. A shared dynamic-path classifier permits the same owner only
+across mutually exclusive arms, derives all-path `Moved` and partial-path `MaybeMoved`,
+and rejects same-path duplicates and loop effects. Checked enum values or checked
+mutable-place loads feed the existing result place and checked assignment; independent
+verifier CFG ownership proof rejects post-merge source reuse. Calls consuming another
+owner, external nested scrutinees, aggregate results/storage, wider patterns, enum
+borrowing/projection, partial moves, drop/lifetimes, stable ABI, and general CFG
+semantics remain excluded; the row stays `PARTIAL` and public acceptance is pending.
 
 ## Compiler, tooling, and ecosystem surfaces
 

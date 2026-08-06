@@ -94,6 +94,15 @@ pub(crate) struct ResolvedEnumMatch {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct OwnedEnumMatchResult {
+    pub(crate) contract: EnumContract,
+    /// One direct-owner consumption set for each reachable result leaf. Empty sets
+    /// represent fresh origins; repeated names in different sets are mutually
+    /// exclusive rather than duplicate moves on one runtime path.
+    pub(crate) consumption_paths: Vec<Vec<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum EnumDefinitionDisposition {
     Supported(EnumContract),
     Unsupported,
@@ -270,11 +279,11 @@ impl EnumError {
                 "enum match must cover every declared variant exactly once".to_string()
             }
             Self::UnsupportedResult => {
-                "enum match arms must return Int, Float, Bool, Char, or one fresh admitted enum"
+                "enum match arms must return Int, Float, Bool, Char, or one admitted owned enum result"
                     .to_string()
             }
             Self::UnsupportedOwnedResultOrigin(arm) => format!(
-                "owned enum match result arm {arm} must produce a fresh constructor, exact enum-returning call without additional owned-enum consumption, or nested fresh-result Match"
+                "owned enum match result arm {arm} has an unsupported origin; expected a fresh constructor, exact enum-returning call without additional owned-enum consumption, initialized direct local owner, or nested admitted-result Match"
             ),
             Self::ResultMismatch { expected, actual } => {
                 format!("enum match arm result mismatch: expected {expected}, actual {actual}")
@@ -805,6 +814,7 @@ impl EnumRegistry {
         result_types: &[Ty],
         externally_consumed: &[String],
         arm_owned_consumptions: &[Vec<String>],
+        lookup_binding: impl Fn(&str) -> Option<Ty>,
         lookup_call_result: impl Fn(&str) -> Option<Ty>,
         context: EnumExecutionContext,
     ) -> Result<ResolvedEnumMatch, EnumError> {
@@ -828,14 +838,6 @@ impl EnumRegistry {
         match &result {
             result if PrimitiveKind::from_ty(result).is_some() => {}
             Ty::Enum(_) => {
-                let result_contract =
-                    self.resolve_fresh_owned_match_result(arms, &lookup_call_result)?;
-                if result_contract.ty() != result {
-                    return Err(EnumError::ResultMismatch {
-                        expected: result,
-                        actual: result_contract.ty(),
-                    });
-                }
                 if arm_owned_consumptions.len() != arms.len() {
                     return Err(EnumError::IncompleteCoverage);
                 }
@@ -845,6 +847,14 @@ impl EnumRegistry {
                     .find(|(_, consumed)| !consumed.is_empty())
                 {
                     return Err(EnumError::UnsupportedOwnedResultOrigin(arm + 1));
+                }
+                let owned_result =
+                    self.resolve_owned_match_result(arms, &lookup_binding, &lookup_call_result)?;
+                if owned_result.contract.ty() != result {
+                    return Err(EnumError::ResultMismatch {
+                        expected: result,
+                        actual: owned_result.contract.ty(),
+                    });
                 }
             }
             _ => return Err(EnumError::UnsupportedResult),
@@ -865,49 +875,93 @@ impl EnumRegistry {
         })
     }
 
-    fn fresh_owned_result_origin_type<F>(
+    fn owned_result_origin<F, G>(
         &self,
         expression: &Expression,
-        lookup_call_result: &F,
-    ) -> Option<Ty>
+        lookup_binding: &F,
+        lookup_call_result: &G,
+    ) -> Option<(Ty, Vec<Vec<String>>)>
     where
         F: Fn(&str) -> Option<Ty>,
+        G: Fn(&str) -> Option<Ty>,
     {
-        let ty = match expression {
-            Expression::EnumVariant { enum_name, .. } => Ty::Enum(enum_name.clone()),
-            Expression::FunctionCall { name, .. } => lookup_call_result(name)?,
+        let (ty, paths) = match expression {
+            Expression::EnumVariant { enum_name, .. } => {
+                (Ty::Enum(enum_name.clone()), vec![Vec::new()])
+            }
+            Expression::FunctionCall { name, arguments } => {
+                if arguments.iter().any(|argument| {
+                    self.expression_contains_conditional_owner(
+                        argument,
+                        lookup_binding,
+                        lookup_call_result,
+                    )
+                }) {
+                    return None;
+                }
+                (lookup_call_result(name)?, vec![Vec::new()])
+            }
+            Expression::Identifier(name) => (lookup_binding(name)?, vec![vec![name.clone()]]),
             Expression::Match { arms, .. } => {
-                return self
-                    .resolve_fresh_owned_match_result(arms, lookup_call_result)
-                    .ok()
-                    .map(|contract| contract.ty());
+                let result = self
+                    .resolve_owned_match_result(arms, lookup_binding, lookup_call_result)
+                    .ok()?;
+                return Some((result.contract.ty(), result.consumption_paths));
             }
             _ => return None,
         };
         match &ty {
-            Ty::Enum(name) if self.contract(name).is_ok() => Some(ty),
+            Ty::Enum(name) if self.contract(name).is_ok() => Some((ty, paths)),
             _ => None,
         }
     }
 
-    pub(crate) fn resolve_fresh_owned_match_result<F>(
+    fn expression_contains_conditional_owner<F, G>(
         &self,
-        arms: &[MatchArm],
-        lookup_call_result: &F,
-    ) -> Result<EnumContract, EnumError>
+        expression: &Expression,
+        lookup_binding: &F,
+        lookup_call_result: &G,
+    ) -> bool
     where
         F: Fn(&str) -> Option<Ty>,
+        G: Fn(&str) -> Option<Ty>,
+    {
+        match expression {
+            Expression::Match { arms, .. } => self
+                .resolve_owned_match_result(arms, lookup_binding, lookup_call_result)
+                .is_ok_and(|result| result.consumption_paths.iter().any(|path| !path.is_empty())),
+            Expression::FunctionCall { arguments, .. } => arguments.iter().any(|argument| {
+                self.expression_contains_conditional_owner(
+                    argument,
+                    lookup_binding,
+                    lookup_call_result,
+                )
+            }),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn resolve_owned_match_result<F, G>(
+        &self,
+        arms: &[MatchArm],
+        lookup_binding: &F,
+        lookup_call_result: &G,
+    ) -> Result<OwnedEnumMatchResult, EnumError>
+    where
+        F: Fn(&str) -> Option<Ty>,
+        G: Fn(&str) -> Option<Ty>,
     {
         let Some(first_arm) = arms.first() else {
             return Err(EnumError::IncompleteCoverage);
         };
-        let Some(result) = self.fresh_owned_result_origin_type(&first_arm.body, lookup_call_result)
+        let Some((result, mut consumption_paths)) =
+            self.owned_result_origin(&first_arm.body, lookup_binding, lookup_call_result)
         else {
             return Err(EnumError::UnsupportedOwnedResultOrigin(1));
         };
         for (arm, expression) in arms.iter().enumerate().skip(1) {
-            let Some(actual) =
-                self.fresh_owned_result_origin_type(&expression.body, lookup_call_result)
+            let Some((actual, mut paths)) =
+                self.owned_result_origin(&expression.body, lookup_binding, lookup_call_result)
             else {
                 return Err(EnumError::UnsupportedOwnedResultOrigin(arm + 1));
             };
@@ -917,11 +971,15 @@ impl EnumRegistry {
                     actual,
                 });
             }
+            consumption_paths.append(&mut paths);
         }
         let Ty::Enum(name) = result else {
             return Err(EnumError::UnsupportedResult);
         };
-        self.contract(&name)
+        Ok(OwnedEnumMatchResult {
+            contract: self.contract(&name)?,
+            consumption_paths,
+        })
     }
 
     pub(crate) fn consumed_owned_values<F, G>(

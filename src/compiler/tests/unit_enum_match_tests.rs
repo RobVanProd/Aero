@@ -356,7 +356,7 @@ fn main() -> int {
         (
             "unsupported result",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => \"cold\", Phase::Warm => \"warm\" }; }",
-            "enum match arms must return Int, Float, Bool, Char, or one fresh admitted enum",
+            "enum match arms must return Int, Float, Bool, Char, or one admitted owned enum result",
         ),
         (
             "use after match",

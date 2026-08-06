@@ -146,8 +146,8 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Accepted CORE-072 adds exact Unicode `char` identity and equality/inequality across the complete existing recursive CopyData transport class. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Accepted CORE-064 extends direct whole-owner replacement to admitted enums; CORE-065 adds exact acyclic conditional joins; CORE-066 adds fresh per-iteration enum owners; and CORE-073 adds exact acyclic whole-owner reinitialization from `Moved`/`MaybeMoved`. Candidate CORE-074 carries one fresh owned result across exhaustive Match control flow under shared classification and independent verifier proof. Projected writes/borrows, every loop-contained reinitialization, outer-owner loop joins, conditional identifier transport, and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
-| **Data Types** | Recursive finite CopyData composition and bounded positional recursive CopyData owned enums—including exact variants with two or more fields—are publicly accepted with exhaustive identifier-bound Match, internal transport, exact mutable whole-owner replacement/reinitialization, acyclic conditional ownership joins, and fresh per-iteration loop-local owners. Accepted CORE-072 adds `char` as a distinct Unicode-scalar CopyData leaf. Candidate CORE-074 admits same-schema fresh owned-enum Match-expression results across that existing payload universe without broadening enum topology. Named-field/generic variants, wider patterns, aggregate Match results, identifier result transport, enum fields/arrays/borrowing/projection, and broader storage or destructuring semantics remain unsupported. |
+| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Accepted CORE-064 extends direct whole-owner replacement to admitted enums; CORE-065 adds exact acyclic conditional joins; CORE-066 adds fresh per-iteration enum owners; CORE-073 adds exact acyclic whole-owner reinitialization from `Moved`/`MaybeMoved`; and accepted CORE-074 carries one fresh owned result across exhaustive Match control flow. Candidate CORE-075 adds direct local/owned-parameter result origins with exact all-path `Moved` and partial-path `MaybeMoved` joins under independent verifier proof. Projected writes/borrows, every loop-contained ownership effect, outer-owner loop joins, and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
+| **Data Types** | Recursive finite CopyData composition and bounded positional recursive CopyData owned enums—including exact variants with two or more fields—are publicly accepted with exhaustive identifier-bound Match, internal transport, exact mutable whole-owner replacement/reinitialization, acyclic conditional ownership joins, and fresh per-iteration loop-local owners. Accepted CORE-072 adds `char` as a distinct Unicode-scalar CopyData leaf; accepted CORE-074 adds same-schema fresh owned-enum Match-expression results. Candidate CORE-075 adds initialized direct-owner result origins without broadening enum topology. Named-field/generic variants, wider patterns, aggregate Match results/storage, enum fields/arrays/borrowing/projection, and broader storage or destructuring semantics remain unsupported. |
 | **Control Flow** | Functions, if/else, while/checked fixed-array for/loop, and nearest-loop break/continue are partial. Accepted CORE-066 corrects checked `for` continue so it reaches the index increment before the header and proves fresh per-iteration enum consumption; labels, loop expressions/break values, non-array checked iterators, and outer-owner loop transport remain unsupported. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Function calls** | Accepted CORE-068 centralizes exact named-call classification across both semantic paths and checked admission/lowering. Existing nongeneric functions over admitted scalar, recursive CopyData, owned-enum, and reference-parameter contracts remain supported; missing or unsupported signatures, wrong arguments, and `Void` value use fail before checked IR. All eight public checks and the pinned LLVM/Clang 22 native-exit-181 gate pass. Overloads, conversions, generic/trait/closure calls, reference results, and stable callable ABI remain unsupported. |
 | **Intrinsic methods** | Accepted CORE-067 centralizes intrinsic method classification across semantics and checked IR. Exact recursive CopyData fixed-array `.len()`/`.is_empty()`, immutable compile-time String queries, and Array/Vec `.iter()` compatibility are the only admitted executable method forms. Runtime Strings, other collection methods, general dispatch, generic/trait methods, and callable ABI remain unsupported. |
@@ -399,17 +399,29 @@ aero lsp
 > projected/partial write, enum borrow/storage expansion, destructor/drop/lifetime rule,
 > stable ABI, and general CFG fixed point remains rejected.
 
-> CORE-074 is a locally green candidate for fresh owned-enum results from exhaustive
+> CORE-074 is publicly accepted for fresh owned-enum results from exhaustive
 > Match expressions. Every arm must yield the same already admitted enum through a
 > constructor, an exact call with no additional owned-enum consumption, or a recursively
 > fresh nested Match. One checked result-place identity retains distinct result/dispatch
 > schemas; independent verification proves one dispatch-target-dominated write per arm,
 > all-path initialization, one merged load, and valid later ownership. The result can be
 > bound, called, returned, re-Matched, replaced, or acyclically reinitialized. The full
-> 191-library/197-binary local gates pass. Identifier/conditional owner transport,
+> 191-library/197-binary gates, all eight exact-head checks, and pinned stable/nightly
+> native exit 203 pass. Conditional owner transport,
 > aggregate Match results, broader patterns, storage/borrowing/projection, partial moves,
-> drop/lifetimes, stable ABI, and generic/closure semantics remain unsupported. This
-> Windows host lacks LLVM 22; pinned native exit 203 and public acceptance remain pending.
+> drop/lifetimes, stable ABI, and generic/closure semantics remain unsupported.
+
+> CORE-075 is a locally green candidate for direct-owner results across exhaustive
+> Match control flow. Exact initialized local owners or owned parameters may be selected
+> on mutually exclusive paths; one shared dynamic-path classifier rejects same-path
+> duplicates and loop effects while deriving all-path `Moved` or partial-path
+> `MaybeMoved`. Existing checked enum provenance, the CORE-074 result place, checked
+> assignment, verifier CFG ownership proof, and private LLVM layout are reused. The
+> 192-library/198-binary complete compiler surface and exact root gate pass.
+> Additional owned call consumption, external nested scrutinees, aggregate storage,
+> borrowing/projection, partial moves, drop/lifetimes, stable ABI, and general CFG
+> semantics remain unsupported. Pinned native exit 211 and public
+> acceptance remain pending.
 
 > **Pattern matching status:** CORE-049 accepts one bounded owned unit-enum class:
 > unique top-level non-generic enums with one or more unit variants, exact payload-free
