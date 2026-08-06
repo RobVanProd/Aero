@@ -60,6 +60,11 @@ Accepted public `CORE-069` supplies the evidence for the existing positional mul
 field recursive CopyData enum row without promoting it beyond `PARTIAL`. Accepted
 public `ARCH-002` only normalizes binding-annotation classification and phase routing;
 it changes no language-feature stage, evidence cell, or feature-level class.
+Local candidate `CORE-071` adds exact negative/diagnostic evidence for the already
+parsed-only Rust-like `use` subset: parsed path/alias/glob data and source location are
+preserved, while semantics and checked admission fail closed before IR. It does not
+change the combined modules/imports/visibility row or implement the founding dotted
+`import` grammar or name resolution.
 
 ## Compiler, tooling, and ecosystem surfaces
 

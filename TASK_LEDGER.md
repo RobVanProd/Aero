@@ -14058,3 +14058,131 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   certify a stable public API. The immutable commit, push, rendered PR candidate sync,
   all eight public checks, and unchanged pinned LLVM/Clang 22 exit-193 lane remain
   before public acceptance.
+
+### CORE-070 accepted-public evidence
+
+- Exact immutable identity: implementation commit
+  `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`, tree
+  `2e1146cf0c4f7468de0c8fa0dde85a13cdd79a21`, stable patch ID
+  `1263a11601e3cb7f9f776e4e154f3de158feaa6d`, and parent/accepted ARCH-002
+  `aca3fe21ece4a7f90de0b41b5e336c15ac589505`. Local, origin, and PR heads match;
+  `master` and `origin/master` remain `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+- Public checks: push CI run `31065832874` / job `92503234024`, PR CI run
+  `31065835027` / job `92503241061`, Rust CI run `31065835060` stable job
+  `92503241173` and nightly job `92503241237`, CodeQL run `31065833756` Actions job
+  `92503239037`, Python job `92503239083`, Rust job `92503239100`, and aggregate
+  `92503335192` all pass on the exact implementation head.
+- Pinned system evidence: stable and nightly independently report
+  `ExternalVerified: opt 22.1.8 at /usr/bin/opt-22`, run
+  `llc-22 -verify-machineinstrs`, object-lower, link the unchanged composed specimen
+  with `clang-22 -no-pie`, and report `multi-field enum example passed with exit code
+  193`. Rendered PR #4 has zero stale candidate/pending wording, leads with CORE-070
+  accepted public, and remains open, draft, and unmerged. No records-only acceptance
+  commit was made.
+- Acceptance moves only the additive file-aware library surface and its exact tests;
+  every module/import/namespace/cache/external-verifier/CLI/option exclusion and all
+  four scaling controls remain active.
+
+## CORE-071 - Fail-closed containment for parsed `use` declarations
+
+- Task ID/date/owner: `CORE-071`, 2026-08-05, lead-owned red-first module-boundary
+  containment starting from accepted public CORE-070
+  `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`. Local, origin, and PR heads match; all
+  eight public checks and pinned stable/nightly exit 193 pass; PR #4 remains open,
+  draft, and unmerged; user-owned untracked `tmp/` remains outside the task.
+- Founding-framework boundary: the primary founding PDF specifies dotted top-level
+  `import` syntax but does not freeze namespaces, qualification, aliases, visibility,
+  recursion, cycles, or name-resolution behavior. The current prototype instead
+  parses Rust-like `use path::item`, optional `as alias`, and terminal globs into
+  `Statement::UseImport`. This task must not reinterpret either syntax as the other or
+  implement any positive import/name-resolution semantics.
+- Observed false-success hypothesis: parser-retained `UseImport` nodes are explicitly
+  ignored by semantic preflight, semantic statement analysis, checked admission, and
+  legacy lowering. Consequently top-level, nested, aliased, glob, and direct-module
+  `use` declarations can disappear while compilation reports success and emits LLVM.
+  The initial red matrix must reproduce that exact public/library/CLI false success
+  before production changes.
+- Frozen containment: preserve lexing, parsing, path order, alias/glob retention, and
+  the AST node for future module work, adding only the `use` keyword's exact
+  `SourceLocation`. Every trusted semantic route must reject any `UseImport` with one
+  shared deterministic diagnostic:
+  `Error: use declarations are parsed but unsupported because name-resolution
+  semantics are not implemented at <location>.` Independent checked admission must
+  reject the same node/diagnostic when handed a parsed raw AST. No trusted path may
+  erase it or reach checked IR/LLVM.
+- Frozen phase and precedence behavior: strict lex and fatal parse errors still win
+  before containment; malformed `use` syntax retains parser diagnostics; ordinary
+  identifier text beginning with `import` remains governed by current parsing and is
+  not activated; the first source-ordered executable `use` encountered by semantic
+  traversal is reported with its root or direct-module filename. `compile_program`,
+  `compile_file`, `check`, `build`, and `run` must fail without requested LLVM or
+  native artifacts. Parser-only AST inspection remains available.
+- Red/green evidence matrix: top-level direct, alias, glob, function-local/block,
+  trait-default/impl-body, and flattened direct-module uses; root and module filenames;
+  source-only and file-aware library APIs; check/build/run artifact hygiene; raw
+  checked-admission bypass; malformed-use/import preservation; and ordinary
+  module-free/direct-module positive controls. Existing CORE-043 through CORE-070,
+  closure containment, module pipeline, strict lexing, fatal parsing, checked IR, and
+  positional multi-field system behavior must remain unchanged.
+- Allowed files before green: this ledger;
+  `src/compiler/src/use_import_contract.rs`; `src/compiler/src/{lib,main}.rs` for
+  private module registration in both crate roots; `src/compiler/src/ast.rs`; `src/compiler/src/parser.rs`;
+  `src/compiler/src/semantic_analyzer.rs`; `src/compiler/src/ir_generator.rs`; and new
+  `src/compiler/tests/use_import_containment_tests.rs`. The parser/AST, semantic, and
+  checked-admission crossing is explicit and required only for retained source spans
+  plus independent fail-closed proof. Any need to edit the module resolver, legacy
+  lowerer behavior, checked-IR schema/verifier, codegen, CLI orchestration, cache,
+  workflows, dependencies, examples, or another production phase is a stop condition.
+- Stop conditions and exclusions: stop on any positive binding/import behavior,
+  changed `mod` collection, syntax rewrite, path/alias/glob normalization, recursive
+  module graph, visibility decision, new IR identity, backend behavior, cache key,
+  external tool, runtime, or diagnostic ambiguity. Do not add the founding dotted
+  `import` grammar, wildcard semantics, namespace lookup, aliases, re-exports,
+  prelude/standard-library behavior, or unused-import policy.
+- Verification/publication: after the exact red, implement the smallest shared
+  diagnostic and retained location; run focused parser/semantic/IR/library/CLI/module
+  targets, complete all-target/all-feature tests, formatting, checking, correctness
+  Clippy, docs, exact root `./tools/test.sh`, all eight public workflows, and the
+  unchanged pinned LLVM/Clang 22 exit-193 system lane. Synchronize state/matrix/
+  framework/roadmap/decision/risk/README and PR #4 only after the candidate is green;
+  distinguish local candidate from accepted public exactly.
+- Scaling controls: this is a correctness containment inside a hard module class,
+  following CORE-070's file-aware compiler-service slice. It invents no easy positive
+  semantics. PR checkpoint strategy, structured evidence-manifest automation, and
+  broader periodic release-eligibility gates remain separately controlled.
+
+### CORE-071 local-candidate result
+
+- Red-first evidence: before production edits, the new target passed 3 parser/parse-
+  boundary/ordinary controls and failed 5 exact false-success controls. Semantic
+  analysis returned success, raw checked admission returned checked IR, source/file
+  libraries returned LLVM, a direct module containing use compiled, and
+  `check`/`build`/`run` omitted the frozen located diagnostic.
+- Implementation: `Statement::UseImport` retains the exact keyword `SourceLocation`;
+  one private contract renders the frozen diagnostic; semantic preflight and ordinary
+  statement analysis reject it; and checked admission independently rejects a raw
+  parsed AST. The legacy lowerer remains quarantined behind checked admission and no
+  module resolver, IR schema, verifier, codegen, CLI, cache, workflow, dependency, or
+  example behavior changed.
+- Contract evidence: direct, aliased, and terminal-glob shapes plus locations remain
+  parsed; top-level/function/block/trait-default/impl/direct-module placements reject
+  with the same source-ordered cause; `compile_program`, `compile_file`, `check`,
+  `build`, and `run` fail before LLVM/native artifacts; malformed use and unimplemented
+  dotted import remain parse failures; ordinary source and direct modules still pass.
+- Focused and complete gates: the new target passes 8/8. The nine-target parser,
+  semantics, checked-IR, closure, module, file-library, and direct-module ring passes
+  81 tests with the same 16 explicit ignores. `cargo test --all-targets --all-features`
+  exits 0 at 188/188 library and 194/194 binary plus every integration and benchmark
+  target. Formatting, all-target/all-feature checking, correctness Clippy, and docs
+  pass. The record-inclusive exact repository-root `./tools/test.sh` gate also exits 0
+  at 188/188 library and 194/194 binary tests plus every integration and doc target.
+- Files changed: this ledger; AST/parser location retention; the shared use contract
+  and both crate-root registrations; semantic and checked-admission consumers; the
+  exhaustive integration target; and directly affected project-state, capability,
+  matrix, framework, roadmap, decision, risk, and README records. User-owned untracked
+  `tmp/` remains untouched.
+- Remaining uncertainty and risk: no positive import/name-resolution/namespace/
+  visibility/alias/glob/recursive-module/cache/backend/runtime semantics are defined.
+  The exact commit, push, rendered PR sync, all eight public checks, and unchanged
+  pinned exit-193 system lane remain before public acceptance. The four scaling
+  controls remain active.

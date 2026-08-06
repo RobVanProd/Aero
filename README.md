@@ -151,7 +151,7 @@ aero lsp
 | **Control Flow** | Functions, if/else, while/checked fixed-array for/loop, and nearest-loop break/continue are partial. Accepted CORE-066 corrects checked `for` continue so it reaches the index increment before the header and proves fresh per-iteration enum consumption; labels, loop expressions/break values, non-array checked iterators, and outer-owner loop transport remain unsupported. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Function calls** | Accepted CORE-068 centralizes exact named-call classification across both semantic paths and checked admission/lowering. Existing nongeneric functions over admitted scalar, recursive CopyData, owned-enum, and reference-parameter contracts remain supported; missing or unsupported signatures, wrong arguments, and `Void` value use fail before checked IR. All eight public checks and the pinned LLVM/Clang 22 native-exit-181 gate pass. Overloads, conversions, generic/trait/closure calls, reference results, and stable callable ABI remain unsupported. |
 | **Intrinsic methods** | Accepted CORE-067 centralizes intrinsic method classification across semantics and checked IR. Exact recursive CopyData fixed-array `.len()`/`.is_empty()`, immutable compile-time String queries, and Array/Vec `.iter()` compatibility are the only admitted executable method forms. Runtime Strings, other collection methods, general dispatch, generic/trait methods, and callable ABI remain unsupported. |
-| **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. Local CORE-070 candidate adds public library `compile_file(path, options)` over this exact collector and the checked library frontend; it returns in-memory LLVM and writes no artifact. `use`, `pub` visibility semantics, namespaces, recursive modules, cycle graphs, cache convergence, and a thin shared CLI are not implemented. |
+| **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. Accepted CORE-070 adds public library `compile_file(path, options)` over this exact collector and the checked library frontend; it returns in-memory LLVM and writes no artifact. Candidate CORE-071 preserves Rust-like `use` syntax and source locations but rejects executable use before checked IR. Positive import/name-resolution, `pub` visibility semantics, namespaces, recursive modules, cycle graphs, cache convergence, and a thin shared CLI are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp` |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
@@ -165,6 +165,14 @@ aero lsp
 > that manufactured callable identities and mapped unknown parameter/result types to
 > `i32` is removed. Captures, calls, storage/transport, callable ABI, lifetime behavior,
 > generics, and closure LLVM generation are not implemented.
+
+> **Use-declaration status:** candidate CORE-071 keeps parsed Rust-like direct,
+> optional-`as`, and terminal-glob `use` declarations for future work, including the
+> exact keyword location. Semantic analysis and independent checked admission reject
+> executable use with one deterministic located diagnostic before checked IR; library
+> and CLI routes leave no requested or native artifact. This is not the founding
+> dotted `import` grammar and does not define lookup, namespaces, alias/glob meaning,
+> visibility, re-exports, recursion, cache identity, backend, or runtime behavior.
 
 > **Binding-annotation architecture:** Accepted public ARCH-002 normalizes each annotation
 > to one leaf plus an ordered array/reference wrapper path and shares the resulting

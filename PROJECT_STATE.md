@@ -4,25 +4,34 @@ Last updated: 2026-08-05 (America/New_York)
 
 ## Current objective
 
-Milestone 90 `CORE-070` is a locally green file-aware library-compilation candidate.
-Public `compile_file(path, options)` now reads one exact UTF-8 root, attaches the root
-path to diagnostics, resolves only the existing root-level direct `mod x;` collector,
-and uses the same semantic, checked-IR, mandatory in-process verification, and checked
-LLVM-generation sequence as source-only `compile_program`. Module-free file and source
-results are byte-identical; both accepted direct-module layouts and multiple ordered
-root modules compile; root/module read, lex, parse, semantic, nested-module, and option
-failures stop without LLVM artifacts. The new 5/5 contract target, focused 45-test
-compatibility ring, all-target/all-feature surface, formatting, checking, correctness
-Clippy, docs, and exact root gate pass at 187/187 library and 193/193 binary tests plus
-every integration and doc target.
+Milestone 91 `CORE-071` is a locally green fail-closed module-boundary candidate.
+Rust-like `use path::item`, optional `as alias`, and terminal-glob syntax remain
+parsed for future work, now retaining the exact `use` keyword location. One shared
+diagnostic rejects every executable use declaration in semantic preflight, normal
+semantic statement analysis, and independent checked admission before checked IR or
+LLVM. Source-only/file-aware libraries, direct modules, and `check`/`build`/`run`
+preserve exact filenames and spans and leave no requested or native artifact. The
+red boundary was 3 pass/5 false-success failures; the implemented contract is 8/8,
+the nine-target compatibility ring is 81 pass/16 established ignores, and the full
+surface, formatting, checking, correctness Clippy, and docs pass at 188/188 library
+and 194/194 binary tests plus every integration and benchmark target.
 
-This is an additive library entry point and a partial R-006 convergence step, not a
-module-system or thin-CLI claim. `import`, `use`, `pub`, namespaces, aliases, recursive
-module graphs, cache behavior, external LLVM verification, native execution, output
-writes, and nondefault compiler options remain unchanged or unsupported. An immutable
-candidate commit, push, rendered PR synchronization, all eight exact-head public
-checks, and the unchanged pinned LLVM/Clang 22 native exit-193 system lane remain
-before public acceptance.
+This is containment only. It does not implement the founding dotted `import` grammar,
+name resolution, namespaces, aliases, glob meaning, visibility, re-exports, recursive
+module graphs, cache identity, or import LLVM/runtime behavior. The record-inclusive
+root gate passes at 188/188 library and 194/194 binary tests plus every integration
+and doc target. The immutable commit/push, rendered PR synchronization, all eight
+exact-head public checks, and unchanged pinned LLVM/Clang 22 native exit-193 system
+lane remain before public acceptance.
+
+Milestone 90 `CORE-070` is accepted public at exact implementation commit
+`365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`, tree
+`2e1146cf0c4f7468de0c8fa0dde85a13cdd79a21`, and stable patch ID
+`1263a11601e3cb7f9f776e4e154f3de158feaa6d`. Public `compile_file(path, options)`
+adds the bounded file-aware checked library route over the accepted direct-module
+collector. All eight exact-head public checks pass; stable and nightly pinned
+LLVM/Clang 22.1.8 preserve the composed exact native exit 193. No broader module,
+CLI, cache, option, external-verifier, runtime, release, or stability claim follows.
 
 Milestone 89 `ARCH-002` is accepted public at exact implementation commit
 `aca3fe21ece4a7f90de0b41b5e336c15ac589505`, tree
@@ -2147,8 +2156,8 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Run the record-inclusive CORE-070 root gate, then commit and push one immutable
-file-aware library candidate and synchronize draft PR #4 immediately. Require one
+Run the record-inclusive CORE-071 root gate, then commit and push one immutable
+fail-closed use-containment candidate and synchronize draft PR #4 immediately. Require one
 all-eight exact-head public set plus the unchanged pinned LLVM/Clang 22 composed
 exit-193 system lane before recording public acceptance in rendered PR metadata. Keep
 the PR draft and unmerged. The controlled mega-PR checkpoint strategy, structured

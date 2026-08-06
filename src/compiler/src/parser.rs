@@ -1899,6 +1899,7 @@ impl Parser {
 
     /// Parse `use <path>::<item>;` or `use <path>::<item> as <alias>;`
     fn parse_use_import(&mut self) -> CompilerResult<Statement> {
+        let location = self.peek().location.clone();
         self.consume(Token::Use, "Expected 'use'")?;
 
         let mut path = Vec::new();
@@ -1963,7 +1964,11 @@ impl Parser {
 
         self.consume(Token::Semicolon, "Expected ';' after use statement")?;
 
-        Ok(Statement::UseImport { path, alias })
+        Ok(Statement::UseImport {
+            path,
+            alias,
+            location,
+        })
     }
 
     /// Parse `pub fn ...` / `pub struct ...` / `pub enum ...` / `pub mod ...`

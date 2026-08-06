@@ -38,6 +38,7 @@ mod static_string_predicate;
 mod struct_contract;
 mod tuple_contract;
 mod types;
+mod use_import_contract;
 
 #[cfg(test)]
 mod conformance_checked_ir_tests;

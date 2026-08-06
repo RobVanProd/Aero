@@ -8,7 +8,22 @@ Branch: `agent/aero-integration`
 
 ## Verified progress after the audit commit
 
-- `CORE-070` is a locally green additive library/compiler-service candidate. Public
+- `CORE-071` is a locally green containment candidate. Rust-like `use` declarations
+  retain their parsed path, alias/glob shape, and exact keyword location, but all
+  trusted semantic routes and independent checked admission now reject them with one
+  deterministic source-located unsupported diagnostic before checked IR. Source/file
+  libraries, direct modules, and `check`/`build`/`run` fail without requested/native
+  artifacts. The red boundary was 3 pass/5 false-success failures; the new contract
+  passes 8/8, its nine-target compatibility ring passes 81 with 16 established
+  ignores, and the complete 188-library/194-binary all-target surface, formatting,
+  checking, correctness Clippy, and docs pass. Publication and exact-head public gates
+  remain. No import, namespace, alias, glob, visibility, resolver, recursive-module,
+  cache, ABI, backend, or runtime semantics are added.
+
+- `CORE-070` is accepted public at exact implementation
+  `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`, tree
+  `2e1146cf0c4f7468de0c8fa0dde85a13cdd79a21`, and stable patch ID
+  `1263a11601e3cb7f9f776e4e154f3de158feaa6d`. Public
   `compile_file(path, options)` supplies exact root-file diagnostics and the accepted
   root-relative direct-module context while sharing one semantic, checked-IR,
   in-process verification, and checked-codegen sequence with `compile_program`.
@@ -16,8 +31,9 @@ Branch: `agent/aero-integration`
   ordered root modules pass, unsupported options reject before I/O, and every tested
   root/module failure returns without artifacts. The new contract is 5/5, its focused
   compatibility ring is 45/45, and all-target/all-feature tests, formatting, checking,
-  correctness Clippy, docs, and the exact 187-library/193-binary root gate pass.
-  Publication and exact-head public gates remain. This does not add imports, use/pub,
+  correctness Clippy, docs, and the exact 187-library/193-binary root gate pass. All
+  eight public checks and stable/nightly pinned LLVM/Clang 22.1.8 native exit 193 pass
+  on the exact head. This does not add imports, use/pub,
   namespaces, recursion, caching, external verification, output writes, or CLI
   convergence.
 

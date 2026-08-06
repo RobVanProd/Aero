@@ -3049,9 +3049,10 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
 ## DEC-066 - Add file-aware library compilation over the checked frontend
 
 - Date: 2026-08-05
-- Status: local `CORE-070` candidate; immutable commit, push, rendered PR
-  synchronization, all eight exact-head checks, and pinned-system confirmation remain
-  before public acceptance.
+- Status: accepted public at exact implementation
+  `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`, tree
+  `2e1146cf0c4f7468de0c8fa0dde85a13cdd79a21`, and stable patch ID
+  `1263a11601e3cb7f9f776e4e154f3de158feaa6d`.
 - Decision: add public `compile_file(path, options)` and share the library semantic,
   checked-IR, mandatory in-process verification, and checked-codegen sequence with
   `compile_program`. Validate options before file I/O, read exactly one UTF-8 root,
@@ -3074,3 +3075,27 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   hard file/module/compiler-service slice and a partial R-006 reduction; the PR
   checkpoint strategy, evidence-manifest automation, and broader periodic system gates
   remain separately controlled.
+
+## DEC-067 - Preserve parsed `use` declarations but reject executable use
+
+- Date: 2026-08-05
+- Status: local `CORE-071` candidate; immutable commit, push, rendered PR
+  synchronization, all eight exact-head checks, and pinned-system confirmation remain
+  before public acceptance.
+- Decision: retain the prototype's Rust-like direct, optional-alias, and terminal-glob
+  `use` AST shapes plus the exact `use` keyword location, but classify every executable
+  use declaration as unsupported until name-resolution semantics are specified. One
+  diagnostic authority is consumed by semantic preflight, normal semantic statement
+  analysis, and independent checked admission.
+- Evidence: the red target passed 3 boundary controls and failed 5 because semantics,
+  checked admission, library/direct-module compilation, and CLI commands silently
+  erased use declarations. The implemented target passes 8/8; the nine-target
+  compatibility ring passes 81 with 16 established ignores; and all-target/all-feature
+  tests pass at 188/188 library and 194/194 binary plus every integration and benchmark
+  target. Formatting, checking, correctness Clippy, and docs also pass.
+- Exclusions and scaling boundary: no dotted `import` grammar, name resolution,
+  qualification, alias/glob meaning, visibility, re-export, recursive graph, prelude,
+  unused-import policy, cache, checked-IR identity, backend, ABI, or runtime behavior is
+  defined. This selects a hard module correctness boundary without claiming positive
+  module progress; mega-PR checkpointing, manifest automation, and periodic composed
+  system gates remain separate controls.

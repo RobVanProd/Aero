@@ -32,6 +32,7 @@ pub mod stdlib;
 mod struct_contract;
 mod tuple_contract;
 pub mod types;
+mod use_import_contract;
 
 pub use code_generator::{CodeGenerationError, CodeGenerator, generate_code, try_generate_code};
 pub use ir::{CheckedIr, IrMetadata, LogicalType};

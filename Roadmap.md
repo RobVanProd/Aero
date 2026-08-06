@@ -69,12 +69,18 @@ wrapper path and routes semantic analysis and checked admission through one supp
 explicitly-rejected/preserved policy. Depth-four characterization, byte-identical LLVM
 evidence, all eight public checks, and the unchanged pinned native exit-193 lane
 protect the boundary; no language feature, matrix cell, or runtime behavior moves.
-Local candidate `CORE-070` adds file-aware library compilation through that same
+Accepted public `CORE-070` adds file-aware library compilation through that same
 checked library frontend and the existing root-level direct-module collector. Its
 module-free parity, direct-module success/failure matrix, and complete local gates are
 green. It is only a partial compiler-service convergence step: imports, namespaces,
 recursive modules, external verification, cache behavior, and thin-CLI convergence
-remain open, and exact-head public acceptance is pending.
+remain open. Exact implementation `365c28a3e4fdd306ec4c1a4837545ddbe3dac6a3`
+passes all eight public checks and the unchanged pinned native exit-193 lane.
+Local candidate `CORE-071` preserves parsed Rust-like direct/aliased/glob `use`
+declarations and exact locations but rejects them consistently in semantics and
+independent checked admission. Its red boundary, 8/8 focused contract, compatibility
+ring, and complete local gates prove containment only; no founding dotted-import,
+namespace, visibility, resolver, backend, or runtime semantics move.
 PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
 structured evidence-manifest automation require separate authorization.
 

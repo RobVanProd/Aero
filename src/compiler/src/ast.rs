@@ -168,6 +168,7 @@ pub enum Statement {
     UseImport {
         path: Vec<String>,     // e.g. ["std", "collections", "HashMap"]
         alias: Option<String>, // e.g. `as Foo`
+        location: SourceLocation,
     },
 }
 
