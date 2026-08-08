@@ -16367,3 +16367,89 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   patch identity, publication, exact PR candidate metadata, all nine exact-head checks,
   pinned LLVM/Clang 22.1.8 logs and exits 149/223/227/229, rendered metadata audit, and
   review-thread resolution remain required before CHECKPOINT-001 can be accepted.
+
+## CHECKPOINT-002 - enforce the frozen integration handoff
+
+- Date/task/status: 2026-08-08, `CHECKPOINT-002`, explicitly authorized by the user's
+  two consecutive `Continue` instructions after the CHECKPOINT-001 handoff request.
+  This is repository-governance execution on a separate descendant control-record
+  branch so PR #4 remains byte-for-byte frozen at accepted commit
+  `9b13feb2bf5159a9ca7d6902f97f0b280c78b471`.
+- Observed red state: GitHub returns HTTP 404 for `master` branch protection and lists
+  no repository ruleset. PR #4 remains open, draft, clean, mergeable, zero commits
+  behind master, and exactly 283 commits/226 files at the accepted head. Its nine green
+  checks reduce to eight unique required contexts. The sole review thread is resolved,
+  but no approval exists.
+- Reviewer topology: `RobVanProd` is both PR author and the repository's only direct
+  collaborator. Therefore no currently eligible independent reviewer can be requested.
+  Protection and ready-for-review state may move, but no collaborator may be invented,
+  invited, or granted access without the user naming that person.
+- Hypothesis: app-bound required checks plus non-bypassable pull-request review and
+  conversation controls will turn the manual handoff convention into an enforceable
+  merge boundary without changing repository content or the accepted compiler head.
+- Frozen governance contract: protect `master` with strict/up-to-date status checks;
+  require exactly these eight contexts from their observed apps: `CodeQL` from app
+  57789 and `compiler-tests`, `build (stable)`, `build (nightly)`, `Windows LLVM 22
+  native system gate`, `Analyze (actions)`, `Analyze (python)`, and `Analyze (rust)`
+  from app 15368. Require pull requests, one approval, stale-approval dismissal, and
+  conversation resolution; enforce the rule for administrators; deny force pushes and
+  deletion. Keep code-owner review, last-pusher approval, linear history, branch lock,
+  fork syncing, creation blocking, and push restrictions disabled. Preserve all merge
+  modes until the separately controlled merge chooses merge-commit identity.
+- Smallest complete action: install and read back the exact protection payload, confirm
+  all eight checks still attach to the frozen head, then mark PR #4 ready for review.
+  Request a reviewer only if an eligible direct collaborator exists; otherwise stop at
+  the human-coordination boundary and report the exact missing input.
+- Allowed changes: GitHub `master` branch-protection settings, PR #4 draft/metadata/
+  reviewer-request state, and this one `TASK_LEDGER.md` authorization/result record on
+  `agent/checkpoint-002-control-record`. No PR #4 head commit, compiler/workflow/example/
+  dependency/native file, `master` content, release, package, registry, benchmark,
+  external artifact, merge, branch deletion, history rewrite, or user-owned `tmp/`
+  change is authorized.
+- Acceptance evidence: the pre-change protection 404; exact post-change protection
+  readback; the accepted head and eight app-bound required contexts unchanged/green;
+  one required approval and resolved-conversation enforcement visible; force-push and
+  deletion denial visible; PR #4 open, review-ready, unmerged, and still at the exact
+  accepted commit; rendered PR metadata synchronized; `git diff --check`; and the exact
+  repository-root `./tools/test.sh` before publishing this proportional record.
+- Risks and stop conditions: stop on any master-content movement, PR-head movement,
+  missing/renamed/red check, protection API downgrade, admin bypass, permission to force
+  push/delete, linear-history requirement, unexpected merge, or need to add repository
+  access for an unnamed person. Never self-approve, count a bot comment as independent
+  approval, weaken the one-approval gate, merge without eligible approval, squash/rebase,
+  or begin another language slice while the controlled handoff remains incomplete.
+
+### CHECKPOINT-002 protected-review checkpoint
+
+- Protection implementation: the first PUT was rejected atomically with HTTP 422 because
+  GitHub's current schema forbids combining app-bound `checks` with even an empty legacy
+  `contexts` array. Immediate readback still returned the exact pre-change 404. Removing
+  only that deprecated empty field installed the unchanged frozen contract successfully.
+- Exact protection readback: `master` requires the eight named checks with `CodeQL`
+  bound to app 57789 and all seven workflow contexts bound to app 15368; strict freshness,
+  administrator enforcement, one approval, stale-review dismissal, and conversation
+  resolution are enabled. Code-owner review, last-pusher approval, linear history,
+  force pushes, deletion, branch lock, fork syncing, creation blocking, and push
+  restrictions are disabled exactly as frozen.
+- Content/identity evidence: `master` remains
+  `8f8c7337a4008082fd2a443fcc814b5847b8663f`; PR #4 remains at accepted head
+  `9b13feb2bf5159a9ca7d6902f97f0b280c78b471`, zero commits behind, with all nine
+  check runs green and the same 283-commit/226-file integration scope. No repository
+  content or accepted checkpoint identity moved.
+- Review-state result: PR #4 is now open, non-draft, mergeable, unmerged, and reported
+  `BLOCKED` with `REVIEW_REQUIRED`. Its title/heading/body describe CHECKPOINT-002
+  protection, the exact settings, the frozen head, and the missing reviewer; all 18
+  evidence links remain and no stale draft/unprotected wording remains.
+- Human boundary: review requests remain zero because `RobVanProd` is still the only
+  direct collaborator and is the PR author. CHECKPOINT-002 cannot complete independent
+  review or authorize the merge until the user names an eligible GitHub account and
+  explicitly authorizes any needed collaborator invitation/access grant.
+- Files/state changed: only GitHub `master` protection, PR #4 draft/metadata state, and
+  this proportional `TASK_LEDGER.md` record on the separate control-record branch.
+  Compiler production, workflows, examples, dependencies, native specimens, PR #4's
+  head, master content, releases, external artifacts, and user-owned `tmp/` are unchanged.
+- Final local record verification: `git diff --check` and the exact repository-root
+  `./tools/test.sh` pass repeatedly, including after the result record, with 207 library
+  tests, 32 binary tests, the complete integration surface including the governance
+  contract, and doc tests. One commit and publication of only
+  `agent/checkpoint-002-control-record` remain before this record is frozen.
