@@ -1,19 +1,21 @@
 # Aero Project State
 
-Last updated: 2026-08-06 (America/New_York)
+Last updated: 2026-08-08 (America/New_York)
 
 ## Current objective
 
-Milestone 102 `CHECKPOINT-001` is the active controlled-integration-handoff security
-prerequisite. The 282-commit/225-file draft is clean and zero commits behind master,
-but master has no protection/ruleset or human approval requirement. The sole unresolved
-GitHub Advanced Security thread still correctly reports that Rust CI lacks explicit
-token permissions. An exact governance test failed 0/1, and the minimal top-level
-`contents: read` authority now passes 1/1 without changing a trigger, job, step, runner,
-toolchain, compiler, or specimen. The complete all-features surface, formatting, check,
-correctness Clippy, ordinary docs, diff hygiene, and exact repository-root gate pass
-locally. Immutable publication and exact-head public gates remain pending; no master,
-protection, undraft, merge, release, or history action is authorized.
+Milestone 102 `CHECKPOINT-001` is accepted public and integrated through the corrected
+solo-maintainer `CHECKPOINT-003` handoff. PR #4 merged the exact frozen head
+`9b13feb2bf5159a9ca7d6902f97f0b280c78b471` with merge commit
+`bf5f8a9625d9c25910195680213d2fe6b289d7e6`. Its parent order is old master then the
+frozen integration head, and its tree is byte-for-byte the accepted tree
+`6d5825a1a32c4674e59e6fd7a5953efe5c51c641`; the integration branch remains retained.
+Master protection keeps strict app-bound checks, conversation resolution, administrator
+enforcement, and force-push/deletion denial. Required approvals are zero because
+`RobVanProd` is the only human contributor and GitHub rejects author self-approval.
+Post-merge CI `31285477963`, Rust CI `31285477942`, and CodeQL `31285475312` pass on the
+exact merge SHA, as does the local repository-root gate. This is an integration result,
+not a release, completion, stability, safety, performance, or production-readiness claim.
 
 Milestone 101 `CORE-081` is accepted public at exact commit
 `aae33a1774ea558cc782aed6389fbff73419b5b4`, tree
@@ -2290,18 +2292,14 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Commit and push one immutable CORE-078 pinned Windows x86_64 system-gate replacement,
-then synchronize draft PR #4 immediately. Require the expanded all-nine exact-head
-public set: the existing Linux stable/nightly pinned LLVM/Clang 22.1.8 exits 149/223/
-227 plus the SHA-256-pinned Windows LLVM/Clang 22.1.8 external/machine/COFF/link/public-
-run/manual-native exit-227 lane. Record public acceptance in rendered PR metadata only
-after the exact Windows job is green. Keep the PR draft and unmerged.
-The controlled mega-PR
-checkpoint strategy, structured evidence-manifest generator, hard ownership/module/
-runtime/backend work, and periodic multi-capability system gates remain active
-separate controls.
-Do not merge PR #4, publish releases/packages/benchmarks/claims, rewrite history,
-force-push, or touch `master`.
+Publish the proportional CHECKPOINT-002/003 control record through one small protected
+PR, then start the successor compiler branch from verified `master`. Select one already
+specified positive vertical slice that adds an end-to-end executable capability; do not
+repeat closed-class audits, split a class by syntax shape, duplicate phase guards, or
+recreate a mega-PR. Keep structured evidence-manifest generation, hard ownership/module/
+runtime/ABI work, real accelerator execution, and periodic composed system gates active
+as scaling controls. Do not publish releases/packages/benchmarks/unsupported claims,
+rewrite history, force-push, or delete the retained integration branch.
 
 ## Unauthorized actions
 

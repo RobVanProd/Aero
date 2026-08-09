@@ -16453,3 +16453,86 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   tests, 32 binary tests, the complete integration surface including the governance
   contract, and doc tests. One commit and publication of only
   `agent/checkpoint-002-control-record` remain before this record is frozen.
+
+## CHECKPOINT-003 - correct the solo-maintainer merge contract
+
+- Date/task/status: 2026-08-08, `CHECKPOINT-003`, explicitly authorized by the user's
+  instruction to resolve the reviewer blocker and clarification that this has always
+  been a solo-maintainer project with Codex as the only engineering agent. This is a
+  governance correction and controlled integration handoff, not a language capability,
+  release, stability, safety, performance, or production-readiness checkpoint.
+- Observed behavior: CHECKPOINT-002 requires one approving review from a writer other
+  than PR #4's author, but `RobVanProd` is the only human contributor, assignee, and
+  direct collaborator. The only other contributor is an automation bot that cannot
+  provide an independent approval. The rule therefore makes the accepted frozen head
+  permanently unmergeable without inventing a person, granting a stranger repository
+  access, treating bot commentary as approval, or weakening identity controls ad hoc.
+- Hypothesis: a zero-approval pull-request rule is the honest solo-maintainer topology.
+  Keeping strict app-bound checks, administrator enforcement, resolved conversations,
+  exact-head verification, merge-commit identity, retained branches, and post-merge
+  system evidence preserves the meaningful controls without fabricating human review.
+- Frozen governance semantics: keep PR #4 frozen at
+  `9b13feb2bf5159a9ca7d6902f97f0b280c78b471`; keep all eight required check contexts
+  and their app bindings, strict freshness, administrator enforcement, stale-review
+  dismissal, conversation resolution, force-push denial, deletion denial, and optional
+  linear history unchanged. Change only the required approval count from one to zero.
+  Never count self-approval, invite an unnamed person, count a bot review, bypass a
+  red check, direct-push master, squash, rebase, rewrite history, or delete the
+  integration branch.
+- Smallest complete action: record this correction before mutation; install and read
+  back the one-field protection change; synchronize PR #4's rendered metadata; re-audit
+  its exact base/head, checks, threads, and mergeability; then use one merge commit with
+  the expected head SHA. Verify the merge commit's first parent is the audited master,
+  second parent is the frozen integration head, and tree equals frozen tree
+  `6d5825a1a32c4674e59e6fd7a5953efe5c51c641`. Retain the source branch and audit every
+  post-merge master workflow before successor compiler work.
+- Allowed files/state: GitHub `master` protection, PR #4 metadata/merge state, this
+  proportional `TASK_LEDGER.md` record, and only directly affected checkpoint/state/
+  risk/decision records on the separate control branch after the exact merge result is
+  known. No compiler production, workflow, test, example, dependency, native specimen,
+  release, package, registry, benchmark, external artifact, history rewrite, branch
+  deletion, or user-owned `tmp/` change is authorized.
+- Acceptance evidence: exact before/after protection readback differing only in approval
+  count; all nine frozen-head checks green; no unresolved thread; PR #4 open and
+  mergeable before the expected-SHA merge; exact merge parents/tree after it; remote
+  integration branch retained; post-merge master checks green; repository-root
+  `./tools/test.sh`, formatting, diff hygiene, and rendered public metadata synchronized
+  before this correction is accepted.
+- Risks and stop conditions: stop on head/base movement, a missing/renamed/red check,
+  an unresolved conversation, any protection drift beyond the one approval count,
+  unexpected merge method or parent order, tree mismatch, branch deletion, red
+  post-merge workflow, master movement during the handoff, or any need to alter language
+  semantics. Do not begin another language slice on an unverified master.
+
+### CHECKPOINT-003 accepted merge checkpoint
+
+- Self-approval evidence: the explicitly requested `gh pr review 4 --approve` attempt
+  was rejected without creating a review: `Review Can not approve your own pull
+  request`. No reviewer was invented, invited, or granted access.
+- Protection correction: the first zero-approval PUT was rejected atomically with HTTP
+  422 because empty organization-only dismissal/bypass restriction fields are invalid
+  on a personal repository; immediate readback remained one approval. Removing only
+  those inapplicable fields installed the unchanged contract with approval count zero.
+  Independent readback confirms strict eight-context app binding, admin enforcement,
+  conversation resolution, stale-review dismissal, force-push/deletion denial, optional
+  linear history, and all other frozen fields unchanged.
+- Merge identity: the exact preflight found PR #4 open/non-draft, `MERGEABLE`/`CLEAN`,
+  base `8f8c7337a4008082fd2a443fcc814b5847b8663f`, frozen head
+  `9b13feb2bf5159a9ca7d6902f97f0b280c78b471`, all required contexts green, and no
+  unresolved thread. The expected-SHA merge API created merge commit
+  `bf5f8a9625d9c25910195680213d2fe6b289d7e6`; its parents are exactly old master then
+  frozen head, and its tree is accepted tree
+  `6d5825a1a32c4674e59e6fd7a5953efe5c51c641`. Remote master equals the merge commit
+  and remote `agent/aero-integration` remains at the frozen head.
+- Post-merge public evidence: exact-SHA CI run `31285477963` / compiler job
+  `93173340771`, Rust CI run `31285477942` / Windows `93173340764`, stable
+  `93173340789`, nightly `93173340793`, and CodeQL run `31285475312` / Rust
+  `93173333901`, Python `93173333915`, Actions `93173333931`, upload
+  `93173546635` all pass. The local repository-root gate passes 207 library tests, 32
+  binary tests, every integration target, the governance contract, and doc tests after
+  a process-local Cargo PATH correction; the initial Git Bash invocation reached no
+  tests because Cargo was not inherited.
+- Scope result: no compiler production, workflow, test, example, dependency, native
+  specimen, release, package, registry, benchmark, external artifact, history rewrite,
+  branch deletion, or user-owned `tmp/` content changed. PR #4's mega-PR instance is
+  merged and verified; successor work must start from verified master in bounded PRs.
