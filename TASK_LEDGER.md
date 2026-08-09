@@ -16617,6 +16617,10 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 
 ### CORE-082 locally green candidate checkpoint
 
+- Immutable implementation identity: commit
+  `d0312e809792448b6c8c0fc4159dd0f37dbc10ba`, tree
+  `516d9f1ac2cfb1406a2ae0cb8716c40869d316f9`, stable patch ID
+  `a0aff6d2b730fc6499cc08b0d6e1d85d484aeb47`.
 - Red evidence: the first focused parser/library/CLI run rejected `const` as an
   identifier at both top-level and block scope, proving the capability was absent
   before production changes.

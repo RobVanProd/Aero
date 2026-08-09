@@ -4,7 +4,10 @@ Last updated: 2026-08-08 (America/New_York)
 
 ## Current objective
 
-`CORE-082` is a locally green, unpublished candidate based on accepted master
+`CORE-082` is a locally green, unpublished candidate at implementation commit
+`d0312e809792448b6c8c0fc4159dd0f37dbc10ba`, tree
+`516d9f1ac2cfb1406a2ae0cb8716c40869d316f9`, and stable patch ID
+`a0aff6d2b730fc6499cc08b0d6e1d85d484aeb47`, based on accepted master
 `20d45fc1c70c789e4e907a5d83d8782af41e26de`. It admits only closed primitive
 `const NAME: TYPE = EXPR;` declarations through one shared evaluator, substitutes
 their values before checked IR, and adds no storage, symbol, layout, ABI, or general
