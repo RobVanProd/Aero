@@ -91,14 +91,13 @@ binary and library. Compiler phases and direct-module collection/cache material 
 library-owned, while the binary retains CLI-specific modules. Architecture, unit,
 integration, all-features, static, documentation, and exact root gates pass; immutable
 public evidence passes all nine exact-head checks.
-Active `CHECKPOINT-001` freezes the handoff for the now 282-commit/225-file draft before
-another language slice is stacked. Its first red-first prerequisite constrains Rust CI
-to `contents: read`; its focused, complete all-features, static, ordinary documentation,
-diff-hygiene, and exact root gates pass locally, while public gates remain pending. The
-frozen strategy then requires
-separately authorized master protection, independent approval, conversation resolution,
-merge-commit identity preservation, branch retention, post-merge tree/system proof, and
-a bounded successor PR. No merge, history rewrite, or release is implied.
+Accepted `CHECKPOINT-001` and corrected solo-maintainer `CHECKPOINT-003` close the
+283-commit/226-file handoff before another language slice is stacked. PR #4 merged exact
+frozen head `9b13feb2` as merge commit `bf5f8a96`; its tree equals accepted tree
+`6d5825a1`, the integration branch remains, strict app-bound protection remains, and
+exact-SHA post-merge CI/Rust CI/CodeQL pass. Successor work starts from verified master
+in one bounded positive vertical slice per PR. No release, safety, stability,
+performance, or production-readiness claim follows.
 Accepted public `CORE-072` then adds exact Unicode `char` as a distinct CopyData leaf
 under one shared primitive authority. Raw/escaped literals, equality/inequality,
 bindings/replacement, references, calls/results, arrays, tuples, structs, owned enums
@@ -178,8 +177,8 @@ proves cyclic consumption and repair. Exact implementation
 stable/nightly Linux preserve exits 149/223/227 and execute exit 229, while pinned
 Windows LLVM/Clang 22.1.8 preserves exit 227 and executes exit 229 through public and
 independent native paths.
-PR #4 is still a draft integration program; a controlled checkpoint/merge strategy and
-structured evidence-manifest automation require separate authorization.
+PR #4's integration program is now merged and verified. Bounded successor PRs and
+structured evidence-manifest automation remain active scaling controls.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 

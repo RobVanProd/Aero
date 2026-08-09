@@ -4,18 +4,20 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 
 Audit date: 2026-08-02
 
-Branch: `agent/aero-integration`
+Current accepted master: `bf5f8a9625d9c25910195680213d2fe6b289d7e6`
 
 ## Verified progress after the audit commit
 
-- `CHECKPOINT-001` is active after the urgent integration audit found no master
-  protection/ruleset, no human approval requirement, and one still-applicable Advanced
-  Security finding: Rust CI did not constrain `GITHUB_TOKEN`. A red-first repository
-  governance test now requires a top-level permissions mapping before `jobs` containing
-  only `contents: read`; the exact focused target passes 1/1. The complete all-features,
-  static, ordinary documentation, diff-hygiene, and exact root gates pass locally;
-  immutable publication and public gates remain pending. No compiler, workflow behavior,
-  master, protection, undraft, merge, release, or history action moves.
+- `CHECKPOINT-001` is accepted public and merged through `CHECKPOINT-003`. PR #4's
+  frozen head `9b13feb2bf5159a9ca7d6902f97f0b280c78b471` became the second parent of merge
+  commit `bf5f8a9625d9c25910195680213d2fe6b289d7e6`; the merge tree exactly equals
+  accepted tree `6d5825a1a32c4674e59e6fd7a5953efe5c51c641`, and the source branch remains.
+  Strict app-bound checks, resolved conversations, administrator enforcement, and
+  force-push/deletion denial protect master with zero required approvals, matching the
+  actual solo-maintainer topology after GitHub rejected author self-approval. Exact-SHA
+  post-merge CI `31285477963`, Rust CI `31285477942`, CodeQL `31285475312`, and the
+  local root gate pass. No release, completion, safety, stability, performance, or
+  production-readiness conclusion follows.
 
 - `CORE-081` is accepted public at exact commit
   `aae33a1774ea558cc782aed6389fbff73419b5b4`, tree

@@ -3538,3 +3538,27 @@ exact `daa024d` with no P0-P3 findings; `CORE-009` is accepted at that SHA.
   only. It does not authorize master protection mutation, undrafting, review approval,
   merge, branch deletion, direct master push, squash/rebase, history rewrite, release,
   or another language slice.
+
+## DEC-079 - Use the truthful solo-maintainer protected-merge topology
+
+- Date: 2026-08-08
+- Status: accepted public handoff; proportional repository record pending publication.
+- Topology finding: `RobVanProd` is the repository's only human contributor, assignee,
+  and direct collaborator. The only other contributor is an automation bot. GitHub
+  rejects the author approving PR #4, so CHECKPOINT-002's one-approval rule was an
+  unsatisfiable governance defect rather than a meaningful independent control.
+- Decision: require pull requests with zero human approvals for this solo-maintainer
+  repository while preserving strict app-bound checks, resolved conversations,
+  administrator enforcement, stale-review dismissal, force-push/deletion denial, exact
+  expected-head merge requests, merge-commit identity, retained source branches, and
+  post-merge system verification. Never invent a reviewer or grant a stranger access.
+- Result: PR #4 merged exact frozen head
+  `9b13feb2bf5159a9ca7d6902f97f0b280c78b471` as
+  `bf5f8a9625d9c25910195680213d2fe6b289d7e6`. Its parents are old master then the
+  frozen head, and its tree equals accepted tree
+  `6d5825a1a32c4674e59e6fd7a5953efe5c51c641`. CI `31285477963`, Rust CI
+  `31285477942`, and CodeQL `31285475312` pass on the exact merge SHA; the integration
+  branch remains retained and protected settings read back exactly.
+- Boundary: this corrects integration governance and closes R-018's accumulated instance.
+  It adds no language capability and makes no release, completion, safety, stability,
+  performance, memory-safety, ABI, Windows-generality, or accelerator claim.
