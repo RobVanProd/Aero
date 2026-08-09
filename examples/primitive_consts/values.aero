@@ -1,0 +1,13 @@
+fn primitive_const_result() -> int {
+    const BASE: int = 40 + 1;
+    const OFFSET: int = BASE + 40;
+    const SCALE: float = 1.5 + 2.0;
+    const ENABLED: bool = SCALE > 3.0 && OFFSET == 81;
+    const LETTER: char = 'A';
+    const NAME: String = "Aero";
+
+    if ENABLED && LETTER == 'A' && NAME == "Aero" {
+        return OFFSET;
+    }
+    return 1;
+}

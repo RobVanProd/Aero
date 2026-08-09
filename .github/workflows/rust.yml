@@ -272,6 +272,24 @@ jobs:
         fi
         echo "direct_module_integration test passed with exit code $exit_code"
 
+    - name: Test primitive compile-time const integration example
+      run: |
+        cd src/compiler
+        cargo run -- build ../../examples/primitive_consts/main.aero -o ../../primitive_consts.ll
+        opt-22 -passes=verify -disable-output ../../primitive_consts.ll
+        llc-22 -verify-machineinstrs ../../primitive_consts.ll -o /dev/null
+        llc-22 -filetype=obj ../../primitive_consts.ll -o ../../primitive_consts.o
+        clang-22 ../../primitive_consts.o -o ../../primitive_consts
+        set +e
+        ../../primitive_consts
+        exit_code=$?
+        set -e
+        if [ $exit_code -ne 81 ]; then
+          echo "Expected exit code 81, got $exit_code"
+          exit 1
+        fi
+        echo "primitive const example passed with exit code $exit_code"
+
     - name: Test monomorphic scalar struct integration example
       run: |
         cd src/compiler
@@ -1191,6 +1209,66 @@ jobs:
           throw "Windows loop fixed-point manual native execution returned $manualExit, expected 229"
         }
         Write-Host "Windows loop fixed-point manual native execution passed with exit code 229"
+        $global:LASTEXITCODE = 0
+
+    - name: Test Windows primitive const system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/primitive_consts/main.aero"
+        $constLlvmPath = Join-Path $env:RUNNER_TEMP "primitive_consts.windows.ll"
+        $constMachinePath = Join-Path $env:RUNNER_TEMP "primitive_consts.windows.s"
+        $constObjectPath = Join-Path $env:RUNNER_TEMP "primitive_consts.windows.obj"
+        $constExecutablePath = Join-Path $env:RUNNER_TEMP "primitive_consts.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check $example
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows primitive const public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $constLlvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $constLlvmPath)) {
+          throw "Windows primitive const public build failed or omitted its LLVM artifact"
+        }
+
+        $constLlvmText = Get-Content -LiteralPath $constLlvmPath -Raw
+        foreach ($forbidden in @("BASE", "OFFSET", "SCALE", "ENABLED", "LETTER", "NAME")) {
+          if ($constLlvmText.Contains($forbidden)) {
+            throw "Windows primitive const LLVM retained runtime identity $forbidden"
+          }
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $constLlvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows primitive const opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $constLlvmPath -o $constMachinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $constMachinePath)) {
+          throw "Windows primitive const machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $constLlvmPath -o $constObjectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $constObjectPath)) {
+          throw "Windows primitive const object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $constObjectPath -o $constExecutablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $constExecutablePath)) {
+          throw "Windows primitive const Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run $example
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 81) {
+          throw "Windows primitive const public run returned $publicRunExit, expected 81"
+        }
+        Write-Host "Windows primitive const public run passed with exit code 81"
+
+        & $constExecutablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 81) {
+          throw "Windows primitive const manual native execution returned $manualExit, expected 81"
+        }
+        Write-Host "Windows primitive const manual native execution passed with exit code 81"
         $global:LASTEXITCODE = 0
 
 

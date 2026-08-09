@@ -9,6 +9,7 @@ pub enum Token {
 
     // Keywords
     Let,
+    Const,
     Fn,
     Return,
     Mut,
@@ -775,6 +776,7 @@ fn scan_with_locations(
                     // Regular keywords and identifiers
                     let token = match ident_str.as_str() {
                         "let" => Token::Let,
+                        "const" => Token::Const,
                         "fn" => Token::Fn,
                         "return" => Token::Return,
                         "mut" => Token::Mut,

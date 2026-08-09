@@ -8,6 +8,16 @@ Current accepted master: `bf5f8a9625d9c25910195680213d2fe6b289d7e6`
 
 ## Verified progress after the audit commit
 
+- `CORE-082` is an unpublished local candidate at implementation commit `d0312e8`,
+  tree `516d9f1ac2cfb1406a2ae0cb8716c40869d316f9`, and stable patch
+  `a0aff6d2b730fc6499cc08b0d6e1d85d484aeb47`, based on accepted master `20d45fc`.
+  It admits only closed, exactly annotated primitive constants through one shared
+  evaluator and substitutes them before checked IR. Focused negatives, the complete
+  209-library/32-binary root gate, verifier controls, and the local pinned
+  LLVM/Clang 22.1.8 native exit-81 proof pass. No public acceptance, storage/global,
+  aggregate constant, cross-module lookup, general CTFE, layout, or ABI conclusion
+  follows until the bounded PR and post-merge checks succeed.
+
 - `CHECKPOINT-001` is accepted public and merged through `CHECKPOINT-003`. PR #4's
   frozen head `9b13feb2bf5159a9ca7d6902f97f0b280c78b471` became the second parent of merge
   commit `bf5f8a9625d9c25910195680213d2fe6b289d7e6`; the merge tree exactly equals

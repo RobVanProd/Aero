@@ -59,6 +59,14 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
+Unpublished candidate `CORE-082` is the first bounded step from the founding
+`const identifier : type = expr;` and constant-expression-evaluation direction. It
+admits only closed, exactly annotated primitive constants and erases them by checked
+substitution before IR. It intentionally defers aggregate/global constants, static
+storage, array-size expressions, arbitrary CTFE, import lookup, generics, ABI, and
+runtime initialization. Local repository and pinned native evidence are green, but
+public acceptance remains pending.
+
 Accepted `CORE-061` combines a hard executable ownership slice with closure
 false-success containment. Accepted `CORE-062` takes the next framework-
 aligned architecture step: every finite composition of already admitted Copy scalars,
@@ -180,7 +188,7 @@ backend, runtime, ABI, or positive import behavior. Exact implementation
 `063953770ce92f00bae452f312c962c2996977bb` passes all nine exact-head checks and the
 unchanged pinned Linux/Windows exits 149/223/227/229.
 
-Active candidate `CORE-081` takes the next harder integrated-tooling step. An exact red
+Accepted public `CORE-081` took the next harder integrated-tooling step. An exact red
 architecture contract found 35 compiler modules independently instantiated by both the
 binary and library. Compiler phases are now library-owned, while the binary keeps only
 CLI-specific services and consumes narrow facades for compilation, direct-module cache
@@ -286,7 +294,7 @@ claim.
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist. Pinned Linux LLVM 22 execution and bounded Windows x86_64 MSVC system evidence are accepted through CORE-078. Typed-IR invariants and verification remain incomplete. | Retain exact object/link/runtime gates on each supported platform and extend only with separately frozen contracts |
 | Zero-cost performance | A benchmark protocol now exists, but no audited public Aero runtime or device performance claim passes it | Correct real programs, raw samples, reproducible baselines, and separately reported compile/runtime/resource costs |
 | Modern concurrency | Interfaces and library-like helpers exist, but the language/runtime concurrency model is not end-to-end | Ownership-safe tasks/channels or another frozen model with race and runtime evidence |
-| Integrated tooling | CLI, LSP, formatter, docs, project, registry, and conformance surfaces remain experimental. Accepted CORE-070 adds a checked file-aware library route; CORE-071 and CORE-080 preserve both import syntax families and fail closed without a resolver. Locally green CORE-081 removes the 35-module binary/library compiler overlap and makes compiler phases library-owned, but immutable public evidence and broader tool-path convergence remain pending. | One canonical compiler service shared by every tool, with failure and integration tests |
+| Integrated tooling | CLI, LSP, formatter, docs, project, registry, and conformance surfaces remain experimental. Accepted CORE-070 adds a checked file-aware library route; CORE-071 and CORE-080 preserve both import syntax families and fail closed without a resolver. Accepted public CORE-081 removes the 35-module binary/library compiler overlap and makes compiler phases library-owned; broader tool-path convergence remains pending. | One canonical compiler service shared by every tool, with failure and integration tests |
 | Open governance | MIT licensing, a code of conduct, community guidance, and an RFC template are tracked | A functioning public proposal/review process tied to compatibility and release decisions |
 | Self-hosting | The bootstrap compiler is written in Rust | A sufficiently expressive and stable language core, then a staged Aero compiler bootstrap with reproducibility checks |
 

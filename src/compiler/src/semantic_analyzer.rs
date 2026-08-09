@@ -6,6 +6,7 @@ use crate::binding_annotation::{
     is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
 use crate::closure_contract::unsupported_closure_diagnostic;
+use crate::const_contract::normalize_primitive_consts;
 use crate::enum_match_contract::{
     EnumExecutionContext, EnumFunctionContract, EnumPayloadBinding, EnumRegistry,
 };
@@ -1184,6 +1185,7 @@ impl Default for SemanticAnalyzer {
 
 impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
+        let ast = normalize_primitive_consts(ast)?;
         self.function_table.clear();
         self.compatibility_scope_snapshots.clear();
         self.return_contract_stack.clear();
@@ -2185,6 +2187,9 @@ impl SemanticAnalyzer {
 
     fn preflight_statement_syntax(&self, statement: &Statement) -> Result<(), String> {
         match statement {
+            Statement::Const { .. } => {
+                unreachable!("primitive constants are normalized before semantic preflight")
+            }
             Statement::Let { value, .. } | Statement::Return(value) => {
                 if let Some(expression) = value {
                     self.preflight_expression(expression)?;
@@ -2790,6 +2795,9 @@ impl SemanticAnalyzer {
         is_top_level: bool,
     ) -> Result<(), String> {
         match stmt {
+            Statement::Const { .. } => {
+                unreachable!("primitive constants are normalized before semantic analysis")
+            }
             Statement::Let {
                 name,
                 mutable,

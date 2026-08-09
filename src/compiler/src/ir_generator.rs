@@ -4,6 +4,7 @@ use crate::binding_annotation::{
     is_legacy_numeric_array_annotation, is_statically_empty_fixed_array,
 };
 use crate::closure_contract::unsupported_closure_diagnostic;
+use crate::const_contract::normalize_primitive_consts;
 use crate::copy_place_contract::{
     CopyPlaceDisposition, CopyPlaceExecutionContext, classify_copy_place_type,
 };
@@ -220,6 +221,7 @@ impl IrGenerator {
         &mut self,
         ast: Vec<AstNode>,
     ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
+        let ast = normalize_primitive_consts(ast).map_err(IrGenerationError::Admission)?;
         Self::validate_checked_ast(&ast)?;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
         self.enum_registry = EnumRegistry::from_top_level_ast(&ast, &self.struct_registry);
@@ -246,6 +248,8 @@ impl IrGenerator {
     }
 
     pub fn generate_ir(&mut self, ast: Vec<AstNode>) -> HashMap<String, Function> {
+        let ast = normalize_primitive_consts(ast)
+            .unwrap_or_else(|error| panic!("Primitive const normalization failed: {error}"));
         self.function_return_types.clear();
         self.copy_function_contracts.clear();
         self.enum_function_contracts.clear();
@@ -1057,6 +1061,9 @@ impl IrGenerator {
         loop_controls: &mut Vec<AdmissionLoopControl>,
     ) -> Result<(), IrGenerationError> {
         match statement {
+            Statement::Const { .. } => {
+                unreachable!("primitive constants are normalized before checked admission")
+            }
             Statement::Let {
                 name,
                 mutable,
@@ -3433,6 +3440,9 @@ impl IrGenerator {
 
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
         match stmt {
+            Statement::Const { .. } => {
+                unreachable!("primitive constants are normalized before IR lowering")
+            }
             Statement::Let {
                 name,
                 mutable,

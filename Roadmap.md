@@ -12,6 +12,13 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
+Unpublished candidate `CORE-082` is a bounded Milestone 1 slice: exact primitive
+`const` declarations are evaluated through one shared closed-expression contract and
+substituted before checked IR. The local full gate and pinned LLVM/Clang 22.1.8 native
+exit-81 system proof pass. Public checks and protected integration remain pending; no
+general CTFE, constant storage, aggregate constant, module lookup, layout, or ABI work
+is included.
+
 Current integration work has accepted `CORE-063` publicly: unary owned enums carry the
 accepted recursive CopyData grammar through construction, exhaustive
 identifier-bound Match, internal transport, checked IR, independent verification,

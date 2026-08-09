@@ -1,5 +1,25 @@
 # Aero Decision Log
 
+## DEC-080 — Lower bounded primitive constants before checked IR
+
+- Date: 2026-08-08
+- Status: candidate; public acceptance pending
+- Decision: Admit only `const NAME: TYPE = EXPR;` declarations with exact existing
+  primitive annotations and closed expressions over literals, prior lexical constants,
+  parentheses, and already admitted primitive operators. Evaluate through one shared
+  contract and substitute the result before checked IR. Constants create no addressable
+  storage, symbol, global initialization, layout, ABI, or new IR instruction.
+- Evidence: CORE-082 parser, semantic, independent checked-admission, CLI/artifact,
+  module-isolation, verifier, full-root, and pinned LLVM/Clang 22.1.8 native exit-81
+  gates are locally green; immutable public evidence remains pending.
+- Alternatives rejected: inventing a runtime `let`, lowering constants as globals,
+  allowing host/runtime dependencies, or using this slice to imply general CTFE.
+- Compatibility consequences: previously rejected exact primitive `const` source is
+  admitted inside the frozen subset; every excluded topology continues to fail before
+  checked IR and artifact output.
+- Revisit when: a separately frozen task specifies aggregate/global constants,
+  array-size expressions, module lookup, arbitrary CTFE, or addressable constant ABI.
+
 ## DEC-001 — Stability is evidence-based, not label-based
 
 - Date: 2026-08-02

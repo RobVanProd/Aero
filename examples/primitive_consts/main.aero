@@ -1,0 +1,5 @@
+mod values;
+
+fn main() -> int {
+    return primitive_const_result();
+}

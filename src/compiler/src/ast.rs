@@ -104,6 +104,12 @@ pub enum Expression {
 
 #[derive(Debug, Clone)]
 pub enum Statement {
+    Const {
+        name: String,
+        type_annotation: Type,
+        value: Expression,
+        location: SourceLocation,
+    },
     Let {
         name: String,
         mutable: bool,

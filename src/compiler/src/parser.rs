@@ -44,6 +44,7 @@ impl Parser {
     fn parse_statement(&mut self) -> CompilerResult<Statement> {
         match &self.peek().token {
             Token::Fn => self.parse_function_definition(),
+            Token::Const => self.parse_const_statement(),
             Token::Let => self.parse_let_statement(),
             Token::Return => self.parse_return_statement(),
             Token::If => self.parse_if_statement(),
@@ -266,6 +267,39 @@ impl Parser {
             mutable,
             type_annotation,
             value,
+        })
+    }
+
+    fn parse_const_statement(&mut self) -> CompilerResult<Statement> {
+        let location = self.peek().location.clone();
+        self.consume(Token::Const, "Expected 'const'")?;
+
+        let name = match &self.peek().token {
+            Token::Identifier(name) => {
+                let name = name.clone();
+                self.advance();
+                name
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "constant name",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        };
+
+        self.consume(Token::Colon, "Expected ':' after constant name")?;
+        let type_annotation = self.parse_type()?;
+        self.consume(Token::Assign, "Expected '=' after constant type")?;
+        let value = self.parse_expression()?;
+        self.consume(Token::Semicolon, "Expected ';' after const declaration")?;
+
+        Ok(Statement::Const {
+            name,
+            type_annotation,
+            value,
+            location,
         })
     }
 

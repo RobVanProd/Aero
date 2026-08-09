@@ -4,6 +4,26 @@ Last updated: 2026-08-08 (America/New_York)
 
 ## Current objective
 
+`CORE-082` is a locally green, unpublished candidate at implementation commit
+`d0312e809792448b6c8c0fc4159dd0f37dbc10ba`, tree
+`516d9f1ac2cfb1406a2ae0cb8716c40869d316f9`, and stable patch ID
+`a0aff6d2b730fc6499cc08b0d6e1d85d484aeb47`, based on accepted master
+`20d45fc1c70c789e4e907a5d83d8782af41e26de`. It admits only closed primitive
+`const NAME: TYPE = EXPR;` declarations through one shared evaluator, substitutes
+their values before checked IR, and adds no storage, symbol, layout, ABI, or general
+CTFE semantics. Focused tests, the 209-library/32-binary repository gate, verifier
+controls, formatting, Clippy, documentation, and a local pinned LLVM/Clang 22.1.8
+system gate are green. The tracked multi-file specimen returns 81 through public and
+manual native execution; its generated LLVM SHA-256 is
+`AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
+This is candidate evidence only: no CORE-082 public acceptance or master capability
+claim exists until its bounded PR, exact-head public checks, protected merge, and
+post-merge verification succeed.
+
+The exact next action is to publish only this bounded candidate, verify its rendered
+PR metadata and exact-head workflows, then integrate it through the protected master
+checkpoint. Do not begin another compiler capability while this candidate is pending.
+
 Milestone 102 `CHECKPOINT-001` is accepted public and integrated through the corrected
 solo-maintainer `CHECKPOINT-003` handoff. PR #4 merged the exact frozen head
 `9b13feb2bf5159a9ca7d6902f97f0b280c78b471` with merge commit
