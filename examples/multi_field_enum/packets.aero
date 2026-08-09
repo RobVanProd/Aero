@@ -1,0 +1,53 @@
+struct Cell { value: int, flags: [bool; 2] }
+struct Frame { cell: Cell, pair: (int, bool), rows: [[int; 2]; 2] }
+
+enum Packet {
+    Idle,
+    Single(int),
+    Wrapped((int, bool)),
+    Pair(int, bool),
+    Ordered(int, int),
+    Rich(Cell, [bool; 0], (int, bool), [[int; 2]; 2], Frame)
+}
+
+fn make_cell(value: int) -> Cell {
+    Cell { value: value, flags: [value > 0, value < 0] }
+}
+
+fn make_frame(value: int) -> Frame {
+    Frame {
+        cell: make_cell(value),
+        pair: (value + 1, value > 0),
+        rows: [[value + 2, value + 3], [value + 4, value + 5]]
+    }
+}
+
+fn bool_add(flag: bool, value: int) -> int {
+    if flag { return value + 1; }
+    value
+}
+
+fn score(packet: Packet) -> int {
+    match packet {
+        Packet::Rich(cell, empty, pair, matrix, frame) =>
+            cell.value + empty.len() + bool_add(pair.1, pair.0)
+                + matrix[1][0] + frame.cell.value,
+        Packet::Ordered(left, right) => left * 10 + right,
+        Packet::Pair(left, flag) => bool_add(flag, left),
+        Packet::Wrapped(pair) => bool_add(pair.1, pair.0),
+        Packet::Single(single) => single,
+        Packet::Idle => 1
+    }
+}
+
+fn forward(packet: Packet) -> Packet { packet }
+
+fn choose(flag: bool) -> Packet {
+    if flag { return Packet::Pair(20, 1 > 2); }
+    Packet::Single(20)
+}
+
+fn next(value: &mut int) -> int {
+    *value = *value + 1;
+    *value
+}

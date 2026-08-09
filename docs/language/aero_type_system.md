@@ -1,5 +1,9 @@
 # Aero Language Specification - Type System Rules
 
+> **Design target — not current implementation evidence.** The rules below preserve
+> the intended type system. Generic substitution, trait-bound enforcement, and the
+> full ownership/type interaction are not current supported contracts.
+
 ## Introduction
 
 This document formally specifies the static type system rules for the Aero programming language. It defines the built-in types, rules for type inference, and the syntax and behavior of generic type parameters and trait bounds. A strong static type system is crucial for Aero's goals of performance and reliability.
@@ -234,6 +238,12 @@ Trait bounds are the primary mechanism for achieving polymorphism in Aero.
 ## Tuple Types
 
 Tuple types are a way to group a fixed number of values of potentially different types into a single compound type.
+
+> **Current compiler status:** tuple type, literal, projection, and pattern syntax
+> is recognized, but tuple value construction and projection are not implemented.
+> The trusted compiler rejects tuple literal and tuple-index value expressions
+> before IR generation with `Tuple expressions are not supported.` The example
+> below describes the intended language design and is not currently executable.
 
 -   **Syntax:** `(T1, T2, ..., Tn)`
 -   **Usage:**

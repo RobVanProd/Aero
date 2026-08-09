@@ -1,0 +1,77 @@
+enum Pick {
+    Left,
+    Right
+}
+
+enum Arrays {
+    Values([int; 2]),
+    Empty
+}
+
+struct Cell {
+    value: int,
+    flags: [bool; 2]
+}
+
+struct Frame {
+    cell: Cell,
+    rows: [[int; 2]; 2],
+    mixed: ((char, bool), [float; 2]),
+    empty: [int; 0]
+}
+
+fn make_empty() -> [int; 0] {
+    let empty: [int; 0] = [];
+    empty
+}
+
+fn make_frame(value: int) -> Frame {
+    Frame {
+        cell: Cell { value: value, flags: [value > 0, value < 0] },
+        rows: [[value, value + 1], [value + 2, value + 3]],
+        mixed: (('x', value > 0), [1.5, 2.5]),
+        empty: make_empty()
+    }
+}
+
+fn choose_array(value: Arrays) -> [int; 2] {
+    match value {
+        Arrays::Values(items) => items,
+        Arrays::Empty => [3, 4]
+    }
+}
+
+fn choose_tuple(pick: Pick, value: ((char, bool), [float; 2]))
+    -> ((char, bool), [float; 2]) {
+    match pick {
+        Pick::Left => value,
+        Pick::Right => (('z', 1 < 2), [3.5, 4.5])
+    }
+}
+
+fn choose_frame(pick: Pick, value: Frame) -> Frame {
+    match pick {
+        Pick::Left => match Pick::Right {
+            Pick::Left => value,
+            Pick::Right => make_frame(11)
+        },
+        Pick::Right => make_frame(13)
+    }
+}
+
+fn exercise() -> int {
+    let array = choose_array(Arrays::Values([223, 2]));
+    let tuple = choose_tuple(Pick::Left, (('q', 1 < 2), [5.5, 6.5]));
+    let frame: Frame = choose_frame(Pick::Left, make_frame(7));
+    let empty = match Pick::Right {
+        Pick::Left => make_empty(),
+        Pick::Right => make_empty()
+    };
+    if (tuple.0).1
+        && frame.cell.value == 11
+        && frame.rows[1][1] == 14
+        && empty.len() == 0 {
+        return array[0];
+    }
+    1
+}

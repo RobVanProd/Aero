@@ -1,0 +1,35 @@
+struct Glyph { value: char, history: [char; 2] }
+struct Envelope { glyph: Glyph, pair: (char, Glyph), empty: [char; 0] }
+
+enum Signal {
+    Idle,
+    One(char),
+    Many(char, Glyph)
+}
+
+fn identity(value: char) -> char { value }
+fn make(value: char) -> Glyph { Glyph { value: value, history: [value, '\x41'] } }
+fn replace(value: &mut char) -> char {
+    *value = '😊';
+    *value
+}
+fn read(value: &char) -> char { *value }
+fn char_score(value: char, expected: char, score: int) -> int {
+    if value == expected { return score; }
+    0
+}
+fn score(value: Signal) -> int {
+    match value {
+        Signal::Idle => 1,
+        Signal::One(character) => char_score(character, '界', 2),
+        Signal::Many(character, glyph) =>
+            char_score(character, '😊', char_score(glyph.history[1], 'A', 4))
+    }
+}
+fn extract(value: Signal) -> char {
+    match value {
+        Signal::Idle => '\0',
+        Signal::One(character) => character,
+        Signal::Many(character, glyph) => glyph.value
+    }
+}

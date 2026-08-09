@@ -1,40 +1,47 @@
-mod accelerator;
-mod ast;
-mod code_generator;
-mod compatibility;
-mod conformance;
 mod doc_generator;
-mod errors;
-mod gpu;
-mod graph_compiler;
-mod ir;
-mod ir_generator;
-mod lexer;
 mod lsp;
-mod module_resolver;
-mod optimizations;
-mod parser;
-mod performance_optimizations;
 mod profiler;
 mod project_init;
-mod quantization;
-mod registry;
-mod semantic_analyzer;
-mod types;
 
-// (unit tests live in the library crate)
+#[cfg(test)]
+mod conformance_checked_ir_tests;
+#[cfg(test)]
+mod llvm_verifier_cache_tests;
 
-use crate::ir_generator::IrGenerator;
-use crate::performance_optimizations::PerformanceOptimizer;
-use crate::semantic_analyzer::SemanticAnalyzer;
-use accelerator::AcceleratorBackend;
-use gpu::{DeviceProfile, GpuDevice, default_gpu_arch};
+#[cfg(test)]
+static LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+use compiler::accelerator::AcceleratorBackend;
+use compiler::gpu::{DeviceProfile, GpuDevice, default_gpu_arch};
+use compiler::{
+    CodeGenerationError, IrGenerationError, IrGenerator,
+    LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE, LlvmVerificationMode, PerformanceOptimizer,
+    SemanticAnalyzer, collect_direct_modules_for_compiler_service, conformance, graph_compiler,
+    guard_live_registry_transport_for_compiler_service, lexer, parser, quantization, registry,
+    try_generate_code, verify_llvm_module,
+};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, exit};
 use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+fn render_ir_generation_error(error: IrGenerationError) -> String {
+    match error {
+        IrGenerationError::Admission(message) => {
+            format!("IR Generation Error: {message}")
+        }
+        IrGenerationError::Verification(error) => error.to_string(),
+    }
+}
+
+fn render_code_generation_error(error: CodeGenerationError) -> String {
+    match error {
+        CodeGenerationError::IrVerification(error) => error.to_string(),
+        other => format!("Code Generation Error: {other}"),
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BuildTarget {
@@ -49,14 +56,6 @@ impl BuildTarget {
             "cpu" | "host" => Some(Self::Cpu),
             "rocm" | "amd" => Some(Self::Rocm),
             "cuda" | "nvidia" => Some(Self::Cuda),
-            "gpu" => {
-                let detected = GpuDevice::auto_detect();
-                Some(match detected.backend() {
-                    AcceleratorBackend::Rocm => Self::Rocm,
-                    AcceleratorBackend::Cuda => Self::Cuda,
-                    AcceleratorBackend::Cpu => Self::Cpu,
-                })
-            }
             _ => None,
         }
     }
@@ -70,10 +69,26 @@ impl BuildTarget {
     }
 }
 
+fn parse_explicit_build_target(input: &str) -> Result<BuildTarget, String> {
+    if input.trim().eq_ignore_ascii_case("gpu") {
+        return Err(
+            "target `gpu` is ambiguous and does not prove a usable device; choose cpu, rocm, or cuda explicitly"
+                .to_string(),
+        );
+    }
+    BuildTarget::parse(input).ok_or_else(|| {
+        format!(
+            "error: unsupported target `{}` (expected cpu|rocm|cuda)",
+            input
+        )
+    })
+}
+
 #[derive(Debug, Clone)]
 struct BuildConfig {
     target: BuildTarget,
     gpu_arch: Option<String>,
+    require_llvm_verifier: bool,
 }
 
 impl Default for BuildConfig {
@@ -81,6 +96,7 @@ impl Default for BuildConfig {
         Self {
             target: BuildTarget::Cpu,
             gpu_arch: None,
+            require_llvm_verifier: false,
         }
     }
 }
@@ -198,6 +214,14 @@ fn create_run_artifact_paths(
 }
 
 impl BuildConfig {
+    fn llvm_verification_mode(&self) -> LlvmVerificationMode {
+        if self.require_llvm_verifier || environment_requires_llvm_verifier() {
+            LlvmVerificationMode::Required
+        } else {
+            LlvmVerificationMode::PreferExternal
+        }
+    }
+
     fn gpu_arch_or_default(&self) -> &str {
         if let Some(arch) = self.gpu_arch.as_deref() {
             return arch;
@@ -229,12 +253,94 @@ impl BuildConfig {
     }
 }
 
+#[derive(Debug)]
+struct ConformanceCommandResult {
+    exit_code: i32,
+    stdout: String,
+}
+
+fn run_conformance_command_with_report(
+    report: conformance::ConformanceReport,
+    output_json: Option<&Path>,
+) -> Result<ConformanceCommandResult, String> {
+    let mut lines = vec![format!(
+        "Conformance cases: {}/{} passed | Determinism checks: {}/{} passed",
+        report.passed_cases,
+        report.total_cases,
+        report.passed_mechanized_checks,
+        report.total_mechanized_checks
+    )];
+    for case in &report.case_results {
+        lines.push(format!(
+            "  [{}] {} - {}",
+            if case.passed { "ok" } else { "fail" },
+            case.name,
+            case.details
+        ));
+    }
+    for check in &report.mechanized_checks {
+        lines.push(format!(
+            "  [{}] {} - {}",
+            if check.passed { "ok" } else { "fail" },
+            check.name,
+            check.details
+        ));
+    }
+
+    if let Some(path) = output_json {
+        let json = serde_json::to_string_pretty(&report)
+            .map_err(|error| format!("failed to serialize conformance report: {error}"))?;
+        fs::write(path, json)
+            .map_err(|error| format!("could not write {}: {error}", path.display()))?;
+        lines.push(format!("Wrote conformance report to {}", path.display()));
+    }
+
+    Ok(ConformanceCommandResult {
+        exit_code: i32::from(report.failed_cases > 0 || report.failed_mechanized_checks > 0),
+        stdout: lines.join("\n"),
+    })
+}
+
+fn environment_requires_llvm_verifier() -> bool {
+    env::var("AERO_REQUIRE_LLVM_VERIFIER")
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CliStatus {
+    Success,
+    OperationalFailure,
+    InvocationFailure,
+}
+
+impl CliStatus {
+    fn exit_code(self) -> i32 {
+        match self {
+            Self::Success => 0,
+            Self::OperationalFailure => 1,
+            Self::InvocationFailure => 2,
+        }
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
+    let status = dispatch_cli(&args);
+    if status != CliStatus::Success {
+        exit(status.exit_code());
+    }
+}
 
+fn dispatch_cli(args: &[String]) -> CliStatus {
     if args.len() < 2 {
         print_help(&args[0]);
-        return;
+        return CliStatus::InvocationFailure;
     }
 
     let command = &args[1];
@@ -242,18 +348,26 @@ fn main() {
     match command.as_str() {
         "--help" | "-h" => {
             print_help(&args[0]);
-            return;
+            return if args.len() == 2 {
+                CliStatus::Success
+            } else {
+                CliStatus::InvocationFailure
+            };
         }
         "--version" | "-v" => {
-            println!("Aero compiler version 1.0.0");
-            return;
+            println!("Aero compiler version {}", env!("CARGO_PKG_VERSION"));
+            return if args.len() == 2 {
+                CliStatus::Success
+            } else {
+                CliStatus::InvocationFailure
+            };
         }
         "build" => {
             let (input_file, output_file, build_config) = match parse_build_args(&args) {
                 Ok(parsed) => parsed,
                 Err(usage) => {
                     eprintln!("{}", usage);
-                    return;
+                    return CliStatus::InvocationFailure;
                 }
             };
             apply_target_environment(&build_config);
@@ -262,18 +376,23 @@ fn main() {
                 Ok(content) => content,
                 Err(err) => {
                     eprintln!("Error reading file {}: {}", input_file, err);
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
-            compile_to_llvm_ir(&source_code, &output_file, &input_file, &build_config);
+            if let Err(err) =
+                compile_to_llvm_ir(&source_code, &output_file, &input_file, &build_config)
+            {
+                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                return CliStatus::OperationalFailure;
+            }
         }
         "run" => {
             let (input_file, build_config) = match parse_run_args(&args) {
                 Ok(parsed) => parsed,
                 Err(usage) => {
                     eprintln!("{}", usage);
-                    return;
+                    return CliStatus::InvocationFailure;
                 }
             };
             apply_target_environment(&build_config);
@@ -282,19 +401,19 @@ fn main() {
                 Ok(content) => content,
                 Err(err) => {
                     eprintln!("Error reading file {}: {}", input_file, err);
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
             if let Err(err) = run_aero_program(&source_code, &input_file, &build_config) {
                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                exit(1);
+                return CliStatus::OperationalFailure;
             }
         }
         "check" => {
-            if args.len() < 3 {
+            if args.len() != 3 {
                 eprintln!("Usage: {} check <input.aero>", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
             let input_file = &args[2];
 
@@ -305,19 +424,28 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
-            check_aero_program(&source_code, input_file);
+            if let Err(err) = check_aero_program(&source_code, input_file) {
+                report_check_error(&source_code, input_file, &err);
+                return CliStatus::OperationalFailure;
+            }
         }
         "test" => {
-            // Discover and run *_test.aero files in examples/ and current directory
+            if args.len() != 2 {
+                eprintln!("Usage: {} test", args[0]);
+                return CliStatus::InvocationFailure;
+            }
+            // Discover and semantically analyze Aero test sources without executing them.
             let test_dirs = vec!["examples", "tests", "."];
             let mut test_count = 0;
-            let mut pass_count = 0;
+            let mut completed_count = 0;
 
-            println!("\x1b[1;36m   Compiling\x1b[0m test suite...");
+            println!(
+                "\x1b[1;36mAnalyzing\x1b[0m Aero test sources (parse, direct modules, semantics only; no execution)..."
+            );
             for dir in &test_dirs {
                 if let Ok(entries) = fs::read_dir(dir) {
                     for entry in entries.flatten() {
@@ -325,22 +453,42 @@ fn main() {
                         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                             if name.ends_with("_test.aero") || name.ends_with("_tests.aero") {
                                 test_count += 1;
-                                println!("\x1b[1;36m     Running\x1b[0m {}", path.display());
-                                if let Ok(src) = fs::read_to_string(&path) {
-                                    let tokens = lexer::tokenize(&src);
-                                    let ast = parser::parse(tokens);
-                                    let mut analyzer = SemanticAnalyzer::new();
-                                    match analyzer.analyze(ast) {
-                                        Ok(_) => {
-                                            pass_count += 1;
-                                            println!("      \x1b[1;32m✓\x1b[0m {} passed", name);
+                                println!("\x1b[1;36mAnalyzing\x1b[0m {}", path.display());
+                                match fs::read_to_string(&path) {
+                                    Ok(src) => {
+                                        let filename = path.to_string_lossy().to_string();
+                                        match parse_source_with_direct_modules(&src, &filename) {
+                                            Ok(ast) => {
+                                                let mut analyzer = SemanticAnalyzer::new();
+                                                match analyzer.analyze(ast) {
+                                                    Ok(_) => {
+                                                        completed_count += 1;
+                                                        println!(
+                                                            "      \x1b[1;32m✓\x1b[0m {} analysis completed (not executed)",
+                                                            name
+                                                        );
+                                                    }
+                                                    Err(err) => {
+                                                        println!(
+                                                            "      \x1b[1;31m✗\x1b[0m {} analysis failed: {}",
+                                                            name, err
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                            Err(err) => {
+                                                println!(
+                                                    "      \x1b[1;31m✗\x1b[0m {} analysis failed: {}",
+                                                    name, err
+                                                );
+                                            }
                                         }
-                                        Err(err) => {
-                                            println!(
-                                                "      \x1b[1;31m✗\x1b[0m {} failed: {}",
-                                                name, err
-                                            );
-                                        }
+                                    }
+                                    Err(err) => {
+                                        println!(
+                                            "      \x1b[1;31m✗\x1b[0m {} analysis failed: could not read test: {}",
+                                            name, err
+                                        );
                                     }
                                 }
                             }
@@ -351,21 +499,23 @@ fn main() {
 
             if test_count == 0 {
                 println!(
-                    "\x1b[1;33mwarning\x1b[0m: no test files found (*_test.aero, *_tests.aero)"
+                    "\x1b[1;33mwarning\x1b[0m: no Aero test source files found (*_test.aero, *_tests.aero); no tests were executed"
                 );
             } else {
+                let failure_count = test_count - completed_count;
                 println!(
-                    "\n\x1b[1mtest result\x1b[0m: {} passed, {} failed, {} total",
-                    pass_count,
-                    test_count - pass_count,
-                    test_count
+                    "\n\x1b[1manalysis result\x1b[0m: {} completed, {} failed, {} total; no tests were executed",
+                    completed_count, failure_count, test_count
                 );
+                if failure_count > 0 {
+                    return CliStatus::OperationalFailure;
+                }
             }
         }
         "fmt" => {
-            if args.len() < 3 {
+            if args.len() != 3 {
                 eprintln!("Usage: {} fmt <input.aero>", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
             let input_file = &args[2];
 
@@ -376,7 +526,7 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
@@ -387,18 +537,19 @@ fn main() {
                 .collect::<Vec<&str>>()
                 .join("\n");
 
-            match fs::write(input_file, &formatted) {
-                Ok(_) => println!("\x1b[1;32m   Formatted\x1b[0m {}", input_file),
-                Err(err) => eprintln!(
+            if let Err(err) = fs::write(input_file, &formatted) {
+                eprintln!(
                     "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
                     input_file, err
-                ),
+                );
+                return CliStatus::OperationalFailure;
             }
+            println!("\x1b[1;32m   Formatted\x1b[0m {}", input_file);
         }
         "doc" => {
             if args.len() < 3 {
                 eprintln!("Usage: {} doc <input.aero> [-o <output.md>]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             let input_file = &args[2];
@@ -408,7 +559,7 @@ fn main() {
                 default_doc_output_path(input_file)
             } else {
                 eprintln!("Usage: {} doc <input.aero> [-o <output.md>]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             };
 
             let source_code = match fs::read_to_string(input_file) {
@@ -418,28 +569,31 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
             match doc_generator::generate_markdown(input_file, &source_code) {
-                Ok(markdown) => match fs::write(&output_file, markdown) {
-                    Ok(_) => println!("Generated documentation at {}", output_file),
-                    Err(err) => eprintln!(
-                        "\x1b[1;31merror\x1b[0m: could not write docs {}: {}",
-                        output_file, err
-                    ),
-                },
+                Ok(markdown) => {
+                    if let Err(err) = fs::write(&output_file, markdown) {
+                        eprintln!(
+                            "\x1b[1;31merror\x1b[0m: could not write docs {}: {}",
+                            output_file, err
+                        );
+                        return CliStatus::OperationalFailure;
+                    }
+                    println!("Generated documentation at {}", output_file);
+                }
                 Err(err) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
         }
         "profile" => {
             if args.len() < 3 {
                 eprintln!("Usage: {} profile <input.aero> [-o <trace.json>]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             let input_file = &args[2];
@@ -449,7 +603,7 @@ fn main() {
                 None
             } else {
                 eprintln!("Usage: {} profile <input.aero> [-o <trace.json>]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             };
 
             let source_code = match fs::read_to_string(input_file) {
@@ -459,7 +613,7 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
 
@@ -471,14 +625,14 @@ fn main() {
                             Ok(_) => println!("Wrote trace file to {}", path),
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     }
                 }
                 Err(err) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
         }
@@ -489,7 +643,7 @@ fn main() {
             );
             if args.len() < 5 {
                 eprintln!("{}", graph_usage);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             let input_file = &args[2];
@@ -504,7 +658,7 @@ fn main() {
                     "-o" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", graph_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         output_file = Some(args[i + 1].clone());
                         i += 2;
@@ -512,14 +666,14 @@ fn main() {
                     "--backend" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", graph_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         let Some(parsed) = AcceleratorBackend::parse(&args[i + 1]) else {
                             eprintln!(
                                 "\x1b[1;31merror\x1b[0m: unsupported backend `{}`",
                                 args[i + 1]
                             );
-                            return;
+                            return CliStatus::InvocationFailure;
                         };
                         backend = parsed;
                         i += 2;
@@ -527,7 +681,7 @@ fn main() {
                     "--gpu" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", graph_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         gpu_arch = Some(args[i + 1].clone());
                         i += 2;
@@ -538,13 +692,13 @@ fn main() {
                     }
                     _ => {
                         eprintln!("{}", graph_usage);
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                 }
             }
             let Some(output_file) = output_file else {
                 eprintln!("{}", graph_usage);
-                return;
+                return CliStatus::InvocationFailure;
             };
 
             let input = match fs::read_to_string(input_file) {
@@ -554,9 +708,16 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
+            match verify_llvm_module(&input, LlvmVerificationMode::Required) {
+                Ok(status) => println!("LLVM input verification: {status}"),
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    return CliStatus::OperationalFailure;
+                }
+            }
 
             let config = graph_compiler::GraphCompilationConfig {
                 backend,
@@ -565,25 +726,31 @@ fn main() {
             };
             let (optimized, report) =
                 graph_compiler::apply_advanced_graph_compilation_with_config(&input, &config);
-            match fs::write(&output_file, optimized) {
-                Ok(_) => {
-                    println!("Wrote graph-optimized IR to {}", output_file);
-                    let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
-                    println!(
-                        "Backend: {} | gpu: {} | fused kernels: {} | executable kernels: {} | skipped chains: {} | total fused ops: {}",
-                        report.backend,
-                        gpu_arch,
-                        report.fused_kernel_count,
-                        report.executable_kernel_count,
-                        report.skipped_chains,
-                        report.total_fused_ops
-                    );
+            match verify_llvm_module(&optimized, LlvmVerificationMode::Required) {
+                Ok(status) => println!("LLVM output verification: {status}"),
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    return CliStatus::OperationalFailure;
                 }
-                Err(err) => eprintln!(
+            }
+            if let Err(err) = fs::write(&output_file, optimized) {
+                eprintln!(
                     "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
                     output_file, err
-                ),
+                );
+                return CliStatus::OperationalFailure;
             }
+            println!("Wrote graph-optimized IR to {}", output_file);
+            let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
+            println!(
+                "execution_scope=internal-scalar-helper | device_execution=false | backend: {} | gpu metadata: {} | fused chains: {} | rewritten helper chains: {} | skipped chains: {} | total fused ops: {}",
+                report.backend,
+                gpu_arch,
+                report.fused_kernel_count,
+                report.executable_kernel_count,
+                report.skipped_chains,
+                report.total_fused_ops
+            );
         }
         "quantize" => {
             let quant_usage = format!(
@@ -592,7 +759,7 @@ fn main() {
             );
             if args.len() < 7 {
                 eprintln!("{}", quant_usage);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             let input_file = &args[2];
@@ -610,7 +777,7 @@ fn main() {
                     "-o" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         output_file = Some(args[i + 1].clone());
                         i += 2;
@@ -618,7 +785,7 @@ fn main() {
                     "--mode" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         mode = quantization::QuantizationMode::parse(&args[i + 1]);
                         if mode.is_none() {
@@ -626,21 +793,21 @@ fn main() {
                                 "\x1b[1;31merror\x1b[0m: unsupported quantization mode `{}`",
                                 args[i + 1]
                             );
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         i += 2;
                     }
                     "--backend" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         let Some(parsed) = AcceleratorBackend::parse(&args[i + 1]) else {
                             eprintln!(
                                 "\x1b[1;31merror\x1b[0m: unsupported backend `{}`",
                                 args[i + 1]
                             );
-                            return;
+                            return CliStatus::InvocationFailure;
                         };
                         backend = parsed;
                         i += 2;
@@ -648,7 +815,7 @@ fn main() {
                     "--gpu" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         gpu_arch = Some(args[i + 1].clone());
                         i += 2;
@@ -656,7 +823,7 @@ fn main() {
                     "--calibration" => {
                         if i + 1 >= args.len() {
                             eprintln!("{}", quant_usage);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         calibration_file = Some(args[i + 1].clone());
                         i += 2;
@@ -671,18 +838,18 @@ fn main() {
                     }
                     _ => {
                         eprintln!("{}", quant_usage);
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                 }
             }
 
             let Some(output_file) = output_file else {
                 eprintln!("{}", quant_usage);
-                return;
+                return CliStatus::InvocationFailure;
             };
             let Some(mode) = mode else {
                 eprintln!("{}", quant_usage);
-                return;
+                return CliStatus::InvocationFailure;
             };
 
             let input = match fs::read_to_string(input_file) {
@@ -692,9 +859,16 @@ fn main() {
                         "\x1b[1;31merror\x1b[0m: could not read file {}: {}",
                         input_file, err
                     );
-                    return;
+                    return CliStatus::OperationalFailure;
                 }
             };
+            match verify_llvm_module(&input, LlvmVerificationMode::Required) {
+                Ok(status) => println!("LLVM input verification: {status}"),
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    return CliStatus::OperationalFailure;
+                }
+            }
 
             let mut config = quantization::QuantizationConfig::new(mode);
             config.backend = backend;
@@ -715,41 +889,47 @@ fn main() {
                     }
                     Err(err) => {
                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                        return;
+                        return CliStatus::OperationalFailure;
                     }
                 }
             }
 
             let (quantized_ir, report) =
                 quantization::apply_quantization_interface(&input, &config);
-            match fs::write(&output_file, quantized_ir) {
-                Ok(_) => {
-                    println!("Wrote quantization IR to {}", output_file);
-                    let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
-                    println!(
-                        "Mode: {} | backend: {} | gpu: {} | candidates: {} | lowered: {} | helpers: {} | calibration samples: {}",
-                        report.mode,
-                        report.backend,
-                        gpu_arch,
-                        report.candidate_ops,
-                        report.lowered_ops,
-                        report.helper_count,
-                        report.calibration_samples
-                    );
-                    for note in report.notes {
-                        println!("  - {}", note);
-                    }
+            match verify_llvm_module(&quantized_ir, LlvmVerificationMode::Required) {
+                Ok(status) => println!("LLVM output verification: {status}"),
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    return CliStatus::OperationalFailure;
                 }
-                Err(err) => eprintln!(
+            }
+            if let Err(err) = fs::write(&output_file, quantized_ir) {
+                eprintln!(
                     "\x1b[1;31merror\x1b[0m: could not write file {}: {}",
                     output_file, err
-                ),
+                );
+                return CliStatus::OperationalFailure;
+            }
+            println!("Wrote quantization IR to {}", output_file);
+            let gpu_arch = report.gpu_arch.as_deref().unwrap_or("n/a");
+            println!(
+                "execution_scope=scalar-double-helper | device_execution=false | mode label: {} | backend metadata: {} | gpu metadata: {} | candidates: {} | rewritten ops: {} | scalar helpers: {} | calibration samples: {}",
+                report.mode,
+                report.backend,
+                gpu_arch,
+                report.candidate_ops,
+                report.lowered_ops,
+                report.helper_count,
+                report.calibration_samples
+            );
+            for note in report.notes {
+                println!("  - {}", note);
             }
         }
         "registry" => {
             if args.len() < 3 {
                 print_registry_help(&args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
 
             match args[2].as_str() {
@@ -759,7 +939,7 @@ fn main() {
                             "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                             args[0]
                         );
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                     let query = &args[3];
                     let mut index_path = registry::DEFAULT_LOCAL_INDEX_PATH.to_string();
@@ -777,7 +957,7 @@ fn main() {
                                         "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 index_path = args[i + 1].clone();
                                 i += 2;
@@ -788,7 +968,7 @@ fn main() {
                                         "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 registry_url = Some(args[i + 1].clone());
                                 i += 2;
@@ -803,7 +983,7 @@ fn main() {
                                         "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token = Some(args[i + 1].clone());
                                 i += 2;
@@ -814,7 +994,7 @@ fn main() {
                                         "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token_file = Some(args[i + 1].clone());
                                 i += 2;
@@ -824,23 +1004,32 @@ fn main() {
                                     "Usage: {} registry search <query> [--index <index.json>] [--registry <url>] [--live] [--token <token>] [--token-file <path>]",
                                     args[0]
                                 );
-                                return;
+                                return CliStatus::InvocationFailure;
                             }
                         }
+                    }
+
+                    if live && let Err(err) = guard_live_registry_transport_for_compiler_service() {
+                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                        return CliStatus::OperationalFailure;
                     }
 
                     let client = registry::RegistryClient::new(registry_url.as_deref());
                     println!("Registry: {}", client.base_url);
 
-                    let auth = match registry::resolve_registry_auth(
-                        token.as_deref(),
-                        token_file.as_deref().map(Path::new),
-                    ) {
-                        Ok(auth) => auth,
-                        Err(err) => {
-                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
+                    let auth = if live {
+                        match registry::resolve_registry_auth(
+                            token.as_deref(),
+                            token_file.as_deref().map(Path::new),
+                        ) {
+                            Ok(auth) => auth,
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                return CliStatus::OperationalFailure;
+                            }
                         }
+                    } else {
+                        None
                     };
 
                     let search_result = if live {
@@ -863,7 +1052,7 @@ fn main() {
                         }
                         Err(err) => {
                             eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
+                            return CliStatus::OperationalFailure;
                         }
                     }
                 }
@@ -873,7 +1062,7 @@ fn main() {
                             "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                             args[0]
                         );
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                     let package_dir = &args[3];
                     let mut registry_url: Option<String> = None;
@@ -890,7 +1079,7 @@ fn main() {
                                         "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 registry_url = Some(args[i + 1].clone());
                                 i += 2;
@@ -901,7 +1090,7 @@ fn main() {
                                         "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token = Some(args[i + 1].clone());
                                 i += 2;
@@ -912,7 +1101,7 @@ fn main() {
                                         "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token_file = Some(args[i + 1].clone());
                                 i += 2;
@@ -926,22 +1115,12 @@ fn main() {
                                     "Usage: {} registry publish <package-dir> [--registry <url>] [--token <token>] [--token-file <path>] [--dry-run]",
                                     args[0]
                                 );
-                                return;
+                                return CliStatus::InvocationFailure;
                             }
                         }
                     }
 
                     let client = registry::RegistryClient::new(registry_url.as_deref());
-                    let auth = match registry::resolve_registry_auth(
-                        token.as_deref(),
-                        token_file.as_deref().map(Path::new),
-                    ) {
-                        Ok(auth) => auth,
-                        Err(err) => {
-                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
-                        }
-                    };
 
                     if dry_run {
                         match registry::build_publish_preview(&client, Path::new(package_dir)) {
@@ -951,16 +1130,30 @@ fn main() {
                                     Ok(json) => println!("{}", json),
                                     Err(err) => {
                                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                        exit(1);
+                                        return CliStatus::OperationalFailure;
                                     }
                                 }
                             }
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     } else {
+                        if let Err(err) = guard_live_registry_transport_for_compiler_service() {
+                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                            return CliStatus::OperationalFailure;
+                        }
+                        let auth = match registry::resolve_registry_auth(
+                            token.as_deref(),
+                            token_file.as_deref().map(Path::new),
+                        ) {
+                            Ok(auth) => auth,
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                return CliStatus::OperationalFailure;
+                            }
+                        };
                         match registry::publish_live(
                             &client,
                             Path::new(package_dir),
@@ -973,13 +1166,13 @@ fn main() {
                                     Ok(json) => println!("{}", json),
                                     Err(err) => {
                                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                        exit(1);
+                                        return CliStatus::OperationalFailure;
                                     }
                                 }
                             }
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     }
@@ -990,7 +1183,7 @@ fn main() {
                             "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                             args[0]
                         );
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                     let package_name = &args[3];
                     let mut version: Option<String> = None;
@@ -1011,7 +1204,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 version = Some(args[i + 1].clone());
                                 i += 2;
@@ -1022,7 +1215,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 registry_url = Some(args[i + 1].clone());
                                 i += 2;
@@ -1033,7 +1226,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 target_dir = args[i + 1].clone();
                                 i += 2;
@@ -1044,7 +1237,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token = Some(args[i + 1].clone());
                                 i += 2;
@@ -1055,7 +1248,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 token_file = Some(args[i + 1].clone());
                                 i += 2;
@@ -1066,7 +1259,7 @@ fn main() {
                                         "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                         args[0]
                                     );
-                                    return;
+                                    return CliStatus::InvocationFailure;
                                 }
                                 expected_sha256 = Some(args[i + 1].clone());
                                 i += 2;
@@ -1084,22 +1277,12 @@ fn main() {
                                     "Usage: {} registry install <package> [--version <semver>] [--registry <url>] [--target <dir>] [--token <token>] [--token-file <path>] [--expected-sha256 <digest>] [--allow-untrusted] [--dry-run]",
                                     args[0]
                                 );
-                                return;
+                                return CliStatus::InvocationFailure;
                             }
                         }
                     }
 
                     let client = registry::RegistryClient::new(registry_url.as_deref());
-                    let auth = match registry::resolve_registry_auth(
-                        token.as_deref(),
-                        token_file.as_deref().map(Path::new),
-                    ) {
-                        Ok(auth) => auth,
-                        Err(err) => {
-                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                            exit(1);
-                        }
-                    };
 
                     if dry_run {
                         let plan = registry::build_install_plan(
@@ -1114,10 +1297,24 @@ fn main() {
                             Ok(json) => println!("{}", json),
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     } else {
+                        if let Err(err) = guard_live_registry_transport_for_compiler_service() {
+                            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                            return CliStatus::OperationalFailure;
+                        }
+                        let auth = match registry::resolve_registry_auth(
+                            token.as_deref(),
+                            token_file.as_deref().map(Path::new),
+                        ) {
+                            Ok(auth) => auth,
+                            Err(err) => {
+                                eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+                                return CliStatus::OperationalFailure;
+                            }
+                        };
                         match registry::install_live(
                             &client,
                             package_name,
@@ -1134,19 +1331,26 @@ fn main() {
                                     Ok(json) => println!("{}", json),
                                     Err(err) => {
                                         eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                        exit(1);
+                                        return CliStatus::OperationalFailure;
                                     }
                                 }
                             }
                             Err(err) => {
                                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                                exit(1);
+                                return CliStatus::OperationalFailure;
                             }
                         }
                     }
                 }
+                "help" | "--help" | "-h" => {
+                    print_registry_help(&args[0]);
+                    if args.len() != 3 {
+                        return CliStatus::InvocationFailure;
+                    }
+                }
                 _ => {
                     print_registry_help(&args[0]);
+                    return CliStatus::InvocationFailure;
                 }
             }
         }
@@ -1158,63 +1362,38 @@ fn main() {
                     "-o" => {
                         if i + 1 >= args.len() {
                             eprintln!("Usage: {} conformance [-o <report.json>]", args[0]);
-                            return;
+                            return CliStatus::InvocationFailure;
                         }
                         output_json = Some(args[i + 1].clone());
                         i += 2;
                     }
                     _ => {
                         eprintln!("Usage: {} conformance [-o <report.json>]", args[0]);
-                        return;
+                        return CliStatus::InvocationFailure;
                     }
                 }
             }
 
             let report = conformance::run_conformance_suite();
-            println!(
-                "Conformance cases: {}/{} passed | Mechanized checks: {}/{} passed",
-                report.passed_cases,
-                report.total_cases,
-                report.passed_mechanized_checks,
-                report.total_mechanized_checks
-            );
-            for case in &report.case_results {
-                println!(
-                    "  [{}] {} - {}",
-                    if case.passed { "ok" } else { "fail" },
-                    case.name,
-                    case.details
-                );
-            }
-            for check in &report.mechanized_checks {
-                println!(
-                    "  [{}] {} - {}",
-                    if check.passed { "ok" } else { "fail" },
-                    check.name,
-                    check.details
-                );
-            }
-
-            if let Some(path) = output_json {
-                match serde_json::to_string_pretty(&report) {
-                    Ok(json) => {
-                        if let Err(err) = fs::write(&path, json) {
-                            eprintln!("\x1b[1;31merror\x1b[0m: could not write {}: {}", path, err);
-                            exit(1);
-                        }
-                        println!("Wrote conformance report to {}", path);
-                    }
-                    Err(err) => {
-                        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                        exit(1);
-                    }
+            let command = match run_conformance_command_with_report(
+                report,
+                output_json.as_deref().map(Path::new),
+            ) {
+                Ok(command) => command,
+                Err(error) => {
+                    eprintln!("\x1b[1;31merror\x1b[0m: {error}");
+                    return CliStatus::OperationalFailure;
                 }
+            };
+            println!("{}", command.stdout);
+            if command.exit_code != 0 {
+                return CliStatus::OperationalFailure;
             }
         }
         "init" => {
             if args.len() > 3 {
                 eprintln!("Usage: {} init [path]", args[0]);
-                return;
+                return CliStatus::InvocationFailure;
             }
             let target = if args.len() == 3 {
                 args[2].as_str()
@@ -1231,14 +1410,18 @@ fn main() {
                 }
                 Err(err) => {
                     eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                    exit(1);
+                    return CliStatus::OperationalFailure;
                 }
             }
         }
         "lsp" => {
+            if args.len() != 2 {
+                eprintln!("Usage: {} lsp", args[0]);
+                return CliStatus::InvocationFailure;
+            }
             if let Err(err) = lsp::run_language_server() {
                 eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                exit(1);
+                return CliStatus::OperationalFailure;
             }
         }
         _ => {
@@ -1246,14 +1429,17 @@ fn main() {
             eprintln!(
                 "Available commands: build, run, check, test, fmt, doc, profile, graph-opt, quantize, registry, conformance, init, lsp"
             );
+            return CliStatus::InvocationFailure;
         }
     }
+
+    CliStatus::Success
 }
 
 fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), String> {
     if args.len() < 3 {
         return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
             args[0]
         ));
     }
@@ -1267,7 +1453,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "-o" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
@@ -1277,32 +1463,30 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
             "--target" | "--backend" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
-                let Some(target) = BuildTarget::parse(&args[i + 1]) else {
-                    return Err(format!(
-                        "error: unsupported target `{}` (expected cpu|rocm|cuda|gpu)",
-                        args[i + 1]
-                    ));
-                };
-                config.target = target;
+                config.target = parse_explicit_build_target(&args[i + 1])?;
                 i += 2;
             }
             "--gpu" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
                         args[0]
                     ));
                 }
                 config.gpu_arch = Some(args[i + 1].clone());
                 i += 2;
             }
+            "--require-llvm-verifier" => {
+                config.require_llvm_verifier = true;
+                i += 1;
+            }
             _ => {
                 return Err(format!(
-                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
                     args[0]
                 ));
             }
@@ -1311,7 +1495,7 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
 
     let Some(output_file) = output_file else {
         return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
             args[0]
         ));
     };
@@ -1322,8 +1506,8 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
 fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
     if args.len() < 3 {
         return Err(format!(
-            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
-            args[0], args[0]
+            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+            args[0]
         ));
     }
 
@@ -1336,23 +1520,17 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
             "--target" | "--backend" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
-                let Some(target) = BuildTarget::parse(&args[i + 1]) else {
-                    return Err(format!(
-                        "error: unsupported target `{}` (expected cpu|rocm|cuda|gpu)",
-                        args[i + 1]
-                    ));
-                };
-                config.target = target;
+                config.target = parse_explicit_build_target(&args[i + 1])?;
                 i += 2;
             }
             "--gpu" => {
                 if i + 1 >= args.len() {
                     return Err(format!(
-                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
                         args[0]
                     ));
                 }
@@ -1361,7 +1539,7 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
             }
             value if value.starts_with('-') => {
                 return Err(format!(
-                    "error: unknown option `{}`\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                    "error: unknown option `{}`\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
                     value, args[0]
                 ));
             }
@@ -1369,7 +1547,7 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
                 if input_file.is_some() {
                     let existing = input_file.as_deref().unwrap_or("<unknown>");
                     return Err(format!(
-                        "error: multiple input files provided (`{}` and `{}`)\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]",
+                        "error: multiple input files provided (`{}` and `{}`)\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
                         existing, value, args[0]
                     ));
                 }
@@ -1381,8 +1559,8 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
 
     let Some(input_file) = input_file else {
         return Err(format!(
-            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]\n       {} run --target rocm --gpu gfx1101 <input.aero>",
-            args[0], args[0]
+            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
+            args[0]
         ));
     };
 
@@ -1432,53 +1610,85 @@ fn compile_to_llvm_ir(
     output_file: &str,
     input_file: &str,
     build_config: &BuildConfig,
-) {
+) -> Result<(), String> {
+    let mut perf_optimizer = PerformanceOptimizer::new();
+    compile_to_llvm_ir_with_optimizer(
+        source_code,
+        output_file,
+        input_file,
+        build_config,
+        &mut perf_optimizer,
+    )
+}
+
+fn push_compilation_cache_frame(bytes: &mut Vec<u8>, label: &str, payload: &[u8]) {
+    bytes.extend_from_slice(label.as_bytes());
+    bytes.push(0);
+    bytes.extend_from_slice(&(payload.len() as u64).to_be_bytes());
+    bytes.extend_from_slice(payload);
+}
+
+fn compilation_cache_key(
+    source_code: &str,
+    build_config: &BuildConfig,
+    direct_module_cache_material: Option<&[u8]>,
+) -> String {
+    let Some(direct_module_cache_material) = direct_module_cache_material else {
+        return format!(
+            "{:x}",
+            md5::compute(format!(
+                "{}::target={}::gpu={}",
+                source_code,
+                build_config.target.as_str(),
+                build_config.gpu_arch_or_default()
+            ))
+        );
+    };
+
+    let mut bytes = b"AERO_MODULE_CACHE_V1\0".to_vec();
+    push_compilation_cache_frame(&mut bytes, "root", source_code.as_bytes());
+    push_compilation_cache_frame(
+        &mut bytes,
+        "target",
+        build_config.target.as_str().as_bytes(),
+    );
+    push_compilation_cache_frame(
+        &mut bytes,
+        "gpu",
+        build_config.gpu_arch_or_default().as_bytes(),
+    );
+    bytes.extend_from_slice(direct_module_cache_material);
+
+    format!("{:x}", md5::compute(bytes))
+}
+
+fn compile_to_llvm_ir_with_optimizer(
+    source_code: &str,
+    output_file: &str,
+    input_file: &str,
+    build_config: &BuildConfig,
+    perf_optimizer: &mut PerformanceOptimizer,
+) -> Result<(), String> {
     println!(
         "Compiling with performance optimizations enabled (target: {}, gpu: {})",
         build_config.target.as_str(),
         build_config.gpu_arch_or_default()
     );
 
-    // Initialize performance optimizer
-    let mut perf_optimizer = PerformanceOptimizer::new();
     let compilation_start = Instant::now();
-
-    // Generate source hash for caching
-    let source_hash = format!(
-        "{:x}",
-        md5::compute(format!(
-            "{}::target={}::gpu={}",
-            source_code,
-            build_config.target.as_str(),
-            build_config.gpu_arch_or_default()
-        ))
-    );
-
-    // Check compilation cache first
-    if let Some(cached_llvm) = perf_optimizer
-        .get_compilation_cache()
-        .get_cached_llvm(&source_hash)
-    {
-        println!("Using cached compilation result");
-        match fs::write(output_file, cached_llvm) {
-            Ok(_) => {
-                println!("Cached LLVM IR written to {}", output_file);
-                println!("{}", perf_optimizer.get_performance_report());
-                return;
-            }
-            Err(err) => eprintln!("Error writing cached result: {}", err),
-        }
-    }
+    let verification_mode = build_config.llvm_verification_mode();
 
     // Lexing with performance timing
     let lexing_start = Instant::now();
-    let tokens = lexer::tokenize(source_code);
+    let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+        .map_err(|err| format!("Lex error: {}", err))?;
     let lexing_time = lexing_start.elapsed();
     println!("Lexing completed in {:?}", lexing_time);
 
     // Optimized parsing with parser optimizer
     let parsing_start = Instant::now();
-    let mut ast = parser::parse(tokens);
+    let mut ast =
+        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
     // Apply parser optimizations for complex constructs
     let parser_optimizer = perf_optimizer.get_parser_optimizer();
@@ -1488,32 +1698,34 @@ fn compile_to_llvm_ir(
     println!("Optimized parsing completed in {:?}", parsing_time);
 
     // Phase 7: Module resolution — resolve `mod foo;` to files
-    let mut resolver = module_resolver::ModuleResolver::new(input_file);
-    let mut module_asts = Vec::new();
-    for node in &ast {
-        if let crate::ast::AstNode::Statement(crate::ast::Statement::ModDecl {
-            name,
-            is_public: _,
-        }) = node
-        {
-            match resolver.resolve(name) {
-                Ok(resolved) => {
-                    println!(
-                        "  Resolved module `{}` → {}",
-                        name,
-                        resolved.file_path.display()
-                    );
-                    let mod_tokens = lexer::tokenize(&resolved.source);
-                    let mod_ast = parser::parse(mod_tokens);
-                    module_asts.extend(mod_ast);
-                }
-                Err(err) => {
-                    eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
-                }
-            }
+    let direct_module_cache_material =
+        collect_direct_modules_for_compiler_service(&mut ast, Some(input_file), |name, path| {
+            println!("  Resolved module `{name}` → {}", path.display())
+        })?;
+
+    // Root parsing and exact direct-module collection are mandatory before lookup.
+    let source_hash = compilation_cache_key(
+        source_code,
+        build_config,
+        direct_module_cache_material.as_deref(),
+    );
+    if let Some(cached_llvm) = perf_optimizer
+        .get_compilation_cache()
+        .get_cached_llvm(&source_hash)
+    {
+        let status = verify_llvm_module(&cached_llvm, verification_mode)
+            .map_err(|error| error.to_string())?;
+        if status.external_verifier().is_some() {
+            println!("Using cached compilation result");
+            println!("LLVM verification: {status}");
+            fs::write(output_file, cached_llvm)
+                .map_err(|err| format!("Error writing cached result: {err}"))?;
+            println!("Cached LLVM IR written to {}", output_file);
+            println!("{}", perf_optimizer.get_performance_report());
+            return Ok(());
         }
+        println!("Cached result bypassed because external LLVM verification is unavailable");
     }
-    ast.extend(module_asts);
 
     // Optimized semantic analysis
     let semantic_start = Instant::now();
@@ -1528,10 +1740,7 @@ fn compile_to_llvm_ir(
             println!("Semantic Analysis Result: {}", msg);
             (msg, typed_ast)
         }
-        Err(err) => {
-            eprintln!("Semantic Analysis Error: {}", err);
-            return;
-        }
+        Err(err) => return Err(format!("Semantic Analysis Error: {}", err)),
     };
     let semantic_time = semantic_start.elapsed();
     println!(
@@ -1542,7 +1751,9 @@ fn compile_to_llvm_ir(
     // IR Generation with function call optimizations
     let ir_start = Instant::now();
     let mut ir_gen = IrGenerator::new();
-    let mut ir = ir_gen.generate_ir(analyzed_ast);
+    let ir = ir_gen
+        .try_generate_ir(analyzed_ast)
+        .map_err(render_ir_generation_error)?;
 
     // Apply function call optimizations
     let function_optimizer = perf_optimizer.get_function_optimizer();
@@ -1558,7 +1769,7 @@ fn compile_to_llvm_ir(
     let control_flow_optimizer = perf_optimizer.get_control_flow_optimizer();
     // Note: In a real implementation, we would optimize control flow generation here
 
-    let llvm_ir = code_generator::generate_code(ir);
+    let llvm_ir = try_generate_code(ir).map_err(render_code_generation_error)?;
     let graph_compile_start = Instant::now();
     let graph_backend =
         AcceleratorBackend::from_env("AERO_ACCELERATOR").unwrap_or(match build_config.target {
@@ -1593,16 +1804,19 @@ fn compile_to_llvm_ir(
         graph_report.total_fused_ops
     );
 
-    // Cache the compilation result
+    let verification_status =
+        verify_llvm_module(&llvm_ir, verification_mode).map_err(|error| error.to_string())?;
+    println!("LLVM verification: {verification_status}");
+
+    // Cache only the exact final bytes that passed the selected verification policy.
     perf_optimizer
         .get_compilation_cache()
         .cache_llvm(source_hash, llvm_ir.clone());
 
     // Write to output file
-    match fs::write(output_file, &llvm_ir) {
-        Ok(_) => println!("Optimized LLVM IR written to {}", output_file),
-        Err(err) => eprintln!("Error writing to file {}: {}", output_file, err),
-    }
+    fs::write(output_file, &llvm_ir)
+        .map_err(|err| format!("Error writing to file {}: {}", output_file, err))?;
+    println!("Optimized LLVM IR written to {}", output_file);
 
     let total_time = compilation_start.elapsed();
     println!("Total compilation time: {:?}", total_time);
@@ -1611,6 +1825,7 @@ fn compile_to_llvm_ir(
     println!("{}", perf_optimizer.get_performance_report());
 
     println!("Performance-optimized compilation process completed successfully.");
+    Ok(())
 }
 
 fn run_aero_program(
@@ -1619,13 +1834,39 @@ fn run_aero_program(
     build_config: &BuildConfig,
 ) -> Result<(), String> {
     let artifacts = create_run_artifact_paths(input_file, build_config)?;
+    let result = run_aero_program_with_artifacts(source_code, input_file, build_config, &artifacts);
+    let cleanup = fs::remove_dir_all(&artifacts.directory).map_err(|error| {
+        format!(
+            "failed to remove compile artifact directory {}: {}",
+            artifacts.directory.display(),
+            error
+        )
+    });
+
+    match (result, cleanup) {
+        (Ok(Some(exit_code)), Ok(())) => exit(exit_code),
+        (Ok(None), Ok(())) => Ok(()),
+        (Ok(_), Err(cleanup_error)) => Err(cleanup_error),
+        (Err(error), Ok(())) => Err(error),
+        (Err(error), Err(cleanup_error)) => Err(format!("{error}; {cleanup_error}")),
+    }
+}
+
+fn run_aero_program_with_artifacts(
+    source_code: &str,
+    input_file: &str,
+    build_config: &BuildConfig,
+    artifacts: &RunArtifactPaths,
+) -> Result<Option<i32>, String> {
     let ll_path = artifacts.ll_file.to_string_lossy().to_string();
     let obj_path = artifacts.obj_file.to_string_lossy().to_string();
     let exe_path = artifacts.exe_file.to_string_lossy().to_string();
     let gpu_obj_path = artifacts.gpu_obj_file.to_string_lossy().to_string();
 
-    // Compile to LLVM IR first.
-    compile_to_llvm_ir(source_code, &ll_path, input_file, build_config);
+    // Executing or producing native objects always requires an external LLVM 22 verifier.
+    let mut verified_build_config = build_config.clone();
+    verified_build_config.require_llvm_verifier = true;
+    compile_to_llvm_ir(source_code, &ll_path, input_file, &verified_build_config)?;
     if !artifacts.ll_file.exists() {
         return Err(format!(
             "compile step did not produce LLVM IR at {}",
@@ -1688,7 +1929,9 @@ fn run_aero_program(
                 .map_err(|err| format!("Error executing compiled program: {}", err))?;
 
             let exit_code = run_output.status.code().unwrap_or(-1);
-            println!("Program executed successfully.");
+            if exit_code == 0 {
+                println!("Program executed successfully.");
+            }
             println!("Exit code: {}", exit_code);
 
             if !run_output.stdout.is_empty() {
@@ -1701,19 +1944,14 @@ fn run_aero_program(
                 );
             }
 
-            let _ = fs::remove_file(&artifacts.ll_file);
-            let _ = fs::remove_file(&artifacts.obj_file);
-            let _ = fs::remove_file(&artifacts.exe_file);
-            let _ = fs::remove_dir(&artifacts.directory);
-
-            // Mirror executed process exit code.
-            exit(exit_code);
+            // The wrapper removes every temporary artifact before mirroring the
+            // executed program's exit code.
+            return Ok(Some(exit_code));
         }
         BuildTarget::Rocm => {
             let llc_bin = find_llvm_tool("llc").ok_or_else(|| {
                 format!(
-                    "Error executing llc for ROCm target: program not found. Make sure LLVM is installed and llc is in your PATH. LLVM IR remains at {}",
-                    artifacts.ll_file.display()
+                    "Error executing llc for ROCm target: program not found. Make sure LLVM is installed and llc is in your PATH. Temporary run artifacts will be removed."
                 )
             })?;
 
@@ -1744,35 +1982,35 @@ fn run_aero_program(
                             String::from_utf8_lossy(&output.stderr)
                         ));
                     }
+                    if !artifacts.gpu_obj_file.is_file() {
+                        return Err(
+                            "ROCm object generation failed: llc reported success but did not create the requested regular object file."
+                                .to_string(),
+                        );
+                    }
                     println!(
-                        "ROCm object generated for {} at {}",
-                        build_config.gpu_arch_or_default(),
-                        artifacts.gpu_obj_file.display()
+                        "ROCm object stage complete: llc produced a temporary file; no link or execution occurred."
                     );
-                    println!("IR artifact: {}", artifacts.ll_file.display());
-                    println!(
-                        "Runtime execution for ROCm kernels is staged for HIP launcher integration; use the generated object for now."
+                    return Err(
+                        "ROCm run is unavailable: HIP link and device launch are not implemented; no program was executed."
+                            .to_string(),
                     );
                 }
                 Err(err) => {
                     return Err(format!(
-                        "Error executing llc for ROCm target ({}): {}. LLVM IR remains at {}",
-                        llc_bin,
-                        err,
-                        artifacts.ll_file.display()
+                        "Error executing llc for ROCm target ({}): {}. Temporary run artifacts will be removed.",
+                        llc_bin, err
                     ));
                 }
             }
         }
         BuildTarget::Cuda => {
             return Err(
-                "CUDA run target is not implemented yet in this build. Use --target cpu or --target rocm."
+                "CUDA run is unavailable: object generation, link, and device launch are not implemented; no program was executed. Use --target cpu for execution."
                     .to_string(),
             );
         }
     }
-
-    Ok(())
 }
 
 fn find_llvm_tool(tool: &str) -> Option<String> {
@@ -1808,42 +2046,52 @@ fn find_llvm_tool(tool: &str) -> Option<String> {
 }
 
 fn print_help(program_name: &str) {
-    println!("Aero Programming Language Compiler v1.0.0");
+    println!(
+        "Aero Programming Language Compiler v{}",
+        env!("CARGO_PKG_VERSION")
+    );
     println!();
     println!("USAGE:");
     println!("    {} <COMMAND> [OPTIONS]", program_name);
     println!();
     println!("COMMANDS:");
     println!(
-        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]"
+        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda>] [--gpu <arch>]"
     );
     println!(
-        "    run <input.aero>                     Compile and run source [--target <cpu|rocm|cuda|gpu>] [--gpu <arch>]"
+        "    run <input.aero>                     Compile source; execution availability depends on target [--target <cpu|rocm|cuda>] [--gpu <arch>]"
     );
-    println!("    check <input.aero>                   Type-check only (no codegen)");
-    println!("    test                                 Discover and run *_test.aero files");
+    println!(
+        "    check <input.aero>                   Validate frontend and checked IR (no LLVM emission)"
+    );
+    println!(
+        "    test                                 Discover and semantically analyze *_test.aero files (no execution)"
+    );
     println!("    fmt <input.aero>                     Auto-format Aero source");
     println!("    doc <input.aero> [-o <output.md>]    Generate Markdown API docs from source");
     println!("    profile <input.aero> [-o <trace.json>] Profile compilation phases");
     println!(
-        "    graph-opt <input.ll> -o <output.ll>  Apply graph compilation and executable kernel fusion [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
+        "    graph-opt <input.ll> -o <output.ll>  graph-opt: verified textual internal scalar-helper rewrite; device_execution=false [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
     );
     println!("    quantize <input.ll> -o <output.ll> --mode <int8|fp8-e4m3|fp8-e5m2>");
     println!(
-        "                                         Apply calibrated INT8/FP8 lowering interface [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
+        "                                         quantize: scalar-double helper rewrite; no real FP8, per-channel execution, numerical proof, or device execution [--backend <cpu|cuda|rocm>] [--gpu <arch>]"
     );
     println!(
-        "    registry <subcommand>                Interact with registry.aero (local or live transport)"
+        "    registry <subcommand>                Search a local index or create network-free publish/install previews"
     );
-    println!(
-        "    conformance [-o <report.json>]       Run formal conformance and mechanized checks"
-    );
+    println!("    conformance [-o <report.json>]       Run deterministic regression checks");
     println!("    init [path]                          Initialize a new Aero project");
     println!("    lsp                                  Run Aero language server (stdio)");
     println!();
     println!("OPTIONS:");
     println!("    -h, --help       Print this help message");
     println!("    -v, --version    Print version information");
+    println!();
+    println!("EXECUTION BOUNDARIES:");
+    println!("    CPU is the only current process-execution target.");
+    println!("    ROCm run probes temporary object emission but has no HIP link or device launch.");
+    println!("    CUDA run has no object, link, or device-launch path.");
     println!();
     println!("EXAMPLES:");
     println!("    {} build hello.aero -o hello.ll", program_name);
@@ -1852,10 +2100,6 @@ fn print_help(program_name: &str) {
         program_name
     );
     println!("    {} run hello.aero", program_name);
-    println!(
-        "    {} run --target rocm --gpu gfx1101 examples/gguf_inference.aero",
-        program_name
-    );
     println!("    {} check hello.aero", program_name);
     println!("    {} test", program_name);
     println!("    {} fmt hello.aero", program_name);
@@ -1870,7 +2114,7 @@ fn print_help(program_name: &str) {
         program_name
     );
     println!(
-        "    {} registry search vision --live --registry https://registry.aero/api/v1",
+        "    {} registry search vision --index registry/index.json",
         program_name
     );
     println!("    {} registry publish . --dry-run", program_name);
@@ -1917,59 +2161,78 @@ fn print_registry_help(program_name: &str) {
     );
     println!();
     println!("NOTE:");
-    println!("    Without --dry-run, publish/install use live HTTP transport and trust checks.");
+    println!(
+        "    Local index search and publish/install --dry-run are credential-free and network-free."
+    );
+    println!(
+        "    --live and publish/install without --dry-run fail: {}.",
+        LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE
+    );
 }
 
-/// Type-check an Aero program without generating code.
-/// Runs lexer → parser → semantic analysis only.
-fn check_aero_program(source_code: &str, input_file: &str) {
+/// Validate an Aero program without emitting LLVM or consulting external tools.
+/// Runs lexer → parser → direct modules → semantics → checked IR/internal verification.
+fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String> {
     let check_start = Instant::now();
 
-    // Lexing
-    let tokens = lexer::tokenize(source_code);
-
-    // Parsing
-    let ast = parser::parse(tokens);
+    let ast = parse_source_with_direct_modules(source_code, input_file)?;
 
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
     match analyzer.analyze(ast) {
-        Ok((msg, _typed_ast)) => {
+        Ok((msg, typed_ast)) => {
+            let mut ir_generator = IrGenerator::new();
+            ir_generator
+                .try_generate_ir(typed_ast)
+                .map_err(render_ir_generation_error)?;
             let elapsed = check_start.elapsed();
             println!(
                 "\x1b[1;32m    Checking\x1b[0m {} ... \x1b[1;32mok\x1b[0m ({:?})",
                 input_file, elapsed
             );
             println!("  {}", msg);
+            Ok(())
         }
-        Err(err) => {
-            // Enhanced error display with color and source context
-            let lines: Vec<&str> = source_code.lines().collect();
-            eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+        Err(err) => Err(err.to_string()),
+    }
+}
 
-            // Try to extract line number from error message
-            if let Some(line_hint) = extract_error_line(&err.to_string()) {
-                if line_hint > 0 && line_hint <= lines.len() {
-                    let line_content = lines[line_hint - 1];
-                    eprintln!("  \x1b[1;34m-->\x1b[0m {}:{}", input_file, line_hint);
-                    eprintln!("   \x1b[1;34m|\x1b[0m");
-                    eprintln!(" \x1b[1;34m{:3} |\x1b[0m {}", line_hint, line_content);
-                    eprintln!(
-                        "   \x1b[1;34m|\x1b[0m \x1b[1;31m{}\x1b[0m",
-                        "^".repeat(line_content.trim().len().min(40))
-                    );
-                }
-            }
+fn parse_source_with_direct_modules(
+    source_code: &str,
+    input_file: &str,
+) -> Result<Vec<compiler::ast::AstNode>, String> {
+    let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+        .map_err(|err| format!("Lex error: {}", err))?;
+    let mut ast =
+        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
 
-            // Suggest similar identifiers if it's an undefined variable error
-            if err.to_string().contains("undefined") || err.to_string().contains("not found") {
-                eprintln!(
-                    "\x1b[1;36mhelp\x1b[0m: check the spelling or ensure the variable is in scope"
-                );
-            }
+    collect_direct_modules_for_compiler_service(&mut ast, Some(input_file), |_, _| {})?;
 
-            std::process::exit(1);
+    Ok(ast)
+}
+
+fn report_check_error(source_code: &str, input_file: &str, error: &str) {
+    // Enhanced error display with color and source context
+    let lines: Vec<&str> = source_code.lines().collect();
+    eprintln!("\x1b[1;31merror\x1b[0m: {}", error);
+
+    // Try to extract line number from error message
+    if let Some(line_hint) = extract_error_line(error) {
+        if line_hint > 0 && line_hint <= lines.len() {
+            let line_content = lines[line_hint - 1];
+            eprintln!("  \x1b[1;34m-->\x1b[0m {}:{}", input_file, line_hint);
+            eprintln!("   \x1b[1;34m|\x1b[0m");
+            eprintln!(" \x1b[1;34m{:3} |\x1b[0m {}", line_hint, line_content);
+            eprintln!(
+                "   \x1b[1;34m|\x1b[0m \x1b[1;31m{}\x1b[0m",
+                "^".repeat(line_content.trim().len().min(40))
+            );
         }
+    }
+
+    // Suggest similar identifiers if it's an undefined variable error
+    if error.contains("undefined") || error.contains("not found") {
+        eprintln!("\x1b[1;36mhelp\x1b[0m: check the spelling or ensure the variable is in scope");
     }
 }
 
@@ -2062,7 +2325,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_run_args_supports_gpu_auto_target() {
+    fn parse_run_args_rejects_ambiguous_gpu_target() {
         let args = vec![
             "aero".to_string(),
             "run".to_string(),
@@ -2070,12 +2333,11 @@ mod tests {
             "gpu".to_string(),
             "examples/gguf_inference.aero".to_string(),
         ];
-        let (_input, config) =
-            parse_run_args(&args).expect("run args should parse with --target gpu");
-        assert!(matches!(
-            config.target,
-            BuildTarget::Cpu | BuildTarget::Rocm | BuildTarget::Cuda
-        ));
+        let error = parse_run_args(&args).expect_err("run args must reject --target gpu");
+        assert_eq!(
+            error,
+            "target `gpu` is ambiguous and does not prove a usable device; choose cpu, rocm, or cuda explicitly"
+        );
     }
 
     #[test]
@@ -2084,6 +2346,7 @@ mod tests {
         let config = BuildConfig {
             target: BuildTarget::Rocm,
             gpu_arch: Some("gfx1101".to_string()),
+            require_llvm_verifier: false,
         };
         let output = retarget_llvm_module(input, &config);
         assert!(output.contains("target triple = \"amdgcn-amd-amdhsa\""));
@@ -2105,6 +2368,7 @@ mod tests {
         let config = BuildConfig {
             target: BuildTarget::Rocm,
             gpu_arch: Some("gfx1101".to_string()),
+            require_llvm_verifier: false,
         };
         let artifacts = create_run_artifact_paths("examples/hello.aero", &config)
             .expect("paths should be created");

@@ -1,5 +1,9 @@
 # Aero Language Specification - Ownership and Borrowing Model
 
+> **Design target — not current implementation evidence.** The rules below preserve
+> the intended ownership model. The current compiler has no proven lifetime/
+> provenance analysis or borrow-checker memory-safety guarantee.
+
 ## Introduction
 
 This document formally specifies Aero's ownership and borrowing model, a core design principle inspired by Rust that ensures memory safety and concurrency without a garbage collector. This model dictates how resources (primarily memory) are managed and accessed, preventing common programming errors such as null pointer dereferences, double-frees, and data races at compile time.

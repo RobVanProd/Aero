@@ -8,6 +8,12 @@ use std::process::Command;
 pub const DEFAULT_REGISTRY_URL: &str = "https://registry.aero/api/v1";
 pub const DEFAULT_LOCAL_INDEX_PATH: &str = "registry/index.json";
 pub const DEFAULT_TOKEN_ENV: &str = "AERO_REGISTRY_TOKEN";
+pub(crate) const LIVE_REGISTRY_DISABLED: &str =
+    "live registry transport is disabled pending a reviewed protocol and trust boundary";
+
+pub(crate) fn live_registry_transport_guard() -> Result<(), String> {
+    Err(LIVE_REGISTRY_DISABLED.to_string())
+}
 
 #[derive(Debug, Clone)]
 pub struct RegistryClient {
@@ -187,6 +193,7 @@ pub fn search_live_registry(
     query: &str,
     auth: Option<&RegistryAuth>,
 ) -> Result<Vec<RegistryPackage>, String> {
+    live_registry_transport_guard()?;
     let endpoint = format!(
         "{}/packages/search?q={}",
         client.base_url,
@@ -245,6 +252,7 @@ pub fn publish_live(
     auth: Option<&RegistryAuth>,
     dry_run: bool,
 ) -> Result<PublishResult, String> {
+    live_registry_transport_guard()?;
     let preview = build_publish_preview(client, package_dir)?;
     let files = collect_package_files(package_dir)?;
 
@@ -321,6 +329,7 @@ pub fn install_live(
     expected_sha256_override: Option<&str>,
     dry_run: bool,
 ) -> Result<InstallReceipt, String> {
+    live_registry_transport_guard()?;
     let resolved = resolve_live_package(client, package_name, version, auth)?;
     let target_file = target_dir.join(format!("{}-{}.aero.pkg", resolved.name, resolved.version));
 
@@ -689,7 +698,11 @@ fn sha256_hex(input: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fmt::Debug;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    const LIVE_REGISTRY_DISABLED: &str =
+        "live registry transport is disabled pending a reviewed protocol and trust boundary";
 
     fn unique_temp_path(name: &str, ext: &str) -> std::path::PathBuf {
         let nanos = SystemTime::now()
@@ -697,6 +710,82 @@ mod tests {
             .expect("system time should be after epoch")
             .as_nanos();
         std::env::temp_dir().join(format!("{}_{}.{}", name, nanos, ext))
+    }
+
+    fn unreachable_live_client() -> RegistryClient {
+        RegistryClient {
+            base_url: "http://127.0.0.1:0".to_string(),
+            timeout_secs: 1,
+        }
+    }
+
+    fn assert_live_registry_disabled<T: Debug>(result: Result<T, String>) {
+        let error = result.expect_err("live registry entry must fail closed");
+        assert_eq!(error, LIVE_REGISTRY_DISABLED);
+    }
+
+    #[test]
+    fn live_search_is_quarantined_before_transport() {
+        let client = unreachable_live_client();
+        assert_live_registry_disabled(search_live_registry(&client, "vision", None));
+    }
+
+    #[test]
+    fn live_publish_is_quarantined_before_package_access() {
+        let client = unreachable_live_client();
+        let missing_package = unique_temp_path("aero_registry_missing_package", "dir");
+        assert!(!missing_package.exists());
+
+        assert_live_registry_disabled(publish_live(&client, &missing_package, None, false));
+        assert!(!missing_package.exists());
+    }
+
+    #[test]
+    fn direct_publish_dry_run_is_also_quarantined() {
+        let client = unreachable_live_client();
+        let missing_package = unique_temp_path("aero_registry_missing_dry_package", "dir");
+        assert!(!missing_package.exists());
+
+        assert_live_registry_disabled(publish_live(&client, &missing_package, None, true));
+        assert!(!missing_package.exists());
+    }
+
+    #[test]
+    fn live_install_is_quarantined_before_resolution_or_writes() {
+        let client = unreachable_live_client();
+        let target = unique_temp_path("aero_registry_install_target", "dir");
+        assert!(!target.exists());
+
+        assert_live_registry_disabled(install_live(
+            &client,
+            "../escape",
+            Some("../../outside"),
+            &target,
+            None,
+            &PackageTrustPolicy::default(),
+            None,
+            false,
+        ));
+        assert!(!target.exists());
+    }
+
+    #[test]
+    fn direct_install_dry_run_is_also_quarantined() {
+        let client = unreachable_live_client();
+        let target = unique_temp_path("aero_registry_install_dry_target", "dir");
+        assert!(!target.exists());
+
+        assert_live_registry_disabled(install_live(
+            &client,
+            "../escape",
+            Some("../../outside"),
+            &target,
+            None,
+            &PackageTrustPolicy::default(),
+            None,
+            true,
+        ));
+        assert!(!target.exists());
     }
 
     #[test]

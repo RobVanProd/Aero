@@ -1,0 +1,38 @@
+fn make_cell(value: int) -> Cell {
+    Cell { state: value > 0, meta: (value, value > 0), flags: [value > 0, value < 0] }
+}
+
+fn make_frame(seed: int) -> Frame {
+    let first = make_cell(seed);
+    let second = make_cell(seed + 1);
+    Frame {
+        primary: first,
+        cell_list: [first, second],
+        cells: [(first, [1 < 2, 1 > 2]), (second, [1 > 2, 1 < 2])],
+        matrix: [[seed, seed + 1], [seed + 2, seed + 3]],
+        mix: ((seed, seed > 0), [1.5, 2.5]),
+        empty: []
+    }
+}
+
+fn later(value: Frame) -> Frame { value }
+fn forward(value: Frame) -> Frame { later(value) }
+fn observe(value: &Frame) -> Frame { *value }
+
+fn replace(value: &mut Frame) -> Frame {
+    *value = make_frame(9);
+    *value
+}
+
+fn recurse(value: Frame, remaining: int) -> Frame {
+    if remaining > 0 { return recurse(value, remaining - 1); }
+    value
+}
+
+fn select_cell(values: [Cell; 2], index: int) -> Cell { values[index] }
+fn select_row(values: [[int; 2]; 2], index: int) -> [int; 2] { values[index] }
+
+fn mixed(value: ((int, bool), [float; 2]), rows: [(Cell, [bool; 2]); 2])
+    -> (((int, bool), [float; 2]), [(Cell, [bool; 2]); 2]) {
+    (value, rows)
+}

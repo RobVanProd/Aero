@@ -1,10 +1,13 @@
-use crate::ast::{AstNode, Parameter, Statement, TraitMethod, Type, VariantDecl};
-use crate::lexer::tokenize_with_locations;
-use crate::parser::parse_with_locations;
+use compiler::ast::{AstNode, Parameter, Statement, TraitMethod, Type, VariantDecl};
+use compiler::{
+    collect_direct_modules_for_compiler_service, parse_with_locations, try_tokenize_with_locations,
+};
 
 pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, String> {
-    let tokens = tokenize_with_locations(source_code, Some(input_file.to_string()));
+    let tokens = try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+        .map_err(|err| format!("Lex error: {}", err))?;
     let ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
+    validate_direct_modules(input_file, &ast)?;
 
     let mut modules = Vec::new();
     let mut functions = Vec::new();
@@ -161,6 +164,12 @@ pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, 
     Ok(out)
 }
 
+fn validate_direct_modules(input_file: &str, ast: &[AstNode]) -> Result<(), String> {
+    let mut collected_ast = ast.to_vec();
+    collect_direct_modules_for_compiler_service(&mut collected_ast, Some(input_file), |_, _| {})?;
+    Ok(())
+}
+
 fn format_function_signature(
     name: &str,
     parameters: &[Parameter],
@@ -217,7 +226,7 @@ fn format_named_type(name: &str, type_params: &[String]) -> String {
 }
 
 fn format_variant(variant: &VariantDecl) -> String {
-    use crate::ast::VariantDeclKind;
+    use compiler::ast::VariantDeclKind;
 
     match &variant.kind {
         VariantDeclKind::Unit => variant.name.clone(),
@@ -261,9 +270,53 @@ fn format_type(ty: &Type) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TestWorkspace {
+        root: PathBuf,
+    }
+
+    impl TestWorkspace {
+        fn new() -> Self {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock")
+                .as_nanos();
+            let root = std::env::temp_dir().join(format!(
+                "aero-doc-generator-{}-{unique}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&root).expect("create doc workspace");
+            Self { root }
+        }
+
+        fn path(&self, filename: &str) -> PathBuf {
+            self.root.join(filename)
+        }
+    }
+
+    impl Drop for TestWorkspace {
+        fn drop(&mut self) {
+            let temp_dir = std::env::temp_dir();
+            let has_expected_name = self
+                .root
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("aero-doc-generator-"));
+
+            if self.root.starts_with(temp_dir) && has_expected_name {
+                let _ = fs::remove_dir_all(&self.root);
+            }
+        }
+    }
 
     #[test]
     fn generates_markdown_for_core_declarations() {
+        let workspace = TestWorkspace::new();
+        fs::write(workspace.path("math.aero"), "fn square() {}\n").expect("write direct module");
+        let input_file = workspace.path("main.aero");
         let source = r#"
 mod math;
 
@@ -286,7 +339,8 @@ fn add<T>(x: int, y: int) -> int where T: Draw {
 }
 "#;
 
-        let doc = generate_markdown("main.aero", source).expect("doc generation should succeed");
+        let doc = generate_markdown(&input_file.to_string_lossy(), source)
+            .expect("doc generation should succeed");
         assert!(doc.contains("# Aero API Documentation"));
         assert!(doc.contains("## Modules"));
         assert!(doc.contains("`mod math`"));

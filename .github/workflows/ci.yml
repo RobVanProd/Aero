@@ -9,6 +9,10 @@ on:
 jobs:
   compiler-tests:
     runs-on: ubuntu-latest
+    env:
+      AERO_LLVM_OPT: /usr/bin/opt-22
+      AERO_LLVM_AS: /usr/bin/llvm-as-22
+      AERO_REQUIRE_LLVM_VERIFIER: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,6 +27,35 @@ jobs:
         with:
           workspaces: |
             src/compiler -> target
+
+      - name: Install pinned LLVM 22 verifier
+        shell: bash
+        run: |
+          sudo install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo gpg --dearmor --yes -o /etc/apt/keyrings/apt.llvm.org.gpg
+          . /etc/os-release
+          echo "deb [signed-by=/etc/apt/keyrings/apt.llvm.org.gpg] http://apt.llvm.org/${VERSION_CODENAME}/ llvm-toolchain-${VERSION_CODENAME}-22 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm-22.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends llvm-22
+          opt-22 --version
+          llvm-as-22 --version
+
+      - name: Confirm LLVM 22 rejects known-invalid IR
+        shell: bash
+        run: |
+          invalid_ir="${RUNNER_TEMP}/aero-known-invalid.ll"
+          printf '%s\n' \
+            'define i32 @known_invalid() {' \
+            'entry:' \
+            '  ret i64 0' \
+            '}' > "${invalid_ir}"
+          if opt-22 -passes=verify -disable-output "${invalid_ir}"; then
+            echo "opt-22 accepted known-invalid LLVM IR"
+            exit 1
+          fi
+          echo "opt-22 rejected the known-invalid LLVM IR fixture as required"
 
       - name: Run tests
         run: ./tools/test.sh

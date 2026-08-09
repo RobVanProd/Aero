@@ -1,0 +1,29 @@
+fn accumulate(start: int, limit: int) -> int {
+    let mut total = start;
+    let mut index = 0;
+    while index < limit {
+        total = total + index;
+        index = index + 1;
+    }
+    total
+}
+fn choose(value: int, ready: bool) -> int {
+    let mut result = value;
+    if ready { result = result + 20; } else { result = result + 1; }
+    result
+}
+fn ratio_score(start: float) -> int {
+    let mut ratio = start;
+    ratio = ratio + 0.5;
+    if ratio > 2.0 { return 30; }
+    0
+}
+fn bool_score(input: bool) -> int {
+    let mut ready = 1 == 2;
+    ready = input;
+    if ready { return 5; }
+    0
+}
+fn mutation_score(start: int, limit: int, ratio: float, ready: bool) -> int {
+    choose(accumulate(start, limit), ready) + ratio_score(ratio) + bool_score(ready)
+}

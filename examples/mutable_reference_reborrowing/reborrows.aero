@@ -1,0 +1,19 @@
+fn add_one(value: &mut int) { *value = *value + 1; }
+
+fn forward_once(value: &mut int) -> int {
+    add_one(value);
+    *value = *value + 2;
+    add_one(value);
+    *value
+}
+
+fn recurse(value: &mut int) -> int {
+    if *value < 207 {
+        *value = *value + 1;
+        recurse(value);
+    }
+    *value
+}
+
+fn adjust(value: &mut float) { *value = *value + 0.5; }
+fn set_ready(value: &mut bool) { *value = 1 == 1; }

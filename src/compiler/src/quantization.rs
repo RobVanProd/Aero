@@ -145,6 +145,8 @@ pub fn apply_quantization_interface(
     let gpu_arch = resolved_gpu_arch(config.backend, config.gpu_arch.as_deref());
 
     let mut out = String::new();
+    out.push_str("; aero.quantization.execution_scope=scalar-double-helper\n");
+    out.push_str("; aero.quantization.device_execution=false\n");
     out.push_str(&format!(
         "; aero.quantization.mode={}\n",
         config.mode.as_str()
@@ -245,9 +247,22 @@ pub fn apply_quantization_interface(
     let mut notes = Vec::new();
     notes.push(backend_mode_note(config.backend, config.mode, gpu_arch));
     if config.enable_runtime_lowering {
-        notes.push("Executable quantization runtime helper lowering was applied.".to_string());
+        if candidate_ops == 0 {
+            notes.push(
+                "Scalar-double helper rewriting found no eligible operation; numerical correctness is not established."
+                    .to_string(),
+            );
+        } else {
+            notes.push(
+                "Scalar-double helper rewriting was applied; numerical correctness is not established."
+                    .to_string(),
+            );
+        }
     } else {
-        notes.push("Quantization annotations emitted without executable lowering.".to_string());
+        notes.push(
+            "Quantization annotations were emitted; no helper rewriting or device execution was performed."
+                .to_string(),
+        );
     }
     if candidate_ops == 0 {
         notes.push("No eligible floating-point arithmetic ops were found.".to_string());
@@ -278,21 +293,27 @@ fn backend_mode_note(
         (AcceleratorBackend::Rocm, QuantizationMode::Fp8E4M3)
         | (AcceleratorBackend::Rocm, QuantizationMode::Fp8E5M2) => {
             format!(
-                "ROCm FP8 path enabled for {} (hardware-assist friendly runtime helpers).",
+                "ROCm {} label selects scalar-double helpers for {}; no FP8 representation, per-channel execution, or device execution is implemented.",
+                mode.as_str(),
                 gpu_arch.unwrap_or("gfx1101")
             )
         }
         (AcceleratorBackend::Cuda, QuantizationMode::Fp8E4M3)
         | (AcceleratorBackend::Cuda, QuantizationMode::Fp8E5M2) => {
             format!(
-                "CUDA FP8 path enabled for {} (hardware-assist friendly runtime helpers).",
+                "CUDA {} label selects scalar-double helpers for {}; no FP8 representation, per-channel execution, or device execution is implemented.",
+                mode.as_str(),
                 gpu_arch.unwrap_or("sm_89")
             )
         }
         (_, QuantizationMode::Int8) => {
-            "INT8 path enabled with calibrated clamp-and-dequantize runtime helpers.".to_string()
+            "INT8 label selects scalar-double clamp-and-dequantize helpers; per-channel execution and device execution are not implemented."
+                .to_string()
         }
-        _ => "FP8 is emulated for this backend via calibrated runtime helpers.".to_string(),
+        (AcceleratorBackend::Cpu, _) => format!(
+            "CPU {} label selects scalar-double helpers; no FP8 representation, per-channel execution, or device execution is implemented.",
+            mode.as_str()
+        ),
     }
 }
 

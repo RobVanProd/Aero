@@ -1,6 +1,5 @@
-use crate::errors::{CompilerError, SourceLocation};
-use crate::lexer::{Token, tokenize_with_locations};
-use crate::parser::parse_with_locations;
+use compiler::errors::{CompilerError, SourceLocation};
+use compiler::{Token, parse_with_locations, tokenize_with_locations, try_tokenize_with_locations};
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
@@ -304,7 +303,7 @@ fn index_symbols(source: &str, filename: Option<String>) -> Vec<IndexedSymbol> {
 }
 
 fn identifier_after(
-    tokens: &[crate::lexer::LocatedToken],
+    tokens: &[compiler::LocatedToken],
     start: usize,
 ) -> Option<(&str, &SourceLocation)> {
     match tokens.get(start).map(|t| &t.token) {
@@ -332,40 +331,89 @@ fn make_symbol(
 }
 
 fn syntax_diagnostics(source: &str, filename: Option<String>) -> Vec<LspDiagnostic> {
-    let tokens = tokenize_with_locations(source, filename);
+    let tokens = match try_tokenize_with_locations(source, filename) {
+        Ok(tokens) => tokens,
+        Err(err) => return lexical_diagnostics_from_error(&err, source),
+    };
     match parse_with_locations(tokens) {
         Ok(_) => Vec::new(),
-        Err(err) => diagnostics_from_error(&err),
+        Err(err) => diagnostics_from_error(&err, source),
     }
 }
 
-fn diagnostics_from_error(error: &CompilerError) -> Vec<LspDiagnostic> {
+fn lexical_diagnostics_from_error(error: &CompilerError, source: &str) -> Vec<LspDiagnostic> {
     match error {
         CompilerError::MultiError { errors } => errors
             .iter()
-            .flat_map(diagnostics_from_error)
-            .collect::<Vec<_>>(),
-        single => vec![diagnostic_for_single_error(single)],
+            .flat_map(|error| lexical_diagnostics_from_error(error, source))
+            .collect(),
+        single => vec![diagnostic_for_lexical_error(single, source)],
     }
 }
 
-fn diagnostic_for_single_error(error: &CompilerError) -> LspDiagnostic {
+fn diagnostic_for_lexical_error(error: &CompilerError, source: &str) -> LspDiagnostic {
     let location = error
         .location()
         .cloned()
         .unwrap_or_else(SourceLocation::unknown);
     let line = location.line.saturating_sub(1) as u32;
-    let column = location.column.saturating_sub(1) as u32;
+    let scalar_column = location.column.saturating_sub(1);
+    let source_line = source.split('\n').nth(line as usize).unwrap_or_default();
+    let character = source_line
+        .chars()
+        .take(scalar_column)
+        .map(|ch| ch.len_utf16() as u32)
+        .sum::<u32>();
+    let width = source_line
+        .chars()
+        .nth(scalar_column)
+        .map(|ch| ch.len_utf16() as u32)
+        .unwrap_or(1);
 
     LspDiagnostic {
         range: LspRange {
-            start: LspPosition {
-                line,
-                character: column,
-            },
+            start: LspPosition { line, character },
             end: LspPosition {
                 line,
-                character: column.saturating_add(1),
+                character: character.saturating_add(width),
+            },
+        },
+        severity: 1,
+        source: "aero-lexer".to_string(),
+        message: format!("Lex error: {}", error),
+    }
+}
+
+fn diagnostics_from_error(error: &CompilerError, source: &str) -> Vec<LspDiagnostic> {
+    match error {
+        CompilerError::MultiError { errors } => errors
+            .iter()
+            .flat_map(|error| diagnostics_from_error(error, source))
+            .collect::<Vec<_>>(),
+        single => vec![diagnostic_for_single_error(single, source)],
+    }
+}
+
+fn diagnostic_for_single_error(error: &CompilerError, source: &str) -> LspDiagnostic {
+    let location = error
+        .location()
+        .cloned()
+        .unwrap_or_else(SourceLocation::unknown);
+    let line = location.line.saturating_sub(1) as u32;
+    let scalar_column = location.column.saturating_sub(1);
+    let source_line = source.split('\n').nth(line as usize).unwrap_or_default();
+    let character = source_line
+        .chars()
+        .take(scalar_column)
+        .map(|ch| ch.len_utf16() as u32)
+        .sum::<u32>();
+
+    LspDiagnostic {
+        range: LspRange {
+            start: LspPosition { line, character },
+            end: LspPosition {
+                line,
+                character: character.saturating_add(1),
             },
         },
         severity: 1,
@@ -753,6 +801,7 @@ impl ErrorLocation for CompilerError {
         match self {
             CompilerError::UnexpectedCharacter { location, .. }
             | CompilerError::UnterminatedString { location }
+            | CompilerError::InvalidCharacterLiteral { location }
             | CompilerError::InvalidNumber { location, .. }
             | CompilerError::UnexpectedToken { location, .. }
             | CompilerError::UnexpectedEndOfInput { location, .. }
@@ -794,11 +843,13 @@ mod tests {
             found: "Semicolon".to_string(),
             location: SourceLocation::new(3, 5),
         };
-        let diagnostics = diagnostics_from_error(&error);
+        let diagnostics = diagnostics_from_error(&error, "\n\n0123");
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].range.start.line, 2);
         assert_eq!(diagnostics[0].range.start.character, 4);
         assert_eq!(diagnostics[0].range.end.character, 5);
+        assert_eq!(diagnostics[0].source, "aero-parser");
+        assert!(!diagnostics[0].message.contains("Lex error"));
     }
 
     #[test]
@@ -815,7 +866,7 @@ mod tests {
         let error = CompilerError::MultiError {
             errors: vec![first, second],
         };
-        let diagnostics = diagnostics_from_error(&error);
+        let diagnostics = diagnostics_from_error(&error, "\n01");
         assert_eq!(diagnostics.len(), 2);
     }
 
@@ -824,6 +875,42 @@ mod tests {
         let source = "let x = 1;";
         let diagnostics = syntax_diagnostics(source, None);
         assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn parser_diagnostic_columns_use_utf16_coordinates() {
+        let diagnostics = syntax_diagnostics(
+            "let text = \"😀\"; let ;",
+            Some("file:///tmp/invalid.aero".to_string()),
+        );
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].range.start.line, 0);
+        assert_eq!(diagnostics[0].range.start.character, 21);
+        assert_eq!(diagnostics[0].range.end.line, 0);
+        assert_eq!(diagnostics[0].range.end.character, 22);
+        assert_eq!(diagnostics[0].severity, 1);
+        assert_eq!(diagnostics[0].source, "aero-parser");
+        assert_eq!(
+            diagnostics[0].message,
+            "Error at file:///tmp/invalid.aero:1:21: Expected variable name, found Semicolon"
+        );
+    }
+
+    #[test]
+    fn syntax_diagnostics_reports_lexical_error() {
+        let diagnostics = syntax_diagnostics(
+            "let text = \"\u{1F600}\"; @",
+            Some("file:///tmp/invalid.aero".to_string()),
+        );
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].range.start.line, 0);
+        assert_eq!(diagnostics[0].range.start.character, 17);
+        assert_eq!(diagnostics[0].range.end.character, 18);
+        assert_eq!(diagnostics[0].source, "aero-lexer");
+        assert!(diagnostics[0].message.starts_with("Lex error: "));
+        assert!(diagnostics[0].message.contains("Unexpected character '@'"));
     }
 
     #[test]
@@ -837,6 +924,19 @@ mod tests {
         assert!(names.contains(&"Draw".to_string()));
         assert!(names.contains(&"add".to_string()));
         assert!(names.contains(&"sum".to_string()));
+    }
+
+    #[test]
+    fn symbol_index_retains_legacy_recovery_after_lexical_error() {
+        let source = "fn before() {} @ fn after() {}";
+        let symbols = index_symbols(source, Some("file:///tmp/recovery.aero".to_string()));
+        let names = symbols
+            .into_iter()
+            .map(|symbol| symbol.name)
+            .collect::<Vec<_>>();
+
+        assert!(names.contains(&"before".to_string()));
+        assert!(names.contains(&"after".to_string()));
     }
 
     #[test]

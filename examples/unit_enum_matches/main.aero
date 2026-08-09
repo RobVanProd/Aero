@@ -1,0 +1,38 @@
+mod signals;
+
+enum Switch { Off, On }
+struct Envelope { row: ModuleRow, rows: [ModuleRow; 2] }
+fn roundtrip(value: Envelope) -> Envelope { value }
+
+fn main() -> int {
+    let integer = module_score();
+    let integer_ref: &int = &integer;
+    let integer_alias = integer_ref;
+    let ratio = 1.5;
+    let ratio_ref: &float = &ratio;
+    let ready = integer > 0;
+    let ready_ref: &bool = &ready;
+    let switch_score = match Switch::On {
+        Switch::Off => 4,
+        Switch::On => 12
+    };
+    let state = Signal::Ready;
+    let nested_score = match state {
+        Signal::Idle => 1,
+        Signal::Busy => 3,
+        Signal::Ready => match Switch::On {
+            Switch::Off => 2,
+            Switch::On => 10
+        }
+    };
+    let envelope = roundtrip(Envelope {
+        rows: [module_make(*integer_alias), module_make(*integer_ref + 1)],
+        row: module_make(*integer_ref)
+    });
+    if *ready_ref && *ratio_ref > 1.0 && envelope.rows[1].value == 38
+        && module_scan(envelope.rows) == 2 && "aero".len() == 4
+        && switch_score == 12 && nested_score == 10 {
+        return *integer_ref + 112;
+    }
+    return 1;
+}

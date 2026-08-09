@@ -1,0 +1,42 @@
+mod packets;
+
+fn main() -> int {
+    let empty: [bool; 0] = [];
+    let rich = Packet::Rich(
+        make_cell(10),
+        empty,
+        (20, 1 < 2),
+        [[1, 2], [30, 4]],
+        make_frame(40)
+    );
+    let mut total = score(Packet::Idle)
+        + score(Packet::Single(2))
+        + score(Packet::Pair(3, 1 < 2))
+        + score(forward(rich));
+
+    let mut changed = Packet::Idle;
+    changed = Packet::Pair(10, 1 < 2);
+    total = total + score(changed) + score(choose(1 < 2));
+
+    let mut step = 0;
+    while step < 1 {
+        let fresh = Packet::Pair(12, 1 < 2);
+        total = total + score(fresh);
+        step = step + 1;
+    }
+    for item in [15] {
+        let fresh = Packet::Pair(item, 1 > 2);
+        total = total + score(fresh);
+    }
+    loop {
+        let fresh = Packet::Pair(25, 1 < 2);
+        total = total + score(fresh);
+        break;
+    }
+
+    let mut order = 0;
+    let ordered = Packet::Ordered(next(&mut order), next(&mut order));
+    if score(ordered) != 12 { return 1; }
+    if total == 193 { return 193; }
+    1
+}

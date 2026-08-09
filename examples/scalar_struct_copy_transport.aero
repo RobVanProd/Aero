@@ -1,0 +1,72 @@
+
+struct Packet {
+    total: int,
+    alias: i32,
+    ratio: float,
+    precise: f64,
+    ready: bool
+}
+struct Count { value: int }
+
+fn passthrough(packet: Packet) -> Packet {
+    let first: Packet = packet;
+    let mut second = first;
+    return second;
+}
+
+fn tail_copy(packet: Packet) -> Packet { packet }
+
+fn literal_count(value: int) -> Count {
+    return Count { value: value };
+}
+
+fn forward(packet: Packet) -> Packet {
+    return declared_later(packet);
+}
+
+fn declared_later(packet: Packet) -> Packet {
+    return packet;
+}
+
+fn recurse(packet: Packet, remaining: int) -> Packet {
+    if remaining > 0 {
+        return recurse(packet, remaining - 1);
+    }
+    return packet;
+}
+
+fn score(prefix: int, packet: Packet, suffix: int) -> int {
+    return prefix + packet.total + packet.alias + suffix;
+}
+
+fn consume(packet: Packet) {
+    let local = packet;
+    local;
+}
+
+fn main() -> int {
+    let original: Packet = Packet {
+        ready: 1 < 2,
+        precise: 4.5,
+        ratio: 3.5,
+        alias: 2,
+        total: 20
+    };
+    let copy = original;
+    let mut second: Packet = copy;
+    consume(second);
+    let returned = passthrough(second);
+    let forwarded = forward(tail_copy(returned));
+    let recursive = recurse(forwarded, 2);
+    let chained = passthrough(passthrough(recursive));
+    passthrough(chained);
+    let values = [1, 2, 3];
+    let text = "aero";
+    if original.ready && copy.ready && second.ready && chained.ready
+        && chained.ratio > 3.0 && chained.precise > 4.0
+        && text.starts_with("ae") {
+        return score(5, chained, 6) + original.total
+            + literal_count(3).value + values.len() + text.len();
+    }
+    return 1;
+}

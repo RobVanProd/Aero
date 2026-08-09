@@ -1,8 +1,10 @@
 # Aero Language Specification - EBNF Grammar
 
+> **Design target — not current implementation evidence.** This material presents the intended Aero v1.0.0 design target, not the currently implemented compiler subset and not conformance or stability evidence. See `CURRENT_CAPABILITY_AUDIT.md` and `SPEC_IMPLEMENTATION_MATRIX.md` for current compiler capability.
+
 ## Introduction
 
-This document formally specifies the core grammar of the Aero programming language using Extended Backus-Naur Form (EBNF). This grammar will serve as the definitive guide for implementing the lexer and parser components of the Aero compiler.
+This document formally specifies the core grammar of the Aero programming language using Extended Backus-Naur Form (EBNF). Every EBNF production below is part of the normative Aero v1.0.0 design target, not a statement of current compiler conformance.
 
 ## Lexical Analysis
 

@@ -72,6 +72,8 @@ pub fn apply_advanced_graph_compilation_with_config(
 
     let mut out = String::new();
     out.push_str("; aero.graph_compilation=enabled\n");
+    out.push_str("; aero.graph_compilation.execution_scope=internal-scalar-helper\n");
+    out.push_str("; aero.graph_compilation.device_execution=false\n");
     out.push_str(&format!(
         "; aero.graph_compilation.backend={}\n",
         config.backend.as_str()

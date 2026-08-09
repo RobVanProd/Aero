@@ -1,0 +1,42 @@
+enum Phase { Cold, Warm, Hot }
+enum ModuleSignal { Idle, Count(int), Ratio(float), Ready(bool) }
+
+struct ModuleRow { value: int, ready: bool }
+
+fn module_phase() -> Phase { Phase::Warm }
+
+fn module_phase_forward(value: Phase) -> Phase { value }
+
+fn module_signal(value: int) -> ModuleSignal { ModuleSignal::Count(value) }
+
+fn module_signal_forward(value: ModuleSignal) -> ModuleSignal { value }
+
+fn module_choose(flag: bool) -> ModuleSignal {
+    if flag { return ModuleSignal::Ready(flag); }
+    return ModuleSignal::Idle;
+}
+
+fn module_make(value: int) -> ModuleRow {
+    ModuleRow { value: value, ready: value > 0 }
+}
+
+fn module_score(
+    signal: ModuleSignal,
+    row: ModuleRow,
+    values: [int; 2]
+) -> int {
+    let base = match signal {
+        ModuleSignal::Idle => 1,
+        ModuleSignal::Count(inner) => inner,
+        ModuleSignal::Ratio(inner) => 4,
+        ModuleSignal::Ready(inner) => 6
+    };
+    base + row.value + values[1]
+}
+
+fn module_scan(rows: [ModuleRow; 2]) -> int {
+    for row in rows.iter() {
+        if !row.ready { return 0; }
+    }
+    rows.len()
+}

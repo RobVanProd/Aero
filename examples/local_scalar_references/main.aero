@@ -1,0 +1,23 @@
+mod data;
+
+struct Envelope { row: ModuleRow, rows: [ModuleRow; 2] }
+fn roundtrip(value: Envelope) -> Envelope { value }
+
+fn main() -> int {
+    let integer = module_value(module_make(20));
+    let integer_ref: &int = &integer;
+    let integer_alias = integer_ref;
+    let ratio = 1.5;
+    let ratio_ref: &float = &ratio;
+    let ready = integer > 0;
+    let ready_ref: &bool = &ready;
+    let envelope = roundtrip(Envelope {
+        rows: [module_make(*integer_alias), module_make(*integer_ref + 1)],
+        row: module_make(*integer_ref)
+    });
+    if *ready_ref && *ratio_ref > 1.0 && envelope.rows[1].value == 21
+        && module_scan(envelope.rows) == 2 && "aero".len() == 4 {
+        return *integer_ref + 107;
+    }
+    return 1;
+}

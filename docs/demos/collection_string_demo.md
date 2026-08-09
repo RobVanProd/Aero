@@ -1,5 +1,8 @@
 # LLVM Collection and String Generation Demo - Task 10.3
 
+> **Historical record — not current capability evidence.** This helper/demo material
+> does not establish active array, collection, string, bounds, or execution support.
+
 ## Implementation Overview
 
 Task 10.3 has been implemented with comprehensive LLVM collection and string generation capabilities:

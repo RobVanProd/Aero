@@ -204,6 +204,9 @@ pub enum CompilerError {
     UnterminatedString {
         location: SourceLocation,
     },
+    InvalidCharacterLiteral {
+        location: SourceLocation,
+    },
     InvalidNumber {
         text: String,
         location: SourceLocation,
@@ -353,6 +356,9 @@ impl fmt::Display for CompilerError {
             }
             CompilerError::UnterminatedString { location } => {
                 write!(f, "Error at {}: Unterminated string literal", location)
+            }
+            CompilerError::InvalidCharacterLiteral { location } => {
+                write!(f, "Error at {}: Invalid character literal", location)
             }
             CompilerError::InvalidNumber { text, location } => {
                 write!(f, "Error at {}: Invalid number format '{}'", location, text)

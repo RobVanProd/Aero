@@ -1,11 +1,19 @@
 #![allow(dead_code)]
 
+use crate::errors::SourceLocation;
 use crate::types::Ty;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportSyntax {
+    RustLikeUse,
+    FoundingDottedImport,
+}
 
 #[derive(Debug, Clone)]
 pub enum Expression {
     IntegerLiteral(i64),
     FloatLiteral(f64),
+    CharacterLiteral(char),
     StringLiteral(String),
     Identifier(String),
     Binary {
@@ -71,7 +79,10 @@ pub enum Expression {
     EnumVariant {
         enum_name: String,
         variant: String,
-        data: Option<Box<Expression>>,
+        /// `None` is a unit variant without parentheses. `Some(fields)` preserves
+        /// the exact parenthesized positional field list, including an empty list
+        /// so checked semantics can reject `Variant()` without erasing syntax.
+        data: Option<Vec<Expression>>,
     },
     Match {
         expr: Box<Expression>,
@@ -87,6 +98,7 @@ pub enum Expression {
     Closure {
         params: Vec<Parameter>,
         body: Box<Expression>,
+        location: SourceLocation,
     },
 }
 
@@ -97,6 +109,10 @@ pub enum Statement {
         mutable: bool,
         type_annotation: Option<Type>,
         value: Option<Expression>,
+    },
+    Assignment {
+        target: Expression,
+        value: Expression,
     },
     Return(Option<Expression>),
     Expression(Expression),
@@ -157,8 +173,10 @@ pub enum Statement {
         is_public: bool,
     },
     UseImport {
+        syntax: ImportSyntax,
         path: Vec<String>,     // e.g. ["std", "collections", "HashMap"]
         alias: Option<String>, // e.g. `as Foo`
+        location: SourceLocation,
     },
 }
 
@@ -183,7 +201,9 @@ pub enum Pattern {
     Enum {
         enum_name: String,
         variant: String,
-        data: Option<Box<Pattern>>,
+        /// Exact parenthesized positional bindings. As with expressions, `None`
+        /// distinguishes a unit arm from an explicitly empty field list.
+        data: Option<Vec<Pattern>>,
     },
 }
 
@@ -300,6 +320,7 @@ impl Expression {
         match self {
             Expression::IntegerLiteral(_) => Some(Ty::Int),
             Expression::FloatLiteral(_) => Some(Ty::Float),
+            Expression::CharacterLiteral(_) => Some(Ty::Char),
             Expression::StringLiteral(_) => Some(Ty::String),
             Expression::Binary { ty, .. } => ty.clone(),
             Expression::Identifier(_) => None,

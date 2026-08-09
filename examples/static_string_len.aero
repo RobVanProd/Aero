@@ -1,0 +1,20 @@
+fn main() -> int {
+    let empty = "";
+    let ascii = "Aero";
+    let unicode = "é🚀中";
+    let escaped = "line\n";
+    let punctuation = "\"\\\0";
+    let unicode_alias = unicode;
+    let annotated: String = "characters";
+    let normalized_fstring = f"Aero";
+
+    return empty.len()
+        + ascii.len()
+        + unicode.len()
+        + escaped.len()
+        + punctuation.len()
+        + unicode_alias.len()
+        + annotated.len()
+        + normalized_fstring.len()
+        + "x".len();
+}

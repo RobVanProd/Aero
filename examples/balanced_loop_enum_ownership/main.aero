@@ -1,0 +1,7 @@
+mod loops;
+
+fn main() -> int {
+    let result = run_balanced_loops();
+    if result == 227 { return 227; }
+    1
+}

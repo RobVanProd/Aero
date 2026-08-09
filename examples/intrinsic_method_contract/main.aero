@@ -1,0 +1,5 @@
+mod queries;
+
+fn main() -> int {
+    run_intrinsic_method_program()
+}

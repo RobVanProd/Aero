@@ -1,0 +1,13 @@
+mod flows;
+
+fn main() -> int {
+    let exact: Payload = Payload::Pair((19, 1 < 2));
+    let total = phase_branch(1 < 2, Phase::Hot)
+        + measure_branch(1 > 2, Measure::Flag(1 < 2))
+        + payload_branch(1 < 2, Payload::Cells([make_cell(59), make_cell(64)]))
+        + replace_both(1 < 2, exact)
+        + nested(1, Payload::Pair((23, 1 < 2)))
+        + returning_then(1 < 2, Payload::Pair((23, 1 < 2)));
+    if total == 137 { return 137; }
+    1
+}

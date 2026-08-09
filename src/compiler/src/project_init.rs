@@ -14,18 +14,8 @@ pub fn init_project(target_dir: &Path) -> Result<InitResult, String> {
     let manifest_path = root_dir.join("aero.toml");
     let main_path = src_dir.join("main.aero");
 
-    if manifest_path.exists() {
-        return Err(format!(
-            "refusing to overwrite existing manifest: {}",
-            manifest_path.display()
-        ));
-    }
-    if main_path.exists() {
-        return Err(format!(
-            "refusing to overwrite existing source file: {}",
-            main_path.display()
-        ));
-    }
+    ensure_destination_available(&manifest_path, "manifest")?;
+    ensure_destination_available(&main_path, "source file")?;
 
     fs::create_dir_all(&src_dir).map_err(|err| {
         format!(
@@ -53,6 +43,22 @@ pub fn init_project(target_dir: &Path) -> Result<InitResult, String> {
         root_dir,
         created_files: vec![manifest_path, main_path],
     })
+}
+
+fn ensure_destination_available(path: &Path, kind: &str) -> Result<(), String> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => Err(format!(
+            "refusing to overwrite existing {}: {}",
+            kind,
+            path.display()
+        )),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(format!(
+            "failed to inspect project destination {}: {}",
+            path.display(),
+            err
+        )),
+    }
 }
 
 fn render_manifest(package_name: &str) -> String {

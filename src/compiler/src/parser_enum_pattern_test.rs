@@ -247,8 +247,8 @@ mod tests {
                     Pattern::Enum { variant, data } => {
                         assert_eq!(variant, "Some");
                         assert!(data.is_some());
-                        match data.as_ref().unwrap().as_ref() {
-                            Pattern::Identifier(name) => assert_eq!(name, "x"),
+                        match data.as_ref().unwrap().as_slice() {
+                            [Pattern::Identifier(name)] => assert_eq!(name, "x"),
                             _ => panic!("Expected identifier pattern in Some"),
                         }
                     }

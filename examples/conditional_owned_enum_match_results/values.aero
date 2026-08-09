@@ -1,0 +1,59 @@
+enum Input {
+    Left,
+    Right
+}
+
+enum Output {
+    Empty,
+    Count(int)
+}
+
+fn score(value: Output) -> int {
+    match value {
+        Output::Empty => 0,
+        Output::Count(number) => number
+    }
+}
+
+fn choose(input: Input, left: Output, right: Output) -> Output {
+    match input {
+        Input::Left => left,
+        Input::Right => right
+    }
+}
+
+fn same_owner(input: Input, value: Output) -> Output {
+    match input {
+        Input::Left => value,
+        Input::Right => value
+    }
+}
+
+fn nested(input: Input, left: Output, right: Output) -> Output {
+    match input {
+        Input::Left => match Input::Right {
+            Input::Left => left,
+            Input::Right => right
+        },
+        Input::Right => Output::Empty
+    }
+}
+
+fn exercise() -> int {
+    let selected = choose(Input::Left, Output::Count(211), Output::Empty);
+    let repeated = same_owner(Input::Right, Output::Count(3));
+    let recursive = nested(
+        Input::Left,
+        Output::Count(5),
+        Output::Count(7)
+    );
+    let mut partial = Output::Count(11);
+    let mixed = match Input::Right {
+        Input::Left => partial,
+        Input::Right => Output::Count(13)
+    };
+    partial = Output::Count(17);
+    let evidence = score(repeated) + score(recursive) + score(mixed) + score(partial);
+    if evidence > 0 { return score(selected); }
+    1
+}

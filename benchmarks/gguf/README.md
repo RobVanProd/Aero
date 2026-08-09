@@ -7,6 +7,10 @@ inference performance across:
 - llama.cpp
 - PyTorch reference path
 
+The Aero ROCm entry is disabled and must not be treated as a runnable benchmark.
+llama.cpp and PyTorch are external reference backends; their results do not
+demonstrate Aero compilation, linking, device launch, or execution.
+
 The harness is command-template driven so you can benchmark any backend that can
 print parseable metrics.
 

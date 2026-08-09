@@ -1,0 +1,32 @@
+fn mutation_score(start: int, limit: int, ratio_start: float, input: bool) -> int {
+    let mut total = start;
+    {
+        let alias: &mut int = &mut total;
+        let mut index = 0;
+        while index < limit {
+            *alias = *alias + index;
+            index = index + 1;
+        }
+        if input { *alias = *alias + 20; } else { *alias = 0; }
+    }
+    total = total;
+
+    let mut ratio = ratio_start;
+    let ratio_alias: &mut float = &mut ratio;
+    *ratio_alias = *ratio_alias + 0.5;
+    let mut ratio_score = 0;
+    if *ratio_alias > 2.0 { ratio_score = 30; }
+
+    let mut ready = 1 == 2;
+    let ready_alias: &mut bool = &mut ready;
+    *ready_alias = input;
+    let mut ready_score = 0;
+    if *ready_alias { ready_score = 5; }
+
+    let mut released = 10;
+    {
+        let released_alias = &mut released;
+        *released_alias = 12;
+    }
+    total + ratio_score + ready_score + released
+}

@@ -1,5 +1,14 @@
 # LLVM Struct Generation Demo - Task 10.1
 
+> **Historical helper-level artifact — not current source support.** This document
+> records intended/dormant IR and code-generator helper shapes from Task 10.1. The
+> active source pipeline does not connect StructLiteral values to those helpers and
+> previously lowered them as scalar zero. Trusted parsed source bodies now retain
+> struct declaration/construction syntax but reject construction before IR with
+> `Struct construction expressions are not supported.` Named field projection is
+> separately rejected. Nothing below demonstrates current struct layout,
+> initialization, access, ownership, ABI, LLVM verification, or execution.
+
 ## Implementation Overview
 
 Task 10.1 has been implemented with the following key components for LLVM struct generation:

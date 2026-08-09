@@ -1,0 +1,14 @@
+fn main() -> int {
+    let language: String = "Aero 🚀";
+    let alias = language;
+
+    if !alias.is_empty()
+        && alias.contains("ero")
+        && alias.starts_with("Aero")
+        && alias.ends_with("🚀")
+    {
+        return 43;
+    }
+
+    return 1;
+}

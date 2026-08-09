@@ -1,18 +1,357 @@
-use crate::ir::{Function, Inst, Value};
-use std::collections::HashMap;
+use crate::ir::{
+    CheckedIr, EnumSchema, Function, FunctionMetadata, Inst, IrMetadata, LogicalType, PlaceId,
+    ResultId, Value,
+};
+use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
+use crate::primitive_contract::PrimitiveKind;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt;
 
-type FunctionDef = (Vec<(String, String)>, Option<String>, Vec<Inst>);
+#[derive(Clone)]
+enum FunctionDef {
+    Legacy {
+        parameters: Vec<(String, String)>,
+        return_type: Option<String>,
+        body: Vec<Inst>,
+    },
+    Checked {
+        parameters: Vec<(String, LogicalType)>,
+        result: LogicalType,
+        body: Vec<Inst>,
+    },
+}
+
+impl FunctionDef {
+    fn body(&self) -> &[Inst] {
+        match self {
+            Self::Legacy { body, .. } | Self::Checked { body, .. } => body,
+        }
+    }
+}
+
+/// A failure at the checked LLVM-emission boundary.
+#[derive(Debug)]
+pub enum CodeGenerationError {
+    /// The private raw IR failed mandatory verification before emission began.
+    IrVerification(IrVerificationError),
+    /// A verified program contained an instruction that this emitter does not admit.
+    UnsupportedInstruction { instruction: &'static str },
+}
+
+impl fmt::Display for CodeGenerationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IrVerification(error) => error.fmt(formatter),
+            Self::UnsupportedInstruction { instruction } => {
+                write!(
+                    formatter,
+                    "unsupported instruction `{instruction}` in checked code generation"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for CodeGenerationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::IrVerification(error) => Some(error),
+            Self::UnsupportedInstruction { .. } => None,
+        }
+    }
+}
+
+impl From<IrVerificationError> for CodeGenerationError {
+    fn from(error: IrVerificationError) -> Self {
+        Self::IrVerification(error)
+    }
+}
 
 pub struct CodeGenerator {
-    next_reg: u32,
-    next_ptr: u32,
+    next_reg: u64,
+    next_ptr: u64,
+    checked_metadata: Option<IrMetadata>,
+    current_function: Option<String>,
 }
 
 impl CodeGenerator {
+    fn llvm_parameter_name(name: &str) -> String {
+        format!("aero.arg.{name}")
+    }
+
+    fn logical_type_to_llvm(logical_type: &LogicalType) -> String {
+        if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
+            return primitive.scalar_llvm_type().to_string();
+        }
+        match logical_type {
+            LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
+                unreachable!("primitive logical types returned above")
+            }
+            LogicalType::Void => "void".to_string(),
+            LogicalType::ImmutableReference { pointee }
+            | LogicalType::MutableReference { pointee } => {
+                format!("{}*", Self::reference_pointee_to_llvm(pointee))
+            }
+            LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::Tuple { .. }
+            | LogicalType::EnumFields { .. }
+            | LogicalType::Array { .. } => Self::copy_data_type_to_llvm(logical_type),
+            LogicalType::Enum { name, variants } => Self::enum_schema_to_llvm(&EnumSchema {
+                name: name.clone(),
+                variants: variants.clone(),
+            }),
+            LogicalType::String => {
+                unreachable!("verified call signatures exclude String values")
+            }
+        }
+    }
+
+    /// Lower one independently verified recursive Copy-data schema as a private LLVM value type.
+    /// Numeric aggregate leaves retain their established `double` representation.
+    fn copy_data_type_to_llvm(logical_type: &LogicalType) -> String {
+        if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
+            return primitive.copy_data_llvm_type().to_string();
+        }
+        match logical_type {
+            LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
+                unreachable!("primitive logical types returned above")
+            }
+            LogicalType::Array { element, count } => {
+                format!("[{count} x {}]", Self::copy_data_type_to_llvm(element))
+            }
+            LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::Tuple { elements } => format!(
+                "{{ {} }}",
+                elements
+                    .iter()
+                    .map(Self::copy_data_type_to_llvm)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            LogicalType::EnumFields { fields } => format!(
+                "{{ {} }}",
+                fields
+                    .iter()
+                    .map(Self::copy_data_type_to_llvm)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            LogicalType::Void
+            | LogicalType::String
+            | LogicalType::ImmutableReference { .. }
+            | LogicalType::MutableReference { .. }
+            | LogicalType::Enum { .. } => {
+                unreachable!("verified Copy-data schemas exclude non-Copy-data logical types")
+            }
+        }
+    }
+
+    fn enum_schema_is_scalar_only(schema: &EnumSchema) -> bool {
+        schema
+            .variants
+            .iter()
+            .filter_map(|variant| variant.payload.as_ref())
+            .all(|payload| {
+                matches!(
+                    payload,
+                    LogicalType::Int | LogicalType::Float | LogicalType::Bool
+                )
+            })
+    }
+
+    fn enum_schema_to_llvm(schema: &EnumSchema) -> String {
+        if schema.is_unit() {
+            return "i32".to_string();
+        }
+        if Self::enum_schema_is_scalar_only(schema) {
+            return "{ i32, double, i1 }".to_string();
+        }
+        let mut lanes = vec!["i32".to_string()];
+        lanes.extend(
+            schema
+                .variants
+                .iter()
+                .filter_map(|variant| variant.payload.as_ref())
+                .map(Self::copy_data_type_to_llvm),
+        );
+        format!("{{ {} }}", lanes.join(", "))
+    }
+
+    fn enum_payload_lane(schema: &EnumSchema, variant_index: usize) -> Option<usize> {
+        schema.variants.get(variant_index)?.payload.as_ref()?;
+        Some(
+            1 + schema.variants[..variant_index]
+                .iter()
+                .filter(|variant| variant.payload.is_some())
+                .count(),
+        )
+    }
+
+    fn copy_data_zero_value(logical_type: &LogicalType) -> String {
+        if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
+            return primitive.copy_data_zero().to_string();
+        }
+        match logical_type {
+            LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
+                unreachable!("primitive logical types returned above")
+            }
+            LogicalType::Array { .. }
+            | LogicalType::Tuple { .. }
+            | LogicalType::EnumFields { .. }
+            | LogicalType::Struct { .. } => "zeroinitializer".to_string(),
+            LogicalType::Void
+            | LogicalType::String
+            | LogicalType::ImmutableReference { .. }
+            | LogicalType::MutableReference { .. }
+            | LogicalType::Enum { .. } => {
+                unreachable!("verified enum payload lanes contain only CopyData")
+            }
+        }
+    }
+
+    fn reference_pointee_to_llvm(pointee: &LogicalType) -> String {
+        PrimitiveKind::from_logical_type(pointee).map_or_else(
+            || Self::logical_type_to_llvm(pointee),
+            |primitive| primitive.copy_data_llvm_type().to_string(),
+        )
+    }
+
+    fn collect_logical_struct_schema(
+        logical_type: &LogicalType,
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
+    ) {
+        match logical_type {
+            LogicalType::Array { element, .. }
+            | LogicalType::ImmutableReference { pointee: element }
+            | LogicalType::MutableReference { pointee: element } => {
+                Self::collect_logical_struct_schema(element, schemas)
+            }
+            LogicalType::Struct { name, fields } => {
+                if let Some(existing) = schemas.get(name) {
+                    assert_eq!(existing, fields, "verified struct schema is stable");
+                } else {
+                    schemas.insert(name.clone(), fields.clone());
+                }
+                for field in fields {
+                    Self::collect_logical_struct_schema(field, schemas);
+                }
+            }
+            LogicalType::Tuple { elements } => {
+                for element in elements {
+                    Self::collect_logical_struct_schema(element, schemas);
+                }
+            }
+            LogicalType::EnumFields { fields } => {
+                for field in fields {
+                    Self::collect_logical_struct_schema(field, schemas);
+                }
+            }
+            LogicalType::Enum { variants, .. } => {
+                for payload in variants
+                    .iter()
+                    .filter_map(|variant| variant.payload.as_ref())
+                {
+                    Self::collect_logical_struct_schema(payload, schemas);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn struct_field_type_to_llvm(logical_type: &LogicalType) -> String {
+        Self::copy_data_type_to_llvm(logical_type)
+    }
+
+    fn collect_struct_schemas(
+        instructions: &[Inst],
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
+    ) {
+        for instruction in instructions {
+            match instruction {
+                Inst::CheckedMutableOwnedPlaceAlloca { ty, .. }
+                | Inst::CheckedOwnedPlaceAssignment { ty, .. } => {
+                    Self::collect_logical_struct_schema(ty, schemas);
+                }
+                Inst::CheckedMatchResultPlaceAlloca { result_type, .. } => {
+                    Self::collect_logical_struct_schema(result_type, schemas);
+                }
+                Inst::CheckedImmutableBorrow { pointee, .. }
+                | Inst::CheckedMutableBorrow { pointee, .. }
+                | Inst::CheckedMutableDereferenceAssignment { pointee, .. }
+                | Inst::CheckedMutableBorrowEnd { pointee, .. }
+                | Inst::CheckedImmutableReferenceParameter { pointee, .. }
+                | Inst::CheckedMutableReferenceParameter { pointee, .. } => {
+                    Self::collect_logical_struct_schema(pointee, schemas);
+                }
+                Inst::CheckedStructAlloca {
+                    struct_name,
+                    field_types,
+                    ..
+                } => {
+                    Self::collect_logical_struct_schema(
+                        &LogicalType::Struct {
+                            name: struct_name.clone(),
+                            fields: field_types.clone(),
+                        },
+                        schemas,
+                    );
+                }
+                Inst::CheckedCopyStructArrayAlloca { element, .. } => {
+                    Self::collect_logical_struct_schema(element, schemas);
+                }
+                Inst::CheckedCopyStructArrayElementPtr { element, .. }
+                | Inst::CheckedStructFieldPtr {
+                    field_type: element,
+                    ..
+                } => Self::collect_logical_struct_schema(element, schemas),
+                Inst::CheckedTupleAlloca { element_types, .. }
+                | Inst::CheckedTupleFieldPtr { element_types, .. } => {
+                    for element in element_types {
+                        Self::collect_logical_struct_schema(element, schemas);
+                    }
+                }
+                Inst::FunctionDef { body, .. } => Self::collect_struct_schemas(body, schemas),
+                Inst::CheckedFunctionDef {
+                    parameters,
+                    result,
+                    body,
+                    ..
+                } => {
+                    for (_, parameter) in parameters {
+                        Self::collect_logical_struct_schema(parameter, schemas);
+                    }
+                    Self::collect_logical_struct_schema(result, schemas);
+                    Self::collect_struct_schemas(body, schemas);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn collect_metadata_struct_schemas(
+        metadata: &IrMetadata,
+        schemas: &mut BTreeMap<String, Vec<LogicalType>>,
+    ) {
+        for function in metadata.functions.values() {
+            for (_, parameter) in &function.signature.parameters {
+                Self::collect_logical_struct_schema(parameter, schemas);
+            }
+            Self::collect_logical_struct_schema(&function.signature.result, schemas);
+            for result in function.results.values() {
+                Self::collect_logical_struct_schema(result, schemas);
+            }
+            for place in function.places.values() {
+                Self::collect_logical_struct_schema(&place.pointee, schemas);
+            }
+        }
+    }
+
     pub fn new() -> Self {
         CodeGenerator {
             next_reg: 0,
             next_ptr: 0,
+            checked_metadata: None,
+            current_function: None,
         }
     }
 }
@@ -24,14 +363,14 @@ impl Default for CodeGenerator {
 }
 
 impl CodeGenerator {
-    fn bump_seed_from_value(max_seed: &mut u32, value: &Value) {
+    fn bump_seed_from_value(max_seed: &mut u64, value: &Value) {
         if let Value::Reg(r) = value {
-            *max_seed = (*max_seed).max(r.saturating_add(1));
+            *max_seed = (*max_seed).max(u64::from(*r) + 1);
         }
     }
 
-    fn infer_next_reg_seed(instructions: &[Inst]) -> u32 {
-        let mut seed = 0u32;
+    fn infer_next_reg_seed(instructions: &[Inst]) -> u64 {
+        let mut seed = 0u64;
 
         for inst in instructions {
             match inst {
@@ -57,10 +396,63 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, lhs);
                     Self::bump_seed_from_value(&mut seed, rhs);
                 }
-                Inst::Alloca(ptr, _) | Inst::AllocaArray { result: ptr, .. } => {
+                Inst::Alloca(ptr, _)
+                | Inst::CheckedMutableOwnedPlaceAlloca { result: ptr, .. }
+                | Inst::CheckedMatchResultPlaceAlloca { result: ptr, .. }
+                | Inst::AllocaArray { result: ptr, .. }
+                | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
                 }
+                Inst::CheckedImmutableBorrow { result, source, .. }
+                | Inst::CheckedMutableBorrow { result, source, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedMutableBorrowEnd {
+                    reference, source, ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, reference);
+                    Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedImmutableReferenceParameter { result, .. }
+                | Inst::CheckedMutableReferenceParameter { result, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                }
+                Inst::CheckedEnumParameter { result, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                }
+                Inst::CheckedEnumVariant {
+                    result, payload, ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    if let Some(payload) = payload {
+                        Self::bump_seed_from_value(&mut seed, payload);
+                    }
+                }
+                Inst::CheckedEnumVariantFields { result, fields, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    for field in fields {
+                        Self::bump_seed_from_value(&mut seed, field);
+                    }
+                }
+                Inst::CheckedEnumPayload { result, value, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, value);
+                }
+                Inst::CheckedEnumField { result, value, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, value);
+                }
+                Inst::CheckedEnumDispatch { value, .. } => {
+                    Self::bump_seed_from_value(&mut seed, value);
+                }
                 Inst::Store(ptr, value)
+                | Inst::CheckedOwnedPlaceAssignment {
+                    target: ptr, value, ..
+                }
+                | Inst::CheckedMutableDereferenceAssignment {
+                    target: ptr, value, ..
+                }
                 | Inst::Load(value, ptr)
                 | Inst::SIToFP(value, ptr)
                 | Inst::FPToSI(value, ptr) => {
@@ -118,10 +510,25 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, base);
                     Self::bump_seed_from_value(&mut seed, index);
                 }
-                Inst::AllocaStruct { result, .. } => {
+                Inst::CheckedCopyStructArrayElementPtr {
+                    result,
+                    base,
+                    index,
+                    ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, base);
+                    Self::bump_seed_from_value(&mut seed, index);
+                }
+                Inst::AllocaStruct { result, .. } | Inst::CheckedStructAlloca { result, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
-                Inst::GetFieldPtr { result, base, .. } => {
+                Inst::CheckedTupleAlloca { result, .. } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                }
+                Inst::GetFieldPtr { result, base, .. }
+                | Inst::CheckedStructFieldPtr { result, base, .. }
+                | Inst::CheckedTupleFieldPtr { result, base, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, base);
                 }
@@ -178,7 +585,7 @@ impl CodeGenerator {
                         Self::bump_seed_from_value(&mut seed, value);
                     }
                 }
-                Inst::FunctionDef { body, .. } => {
+                Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                     seed = seed.max(Self::infer_next_reg_seed(body));
                 }
                 Inst::Jump(_) | Inst::Label(_) => {}
@@ -211,6 +618,9 @@ impl CodeGenerator {
                 // Format float as hexadecimal for LLVM IR
                 format!("0x{:016X}", f.to_bits())
             }
+            Value::ImmChar(_) => {
+                panic!("Character value cannot be lowered as numeric LLVM `double`")
+            }
             Value::Reg(r) => format!("%reg{}", r),
             Value::ImmString(_) => {
                 panic!("String value cannot be lowered as numeric LLVM `double`")
@@ -222,6 +632,7 @@ impl CodeGenerator {
         match value {
             Value::ImmInt(n) => format!("{}", n),
             Value::ImmFloat(f) => format!("{}", *f as i64),
+            Value::ImmChar(character) => u32::from(*character).to_string(),
             Value::Reg(r) => format!("%reg{}", r),
             Value::ImmString(_) => panic!("String value cannot be lowered as LLVM integer"),
         }
@@ -231,7 +642,11 @@ impl CodeGenerator {
         match value {
             Value::ImmInt(n) => n.to_string(),
             Value::ImmFloat(f) => (*f as i64).to_string(),
+            Value::ImmChar(character) => u32::from(*character).to_string(),
             Value::Reg(r) => {
+                if self.is_checked_char_result(value) {
+                    return format!("%reg{r}");
+                }
                 let tmp = self.fresh_reg();
                 llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
                 format!("%{}", tmp)
@@ -244,6 +659,7 @@ impl CodeGenerator {
         match value {
             Value::ImmInt(n) => n.to_string(),
             Value::ImmFloat(f) => (*f as i64).to_string(),
+            Value::ImmChar(character) => u32::from(*character).to_string(),
             Value::Reg(r) => {
                 let tmp = self.fresh_reg();
                 llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
@@ -261,9 +677,25 @@ impl CodeGenerator {
         match value {
             Value::ImmInt(n) => ((*n as f64).to_bits() as i64).to_string(),
             Value::ImmFloat(f) => (f.to_bits() as i64).to_string(),
+            Value::ImmChar(_) => {
+                panic!("Character value cannot be lowered as a printf floating operand")
+            }
             Value::Reg(r) => {
+                let floating_register = if self.is_checked_bool_result(value) {
+                    let converted = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{} = uitofp i1 %reg{} to double\n",
+                        converted, r
+                    ));
+                    converted
+                } else {
+                    format!("reg{}", r)
+                };
                 let tmp = self.fresh_reg();
-                llvm_ir.push_str(&format!("  %{} = bitcast double %reg{} to i64\n", tmp, r));
+                llvm_ir.push_str(&format!(
+                    "  %{} = bitcast double %{} to i64\n",
+                    tmp, floating_register
+                ));
                 format!("%{}", tmp)
             }
             Value::ImmString(_) => {
@@ -274,15 +706,358 @@ impl CodeGenerator {
 
     fn type_to_llvm(&self, type_name: &str) -> &str {
         match type_name {
-            "i32" => "i32",
+            "int" | "i32" => "i32",
             "i64" => "i64",
             "f32" => "float",
-            "f64" => "double",
-            "bool" => "i1",
+            "float" | "f64" | "double" => "double",
+            "bool" | "i1" => "i1",
+            "char" => "i32",
+            "void" => "void",
             _ => "double", // Default fallback
         }
     }
 
+    fn current_function_metadata(&self) -> Option<&FunctionMetadata> {
+        let function_name = self.current_function.as_ref()?;
+        self.checked_metadata.as_ref()?.functions.get(function_name)
+    }
+
+    fn checked_result_type(&self, value: &Value) -> Option<&LogicalType> {
+        let Value::Reg(register) = value else {
+            return None;
+        };
+        self.current_function_metadata()?
+            .results
+            .get(&ResultId(*register))
+    }
+
+    fn checked_place_type(&self, value: &Value) -> Option<&LogicalType> {
+        let Value::Reg(register) = value else {
+            return None;
+        };
+        self.current_function_metadata()?
+            .places
+            .get(&PlaceId(*register))
+            .map(|place| &place.pointee)
+    }
+
+    fn is_checked_bool_result(&self, value: &Value) -> bool {
+        matches!(self.checked_result_type(value), Some(LogicalType::Bool))
+    }
+
+    fn is_checked_enum_result(&self, value: &Value) -> bool {
+        matches!(
+            self.checked_result_type(value),
+            Some(LogicalType::Enum { .. })
+        )
+    }
+
+    fn is_checked_bool_place(&self, value: &Value) -> bool {
+        matches!(self.checked_place_type(value), Some(LogicalType::Bool))
+    }
+
+    fn is_checked_char_result(&self, value: &Value) -> bool {
+        matches!(self.checked_result_type(value), Some(LogicalType::Char))
+    }
+
+    fn is_checked_char_place(&self, value: &Value) -> bool {
+        matches!(self.checked_place_type(value), Some(LogicalType::Char))
+    }
+
+    fn char_value_to_string(&self, value: &Value) -> String {
+        match value {
+            Value::ImmChar(character) => u32::from(*character).to_string(),
+            Value::Reg(register) => format!("%reg{register}"),
+            _ => panic!("verified character value has exact character identity"),
+        }
+    }
+
+    fn copy_data_value_to_string(&self, ty: &LogicalType, value: &Value) -> String {
+        match PrimitiveKind::from_logical_type(ty) {
+            Some(PrimitiveKind::Bool) => self.bool_value_to_string(value),
+            Some(PrimitiveKind::Char) => self.char_value_to_string(value),
+            _ => self.value_to_string(value),
+        }
+    }
+
+    fn bool_value_to_string(&self, value: &Value) -> String {
+        match value {
+            Value::ImmInt(value) => {
+                if *value == 0 {
+                    "false".to_string()
+                } else {
+                    "true".to_string()
+                }
+            }
+            Value::ImmFloat(value) => {
+                if *value == 0.0 {
+                    "false".to_string()
+                } else {
+                    "true".to_string()
+                }
+            }
+            Value::ImmChar(_) => panic!("Character value cannot be lowered as LLVM boolean"),
+            Value::Reg(register) => format!("%reg{register}"),
+            Value::ImmString(_) => {
+                panic!("String value cannot be lowered as LLVM boolean")
+            }
+        }
+    }
+
+    fn ensure_checked_codegen_support(
+        ir_functions: &HashMap<String, Function>,
+    ) -> Result<(), CodeGenerationError> {
+        for function in ir_functions.values() {
+            Self::ensure_instruction_support(&function.body)?;
+        }
+        Ok(())
+    }
+
+    fn ensure_instruction_support(instructions: &[Inst]) -> Result<(), CodeGenerationError> {
+        for instruction in instructions {
+            match instruction {
+                Inst::Add(..)
+                | Inst::FAdd(..)
+                | Inst::Sub(..)
+                | Inst::FSub(..)
+                | Inst::Mul(..)
+                | Inst::FMul(..)
+                | Inst::Div(..)
+                | Inst::FDiv(..)
+                | Inst::Alloca(..)
+                | Inst::CheckedMutableOwnedPlaceAlloca { .. }
+                | Inst::CheckedMatchResultPlaceAlloca { .. }
+                | Inst::CheckedOwnedPlaceAssignment { .. }
+                | Inst::CheckedMutableDereferenceAssignment { .. }
+                | Inst::Store(..)
+                | Inst::Load(..)
+                | Inst::Return(..)
+                | Inst::SIToFP(..)
+                | Inst::FPToSI(..)
+                | Inst::Call { .. }
+                | Inst::Branch { .. }
+                | Inst::Jump(..)
+                | Inst::Label(..)
+                | Inst::ICmp { .. }
+                | Inst::FCmp { .. }
+                | Inst::Print { .. }
+                | Inst::Println { .. }
+                | Inst::And { .. }
+                | Inst::Or { .. }
+                | Inst::Not { .. }
+                | Inst::Neg { .. }
+                | Inst::AllocaArray { .. }
+                | Inst::GetElementPtr { .. }
+                | Inst::CheckedCopyStructArrayAlloca { .. }
+                | Inst::CheckedCopyStructArrayElementPtr { .. }
+                | Inst::CheckedStructAlloca { .. }
+                | Inst::CheckedStructFieldPtr { .. }
+                | Inst::CheckedTupleAlloca { .. }
+                | Inst::CheckedTupleFieldPtr { .. }
+                | Inst::CheckedImmutableBorrow { .. }
+                | Inst::CheckedMutableBorrow { .. }
+                | Inst::CheckedMutableBorrowEnd { .. }
+                | Inst::CheckedImmutableReferenceParameter { .. }
+                | Inst::CheckedMutableReferenceParameter { .. }
+                | Inst::CheckedEnumParameter { .. }
+                | Inst::CheckedEnumVariant { .. }
+                | Inst::CheckedEnumVariantFields { .. }
+                | Inst::CheckedEnumPayload { .. }
+                | Inst::CheckedEnumField { .. }
+                | Inst::CheckedEnumDispatch { .. } => {}
+                Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                    Self::ensure_instruction_support(body)?
+                }
+                Inst::AllocaStruct { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "alloca struct",
+                    });
+                }
+                Inst::GetFieldPtr { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "field pointer",
+                    });
+                }
+                Inst::VecAlloca { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec alloca",
+                    });
+                }
+                Inst::VecPush { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec push",
+                    });
+                }
+                Inst::VecPop { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec pop",
+                    });
+                }
+                Inst::VecLength { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec length",
+                    });
+                }
+                Inst::VecCapacity { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec capacity",
+                    });
+                }
+                Inst::VecAccess { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec access",
+                    });
+                }
+                Inst::VecInit { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "vec init",
+                    });
+                }
+                Inst::ArrayLength { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "array length",
+                    });
+                }
+                Inst::ArrayAccess { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "array access",
+                    });
+                }
+                Inst::EnumDiscriminant { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "enum discriminant",
+                    });
+                }
+                Inst::EnumVariantData { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "enum variant data",
+                    });
+                }
+                Inst::EnumConstruct { .. } => {
+                    return Err(CodeGenerationError::UnsupportedInstruction {
+                        instruction: "enum construct",
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Verifies private IR and emits LLVM only after the complete program is admitted.
+    pub fn try_generate_code<I>(&mut self, ir: I) -> Result<String, CodeGenerationError>
+    where
+        I: Into<CheckedIr>,
+    {
+        let checked_ir = ir.into();
+        let metadata =
+            verify_checked_ir(&checked_ir).map_err(CodeGenerationError::IrVerification)?;
+        Self::ensure_checked_codegen_support(checked_ir.raw())?;
+
+        self.checked_metadata = Some(metadata);
+        let llvm_ir = self.generate_checked_code(checked_ir.into_raw());
+        self.checked_metadata = None;
+        self.current_function = None;
+        Ok(llvm_ir)
+    }
+
+    fn generate_checked_code(&mut self, ir_functions: HashMap<String, Function>) -> String {
+        let mut llvm_ir = String::new();
+        llvm_ir.push_str("; ModuleID = \"aero_compiler\"\n");
+        llvm_ir.push_str("source_filename = \"aero_compiler\"\n");
+        llvm_ir.push_str("target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n");
+        llvm_ir.push_str("target triple = \"x86_64-pc-linux-gnu\"\n\n");
+        let mut struct_schemas = BTreeMap::new();
+        if let Some(metadata) = &self.checked_metadata {
+            Self::collect_metadata_struct_schemas(metadata, &mut struct_schemas);
+        }
+        for function in ir_functions.values() {
+            Self::collect_struct_schemas(&function.body, &mut struct_schemas);
+        }
+        let has_struct_schemas = !struct_schemas.is_empty();
+        for (name, fields) in struct_schemas {
+            let fields = fields
+                .iter()
+                .map(Self::struct_field_type_to_llvm)
+                .collect::<Vec<_>>()
+                .join(", ");
+            llvm_ir.push_str(&format!("%aero.struct.{name} = type {{ {fields} }}\n"));
+        }
+        if has_struct_schemas {
+            llvm_ir.push('\n');
+        }
+        self.generate_printf_declaration(&mut llvm_ir);
+
+        let mut function_defs: HashMap<String, FunctionDef> = HashMap::new();
+        for function in ir_functions.values() {
+            for instruction in &function.body {
+                match instruction {
+                    Inst::FunctionDef {
+                        name,
+                        parameters,
+                        return_type,
+                        body,
+                    } => {
+                        function_defs.insert(
+                            name.clone(),
+                            FunctionDef::Legacy {
+                                parameters: parameters.clone(),
+                                return_type: return_type.clone(),
+                                body: body.clone(),
+                            },
+                        );
+                    }
+                    Inst::CheckedFunctionDef {
+                        name,
+                        parameters,
+                        result,
+                        body,
+                    } => {
+                        function_defs.insert(
+                            name.clone(),
+                            FunctionDef::Checked {
+                                parameters: parameters.clone(),
+                                result: result.clone(),
+                                body: body.clone(),
+                            },
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let mut ordered_functions = ir_functions.into_iter().collect::<Vec<_>>();
+        ordered_functions.sort_by(|(left, _), (right, _)| left.cmp(right));
+
+        for (function_name, function) in ordered_functions {
+            self.current_function = Some(function_name.clone());
+            if let Some(definition) = function_defs.get(&function_name) {
+                self.generate_function_definition(
+                    &mut llvm_ir,
+                    &function_name,
+                    definition,
+                    function.next_reg,
+                    &function_defs,
+                );
+            } else {
+                llvm_ir.push_str(&format!("define i32 @{function_name}() {{\nentry:\n"));
+                let empty_param_types: HashMap<String, String> = HashMap::new();
+                self.generate_function_body(
+                    &mut llvm_ir,
+                    &function.body,
+                    &empty_param_types,
+                    "i32",
+                    &function_defs,
+                    function.next_reg,
+                );
+                llvm_ir.push_str("}\n\n");
+            }
+        }
+
+        llvm_ir
+    }
+
+    #[deprecated(note = "unchecked compatibility API; use CodeGenerator::try_generate_code")]
     pub fn generate_code(&mut self, ir_functions: HashMap<String, Function>) -> String {
         let mut llvm_ir = String::new();
         llvm_ir.push_str("; ModuleID = \"aero_compiler\"\n");
@@ -307,7 +1082,11 @@ impl CodeGenerator {
                 {
                     function_defs.insert(
                         name.clone(),
-                        (parameters.clone(), return_type.clone(), body.clone()),
+                        FunctionDef::Legacy {
+                            parameters: parameters.clone(),
+                            return_type: return_type.clone(),
+                            body: body.clone(),
+                        },
                     );
                 }
             }
@@ -316,13 +1095,11 @@ impl CodeGenerator {
         // Generate function definitions
         for (func_name, func) in ir_functions {
             // Check if this function has a definition with parameters
-            if let Some((parameters, return_type, body)) = function_defs.get(&func_name) {
+            if let Some(definition) = function_defs.get(&func_name) {
                 self.generate_function_definition(
                     &mut llvm_ir,
                     &func_name,
-                    parameters,
-                    return_type,
-                    body,
+                    definition,
                     func.next_reg,
                     &function_defs,
                 );
@@ -349,21 +1126,37 @@ impl CodeGenerator {
         &mut self,
         llvm_ir: &mut String,
         func_name: &str,
-        parameters: &[(String, String)],
-        return_type: &Option<String>,
-        body: &[Inst],
+        definition: &FunctionDef,
         next_reg_seed: u32,
         function_defs: &HashMap<String, FunctionDef>,
     ) {
-        // Generate function signature
-        let return_llvm_type = if let Some(ret_type) = return_type {
-            self.type_to_llvm(ret_type).to_string()
-        } else if func_name == "main" {
-            // Keep C ABI-compatible entrypoint semantics even when source omits
-            // an explicit return type.
-            "i32".to_string()
-        } else {
-            "void".to_string()
+        let (parameters, return_llvm_type) = match definition {
+            FunctionDef::Legacy {
+                parameters,
+                return_type,
+                ..
+            } => (
+                parameters
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), self.type_to_llvm(ty).to_string()))
+                    .collect::<Vec<_>>(),
+                if let Some(ret_type) = return_type {
+                    self.type_to_llvm(ret_type).to_string()
+                } else if func_name == "main" {
+                    "i32".to_string()
+                } else {
+                    "void".to_string()
+                },
+            ),
+            FunctionDef::Checked {
+                parameters, result, ..
+            } => (
+                parameters
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), Self::logical_type_to_llvm(ty)))
+                    .collect::<Vec<_>>(),
+                Self::logical_type_to_llvm(result),
+            ),
         };
 
         let mut param_str = String::new();
@@ -373,8 +1166,8 @@ impl CodeGenerator {
             }
             param_str.push_str(&format!(
                 "{} %{}",
-                self.type_to_llvm(param_type),
-                param_name
+                param_type,
+                Self::llvm_parameter_name(param_name)
             ));
         }
 
@@ -384,13 +1177,13 @@ impl CodeGenerator {
         ));
 
         let mut param_types = HashMap::new();
-        for (param_name, param_type) in parameters {
+        for (param_name, param_type) in &parameters {
             param_types.insert(param_name.clone(), param_type.clone());
         }
 
         self.generate_function_body(
             llvm_ir,
-            body,
+            definition.body(),
             &param_types,
             &return_llvm_type,
             function_defs,
@@ -408,28 +1201,105 @@ impl CodeGenerator {
         function_defs: &HashMap<String, FunctionDef>,
         next_reg_seed: u32,
     ) {
-        self.next_reg = next_reg_seed.max(Self::infer_next_reg_seed(instructions));
+        self.next_reg = u64::from(next_reg_seed).max(Self::infer_next_reg_seed(instructions));
+        let mut initialized_parameters = HashSet::new();
 
         for inst in instructions {
             match inst {
+                Inst::CheckedMutableOwnedPlaceAlloca { result, ty, .. } => {
+                    let Value::Reg(ptr_id) = result else {
+                        panic!("Expected register for checked mutable owned-place alloca")
+                    };
+                    let copy_type = Self::reference_pointee_to_llvm(ty);
+                    let align = PrimitiveKind::from_logical_type(ty)
+                        .map(PrimitiveKind::alignment)
+                        .unwrap_or(8);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
+                    ));
+                }
+                Inst::CheckedMatchResultPlaceAlloca {
+                    result,
+                    result_type,
+                    ..
+                } => {
+                    let Value::Reg(ptr_id) = result else {
+                        panic!("Expected register for checked Match result-place alloca")
+                    };
+                    let llvm_type = if matches!(result_type, LogicalType::Enum { .. }) {
+                        Self::logical_type_to_llvm(result_type)
+                    } else {
+                        Self::copy_data_type_to_llvm(result_type)
+                    };
+                    let align = PrimitiveKind::from_logical_type(result_type)
+                        .map(PrimitiveKind::alignment)
+                        .unwrap_or(8);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{ptr_id} = alloca {llvm_type}, align {align}\n"
+                    ));
+                }
                 Inst::Alloca(ptr_reg, name) => {
                     let ptr_id = match ptr_reg {
                         Value::Reg(r) => *r,
                         _ => panic!("Expected register for alloca"),
                     };
-                    llvm_ir.push_str(&format!("  %ptr{} = alloca double, align 8\n", ptr_id));
+                    let bool_place = self.is_checked_bool_place(ptr_reg);
+                    let char_place = self.is_checked_char_place(ptr_reg);
+                    let aggregate_place = match self.checked_place_type(ptr_reg) {
+                        Some(
+                            logical_type @ (LogicalType::Struct { .. }
+                            | LogicalType::Array { .. }
+                            | LogicalType::Tuple { .. }
+                            | LogicalType::Enum { .. }),
+                        ) => Some(Self::logical_type_to_llvm(logical_type)),
+                        _ => None,
+                    };
+                    if let Some(aggregate_type) = &aggregate_place {
+                        llvm_ir.push_str(&format!(
+                            "  %ptr{ptr_id} = alloca {aggregate_type}, align 8\n"
+                        ));
+                    } else if bool_place {
+                        llvm_ir.push_str(&format!("  %ptr{} = alloca i1, align 1\n", ptr_id));
+                    } else if char_place {
+                        llvm_ir.push_str(&format!("  %ptr{} = alloca i32, align 4\n", ptr_id));
+                    } else {
+                        llvm_ir.push_str(&format!("  %ptr{} = alloca double, align 8\n", ptr_id));
+                    }
 
-                    if let Some(param_type) = param_types.get(name) {
-                        match self.type_to_llvm(param_type) {
+                    if let Some(param_type) = param_types
+                        .get(name)
+                        .filter(|_| initialized_parameters.insert(name.clone()))
+                    {
+                        let parameter = Self::llvm_parameter_name(name);
+                        if let Some(aggregate_type) = &aggregate_place {
+                            llvm_ir.push_str(&format!(
+                                "  store {aggregate_type} %{parameter}, {aggregate_type}* %ptr{ptr_id}, align 8\n"
+                            ));
+                            continue;
+                        }
+                        if bool_place {
+                            llvm_ir.push_str(&format!(
+                                "  store i1 %{}, i1* %ptr{}, align 1\n",
+                                parameter, ptr_id
+                            ));
+                            continue;
+                        }
+                        if char_place {
+                            llvm_ir.push_str(&format!(
+                                "  store i32 %{parameter}, i32* %ptr{ptr_id}, align 4\n"
+                            ));
+                            continue;
+                        }
+                        match param_type.as_str() {
                             "double" => llvm_ir.push_str(&format!(
                                 "  store double %{}, double* %ptr{}, align 8\n",
-                                name, ptr_id
+                                parameter, ptr_id
                             )),
                             "i32" => {
                                 let tmp = self.fresh_reg();
                                 llvm_ir.push_str(&format!(
                                     "  %{} = sitofp i32 %{} to double\n",
-                                    tmp, name
+                                    tmp, parameter
                                 ));
                                 llvm_ir.push_str(&format!(
                                     "  store double %{}, double* %ptr{}, align 8\n",
@@ -440,7 +1310,7 @@ impl CodeGenerator {
                                 let tmp = self.fresh_reg();
                                 llvm_ir.push_str(&format!(
                                     "  %{} = sitofp i64 %{} to double\n",
-                                    tmp, name
+                                    tmp, parameter
                                 ));
                                 llvm_ir.push_str(&format!(
                                     "  store double %{}, double* %ptr{}, align 8\n",
@@ -451,7 +1321,7 @@ impl CodeGenerator {
                                 let tmp = self.fresh_reg();
                                 llvm_ir.push_str(&format!(
                                     "  %{} = uitofp i1 %{} to double\n",
-                                    tmp, name
+                                    tmp, parameter
                                 ));
                                 llvm_ir.push_str(&format!(
                                     "  store double %{}, double* %ptr{}, align 8\n",
@@ -460,12 +1330,53 @@ impl CodeGenerator {
                             }
                             _ => llvm_ir.push_str(&format!(
                                 "  store double %{}, double* %ptr{}, align 8\n",
-                                name, ptr_id
+                                parameter, ptr_id
                             )),
                         }
                     }
                 }
                 Inst::Store(ptr_reg, value) => {
+                    if let Some(
+                        logical_type @ (LogicalType::Struct { .. }
+                        | LogicalType::Array { .. }
+                        | LogicalType::Tuple { .. }
+                        | LogicalType::Enum { .. }),
+                    ) = self.checked_place_type(ptr_reg)
+                    {
+                        let aggregate_type = Self::logical_type_to_llvm(logical_type);
+                        let ptr_id = match ptr_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for store pointer"),
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  store {aggregate_type} {}, {aggregate_type}* %ptr{ptr_id}, align 8\n",
+                            self.value_to_string(value)
+                        ));
+                        continue;
+                    }
+                    if self.is_checked_bool_place(ptr_reg) {
+                        let ptr_id = match ptr_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for store pointer"),
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  store i1 {}, i1* %ptr{}, align 1\n",
+                            self.bool_value_to_string(value),
+                            ptr_id
+                        ));
+                        continue;
+                    }
+                    if self.is_checked_char_place(ptr_reg) {
+                        let Value::Reg(ptr_id) = ptr_reg else {
+                            panic!("Expected register for character store pointer")
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  store i32 {}, i32* %ptr{}, align 4\n",
+                            self.char_value_to_string(value),
+                            ptr_id
+                        ));
+                        continue;
+                    }
                     let val_str = self.value_to_string(value);
                     let ptr_str = match ptr_reg {
                         Value::Reg(r) => format!("ptr{}", r),
@@ -476,7 +1387,91 @@ impl CodeGenerator {
                         val_str, ptr_str
                     ));
                 }
+                Inst::CheckedOwnedPlaceAssignment { target, value, ty }
+                | Inst::CheckedMutableDereferenceAssignment {
+                    target,
+                    value,
+                    pointee: ty,
+                } => {
+                    let Value::Reg(ptr_id) = target else {
+                        panic!("Expected register for checked owned-place assignment target")
+                    };
+                    match ty {
+                        LogicalType::Int | LogicalType::Float => llvm_ir.push_str(&format!(
+                            "  store double {}, double* %ptr{ptr_id}, align 8\n",
+                            self.value_to_string(value)
+                        )),
+                        LogicalType::Bool => llvm_ir.push_str(&format!(
+                            "  store i1 {}, i1* %ptr{ptr_id}, align 1\n",
+                            self.bool_value_to_string(value)
+                        )),
+                        LogicalType::Char => llvm_ir.push_str(&format!(
+                            "  store i32 {}, i32* %ptr{ptr_id}, align 4\n",
+                            self.char_value_to_string(value)
+                        )),
+                        logical_type @ (LogicalType::Struct { .. }
+                        | LogicalType::Array { .. }
+                        | LogicalType::Tuple { .. }
+                        | LogicalType::Enum { .. }) => {
+                            let aggregate_type = Self::logical_type_to_llvm(logical_type);
+                            llvm_ir.push_str(&format!(
+                                "  store {aggregate_type} {}, {aggregate_type}* %ptr{ptr_id}, align 8\n",
+                                self.value_to_string(value)
+                            ));
+                        }
+                        _ => unreachable!("verified assignment has admitted owned-place metadata"),
+                    }
+                }
                 Inst::Load(result_reg, ptr_reg) => {
+                    if let Some(
+                        logical_type @ (LogicalType::Struct { .. }
+                        | LogicalType::Array { .. }
+                        | LogicalType::Tuple { .. }
+                        | LogicalType::Enum { .. }),
+                    ) = self.checked_place_type(ptr_reg)
+                    {
+                        let aggregate_type = Self::logical_type_to_llvm(logical_type);
+                        let result_id = match result_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for load result"),
+                        };
+                        let ptr_id = match ptr_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for load pointer"),
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %reg{result_id} = load {aggregate_type}, {aggregate_type}* %ptr{ptr_id}, align 8\n"
+                        ));
+                        continue;
+                    }
+                    if self.is_checked_bool_place(ptr_reg) {
+                        let result_id = match result_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for load result"),
+                        };
+                        let ptr_id = match ptr_reg {
+                            Value::Reg(register) => *register,
+                            _ => panic!("Expected register for load pointer"),
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %reg{} = load i1, i1* %ptr{}, align 1\n",
+                            result_id, ptr_id
+                        ));
+                        continue;
+                    }
+                    if self.is_checked_char_place(ptr_reg) {
+                        let Value::Reg(result_id) = result_reg else {
+                            panic!("Expected register for character load result")
+                        };
+                        let Value::Reg(ptr_id) = ptr_reg else {
+                            panic!("Expected register for character load pointer")
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %reg{} = load i32, i32* %ptr{}, align 4\n",
+                            result_id, ptr_id
+                        ));
+                        continue;
+                    }
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for load result"),
@@ -544,10 +1539,20 @@ impl CodeGenerator {
                         _ => panic!("Expected register for fptosi result"),
                     };
                     let val_str = self.value_to_string(value);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fptosi double {} to i64\n",
-                        result_str, val_str
-                    ));
+                    if self.checked_metadata.is_some() {
+                        let integer_result = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{integer_result} = fptosi double {val_str} to i32\n"
+                        ));
+                        llvm_ir.push_str(&format!(
+                            "  %{result_str} = sitofp i32 %{integer_result} to double\n"
+                        ));
+                    } else {
+                        llvm_ir.push_str(&format!(
+                            "  %{} = fptosi double {} to i64\n",
+                            result_str, val_str
+                        ));
+                    }
                 }
                 Inst::Return(value) => self.emit_return(llvm_ir, value, return_llvm_type),
                 Inst::SIToFP(result_reg, value) => {
@@ -561,7 +1566,7 @@ impl CodeGenerator {
                         result_str, val_str
                     ));
                 }
-                Inst::FunctionDef { .. } => {}
+                Inst::FunctionDef { .. } | Inst::CheckedFunctionDef { .. } => {}
                 Inst::Call {
                     function,
                     arguments,
@@ -586,12 +1591,21 @@ impl CodeGenerator {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for icmp result"),
                     };
-                    let left_str = self.value_to_i32_operand(llvm_ir, left);
-                    let right_str = self.value_to_i32_operand(llvm_ir, right);
-                    llvm_ir.push_str(&format!(
-                        "  %{} = icmp {} i32 {}, {}\n",
-                        result_str, op, left_str, right_str
-                    ));
+                    if self.is_checked_bool_result(left) {
+                        let left_str = self.bool_value_to_string(left);
+                        let right_str = self.bool_value_to_string(right);
+                        llvm_ir.push_str(&format!(
+                            "  %{} = icmp {} i1 {}, {}\n",
+                            result_str, op, left_str, right_str
+                        ));
+                    } else {
+                        let left_str = self.value_to_i32_operand(llvm_ir, left);
+                        let right_str = self.value_to_i32_operand(llvm_ir, right);
+                        llvm_ir.push_str(&format!(
+                            "  %{} = icmp {} i32 {}, {}\n",
+                            result_str, op, left_str, right_str
+                        ));
+                    }
                 }
                 Inst::FCmp {
                     op,
@@ -706,6 +1720,39 @@ impl CodeGenerator {
                         result_str, elem_type, elem_type, base_str, index_str
                     ));
                 }
+                Inst::CheckedCopyStructArrayAlloca {
+                    result,
+                    element,
+                    count,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked Copy-data array alloca")
+                    };
+                    let element = Self::copy_data_type_to_llvm(element);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = alloca [{count} x {element}], align 8\n"
+                    ));
+                }
+                Inst::CheckedCopyStructArrayElementPtr {
+                    result,
+                    base,
+                    index,
+                    element,
+                    count,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked Copy-data array element")
+                    };
+                    let Value::Reg(base) = base else {
+                        panic!("Expected register for checked Copy-data array base")
+                    };
+                    let element = Self::copy_data_type_to_llvm(element);
+                    let aggregate = format!("[{count} x {element}]");
+                    let index = self.value_to_i64_operand(llvm_ir, index);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {aggregate}, {aggregate}* %ptr{base}, i64 0, i64 {index}\n"
+                    ));
+                }
                 Inst::AllocaStruct {
                     result,
                     struct_type,
@@ -738,14 +1785,428 @@ impl CodeGenerator {
                         result_str, struct_type, struct_type, base_str, field_index
                     ));
                 }
-                _ => {}
+                Inst::CheckedStructAlloca {
+                    result,
+                    struct_name,
+                    ..
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked struct alloca")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = alloca %aero.struct.{struct_name}, align 8\n"
+                    ));
+                }
+                Inst::CheckedStructFieldPtr {
+                    result,
+                    base,
+                    struct_name,
+                    field_index,
+                    ..
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked struct field pointer")
+                    };
+                    let Value::Reg(base) = base else {
+                        panic!("Expected register for checked struct base")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds %aero.struct.{struct_name}, %aero.struct.{struct_name}* %ptr{base}, i32 0, i32 {field_index}\n"
+                    ));
+                }
+                Inst::CheckedTupleAlloca {
+                    result,
+                    element_types,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked tuple alloca")
+                    };
+                    let tuple_type = Self::logical_type_to_llvm(&LogicalType::Tuple {
+                        elements: element_types.clone(),
+                    });
+                    llvm_ir.push_str(&format!("  %ptr{result} = alloca {tuple_type}, align 8\n"));
+                }
+                Inst::CheckedTupleFieldPtr {
+                    result,
+                    base,
+                    element_types,
+                    field_index,
+                    ..
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked tuple field pointer")
+                    };
+                    let Value::Reg(base) = base else {
+                        panic!("Expected register for checked tuple base")
+                    };
+                    let tuple_type = Self::logical_type_to_llvm(&LogicalType::Tuple {
+                        elements: element_types.clone(),
+                    });
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {tuple_type}, {tuple_type}* %ptr{base}, i32 0, i32 {field_index}\n"
+                    ));
+                }
+                Inst::CheckedImmutableBorrow {
+                    result,
+                    source,
+                    pointee,
+                }
+                | Inst::CheckedMutableBorrow {
+                    result,
+                    source,
+                    pointee,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked scalar borrow result")
+                    };
+                    let Value::Reg(source) = source else {
+                        panic!("Expected register for checked scalar borrow source")
+                    };
+                    let pointee = Self::reference_pointee_to_llvm(pointee);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
+                    ));
+                }
+                Inst::CheckedImmutableReferenceParameter {
+                    result,
+                    parameter,
+                    pointee,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked immutable reference parameter")
+                    };
+                    let pointee = Self::reference_pointee_to_llvm(pointee);
+                    let parameter = Self::llvm_parameter_name(parameter);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %{parameter}, i64 0\n"
+                    ));
+                }
+                Inst::CheckedMutableReferenceParameter {
+                    result,
+                    parameter,
+                    pointee,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked mutable reference parameter")
+                    };
+                    let pointee = Self::reference_pointee_to_llvm(pointee);
+                    let parameter = Self::llvm_parameter_name(parameter);
+                    llvm_ir.push_str(&format!(
+                        "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %{parameter}, i64 0\n"
+                    ));
+                }
+                Inst::CheckedMutableBorrowEnd { .. } => {}
+                Inst::CheckedEnumParameter {
+                    result,
+                    parameter,
+                    schema,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked enum parameter")
+                    };
+                    let parameter = Self::llvm_parameter_name(parameter);
+                    if schema.is_unit() {
+                        llvm_ir.push_str(&format!("  %reg{result} = add i32 %{parameter}, 0\n"));
+                        continue;
+                    }
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    if !Self::enum_schema_is_scalar_only(schema) {
+                        let tag = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{tag} = extractvalue {enum_type} %{parameter}, 0\n"
+                        ));
+                        llvm_ir.push_str(&format!(
+                            "  %reg{result} = insertvalue {enum_type} %{parameter}, i32 %{tag}, 0\n"
+                        ));
+                        continue;
+                    }
+                    let tag = self.fresh_reg();
+                    let numeric = self.fresh_reg();
+                    let boolean = self.fresh_reg();
+                    let with_tag = self.fresh_reg();
+                    let with_numeric = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{tag} = extractvalue {enum_type} %{parameter}, 0\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{numeric} = extractvalue {enum_type} %{parameter}, 1\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{boolean} = extractvalue {enum_type} %{parameter}, 2\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{with_tag} = insertvalue {enum_type} poison, i32 %{tag}, 0\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %{with_numeric} = insertvalue {enum_type} %{with_tag}, double %{numeric}, 1\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = insertvalue {enum_type} %{with_numeric}, i1 %{boolean}, 2\n"
+                    ));
+                }
+                Inst::CheckedEnumVariant {
+                    result,
+                    schema,
+                    variant_index,
+                    payload,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked enum variant")
+                    };
+                    if schema.is_unit() {
+                        llvm_ir.push_str(&format!("  %reg{result} = add i32 0, {variant_index}\n"));
+                        continue;
+                    }
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    if !Self::enum_schema_is_scalar_only(schema) {
+                        let tagged = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
+                        ));
+                        let payload_lanes = schema
+                            .variants
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(index, variant)| {
+                                variant.payload.as_ref().map(|payload| (index, payload))
+                            })
+                            .collect::<Vec<_>>();
+                        let mut aggregate = format!("%{tagged}");
+                        for (position, (source_index, payload_type)) in
+                            payload_lanes.iter().enumerate()
+                        {
+                            let lane = Self::enum_payload_lane(schema, *source_index)
+                                .expect("verified payload-bearing variant has a lane");
+                            let payload_llvm = Self::copy_data_type_to_llvm(payload_type);
+                            let lane_value = if *source_index == *variant_index {
+                                let value = payload
+                                    .as_ref()
+                                    .expect("verified selected payload variant has a value");
+                                self.copy_data_value_to_string(payload_type, value)
+                            } else {
+                                Self::copy_data_zero_value(payload_type)
+                            };
+                            let output = if position + 1 == payload_lanes.len() {
+                                format!("reg{result}")
+                            } else {
+                                self.fresh_reg()
+                            };
+                            llvm_ir.push_str(&format!(
+                                "  %{output} = insertvalue {enum_type} {aggregate}, {payload_llvm} {lane_value}, {lane}\n"
+                            ));
+                            aggregate = format!("%{output}");
+                        }
+                        continue;
+                    }
+                    let tagged = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
+                    ));
+                    let payload_type = schema.variants[*variant_index].payload.as_ref();
+                    let numeric = self.fresh_reg();
+                    let numeric_value = match (payload_type, payload) {
+                        (Some(LogicalType::Int | LogicalType::Float), Some(value)) => {
+                            self.value_to_string(value)
+                        }
+                        _ => "0x0000000000000000".to_string(),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %{numeric} = insertvalue {enum_type} %{tagged}, double {numeric_value}, 1\n"
+                    ));
+                    let bool_value = match (payload_type, payload) {
+                        (Some(LogicalType::Bool), Some(value)) => self.bool_value_to_string(value),
+                        _ => "false".to_string(),
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = insertvalue {enum_type} %{numeric}, i1 {bool_value}, 2\n"
+                    ));
+                }
+                Inst::CheckedEnumVariantFields {
+                    result,
+                    schema,
+                    variant_index,
+                    fields,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked multi-field enum variant")
+                    };
+                    let LogicalType::EnumFields {
+                        fields: field_types,
+                    } = schema.variants[*variant_index]
+                        .payload
+                        .as_ref()
+                        .expect("verified multi-field enum variant has a payload product")
+                    else {
+                        unreachable!("verified multi-field enum variant has a product schema")
+                    };
+                    let payload_type = Self::copy_data_type_to_llvm(
+                        schema.variants[*variant_index]
+                            .payload
+                            .as_ref()
+                            .expect("verified multi-field enum variant has a payload product"),
+                    );
+                    let mut payload_value = "poison".to_string();
+                    for (field_index, (field, field_type)) in
+                        fields.iter().zip(field_types).enumerate()
+                    {
+                        let output = self.fresh_reg();
+                        let field_llvm = Self::copy_data_type_to_llvm(field_type);
+                        let field_value = self.copy_data_value_to_string(field_type, field);
+                        llvm_ir.push_str(&format!(
+                            "  %{output} = insertvalue {payload_type} {payload_value}, {field_llvm} {field_value}, {field_index}\n"
+                        ));
+                        payload_value = format!("%{output}");
+                    }
+
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let tagged = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
+                    ));
+                    let payload_lanes = schema
+                        .variants
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, variant)| {
+                            variant.payload.as_ref().map(|payload| (index, payload))
+                        })
+                        .collect::<Vec<_>>();
+                    let mut aggregate = format!("%{tagged}");
+                    for (position, (source_index, source_type)) in payload_lanes.iter().enumerate()
+                    {
+                        let lane = Self::enum_payload_lane(schema, *source_index)
+                            .expect("verified payload-bearing variant has a lane");
+                        let source_llvm = Self::copy_data_type_to_llvm(source_type);
+                        let lane_value = if *source_index == *variant_index {
+                            payload_value.clone()
+                        } else {
+                            Self::copy_data_zero_value(source_type)
+                        };
+                        let output = if position + 1 == payload_lanes.len() {
+                            format!("reg{result}")
+                        } else {
+                            self.fresh_reg()
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %{output} = insertvalue {enum_type} {aggregate}, {source_llvm} {lane_value}, {lane}\n"
+                        ));
+                        aggregate = format!("%{output}");
+                    }
+                }
+                Inst::CheckedEnumPayload {
+                    result,
+                    value,
+                    schema,
+                    variant_index,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked enum payload")
+                    };
+                    let Value::Reg(value) = value else {
+                        panic!("Expected register for checked enum payload source")
+                    };
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let lane = if Self::enum_schema_is_scalar_only(schema) {
+                        match schema.variants[*variant_index].payload.as_ref() {
+                            Some(LogicalType::Int | LogicalType::Float) => 1,
+                            Some(LogicalType::Bool) => 2,
+                            _ => unreachable!("verified compact enum payload is scalar"),
+                        }
+                    } else {
+                        Self::enum_payload_lane(schema, *variant_index)
+                            .expect("verified aggregate enum payload has a lane")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = extractvalue {enum_type} %reg{value}, {lane}\n"
+                    ));
+                }
+                Inst::CheckedEnumField {
+                    result,
+                    value,
+                    schema,
+                    variant_index,
+                    field_index,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked enum field")
+                    };
+                    let Value::Reg(value) = value else {
+                        panic!("Expected register for checked enum field source")
+                    };
+                    let payload = schema.variants[*variant_index]
+                        .payload
+                        .as_ref()
+                        .expect("verified multi-field enum variant has a payload product");
+                    let LogicalType::EnumFields { fields } = payload else {
+                        unreachable!("verified checked enum field uses a product schema")
+                    };
+                    fields
+                        .get(*field_index)
+                        .expect("verified checked enum field index is in bounds");
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let payload_type = Self::copy_data_type_to_llvm(payload);
+                    let lane = Self::enum_payload_lane(schema, *variant_index)
+                        .expect("verified multi-field enum variant has a lane");
+                    let extracted_payload = self.fresh_reg();
+                    llvm_ir.push_str(&format!(
+                        "  %{extracted_payload} = extractvalue {enum_type} %reg{value}, {lane}\n"
+                    ));
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = extractvalue {payload_type} %{extracted_payload}, {field_index}\n"
+                    ));
+                }
+                Inst::CheckedEnumDispatch {
+                    value,
+                    schema,
+                    targets,
+                } => {
+                    let Value::Reg(value) = value else {
+                        panic!("Expected register for checked enum dispatch")
+                    };
+                    let first = targets
+                        .first()
+                        .expect("verified enum dispatch has a target");
+                    let tag = if schema.is_unit() {
+                        format!("%reg{value}")
+                    } else {
+                        let enum_type = Self::enum_schema_to_llvm(schema);
+                        let tag = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{tag} = extractvalue {enum_type} %reg{value}, 0\n"
+                        ));
+                        format!("%{tag}")
+                    };
+                    llvm_ir.push_str(&format!("  switch i32 {tag}, label %{first} [\n"));
+                    for (index, target) in targets.iter().enumerate().skip(1) {
+                        llvm_ir.push_str(&format!("    i32 {index}, label %{target}\n"));
+                    }
+                    llvm_ir.push_str("  ]\n");
+                }
+                Inst::VecAlloca { .. }
+                | Inst::VecPush { .. }
+                | Inst::VecPop { .. }
+                | Inst::VecLength { .. }
+                | Inst::VecCapacity { .. }
+                | Inst::VecAccess { .. }
+                | Inst::VecInit { .. }
+                | Inst::ArrayLength { .. }
+                | Inst::ArrayAccess { .. }
+                | Inst::EnumDiscriminant { .. }
+                | Inst::EnumVariantData { .. }
+                | Inst::EnumConstruct { .. } => {}
             }
         }
 
         if !instructions.is_empty()
-            && !instructions
-                .iter()
-                .any(|inst| matches!(inst, Inst::Return(_)))
+            && !instructions.last().is_some_and(|instruction| {
+                matches!(
+                    instruction,
+                    Inst::Return(_)
+                        | Inst::Jump(_)
+                        | Inst::Branch { .. }
+                        | Inst::CheckedEnumDispatch { .. }
+                )
+            })
         {
             match return_llvm_type {
                 "void" => llvm_ir.push_str("  ret void\n"),
@@ -765,32 +2226,62 @@ impl CodeGenerator {
         result: &Option<Value>,
         function_defs: &HashMap<String, FunctionDef>,
     ) {
-        let (param_defs, return_type) =
-            if let Some((params, ret, _body)) = function_defs.get(function) {
-                (params.clone(), ret.clone())
-            } else {
-                (Vec::new(), None)
-            };
+        let checked_signature = self
+            .checked_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.functions.get(function))
+            .map(|metadata| metadata.signature.clone());
+        let (param_defs, return_type) = match function_defs.get(function) {
+            Some(FunctionDef::Legacy {
+                parameters,
+                return_type,
+                ..
+            }) => (
+                parameters
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), self.type_to_llvm(ty).to_string()))
+                    .collect(),
+                return_type
+                    .as_ref()
+                    .map(|return_type| self.type_to_llvm(return_type).to_string()),
+            ),
+            Some(FunctionDef::Checked {
+                parameters, result, ..
+            }) => (
+                parameters
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), Self::logical_type_to_llvm(ty)))
+                    .collect(),
+                Some(Self::logical_type_to_llvm(result)),
+            ),
+            None => (Vec::new(), None),
+        };
 
         let mut args = Vec::new();
         for (i, arg) in arguments.iter().enumerate() {
-            let target_type = if let Some((_name, ty)) = param_defs.get(i) {
-                self.type_to_llvm(ty).to_string()
-            } else {
-                "double".to_string()
-            };
+            let target_type = checked_signature
+                .as_ref()
+                .and_then(|signature| signature.parameters.get(i))
+                .map(|(_, ty)| Self::logical_type_to_llvm(ty))
+                .or_else(|| param_defs.get(i).map(|(_name, ty)| ty.clone()))
+                .unwrap_or_else(|| "double".to_string());
             let arg_val = self.cast_value_for_call_arg(llvm_ir, arg, &target_type);
             args.push(format!("{} {}", target_type, arg_val));
         }
         let args_str = args.join(", ");
 
-        let return_llvm_type = if let Some(ret) = return_type {
-            self.type_to_llvm(&ret).to_string()
-        } else if result.is_some() {
-            "double".to_string()
-        } else {
-            "void".to_string()
-        };
+        let return_llvm_type = checked_signature
+            .as_ref()
+            .map(|signature| Self::logical_type_to_llvm(&signature.result))
+            .unwrap_or_else(|| {
+                if let Some(ret) = return_type {
+                    ret
+                } else if result.is_some() {
+                    "double".to_string()
+                } else {
+                    "void".to_string()
+                }
+            });
 
         if let Some(result_reg) = result {
             let result_str = match result_reg {
@@ -804,15 +2295,24 @@ impl CodeGenerator {
                     result_str, function, args_str
                 )),
                 "i32" => {
-                    let call_reg = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = call i32 @{}({})\n",
-                        call_reg, function, args_str
-                    ));
-                    llvm_ir.push_str(&format!(
-                        "  %{} = sitofp i32 %{} to double\n",
-                        result_str, call_reg
-                    ));
+                    if self.is_checked_enum_result(result_reg)
+                        || self.is_checked_char_result(result_reg)
+                    {
+                        llvm_ir.push_str(&format!(
+                            "  %{} = call i32 @{}({})\n",
+                            result_str, function, args_str
+                        ));
+                    } else {
+                        let call_reg = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = call i32 @{}({})\n",
+                            call_reg, function, args_str
+                        ));
+                        llvm_ir.push_str(&format!(
+                            "  %{} = sitofp i32 %{} to double\n",
+                            result_str, call_reg
+                        ));
+                    }
                 }
                 "i64" => {
                     let call_reg = self.fresh_reg();
@@ -826,21 +2326,43 @@ impl CodeGenerator {
                     ));
                 }
                 "i1" => {
-                    let call_reg = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = call i1 @{}({})\n",
-                        call_reg, function, args_str
-                    ));
-                    llvm_ir.push_str(&format!(
-                        "  %{} = uitofp i1 %{} to double\n",
-                        result_str, call_reg
-                    ));
+                    if self.is_checked_bool_result(result_reg) {
+                        llvm_ir.push_str(&format!(
+                            "  %{} = call i1 @{}({})\n",
+                            result_str, function, args_str
+                        ));
+                    } else {
+                        let call_reg = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = call i1 @{}({})\n",
+                            call_reg, function, args_str
+                        ));
+                        llvm_ir.push_str(&format!(
+                            "  %{} = uitofp i1 %{} to double\n",
+                            result_str, call_reg
+                        ));
+                    }
                 }
                 "void" => {
                     llvm_ir.push_str(&format!("  call void @{}({})\n", function, args_str));
                     llvm_ir.push_str(&format!(
                         "  %{} = fadd double 0x0000000000000000, 0x0000000000000000\n",
                         result_str
+                    ));
+                }
+                struct_type if struct_type.starts_with("%aero.struct.") => {
+                    llvm_ir.push_str(&format!(
+                        "  %{result_str} = call {struct_type} @{function}({args_str})\n"
+                    ));
+                }
+                array_type if array_type.starts_with('[') => {
+                    llvm_ir.push_str(&format!(
+                        "  %{result_str} = call {array_type} @{function}({args_str})\n"
+                    ));
+                }
+                aggregate_type if aggregate_type.starts_with('{') => {
+                    llvm_ir.push_str(&format!(
+                        "  %{result_str} = call {aggregate_type} @{function}({args_str})\n"
                     ));
                 }
                 _ => llvm_ir.push_str(&format!(
@@ -863,14 +2385,23 @@ impl CodeGenerator {
         target_type: &str,
     ) -> String {
         match target_type {
+            pointer_type if pointer_type.ends_with('*') => match value {
+                Value::Reg(register) => format!("%ptr{register}"),
+                _ => panic!("verified immutable reference arguments use place identifiers"),
+            },
             "double" => self.value_to_string(value),
             "i32" => match value {
                 Value::ImmInt(n) => n.to_string(),
                 Value::ImmFloat(f) => (*f as i64).to_string(),
+                Value::ImmChar(character) => u32::from(*character).to_string(),
                 Value::Reg(r) => {
-                    let tmp = self.fresh_reg();
-                    llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
-                    format!("%{}", tmp)
+                    if self.is_checked_enum_result(value) || self.is_checked_char_result(value) {
+                        format!("%reg{}", r)
+                    } else {
+                        let tmp = self.fresh_reg();
+                        llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
+                        format!("%{}", tmp)
+                    }
                 }
                 Value::ImmString(_) => {
                     panic!("Cannot cast string argument to i32 in function call")
@@ -879,6 +2410,7 @@ impl CodeGenerator {
             "i64" => match value {
                 Value::ImmInt(n) => n.to_string(),
                 Value::ImmFloat(f) => (*f as i64).to_string(),
+                Value::ImmChar(_) => panic!("Character values do not use the i64 ABI lane"),
                 Value::Reg(r) => {
                     let tmp = self.fresh_reg();
                     llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
@@ -903,13 +2435,18 @@ impl CodeGenerator {
                         "true".to_string()
                     }
                 }
+                Value::ImmChar(_) => panic!("Character values do not use the i1 ABI lane"),
                 Value::Reg(r) => {
-                    let tmp = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
-                        tmp, r
-                    ));
-                    format!("%{}", tmp)
+                    if self.is_checked_bool_result(value) {
+                        format!("%reg{}", r)
+                    } else {
+                        let tmp = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
+                            tmp, r
+                        ));
+                        format!("%{}", tmp)
+                    }
                 }
                 Value::ImmString(_) => {
                     panic!("Cannot cast string argument to i1 in function call")
@@ -920,6 +2457,16 @@ impl CodeGenerator {
     }
 
     fn emit_return(&mut self, llvm_ir: &mut String, value: &Value, return_llvm_type: &str) {
+        if return_llvm_type.starts_with("%aero.struct.")
+            || return_llvm_type.starts_with('[')
+            || return_llvm_type.starts_with('{')
+        {
+            let Value::Reg(register) = value else {
+                panic!("verified aggregate return must use an aggregate result register");
+            };
+            llvm_ir.push_str(&format!("  ret {return_llvm_type} %reg{register}\n"));
+            return;
+        }
         match return_llvm_type {
             "void" => llvm_ir.push_str("  ret void\n"),
             "double" => {
@@ -928,6 +2475,7 @@ impl CodeGenerator {
             "i64" => match value {
                 Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i64 {}\n", n)),
                 Value::ImmFloat(f) => llvm_ir.push_str(&format!("  ret i64 {}\n", *f as i64)),
+                Value::ImmChar(_) => panic!("Character values do not use the i64 return lane"),
                 Value::Reg(r) => {
                     let tmp = self.fresh_reg();
                     llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i64\n", tmp, r));
@@ -944,23 +2492,35 @@ impl CodeGenerator {
                     "  ret i1 {}\n",
                     if *f == 0.0 { "false" } else { "true" }
                 )),
+                Value::ImmChar(_) => panic!("Character values do not use the i1 return lane"),
                 Value::Reg(r) => {
-                    let tmp = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
-                        tmp, r
-                    ));
-                    llvm_ir.push_str(&format!("  ret i1 %{}\n", tmp));
+                    if self.is_checked_bool_result(value) {
+                        llvm_ir.push_str(&format!("  ret i1 %reg{}\n", r));
+                    } else {
+                        let tmp = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = fcmp one double %reg{}, 0x0000000000000000\n",
+                            tmp, r
+                        ));
+                        llvm_ir.push_str(&format!("  ret i1 %{}\n", tmp));
+                    }
                 }
                 Value::ImmString(_) => panic!("Cannot return string value as i1"),
             },
             _ => match value {
                 Value::ImmInt(n) => llvm_ir.push_str(&format!("  ret i32 {}\n", n)),
                 Value::ImmFloat(f) => llvm_ir.push_str(&format!("  ret i32 {}\n", *f as i64)),
+                Value::ImmChar(character) => {
+                    llvm_ir.push_str(&format!("  ret i32 {}\n", u32::from(*character)))
+                }
                 Value::Reg(r) => {
-                    let tmp = self.fresh_reg();
-                    llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
-                    llvm_ir.push_str(&format!("  ret i32 %{}\n", tmp));
+                    if self.is_checked_enum_result(value) || self.is_checked_char_result(value) {
+                        llvm_ir.push_str(&format!("  ret i32 %reg{}\n", r));
+                    } else {
+                        let tmp = self.fresh_reg();
+                        llvm_ir.push_str(&format!("  %{} = fptosi double %reg{} to i32\n", tmp, r));
+                        llvm_ir.push_str(&format!("  ret i32 %{}\n", tmp));
+                    }
                 }
                 Value::ImmString(_) => panic!("Cannot return string value as i32"),
             },
@@ -1128,7 +2688,17 @@ impl CodeGenerator {
                             .push_str(&self.value_to_win_printf_f64_bits_operand(llvm_ir, arg));
                     } else {
                         printf_args.push_str(", double ");
-                        printf_args.push_str(&self.value_to_string(arg));
+                        if self.is_checked_bool_result(arg) {
+                            let converted = self.fresh_reg();
+                            llvm_ir.push_str(&format!(
+                                "  %{} = uitofp i1 {} to double\n",
+                                converted,
+                                self.bool_value_to_string(arg)
+                            ));
+                            printf_args.push_str(&format!("%{}", converted));
+                        } else {
+                            printf_args.push_str(&self.value_to_string(arg));
+                        }
                     }
                 }
             }
@@ -1242,7 +2812,17 @@ impl CodeGenerator {
     }
 }
 
-// Legacy function for backward compatibility
+/// Verifies private IR and emits LLVM through the checked code-generation boundary.
+pub fn try_generate_code<I>(ir: I) -> Result<String, CodeGenerationError>
+where
+    I: Into<CheckedIr>,
+{
+    CodeGenerator::new().try_generate_code(ir)
+}
+
+/// Legacy unchecked function retained for backward compatibility.
+#[deprecated(note = "unchecked compatibility API; use try_generate_code")]
+#[allow(deprecated)]
 pub fn generate_code(ir_functions: HashMap<String, Function>) -> String {
     let mut generator = CodeGenerator::new();
     generator.generate_code(ir_functions)
@@ -1254,7 +2834,93 @@ mod tests {
 
     use super::*;
     use crate::ir::{Function, Inst, Value};
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
+
+    #[test]
+    fn recursive_copy_data_types_lower_to_exact_private_llvm_types() {
+        let leaf = LogicalType::Struct {
+            name: "Leaf".to_string(),
+            fields: vec![
+                LogicalType::Float,
+                LogicalType::Array {
+                    element: Box::new(LogicalType::Bool),
+                    count: 0,
+                },
+            ],
+        };
+        let nested_tuple = LogicalType::Tuple {
+            elements: vec![LogicalType::Bool, leaf.clone()],
+        };
+        let recursive = LogicalType::Array {
+            element: Box::new(LogicalType::Tuple {
+                elements: vec![
+                    LogicalType::Int,
+                    LogicalType::Array {
+                        element: Box::new(nested_tuple),
+                        count: 2,
+                    },
+                    leaf,
+                ],
+            }),
+            count: 0,
+        };
+
+        assert_eq!(
+            CodeGenerator::logical_type_to_llvm(&LogicalType::Int),
+            "i32"
+        );
+        assert_eq!(
+            CodeGenerator::logical_type_to_llvm(&recursive),
+            "[0 x { double, [2 x { i1, %aero.struct.Leaf }], %aero.struct.Leaf }]"
+        );
+        assert_eq!(
+            CodeGenerator::struct_field_type_to_llvm(&recursive),
+            "[0 x { double, [2 x { i1, %aero.struct.Leaf }], %aero.struct.Leaf }]"
+        );
+    }
+
+    #[test]
+    fn recursive_named_struct_schemas_are_collected_from_nested_checked_types() {
+        let leaf = LogicalType::Struct {
+            name: "Leaf".to_string(),
+            fields: vec![LogicalType::Bool, LogicalType::Int],
+        };
+        let outer_fields = vec![
+            LogicalType::Tuple {
+                elements: vec![
+                    LogicalType::Array {
+                        element: Box::new(leaf.clone()),
+                        count: 3,
+                    },
+                    LogicalType::Float,
+                ],
+            },
+            LogicalType::Array {
+                element: Box::new(LogicalType::Tuple {
+                    elements: vec![LogicalType::Bool, leaf.clone()],
+                }),
+                count: 0,
+            },
+        ];
+        let outer = LogicalType::Struct {
+            name: "Outer".to_string(),
+            fields: outer_fields.clone(),
+        };
+        let instructions = vec![Inst::CheckedTupleAlloca {
+            result: Value::Reg(0),
+            element_types: vec![outer, LogicalType::Int],
+        }];
+        let mut schemas = BTreeMap::new();
+
+        CodeGenerator::collect_struct_schemas(&instructions, &mut schemas);
+
+        assert_eq!(
+            schemas.get("Leaf"),
+            Some(&vec![LogicalType::Bool, LogicalType::Int])
+        );
+        assert_eq!(schemas.get("Outer"), Some(&outer_fields));
+        assert_eq!(schemas.len(), 2);
+    }
 
     #[test]
     fn test_function_definition_generation() {
@@ -1289,13 +2955,13 @@ mod tests {
         let llvm_ir = generator.generate_code(functions);
 
         // Check that function signature is correct
-        assert!(llvm_ir.contains("define i32 @add(i32 %a, i32 %b)"));
+        assert!(llvm_ir.contains("define i32 @add(i32 %aero.arg.a, i32 %aero.arg.b)"));
 
         // Parameters are lowered to local double slots
         assert!(llvm_ir.contains("%ptr0 = alloca double"));
         assert!(llvm_ir.contains("%ptr1 = alloca double"));
-        assert!(llvm_ir.contains("sitofp i32 %a to double"));
-        assert!(llvm_ir.contains("sitofp i32 %b to double"));
+        assert!(llvm_ir.contains("sitofp i32 %aero.arg.a to double"));
+        assert!(llvm_ir.contains("sitofp i32 %aero.arg.b to double"));
 
         // Check that function has entry block
         assert!(llvm_ir.contains("entry:"));
@@ -1335,10 +3001,10 @@ mod tests {
     fn test_typed_function_call_uses_signature_and_converts_result() {
         let mut generator = CodeGenerator::new();
 
-        let closure_like_function = Function {
-            name: "__closure_0".to_string(),
+        let typed_helper = Function {
+            name: "typed_helper".to_string(),
             body: vec![Inst::FunctionDef {
-                name: "__closure_0".to_string(),
+                name: "typed_helper".to_string(),
                 parameters: vec![
                     ("x".to_string(), "i32".to_string()),
                     ("y".to_string(), "i32".to_string()),
@@ -1361,7 +3027,7 @@ mod tests {
             name: "main".to_string(),
             body: vec![
                 Inst::Call {
-                    function: "__closure_0".to_string(),
+                    function: "typed_helper".to_string(),
                     arguments: vec![Value::ImmInt(1), Value::ImmInt(2)],
                     result: Some(Value::Reg(0)),
                 },
@@ -1372,12 +3038,12 @@ mod tests {
         };
 
         let mut functions = HashMap::new();
-        functions.insert("__closure_0".to_string(), closure_like_function);
+        functions.insert("typed_helper".to_string(), typed_helper);
         functions.insert("main".to_string(), main);
 
         let llvm_ir = generator.generate_code(functions);
 
-        assert!(llvm_ir.contains("call i32 @__closure_0(i32 1, i32 2)"));
+        assert!(llvm_ir.contains("call i32 @typed_helper(i32 1, i32 2)"));
         assert!(llvm_ir.contains("sitofp i32 %"));
     }
 

@@ -1,0 +1,8 @@
+
+struct ModuleValue { value: int }
+
+fn module_score() -> int {
+    let values = [ModuleValue { value: 1 }, ModuleValue { value: 3 }];
+    let copied = values;
+    return values[0].value + copied[1].value;
+}

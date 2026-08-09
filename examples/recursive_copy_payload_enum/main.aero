@@ -1,0 +1,20 @@
+mod payloads;
+
+fn main() -> int {
+    let original: Payload = Payload::Pair((9, 1 < 2));
+    let moved = forward(original);
+    let empty: [bool; 0] = [];
+    let total = score(Payload::Idle)
+        + score(produce())
+        + score(Payload::Empty(empty))
+        + score(Payload::Flags([1 < 2, 1 > 2]))
+        + score(Payload::Matrix([[5, 6], [7, 8]]))
+        + score(moved)
+        + score(Payload::Rows([(10, 1 < 2), (11, 1 > 2)]))
+        + score(forward(Payload::CellValue(make_cell(12))))
+        + score(Payload::Cells([make_cell(13), make_cell(14)]))
+        + score(Payload::Wrapped((make_cell(15), [1 < 2, 1 > 2])))
+        + score(Payload::FrameValue(make_frame(16)));
+    if total == 113 { return 113; }
+    1
+}

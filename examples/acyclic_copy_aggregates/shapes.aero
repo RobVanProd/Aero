@@ -1,0 +1,18 @@
+struct ModuleEnvelope { leaf: ModuleLeaf, leaves: [ModuleLeaf; 2] }
+struct ModuleLeaf { value: int, ready: bool }
+
+fn module_make(value: int) -> ModuleEnvelope {
+    let leaf = ModuleLeaf { ready: value > 0, value: value };
+    return ModuleEnvelope {
+        leaves: [leaf, ModuleLeaf { value: value + 1, ready: 1 < 2 }],
+        leaf: leaf
+    };
+}
+fn module_roundtrip(value: ModuleEnvelope) -> ModuleEnvelope { return value; }
+fn module_scan(value: ModuleEnvelope) -> int {
+    let leaves = value.leaves;
+    for leaf in leaves.iter() {
+        if !leaf.ready { return 0; }
+    }
+    return leaves.len();
+}

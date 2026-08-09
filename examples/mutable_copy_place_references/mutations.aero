@@ -1,0 +1,27 @@
+fn set_frame(value: &mut Frame) -> Frame {
+    let point = Point { x: 7, y: 8 };
+    let rows = [point, point];
+    *value = Frame { point: point, rows: rows, bias: 9 };
+    *value
+}
+
+fn forward_frame(value: &mut Frame) -> int {
+    let copied = set_frame(value);
+    copied.point.x + copied.rows[1].y + copied.bias
+}
+
+fn set_tuple(value: &mut (int, float, bool)) -> (int, float, bool) {
+    *value = (5, 2.5, 1 < 2);
+    *value
+}
+
+fn set_values(value: &mut [int; 3]) -> [int; 3] {
+    *value = [2, 4, 6];
+    *value
+}
+
+fn set_rows(value: &mut [Point; 2]) -> [Point; 2] {
+    let point = Point { x: 3, y: 5 };
+    *value = [point, point];
+    *value
+}

@@ -1,0 +1,10 @@
+mod numeric;
+mod text;
+
+fn root_bias(value: int) -> int {
+    return value + 2;
+}
+
+fn main() -> int {
+    return module_score();
+}

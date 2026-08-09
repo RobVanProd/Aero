@@ -1,0 +1,1165 @@
+# Aero Initial Risk Register
+
+Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
+
+Likelihood and impact are `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`. Status remains
+open until a regression test and the applicable full gate prove closure.
+
+| ID | Risk | Likelihood | Impact | Evidence | Required control | Status |
+|---|---|---|---|---|---|---|
+| R-001 | Invalid characters/numbers/strings are silently changed into valid tokens | HIGH | CRITICAL | Trusted paths use strict lexing at `b988318`; legacy recovery remains public for compatibility and LSP symbol indexing only | Keep recovery output ineligible for semantics/artifacts; add fuzz/property coverage and eventual diagnostic-accumulating migration | CONTROLLED — trusted paths closed |
+| R-002 | Calls, annotations, and returns violate declared type contracts | HIGH | CRITICAL | Monomorphic numeric/void function calls and returns are controlled at `8d5d8e7`; initialized exact numeric annotations are controlled at `bc9a148`; accepted `CORE-015` at `5d7aae0` closes selected binding/array false successes; accepted `CORE-023` at `67ccdf2` closes exact Boolean contracts for monomorphic non-entry helpers; accepted `CORE-025` at `1ec8beb` rejects initialized exact outer tuple binding annotations in semantics and checked admission before generation; accepted `CORE-028` at `e051452` rejects exact valueless outer tuple binding annotations at those same trusted boundaries; accepted `CORE-029` at `29bd2e0` rejects exact valueless immediate reference-to-tuple annotations there; accepted `CORE-030` at `97c0f04` rejects exact valueless immediate array-of-tuple annotations there; accepted `CORE-031` at `4bc7a345` rejects exact valueless immediate array-of-array-of-tuple annotations there; accepted `CORE-032` at `30d0d730` rejects exact initialized immediate array-of-tuple annotations after initializer validation; accepted `CORE-033` at `76a6e802` rejects exact initialized immediate array-of-array-of-tuple annotations after initializer validation | Preserve accepted exact controls and quarantine Boolean entry/ABI, lowercase string, custom/contextual/structural annotations, empty/nonnumeric arrays, other uninitialized annotations, other unsupported nested tuple shapes, tuple type/value support, and remaining generic-scope behavior until separately specified | PARTIALLY CONTROLLED — selected active false successes, including the exact initialized two-array-deep tuple fallback, closed; entry, excluded-type, tuple-support, and generic-scope gaps remain open |
+| R-003 | Unsupported expressions are accepted with invented integer/zero semantics | HIGH | CRITICAL | `%`, tuple values, named fields, Match, and StructLiteral fail closed at their reviewed boundaries; accepted `CORE-010` at `db349ef` adds generic checked-IR rejection for every unadmitted trusted-path fallback, including ordinary MethodCall, enum construction, and Deref/Borrow | Retain checked admission on every trusted caller; keep non-deprecated raw `generate_ir` and deprecated `generate_code` ineligible as trusted public boundaries, while permitting only checked-wrapper reuse followed by verification; define aggregate/ownership/method semantics before implementation | CONTROLLED — trusted checked compiler paths no longer fabricate scalar values; direct public unchecked compatibility use remains uncertified |
+| R-004 | Ownership claims exceed enforcement and permit dangling/aliased/moved values | HIGH | CRITICAL | Bounded whole-place enum ownership, exact acyclic joins/reinitialization, and independent checked-CFG consumption proof exist through accepted CORE-079, including convergent `Owned`/`Moved`/`MaybeMoved` state for one direct mutable enum-owner loop class. Lifetime provenance is absent and mutable references remain classified as `Copy` outside the admitted boundaries. | Preserve the finite classifiers and compile-fail suite; separately freeze non-enum dataflow, projections/partial moves, borrow provenance, drop/destructors, lifetimes, and general CFG ownership | OPEN — exact bounded controls are additive, but no general ownership or memory-safety claim follows |
+| R-005 | Invalid programs pass semantics then panic, miscompile, or produce invalid LLVM | HIGH | CRITICAL | Accepted `CORE-010` at `db349ef` provides checked logical IR admission, mandatory in-process verification, exhaustive checked codegen errors, and qualified final LLVM 22 verification across trusted callers; focused contracts, full gate, and public CI pass | Preserve mandatory checked APIs/verifiers, deprecate/restrict then retire public unchecked compatibility APIs at a major boundary, and extend typed negative evidence as language forms become admitted | PARTIALLY CONTROLLED — trusted checked scalar IR and externally verified publication routes are controlled; CLI `InternalOnly` and library-returned LLVM without external verification, broader language semantics, and public unchecked APIs remain uncertified |
+| R-006 | CLI and library compile through divergent module instances | HIGH | HIGH | Accepted `CORE-011` centralizes direct-module collection; accepted CORE-020 closes ignored nondefaults; accepted CORE-070 adds file-aware library compilation. Accepted CORE-081 at `aae33a1774ea558cc782aed6389fbff73419b5b4` closes the exact 35-module binary/library overlap with complete local and all-nine exact-head public evidence. | Preserve one library-owned phase graph, shared collector, source-only/default boundaries, and file-aware contract; separately converge remaining tool orchestration, imports/namespaces, recursion, cache policy, external verification, and real option semantics | PARTIALLY CONTROLLED — module-instance duplication is publicly closed; broader tool orchestration and positive module semantics remain open |
+| R-007 | Backend labels are mistaken for device execution | HIGH | HIGH | `AUDIT-024` at `9ddc571` proved the false success; tests-only `427fb4c` reproduced the public red boundary; exact three-review-approved implementation `8bde0ff` and record-only closure `2e0e17f` pass their full gates and all eight public checks with fail-closed ROCm/CUDA, explicit targets, non-device telemetry, and the Aero GGUF route disabled | Preserve the accepted false-success controls; require separate hardware execution/correctness gates before any device claim | PARTIALLY CONTROLLED — selected object-only/current-claim boundary accepted at `2e0e17f`; no Aero device evidence |
+| R-008 | Public 1.0/formal/safety messaging outruns evidence | HIGH | HIGH | `AUDIT-022` reproduced the mismatch; reviewed public red `4b94dbd` bound exactly 2 preservation passes / 5 claim failures; exact three-review-approved implementation `cc984d0` derives CLI presentation from package metadata and bounds conformance/design/history claims; exact three-review-approved record-only closure `ea036f2` passes all eight public checks | Preserve manifest-derived CLI implementation version; distinguish the v1.0.0 language design target; keep conformance compatibility schema/counts unchanged; retain visible design/history qualifications and unsupported safety/type boundaries | CONTROLLED — selected public false-claim boundary accepted at `ea036f2`; no version/release or underlying language-safety capability is inferred |
+| R-009 | Source ranges and recovery cannot support trustworthy diagnostics | HIGH | HIGH | Accepted `CORE-024` implementation `a3d110e` corrects parser start-column UTF-16 projection at the LSP boundary; token start points, no AST spans, synthetic one-character ranges, and recovery-retention gaps remain | Preserve the accepted adapter; require an end-to-end span model and recovery-retention tests before broader claims | OPEN — selected parser UTF-16 adapter controlled; trustworthy ranges remain open |
+| R-010 | Grammar, tutorials, examples, and implementation define incompatible languages | HIGH | HIGH | Keyword/literal/field/rebinding/lifetime/top-level discrepancies | Freeze authoritative grammar subset; executable documentation examples | OPEN |
+| R-011 | Aggregate and array lowering changes types or crashes | HIGH | HIGH | Accepted `CORE-015` at `5d7aae0` enforces selected numeric-array homogeneity/count/integer-index contracts before IR; mixed numeric and float-index cases now fail in semantics without artifacts | Preserve selected pre-IR controls; specify typed aggregate IR, bounds, mutation, layout, and execution separately | PARTIALLY CONTROLLED — selected phase-order subset closed; aggregate execution remains open |
+| R-012 | Dormant, duplicated, or ignored tests create false coverage confidence | HIGH | HIGH | `AUDIT-023` classified 38 ignored tests; accepted `CORE-017` runs 22 strict retention tests and keeps 16 explicit quarantines. Accepted CORE-081 moves six compatibility/optimization tests to one library owner and removes duplicate binary compiler-module execution without deleting a distinct test; both compiler jobs prove the 207/32 split and canonical-graph contract. | Preserve exact strict token/retained-AST assertions and the 16-test quarantine; report target entries, overlap, distinct evidence, and gates separately; mechanically enforce one compiler graph | PARTIALLY CONTROLLED — selected Phase 5 classification and graph de-duplication are public; 299 dormant tests remain open |
+| R-013 | User-facing commands report success without promised behavior | HIGH | HIGH | Accepted `CORE-013` controls typed CLI statuses; accepted `CORE-019` controls analysis-only `aero test` wording; accepted `CORE-021` at closure `b99e445` controls delegated nonzero success wording; accepted `CORE-022` implementation `2a42324` controls final-entry init preflight before writes | Preserve accepted status/wording/preflight controls; keep general rollback/atomicity/race freedom, ancestor-symlink policy, executable-test design, command maturity, and helper architecture separate | PARTIALLY CONTROLLED — selected status, presentation, and dangling-entry init slices accepted; other command boundaries remain open |
+| R-014 | Quick Start and flagship examples fail new-user workflows | HIGH | MEDIUM | `AUDIT-020` at `18526ff` reproduces root `cargo build --release` exit 101, the wrong root binary path, and the unsupported `aeronum`/`aeronn` flagship; public red checkpoint `fc77e99` reproduces the three frozen gaps; accepted public `c56b1d5` passes the focused/full local gates, three exact reviews, and all eight public checks, including the exact generated-project path and anchored output in stable Linux CI | Preserve the exact minimal generated-project tests/CI path, manifest/binary paths, verifier prerequisites, and capability qualifications | CONTROLLED — generated-project Quick Start accepted at `c56b1d5` |
+| R-015 | Tracked compilation benchmark reports successful non-compilations | HIGH | HIGH | `AUDIT-019` confirmed `performance_benchmark.py` timed the CLI's bare-source unknown-command route as success; accepted public `CORE-013` at `a78dd00` returns `2`, classifies exactly two compilation series invalid, splits historical lexer evidence, and preserves all artifacts; the shell harness remains simulated and no benchmark was run | Preserve fail-closed bare-source handling and invalid classifications; a separate protocol-complete benchmark repair/rerun remains required | CONTROLLED — false-success claim path closed; benchmark remains invalid |
+| R-016 | Stable Rust/LLVM drift breaks reproducibility | MEDIUM | MEDIUM | Rust CI tracks floating stable/nightly; Linux explicitly installs LLVM/Clang 22.1.8. Accepted CORE-078 pins the official full Windows LLVM/Clang 22.1.8 x86_64 MSVC archive by release SHA-256 and exact tool-version checks; all nine exact-head checks and bounded Windows execution pass. | Declare supported Rust toolchains; retain immutable LLVM inputs/digests and exact Linux/Windows platform gates | OPEN — exact LLVM inputs are controlled on the accepted Linux/Windows lanes, but Rust floats and broader platform support is absent |
+| R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | Accepted CORE-012 at `6780a23` guards every live function and CLI live branch before auth/I/O/transport while keeping local search and dry-run plans credential/network-free; focused/full gates, exact review, and all public CI checks pass | Preserve quarantine; later specify and adversarially test paths, payload, response, auth, overwrite, dependencies, and transport before separate re-enablement | CONTROLLED — live transport fail closed; protocol remains unimplemented |
+| R-018 | The cumulative draft integration PR grows beyond a reviewable and controllable checkpoint | HIGH | CRITICAL | PR #4 is 282 commits/225 files, zero behind and clean, but master has no protection/ruleset or human approval requirement. CHECKPOINT-001 freezes a merge-commit handoff and its red-first minimal CI-token prerequisite is locally green across the full repository gate. | Complete CHECKPOINT-001 public gates; separately authorize master protection, independent review, thread resolution, frozen-head merge commit, branch retention, post-merge tree/system audit, rollback, and bounded successor PR | OPEN — urgent; the strategy/security candidate is locally green but unpublished, and no merge/protection/undraft action or new language stacking is authorized |
+
+The local `CORE-061-CLOSURE` amendment adds a pending R-002/R-003 control: closure
+syntax remains parsed, but both semantic inference paths and independent checked
+admission now reject executable closure expressions with one source-located
+diagnostic. The callable lowerer and its unknown parameter/result-to-`i32` fallback are
+removed, and raw quarantine creates no closure type, layout, symbol, or LLVM function.
+The 175/175 library and 181/181 binary surfaces and amended exact root gate are green
+locally; the commit containing this record becomes the immutable candidate, while
+public workflows and the pinned system lane remain required before this control is
+publicly accepted. Captures, calls, transport, ABI, lifetime, and other positive
+closure semantics remain open.
+
+Accepted public `ARCH-002` reduces administration and phase-drift exposure inside
+R-002 without changing its status. It replaces nested binding-annotation AST-shape
+rules with one normalized leaf/wrapper-path classifier shared by semantic analysis and
+checked admission. Depth-four characterization, diagnostic parity, five byte-identical
+LLVM specimens, all eight public checks, and the unchanged pinned exit-193 system lane
+pass. The accepted supported set, the same five explicitly rejected tuple-wrapper
+topologies, and every preserved/quarantined topology remain unchanged.
+
+Accepted public `CORE-070` partially reduces R-006 by adding an exact root-file library
+route over the existing direct-module collector and the same checked frontend/codegen
+sequence as `compile_program`. Its success/failure matrix, full local gates, all eight
+public checks, and pinned exit-193 system lane pass; the CLI, other tools, imports/namespaces,
+recursive graphs, cache identity, external verification, and nondefault option
+semantics remain divergent or unsupported.
+
+Accepted public `CORE-071` adds an R-005 control for parsed Rust-like `use`
+declarations that were silently erased. The exact red proves the false success; the
+shared located semantic and checked-admission rejection, artifact-free library/CLI
+matrix, 8/8 focused target, 81-pass/16-ignore compatibility ring, complete local
+gates, all eight exact-head public checks, and pinned stable/nightly LLVM/Clang 22.1.8
+exit-193 lanes pass. Positive import/name-resolution semantics and the broader
+R-006/R-010 gaps remain open.
+
+Accepted public `CORE-080` adds the corresponding R-005/R-010 containment for the
+founding direct/aliased dotted `import` grammar without changing R-006. The exact red
+proves that valid founding syntax was previously lost. The lexer/parser now retain its
+distinct AST identity and exact location; semantic preflight, ordinary semantic
+analysis, and independent checked admission reject it through one shared syntax-aware
+authority before checked IR. Focused 13/13, compatibility, complete all-features,
+static, documentation, diff-hygiene, exact root, and all nine exact-head gates pass.
+Positive lookup, namespace, visibility, conflict, cycle, package, backend, and runtime
+behavior remain open.
+
+Accepted public `CORE-081` directly reduces R-006 and R-012. The binary no longer
+declares any compiler phase already owned by the library; six compatibility/optimizer
+tests move with their library-owned implementations, and the binary retains only its
+CLI-specific modules/tests. Narrow hidden services preserve exact module-cache and
+registry-quarantine behavior without publishing resolver or raw-IR representations.
+Architecture, 207-library, 32-binary, integration, all-features, static, documentation,
+exact root, and all nine exact-head gates are green. R-006 stays partially controlled
+because broader tool orchestration and positive module semantics remain open.
+
+Accepted public `CORE-072` adds R-001/R-002/R-005/R-011 controls for Unicode
+characters. Strict lexing accepts exactly one raw Unicode scalar or one frozen escape
+and rejects the complete invalid-literal class without fabrication. Distinct semantic,
+checked, immediate, and verifier identities prevent character/int/bool substitution;
+one primitive authority prevents duplicated phase tables. The existing recursive
+CopyData classifier carries char through every admitted aggregate, ownership, call,
+reference, module, and CLI topology rather than adding container-specific rules. The
+9/9 exhaustive target, 190-library/196-binary complete surface, exact root gate, and
+official LLVM/Clang 22.1.8 external/machine/object/link/native exit-197 lanes pass,
+including all eight exact-head public checks. Broader lexical recovery, integer/
+string risks, character arithmetic/order/casts/printing/patterns, stable ABI, and
+general aggregate/ownership safety remain open or only partially controlled.
+
+Accepted public `CORE-073` adds a bounded R-004/R-005 control without changing the
+register's open general-ownership status. Exact whole-owner writes from acyclic
+`Moved`/`MaybeMoved` states restore only the admitted destructor-free enum target to
+`Owned`; one shared classifier governs semantic and checked admission, while the
+verifier independently proves predecessor consumption and the checked kill. Exhaustive
+negative controls keep loop-contained reinitialization, partial moves/projections,
+borrows/storage expansion, wrong schemas, generic stores, missing/non-dominating
+writes, drop/lifetimes, and general CFG fixed points closed. The 190-library/
+196-binary surface, exact root gate, all eight exact-head checks, and pinned stable/
+nightly LLVM/Clang 22.1.8 native exit-199 lanes pass.
+
+Accepted public `CORE-074` adds another bounded R-004/R-005 control. One shared
+classifier admits only fresh same-schema enum results from exhaustive Match arms; one
+checked result-place identity and independent CFG proof require exact result/dispatch
+schemas, a distinct target-dominated write per arm, all-path initialization, one
+merged load, and valid later ownership. Negative and corruption controls reject
+identifier/conditional transport, additional enum consumption, aggregate results,
+bypass/missing/repeated/post-merge writes, wrong schemas, premature loads, and raw
+activation. The 191-library/197-binary surface, check/Clippy/docs, exact root gate,
+all eight exact-head checks, and pinned stable/nightly native exit 203 pass; general
+ownership, storage, borrowing, projection, drop/lifetime, ABI, and safety risks stay
+open.
+
+Accepted public `CORE-075` adds conditional direct-owner transport to that exact result
+class. The recursive origin resolver enumerates dynamic leaf-consumption paths; the
+shared ownership classifier rejects same-path duplicates and loop effects while deriving
+all-path `Moved` or partial-path `MaybeMoved`. Existing checked enum provenance, result
+place, assignment, and verifier CFG dataflow reject post-merge source reuse without new
+layout or ABI. The 192-library/198-binary complete compiler surface, focused corruption
+controls, check/Clippy/docs, direct modules, CLI check/build, deterministic LLVM,
+artifact hygiene, exact root gate, all eight exact-head public checks, and pinned
+stable/nightly LLVM/Clang 22.1.8 native exit 211 lanes pass at exact implementation
+`50a3e03d0bdbc0e7deddde747bc19df0621c1257`. Calls consuming another owner, external nested scrutinees,
+aggregate storage, borrowing/projection, loops, drop/lifetimes, general CFG ownership,
+ABI, and safety risks remain open.
+
+Accepted public `CORE-076` adds an R-005 control and narrows R-011's Match-result surface
+without closing the register's general aggregate or ownership risks. One shared
+classifier consumes the existing recursive CopyData authority or the existing bounded
+owned-enum authority; one generic checked result place and independent CFG proof reject
+generic store, missing/wrong writes, bypass, and fabricated types. Arrays including zero
+length, recursive tuples, finite acyclic structs, primitives, and owned enums retain exact
+private LLVM types. Exact implementation
+`aefeb2d81fb5374e7373a4819f3c92f83a95eb35`, all eight exact-head checks, and pinned
+stable/nightly LLVM/Clang 22.1.8 native exit 223 pass while preserving the older
+exit-149 specimen.
+Unsupported/cyclic aggregates, enum aggregate storage, wider patterns, references,
+runtime/drop/lifetime, stable ABI, and general aggregate/ownership risks remain open.
+
+Accepted public `CORE-077` adds a bounded R-004/R-005 control without closing either
+general risk. One shared classifier requires exact `Owned` state at loop entry and on
+every reachable condition/iterable, fallthrough/`continue`, and `break` edge; return
+paths do not join and nested transfers attach to the nearest loop. Semantic analysis
+and independent checked admission provide their own snapshots, while verifier CFG
+controls reject missing, bypassed, one-path, generic-store, wrong-schema, cycle, and
+exit repairs. Exact implementation `a93d8d38c5f2a2499ce036f659c13cb2ec4fefcb`,
+all eight exact-head checks, and pinned stable/nightly LLVM/Clang 22.1.8 exit 227 pass
+while preserving exits 149/223. Loop-carried
+`Moved`/`MaybeMoved`, projections/partial moves, enum storage/borrowing, drop/lifetimes,
+stable ABI, imports, accelerators, release, safety, and general ownership risks remain
+open.
+
+Accepted public `CORE-078` narrows R-005/R-016 evidence without closing either risk and
+changes no language behavior. Exact implementation
+`70f59fd72e96246b2ebefdf1ae53a9b7f3280cfe` pins the official full Windows x86_64
+LLVM/Clang 22.1.8 archive by release SHA-256 and proves exact versions, invalid-source/
+IR rejection, MSVC-target LLVM, external/machine verification, COFF object/link, public
+`run`, manual execution, and exit 227. All nine exact-head checks pass. This does not
+establish a stable ABI, general Windows support, packaging, release, safety,
+performance, accelerator execution, or a fully pinned Rust toolchain.
+
+Accepted public `CORE-079` narrows the R-003/R-004 ownership-control boundary without
+closing general memory-safety risk. One shared finite-lattice classifier replaces
+duplicated fixed-entry loop guards in semantic analysis and checked admission, while
+the verifier independently proves cyclic consumption/reinitialization. Unsafe missing
+or bypassed repair, repeated use, borrowed edges, and aggregate storage remain
+negative. Exact implementation `5b1ec7340db72354542ab325a9f75cad398857c2`
+passes all nine exact-head checks; stable/nightly Linux preserve exits 149/223/227 and
+execute exit 229, while pinned Windows LLVM/Clang 22.1.8 preserves exit 227 and executes
+exit 229 through public and independent native paths. No borrow, lifetime, drop, ABI,
+or safety claim follows.
+
+## Priority order
+
+1. Stop silent source corruption and invented semantics at phase boundaries.
+2. Enforce the stable-core function/type contract before IR generation.
+3. Make unsupported constructs fail explicitly until their full typed lowering is
+   implemented.
+4. Converge tooling on a canonical compiler pipeline and truthful status codes.
+5. Reclassify public documentation/backends, then grow conformance and real
+   execution evidence.
+
+`AUDIT-018` at clean public head `8598a4c` ranks R-017 first because an active,
+incomplete remote-input boundary can reach credentials, HTTP, and filesystem writes.
+R-004 remains critical but stops on unfrozen ownership/provenance semantics spanning
+more than two compiler phases. R-013/R-015 follow as the next tooling boundary;
+R-011 currently rejects the reproduced mixed-array/index cases before artifact
+publication, although too late in checked IR for the mixed numeric case. `CORE-012`
+was preregistered as quarantine only, not as a registry protocol implementation.
+
+Accepted `CORE-012` closes the active live-transport boundary without designing or
+enabling a protocol. `AUDIT-019` at clean public head `b7bb429` discarded one invalid
+argument-dropping probe, then reproduced broad zero-status usage/operational failures
+with corrected explicit arguments. R-004 remains stopped on unfrozen multi-phase
+ownership semantics; reproduced R-011 cases fail closed before output. Accepted
+public `CORE-013` at `a78dd00` implements the bounded slice: one typed CLI-owned status
+contract and evidence-preserving invalidation of compilation claims that depended on
+the bare-source false success. Its focused/full local gates, three exact reviews, and
+all eight public checks pass. Delegated program exits and non-atomic write rollback stay outside
+the taxonomy. It does not repair or run a benchmark.
+
+`AUDIT-020` at clean public acceptance head `18526ff` re-ranks the remaining work.
+R-004, R-006, R-009, R-010, R-011, and R-012 require unfrozen semantics or more than
+two phases; R-007 requires unavailable device evidence; R-008 requires an explicit
+version/stability policy; and R-016 is lower likelihood/impact. R-014 is the smallest
+externally visible bounded correction: `AUDIT-020` reproduced status 101 from the
+former documented root build, while the corrected manifest-qualified build and
+existing generated-project init/check path pass. `CORE-014` is documentation/test/
+workflow-only and does not authorize language, compiler, backend, version, packaging,
+or release changes. Accepted public `CORE-014` at `c56b1d5` implements that bounded
+control: three exact reviews and all eight public checks pass, and stable Linux CI
+executes the documented generated-project path through external LLVM 22 verification
+with status zero and exactly one anchored `Output: Hello, Aero!` line. This closes
+R-014 only for that generated CPU project; it does not establish Windows end-to-end,
+accelerator, language-wide tutorial, version, packaging, release, or benchmark
+evidence.
+
+`AUDIT-021` at clean accepted public head `1535ce2` supersedes the next-slice
+ranking after R-014 closure. R-004 remains the highest conceptual safety risk but
+cannot be credibly changed without a frozen ownership/provenance model spanning more
+than two phases. R-005 trusted publication paths remain controlled; public unchecked
+API retirement needs a major-boundary policy. R-002 is the highest-severity active
+false success: five reproduced initialized annotation mismatches pass check/build
+and create LLVM artifacts. `CORE-015` selects four by preserving existing numeric
+scalar enforcement and, outside active semantic generic scopes, adding exact bool/
+canonical-String/nonempty-flat-fixed-numeric-array equality. The custom-name case, lowercase
+`string`, contextual/structural forms, nonnumeric arrays, and new generic-scope
+annotation/array behavior remain open under quarantine controls. The slice adds
+non-generic numeric-array element/count/index checks in semantics and checked IR only. It does not select
+conversions, assignment, generic/reference/tuple semantics, ownership, aggregate
+layout, backend, version, or release behavior.
+
+`AUDIT-022` at clean accepted public head `c612f3b` follows the accepted
+`CORE-015` final-state sync. R-004 remains the highest conceptual safety risk but
+still needs an unfrozen ownership/provenance model across more than two compiler
+phases. Residual R-002 custom/contextual annotation enforcement is stopped because
+an arbitrary name can denote an unresolved nominal type or an in-scope generic and
+requires a separately frozen name-resolution/substitution contract. Remaining R-011
+aggregate execution needs typed aggregate IR, bounds, layout, and backend work;
+R-012 requires test-by-test recovery/stub classification rather than bulk activation.
+R-006, R-009, and R-010 are broader architectural or cross-phase work; R-007 needs
+unavailable device evidence; R-016 is lower likelihood/impact. R-008 is the highest
+bounded active public false claim: the
+package is `0.3.0` while both CLI version routes and the no-command banner say
+`1.0.0`; three example conformance cases and four deterministic repetitions are
+presented as formal/mechanized proof; and current-facing documents present
+unverified type/ownership safety as enforced. `CORE-016` selects CLI presentation
+plus explicit documentation classification only. It does not change the package
+version, language semantics, JSON field names, conformance algorithms, backend,
+release, registry, benchmark, or `master`.
+
+Reviewed public red commit `4b94dbd` now proves exactly two preservation passes and
+five bounded claim failures; both compiler-test jobs and nightly Rust reproduce the
+new target while CodeQL remains green. The subsequent `CORE-016` implementation
+passes the focused 7/7 claim contract, complete 7/7 CLI status contract, and exact
+repository gate. R-008 remains open pending exact implementation review, public green
+CI, and closure evidence; no stronger language, safety, conformance, or release claim
+is inferred. Exact three-review-approved implementation `cc984d0` and record-only
+closure `ea036f2` are public and all eight checks pass at each. R-008 is controlled
+only for the selected public-claim boundary; R-004 ownership enforcement, R-007
+backend execution evidence, and all other excluded capability risks remain open.
+
+`AUDIT-023` classified the 38 ignored Phase 5 entries rather than counting their broad
+recovery-path outcomes as coverage. Exact three-review-approved `CORE-017`
+implementation `8be8c21` now runs 4 strict lexer and 18 strict parser-retention tests,
+keeps 14 semantic and 2 generic-impl tests explicitly quarantined, passes the exact
+repository gate, and passes all eight public checks without production changes. R-012
+is partially controlled only for this selected classification after exact three-review-
+approved record-only closure `3dd3bb4` also passed all eight public checks. The 299
+dormant tests and library/binary Cargo overlap remain open residual evidence risks,
+and no semantic capability is inferred.
+
+`AUDIT-024` at clean accepted public head `9ddc571` re-ranks R-007 as the highest
+bounded active false success. All three independent auditors traced ROCm `run` from
+required LLVM verification through temporary AMDGPU `llc` invocation to status zero
+without an object-existence check, link, HIP launcher, device transfer,
+synchronization, or execution. They also confirmed that `gpu` is a heuristic rather
+than device proof, graph/quantization are externally verified scalar-helper textual
+transforms, and the immutable claim records already keep the sole real GGUF run
+external to Aero. `CORE-018` selects fail-closed status/postcondition behavior and
+current claim reclassification only. R-007 remains OPEN until independent Aero
+hardware correctness and execution evidence satisfies `BACKEND_STATUS.md`.
+
+The exact tests-only checkpoint was published as `427fb4c`: both compiler jobs and
+stable/nightly failed as prescribed while all CodeQL checks passed. The local
+implementation candidate turns CLI 10/10 and claims 7/7 green without hardware,
+numerical, benchmark, schema, dependency, workflow, or immutable-evidence changes.
+Exact three-review-approved implementation `8bde0ff` passes the complete gate and all
+eight public checks. Exact three-review-approved record-only closure `2e0e17f` also
+passes all eight checks. The selected false-success correction is accepted at that
+public closure. R-007 remains open for real Aero accelerator execution and correctness
+evidence; no hardware, numerical, or performance capability is inferred.
+
+`AUDIT-025` at clean accepted public head `d0bd54e` re-ranks the next bounded work.
+R-002/R-004 remain higher raw safety risks but need unfrozen type/ownership semantics;
+R-005 needs a major-boundary unchecked-API policy; R-007 needs hardware; R-009/R-010
+and broad R-006 convergence are architectural; R-011 needs bounds/layout/execution;
+R-012 remains a bounded-per-slice backlog; and R-016 needs a toolchain policy. The
+documented `aero test` command is the highest-reach bounded active claim defect: it
+performs read/parse/direct-module/semantic analysis only while presenting files as
+running and passed. `CORE-019` selects exact presentation and tests only. Ignored
+nondefault `CompilerOptions` remain the next bounded runner-up under R-006.
+
+`AUDIT-026` at public-green preregistration `2c61ff9` completes that clean-head
+comparison. All three independent auditors rank the ignored public options as the
+best bounded active false-success correction: 62 in-repository calls were default-only,
+all field combinations traversed the same checked compiler path at that audited head,
+and CLI targets were separate. Lead-owned DEC-025 accepts the explicit compatibility change
+from silent nondefault success to one pre-lexing error while preserving the public
+facade and exact default behavior. At preregistration, R-006 remained only partially
+controlled pending tests-first, implementation, full-gate, exact-review, and public
+evidence. Broad pipeline convergence remained out of scope.
+
+Exact three-review-approved `fae1374` publishes that audit closure and DEC-025 with
+all eight checks green. Exact three-review-approved tests-only `037f44d` then proves
+the public 1/1 red split in both compiler runs and nightly Rust, with stable cancelled
+during tests by fail-fast and all four CodeQL checks green. The local one-guard
+implementation is focused 2/2, preservation 40/40, and complete-gate green. R-006
+remained partially controlled pending exact implementation review and public green;
+no option meaning or broad pipeline convergence was inferred at that checkpoint.
+
+Exact three-review-approved implementation `70cb0ad` passes focused 2/2,
+preservation 40/40, the exact complete local gate, and all eight public checks in
+compiler runs `30834445685`/`30834446600`, Rust `30834446605`, CodeQL
+`30834443841`, and aggregate `91756251121`. The selected ignored-option boundary is
+controlled. R-006 remains partially controlled because public options still have no
+meaning and the CLI/library compiler orchestration remains duplicated.
+
+Exact three-review-approved record-only closure `5a8cd06`, tree `df4a04a`, diff
+`85ef52a4`, passes compiler runs `30835593703`/`30835597576`, stable/nightly Rust
+run `30835597620`, CodeQL run `30835594365`, and aggregate `91759990615`. It closes
+the evidence loop without changing risk severity or residual status. `AUDIT-027`
+must now compare the remaining open risks from a clean public head before the lead
+selects another implementation.
+
+`AUDIT-027` at public-green basis `aa3e7a8` compares every OPEN or PARTIALLY
+CONTROLLED risk. All three auditors rank R-013 first. The reconciled A/B/C comparison
+selects nonzero delegated CPU success wording over the lower-reach dangling-entry
+`init` gap and the architecture-only hidden helper exit. DEC-026 and `CORE-021`
+freeze a one-branch presentation correction. Exact three-review-approved tests-only
+`0873f65` publicly reproduces the boundary in compiler `30839264536` /
+`30839272375` and nightly Rust `30839272429`; stable is fail-fast cancelled during
+tests, while CodeQL `30839264268` and aggregate `91772180985` pass. Exact reviewed
+implementation `a4327be` passes compiler `30839860335` / `30839862442`, Rust
+`30839862423`, CodeQL `30839859840`, and aggregate `91774125621`; the selected
+presentation boundary is accepted. R-013 remains partially controlled because the
+unselected command boundaries and all other risks remain open.
+
+Corrected exact record-only closure `b99e445`, tree `8a4c2d77`, diff `5abbf3a7`,
+passes compiler `30840427466` / `30840426655`, stable/nightly Rust `30840428215`,
+CodeQL `30840415565`, and aggregate `91775938704`. `AUDIT-028` is preregistered to
+compare the complete remaining set R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/
+R-012/R-013/R-016 without inherited ordering or implementation authority.
+
+`AUDIT-028` at public-green basis `399e04f` ranks all eleven residuals. The three top
+threes are R-011/R-013/R-002, R-013/R-012/R-002, and R-002/R-013/R-010. The lead
+selects R-013's universal-top-two dangling-entry `aero init` preflight because its
+existing no-overwrite policy freezes the answer, it changes zero compiler phases, and
+the existing Unix fixture is deterministic. R-011 is stopped on compile-error versus
+trap/unchecked bounds semantics; R-002 remains the wider runner-up. R-013 remains
+partially controlled. Triple-reviewed tests-only `7cd8aba` reproduces exact Linux
+compiler 10/1 in `30843119793` / `30843125522` and nightly Rust `30843124314` while
+CodeQL remains green. Triple-reviewed implementation `2a42324` passes focused/local
+gates and all eight public checks in compiler `30843592298` / `30843592784`, Rust
+`30843595560`, CodeQL `30843589175`, and aggregate `91786468184`. The selected
+final-entry preflight is accepted. Exact triple-reviewed record closure `aa29a00`
+passes compiler `30844324249` / `30844328660`, Rust `30844328850`, CodeQL
+`30844325051`, and aggregate `91788926688`. Other R-013 boundaries remain open, and
+all unselected residuals retain their prior status.
+
+Exact triple-reviewed status synchronization `21153f3`, tree `d667ce37`, diff
+`c69c5a1e`, passes compiler `30844798322` / `30844802332`, Rust `30844802044`,
+CodeQL `30844799426`, and aggregate `91790481511`. `AUDIT-029` is preregistered to
+rank the complete remaining set R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/
+R-012/R-013/R-016 from a clean head, separating every accepted sub-slice from its
+open residual and prohibiting implementation until separate reconciliation and a
+frozen task contract.
+
+`AUDIT-029` is complete from exact public-green basis `0e5cba1`, tree `6ac88db4`.
+The three full rankings select R-002 Boolean helper contracts, R-010 grammar claim
+containment, and R-009 parser UTF-16 columns respectively; all rank R-012 second.
+The lead selects R-002's distinct Boolean helper boundary: semantics currently omits
+Boolean function contracts, so direct analysis accepts invalid Boolean calls/returns
+and infers valid Boolean calls as `Int`, while checked IR already admits exact
+Boolean/LLVM-`i1` signatures. `CORE-023` preregisters one semantic phase only for
+monomorphic non-entry helpers. R-002 remains PARTIALLY CONTROLLED; custom,
+contextual, structural, generic, aggregate, String, reference, method, closure,
+coercion, entry-point, and ABI behavior remain excluded, as do every other residual's
+recorded stops.
+
+Accepted `CORE-023` now controls the selected R-002 Boolean-helper boundary.
+Preregistration `1c28a7b` is all-eight green. Triple-reviewed tests-only `c3f6e90`
+produces exact compiler 13/1 in `30848723940` / `30848725388` and nightly Rust
+`30848725757`, with stable fail-fast cancelled and CodeQL/aggregate green. Triple-
+reviewed implementation `67ccdf2`, tree `c0b538c9`, passes the focused regression,
+function/binding/typed-IR preservation, the exact full gate, compiler
+`30850000615` / `30850005598`, Rust `30850005670`, CodeQL `30850001251`, and
+aggregate `91807553635`. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED:
+Boolean entry/ABI and every excluded String/custom/contextual/structural/generic/
+composite/reference/closure/method/coercion/defaulting boundary remain open or
+quarantined.
+
+Exact triple-reviewed `CORE-023` record closure `0b88530`, tree `71ac4da7`, diff
+`adba01a1`, passes compiler `30850519757` / `30850524194`, stable/nightly Rust
+`30850524148`, CodeQL `30850520457`, and aggregate `91809289681`. R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED. `AUDIT-030` is preregistered to rank the
+complete remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
+R-016 set from this clean head, excluding every accepted sub-slice and carrying no
+implementation authority.
+
+`AUDIT-030` is complete from exact public-green authorization `d4e3c75`, tree
+`9a07c10c`, with compiler `30851275589` / `30851278460`, Rust `30851278586`,
+CodeQL `30851276053`, and aggregate `91811764009`. All three independent rankings
+place R-009 in their top three and two rank it first. `CORE-024` therefore selects
+only parser-diagnostic UTF-16 start-column projection in the LSP layer. R-009 remains
+OPEN: token/AST end spans, recovery retention, and trustworthy end-to-end ranges are
+excluded. R-010 is the bounded runner-up; every other residual retains its recorded
+semantic, architectural, policy, evidence, or hardware stop.
+
+Triple-reviewed `CORE-024` tests-only `ab8508e` reproduces the selected R-009
+defect as exact 148/149 in compiler `30853599874` / `30853602996` and stable/nightly
+Rust `30853603035`, while CodeQL `30853601414` and aggregate `91819440238` pass.
+Exact triple-reviewed one-file implementation `a3d110e`, tree `79ccfca1`, diff
+`74bfbcea`, passes focused 1/1, LSP 10/10, the full local gate, compiler
+`30854094706` / `30854099595`, Rust `30854099899`, CodeQL `30854094981`, and
+aggregate `91821038577`. The selected parser-start UTF-16 adapter is controlled,
+but R-009 remains HIGH/HIGH and OPEN for token/AST end spans, recovery retention,
+and trustworthy end-to-end ranges.
+
+Corrected exact `CORE-024` closure `226b7fb`, tree `1337945c`, diff `861b5ec3`,
+passes compiler `30854853182` / `30854856449`, Rust `30854856190`, CodeQL
+`30854853829`, and aggregate `91823492290` after three fresh approvals. R-009
+remains HIGH/HIGH and OPEN. `AUDIT-031` is preregistered to rank the complete
+remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
+from this clean head, excluding every accepted sub-slice and carrying no
+implementation authority.
+
+`AUDIT-031` is authorized and all-eight public green at `ba258c6`, tree `651762a8`,
+with compiler `30855407928` / `30855410819`, Rust `30855410731`, CodeQL
+`30855409113`, and aggregate `91825280915`. Three complete rankings and targeted
+reconciliation select one distinct R-002 containment: initialized exact outer tuple
+annotations currently disappear in both semantics and checked admission, allowing a
+scalar RHS to reach generation. `CORE-025` preregisters rejection only, after child
+validation and before binding insertion, across traversed statement contexts. R-002
+remains HIGH/CRITICAL and PARTIALLY CONTROLLED; every tuple value/layout/ABI,
+uninitialized/nested annotation, and other excluded type boundary stays open or
+quarantined. R-010 is the bounded runner-up; all other stops remain.
+
+Accepted `CORE-025` now controls only that selected R-002 false success.
+Triple-reviewed preregistration `722d4d1` is all-eight green. Corrected
+triple-reviewed tests-only `39ccd9c`, tree `5b05499f`, produces exactly 16 passed/1 failed in
+compiler `30857467570` / `30857469931` and the nightly job in Rust `30857470046`;
+stable is fail-fast cancelled, while CodeQL `30857468030` and aggregate
+`91831822409` pass. Triple-reviewed implementation `1ec8beb`, tree `ac2c8fdd`,
+passes focused 1/1, binding 17/17, the exact full gate, compiler `30857775577` /
+`30857777431`, stable/nightly Rust `30857777314`, CodeQL `30857775231`, and
+aggregate `91832840108`. Initialized exact outer tuple binding annotations now stop
+after child validation in both semantic analysis and checked admission, before
+binding insertion or generation. R-002 remains HIGH/CRITICAL and PARTIALLY
+CONTROLLED: tuple values, uninitialized/nested annotations, every other excluded
+type/shape, entry/ABI, and generic behavior remain open or quarantined.
+
+Corrected exact `CORE-025` record closure `b0fe242`, tree `2a5d233f`, diff
+`98916b4d`, passes compiler `30858384541` / `30858387195`, stable/nightly Rust
+`30858387193`, CodeQL `30858385234`, and aggregate `91834740790` after three exact
+approvals. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED. `AUDIT-032` is
+preregistered to rank the complete remaining R-002/R-004/R-005/R-006/R-007/R-009/
+R-010/R-011/R-012/R-013/R-016 set from a clean public head, excluding every
+accepted sub-slice and carrying no implementation authority.
+
+`AUDIT-032` authorization `b6b1c63`, tree `c8803965`, is triple-approved and
+all-eight public green. Independent rankings and unanimous targeted reconciliation
+select a distinct R-005 phase-order defect above R-010: direct checked-AST too-few
+and too-many calls to eligible known scalar top-level helpers generate raw IR before
+verifier `CallArity` rejection. `CORE-026` preregisters only an exact-arity checked-
+admission guard for nongeneric, non-entry scalar/Void signatures after existing
+child, local-callable, and Void-use validation. R-005 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED; unchecked APIs, argument typing, other signatures/callables,
+IR/verifier/codegen/backend behavior, and all public capability claims remain open
+or unchanged. R-010 is the runner-up and every other recorded stop remains.
+
+The first `CORE-026` authorization snapshot was rejected at P2 before publication:
+duplicate top-level identities and verifier-invalid/reserved function or parameter
+signatures were not explicitly ineligible, so the new arity phase could mask their
+existing verifier diagnostics. The corrected contract requires one declaration and
+verifier-valid, unique, non-reserved signature symbols, with green preservation
+controls. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no risk status or
+capability changes from authorization text alone.
+
+Corrected `CORE-026` authorization `7dc3eac` is triple-approved and all-eight public
+green. A first tests-first snapshot was rejected before publication for caller order
+and missing composite/reference result controls. Corrected triple-reviewed tests-only
+`1538a3e`, tree `8f3cd8fb`, publicly reproduces exactly 6 passed/1 failed with only
+the selected phase-order target red; CodeQL and aggregate remain green.
+
+Triple-reviewed implementation `8c2b2ec`, tree `eabd8939`, passes focused 1/1,
+checked-IR 7/7, the exact full local gate, compiler `30862232159` / `30862233829`,
+stable/nightly Rust `30862233777`, CodeQL `30862232615`, and aggregate `91846586968`.
+Known eligible scalar/Void direct checked-AST wrong-arity calls now stop at Admission
+before raw IR, while child/local/Void precedence, malformed or duplicate signature
+failures, valid programs, verifier defense, source semantics, codegen, ABI, and
+backends remain unchanged. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED;
+unchecked APIs, broader callable/type contracts, and every public capability claim
+remain open or unchanged.
+
+Corrected exact `CORE-026` record closure `0a940ea`, tree `6ec4c609`, diff
+`4e1db178`, passes compiler `30862783787` / `30862786131`, stable/nightly Rust
+`30862786150`, CodeQL `30862784231`, and aggregate `91848258218` after three exact
+approvals. Superseded closure snapshot `615c00b9` was rejected before publication for
+stale gate chronology. R-005 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+`AUDIT-033` is preregistered to rank the complete remaining R-002/R-004/R-005/R-006/
+R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from the clean public closure,
+excluding every accepted sub-slice and carrying no implementation authority.
+
+`AUDIT-033` authorization `544b1ba`, tree `cdc3a085`, is triple-approved and
+all-eight public green. Independent rankings and final targeted reconciliation select
+R-010 documentation-authority containment above a stopped R-005 argument-type
+admission candidate whose child-type verifier completeness is not yet frozen.
+`CORE-027` preregisters only leading v1-design/current-implementation notices in the
+split grammar and core-features tutorial plus replacement of one unqualified grammar
+authority sentence. Every production, example, compiler behavior, and capability
+classification remains unchanged. R-010 remains HIGH/HIGH and OPEN.
+
+Accepted `CORE-027` controls only that selected documentation-authority boundary.
+Triple-reviewed authorization `3574704` is all-eight green. Triple-reviewed
+tests-first `f57cf2e`, tree `8a99d994`, publicly reproduces exactly 7 passed/1
+failed with only the new authority contract red; stable is fail-fast cancelled,
+while CodeQL and aggregate pass. The first implementation snapshot `01615da` was
+rejected at P2 before publication for normalizing the grammar's final newline.
+Corrected triple-reviewed implementation `b3e7910`, tree `2728bbc6`, diff
+`90e1c4b6`, preserves the original EOF representation and passes focused 1/1,
+version-claim 8/8, the exact full gate, compiler `30865344667` / `30865346597`,
+stable/nightly Rust `30865346602`, CodeQL `30865345043`, and aggregate
+`91855955012`. Every production, example, compiler behavior, and capability
+classification remains unchanged. R-010 remains HIGH/HIGH and OPEN: actual grammar
+compatibility, executable examples, migration, and implementation convergence are
+not established by this containment.
+
+Exact `CORE-027` record closure `d649c2d`, tree `b5ad7ee2`, diff `d4281863`, passes
+compiler `30865772404` / `30865775196`, stable/nightly Rust `30865775214`, CodeQL
+`30865772793`, and aggregate `91857289172` after three exact approvals. R-010
+remains HIGH/HIGH and OPEN. `AUDIT-034` is preregistered to rank the complete
+remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set
+from this clean closure, excluding every accepted sub-slice including CORE-027
+authority containment and carrying no implementation authority.
+
+Public-green read-only `AUDIT-034` authorization `45783af`, tree `f1baa457`, passes
+compiler `30866227485` / `30866229553`, stable/nightly Rust `30866229554`, CodeQL
+`30866227939`, and aggregate `91858665436` after three exact approvals. Complete
+independent rankings and unanimous targeted reconciliation select a distinct R-002
+public false success above the R-005 verifier-contained runner-up: exact outer tuple
+annotations on valueless bindings silently become `Int`, pass checked admission, and
+can become integer zero in raw generation. At selection time, DEC-033 and
+preregistered `CORE-028` authorized records only until their own gates passed; the
+later bounded contract selected rejection of that exact AST in semantics and checked
+admission. Initialized tuple controls,
+nested tuple shapes, other valueless annotations, tuple support, valid output, and
+every backend/capability claim remain unchanged. R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED.
+
+Accepted public `CORE-028` implementation `e051452`, tree `63985b2d`, diff
+`79830403`, closes only the selected valueless exact outer-tuple fallback after
+triple-reviewed public 16/1 red evidence. Semantics now rejects after same-scope
+duplicate detection and before fake `Int`/insertion; checked admission independently
+rejects before generation. Focused 1/1, binding 17/17, the exact full local gate,
+compiler `30871337443` / `30871335738`, stable/nightly Rust `30871337440`, CodeQL
+`30871336117`, and aggregate `91873866339` pass. Initialized and nested tuples,
+other unsupported/valueless annotations, unchecked APIs, tuple support, valid-output
+claims, and every backend/capability surface remain unchanged. R-002 stays
+HIGH/CRITICAL and PARTIALLY CONTROLLED; a later separate `AUDIT-035` authorization
+is still required before any new residual ranking.
+
+The first `CORE-028` closure snapshot `a20548ec`, tree `8250ce11`, diff
+`f0f181f9`, was rejected at P2 before publication for contradictory present-tense
+authorization wording. Corrected snapshot `5cc3ccb8`, tree `2f935a66`, diff
+`f11da400`, fixed that language but was also rejected at P2 before publication:
+the canonical R-002 summary row still ended at CORE-025 and treated the now-closed
+exact valueless outer-tuple case as residual. The current closure records CORE-028 in
+that row and narrows the unresolved surface to other uninitialized annotations and
+tuple annotations nested beneath non-tuple outer shapes. Likelihood, impact, and
+PARTIALLY CONTROLLED status remain unchanged. A third snapshot `782bc8fb`, tree
+`1914aaf7`, diff `e1962dbb`, contained the corrected row but was rejected at P2
+before publication because the ledger described its fresh final-tree gate as both
+passed and pending. The current closure records one unambiguous fresh exact-gate
+result; this chronology correction changes no risk or capability classification.
+
+Exact `CORE-028` record closure `032d0d0`, tree `443aacdc`, diff `93fce8ae`, passes
+compiler `30872236535` / `30872238993`, stable/nightly Rust `30872239003`, CodeQL
+`30872237025`, and aggregate `91876507154` after three exact approvals. R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED; no tuple capability or other risk status
+changes. `AUDIT-035` is preregistered to rank the complete remaining R-002/R-004/
+R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set only after its separate
+exact local/review/public gates, excluding every accepted sub-slice including
+CORE-028 and carrying no implementation or capability authority.
+
+Corrected read-only `AUDIT-035` authorization `f1cd972`, tree `b9c6270b`, diff
+`7f221d2a`, passes compiler `30872922468` / `30872923806`, stable/nightly Rust
+`30872923874`, CodeQL `30872922858`, and aggregate `91878491979` after three exact
+approvals. Complete independent rankings initially split between exact R-002 and
+R-005 candidates. Unanimous targeted reconciliation selects the distinct R-002
+valueless immediate reference-to-tuple false success: the unsupported annotation
+becomes `Ty::Int`, passes checked admission, and can become verifier-valid integer
+zero in raw generation, while the R-005 runner-up is already verifier-contained
+before LLVM. CORE-029 preregisters only two exact rejection guards. All other
+uninitialized/nested annotations, tuple/reference/ownership semantics, valid output,
+and every backend/capability claim remain unchanged. R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED.
+
+Accepted public `CORE-029` implementation `29bd2e0`, tree `53282149`, diff
+`acc1c247`, closes only the selected valueless immediate reference-to-tuple fallback
+after corrected triple-reviewed public 17/18 red evidence. Semantics rejects after
+same-scope duplicate detection and before fake `Int`/insertion; checked admission
+independently rejects before raw generation. Focused 1/1, binding 18/18, formatting,
+the exact full local gate, compiler `30875100237` / `30875102914`, stable/nightly
+Rust `30875102909`, CodeQL `30875100762`, and aggregate `91884963697` pass.
+Initialized and deeper reference forms, scalar references, arrays/generics, other
+unsupported annotations, unchecked APIs, tuple/reference/ownership support, valid-
+output claims, and every backend/capability surface remain unchanged. R-002 stays
+HIGH/CRITICAL and PARTIALLY CONTROLLED; at that implementation head, record closure
+was still required before any new residual ranking or implementation authorization.
+
+Exact `CORE-029` record closure `7222b9a`, tree `66084b36`, diff `90bf540c`, passes
+compiler `30876033717` / `30876035730`, stable/nightly Rust `30876035761`, CodeQL
+`30876034500`, and aggregate `91887644623` after three exact approvals. R-002
+remains HIGH/CRITICAL and PARTIALLY CONTROLLED; no tuple/reference/ownership
+capability or other risk status changes. `AUDIT-036` is preregistered to rank the
+complete remaining R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/
+R-016 set only after its separate exact local/review/public gates, excluding every
+accepted sub-slice including CORE-029 and carrying no implementation or capability
+authority.
+
+Corrected read-only `AUDIT-036` authorization `f4ac505`, tree `3cdf89e6`, diff
+`40896f51`, passes compiler `30876975678` / `30876977928`, stable/nightly Rust
+`30876977905`, CodeQL `30876976155`, and aggregate `91890402326` after three exact
+approvals. Three independent complete rankings unanimously select one distinct
+R-002 residual: a valueless immediate array-of-tuple annotation is explicitly
+accepted, silently becomes `Int`, and can reach verifier-valid scalar raw IR. The
+R-005 runner-up is already contained before LLVM. CORE-030 is preregistered only to
+reject the exact R-002 form at semantics and checked admission after its separate
+contract gates and public tests-first red evidence. No risk status or capability
+changes; R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+Accepted public `CORE-030` implementation `97c0f04`, tree `aa3a9e3f`, diff
+`06a104df`, closes only the selected valueless immediate array-of-tuple fallback
+after triple-reviewed authorization and public 18/19 expected-red evidence.
+Semantics rejects after same-scope duplicate detection and before fake
+`Int`/insertion; checked admission independently rejects before raw generation.
+Focused 1/1, binding 19/19, formatting, the exact full local gate, compiler
+`30878810762` / `30878812430`, stable/nightly Rust `30878812406`, CodeQL
+`30878811198`, and aggregate `91895661773` pass. Initialized and deeper forms,
+scalar arrays, generic/Vec and reference wrappers, other unsupported annotations,
+unchecked APIs, tuple/array support, valid-output claims, and every backend remain
+unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED; record closure is
+required before another residual audit or implementation authorization.
+
+Exact CORE-030 record closure `cd8add28`, tree `8ab06d62`, passes compiler
+`30879329940` / `30879332975`, stable/nightly Rust `30879332995` attempt 2,
+CodeQL `30879330627`, and aggregate `91897195358` after three exact approvals.
+The initial Rust attempt's unchanged fake-verifier `ETXTBSY` fixture failure passed
+on the focused failed-job rerun without a file or ref change. No risk status,
+matrix cell, or capability class changes. Preregistered AUDIT-037 may re-rank the
+complete remaining eleven-risk set only after its own exact authorization gates,
+must exclude every accepted slice through CORE-030, and carries no test,
+implementation, semantics, or capability authority.
+
+Exact read-only AUDIT-037 authorization `987188fc`, tree `0b685659`, diff
+`d3a9974b`, is triple-approved and public all-eight green in compiler
+`30880025888` / `30880028697`, Rust `30880028653`, CodeQL `30880025866`, and
+aggregate `91899286217`. Three complete independent rankings all place R-002 first.
+After an initial exact-candidate split, targeted static reconciliation unanimously
+selects the explicitly accepted valueless array-array-tuple fallback over the
+reference-array-tuple alternative because it avoids reference mutability/ownership
+associations at equal reach and phase count. CORE-031 preregisters only two exact
+nonrecursive rejection guards after separate contract and public tests-first gates.
+No risk status, matrix cell, or capability changes; R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED.
+
+Accepted public CORE-031 implementation `4bc7a345`, tree `61361621`, canonical
+diff `349e34ee`, closes only the selected exact valueless array-array-tuple fallback
+after triple-reviewed authorization and public 19/20 expected-red evidence with
+exactly nine false acceptances. Semantics rejects after same-scope duplicate
+detection and before fake `Int`/insertion; checked admission independently rejects
+before raw generation. Focused 1/1, binding 20/20, formatting, the exact full local
+gate, compiler `30882153355` / `30882155935`, stable/nightly Rust `30882155921`,
+CodeQL `30882154595`, and aggregate `91905705897` pass. Candidate B, initialized
+and third-plus-depth forms, scalar/nested-scalar arrays, generic/reference wrappers,
+other unsupported annotations, raw APIs, tuple/nested-array support, valid-output
+claims, and every backend remain unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY
+CONTROLLED; record closure is required before another residual audit or
+implementation authorization.
+
+Exact CORE-031 record closure `45696091`, tree `480c3504`, canonical diff
+`d682b0f6`, passes compiler `30882630407` / `30882632698`, stable/nightly Rust
+`30882632696`, CodeQL `30882630822`, and aggregate `91907149874` after three exact
+approvals. No risk status, matrix cell, or capability class changes. Preregistered
+AUDIT-038 may re-rank the complete remaining eleven-risk set only after its own exact
+authorization gates, must exclude every accepted slice through CORE-031, must not
+inherit Candidate B or another prior order, and carries no test, implementation,
+semantics, or capability authority.
+
+Corrected read-only AUDIT-038 authorization `e4d58e59`, tree `f265d8af`, canonical
+diff `31d09f92`, passes compiler `30883186212` / `30883188223`, stable/nightly Rust
+`30883188248`, CodeQL `30883186829`, and aggregate `91908783685` after three exact
+approvals. All complete rankings put R-002 first. Initial candidates split between
+initialized immediate array-of-tuple and valueless triple-array tuple containment;
+final compatibility reconciliation unanimously approves the initialized form because
+CORE-025 already freezes initializer-child ordering and the exact surface is smaller
+at equal trusted reach/two-phase cost. CORE-032 preregisters only two exact rejection
+guards after separate contract and public tests-first gates, wherever those statement
+paths are already traversed. Its first five-acceptance authorization snapshot was
+rejected before publication because it omitted generic impl/function traversal; the
+corrected contract freezes eight acceptances and preserves earlier outer-generic
+diagnostics. No risk status, matrix cell, or capability changes; R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+Corrected CORE-032 authorization `449f3536`, tree `24edc1fe`, canonical diff
+`d65f6b75`, is triple-approved and public all-eight green. Rejected tests-only
+`1afe11d3` was never published because it omitted explicit array-literal target
+coverage. Corrected `35eac8c4`, tree `b54a848b`, canonical diff `e600c2bc`, is
+triple-approved and publicly reproduces exactly eight false acceptances as the sole
+20/21 failure in compiler `30886282169` / `30886283814` and nightly Rust
+`30886284165`; CodeQL `30886281888` and aggregate `91918210639` pass.
+
+Accepted public CORE-032 implementation `30d0d730`, tree `653346ce`, canonical diff
+`01e87768`, adds only exact semantic and checked-admission guards after initializer
+validation and existing outer-tuple handling. Focused 1/1, binding 21/21, formatting,
+two consecutive exact full gates, compiler `30886856260` / `30886858878`, Rust
+`30886858960`, CodeQL `30886856518`, and aggregate `91919998289` pass after three
+exact approvals. An earlier full-gate attempt returned exit 1 with output truncated
+before attribution and remains recorded as unexplained. Candidate T/B, valueless and
+deeper/wrapped forms, tuple/array value and compatibility, raw APIs, verifier/codegen,
+ABI/ownership, valid output, and every backend remain unchanged. R-002 stays
+HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix cell or capability class moves.
+
+First closure snapshot `7d7fe3d6`, tree `18c904fd`, canonical diff `407c3c86`,
+passed its exact gate but was rejected unpublished by all three reviewers because
+its state record left that completed gate as future work; one review also required
+the known exit 1 above instead of generic nonzero. Second snapshot `48f2fd60`, tree
+`86175cc1`, canonical diff `9f0ab102`, resolved those findings and received two
+approvals but was rejected unpublished at P3 by the type reviewer because the
+successful closure gate omitted literal `exit 0`. The twice-corrected records preserve
+both rounds; their fresh exact gate exits 0 with 139/139 library, 149/149 binary, 7/7
+doc, and 21/21 binding tests. Exact closure `9c82cbfc`, tree `b2a106ee`, canonical
+diff `fc672744`, then received three approvals, was published unchanged, and passes
+compiler `30888222316` / `30888225734`, Rust `30888226011`, CodeQL `30888222480`,
+and aggregate `91924197947`. R-002 and every other risk status remain unchanged.
+
+Preregistered read-only AUDIT-039 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `9c82cbfc`, excluding every accepted slice through CORE-032 and
+inheriting no earlier candidate or order. Every ranking must be complete and
+evidence-cited, identify one bounded candidate or stop, and state reachability,
+containment, semantic decisions, phase count, an exact deterministic failing specimen,
+and preservation controls. Rejection, simulation, annotations, LLVM text, object
+emission, and hardware execution remain distinct.
+
+Exact AUDIT-039 authorization `fa522b2c`, tree `365a536d`, canonical diff `cefb797e`,
+passes compiler `30888751268` / `30888754238`, stable/nightly Rust `30888754262`,
+CodeQL `30888752230`, and aggregate `91925849313` after three exact approvals. Every
+complete ranking puts R-002 first. Type/safety initially selects valueless exact
+three-array Candidate T; IR/codegen and backend select initialized exact two-array
+Candidate A. Targeted preference favors A two to one. The lead provisionally selects
+A for its smaller predicate, two count dimensions, exact 12-acceptance surface, and
+already-frozen initializer-child ordering; all three then explicitly approve exact A
+with no semantic, compatibility, or phase blocker. AUDIT-039 remains read-only and
+changes no risk status.
+
+Preregistered CORE-033 permitted only initialized exact nonrecursive
+`Array(Array(Tuple))` after initializer and existing initialized diagnostics in
+semantic analysis and checked admission. Tests-first was required to reclassify both
+then-current A acceptance rows and reproduce exactly 12 false acceptances: eight
+count/phase, one public, two generic-impl, and one semantic generic-function; checked
+generic-function outer rejection remained green. Candidate T, reference-array
+Candidate B, other initialized/valueless three-plus depth, wrappers, raw APIs,
+verifier/codegen, valid output, tuple/array meaning, bounds/layout, ownership/ABI,
+and all backends remain unchanged. R-002 stays
+HIGH/CRITICAL and PARTIALLY CONTROLLED; no matrix or capability class moves.
+
+The prepared CORE-033 authorization's fresh exact full gate exited 0 with 139/139
+library, 149/149 binary, 7/7 doc, and 21/21 binding tests. At that stage, exact
+reviews, unchanged publication, and all eight checks were required before tests-
+first; implementation required separate reviewed public-red evidence and remained
+limited to two phases.
+
+First CORE-033 authorization snapshot `d0500865`, tree `d2378320`, canonical diff
+`97a15c9f`, passed its local gate but received one approval and two blocking reviews
+because one ledger sentence mislabeled Candidate T's valueless population as
+Candidate B. It remained unpublished. Corrected records keep Candidate T and the
+reference-array Candidate B distinct; no risk status changes.
+
+Corrected CORE-033 authorization `66207215`, tree `357c2731`, canonical diff
+`96b5f403`, is triple-approved and public all-eight green. Unpublished tests snapshot
+`7608b42c` was rejected for omitting an initialized three-array-deep preservation
+control. Corrected tests-only `ac4cb2a5`, tree `852bff0b`, canonical diff `4ca50572`,
+is triple-approved and publicly reproduces exactly 12 false acceptances as the sole
+21/22 binding failure in compiler `30891243037` / `30891246443` and nightly Rust
+`30891247469`; CodeQL `30891241566` and aggregate `91933672071` pass.
+
+Accepted implementation `76a6e802`, tree `d8391348`, established PowerShell
+full-index canonical diff `a75b59b2`, adds only exact semantic and checked-admission
+guards. Formatting, focused 1/1, binding 22/22, the exact full local gate exit 0,
+compiler `30891890629` / `30891898590`, stable/nightly Rust `30891897083`, CodeQL
+`30891892219`, and aggregate `91935804190` pass after corrected-identity triple
+approval. The initial review request's erroneous plain-diff `c17b1b6a` changed no
+source, commit, tree, risk, or capability state. Candidate T, reference-array
+Candidate B, other deeper/wrapped or valueless forms, tuple/nested-array meaning,
+raw APIs, verifier/codegen, ABI/ownership, valid output, and all backends remain
+unchanged. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED.
+
+First CORE-033 six-record closure snapshot `fe90f583`, tree `90ac8ae6`, canonical
+diff `89fe6824`, changed only the control records and passed its exact gate with
+139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. It received two
+approvals but was rejected at P1 before independent push or branch-head publication
+because stale PROJECT_STATE wording could reopen tests-first and implementation.
+First correction `19f688a`, tree `9d9c642f`, canonical diff `f885588c`, made that
+chronology historical, passed the exact gate, received three approvals, and is
+public all-eight green in compiler `30893002336` / `30893005706`, Rust
+`30893006634`, CodeQL `30893002479`, and aggregate `91939375982`. Its linear push
+also made `fe90f583` publicly reachable as an ancestor, so never-published wording
+was inaccurate and closure was withheld. Final additive record correction and its
+fresh exact gate exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 22/22
+binding tests are recorded. Exact correction `1ee9c71`, tree `d0819881`, canonical
+diff `7303da47`, received three approvals, was published unchanged, and passes
+compiler `30893527220` / `30893529999`, stable/nightly Rust `30893529992`, all
+three CodeQL analyses in `30893527445`, and aggregate `91941079083`. CORE-033 is
+closed without changing any risk status.
+
+Preregistered read-only AUDIT-040 required independent re-ranking of the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `1ee9c71`, excluding every accepted slice through CORE-033 and
+inheriting no earlier candidate, label, or order. Every ranking must be complete and
+evidence-cited, identify one bounded candidate or stop, and state trusted
+reachability, exact containment, unresolved semantic choices, phase count, an exact
+deterministic failing specimen, and preservation controls. Rejection, simulation,
+annotations, LLVM text, object emission, and hardware execution remain distinct.
+
+First AUDIT-040 authorization snapshot `c83ec3a`, tree `bb25e528`, canonical diff
+`c02f71e5`, passed its exact repository-root full gate with 139/139 library, 149/149
+binary, 7/7 claim, and 22/22 binding tests. Type/safety and backend/claim approved,
+but IR/codegen rejected at P1 because a late PROJECT_STATE subsection still treated
+accepted CORE-033 closure as future work. It was rejected before publication.
+Corrected authorization `7b9ed83`, tree `8dbe975e`, canonical diff `c4ba110a`,
+passed its fresh exact gate with 139/139 library, 149/149 binary, 7/7 claim, and
+22/22 binding tests, received three exact approvals, and was published unchanged.
+Compiler `30894708169` / `30894713332`, stable/nightly Rust `30894713411`, all
+three CodeQL analyses in `30894708736`, and aggregate `91944883143` pass.
+
+AUDIT-040 completed without edits or classification changes. Type/safety selected
+valueless exact three-array tuple containment; IR/codegen selected initialized exact
+immediate reference-to-tuple containment; backend/claim selected immediate
+nonnegative literal fixed-array bounds containment. The two-to-one targeted result
+and three final compatibility approvals selected only initialized exact nonrecursive
+`Type::Reference(Type::Tuple(_), _)` rejection. The bounds candidate remains stopped
+pending a separately frozen compile-time-versus-runtime policy; the three-array
+candidate remains a bounded fallback with greater topology and count burden.
+
+Preregistered CORE-034 may reject that exact initialized reference-to-tuple shape in
+semantic analysis and checked admission, after initializer validation and existing
+initialized tuple-shape diagnostics, for both reference mutability flags. Its first
+authorized test edit must reclassify the two existing acceptance rows and reproduce
+exactly 30 false acceptances as the sole new aggregate failure across direct, public,
+top-level, generic-impl, semantic generic-function, block, control-flow, loop, and
+non-generic-impl routes. No test or source edit is permitted before this six-record
+authorization passes a fresh exact gate, receives three exact approvals, is published
+unchanged, and passes all eight checks; implementation additionally requires public
+reviewed-red evidence and remains limited to two phases. First authorization
+snapshot `7d4d7ca`, tree `b633abbb`, canonical diff `a901f4dc`, passed its exact
+full gate with 139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests.
+IR/codegen and backend/claim approved, but type/safety rejected it at P1 because
+TASK_LEDGER's final status still called the completed gate future work. It remained
+unpublished. The corrected authorization's fresh exact full gate exits 0 with
+139/139 library, 149/149 binary, 7/7 claim, and 22/22 binding tests. This containment
+supplies no reference or tuple value, mutability,
+ownership, lifetime, layout, ABI, coercion, lowering, execution, bounds, backend, or
+stability evidence. R-002 stays HIGH/CRITICAL and PARTIALLY CONTROLLED, R-011 stays
+open without a frozen policy, and every other risk status remains unchanged.
+
+Corrected CORE-034 authorization `91d2686` is triple-approved and public all-eight
+green. Triple-approved tests-only `296276f` publicly reproduces exactly 30 false
+acceptances as the sole 22/23 binding failure in compiler `30916807388` /
+`30916811627` and nightly Rust `30916810937`; CodeQL `30916806193` passes. Three
+separate public-red reviews approved implementation authority. Exact implementation
+`a1ffeaec`, tree `f0088e65`, canonical diff `7a3fdb11`, adds only the two frozen
+nonrecursive guards, received three exact approvals, and passes the full local gate,
+compiler `30917539648` / `30917544307`, stable/nightly Rust `30917537292`, all three
+CodeQL analyses in `30917534448`, and aggregate `92019545168`.
+
+CORE-034 narrows one false-success subset but does not resolve R-002's broader
+unsupported type/ownership/memory surface. R-002 remains HIGH/CRITICAL and PARTIALLY
+CONTROLLED; R-011 remains open pending a bounds policy; every other risk status,
+matrix cell, capability class, backend distinction, artifact boundary, and claim
+remains unchanged.
+
+The prepared six-record CORE-034 closure's fresh exact full gate exits 0 with 139/139
+library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.
+
+Exact six-record closure `d3811b00`, tree `c01088c4`, canonical diff `2799eb32`,
+received three exact approvals and is public all-eight green in compiler
+`30918433816` / `30918438945`, stable/nightly Rust `30918439169`, all three CodeQL
+analyses in `30918434204`, and aggregate `92022619964`. CORE-034 is closed without
+changing any risk status.
+
+Preregistered read-only AUDIT-041 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `d3811b00`, excluding every accepted slice through CORE-034 and
+inheriting no earlier candidate or order. The audit may select at most one unanimously
+bounded residual or stop, remains read-only after authorization, and cannot change a
+risk status, matrix cell, capability class, backend distinction, artifact boundary,
+or claim. Its six-record authorization must pass a fresh local gate, three exact
+reviews, unchanged publication, and all eight public checks before ranking begins.
+The prepared authorization's fresh exact full gate exits 0 with 139/139 library,
+149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.
+
+Exact AUDIT-041 authorization `a31342e8`, tree `fbcd78b6`, canonical diff
+`313a1f6b`, is triple-approved and public all-eight green in compiler `30919164807`
+/ `30919167478`, Rust `30919168162`, CodeQL `30919164869`, and aggregate
+`92025101785`. Three complete rankings put R-002 first; initial exact V/I/R candidates
+split, targeted comparison preferred R two to one, and all final compatibility
+reviews approved only initialized positive-count immediate reference-array-tuple
+containment. AUDIT-041 changed no risk status.
+
+Accepted CORE-035 authorization preregistered exact nonrecursive initialized
+`Type::Reference(Type::Array(Type::Tuple(_), count), _)` when `count > 0`, for both
+reference mutability flags, after child and existing diagnostics at semantic and
+checked-admission boundaries. Its tests-first gate was frozen at exactly 34 red
+observations with four count-zero controls green; implementation was limited to two
+exact guards after separately reviewed public-red evidence. This narrows a false-
+success subset but does not resolve broader R-002 or R-011, define reference/array/
+tuple values, ownership, layout, ABI, bounds, lowering, execution, or backend
+capability, or change any risk status, matrix cell, artifact boundary, or claim.
+The prepared six-record authorization's fresh exact full gate exits 0 with 139/139
+library, 149/149 binary, 7/7 claim, and 23/23 binding tests. No risk status changes.
+
+Exact CORE-035 authorization `b74b1d29`, tree `3fc2d78f`, canonical diff
+`64fbd1fe`, received three exact approvals and is public all-eight green in compiler
+`30921372203` / `30921374216`, Rust `30921376655`, CodeQL `30921371268`, and
+aggregate `92032740349`. Triple-approved tests-only `f04e80c9`, tree `03a9f274`,
+canonical diff `9e04b6ad`, publicly reproduces exactly 34 false acceptances as the
+sole 23/24 binding failure in compiler `30922180824` / `30922181281` and nightly
+job `92035312036` in Rust `30922181764`. Stable job `92035312020` was cancelled by
+matrix fail-fast; CodeQL `30922176056` and aggregate `92035461619` pass. Three
+separate public-red reviews approved implementation authority.
+
+Exact implementation `b8fd5a17`, tree `77bd2536`, canonical diff `2f1e9920`, adds
+only the two frozen nonrecursive positive-count guards. It received three exact
+approvals; formatting, focused 1/1, binding 24/24, the exact full local gate,
+compiler `30922853658` / `30922859177`, stable/nightly Rust `30922863203`, all
+three CodeQL analyses in `30922853619`, and aggregate `92037794056` pass.
+
+CORE-035 narrows one false-success subset but does not resolve R-002's broader
+unsupported type/ownership/memory surface or R-011's bounds policy. R-002 remains
+HIGH/CRITICAL and PARTIALLY CONTROLLED; every other risk status, matrix cell,
+capability class, backend distinction, artifact boundary, and claim remains
+unchanged. The six-record closure's exact full local gate passes with 139/139
+library, 149/149 binary, 7/7 claim, and 24/24 binding tests.
+
+Exact six-record CORE-035 closure `60ad91f7`, tree `978aa98f`, canonical diff
+`818a8112`, received three exact approvals and is public all-eight green in compiler
+`30923835957` / `30923837627`, stable/nightly Rust `30923838264`, all three CodeQL
+analyses in `30923834264`, and aggregate `92041128413`. CORE-035 is closed without
+changing any risk status.
+
+Preregistered read-only AUDIT-042 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `60ad91f7`, excluding every accepted slice through CORE-035 and
+inheriting no earlier candidate, label, or order. Each ranking must be complete and
+evidence-cited, identify one bounded candidate or stop, and state trusted
+reachability, exact containment, unresolved semantic choices, phase count, a
+deterministic failing specimen, and preservation controls. The audit remains
+read-only and cannot change a risk status, matrix cell, capability class, backend
+distinction, artifact boundary, or claim. Its six-record authorization must pass a
+fresh local gate, three exact reviews, unchanged publication, and all eight public
+checks before ranking begins.
+
+The prepared AUDIT-042 authorization's fresh exact full gate exits 0 with 139/139
+library, 149/149 binary, 7/7 claim, and 24/24 binding tests. No risk status changes.
+
+First authorization snapshot `4ce0de0d`, tree `350984b8`, canonical diff
+`347278c3`, passed that gate but was rejected before any independent push or branch-
+head publication because PROJECT_STATE retained completed CORE-035 semantics as the
+active hypothesis and DEC-046 retained pending-closure status. The snapshot remains
+in corrected authorization ancestry; no ranking began and no risk status changed.
+
+Corrected AUDIT-042 authorization `2d8a0c54`, tree `45d1c184`, correction canonical
+diff `b36d3d9b`, and cumulative canonical diff from CORE-035 closure `478e947a`,
+passed two fresh exact full gates, received three fresh exact approvals, and is public
+all-eight green in compiler `30924946683` / `30924950615`, stable/nightly Rust
+`30924951134`, all three CodeQL analyses in `30924945035`, and aggregate
+`92044919183`.
+
+AUDIT-042 completed read-only on that immutable head. Type/safety selected valueless
+exact nonrecursive reference-array-tuple U; IR/codegen selected valueless exact
+three-array tuple T; backend/claim selected direct nonnegative scalar-literal array
+bounds B. Type/safety and IR/codegen ranked U > T > B and stopped B on unresolved
+compile-time-versus-runtime policy; backend/claim ranked B > U > T. The lead selected
+U two to one, and all three final compatibility reviews approved only exact U within
+semantic analysis and checked IR admission. B remains stopped and T remains a bounded
+fallback. No edit, test, build, probe, artifact, hardware action, external query,
+risk status, matrix cell, capability, backend, or claim changed.
+
+Preregistered CORE-036 may fail closed only a valueless exact nonrecursive
+`Type::Reference(Type::Array(Type::Tuple(_), count), ref_flag)` for both flags and
+all counts, after semantic duplicate and existing tuple-shape diagnostics and before
+fallback insertion or raw generation. Its first authorized test edit must reclassify
+all four existing acceptance occurrence blocks containing five exact-U source rows,
+expose exactly 34 false acceptances, and retain exactly 40 green preservation
+observations. Focused 0/1 and binding 24/25 must be the sole expected red after
+139/139 library, 149/149 binary, and 7/7 claim suites pass. Implementation is limited
+to the semantic analyzer and checked IR generator after separately reviewed public-
+red evidence.
+
+The principal CORE-036 regression risks are incomplete acceptance-row
+reclassification, recursive shape matching, consuming initialized/count-zero,
+deeper/wrapped/mixed/scalar/numeric-array controls, disturbing earlier diagnostic
+precedence, crossing the checked generic-function or syntax-only trait-default
+boundaries, or treating rejection as supported reference/array/tuple/default/
+ownership/layout/ABI/bounds/execution semantics. Any different observation count or
+diagnostic, phase expansion, or semantic/compatibility/valid-output decision is a
+stop. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED; R-011 stays open pending
+bounds policy; every other risk status and claim boundary remains unchanged.
+
+The prepared six-record CORE-036 authorization's fresh exact repository-root full
+gate exits 0 with 139/139 library, 149/149 binary, 7/7 claim, and 24/24 binding
+tests. The verification gate, three exact approvals, unchanged publication, and
+public all-eight checks required before the tests-only change are satisfied by
+`697bb3b4` below; no risk status moves.
+
+Exact CORE-036 authorization `697bb3b4`, tree `b0cfd37b`, canonical binary diff
+`0a92ad7a`, received three approvals and is public all-eight green in compiler
+`30927281281` / `30927293459`, Rust `30927289178`, CodeQL `30927280707`, and
+aggregate `92052974430`.
+
+Triple-approved tests-only `d52b117e`, tree `76a3b2e9`, canonical binary diff
+`c2d5e46a`, reclassified all four occurrence blocks/five rows and publicly
+reproduces exactly 34 false acceptances as the sole binding 24/25 failure in push
+`30927952017`, PR `30927956714`, nightly `92055067840`, and stable `92055068009`
+test logs. CodeQL `30927952240` and aggregate `92055178151` pass; three public-red
+reviews approved exact two-phase implementation authority.
+
+Exact implementation `26d18924`, tree `8aec746c`, canonical binary diff `543f8a1c`,
+adds only the two nonrecursive guards. It is triple-approved; formatting, focused
+1/1, binding 25/25, the exact full local gate, compiler `30928759703` /
+`30928760789`, stable/nightly Rust `30928758562`, all three CodeQL analyses in
+`30928754859`, and aggregate `92057919831` pass.
+
+CORE-036 narrows one false-success subset but does not resolve the broader unsupported
+type/ownership/memory surface or bounds policy. R-002 remains HIGH/CRITICAL and
+PARTIALLY CONTROLLED; R-011 remains open. Every other risk status, matrix cell,
+capability class, backend distinction, artifact boundary, and claim remains
+unchanged. The additively corrected six-record closure's fresh and verification exact
+full gates each exit 0 with 139/139 library, 149/149 binary, 7/7 claim, and 25/25
+binding tests. Exact acceptance `3f042e18` below closes CORE-036. No risk status
+moves.
+
+First closure snapshot `39c8564b`, tree `7932dd42`, canonical binary diff
+`2cb44b26`, passed two exact gates. Type/safety approved; IR/codegen and backend/
+claim each rejected at P1 because PROJECT_STATE still named CORE-035 `b8fd5a17` as
+the current public implementation. It was not independently published and remains in
+corrected ancestry. The additive correction names `26d18924` and changes no risk
+status, backend distinction, artifact boundary, or claim.
+
+First additive correction `799c4181`, tree `1c8a883f`, canonical binary diff
+`9a1f5cd8`, received type/safety approval but IR/codegen rejected P1 because DEC-048
+still called the completed verification gate pending. The review round stopped before
+publication. The second additive correction aligns that status with the two recorded
+green gates and changes no risk status, backend distinction, artifact boundary, or
+claim.
+
+The second additive correction's fresh exact repository-root full gate exits 0 with
+139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+downstream suites.
+
+Exact CORE-036 closure `3f042e18`, tree `15d56e0c`, canonical binary diff
+`ee8cbed0`, changed only the six control records, received three exact approvals,
+and is public all-eight green in push CI `30930377220`, PR CI `30930379386`, stable/
+nightly Rust `30930380195`, all three CodeQL analyses in `30930375201`, and aggregate
+`92063404658`. CORE-036 is closed without changing any risk status, matrix cell,
+capability class, backend distinction, artifact boundary, or claim.
+
+Preregistered read-only AUDIT-043 must independently re-rank the complete remaining
+R-002/R-004/R-005/R-006/R-007/R-009/R-010/R-011/R-012/R-013/R-016 set from exact
+clean public closure `3f042e18`, excluding every accepted slice through CORE-036 and
+inheriting no U/T/B label or order. It defines no semantics and cannot change risk,
+matrix, capability, backend, artifact, or claim state. B remains stopped pending a
+separately frozen compile-time-versus-runtime bounds policy. Its six-record
+authorization must pass exact local gates, three reviews, unchanged publication, and
+all eight public checks before ranking begins.
+
+Pre-acceptance evidence at corrected snapshot `5276df5b` (historical; superseded by
+the acceptance and result below): the prepared AUDIT-043 authorization's fresh and
+verification exact repository-root full gates each exited 0 with 139/139 library,
+149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. At that
+point exact review, unchanged publication, and public all-eight acceptance remained
+pending. No risk status had changed and no ranking had begun.
+
+First authorization snapshot `cb43d1bb`, tree `f0f19f5d`, canonical binary diff
+`ead99a7b`, passed both gates but all three reviewers rejected P1 because DEC-049
+status still called them required; type/safety also found stale “next immutable
+snapshot” wording. It was not published and no ranking began. The additive correction
+changes no risk status, backend distinction, artifact boundary, claim, or authority.
+
+Pre-acceptance additive correction evidence (historical; superseded below): its fresh
+exact repository-root full gate exited 0 with 139/139 library, 149/149 binary, 7/7
+claim, and 25/25 binding tests, plus all downstream suites. At that point fresh review,
+unchanged publication, and public all-eight acceptance remained. No risk status had
+changed and no ranking had begun.
+
+Corrected AUDIT-043 authorization `5276df5b`, tree `c3eaf3cf`, correction diff
+`b8b7586f`, cumulative diff `fe5376dc`, received three fresh approvals and is public
+all-eight green in push CI `30931510621`, PR CI `30931515125`, Rust `30931515426`,
+CodeQL `30931509579`, and aggregate `92067252294`. Three complete rankings and final
+compatibility unanimously select conditional exact valueless three-array-tuple R-002
+only after a separate neutral classifier closes green. R-009 remains a bounded
+fallback and R-011 bounds remains stopped. AUDIT-043 changed no risk status.
+
+Preregistered ARCH-001 addresses combinatorial predicate-drift risk only. It may
+introduce a nonrecursive behavior-neutral classifier for exact existing rejection,
+contract-shape routing, and inert preserve outcomes, with exhaustive characterization
+and semantic/checked parity evidence. It must not change acceptance, diagnostics,
+ordering, inference, traversal, raw APIs, LLVM, backend behavior, or claims; the later
+R-002 shape remains accepted. R-002 remains HIGH/CRITICAL and PARTIALLY CONTROLLED,
+R-011 remains open, and every risk, matrix, capability, backend, artifact, and claim
+classification remains unchanged. Separate authorization gates must pass before work.
+
+The pre-acceptance fresh and verification exact ARCH-001 authorization gates
+(historical; superseded below) each exited 0 with 139/139 library, 149/149 binary,
+7/7 claim, and 25/25 binding tests, plus all downstream suites. At that point review,
+unchanged publication, and public all-eight acceptance remained pending; no risk
+status had changed.
+
+First ARCH-001 snapshot `63d8d599`, tree `28cd120c`, diff `9fef5adf`, was not
+published after backend/claim found a valid P1 chronology contradiction in superseded
+AUDIT-043 pending/no-ranking evidence. The additive six-record correction makes that
+evidence historical and changes no risk, backend, artifact, claim, or task boundary.
+
+The additive correction's pre-acceptance fresh and verification exact full gates
+(historical; superseded below) each exited 0 with
+139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all downstream
+suites. At that point fresh review, unchanged publication, and public all-eight
+acceptance remained pending; no risk status had changed.
+
+Exact `1dcfd869`, tree `b537023c`, correction diff `e5ee8aa7`, cumulative diff
+`5208cb6e`, received three fresh approvals and is public all-eight green in compiler
+CI `30934518525` / `30934523152`, Rust `30934523078`, CodeQL `30934519513`, and
+aggregate `92077350363`. Authorization acceptance changes no risk status; only the
+separate green characterization boundary becomes eligible after the six-record
+acceptance sync below is accepted public all-eight green.
+
+The six-record acceptance sync's fresh and verification exact full gates each exit 0
+with 139/139 library, 149/149 binary, 7/7 claim, and 25/25 binding tests, plus all
+downstream suites. Exact review and public sync acceptance remain pending; no risk
+status changes.
+
+First acceptance-sync snapshot `4c18450a`, tree `ea7b91c9`, diff `7be565db`, was not
+published after type/safety found one P1: three records prematurely said
+characterization was already eligible while the sync remained pending. The additive
+six-record correction restores the exact gate and changes no risk status.
+
+Its fresh and verification exact full gates each exit 0 with 139/139 library, 149/149
+binary, 7/7 claim, and 25/25 binding tests, plus all downstream suites. Fresh review
+and public acceptance remain pending; no risk status changes.

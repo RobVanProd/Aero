@@ -545,8 +545,8 @@ fn test_semantic_move_once_ok() {
 
 #[test]
 fn test_semantic_immutable_borrow_ok() {
-    // Multiple immutable borrows are fine
-    let source = "let x = 10; let r1 = &x; let r2 = &x;";
+    // Multiple immutable borrows remain valid in the admitted local function class.
+    let source = "fn main() -> int { let x = 10; let r1 = &x; let r2 = &x; *r1 + *r2 }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
@@ -559,86 +559,65 @@ fn test_semantic_immutable_borrow_ok() {
 
 #[test]
 fn test_semantic_mutable_borrow_requires_mut() {
-    // Mutable borrow of non-mut variable should fail
-    let source = "let x = 10; let r = &mut x;";
+    // CORE-055 requires the directly borrowed local owner to be mutable.
+    let source = "fn main() -> int { let x = 10; let r = &mut x; *r }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
     assert!(
         result.is_err(),
-        "Mutable borrow of non-mut variable should fail"
+        "A mutable reference requires a mutable owner"
     );
     let err = result.unwrap_err();
-    assert!(err.contains("not declared as mutable"), "Error: {}", err);
+    assert_eq!(err, "mutable borrow source `x` must be declared mutable");
 }
 
 #[test]
 fn test_semantic_mutable_borrow_ok() {
-    // Mutable borrow of mut variable is fine
-    let source = "let mut x = 10; let r = &mut x;";
+    // CORE-055 admits one non-escaping mutable alias to a mutable local scalar.
+    let source = "fn main() -> int { let mut x = 10; let r = &mut x; *r = 11; *r }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
     assert!(
         result.is_ok(),
-        "Mutable borrow of mut variable should work: {:?}",
-        result
+        "A local mutable scalar alias should be valid"
     );
 }
 
 #[test]
 fn test_semantic_double_mutable_borrow_fails() {
-    // Two mutable borrows of same variable should fail
-    let source = "let mut x = 10; let r1 = &mut x; let r2 = &mut x;";
+    // The exclusive loan forbids a second mutable alias in the same lexical scope.
+    let source = "fn main() -> int { let mut x = 10; let r1 = &mut x; let r2 = &mut x; *r1 + *r2 }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Double mutable borrow should fail");
-    let err = result.unwrap_err();
-    assert!(err.contains("mutable more than once"), "Error: {}", err);
+    assert!(result.unwrap_err().contains("already borrowed as mutable"));
 }
 
 #[test]
 fn test_semantic_mut_and_immut_borrow_conflict() {
-    // Mutable borrow while immutably borrowed should fail
-    let source = "let mut x = 10; let r1 = &x; let r2 = &mut x;";
+    // An immutable alias blocks a mutable alias to the same owner.
+    let source = "fn main() -> int { let mut x = 10; let r1 = &x; let r2 = &mut x; *r1 + *r2 }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(
-        result.is_err(),
-        "Mutable borrow while immutably borrowed should fail"
-    );
-    let err = result.unwrap_err();
-    assert!(
-        err.contains("immutable"),
-        "Error should mention immutable conflict: {}",
-        err
-    );
+    assert!(result.unwrap_err().contains("also borrowed as immutable"));
 }
 
 #[test]
 fn test_semantic_immut_borrow_while_mut_borrowed_fails() {
-    // Immutable borrow while mutably borrowed should fail
-    let source = "let mut x = 10; let r1 = &mut x; let r2 = &x;";
+    // An active mutable alias blocks a later immutable alias to the same owner.
+    let source = "fn main() -> int { let mut x = 10; let r1 = &mut x; let r2 = &x; *r1 + *r2 }";
     let tokens = lexer::tokenize(source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(
-        result.is_err(),
-        "Immutable borrow while mutably borrowed should fail"
-    );
-    let err = result.unwrap_err();
-    assert!(
-        err.contains("mutable"),
-        "Error should mention mutable conflict: {}",
-        err
-    );
+    assert!(result.unwrap_err().contains("also borrowed as mutable"));
 }
 
 #[test]
@@ -894,21 +873,40 @@ fn test_semantic_move_into_function() {
 }
 
 #[test]
-fn test_semantic_struct_is_non_copy() {
-    // Struct values should use move semantics
-    let source = r#"
+fn test_semantic_struct_copy_classification_follows_its_fields() {
+    // An all-scalar struct is Copy, so reusing the original parameter is valid.
+    let copy_source = r#"
         struct Point { x: i32, y: i32 }
-        fn main() {
-            let p1 = Point { x: 1, y: 2 };
+        fn consume(p1: Point) {
             let p2 = p1;
             let p3 = p1;
         }
     "#;
-    let tokens = lexer::tokenize(source);
+    let tokens = lexer::tokenize(copy_source);
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    assert!(result.is_err(), "Struct should use move semantics");
+    assert!(
+        result.is_ok(),
+        "all-scalar struct should be Copy: {result:?}"
+    );
+
+    // A String-bearing struct remains outside the admitted Copy transport class.
+    let non_copy_source = r#"
+        struct Message { text: String }
+        fn consume(message: Message) {
+            let first = message;
+            let second = message;
+        }
+    "#;
+    let tokens = lexer::tokenize(non_copy_source);
+    let ast = parser::parse(tokens);
+    let mut analyzer = SemanticAnalyzer::new();
+    let result = analyzer.analyze(ast);
+    assert!(
+        result.is_err(),
+        "String-bearing struct must remain outside Copy transport"
+    );
 }
 
 #[test]
@@ -993,8 +991,7 @@ fn test_semantic_unsatisfied_trait_bound() {
             return;
         }
         struct Opaque { data: i32 }
-        fn main() {
-            let o = Opaque { data: 42 };
+        fn main(o: Opaque) {
             print_item(o);
         }
     "#;
@@ -1010,9 +1007,9 @@ fn test_semantic_unsatisfied_trait_bound() {
 }
 
 #[test]
-fn test_semantic_trait_bound_satisfied_ok() {
-    // Calling a function with trait-bounded generic using a type
-    // that DOES implement the trait should pass
+fn test_semantic_satisfied_trait_bound_call_remains_quarantined() {
+    // A satisfied bound does not supply generic substitution, a callable ABI, or an
+    // admitted lowering contract. Preserve the syntax and fail closed at the call.
     let source = r#"
         trait Display {
             fn display(&self) -> String;
@@ -1024,8 +1021,7 @@ fn test_semantic_trait_bound_satisfied_ok() {
         impl Display for Widget {
             fn display(&self) -> String { return "widget"; }
         }
-        fn main() {
-            let w = Widget { name: "foo" };
+        fn main(w: Widget) {
             print_item(w);
         }
     "#;
@@ -1033,10 +1029,11 @@ fn test_semantic_trait_bound_satisfied_ok() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
+    let error = result.expect_err("satisfied trait bound must not activate generic calls");
     assert!(
-        result.is_ok(),
-        "Satisfied trait bound should pass: {:?}",
-        result
+        error.contains("Unsupported function call `print_item`")
+            && error.contains("no admitted executable signature"),
+        "satisfied trait-bound call escaped the shared quarantine: {error}"
     );
 }
 

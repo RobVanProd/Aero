@@ -1,0 +1,16 @@
+struct ModuleValue { field: int, ready: bool }
+
+fn module_make(base: int) -> [ModuleValue; 2] {
+    return [
+        ModuleValue { field: base, ready: 1 < 2 },
+        ModuleValue { field: base + 1, ready: 2 < 3 }
+    ];
+}
+fn module_roundtrip(values: [ModuleValue; 2]) -> [ModuleValue; 2] { values }
+fn module_empty(values: [float; 0]) -> [f64; 0] { return values; }
+fn module_scan(values: [ModuleValue; 2]) -> int {
+    for value in values {
+        if !value.ready { return 0; }
+    }
+    return values.len();
+}

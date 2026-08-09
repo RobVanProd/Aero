@@ -26,7 +26,8 @@
   "backends": [
     {
       "name": "aero_rocm",
-      "enabled": true,
+      "enabled": false,
+      "disabled_reason": "Aero has no GGUF inference program or ROCm HIP link/device-launch path; this template must not produce Aero performance data.",
       "cwd": ".",
       "command": "\"{aero_bin}\" run --target rocm --gpu gfx1101 examples/gguf_inference.aero -- --model \"{model_path}\" --prompt \"{prompt}\" --max-tokens {max_tokens}",
       "metric_regexes": [

@@ -1,5 +1,7 @@
 # Aero Formal Language Specification (v1.0.0)
 
+> **Design target — not current implementation evidence.** Aero v1.0.0 remains a language design target, not the compiler package version and not a conformance or stability claim. See `CURRENT_CAPABILITY_AUDIT.md` and `SPEC_IMPLEMENTATION_MATRIX.md` for the implemented subset.
+
 This document is the consolidated formal specification for Aero v1.0.0.
 It defines the core syntax, static semantics, ownership model, module rules,
 and execution model used by the reference compiler.
@@ -149,3 +151,9 @@ The following Phase 8 interfaces are part of the v1.0.0 tooling surface:
 
 These interfaces define stable command and report shapes in v1.0.0 while allowing
 backend execution strategies and proof depth to continue evolving.
+
+Current implementation status: local-index search and network-free publish/install
+previews are available. Live registry transport is quarantined and fails closed
+pending a separately reviewed package, response, authentication, destination,
+overwrite, and dependency protocol. The live-transport item above is a future design
+target, not evidence of current implementation or stability.

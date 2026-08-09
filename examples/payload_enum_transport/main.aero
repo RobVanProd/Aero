@@ -1,0 +1,88 @@
+mod signals;
+
+enum LocalSignal { Idle, Count(int), Ratio(float), Ready(bool) }
+struct Envelope { row: ModuleRow, rows: [ModuleRow; 2] }
+
+fn roundtrip(value: Envelope) -> Envelope { value }
+
+fn local_forward(value: LocalSignal) -> LocalSignal { value }
+
+fn local_later(value: LocalSignal) -> LocalSignal { local_forward(value) }
+
+fn local_ratio(value: float) -> LocalSignal { LocalSignal::Ratio(value) }
+
+fn local_ready(value: bool) -> LocalSignal { LocalSignal::Ready(value) }
+
+fn local_count(value: LocalSignal) -> int {
+    match value {
+        LocalSignal::Idle => 0,
+        LocalSignal::Count(inner) => inner,
+        LocalSignal::Ratio(inner) => 0,
+        LocalSignal::Ready(inner) => 0
+    }
+}
+
+fn local_amount(value: LocalSignal) -> float {
+    match value {
+        LocalSignal::Idle => 0.0,
+        LocalSignal::Count(inner) => 0.0,
+        LocalSignal::Ratio(inner) => inner,
+        LocalSignal::Ready(inner) => 0.0
+    }
+}
+
+fn local_truth(value: LocalSignal) -> bool {
+    match value {
+        LocalSignal::Idle => 1 > 2,
+        LocalSignal::Count(inner) => inner > 0,
+        LocalSignal::Ratio(inner) => inner > 0.0,
+        LocalSignal::Ready(inner) => inner
+    }
+}
+
+fn local_consume(value: LocalSignal) {
+    let ignored = match value {
+        LocalSignal::Idle => 0,
+        LocalSignal::Count(inner) => inner,
+        LocalSignal::Ratio(inner) => 2,
+        LocalSignal::Ready(inner) => 3
+    };
+}
+
+fn main() -> int {
+    let row = module_make(20);
+    let module_total = module_score(
+        module_signal_forward(module_signal(12)),
+        row,
+        [2, 3]
+    );
+    let module_total_ref: &int = &module_total;
+    let module_total_alias = module_total_ref;
+
+    let count = local_count(local_later(LocalSignal::Count(*module_total_alias + 5)));
+    let ratio = local_amount(local_forward(local_ratio(2.5)));
+    let ready = local_truth(local_forward(local_ready(count > 0)));
+    let idle = match module_signal_forward(module_choose(1 > 2)) {
+        ModuleSignal::Idle => 2,
+        ModuleSignal::Count(inner) => inner,
+        ModuleSignal::Ratio(inner) => 0,
+        ModuleSignal::Ready(inner) => 0
+    };
+    let phase = match module_phase_forward(Phase::Hot) {
+        Phase::Cold => 1,
+        Phase::Warm => 5,
+        Phase::Hot => 13
+    };
+    let envelope = roundtrip(Envelope {
+        row: row,
+        rows: [module_make(30), module_make(31)]
+    });
+    local_consume(LocalSignal::Idle);
+
+    if module_total == 35 && count == 40 && ratio > 2.4 && ready && idle == 2
+        && phase == 13 && envelope.row.value == 20
+        && module_scan(envelope.rows) == 2 && "aero".len() == 4 {
+        return count + module_total + 122;
+    }
+    return 1;
+}

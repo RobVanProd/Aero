@@ -1,5 +1,10 @@
 # Tutorial 3: Ownership and Borrowing in Aero
 
+> **Design target — not current implementation evidence.** The rules and examples
+> below preserve Aero's intended ownership model. The current compiler has shallow
+> move/reference tracking but no proven borrow checker, lifetime analysis, or memory-
+> safety guarantee.
+
 Welcome to the third tutorial in the Aero series! This is a crucial one, as we'll explore Aero's core memory management features: **Ownership** and **Borrowing**. These concepts are key to how Aero achieves memory safety (preventing bugs like dangling pointers or data races) without needing a garbage collector.
 
 If you're coming from languages like C/C++ or languages with garbage collectors (like Java, Python, or JavaScript), this model might seem different, but it's designed to provide both safety and performance.

@@ -1,5 +1,8 @@
 # Task 10.3: LLVM Collection and String Generation - Implementation Summary
 
+> **Historical record — not current capability evidence.** The helper-level material
+> below is not an active source-to-IR-to-execution collections or strings contract.
+
 ## Overview
 This document summarizes the implementation of LLVM collection and string generation for Task 10.3 of Phase 4 data structures.
 

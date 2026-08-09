@@ -1,11 +1,11 @@
 #![allow(clippy::result_large_err)]
 
 use crate::ast::{
-    AstNode, Block, Expression, FieldDecl, MatchArm, Parameter, Pattern, Statement, TraitMethod,
-    Type, VariantDecl, VariantDeclKind,
+    AstNode, Block, Expression, FieldDecl, ImportSyntax, MatchArm, Parameter, Pattern, Statement,
+    TraitMethod, Type, VariantDecl, VariantDeclKind,
 };
 use crate::errors::{CompilerError, CompilerResult, SourceLocation};
-use crate::lexer::{LocatedToken, Token, tokenize_with_locations};
+use crate::lexer::{LocatedToken, Token, try_tokenize_with_locations};
 
 pub struct Parser {
     tokens: Vec<LocatedToken>,
@@ -60,12 +60,23 @@ impl Parser {
             // Phase 7: Module system
             Token::Mod => self.parse_mod_declaration(),
             Token::Use => self.parse_use_import(),
+            Token::Import => self.parse_founding_import(),
             Token::Pub => self.parse_pub_item(),
             _ => {
-                // Try to parse as expression statement
+                // Parse the target/value topology here and leave admission to the
+                // shared scalar-assignment classifier used by later phases.
                 let expr = self.parse_expression()?;
-                self.consume(Token::Semicolon, "Expected ';' after expression")?;
-                Ok(Statement::Expression(expr))
+                if self.match_token(&Token::Assign) {
+                    let value = self.parse_expression()?;
+                    self.consume(Token::Semicolon, "Expected ';' after assignment")?;
+                    Ok(Statement::Assignment {
+                        target: expr,
+                        value,
+                    })
+                } else {
+                    self.consume(Token::Semicolon, "Expected ';' after expression")?;
+                    Ok(Statement::Expression(expr))
+                }
             }
         }
     }
@@ -632,6 +643,11 @@ impl Parser {
                 self.advance();
                 Ok(Expression::FloatLiteral(value))
             }
+            Token::CharacterLiteral(value) => {
+                let value = *value;
+                self.advance();
+                Ok(Expression::CharacterLiteral(value))
+            }
             Token::StringLiteral(s) => {
                 let s = s.clone();
                 self.advance();
@@ -658,7 +674,7 @@ impl Parser {
                         return Ok(Expression::EnumVariant {
                             enum_name: "Option".to_string(),
                             variant: "Some".to_string(),
-                            data: Some(Box::new(value)),
+                            data: Some(vec![value]),
                         });
                     }
                     "None" => {
@@ -677,7 +693,7 @@ impl Parser {
                         return Ok(Expression::EnumVariant {
                             enum_name: "Result".to_string(),
                             variant: "Ok".to_string(),
-                            data: Some(Box::new(value)),
+                            data: Some(vec![value]),
                         });
                     }
                     "Err" => {
@@ -688,7 +704,7 @@ impl Parser {
                         return Ok(Expression::EnumVariant {
                             enum_name: "Result".to_string(),
                             variant: "Err".to_string(),
-                            data: Some(Box::new(value)),
+                            data: Some(vec![value]),
                         });
                     }
                     _ => {}
@@ -751,6 +767,7 @@ impl Parser {
 
     /// Parse closure expression: `|x: i32, y: i32| x + y` or `|x| { ... }`
     fn parse_closure(&mut self) -> CompilerResult<Expression> {
+        let location = self.peek().location.clone();
         self.consume(Token::Pipe, "Expected '|' to start closure")?;
 
         let mut params = Vec::new();
@@ -811,6 +828,7 @@ impl Parser {
         Ok(Expression::Closure {
             params,
             body: Box::new(body),
+            location,
         })
     }
 
@@ -960,7 +978,7 @@ impl Parser {
             });
         }
 
-        let tokens = tokenize_with_locations(trimmed, None);
+        let tokens = try_tokenize_with_locations(trimmed, None)?;
         let mut parser = Parser::new(tokens);
         let expr = parser.parse_expression()?;
         if !parser.is_at_end() {
@@ -1354,11 +1372,20 @@ impl Parser {
                 ));
             }
         };
-        // Check for variant data: Variant(expr)
+        // Preserve the exact positional list. Semantic admission distinguishes
+        // unary tuple data `Variant((a, b))` from two fields `Variant(a, b)`.
         let data = if self.match_token(&Token::LeftParen) {
-            let expr = self.parse_expression()?;
+            let mut fields = Vec::new();
+            if !self.check(&Token::RightParen) {
+                loop {
+                    fields.push(self.parse_expression()?);
+                    if !self.match_token(&Token::Comma) {
+                        break;
+                    }
+                }
+            }
             self.consume(Token::RightParen, "Expected ')' after variant data")?;
-            Some(Box::new(expr))
+            Some(fields)
         } else {
             None
         };
@@ -1405,6 +1432,11 @@ impl Parser {
                 self.advance();
                 Ok(Pattern::Literal(Expression::FloatLiteral(f)))
             }
+            Token::CharacterLiteral(character) => {
+                let character = *character;
+                self.advance();
+                Ok(Pattern::Literal(Expression::CharacterLiteral(character)))
+            }
             Token::StringLiteral(s) => {
                 let s = s.clone();
                 self.advance();
@@ -1424,7 +1456,7 @@ impl Parser {
                         return Ok(Pattern::Enum {
                             enum_name: "Option".to_string(),
                             variant: "Some".to_string(),
-                            data: Some(Box::new(inner)),
+                            data: Some(vec![inner]),
                         });
                     }
                     "None" => {
@@ -1443,7 +1475,7 @@ impl Parser {
                         return Ok(Pattern::Enum {
                             enum_name: "Result".to_string(),
                             variant: "Ok".to_string(),
-                            data: Some(Box::new(inner)),
+                            data: Some(vec![inner]),
                         });
                     }
                     "Err" => {
@@ -1454,7 +1486,7 @@ impl Parser {
                         return Ok(Pattern::Enum {
                             enum_name: "Result".to_string(),
                             variant: "Err".to_string(),
-                            data: Some(Box::new(inner)),
+                            data: Some(vec![inner]),
                         });
                     }
                     _ => {}
@@ -1478,9 +1510,17 @@ impl Parser {
                         }
                     };
                     let data = if self.match_token(&Token::LeftParen) {
-                        let inner = self.parse_pattern()?;
+                        let mut fields = Vec::new();
+                        if !self.check(&Token::RightParen) {
+                            loop {
+                                fields.push(self.parse_pattern()?);
+                                if !self.match_token(&Token::Comma) {
+                                    break;
+                                }
+                            }
+                        }
                         self.consume(Token::RightParen, "Expected ')'")?;
-                        Some(Box::new(inner))
+                        Some(fields)
                     } else {
                         None
                     };
@@ -1792,6 +1832,7 @@ impl Parser {
             self.peek().token,
             Token::IntegerLiteral(_)
                 | Token::FloatLiteral(_)
+                | Token::CharacterLiteral(_)
                 | Token::StringLiteral(_)
                 | Token::FStringLiteral(_)
                 | Token::Identifier(_)
@@ -1831,6 +1872,7 @@ impl Parser {
                 | Token::Trait
                 | Token::Mod
                 | Token::Use
+                | Token::Import
                 | Token::Pub => return,
                 _ => {}
             }
@@ -1870,6 +1912,7 @@ impl Parser {
 
     /// Parse `use <path>::<item>;` or `use <path>::<item> as <alias>;`
     fn parse_use_import(&mut self) -> CompilerResult<Statement> {
+        let location = self.peek().location.clone();
         self.consume(Token::Use, "Expected 'use'")?;
 
         let mut path = Vec::new();
@@ -1934,7 +1977,77 @@ impl Parser {
 
         self.consume(Token::Semicolon, "Expected ';' after use statement")?;
 
-        Ok(Statement::UseImport { path, alias })
+        Ok(Statement::UseImport {
+            syntax: ImportSyntax::RustLikeUse,
+            path,
+            alias,
+            location,
+        })
+    }
+
+    /// Parse the founding `import <path>[ as <alias>];` dotted syntax.
+    fn parse_founding_import(&mut self) -> CompilerResult<Statement> {
+        let location = self.peek().location.clone();
+        self.consume(Token::Import, "Expected 'import'")?;
+
+        let mut path = Vec::new();
+        match &self.peek().token {
+            Token::Identifier(name) => {
+                path.push(name.clone());
+                self.advance();
+            }
+            _ => {
+                return Err(CompilerError::unexpected_token(
+                    "import path",
+                    &format!("{:?}", self.peek().token),
+                    self.peek().location.clone(),
+                ));
+            }
+        }
+
+        while self.match_token(&Token::Dot) {
+            match &self.peek().token {
+                Token::Identifier(name) => {
+                    path.push(name.clone());
+                    self.advance();
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "import path segment",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            }
+        }
+
+        let alias = if self.match_token(&Token::As) {
+            match &self.peek().token {
+                Token::Identifier(name) => {
+                    let name = name.clone();
+                    self.advance();
+                    Some(name)
+                }
+                _ => {
+                    return Err(CompilerError::unexpected_token(
+                        "import alias",
+                        &format!("{:?}", self.peek().token),
+                        self.peek().location.clone(),
+                    ));
+                }
+            }
+        } else {
+            None
+        };
+
+        self.consume(Token::Semicolon, "Expected ';' after import statement")?;
+
+        Ok(Statement::UseImport {
+            syntax: ImportSyntax::FoundingDottedImport,
+            path,
+            alias,
+            location,
+        })
     }
 
     /// Parse `pub fn ...` / `pub struct ...` / `pub enum ...` / `pub mod ...`

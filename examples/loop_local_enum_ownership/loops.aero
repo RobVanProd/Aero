@@ -1,0 +1,153 @@
+struct Leaf { value: int, active: bool }
+struct Branch { leaf: Leaf, trail: [Leaf; 2] }
+struct Deep { branch: Branch, pair: (int, bool), branches: [Branch; 2] }
+
+enum Packet {
+    Empty,
+    Count(int),
+    Flag(bool),
+    Pair((int, bool)),
+    BranchValue(Branch),
+    Branches([Branch; 2]),
+    DeepValue(Deep),
+    Matrix([[int; 2]; 2])
+}
+
+fn leaf(value: int) -> Leaf {
+    Leaf { value: value, active: value > 0 }
+}
+
+fn branch(value: int) -> Branch {
+    Branch { leaf: leaf(value), trail: [leaf(value + 1), leaf(value + 2)] }
+}
+
+fn deep(value: int) -> Deep {
+    Deep {
+        branch: branch(value),
+        pair: (value + 3, value > 0),
+        branches: [branch(value + 4), branch(value + 5)]
+    }
+}
+
+fn bool_score(value: bool, score_value: int) -> int {
+    if value { return score_value; }
+    0
+}
+
+fn score(packet: Packet) -> int {
+    match packet {
+        Packet::Empty => 0,
+        Packet::Count(count) => count,
+        Packet::Flag(flag) => bool_score(flag, 1),
+        Packet::Pair(pair) => pair.0,
+        Packet::BranchValue(value) => value.leaf.value,
+        Packet::Branches(values) => values[1].leaf.value,
+        Packet::DeepValue(value) => value.branch.leaf.value,
+        Packet::Matrix(value) => value[1][0]
+    }
+}
+
+fn produce(value: int) -> Packet {
+    if value == 0 { return Packet::Empty; }
+    Packet::Count(value)
+}
+
+fn while_fallthrough(limit: int) -> int {
+    let mut step = 0;
+    let mut total = 0;
+    while step < limit {
+        let exact: Packet = produce(step + 1);
+        let inferred = exact;
+        total = total + score(inferred);
+        step = step + 1;
+    }
+    total
+}
+
+fn while_condition() -> int {
+    while match produce(0) {
+        Packet::Empty => 1 > 2,
+        Packet::Count(value) => value < 0,
+        Packet::Flag(value) => value,
+        Packet::Pair(value) => value.1,
+        Packet::BranchValue(value) => value.leaf.value < 0,
+        Packet::Branches(value) => value[0].leaf.value < 0,
+        Packet::DeepValue(value) => value.branch.leaf.value < 0,
+        Packet::Matrix(value) => value[0][0] < 0
+    } {
+        return 1;
+    }
+    7
+}
+
+fn for_continue() -> int {
+    let mut total = 0;
+    for item in [1, 2, 3] {
+        let fresh = Packet::Pair((item, item > 0));
+        total = total + score(fresh);
+        continue;
+    }
+    total
+}
+
+fn loop_break() -> int {
+    let mut total = 0;
+    loop {
+        let mut fresh: Packet = Packet::BranchValue(branch(3));
+        fresh = produce(4);
+        total = total + score(fresh);
+        break;
+    }
+    total
+}
+
+fn nested_loops() -> int {
+    let mut outer = 0;
+    let mut total = 0;
+    while outer < 1 {
+        loop {
+            let fresh = Packet::DeepValue(deep(5));
+            total = total + score(fresh);
+            break;
+        }
+        outer = outer + 1;
+    }
+    total
+}
+
+fn return_fresh(flag: bool) -> Packet {
+    while flag {
+        let fresh = Packet::Matrix([[1, 2], [8, 9]]);
+        return fresh;
+    }
+    Packet::Empty
+}
+
+fn schema_product() -> int {
+    let mut total = 0;
+    let mut step = 0;
+    while step < 1 {
+        total = total + score(Packet::Empty);
+        total = total + score(Packet::Count(1));
+        total = total + score(Packet::Flag(1 < 2));
+        total = total + score(Packet::Pair((2, 1 < 2)));
+        total = total + score(Packet::BranchValue(branch(3)));
+        total = total + score(Packet::Branches([branch(3), branch(4)]));
+        total = total + score(Packet::DeepValue(deep(5)));
+        total = total + score(Packet::Matrix([[5, 6], [7, 8]]));
+        step = step + 1;
+    }
+    total
+}
+
+fn run_loop_program() -> int {
+    let total = while_fallthrough(3)
+        + while_condition()
+        + for_continue()
+        + loop_break()
+        + nested_loops()
+        + score(return_fresh(1 < 2))
+        + schema_product();
+    if total == 59 { return 149; }
+    1
+}

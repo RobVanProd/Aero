@@ -1,0 +1,16 @@
+fn consume(value: int) {
+    let observed = value;
+}
+
+fn float_gate(value: float) -> bool {
+    return value > 2.5;
+}
+
+fn module_score() -> int {
+    let values = [10, 20, 30];
+    consume(values.len());
+    if values.len() == 3 && float_gate(3.5) && string_capabilities() {
+        return root_bias(45);
+    }
+    return 1;
+}

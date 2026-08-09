@@ -2,6 +2,14 @@
 
 In this tutorial, we'll explore how to create more complex data structures in Aero using `struct`s and `enum`s. We'll also get a first look at some basic collection types provided by the Aero standard library and have a conceptual introduction to `trait`s, which define shared behavior.
 
+> **Current implementation boundary:** struct declarations and named/generic
+> construction syntax are parser-visible, but struct values are not executable.
+> Trusted parsed source bodies reject every StructLiteral before IR with
+> `Struct construction expressions are not supported.` after first checking field
+> expressions for already established unsupported-child diagnostics. Construction,
+> field access, methods on values, layout, ownership/destruction, and the examples
+> below remain language design unless a section explicitly states otherwise.
+
 ## Structs
 
 A `struct` (short for structure) is a custom data type that lets you package together and name multiple related values that make up a meaningful group.
@@ -26,9 +34,11 @@ struct Point {
 }
 ```
 
-### Creating Instances of Structs (Instantiation)
+### Creating Instances of Structs (Designed; Not Executable)
 
-Once you've defined a struct, you can create instances of it.
+The intended language creates a struct value by naming its fields. The current
+compiler preserves this syntax but rejects it before IR; the following example is
+conceptual.
 
 ```aero
 fn main() {
@@ -44,11 +54,18 @@ fn main() {
     let origin = Point { x: 0.0, y: 0.0 };
 }
 ```
-The order of fields doesn't have to match the definition when instantiating, but all fields must be specified unless default values are supported (a more advanced feature).
+Field order, required/default fields, duplicate handling, and field-type checking
+are not yet implemented contracts. They will be frozen with the complete typed
+struct-construction vertical slice.
 
-### Accessing and Modifying Struct Fields
+### Accessing and Modifying Struct Fields (Designed; Not Executable)
 
-You can access the fields of a struct instance using dot notation (`.`). If the struct instance is mutable (declared with `let mut`), you can also modify its fields.
+The intended language uses dot notation (`.`) to access fields and permits field
+assignment on mutable values. The current compiler recognizes named field-access
+syntax but does not implement projection or field assignment. Trusted compilation
+rejects a field-access value expression with
+`Field access expressions are not supported.`
+The following example describes the intended design and is not currently executable.
 
 ```aero
 fn main() {
@@ -108,9 +125,13 @@ fn main() {
 */
 ```
 
-### Methods on Structs
+### Methods on Structs (Designed; Not Executable on Struct Values)
 
 Methods are functions that are associated with a struct (or enum, or trait). They are defined within an `impl` (implementation) block. The first parameter of a method is always `self`, `&self`, or `&mut self`, which represents the instance of the struct the method is being called on.
+
+The current compiler parses relevant declarations, but this example depends on
+unsupported struct construction, named field projection, assignment, and method
+execution. It is a design example, not a currently runnable program.
 
 -   `&self`: Borrows the instance immutably (read-only).
 -   `&mut self`: Borrows the instance mutably (read-write).
@@ -162,9 +183,12 @@ fn main() {
 }
 ```
 
-### Structs and Ownership
+### Structs and Ownership (Designed; Not Executable)
 
-Structs own their data by default. If a struct field is an owned type (like `String` or `Vec<T>`), that data is part of the struct. When the struct instance goes out of scope, its owned data is also dropped.
+The intended model makes a struct own its fields and destroys owned field data when
+the value leaves scope. The current compiler does not yet construct a runtime struct
+value or implement its field destruction, so the example below specifies direction
+rather than certified behavior.
 
 ```aero
 struct Article {
@@ -225,9 +249,15 @@ enum Result<T, E> {
 */
 ```
 
-### Using Enums with `match`
+### Using Enums with `match` (Designed; Not Executable)
 
-The `match` keyword (if planned for Aero, similar to Rust) is a powerful control flow construct that works well with enums. It allows you to compare a value against a series of patterns and then execute code based on which pattern matches.
+The intended `match` construct compares a value against patterns and selects an
+arm. The current compiler recognizes Match syntax and preserves its AST, but does
+not implement pattern binding, exhaustiveness, arm selection, or value lowering.
+Trusted parsed source bodies, including default trait method bodies, reject Match
+before IR with `Match expressions are not supported.` The traversal is syntax-only
+for default bodies and does not certify their names, parameters, returns, traits, or
+types. The example below is therefore conceptual.
 
 ```aero
 fn process_message(msg: Message) {
@@ -260,7 +290,8 @@ fn main() {
     process_message(m3);
 }
 ```
-If `match` is not yet available, you might use `if let` or methods on the enum to access data, though `match` is the most idiomatic way to handle enums.
+This example becomes executable only after Match and enum semantics ship as a
+complete typed vertical slice; it is not a current workaround or supported program.
 
 ## Basic Collections (from Standard Library)
 
@@ -430,8 +461,13 @@ This was a brief introduction. Traits are a powerful feature used extensively in
 ## Summary
 
 This tutorial covered:
--   **Structs**: Named field, tuple, and unit-like structs; instantiation, field access, and methods via `impl`.
--   **Enums**: Defining variants, variants with associated data, and using `match` (conceptually) for control flow.
+-   **Structs**: Named field, tuple, and unit-like designs. Declarations and
+    construction syntax are retained, while StructLiteral values and named field
+    projection are rejected before IR with their explicit unsupported diagnostics;
+    construction, layout, ownership, and methods remain unimplemented vertical
+    slices.
+-   **Enums**: Defining variants and associated-data designs; `match` remains
+    conceptual and trusted parsed source bodies reject Match values before IR.
 -   **Basic Collections**: A brief look at `Vec<T>` and `HashMap<K, V>` from the standard library.
 -   **Traits**: A conceptual introduction to defining shared behavior with `trait` and `impl`.
 

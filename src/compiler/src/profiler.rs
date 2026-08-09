@@ -1,10 +1,9 @@
-use crate::ast::AstNode;
-use crate::code_generator;
-use crate::ir_generator::IrGenerator;
-use crate::lexer;
-use crate::module_resolver;
-use crate::parser;
-use crate::semantic_analyzer::SemanticAnalyzer;
+use compiler::ast::AstNode;
+use compiler::{
+    CodeGenerationError, IrGenerationError, IrGenerator, LlvmVerificationMode, SemanticAnalyzer,
+    collect_direct_modules_for_compiler_service, parse_with_locations, try_generate_code,
+    try_tokenize_with_locations, verify_llvm_module,
+};
 use serde::Serialize;
 use serde_json::json;
 use std::fs;
@@ -20,6 +19,7 @@ pub struct StageProfile {
 pub struct CompilationProfile {
     pub stages: Vec<StageProfile>,
     pub total_ms: f64,
+    pub llvm_verification: String,
 }
 
 pub fn profile_compilation(
@@ -30,11 +30,12 @@ pub fn profile_compilation(
     let mut stages = Vec::new();
 
     let lex_start = Instant::now();
-    let tokens = lexer::tokenize(source_code);
+    let tokens = try_tokenize_with_locations(source_code, Some(input_file.to_string()))
+        .map_err(|err| format!("Lex error: {}", err))?;
     push_stage(&mut stages, "lexing", lex_start.elapsed());
 
     let parse_start = Instant::now();
-    let mut ast = parser::parse(tokens);
+    let mut ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
     push_stage(&mut stages, "parsing", parse_start.elapsed());
 
     let module_start = Instant::now();
@@ -50,16 +51,37 @@ pub fn profile_compilation(
 
     let ir_start = Instant::now();
     let mut ir_gen = IrGenerator::new();
-    let ir = ir_gen.generate_ir(analyzed_ast);
+    let ir = ir_gen
+        .try_generate_ir(analyzed_ast)
+        .map_err(|error| match error {
+            IrGenerationError::Admission(message) => {
+                format!("IR Generation Error: {message}")
+            }
+            IrGenerationError::Verification(error) => error.to_string(),
+        })?;
     push_stage(&mut stages, "ir_generation", ir_start.elapsed());
 
     let codegen_start = Instant::now();
-    let _llvm_ir = code_generator::generate_code(ir);
+    let llvm_ir = try_generate_code(ir).map_err(|error| match error {
+        CodeGenerationError::IrVerification(error) => error.to_string(),
+        other => format!("Code Generation Error: {other}"),
+    })?;
     push_stage(&mut stages, "code_generation", codegen_start.elapsed());
+
+    let verification_start = Instant::now();
+    let llvm_verification = verify_llvm_module(&llvm_ir, LlvmVerificationMode::PreferExternal)
+        .map_err(|error| error.to_string())?
+        .to_string();
+    push_stage(
+        &mut stages,
+        "llvm_verification",
+        verification_start.elapsed(),
+    );
 
     Ok(CompilationProfile {
         stages,
         total_ms: total_start.elapsed().as_secs_f64() * 1000.0,
+        llvm_verification,
     })
 }
 
@@ -83,6 +105,7 @@ pub fn write_trace_file(profile: &CompilationProfile, output_path: &str) -> Resu
 
     let payload = json!({
         "displayTimeUnit": "ms",
+        "llvmVerification": profile.llvm_verification,
         "traceEvents": trace_events
     });
 
@@ -96,6 +119,7 @@ pub fn write_trace_file(profile: &CompilationProfile, output_path: &str) -> Resu
 
 pub fn print_profile(profile: &CompilationProfile) {
     println!("Compilation profile:");
+    println!("LLVM verification: {}", profile.llvm_verification);
     for stage in &profile.stages {
         println!("  {:<20} {:>8.3} ms", stage.name, stage.duration_ms);
     }
@@ -103,21 +127,7 @@ pub fn print_profile(profile: &CompilationProfile) {
 }
 
 fn resolve_modules(input_file: &str, ast: &mut Vec<AstNode>) -> Result<(), String> {
-    let mut resolver = module_resolver::ModuleResolver::new(input_file);
-    let mut module_asts = Vec::new();
-
-    for node in ast.iter() {
-        if let AstNode::Statement(crate::ast::Statement::ModDecl { name, is_public: _ }) = node {
-            let resolved = resolver
-                .resolve(name)
-                .map_err(|err| format!("Module resolution failed for `{}`: {}", name, err))?;
-            let mod_tokens = lexer::tokenize(&resolved.source);
-            let mod_ast = parser::parse(mod_tokens);
-            module_asts.extend(mod_ast);
-        }
-    }
-
-    ast.extend(module_asts);
+    collect_direct_modules_for_compiler_service(ast, Some(input_file), |_, _| {})?;
     Ok(())
 }
 
@@ -134,6 +144,9 @@ mod tests {
 
     #[test]
     fn profile_collects_expected_stages() {
+        let _environment = crate::LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK
+            .lock()
+            .expect("lock verifier test environment");
         let source = "fn main() { let x = 1; println!(\"{}\", x); }";
         let profile = profile_compilation(source, "main.aero").expect("profile should succeed");
 

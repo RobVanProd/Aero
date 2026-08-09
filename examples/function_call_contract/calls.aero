@@ -1,0 +1,51 @@
+struct Cell { value: int, flags: [bool; 2] }
+struct Frame { cell: Cell, marker: (int, bool), rows: [Cell; 2] }
+
+enum Payload { Idle, Item(Frame) }
+
+fn make_cell(value: int) -> Cell {
+    Cell { value: value, flags: [value > 0, value < 0] }
+}
+
+fn make_frame(value: int) -> Frame {
+    Frame {
+        cell: make_cell(value),
+        marker: (0, value > 0),
+        rows: [make_cell(value + 1), make_cell(value + 2)]
+    }
+}
+
+fn roundtrip(value: Frame) -> Frame { value }
+
+fn score(value: Payload) -> int {
+    match value {
+        Payload::Idle => 0,
+        Payload::Item(frame) => frame.cell.value
+            + frame.cell.flags.len()
+            + frame.marker.0
+            + frame.rows.len()
+    }
+}
+
+fn read(value: &int) -> int { *value }
+
+fn bump(value: &mut int) -> int {
+    *value = *value + 1;
+    *value
+}
+
+fn observe(value: int) { let seen = value; }
+
+fn countdown(value: int) -> int {
+    if value == 0 { return 0; }
+    countdown(value - 1) + 1
+}
+
+fn loop_score() -> int {
+    let mut total = 0;
+    for item in [1, 2] {
+        let fresh = Payload::Item(roundtrip(make_frame(item)));
+        total = total + score(fresh);
+    }
+    total
+}

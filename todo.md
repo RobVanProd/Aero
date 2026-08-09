@@ -1,5 +1,10 @@
 # Aero Development Tasks
 
+> **Historical record — not current capability evidence.** Completion and version
+> labels below preserve the original planning snapshot. Current evidence and open
+> risks live in `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`, and
+> `INITIAL_RISK_REGISTER.md`.
+
 ## ✅ Phase 1-2: Foundation (Complete)
 
 - [x] Create formal grammar document (EBNF)

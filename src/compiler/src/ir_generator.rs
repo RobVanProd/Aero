@@ -1,7 +1,141 @@
 use crate::ast::{AstNode, Expression, Statement, Type};
-use crate::ir::{Function, Inst, Value};
-use crate::types::{Ty, needs_promotion};
-use std::collections::HashMap;
+use crate::binding_annotation::{
+    BindingAnnotationDisposition, BindingContractKind, classify_binding_annotation,
+    is_legacy_numeric_array_annotation, is_statically_empty_fixed_array,
+};
+use crate::closure_contract::unsupported_closure_diagnostic;
+use crate::copy_place_contract::{
+    CopyPlaceDisposition, CopyPlaceExecutionContext, classify_copy_place_type,
+};
+use crate::enum_match_contract::{
+    EnumError, EnumExecutionContext, EnumFunctionContract, EnumRegistry,
+};
+use crate::function_call_contract::{
+    FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
+    FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
+};
+use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
+use crate::ir_verifier::PlaceTypeHints;
+use crate::local_reference::{
+    LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
+    MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceCallSourceMode,
+    ReferenceFunctionContract, ReferenceFunctionDisposition, classify_local_borrow,
+    classify_local_dereference, classify_local_reference_annotation,
+    classify_mutable_reference_assignment, classify_mutable_reference_binding,
+    classify_reference_call, classify_reference_function, reference_call_fact_subject,
+    reference_call_source_mode,
+};
+use crate::method_call_contract::{
+    IntrinsicMethodDisposition, IntrinsicMethodLowering, IntrinsicMethodPhase,
+    classify_intrinsic_method,
+};
+use crate::ownership_flow::{
+    ConditionalOwnershipArm, LOOP_OWNERSHIP_FIXED_POINT_LIMIT, LoopControlSnapshots,
+    LoopOwnershipDisposition, LoopOwnershipEdge, LoopOwnershipEdgeKind, LoopOwnershipKind,
+    OwnershipFlowDisposition, block_reaches_merge, classify_conditional_ownership,
+    classify_loop_ownership, classify_owned_consumption_paths, maybe_moved_diagnostic,
+    statement_reaches_merge,
+};
+use crate::primitive_contract::PrimitiveKind;
+use crate::scalar_assignment::{
+    OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
+    classify_owned_place_assignment, resolve_owned_place_logical_type,
+};
+use crate::static_string_equality::{
+    StaticStringEqualityDisposition, classify_static_string_equality,
+};
+use crate::struct_contract::{
+    CopyArrayIndexDisposition, CopyFunctionContract, StructContractError, StructExecutionContext,
+    StructRegistry,
+};
+use crate::tuple_contract::{
+    CopyTupleContract, TupleBindingValidationError, TupleContractDisposition,
+    TupleExecutionContext, classify_copy_tuple_elements, classify_tuple_projection,
+    validate_tuple_binding,
+};
+use crate::types::{OwnershipState, Ty, needs_promotion};
+use crate::use_import_contract::unsupported_name_import_diagnostic;
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
+
+#[derive(Debug)]
+pub enum IrGenerationError {
+    Admission(String),
+    Verification(crate::ir_verifier::IrVerificationError),
+}
+
+impl fmt::Display for IrGenerationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Admission(message) => formatter.write_str(message),
+            Self::Verification(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for IrGenerationError {}
+
+impl From<crate::ir_verifier::IrVerificationError> for IrGenerationError {
+    fn from(error: crate::ir_verifier::IrVerificationError) -> Self {
+        Self::Verification(error)
+    }
+}
+
+#[derive(Clone)]
+struct AdmissionBinding {
+    ty: Ty,
+    mutable: bool,
+    initialized: bool,
+    ownership: OwnershipState,
+    callable: bool,
+    static_string: Option<String>,
+}
+
+type AdmissionLoopControl = LoopControlSnapshots<HashMap<String, AdmissionBinding>>;
+
+struct AdmissionTopLevelFunction {
+    result: Ty,
+    arity: Option<usize>,
+    parameter_types: Option<Vec<Ty>>,
+}
+
+struct AdmissionProgram {
+    functions: HashMap<String, AdmissionTopLevelFunction>,
+    enum_functions: HashMap<String, EnumFunctionContract>,
+    reference_functions: HashMap<String, ReferenceFunctionContract>,
+    structs: StructRegistry,
+    enums: EnumRegistry,
+}
+
+const STRUCT_ADMISSION_BINDING: &str = "\0aero.checked.struct.context";
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ExpressionUse {
+    Value,
+    Binding,
+    PrintArgument,
+    Discarded,
+}
+
+#[derive(Clone)]
+struct GeneratedScopeSnapshot {
+    bindings: HashMap<String, (Value, Ty)>,
+    mutable_owned_enum_places: HashMap<String, Value>,
+}
+
+#[derive(Clone, Copy)]
+enum StatementLoopKind {
+    While,
+    For,
+    Loop,
+}
+
+struct StatementLoopLabels {
+    header: String,
+    body: Option<String>,
+    continue_target: String,
+    exit: String,
+}
 
 pub struct IrGenerator {
     functions: HashMap<String, Function>,
@@ -10,8 +144,17 @@ pub struct IrGenerator {
     next_reg: u32,
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
-    loop_label_stack: Vec<(String, String)>,    // Stack of (loop_start, loop_end) labels
-    closure_count: u32,                         // Counter for unique closure names
+    mutable_reference_sources: HashMap<u32, Value>,
+    mutable_owned_enum_places: HashMap<String, Value>,
+    function_return_types: HashMap<String, Ty>,
+    copy_function_contracts: HashMap<String, CopyFunctionContract>,
+    enum_function_contracts: HashMap<String, EnumFunctionContract>,
+    reference_function_contracts: HashMap<String, ReferenceFunctionContract>,
+    loop_label_stack: Vec<(String, String)>, // Stack of (continue_target, loop_exit) labels
+    checked_mode: bool,
+    checked_place_hints: PlaceTypeHints,
+    struct_registry: StructRegistry,
+    enum_registry: EnumRegistry,
 }
 
 impl IrGenerator {
@@ -22,8 +165,17 @@ impl IrGenerator {
             next_reg: 0,
             next_ptr: 0,
             symbol_table: HashMap::new(),
+            mutable_reference_sources: HashMap::new(),
+            mutable_owned_enum_places: HashMap::new(),
+            function_return_types: HashMap::new(),
+            copy_function_contracts: HashMap::new(),
+            enum_function_contracts: HashMap::new(),
+            reference_function_contracts: HashMap::new(),
             loop_label_stack: Vec::new(),
-            closure_count: 0,
+            checked_mode: false,
+            checked_place_hints: BTreeMap::new(),
+            struct_registry: StructRegistry::default(),
+            enum_registry: EnumRegistry::default(),
         }
     }
 }
@@ -35,7 +187,159 @@ impl Default for IrGenerator {
 }
 
 impl IrGenerator {
+    fn fresh_control_label(&mut self, prefix: &str) -> String {
+        let label = format!("{prefix}_{}", self.next_reg);
+        self.next_reg += 1;
+        label
+    }
+
+    fn statement_loop_labels(&mut self, kind: StatementLoopKind) -> StatementLoopLabels {
+        let prefix = match kind {
+            StatementLoopKind::While => "while",
+            StatementLoopKind::For => "for",
+            StatementLoopKind::Loop => "loop",
+        };
+        let header = self.fresh_control_label(&format!("{prefix}_start"));
+        let body = (!matches!(kind, StatementLoopKind::Loop))
+            .then(|| self.fresh_control_label(&format!("{prefix}_body")));
+        let continue_target = if matches!(kind, StatementLoopKind::For) {
+            self.fresh_control_label("for_continue")
+        } else {
+            header.clone()
+        };
+        let exit = self.fresh_control_label(&format!("{prefix}_end"));
+        StatementLoopLabels {
+            header,
+            body,
+            continue_target,
+            exit,
+        }
+    }
+
+    pub fn try_generate_ir(
+        &mut self,
+        ast: Vec<AstNode>,
+    ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
+        Self::validate_checked_ast(&ast)?;
+        self.struct_registry = StructRegistry::from_top_level_ast(&ast);
+        self.enum_registry = EnumRegistry::from_top_level_ast(&ast, &self.struct_registry);
+        self.functions.clear();
+        self.current_function_name.clear();
+        self.next_reg = 0;
+        self.next_ptr = 0;
+        self.symbol_table.clear();
+        self.mutable_reference_sources.clear();
+        self.mutable_owned_enum_places.clear();
+        self.function_return_types.clear();
+        self.copy_function_contracts.clear();
+        self.enum_function_contracts.clear();
+        self.reference_function_contracts.clear();
+        self.loop_label_stack.clear();
+        self.checked_place_hints.clear();
+        self.checked_mode = true;
+        let mut functions = self.generate_ir(ast);
+        self.checked_mode = false;
+        Self::ensure_checked_main_terminator(&mut functions);
+        Self::normalize_checked_place_ids(&mut functions, &mut self.checked_place_hints);
+        crate::ir_verifier::verify_ir_with_place_hints(functions, &self.checked_place_hints)
+            .map_err(Into::into)
+    }
+
     pub fn generate_ir(&mut self, ast: Vec<AstNode>) -> HashMap<String, Function> {
+        self.function_return_types.clear();
+        self.copy_function_contracts.clear();
+        self.enum_function_contracts.clear();
+        self.reference_function_contracts.clear();
+        for node in &ast {
+            if let AstNode::Statement(Statement::Function {
+                name,
+                parameters,
+                return_type,
+                type_params,
+                ..
+            }) = node
+            {
+                let reference_contract = if self.checked_mode {
+                    match classify_reference_function(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                        &self.struct_registry,
+                    ) {
+                        ReferenceFunctionDisposition::Supported(contract) => Some(contract),
+                        ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
+                            panic!(
+                                "checked admission accepted rejected reference signature: {diagnostic}"
+                            )
+                        }
+                        ReferenceFunctionDisposition::Preserved => None,
+                    }
+                } else {
+                    None
+                };
+                let enum_contract = if self.checked_mode && reference_contract.is_none() {
+                    self.enum_registry
+                        .resolve_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                            |annotation| {
+                                self.struct_registry
+                                    .resolve_copy_annotation(annotation)
+                                    .map(|contract| (contract.ty, contract.logical_type))
+                            },
+                        )
+                        .expect("checked admission resolved unit-enum function contracts")
+                } else {
+                    None
+                };
+                let copy_contract = if self.checked_mode
+                    && reference_contract.is_none()
+                    && enum_contract.is_none()
+                    && type_params.is_empty()
+                {
+                    self.struct_registry
+                        .resolve_copy_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                        )
+                        .expect("checked admission resolved struct Copy function contracts")
+                } else {
+                    None
+                };
+                if let Some(contract) = reference_contract {
+                    self.function_return_types
+                        .insert(name.clone(), contract.result.ty.clone());
+                    self.reference_function_contracts
+                        .insert(name.clone(), contract);
+                } else if let Some(contract) = enum_contract {
+                    self.function_return_types
+                        .insert(name.clone(), contract.result.ty.clone());
+                    self.enum_function_contracts.insert(name.clone(), contract);
+                } else if let Some(contract) = copy_contract {
+                    self.function_return_types
+                        .insert(name.clone(), contract.result.ty.clone());
+                    self.copy_function_contracts.insert(name.clone(), contract);
+                } else if type_params.is_empty()
+                    && parameters.iter().all(|parameter| {
+                        Self::numeric_contract_type(&parameter.param_type).is_some()
+                    })
+                {
+                    let contract_return = match return_type {
+                        Some(ty) => Self::numeric_contract_type(ty),
+                        None => Some(Ty::Void),
+                    };
+                    if let Some(return_type) = contract_return {
+                        self.function_return_types.insert(name.clone(), return_type);
+                    }
+                }
+            }
+        }
+
         let mut main_function = Function {
             name: "main".to_string(),
             body: Vec::new(),
@@ -60,25 +364,3160 @@ impl IrGenerator {
         self.functions.clone()
     }
 
+    fn numeric_contract_type(ty: &Type) -> Option<Ty> {
+        match ty {
+            Type::Named(name) => PrimitiveKind::from_source_name(name).map(PrimitiveKind::ty),
+            _ => None,
+        }
+    }
+
+    fn build_function_call(&mut self, name: String, arguments: Vec<Value>) -> (Inst, Value, Ty) {
+        let function_name = self.resolve_callable_name(&name);
+        let return_type = self.function_return_types.get(&function_name).cloned();
+
+        if !self.checked_mode {
+            return self.build_quarantined_unchecked_function_call(
+                function_name,
+                arguments,
+                return_type,
+            );
+        }
+
+        let target = match return_type {
+            Some(
+                result @ (Ty::Void
+                | Ty::Int
+                | Ty::Float
+                | Ty::Bool
+                | Ty::Char
+                | Ty::Struct(_)
+                | Ty::Array(_, _)
+                | Ty::Tuple(_)
+                | Ty::Enum(_)),
+            ) => FunctionCallTarget::Admitted {
+                parameters: None,
+                result,
+            },
+            Some(_) => FunctionCallTarget::DeclaredUnadmitted,
+            None => FunctionCallTarget::Missing,
+        };
+        let return_type = match classify_function_call(FunctionCallFacts {
+            name: function_name.clone(),
+            target,
+            arguments: Vec::new(),
+            use_context: FunctionCallUse::Discarded,
+        }) {
+            FunctionCallDisposition::Supported(contract) => contract.result,
+            FunctionCallDisposition::ExplicitlyRejected(diagnostic)
+            | FunctionCallDisposition::PreservedContext(diagnostic) => {
+                unreachable!(
+                    "checked function-call lowering escaped independent admission: {diagnostic}"
+                )
+            }
+        };
+
+        match return_type {
+            Ty::Void => (
+                Inst::Call {
+                    function: function_name,
+                    arguments,
+                    result: None,
+                },
+                Value::ImmInt(0),
+                Ty::Void,
+            ),
+            return_type @ (Ty::Int
+            | Ty::Float
+            | Ty::Bool
+            | Ty::Char
+            | Ty::Struct(_)
+            | Ty::Array(_, _)
+            | Ty::Tuple(_)
+            | Ty::Enum(_)) => {
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                (
+                    Inst::Call {
+                        function: function_name,
+                        arguments,
+                        result: Some(result_reg.clone()),
+                    },
+                    result_reg,
+                    return_type,
+                )
+            }
+            _ => unreachable!("checked function-call result escaped admitted lowering"),
+        }
+    }
+
+    fn build_quarantined_unchecked_function_call(
+        &mut self,
+        function_name: String,
+        arguments: Vec<Value>,
+        return_type: Option<Ty>,
+    ) -> (Inst, Value, Ty) {
+        // Compatibility-only unchecked generation predates checked admission. Its
+        // scalar fallback is quarantined here and is unreachable from try_generate_ir.
+        match return_type {
+            Some(Ty::Void) => (
+                Inst::Call {
+                    function: function_name,
+                    arguments,
+                    result: None,
+                },
+                Value::ImmInt(0),
+                Ty::Void,
+            ),
+            Some(
+                return_type @ (Ty::Int
+                | Ty::Float
+                | Ty::Bool
+                | Ty::Struct(_)
+                | Ty::Array(_, _)
+                | Ty::Tuple(_)
+                | Ty::Enum(_)),
+            ) => {
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                (
+                    Inst::Call {
+                        function: function_name,
+                        arguments,
+                        result: Some(result_reg.clone()),
+                    },
+                    result_reg,
+                    return_type,
+                )
+            }
+            _ => {
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                (
+                    Inst::Call {
+                        function: function_name,
+                        arguments,
+                        result: Some(result_reg.clone()),
+                    },
+                    result_reg,
+                    Ty::Int,
+                )
+            }
+        }
+    }
+
     fn stores_value_directly(ty: &Ty) -> bool {
-        matches!(ty, Ty::String | Ty::Array(_, _) | Ty::Vec(_))
+        matches!(
+            ty,
+            Ty::String
+                | Ty::Array(_, _)
+                | Ty::Struct(_)
+                | Ty::Tuple(_)
+                | Ty::Enum(_)
+                | Ty::Reference(_, _)
+                | Ty::Vec(_)
+                | Ty::Fn(_)
+        )
+    }
+
+    fn admitted_copy_place_logical_type(
+        &self,
+        ty: &Ty,
+        context: CopyPlaceExecutionContext,
+    ) -> LogicalType {
+        match classify_copy_place_type(ty, &self.struct_registry, context) {
+            CopyPlaceDisposition::Supported(contract) => contract.logical_type,
+            CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                unreachable!("checked Copy-place admission escaped classification: {message}")
+            }
+            CopyPlaceDisposition::Preserved => {
+                unreachable!("checked Copy-place lowering has an admitted context")
+            }
+        }
+    }
+
+    fn admitted_owned_place_logical_type(&self, ty: &Ty) -> LogicalType {
+        resolve_owned_place_logical_type(ty, &self.struct_registry, &self.enum_registry)
+            .unwrap_or_else(|message| {
+                unreachable!("checked owned-place admission escaped classification: {message}")
+            })
+    }
+
+    fn is_mutable_owned_enum_place(&self, name: &str, storage: &Value, ty: &Ty) -> bool {
+        matches!(ty, Ty::Enum(_))
+            && self
+                .mutable_owned_enum_places
+                .get(name)
+                .is_some_and(|place| place == storage)
+    }
+
+    fn admission_local_reference_source_facts(
+        expression: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+        inside_admitted_function: bool,
+    ) -> Option<LocalReferenceSourceFacts> {
+        let Expression::Identifier(name) = expression else {
+            return None;
+        };
+        bindings.get(name).map(|binding| LocalReferenceSourceFacts {
+            ty: binding.ty.clone(),
+            mutable: binding.mutable,
+            initialized: binding.initialized,
+            local: inside_admitted_function,
+            ownership: binding.ownership.clone(),
+        })
+    }
+
+    fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
+        let mut program: HashMap<String, AdmissionTopLevelFunction> = HashMap::new();
+        let mut enum_functions = HashMap::new();
+        let mut reference_functions = HashMap::new();
+        let structs = StructRegistry::from_top_level_ast(ast);
+        let enums = EnumRegistry::from_top_level_ast(ast, &structs);
+        for node in ast {
+            if let AstNode::Statement(Statement::Function {
+                name,
+                parameters,
+                return_type,
+                type_params,
+                ..
+            }) = node
+            {
+                let reference_contract = match classify_reference_function(
+                    name,
+                    parameters,
+                    return_type.as_ref(),
+                    type_params,
+                    &structs,
+                ) {
+                    ReferenceFunctionDisposition::Supported(contract) => Some(contract),
+                    ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
+                        return Err(IrGenerationError::Admission(diagnostic));
+                    }
+                    ReferenceFunctionDisposition::Preserved => None,
+                };
+                let enum_contract = if reference_contract.is_none() {
+                    enums
+                        .resolve_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                            |annotation| {
+                                structs
+                                    .resolve_copy_annotation(annotation)
+                                    .map(|contract| (contract.ty, contract.logical_type))
+                            },
+                        )
+                        .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?
+                } else {
+                    None
+                };
+                let copy_contract = if reference_contract.is_none()
+                    && enum_contract.is_none()
+                    && type_params.is_empty()
+                {
+                    match structs.resolve_copy_function_contract(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                    ) {
+                        Ok(contract) => contract,
+                        Err(StructContractError::PreserveExistingBehavior) => None,
+                        Err(error) => {
+                            return Err(IrGenerationError::Admission(error.diagnostic()));
+                        }
+                    }
+                } else {
+                    None
+                };
+                let (result, arity, parameter_types) = if let Some(contract) = reference_contract {
+                    reference_functions.insert(name.clone(), contract.clone());
+                    let parameter_types = contract
+                        .parameters
+                        .iter()
+                        .map(|(_, parameter)| parameter.ty.clone())
+                        .collect::<Vec<_>>();
+                    (
+                        contract.result.ty,
+                        Some(parameter_types.len()),
+                        Some(parameter_types),
+                    )
+                } else if let Some(contract) = enum_contract {
+                    enum_functions.insert(name.clone(), contract.clone());
+                    let parameter_types = contract.parameter_types();
+                    (
+                        contract.result.ty,
+                        Some(parameter_types.len()),
+                        Some(parameter_types),
+                    )
+                } else if let Some(contract) = copy_contract {
+                    let parameter_types = contract
+                        .parameters
+                        .iter()
+                        .map(|(_, parameter)| parameter.ty.clone())
+                        .collect::<Vec<_>>();
+                    (
+                        contract.result.ty,
+                        Some(parameter_types.len()),
+                        Some(parameter_types),
+                    )
+                } else {
+                    let result = return_type
+                        .as_ref()
+                        .map(Self::admission_type)
+                        .unwrap_or(Ty::Void);
+                    let arity = Self::admitted_top_level_arity(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                    );
+                    let parameter_types = arity.map(|_| {
+                        parameters
+                            .iter()
+                            .map(|parameter| Self::admission_type(&parameter.param_type))
+                            .collect()
+                    });
+                    (result, arity, parameter_types)
+                };
+                if let Some(existing) = program.get_mut(name) {
+                    existing.result = result;
+                    existing.arity = None;
+                    existing.parameter_types = None;
+                } else {
+                    program.insert(
+                        name.clone(),
+                        AdmissionTopLevelFunction {
+                            result,
+                            arity,
+                            parameter_types,
+                        },
+                    );
+                }
+            }
+        }
+
+        let program = AdmissionProgram {
+            functions: program,
+            enum_functions,
+            reference_functions,
+            structs,
+            enums,
+        };
+        let mut bindings = HashMap::new();
+        let mut loop_controls = Vec::<AdmissionLoopControl>::new();
+        for node in ast {
+            match node {
+                AstNode::Statement(statement) => Self::validate_statement(
+                    statement,
+                    &mut bindings,
+                    &program,
+                    false,
+                    false,
+                    false,
+                    true,
+                    &mut loop_controls,
+                )?,
+                AstNode::Expression(_) => {
+                    return Err(IrGenerationError::Admission(
+                        "top-level expressions are not admitted in checked IR".to_string(),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn admitted_symbol(name: &str) -> bool {
+        let mut characters = name.chars();
+        characters
+            .next()
+            .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
+            && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
+    }
+
+    fn admitted_top_level_arity(
+        name: &str,
+        parameters: &[crate::ast::Parameter],
+        return_type: Option<&Type>,
+        type_params: &[String],
+    ) -> Option<usize> {
+        if matches!(name, "main" | "printf")
+            || !Self::admitted_symbol(name)
+            || !type_params.is_empty()
+            || return_type.is_some_and(|return_type| {
+                !matches!(
+                    Self::admission_type(return_type),
+                    Ty::Int | Ty::Float | Ty::Bool | Ty::Char
+                )
+            })
+        {
+            return None;
+        }
+
+        let mut parameter_names = std::collections::HashSet::new();
+        for parameter in parameters {
+            if !Self::admitted_symbol(&parameter.name)
+                || !parameter_names.insert(parameter.name.as_str())
+                || !matches!(
+                    Self::admission_type(&parameter.param_type),
+                    Ty::Int | Ty::Float | Ty::Bool | Ty::Char
+                )
+            {
+                return None;
+            }
+        }
+        Some(parameters.len())
+    }
+
+    fn validate_block(
+        block: &crate::ast::Block,
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        inside_loop: bool,
+        inside_impl: bool,
+        inside_generic_impl: bool,
+        loop_controls: &mut Vec<AdmissionLoopControl>,
+    ) -> Result<(), IrGenerationError> {
+        for statement in &block.statements {
+            Self::validate_statement(
+                statement,
+                bindings,
+                program,
+                inside_loop,
+                inside_impl,
+                inside_generic_impl,
+                false,
+                loop_controls,
+            )?;
+        }
+        if let Some(expression) = &block.expression {
+            Self::validate_expression(
+                expression,
+                bindings,
+                program,
+                ExpressionUse::Value,
+                inside_impl,
+                !inside_impl,
+            )?;
+            Self::apply_enum_expression_ownership(expression, bindings, program, inside_loop)?;
+        }
+        Ok(())
+    }
+
+    fn apply_conditional_admission_join(
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        entry: &HashMap<String, AdmissionBinding>,
+        then_state: &HashMap<String, AdmissionBinding>,
+        then_reaches_merge: bool,
+        else_state: &HashMap<String, AdmissionBinding>,
+        else_reaches_merge: bool,
+        inside_loop: bool,
+    ) -> Result<(), IrGenerationError> {
+        let mut joined = entry.clone();
+        let mut names = entry.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+        for name in names {
+            let entry_binding = &entry[&name];
+            let then_binding = &then_state[&name];
+            let else_binding = &else_state[&name];
+            match classify_conditional_ownership(
+                &name,
+                &entry_binding.ty,
+                &entry_binding.ownership,
+                &[
+                    ConditionalOwnershipArm {
+                        state: then_binding.ownership.clone(),
+                        reaches_merge: then_reaches_merge,
+                    },
+                    ConditionalOwnershipArm {
+                        state: else_binding.ownership.clone(),
+                        reaches_merge: else_reaches_merge,
+                    },
+                ],
+                inside_loop,
+            ) {
+                OwnershipFlowDisposition::Joined(Some(state)) => {
+                    joined
+                        .get_mut(&name)
+                        .expect("entry admission binding remains available")
+                        .ownership = state;
+                }
+                OwnershipFlowDisposition::Joined(None)
+                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                OwnershipFlowDisposition::ExplicitlyRejected(message) => {
+                    return Err(IrGenerationError::Admission(message));
+                }
+            }
+        }
+        *bindings = joined;
+        Ok(())
+    }
+
+    fn summarize_loop_admission(
+        initial_header: &HashMap<String, AdmissionBinding>,
+        kind: LoopOwnershipKind,
+        edges: &[(LoopOwnershipEdgeKind, HashMap<String, AdmissionBinding>)],
+    ) -> Result<
+        (
+            HashMap<String, AdmissionBinding>,
+            Option<HashMap<String, AdmissionBinding>>,
+        ),
+        IrGenerationError,
+    > {
+        let mut header = initial_header.clone();
+        let mut exit = initial_header.clone();
+        let has_exit = kind != LoopOwnershipKind::Loop
+            || edges
+                .iter()
+                .any(|(edge, _)| *edge == LoopOwnershipEdgeKind::Break);
+        let mut names = initial_header.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+        for name in names {
+            let initial_binding = &initial_header[&name];
+            let owner_edges = edges
+                .iter()
+                .map(|(kind, snapshot)| LoopOwnershipEdge {
+                    kind: *kind,
+                    state: snapshot[&name].ownership.clone(),
+                })
+                .collect::<Vec<_>>();
+            match classify_loop_ownership(
+                &name,
+                &initial_binding.ty,
+                kind,
+                &initial_binding.ownership,
+                &owner_edges,
+            ) {
+                LoopOwnershipDisposition::FixedPoint(summary) => {
+                    header
+                        .get_mut(&name)
+                        .expect("initial admission binding remains in loop header")
+                        .ownership = summary.header;
+                    if let Some(state) = summary.exit {
+                        exit.get_mut(&name)
+                            .expect("initial admission binding remains at loop exit")
+                            .ownership = state;
+                    }
+                }
+                LoopOwnershipDisposition::PreserveExistingBehavior => {}
+                LoopOwnershipDisposition::ExplicitlyRejected(message) => {
+                    return Err(IrGenerationError::Admission(message));
+                }
+            }
+        }
+        Ok((header, has_exit.then_some(exit)))
+    }
+
+    fn admission_ownership_matches(
+        left: &HashMap<String, AdmissionBinding>,
+        right: &HashMap<String, AdmissionBinding>,
+    ) -> bool {
+        left.len() == right.len()
+            && left.iter().all(|(name, binding)| {
+                right
+                    .get(name)
+                    .is_some_and(|other| binding.ownership == other.ownership)
+            })
+    }
+
+    fn admission_direct_owned_enum_result_type(
+        name: &str,
+        bindings: &HashMap<String, AdmissionBinding>,
+    ) -> Option<Ty> {
+        let binding = bindings.get(name)?;
+        (bindings.contains_key(STRUCT_ADMISSION_BINDING)
+            && binding.initialized
+            && binding.ownership == OwnershipState::Owned
+            && matches!(binding.ty, Ty::Enum(_)))
+        .then(|| binding.ty.clone())
+    }
+
+    fn owned_match_consumption_paths(
+        expression: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+    ) -> Option<Vec<Vec<String>>> {
+        match expression {
+            Expression::Match { arms, .. } => program
+                .enums
+                .resolve_owned_match_result(
+                    arms,
+                    &|name| Self::admission_direct_owned_enum_result_type(name, bindings),
+                    &|name| {
+                        program
+                            .enum_functions
+                            .get(name)
+                            .map(|contract| contract.result.ty.clone())
+                    },
+                )
+                .ok()
+                .map(|result| result.consumption_paths),
+            Expression::FunctionCall { arguments, .. } => {
+                let mut combined = vec![Vec::new()];
+                let mut found = false;
+                for argument in arguments {
+                    let Some(paths) =
+                        Self::owned_match_consumption_paths(argument, bindings, program)
+                    else {
+                        continue;
+                    };
+                    found = true;
+                    combined = combined
+                        .into_iter()
+                        .flat_map(|prefix| {
+                            paths.iter().map(move |path| {
+                                let mut combined = prefix.clone();
+                                combined.extend(path.iter().cloned());
+                                combined
+                            })
+                        })
+                        .collect();
+                }
+                found.then_some(combined)
+            }
+            _ => None,
+        }
+    }
+
+    fn apply_enum_expression_ownership(
+        expression: &Expression,
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        inside_loop: bool,
+    ) -> Result<(), IrGenerationError> {
+        let consumed = program
+            .enums
+            .consumed_owned_values(
+                expression,
+                |name| bindings.get(name).map(|binding| binding.ty.clone()),
+                |name| {
+                    program
+                        .enum_functions
+                        .get(name)
+                        .map(EnumFunctionContract::parameter_types)
+                },
+            )
+            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+        let Some(mut paths) = Self::owned_match_consumption_paths(expression, bindings, program)
+        else {
+            for name in consumed {
+                let binding = bindings.get_mut(&name).ok_or_else(|| {
+                    IrGenerationError::Admission(format!(
+                        "checked IR has no binding for consumed enum owner `{name}`"
+                    ))
+                })?;
+                binding.ownership = OwnershipState::Moved;
+            }
+            return Ok(());
+        };
+        for path in &mut paths {
+            path.extend(consumed.iter().cloned());
+        }
+        let mut names = paths
+            .iter()
+            .flat_map(|path| path.iter().cloned())
+            .collect::<Vec<_>>();
+        names.sort();
+        names.dedup();
+        for name in names {
+            let binding = bindings.get(&name).ok_or_else(|| {
+                IrGenerationError::Admission(format!(
+                    "checked IR has no binding for consumed enum owner `{name}`"
+                ))
+            })?;
+            let ty = binding.ty.clone();
+            let entry = binding.ownership.clone();
+            match classify_owned_consumption_paths(&name, &ty, &entry, &paths, inside_loop) {
+                OwnershipFlowDisposition::Joined(Some(state)) => {
+                    bindings
+                        .get_mut(&name)
+                        .expect("consumed enum owner remains admitted")
+                        .ownership = state;
+                }
+                OwnershipFlowDisposition::Joined(None)
+                | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                OwnershipFlowDisposition::ExplicitlyRejected(message) => {
+                    return Err(IrGenerationError::Admission(message));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_statement(
+        statement: &Statement,
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        inside_loop: bool,
+        inside_impl: bool,
+        inside_generic_impl: bool,
+        is_top_level: bool,
+        loop_controls: &mut Vec<AdmissionLoopControl>,
+    ) -> Result<(), IrGenerationError> {
+        match statement {
+            Statement::Let {
+                name,
+                mutable,
+                type_annotation,
+                value,
+            } => {
+                let disposition = type_annotation.as_ref().map_or(
+                    BindingAnnotationDisposition::PreservedQuarantinedTopology,
+                    |annotation| classify_binding_annotation(annotation, value.is_some()),
+                );
+                if value.is_none()
+                    && let Some(kind) = disposition.rejected_topology()
+                {
+                    return Err(IrGenerationError::Admission(format!(
+                        "checked IR binding `{}` uses an unsupported {} for an uninitialized binding",
+                        name,
+                        kind.topology()
+                    )));
+                }
+                if let Some(value) = value {
+                    let static_string = if type_annotation.is_none()
+                        || disposition.supported_contract() == Some(BindingContractKind::String)
+                    {
+                        Self::static_string_value(value, bindings)
+                    } else {
+                        None
+                    };
+                    let ty = if inside_impl || inside_generic_impl {
+                        Self::validate_expression(
+                            value,
+                            bindings,
+                            program,
+                            ExpressionUse::Binding,
+                            inside_impl,
+                            !inside_impl,
+                        )?
+                    } else if let Some(contract) = type_annotation
+                        .as_ref()
+                        .and_then(|annotation| program.structs.resolve_copy_annotation(annotation))
+                        .filter(|contract| {
+                            matches!(contract.ty, Ty::Array(_, 0))
+                                && matches!(value, Expression::ArrayLiteral(elements) if elements.is_empty())
+                        })
+                    {
+                        contract.ty
+                    } else {
+                        Self::validate_expression(
+                            value,
+                            bindings,
+                            program,
+                            ExpressionUse::Binding,
+                            inside_impl,
+                            !inside_impl,
+                        )?
+                    };
+                    if matches!(ty, Ty::Void) {
+                        return Err(IrGenerationError::Admission(
+                            "Void expressions cannot be stored in a binding".to_string(),
+                        ));
+                    }
+                    if disposition.defers_to_tuple_contract() {
+                        match validate_tuple_binding(
+                            type_annotation.as_ref(),
+                            &ty,
+                            *mutable,
+                            &program.structs,
+                        ) {
+                            Ok(()) => {}
+                            Err(TupleBindingValidationError::Explicit(message)) => {
+                                return Err(IrGenerationError::Admission(message));
+                            }
+                            Err(TupleBindingValidationError::PreserveInitializedDirectAnnotationRejection) => {
+                                return Err(IrGenerationError::Admission(format!(
+                                    "checked IR binding `{name}` uses an unsupported tuple type annotation for an initialized binding"
+                                )));
+                            }
+                        }
+                    }
+                    if !is_top_level
+                        && !inside_impl
+                        && !inside_generic_impl
+                        && type_annotation.as_ref().is_some_and(|annotation| {
+                            !is_legacy_numeric_array_annotation(annotation)
+                                && matches!(annotation, Type::Array(_, _))
+                        })
+                    {
+                        program
+                            .structs
+                            .validate_copy_array_binding(type_annotation.as_ref(), &ty)
+                            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                    }
+                    program
+                        .structs
+                        .validate_direct_binding_initializer(value, &ty)
+                        .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                    if let Ty::Struct(struct_name) = &ty {
+                        program
+                            .structs
+                            .validate_binding_annotation(struct_name, type_annotation.as_ref())
+                            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                    }
+                    if let Ty::Enum(enum_name) = &ty {
+                        program
+                            .enums
+                            .validate_binding(enum_name, type_annotation.as_ref())
+                            .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                    }
+                    let reference_annotation = if matches!(ty, Ty::Reference(_, _)) {
+                        type_annotation.as_ref().map_or(
+                            LocalReferenceDisposition::Preserved,
+                            |annotation| {
+                                classify_local_reference_annotation(
+                                    annotation,
+                                    true,
+                                    &program.structs,
+                                )
+                            },
+                        )
+                    } else {
+                        LocalReferenceDisposition::Preserved
+                    };
+                    if let Some(kind) = disposition.rejected_topology()
+                        && !matches!(
+                            &reference_annotation,
+                            LocalReferenceDisposition::Supported(_)
+                        )
+                    {
+                        return Err(IrGenerationError::Admission(format!(
+                            "checked IR binding `{}` uses an unsupported {} for an initialized binding",
+                            name,
+                            kind.topology()
+                        )));
+                    }
+                    if let LocalReferenceDisposition::ExplicitlyRejected(message) =
+                        reference_annotation
+                    {
+                        return Err(IrGenerationError::Admission(message));
+                    }
+                    if !inside_generic_impl && let Some(contract) = disposition.supported_contract()
+                    {
+                        let expected = contract.ty();
+                        if ty != expected {
+                            return Err(IrGenerationError::Admission(format!(
+                                "checked IR binding `{}` type annotation mismatch: expected {}, actual {}",
+                                name, expected, ty
+                            )));
+                        }
+                    }
+                    if let LocalReferenceDisposition::Supported(contract) = reference_annotation {
+                        let expected = contract.reference_type();
+                        if ty != expected {
+                            return Err(IrGenerationError::Admission(format!(
+                                "checked IR binding `{}` type annotation mismatch: expected {}, actual {}",
+                                name, expected, ty
+                            )));
+                        }
+                    }
+                    classify_mutable_reference_binding(value, &ty)
+                        .map_err(IrGenerationError::Admission)?;
+                    if *mutable && matches!(ty, Ty::String) {
+                        return Err(IrGenerationError::Admission(
+                            "mutable string bindings are not admitted; checked strings are immutable compile-time aliases"
+                                .to_string(),
+                        ));
+                    }
+                    if let Expression::Borrow { expr, mutable } = value
+                        && let Expression::Identifier(source) = expr.as_ref()
+                    {
+                        let source = bindings
+                            .get_mut(source)
+                            .expect("shared reference classifier resolved source binding");
+                        source.ownership = if *mutable {
+                            OwnershipState::MutablyBorrowed
+                        } else {
+                            match source.ownership.clone() {
+                                OwnershipState::Owned => OwnershipState::ImmutablyBorrowed(1),
+                                OwnershipState::ImmutablyBorrowed(count) => {
+                                    OwnershipState::ImmutablyBorrowed(count + 1)
+                                }
+                                OwnershipState::MaybeMoved => {
+                                    unreachable!(
+                                        "shared reference classifier rejected maybe-moved source"
+                                    )
+                                }
+                                _ => unreachable!(
+                                    "shared reference classifier rejected conflicting borrow"
+                                ),
+                            }
+                        };
+                    }
+                    Self::apply_enum_expression_ownership(value, bindings, program, inside_loop)?;
+                    bindings.insert(
+                        name.clone(),
+                        AdmissionBinding {
+                            mutable: *mutable,
+                            initialized: true,
+                            ownership: OwnershipState::Owned,
+                            callable: matches!(ty, Ty::Fn(_)),
+                            static_string,
+                            ty,
+                        },
+                    );
+                }
+            }
+            Statement::Assignment { target, value } => {
+                let rhs = Self::validate_expression(
+                    value,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    !inside_impl,
+                )?;
+                Self::apply_enum_expression_ownership(value, bindings, program, inside_loop)?;
+                let inside_admitted_function = bindings.contains_key(STRUCT_ADMISSION_BINDING)
+                    && !inside_impl
+                    && !inside_generic_impl;
+                let mutable_reference_facts = if let Expression::Deref(reference) = target
+                    && let Expression::Identifier(name) = reference.as_ref()
+                {
+                    bindings
+                        .get(name)
+                        .map(|binding| MutableReferenceAssignmentFacts {
+                            ty: binding.ty.clone(),
+                            initialized: binding.initialized,
+                            local: inside_admitted_function,
+                            ownership: binding.ownership.clone(),
+                        })
+                } else {
+                    None
+                };
+                match classify_mutable_reference_assignment(
+                    target,
+                    mutable_reference_facts.as_ref(),
+                    &rhs,
+                    inside_admitted_function,
+                    &program.structs,
+                ) {
+                    MutableReferenceAssignmentDisposition::Supported(_) => return Ok(()),
+                    MutableReferenceAssignmentDisposition::ExplicitlyRejected(message) => {
+                        return Err(IrGenerationError::Admission(message));
+                    }
+                    MutableReferenceAssignmentDisposition::Preserved => {}
+                }
+                let facts = if let Expression::Identifier(name) = target {
+                    bindings
+                        .get(name)
+                        .map(|binding| OwnedPlaceAssignmentTargetFacts {
+                            ty: binding.ty.clone(),
+                            mutable: binding.mutable,
+                            initialized: binding.initialized,
+                            local: inside_admitted_function,
+                            ownership: binding.ownership.clone(),
+                        })
+                } else {
+                    None
+                };
+                match classify_owned_place_assignment(
+                    Some(target),
+                    facts.as_ref(),
+                    Some(value),
+                    &rhs,
+                    inside_admitted_function,
+                    inside_loop,
+                    &program.structs,
+                    &program.enums,
+                ) {
+                    OwnedPlaceAssignmentDisposition::Supported(contract) => {
+                        if let Some(source) = contract.moved_source {
+                            bindings
+                                .get_mut(&source)
+                                .expect("shared owned-place classifier resolved source binding")
+                                .ownership = OwnershipState::Moved;
+                        }
+                        bindings
+                            .get_mut(&contract.name)
+                            .expect("shared owned-place classifier resolved target binding")
+                            .ownership = contract.transition.resulting_ownership();
+                    }
+                    OwnedPlaceAssignmentDisposition::ExplicitlyRejected(message) => {
+                        return Err(IrGenerationError::Admission(message));
+                    }
+                    OwnedPlaceAssignmentDisposition::PreserveExistingBehavior => {
+                        unreachable!("explicit assignment must receive a classifier disposition")
+                    }
+                }
+            }
+            Statement::Return(expression) => {
+                if let Some(expression) = expression {
+                    Self::validate_expression(
+                        expression,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        !inside_impl,
+                    )?;
+                    Self::apply_enum_expression_ownership(
+                        expression,
+                        bindings,
+                        program,
+                        inside_loop,
+                    )?;
+                }
+            }
+            Statement::Expression(expression) => {
+                Self::validate_expression(
+                    expression,
+                    bindings,
+                    program,
+                    ExpressionUse::Discarded,
+                    inside_impl,
+                    !inside_impl,
+                )?;
+                Self::apply_enum_expression_ownership(expression, bindings, program, inside_loop)?;
+            }
+            Statement::Block(block) => {
+                let mut nested = bindings.clone();
+                Self::validate_block(
+                    block,
+                    &mut nested,
+                    program,
+                    inside_loop,
+                    inside_impl,
+                    inside_generic_impl,
+                    loop_controls,
+                )?;
+            }
+            Statement::Loop { body } => {
+                let initial_header = bindings.clone();
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    let mut nested = header.clone();
+                    loop_controls.push(AdmissionLoopControl::default());
+                    let body_result = Self::validate_block(
+                        body,
+                        &mut nested,
+                        program,
+                        true,
+                        inside_impl,
+                        inside_generic_impl,
+                        loop_controls,
+                    );
+                    let control = loop_controls
+                        .pop()
+                        .expect("loop admission control frame was pushed");
+                    body_result?;
+                    let mut edges = Vec::new();
+                    if block_reaches_merge(body, true) {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                    }
+                    edges.extend(
+                        control
+                            .continues
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                    );
+                    edges.extend(
+                        control
+                            .breaks
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                    );
+                    let (next_header, exit) = Self::summarize_loop_admission(
+                        &initial_header,
+                        LoopOwnershipKind::Loop,
+                        &edges,
+                    )?;
+                    if Self::admission_ownership_matches(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
+                }
+                if !converged {
+                    return Err(IrGenerationError::Admission(
+                        "direct enum loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    ));
+                }
+                *bindings = final_exit.unwrap_or(initial_header);
+            }
+            Statement::Function {
+                name,
+                parameters,
+                return_type,
+                type_params,
+                body,
+                ..
+            } => {
+                let reference_contract = match classify_reference_function(
+                    name,
+                    parameters,
+                    return_type.as_ref(),
+                    type_params,
+                    &program.structs,
+                ) {
+                    ReferenceFunctionDisposition::Supported(contract) => Some(contract),
+                    ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
+                        return Err(IrGenerationError::Admission(diagnostic));
+                    }
+                    ReferenceFunctionDisposition::Preserved => None,
+                };
+                if reference_contract.is_none() && !type_params.is_empty() {
+                    return Err(IrGenerationError::Admission(
+                        "generic function IR is not admitted in CORE-010".to_string(),
+                    ));
+                }
+                let mut function_bindings = HashMap::new();
+                if is_top_level && !inside_impl {
+                    function_bindings.insert(
+                        STRUCT_ADMISSION_BINDING.to_string(),
+                        AdmissionBinding {
+                            ty: Ty::Void,
+                            mutable: false,
+                            initialized: true,
+                            ownership: OwnershipState::Owned,
+                            callable: false,
+                            static_string: None,
+                        },
+                    );
+                }
+                let enum_contract = if reference_contract.is_none() {
+                    program
+                        .enums
+                        .resolve_function_contract(
+                            name,
+                            parameters,
+                            return_type.as_ref(),
+                            type_params,
+                            |annotation| {
+                                program
+                                    .structs
+                                    .resolve_copy_annotation(annotation)
+                                    .map(|contract| (contract.ty, contract.logical_type))
+                            },
+                        )
+                        .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?
+                } else {
+                    None
+                };
+                let copy_contract = if reference_contract.is_none() && enum_contract.is_none() {
+                    match program.structs.resolve_copy_function_contract(
+                        name,
+                        parameters,
+                        return_type.as_ref(),
+                        type_params,
+                    ) {
+                        Ok(contract) => contract,
+                        Err(StructContractError::PreserveExistingBehavior) => None,
+                        Err(error) => {
+                            return Err(IrGenerationError::Admission(error.diagnostic()));
+                        }
+                    }
+                } else {
+                    None
+                };
+                for (index, parameter) in parameters.iter().enumerate() {
+                    let parameter_ty = if let Some(contract) = &reference_contract {
+                        contract.parameters[index].1.ty.clone()
+                    } else if let Some(contract) = &enum_contract {
+                        contract.parameters[index].1.ty.clone()
+                    } else {
+                        copy_contract.as_ref().map_or_else(
+                            || Self::admission_type(&parameter.param_type),
+                            |contract| contract.parameters[index].1.ty.clone(),
+                        )
+                    };
+                    if reference_contract.is_none()
+                        && enum_contract.is_none()
+                        && copy_contract.is_none()
+                        && !matches!(parameter_ty, Ty::Int | Ty::Float | Ty::Bool | Ty::Char)
+                    {
+                        return Err(IrGenerationError::Admission(format!(
+                            "function parameter `{}` is not an admitted scalar type",
+                            parameter.name
+                        )));
+                    }
+                    function_bindings.insert(
+                        parameter.name.clone(),
+                        AdmissionBinding {
+                            ty: parameter_ty,
+                            mutable: false,
+                            initialized: true,
+                            ownership: OwnershipState::Owned,
+                            callable: false,
+                            static_string: None,
+                        },
+                    );
+                }
+                if reference_contract.is_none()
+                    && enum_contract.is_none()
+                    && copy_contract.is_none()
+                    && return_type.as_ref().is_some_and(|return_type| {
+                        !matches!(
+                            Self::admission_type(return_type),
+                            Ty::Int | Ty::Float | Ty::Bool | Ty::Char
+                        )
+                    })
+                {
+                    return Err(IrGenerationError::Admission(
+                        "function return type is not an admitted scalar or Void type".to_string(),
+                    ));
+                }
+                Self::validate_block(
+                    body,
+                    &mut function_bindings,
+                    program,
+                    false,
+                    inside_impl,
+                    inside_generic_impl,
+                    loop_controls,
+                )?;
+            }
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                Self::validate_expression(
+                    condition,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    !inside_impl,
+                )?;
+                Self::apply_enum_expression_ownership(condition, bindings, program, inside_loop)?;
+                let entry_bindings = bindings.clone();
+                let mut then_bindings = entry_bindings.clone();
+                Self::validate_block(
+                    then_block,
+                    &mut then_bindings,
+                    program,
+                    inside_loop,
+                    inside_impl,
+                    inside_generic_impl,
+                    loop_controls,
+                )?;
+                let else_bindings = if let Some(else_statement) = else_block {
+                    let mut else_bindings = entry_bindings.clone();
+                    Self::validate_statement(
+                        else_statement,
+                        &mut else_bindings,
+                        program,
+                        inside_loop,
+                        inside_impl,
+                        inside_generic_impl,
+                        false,
+                        loop_controls,
+                    )?;
+                    else_bindings
+                } else {
+                    entry_bindings.clone()
+                };
+                Self::apply_conditional_admission_join(
+                    bindings,
+                    &entry_bindings,
+                    &then_bindings,
+                    block_reaches_merge(then_block, inside_loop),
+                    &else_bindings,
+                    else_block
+                        .as_deref()
+                        .is_none_or(|statement| statement_reaches_merge(statement, inside_loop)),
+                    inside_loop,
+                )?;
+            }
+            Statement::While { condition, body } => {
+                let initial_header = bindings.clone();
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    let mut condition_bindings = header.clone();
+                    Self::validate_expression(
+                        condition,
+                        &mut condition_bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        !inside_impl,
+                    )?;
+                    Self::apply_enum_expression_ownership(
+                        condition,
+                        &mut condition_bindings,
+                        program,
+                        true,
+                    )?;
+                    let mut nested = condition_bindings.clone();
+                    loop_controls.push(AdmissionLoopControl::default());
+                    let body_result = Self::validate_block(
+                        body,
+                        &mut nested,
+                        program,
+                        true,
+                        inside_impl,
+                        inside_generic_impl,
+                        loop_controls,
+                    );
+                    let control = loop_controls
+                        .pop()
+                        .expect("while admission control frame was pushed");
+                    body_result?;
+                    let mut edges = vec![(LoopOwnershipEdgeKind::Condition, condition_bindings)];
+                    if block_reaches_merge(body, true) {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                    }
+                    edges.extend(
+                        control
+                            .continues
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Continue, state)),
+                    );
+                    edges.extend(
+                        control
+                            .breaks
+                            .into_iter()
+                            .map(|state| (LoopOwnershipEdgeKind::Break, state)),
+                    );
+                    let (next_header, exit) = Self::summarize_loop_admission(
+                        &initial_header,
+                        LoopOwnershipKind::While,
+                        &edges,
+                    )?;
+                    if Self::admission_ownership_matches(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
+                }
+                if !converged {
+                    return Err(IrGenerationError::Admission(
+                        "direct enum while-loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    ));
+                }
+                *bindings = final_exit.unwrap_or(initial_header);
+            }
+            Statement::For {
+                variable,
+                iterable,
+                body,
+            } => {
+                let iterable_ty = Self::validate_expression(
+                    iterable,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    !inside_impl,
+                )?;
+                Self::apply_enum_expression_ownership(iterable, bindings, program, true)?;
+                let initial_header = bindings.clone();
+                let element_ty = match iterable_ty {
+                    Ty::Array(element, _) | Ty::Vec(element) => *element,
+                    _ => {
+                        return Err(IrGenerationError::Admission(
+                            "for-loop iteration requires an admitted array/Vec".to_string(),
+                        ));
+                    }
+                };
+                let mut header = initial_header.clone();
+                let mut converged = false;
+                let mut final_exit = None;
+                for _ in 0..LOOP_OWNERSHIP_FIXED_POINT_LIMIT {
+                    let mut nested = header.clone();
+                    let shadowed_loop_binding = nested.insert(
+                        variable.clone(),
+                        AdmissionBinding {
+                            ty: element_ty.clone(),
+                            mutable: false,
+                            initialized: true,
+                            ownership: OwnershipState::Owned,
+                            callable: false,
+                            static_string: None,
+                        },
+                    );
+                    loop_controls.push(AdmissionLoopControl::default());
+                    let body_result = Self::validate_block(
+                        body,
+                        &mut nested,
+                        program,
+                        true,
+                        inside_impl,
+                        inside_generic_impl,
+                        loop_controls,
+                    );
+                    let control = loop_controls
+                        .pop()
+                        .expect("for admission control frame was pushed");
+                    body_result?;
+                    let restore_loop_binding = |state: &mut HashMap<String, AdmissionBinding>| {
+                        if let Some(shadowed) = &shadowed_loop_binding {
+                            state.insert(variable.clone(), shadowed.clone());
+                        } else {
+                            state.remove(variable);
+                        }
+                    };
+                    restore_loop_binding(&mut nested);
+                    let mut edges = vec![(LoopOwnershipEdgeKind::Iterable, initial_header.clone())];
+                    if block_reaches_merge(body, true) {
+                        edges.push((LoopOwnershipEdgeKind::Fallthrough, nested));
+                    }
+                    edges.extend(control.continues.into_iter().map(|mut state| {
+                        restore_loop_binding(&mut state);
+                        (LoopOwnershipEdgeKind::Continue, state)
+                    }));
+                    edges.extend(control.breaks.into_iter().map(|mut state| {
+                        restore_loop_binding(&mut state);
+                        (LoopOwnershipEdgeKind::Break, state)
+                    }));
+                    let (next_header, exit) = Self::summarize_loop_admission(
+                        &initial_header,
+                        LoopOwnershipKind::For,
+                        &edges,
+                    )?;
+                    if Self::admission_ownership_matches(&header, &next_header) {
+                        converged = true;
+                        final_exit = exit;
+                        break;
+                    }
+                    header = next_header;
+                }
+                if !converged {
+                    return Err(IrGenerationError::Admission(
+                        "direct enum for-loop ownership did not converge within the finite fixed-point bound"
+                            .to_string(),
+                    ));
+                }
+                *bindings = final_exit.unwrap_or(initial_header);
+            }
+            Statement::ImplBlock {
+                methods,
+                type_params,
+                ..
+            } => {
+                let methods_are_generic = inside_generic_impl || !type_params.is_empty();
+                for method in methods {
+                    Self::validate_statement(
+                        method,
+                        bindings,
+                        program,
+                        false,
+                        true,
+                        methods_are_generic,
+                        false,
+                        loop_controls,
+                    )?;
+                }
+            }
+            // Trait declarations remain syntax-only in this prototype. The semantic
+            // pass recursively diagnoses unsupported expressions in default bodies;
+            // checked lowering must not activate runtime name binding for them.
+            Statement::TraitDef { .. } => {}
+            Statement::Break => {
+                if !inside_loop {
+                    return Err(IrGenerationError::Admission(
+                        "break and continue are only admitted inside loops".to_string(),
+                    ));
+                }
+                loop_controls
+                    .last_mut()
+                    .expect("inside_loop requires an admission control frame")
+                    .breaks
+                    .push(bindings.clone());
+            }
+            Statement::Continue => {
+                if !inside_loop {
+                    return Err(IrGenerationError::Admission(
+                        "break and continue are only admitted inside loops".to_string(),
+                    ));
+                }
+                loop_controls
+                    .last_mut()
+                    .expect("inside_loop requires an admission control frame")
+                    .continues
+                    .push(bindings.clone());
+            }
+            Statement::StructDef { .. } | Statement::EnumDef { .. } | Statement::ModDecl { .. } => {
+            }
+            Statement::UseImport {
+                syntax, location, ..
+            } => {
+                return Err(IrGenerationError::Admission(
+                    unsupported_name_import_diagnostic(*syntax, location),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_expression(
+        expression: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        expression_use: ExpressionUse,
+        inside_impl: bool,
+        admit_static_string_equality: bool,
+    ) -> Result<Ty, IrGenerationError> {
+        let admission_error = |message: &str| IrGenerationError::Admission(message.to_string());
+        match expression {
+            Expression::IntegerLiteral(value) => {
+                i32::try_from(*value).map_err(|_| {
+                    admission_error("integer literal is outside the admitted i32 range")
+                })?;
+                Ok(Ty::Int)
+            }
+            Expression::FloatLiteral(_) => Ok(Ty::Float),
+            Expression::CharacterLiteral(_) => Ok(Ty::Char),
+            Expression::StringLiteral(_) => Ok(Ty::String),
+            Expression::Identifier(name) => {
+                let binding = bindings.get(name).ok_or_else(|| {
+                    admission_error(&format!("checked IR has no binding for `{name}`"))
+                })?;
+                if binding.callable {
+                    return Err(admission_error(
+                        "closure aliases may only be used as direct callees",
+                    ));
+                }
+                if binding.ownership == OwnershipState::MutablyBorrowed {
+                    return Err(admission_error(&format!(
+                        "cannot read `{name}` while it is mutably borrowed"
+                    )));
+                }
+                if binding.ownership == OwnershipState::Moved {
+                    return Err(admission_error(&format!(
+                        "use of moved value `{name}` in checked IR"
+                    )));
+                }
+                if binding.ownership == OwnershipState::MaybeMoved {
+                    return Err(IrGenerationError::Admission(maybe_moved_diagnostic(name)));
+                }
+                Ok(binding.ty.clone())
+            }
+            Expression::Binary {
+                op,
+                left,
+                right,
+                ty,
+            } => {
+                if matches!(op, crate::ast::BinaryOp::Modulo) {
+                    return Err(admission_error("modulo is not admitted in checked IR"));
+                }
+                let left_ty = Self::validate_expression(
+                    left,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                let right_ty = Self::validate_expression(
+                    right,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                let derived_ty = if matches!(left_ty, Ty::Float)
+                    && matches!(right_ty, Ty::Int | Ty::Float)
+                    || matches!(right_ty, Ty::Float) && matches!(left_ty, Ty::Int | Ty::Float)
+                {
+                    Ty::Float
+                } else if matches!(left_ty, Ty::Int) && matches!(right_ty, Ty::Int) {
+                    Ty::Int
+                } else {
+                    return Err(admission_error(
+                        "binary expression is not an admitted scalar",
+                    ));
+                };
+                if let Some(actual_ty) = ty
+                    && actual_ty != &derived_ty
+                {
+                    return Err(admission_error(&format!(
+                        "binary result metadata mismatch: expected {}, actual {}",
+                        derived_ty, actual_ty
+                    )));
+                }
+                if matches!(op, crate::ast::BinaryOp::Divide)
+                    && matches!(derived_ty, Ty::Int)
+                    && Self::constant_integer_value(right) == Some(0)
+                {
+                    return Err(admission_error("constant integer division by zero"));
+                }
+                Ok(derived_ty)
+            }
+            Expression::FunctionCall { name, arguments } => {
+                let inside_admitted_function =
+                    bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
+                let reference_call = if let Some(contract) = program.reference_functions.get(name) {
+                    let facts = reference_call_fact_subject(arguments).and_then(|subject| {
+                        Self::admission_local_reference_source_facts(
+                            subject,
+                            bindings,
+                            inside_admitted_function,
+                        )
+                    });
+                    classify_reference_call(contract, arguments, facts.as_ref(), &program.structs)
+                } else {
+                    ReferenceCallDisposition::Preserved
+                };
+                let mut argument_types = Vec::with_capacity(arguments.len());
+                match reference_call {
+                    ReferenceCallDisposition::Supported(contract) => {
+                        argument_types.push(contract.reference_type());
+                    }
+                    ReferenceCallDisposition::ExplicitlyRejected(message) => {
+                        return Err(admission_error(&message));
+                    }
+                    ReferenceCallDisposition::Preserved => {
+                        for argument in arguments {
+                            argument_types.push(Self::validate_expression(
+                                argument,
+                                bindings,
+                                program,
+                                ExpressionUse::Value,
+                                inside_impl,
+                                admit_static_string_equality,
+                            )?);
+                        }
+                    }
+                }
+                if let Some(binding) = bindings.get(name) {
+                    if binding.callable {
+                        let result = match &binding.ty {
+                            Ty::Fn(signature) => Self::callable_result_type(signature)?,
+                            _ => {
+                                return Err(admission_error("callable binding lost its signature"));
+                            }
+                        };
+                        return Self::classified_call_result(classify_function_call(
+                            FunctionCallFacts {
+                                name: name.clone(),
+                                target: FunctionCallTarget::Callable { result },
+                                arguments: argument_types,
+                                use_context: if expression_use == ExpressionUse::Discarded {
+                                    FunctionCallUse::Discarded
+                                } else {
+                                    FunctionCallUse::Value
+                                },
+                            },
+                        ));
+                    }
+                }
+                let target = if let Some(function) = program.functions.get(name) {
+                    match (&function.parameter_types, function.arity) {
+                        (Some(parameter_types), Some(_)) => FunctionCallTarget::Admitted {
+                            parameters: Some(
+                                parameter_types
+                                    .iter()
+                                    .cloned()
+                                    .map(|ty| FunctionCallParameter { name: None, ty })
+                                    .collect(),
+                            ),
+                            result: function.result.clone(),
+                        },
+                        _ => FunctionCallTarget::DeclaredUnadmitted,
+                    }
+                } else if matches!(name.as_str(), "Some" | "Ok") {
+                    FunctionCallTarget::PreservedContext {
+                        diagnostic: unsupported_function_call_diagnostic(
+                            name,
+                            "enum and Option/Result construction is not admitted in checked IR",
+                        ),
+                    }
+                } else {
+                    FunctionCallTarget::Missing
+                };
+                Self::classified_call_result(classify_function_call(FunctionCallFacts {
+                    name: name.clone(),
+                    target,
+                    arguments: argument_types,
+                    use_context: if expression_use == ExpressionUse::Discarded {
+                        FunctionCallUse::Discarded
+                    } else {
+                        FunctionCallUse::Value
+                    },
+                }))
+            }
+            Expression::MethodCall {
+                object,
+                method,
+                arguments,
+            } => {
+                let object_ty = Self::validate_expression(
+                    object,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                for argument in arguments {
+                    Self::validate_expression(
+                        argument,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?;
+                }
+                let static_string = Self::static_string_value(object, bindings);
+                let static_arguments = arguments
+                    .iter()
+                    .map(|argument| Self::static_string_value(argument, bindings))
+                    .collect::<Vec<_>>();
+                let static_argument_refs = static_arguments
+                    .iter()
+                    .map(|argument| argument.as_deref())
+                    .collect::<Vec<_>>();
+                match classify_intrinsic_method(
+                    &object_ty,
+                    method,
+                    arguments.len(),
+                    static_string.as_deref(),
+                    &static_argument_refs,
+                    &program.structs,
+                    IntrinsicMethodPhase::Checked,
+                    inside_impl,
+                ) {
+                    IntrinsicMethodDisposition::Supported { result, .. } => Ok(result),
+                    IntrinsicMethodDisposition::ExplicitlyRejected(diagnostic)
+                    | IntrinsicMethodDisposition::PreservedContext(diagnostic) => {
+                        Err(admission_error(&diagnostic))
+                    }
+                }
+            }
+            Expression::Print { arguments, .. } | Expression::Println { arguments, .. } => {
+                for argument in arguments {
+                    let argument_ty = Self::validate_expression(
+                        argument,
+                        bindings,
+                        program,
+                        ExpressionUse::PrintArgument,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?;
+                    if !matches!(argument_ty, Ty::Int | Ty::Float | Ty::Bool | Ty::String) {
+                        return Err(admission_error("print argument type is not admitted"));
+                    }
+                }
+                if expression_use != ExpressionUse::Discarded {
+                    return Err(admission_error("Void expressions cannot be used as values"));
+                }
+                Ok(Ty::Void)
+            }
+            Expression::Comparison { op, left, right } => {
+                let left_ty = Self::validate_expression(
+                    left,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                let right_ty = Self::validate_expression(
+                    right,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                if admit_static_string_equality {
+                    let left_static = Self::static_string_value(left, bindings);
+                    let right_static = Self::static_string_value(right, bindings);
+                    if let StaticStringEqualityDisposition::StaticBool(_) =
+                        classify_static_string_equality(
+                            left_static.as_deref(),
+                            op,
+                            right_static.as_deref(),
+                        )
+                    {
+                        return Ok(Ty::Bool);
+                    }
+                }
+                let char_comparison = matches!(
+                    (
+                        PrimitiveKind::from_ty(&left_ty),
+                        PrimitiveKind::from_ty(&right_ty)
+                    ),
+                    (Some(PrimitiveKind::Char), Some(PrimitiveKind::Char))
+                ) && matches!(
+                    op,
+                    crate::ast::ComparisonOp::Equal | crate::ast::ComparisonOp::NotEqual
+                );
+                if !char_comparison
+                    && !matches!(
+                        (&left_ty, &right_ty),
+                        (&Ty::Int, &Ty::Int)
+                            | (&Ty::Float, &Ty::Float)
+                            | (&Ty::Int, &Ty::Float)
+                            | (&Ty::Float, &Ty::Int)
+                            | (&Ty::Bool, &Ty::Bool)
+                    )
+                {
+                    return Err(admission_error(
+                        "comparison operand types are not admitted; expected numeric operands or Bool with Bool",
+                    ));
+                }
+                Ok(Ty::Bool)
+            }
+            Expression::Logical { left, right, .. } => {
+                Self::validate_expression(
+                    left,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                Self::validate_expression(
+                    right,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                Ok(Ty::Bool)
+            }
+            Expression::Unary { op, operand } => {
+                if matches!(op, crate::ast::UnaryOp::Negate)
+                    && let Expression::IntegerLiteral(value) = operand.as_ref()
+                {
+                    let negated = value.checked_neg().ok_or_else(|| {
+                        admission_error("integer literal is outside the admitted i32 range")
+                    })?;
+                    i32::try_from(negated).map_err(|_| {
+                        admission_error("integer literal is outside the admitted i32 range")
+                    })?;
+                    return Ok(Ty::Int);
+                }
+                let operand_ty = Self::validate_expression(
+                    operand,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                match op {
+                    crate::ast::UnaryOp::Not => Ok(Ty::Bool),
+                    crate::ast::UnaryOp::Negate => {
+                        if let Some(value) = Self::constant_integer_value(expression) {
+                            i32::try_from(value).map_err(|_| {
+                                admission_error("integer literal is outside the admitted i32 range")
+                            })?;
+                        }
+                        Ok(operand_ty)
+                    }
+                }
+            }
+            Expression::ArrayLiteral(elements) => {
+                if elements.is_empty() {
+                    return Err(admission_error(
+                        "empty array literals have no admitted logical element type",
+                    ));
+                }
+                let mut element_ty = Ty::Int;
+                let mut remaining_types = Vec::with_capacity(elements.len().saturating_sub(1));
+                for (index, element) in elements.iter().enumerate() {
+                    let current = Self::validate_expression(
+                        element,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?;
+                    if index == 0 {
+                        if program.structs.resolve_copy_type(&current).is_none() {
+                            return Err(admission_error(
+                                "fixed arrays require recursively admitted Copy-data elements",
+                            ));
+                        }
+                        element_ty = current;
+                    } else if !inside_impl {
+                        remaining_types.push(current);
+                    }
+                }
+                if !inside_impl {
+                    program
+                        .structs
+                        .validate_copy_array_elements(&element_ty, remaining_types)
+                        .map_err(|error| admission_error(&error.diagnostic()))?;
+                }
+                Ok(Ty::Array(Box::new(element_ty), elements.len()))
+            }
+            Expression::ArrayRepeat { value, count } => {
+                let element_ty = Self::validate_expression(
+                    value,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                if program.structs.resolve_copy_type(&element_ty).is_none() {
+                    return Err(admission_error(
+                        "fixed arrays require recursively admitted Copy-data elements",
+                    ));
+                }
+                Ok(Ty::Array(Box::new(element_ty), *count))
+            }
+            Expression::IndexAccess { object, index } => {
+                let object_ty = Self::validate_expression(
+                    object,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                let index_ty = Self::validate_expression(
+                    index,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                if !matches!(index_ty, Ty::Int) {
+                    return Err(admission_error("array index must be Int"));
+                }
+                if is_statically_empty_fixed_array(&object_ty) {
+                    return Err(admission_error(
+                        "zero-length fixed arrays cannot be indexed in checked IR",
+                    ));
+                }
+                match program.structs.classify_copy_array_index(&object_ty, index) {
+                    CopyArrayIndexDisposition::PreserveExistingBehavior
+                    | CopyArrayIndexDisposition::Accepted { .. } => {}
+                    CopyArrayIndexDisposition::OutOfBounds { index, count } => {
+                        return Err(admission_error(&format!(
+                            "fixed Copy-data array index {index} is outside 0..{count}"
+                        )));
+                    }
+                }
+                match object_ty {
+                    Ty::Array(element, _) => Ok(*element),
+                    _ => Err(admission_error("indexing requires an admitted fixed array")),
+                }
+            }
+            Expression::Closure { location, .. } => {
+                Err(admission_error(&unsupported_closure_diagnostic(location)))
+            }
+            Expression::EnumVariant {
+                enum_name,
+                variant,
+                data,
+            } => {
+                let actual = if let Some(fields) = data.as_deref() {
+                    let mut types = Vec::with_capacity(fields.len());
+                    for field in fields {
+                        types.push(Self::validate_expression(
+                            field,
+                            bindings,
+                            program,
+                            ExpressionUse::Value,
+                            inside_impl,
+                            admit_static_string_equality,
+                        )?);
+                    }
+                    Some(types)
+                } else {
+                    None
+                };
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
+                    EnumExecutionContext::AdmittedFunction
+                } else {
+                    EnumExecutionContext::PreservedContext
+                };
+                let resolved = program
+                    .enums
+                    .resolve_constructor(enum_name, variant, data.as_ref().map(Vec::len), context)
+                    .map_err(|error| match error {
+                        EnumError::PreserveExistingBehavior => {
+                            admission_error("enum construction is not admitted in checked IR")
+                        }
+                        _ => admission_error(&error.diagnostic()),
+                    })?;
+                program
+                    .enums
+                    .validate_constructor_payload(&resolved, actual.as_deref())
+                    .map_err(|error| admission_error(&error.diagnostic()))?;
+                Ok(resolved.contract.ty())
+            }
+            Expression::Borrow { expr, mutable } => {
+                let inside_admitted_function =
+                    bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
+                let facts = Self::admission_local_reference_source_facts(
+                    expr,
+                    bindings,
+                    inside_admitted_function,
+                );
+                if !matches!(expr.as_ref(), Expression::Identifier(_)) {
+                    Self::validate_expression(
+                        expr,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?;
+                }
+                match classify_local_borrow(expr, *mutable, facts.as_ref(), &program.structs) {
+                    LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
+                    LocalReferenceDisposition::ExplicitlyRejected(message) => {
+                        Err(admission_error(&message))
+                    }
+                    LocalReferenceDisposition::Preserved => unreachable!(
+                        "borrow expressions are fully classified by the local reference contract"
+                    ),
+                }
+            }
+            Expression::Deref(expr) => {
+                let reference = Self::validate_expression(
+                    expr,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                match classify_local_dereference(&reference, &program.structs) {
+                    LocalReferenceDisposition::Supported(contract) => Ok(contract.pointee),
+                    LocalReferenceDisposition::ExplicitlyRejected(message) => {
+                        Err(admission_error(&message))
+                    }
+                    LocalReferenceDisposition::Preserved => unreachable!(
+                        "dereference expressions are fully classified by the local reference contract"
+                    ),
+                }
+            }
+            Expression::FieldAccess { object, field } => {
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
+                    StructExecutionContext::AdmittedFunction
+                } else {
+                    StructExecutionContext::PreservedContext
+                };
+                let receiver = Self::validate_expression(
+                    object,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )
+                .map_err(|_| {
+                    // Field access is one aggregate operation. Preserve its established
+                    // fail-closed boundary without enumerating receiver expression shapes;
+                    // exact admitted receiver types are decided below by StructRegistry.
+                    admission_error("aggregate expression is not admitted in checked IR")
+                })?;
+                let (_, _, field) = program
+                    .structs
+                    .resolve_field(&receiver, field, context)
+                    .map_err(|error| match error {
+                        StructContractError::PreserveExistingBehavior => {
+                            admission_error("aggregate expression is not admitted in checked IR")
+                        }
+                        _ => IrGenerationError::Admission(error.diagnostic()),
+                    })?;
+                Ok(field.ty())
+            }
+            Expression::StructLiteral { name, fields } => {
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
+                    StructExecutionContext::AdmittedFunction
+                } else {
+                    StructExecutionContext::PreservedContext
+                };
+                let resolved = match program.structs.resolve_construction(name, fields, context) {
+                    Ok(resolved) => resolved,
+                    Err(error) => {
+                        for (_, value) in fields {
+                            let _ = Self::validate_expression(
+                                value,
+                                bindings,
+                                program,
+                                ExpressionUse::Value,
+                                inside_impl,
+                                admit_static_string_equality,
+                            )?;
+                        }
+                        return Err(match error {
+                            StructContractError::PreserveExistingBehavior => admission_error(
+                                "aggregate expression is not admitted in checked IR",
+                            ),
+                            _ => IrGenerationError::Admission(error.diagnostic()),
+                        });
+                    }
+                };
+                let mut actual_types = Vec::with_capacity(fields.len());
+                for (source_index, (_, value)) in fields.iter().enumerate() {
+                    let expected =
+                        resolved.contract.fields[resolved.source_to_declaration[source_index]].ty();
+                    let actual = if matches!(
+                        (value, &expected),
+                        (Expression::ArrayLiteral(elements), Ty::Array(_, 0)) if elements.is_empty()
+                    ) {
+                        expected
+                    } else {
+                        Self::validate_expression(
+                            value,
+                            bindings,
+                            program,
+                            ExpressionUse::Value,
+                            inside_impl,
+                            admit_static_string_equality,
+                        )?
+                    };
+                    actual_types.push(actual);
+                }
+                program
+                    .structs
+                    .validate_construction_types(&resolved, &actual_types)
+                    .map_err(|error| IrGenerationError::Admission(error.diagnostic()))?;
+                Ok(Ty::Struct(resolved.contract.name))
+            }
+            Expression::Match { expr, arms } => {
+                let scrutinee = Self::validate_expression(
+                    expr,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
+                    EnumExecutionContext::AdmittedFunction
+                } else {
+                    EnumExecutionContext::PreservedContext
+                };
+                let patterns = program
+                    .enums
+                    .resolve_match_patterns(&scrutinee, expr, arms, context)
+                    .map_err(|error| admission_error(&error.diagnostic()))?;
+                let mut result_types = Vec::with_capacity(arms.len());
+                let mut arm_owned_consumptions = Vec::with_capacity(arms.len());
+                for (arm, binding) in arms.iter().zip(patterns.payload_bindings.iter()) {
+                    let mut arm_bindings = bindings.clone();
+                    for binding in binding {
+                        arm_bindings.insert(
+                            binding.name.clone(),
+                            AdmissionBinding {
+                                ty: binding.ty.clone(),
+                                mutable: false,
+                                initialized: true,
+                                ownership: OwnershipState::Owned,
+                                callable: false,
+                                static_string: None,
+                            },
+                        );
+                    }
+                    result_types.push(Self::validate_expression(
+                        &arm.body,
+                        &arm_bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?);
+                    arm_owned_consumptions.push(
+                        program
+                            .enums
+                            .consumed_owned_values(
+                                &arm.body,
+                                |name| arm_bindings.get(name).map(|binding| binding.ty.clone()),
+                                |name| {
+                                    program
+                                        .enum_functions
+                                        .get(name)
+                                        .map(EnumFunctionContract::parameter_types)
+                                },
+                            )
+                            .map_err(|error| admission_error(&error.diagnostic()))?,
+                    );
+                }
+                let consumed = program
+                    .enums
+                    .consumed_owned_values(
+                        expr,
+                        |name| bindings.get(name).map(|binding| binding.ty.clone()),
+                        |name| {
+                            program
+                                .enum_functions
+                                .get(name)
+                                .map(EnumFunctionContract::parameter_types)
+                        },
+                    )
+                    .map_err(|error| admission_error(&error.diagnostic()))?;
+                program
+                    .enums
+                    .resolve_match_with_consumed(
+                        &scrutinee,
+                        expr,
+                        arms,
+                        &result_types,
+                        &consumed,
+                        &arm_owned_consumptions,
+                        |ty| {
+                            program
+                                .structs
+                                .resolve_copy_type(ty)
+                                .map(|contract| contract.logical_type)
+                        },
+                        |name| Self::admission_direct_owned_enum_result_type(name, bindings),
+                        |name| {
+                            program
+                                .enum_functions
+                                .get(name)
+                                .map(|contract| contract.result.ty.clone())
+                        },
+                        context,
+                    )
+                    .map(|resolved| resolved.result_contract.ty())
+                    .map_err(|error| admission_error(&error.diagnostic()))
+            }
+            Expression::TupleLiteral(elements) => {
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl {
+                    TupleExecutionContext::AdmittedFunction
+                } else {
+                    TupleExecutionContext::PreservedContext
+                };
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element in elements {
+                    element_types.push(Self::validate_expression(
+                        element,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?);
+                }
+                match classify_copy_tuple_elements(&element_types, &program.structs, context) {
+                    TupleContractDisposition::Supported(contract) => Ok(contract.ty()),
+                    TupleContractDisposition::ExplicitlyRejected(message) => {
+                        Err(admission_error(&message))
+                    }
+                    TupleContractDisposition::Preserved => Err(admission_error(
+                        "aggregate expression is not admitted in checked IR",
+                    )),
+                }
+            }
+            Expression::TupleIndex { object, index } => {
+                let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl {
+                    TupleExecutionContext::AdmittedFunction
+                } else {
+                    TupleExecutionContext::PreservedContext
+                };
+                let receiver = Self::validate_expression(
+                    object,
+                    bindings,
+                    program,
+                    ExpressionUse::Value,
+                    inside_impl,
+                    admit_static_string_equality,
+                )?;
+                match classify_tuple_projection(&receiver, *index, &program.structs, context) {
+                    TupleContractDisposition::Supported(contract) => Ok(contract.element),
+                    TupleContractDisposition::ExplicitlyRejected(message) => {
+                        Err(admission_error(&message))
+                    }
+                    TupleContractDisposition::Preserved => Err(admission_error(
+                        "aggregate expression is not admitted in checked IR",
+                    )),
+                }
+            }
+        }
+    }
+
+    fn static_string_value(
+        expression: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+    ) -> Option<String> {
+        match expression {
+            Expression::StringLiteral(value) => Some(value.clone()),
+            Expression::Identifier(name) => bindings
+                .get(name)
+                .and_then(|binding| binding.static_string.clone()),
+            _ => None,
+        }
+    }
+
+    fn admission_type(ty: &Type) -> Ty {
+        match ty {
+            Type::Named(name) if PrimitiveKind::from_source_name(name).is_some() => {
+                PrimitiveKind::from_source_name(name).unwrap().ty()
+            }
+            Type::Named(name) if matches!(name.as_str(), "string" | "String") => Ty::String,
+            Type::Named(name) => Ty::Struct(name.clone()),
+            Type::Array(element, count) => {
+                Ty::Array(Box::new(Self::admission_type(element)), *count)
+            }
+            Type::Tuple(elements) => Ty::Tuple(elements.iter().map(Self::admission_type).collect()),
+            Type::Reference(inner, mutable) => {
+                Ty::Reference(Box::new(Self::admission_type(inner)), *mutable)
+            }
+            Type::Generic(name, arguments) if name == "Vec" && arguments.len() == 1 => {
+                Ty::Vec(Box::new(Self::admission_type(&arguments[0])))
+            }
+            Type::Generic(name, _) => Ty::TypeParam(name.clone()),
+        }
+    }
+
+    fn constant_integer_value(expression: &Expression) -> Option<i64> {
+        match expression {
+            Expression::IntegerLiteral(value) => Some(*value),
+            Expression::Unary {
+                op: crate::ast::UnaryOp::Negate,
+                operand,
+            } => Self::constant_integer_value(operand)?.checked_neg(),
+            Expression::Binary {
+                op, left, right, ..
+            } => {
+                let left = Self::constant_integer_value(left)?;
+                let right = Self::constant_integer_value(right)?;
+                match op {
+                    crate::ast::BinaryOp::Add => left.checked_add(right),
+                    crate::ast::BinaryOp::Subtract => left.checked_sub(right),
+                    crate::ast::BinaryOp::Multiply => left.checked_mul(right),
+                    crate::ast::BinaryOp::Divide => left.checked_div(right),
+                    crate::ast::BinaryOp::Modulo => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn callable_result_type(signature: &str) -> Result<Ty, IrGenerationError> {
+        match signature.rsplit_once("->").map(|(_, result)| result) {
+            Some("int") => Ok(Ty::Int),
+            Some("float") => Ok(Ty::Float),
+            Some("bool") => Ok(Ty::Bool),
+            _ => Err(IrGenerationError::Admission(
+                "callable signature is not an admitted scalar signature".to_string(),
+            )),
+        }
+    }
+
+    fn classified_call_result(
+        disposition: FunctionCallDisposition,
+    ) -> Result<Ty, IrGenerationError> {
+        match disposition {
+            FunctionCallDisposition::Supported(contract) => Ok(contract.result),
+            FunctionCallDisposition::ExplicitlyRejected(diagnostic)
+            | FunctionCallDisposition::PreservedContext(diagnostic) => {
+                Err(IrGenerationError::Admission(diagnostic))
+            }
+        }
+    }
+
+    fn normalize_checked_place_ids(
+        functions: &mut HashMap<String, Function>,
+        place_hints: &mut PlaceTypeHints,
+    ) {
+        let mut reference_parameter_indices = HashMap::<String, Vec<usize>>::new();
+        for function in functions.values() {
+            Self::collect_reference_parameter_indices(
+                &function.body,
+                &mut reference_parameter_indices,
+            );
+        }
+        for function in functions.values_mut() {
+            Self::normalize_instruction_places(
+                &mut function.body,
+                &function.name,
+                place_hints,
+                &reference_parameter_indices,
+            );
+        }
+    }
+
+    fn collect_reference_parameter_indices(
+        instructions: &[Inst],
+        indices: &mut HashMap<String, Vec<usize>>,
+    ) {
+        for instruction in instructions {
+            match instruction {
+                Inst::CheckedFunctionDef {
+                    name,
+                    parameters,
+                    body,
+                    ..
+                } => {
+                    indices.insert(
+                        name.clone(),
+                        parameters
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(index, (_, ty))| {
+                                matches!(
+                                    ty,
+                                    LogicalType::ImmutableReference { .. }
+                                        | LogicalType::MutableReference { .. }
+                                )
+                                .then_some(index)
+                            })
+                            .collect(),
+                    );
+                    Self::collect_reference_parameter_indices(body, indices);
+                }
+                Inst::FunctionDef { body, .. } => {
+                    Self::collect_reference_parameter_indices(body, indices)
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn ensure_checked_main_terminator(functions: &mut HashMap<String, Function>) {
+        let main_has_emitted_definition = functions.values().any(|function| {
+            function.body.iter().any(
+                |instruction| matches!(instruction, Inst::FunctionDef { name, .. } if name == "main"),
+            )
+        });
+        if main_has_emitted_definition {
+            return;
+        }
+        if let Some(main) = functions.get_mut("main")
+            && !main
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+        {
+            main.body.push(Inst::Return(Value::ImmInt(0)));
+        }
+    }
+
+    fn normalize_instruction_places(
+        instructions: &mut [Inst],
+        function_name: &str,
+        place_hints: &mut PlaceTypeHints,
+        reference_parameter_indices: &HashMap<String, Vec<usize>>,
+    ) {
+        let mut maximum_result = None::<u32>;
+        for instruction in instructions.iter() {
+            Self::visit_result_definitions(instruction, &mut |register| {
+                maximum_result =
+                    Some(maximum_result.map_or(register, |maximum| maximum.max(register)));
+            });
+        }
+        let mut next_place = maximum_result.map_or(0, |maximum| maximum.saturating_add(1));
+        let mut places = HashMap::<u32, u32>::new();
+        for instruction in instructions.iter() {
+            match instruction {
+                Inst::Alloca(Value::Reg(register), _)
+                | Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedMatchResultPlaceAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::AllocaArray {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::GetElementPtr {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedCopyStructArrayAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedCopyStructArrayElementPtr {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedStructAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedStructFieldPtr {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedTupleAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedTupleFieldPtr {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedMutableBorrow {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedMutableReferenceParameter {
+                    result: Value::Reg(register),
+                    ..
+                } => {
+                    places.entry(*register).or_insert_with(|| {
+                        let place = next_place;
+                        next_place = next_place.saturating_add(1);
+                        place
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(hints) = place_hints.get_mut(function_name) {
+            let remapped = std::mem::take(hints)
+                .into_iter()
+                .map(|(id, ty)| {
+                    let normalized = places.get(&id.0).copied().unwrap_or(id.0);
+                    (PlaceId(normalized), ty)
+                })
+                .collect();
+            *hints = remapped;
+        }
+
+        for instruction in instructions {
+            match instruction {
+                Inst::Alloca(place, _) => Self::rewrite_place(place, &places),
+                Inst::CheckedMutableOwnedPlaceAlloca { result, .. } => {
+                    Self::rewrite_place(result, &places)
+                }
+                Inst::CheckedMatchResultPlaceAlloca { result, .. } => {
+                    Self::rewrite_place(result, &places)
+                }
+                Inst::CheckedOwnedPlaceAssignment { target, .. } => {
+                    Self::rewrite_place(target, &places)
+                }
+                Inst::AllocaArray { result, .. } => Self::rewrite_place(result, &places),
+                Inst::GetElementPtr { result, base, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(base, &places);
+                }
+                Inst::CheckedCopyStructArrayAlloca { result, .. } => {
+                    Self::rewrite_place(result, &places)
+                }
+                Inst::CheckedCopyStructArrayElementPtr { result, base, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(base, &places);
+                }
+                Inst::CheckedStructAlloca { result, .. } => Self::rewrite_place(result, &places),
+                Inst::CheckedStructFieldPtr { result, base, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(base, &places);
+                }
+                Inst::CheckedTupleAlloca { result, .. } => Self::rewrite_place(result, &places),
+                Inst::CheckedTupleFieldPtr { result, base, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(base, &places);
+                }
+                Inst::CheckedImmutableBorrow { result, source, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedMutableBorrow { result, source, .. } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedMutableDereferenceAssignment { target, .. } => {
+                    Self::rewrite_place(target, &places);
+                }
+                Inst::CheckedMutableBorrowEnd {
+                    reference, source, ..
+                } => {
+                    Self::rewrite_place(reference, &places);
+                    Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedImmutableReferenceParameter { result, .. }
+                | Inst::CheckedMutableReferenceParameter { result, .. } => {
+                    Self::rewrite_place(result, &places);
+                }
+                Inst::Store(place, _) => Self::rewrite_place(place, &places),
+                Inst::Load(_, place) => Self::rewrite_place(place, &places),
+                Inst::Call {
+                    function,
+                    arguments,
+                    ..
+                } => {
+                    if let Some(indices) = reference_parameter_indices.get(function) {
+                        for index in indices {
+                            if let Some(argument) = arguments.get_mut(*index) {
+                                Self::rewrite_place(argument, &places);
+                            }
+                        }
+                    }
+                }
+                Inst::FunctionDef { name, body, .. }
+                | Inst::CheckedFunctionDef { name, body, .. } => {
+                    Self::normalize_instruction_places(
+                        body,
+                        name,
+                        place_hints,
+                        reference_parameter_indices,
+                    )
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn rewrite_place(value: &mut Value, places: &HashMap<u32, u32>) {
+        if let Value::Reg(register) = value
+            && let Some(replacement) = places.get(register)
+        {
+            *register = *replacement;
+        }
+    }
+
+    fn visit_result_definitions(instruction: &Inst, visitor: &mut impl FnMut(u32)) {
+        let result = match instruction {
+            Inst::Add(result, ..)
+            | Inst::FAdd(result, ..)
+            | Inst::Sub(result, ..)
+            | Inst::FSub(result, ..)
+            | Inst::Mul(result, ..)
+            | Inst::FMul(result, ..)
+            | Inst::Div(result, ..)
+            | Inst::FDiv(result, ..)
+            | Inst::Load(result, ..)
+            | Inst::SIToFP(result, ..)
+            | Inst::FPToSI(result, ..)
+            | Inst::ICmp { result, .. }
+            | Inst::FCmp { result, .. }
+            | Inst::And { result, .. }
+            | Inst::Or { result, .. }
+            | Inst::Not { result, .. }
+            | Inst::Neg { result, .. }
+            | Inst::CheckedEnumParameter { result, .. }
+            | Inst::CheckedEnumVariant { result, .. }
+            | Inst::CheckedEnumVariantFields { result, .. }
+            | Inst::CheckedEnumPayload { result, .. }
+            | Inst::CheckedEnumField { result, .. } => Some(result),
+            Inst::Call {
+                result: Some(result),
+                ..
+            } => Some(result),
+            Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                for nested in body {
+                    Self::visit_result_definitions(nested, visitor);
+                }
+                None
+            }
+            _ => None,
+        };
+        if let Some(Value::Reg(register)) = result {
+            visitor(*register);
+        }
+    }
+
+    fn instruction_terminates_block(inst: &Inst) -> bool {
+        matches!(
+            inst,
+            Inst::Return(_)
+                | Inst::Jump(_)
+                | Inst::Branch { .. }
+                | Inst::CheckedEnumDispatch { .. }
+        )
+    }
+
+    fn generate_enum_match_ir(
+        &mut self,
+        scrutinee_expression: Expression,
+        arms: Vec<crate::ast::MatchArm>,
+        function: &mut Function,
+    ) -> (Value, Ty) {
+        let (scrutinee, scrutinee_ty) =
+            self.generate_expression_ir(scrutinee_expression.clone(), function);
+        let resolved = self
+            .enum_registry
+            .resolve_match_patterns(
+                &scrutinee_ty,
+                &scrutinee_expression,
+                &arms,
+                EnumExecutionContext::AdmittedFunction,
+            )
+            .expect("checked enum match was admitted");
+        let result_place_id = self.next_ptr;
+        let result_place = Value::Reg(result_place_id);
+        self.next_ptr += 1;
+        let result_place_position = function.body.len();
+        function.body.push(Inst::CheckedMatchResultPlaceAlloca {
+            result: result_place.clone(),
+            result_type: LogicalType::Void,
+            dispatch_schema: resolved.contract.schema.clone(),
+        });
+
+        let arm_labels = (0..arms.len())
+            .map(|_| {
+                let label = format!("match_arm_{}", self.next_reg);
+                self.next_reg += 1;
+                label
+            })
+            .collect::<Vec<_>>();
+        let end_label = format!("match_end_{}", self.next_reg);
+        self.next_reg += 1;
+        let targets = resolved
+            .arm_for_variant
+            .iter()
+            .map(|source_index| arm_labels[*source_index].clone())
+            .collect();
+        function.body.push(Inst::CheckedEnumDispatch {
+            value: scrutinee.clone(),
+            schema: resolved.contract.schema.clone(),
+            targets,
+        });
+
+        let mut result_ty = None;
+        for ((arm, label), binding) in arms
+            .into_iter()
+            .zip(arm_labels)
+            .zip(resolved.payload_bindings)
+        {
+            function.body.push(Inst::Label(label));
+            let before_scope = self.scope_snapshot();
+            for binding in binding {
+                let payload = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                if resolved.contract.payload_types(binding.variant_index).len() == 1 {
+                    function.body.push(Inst::CheckedEnumPayload {
+                        result: payload.clone(),
+                        value: scrutinee.clone(),
+                        schema: resolved.contract.schema.clone(),
+                        variant_index: binding.variant_index,
+                    });
+                } else {
+                    function.body.push(Inst::CheckedEnumField {
+                        result: payload.clone(),
+                        value: scrutinee.clone(),
+                        schema: resolved.contract.schema.clone(),
+                        variant_index: binding.variant_index,
+                        field_index: binding.field_index,
+                    });
+                }
+                let place = if matches!(&binding.ty, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_))
+                {
+                    self.store_copy_aggregate_value(payload, &binding.ty, function)
+                } else {
+                    let place = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    function.body.push(Inst::Alloca(
+                        place.clone(),
+                        format!("__enum_payload_{}", binding.name),
+                    ));
+                    function.body.push(Inst::Store(place.clone(), payload));
+                    place
+                };
+                self.mutable_owned_enum_places.remove(&binding.name);
+                self.symbol_table.insert(binding.name, (place, binding.ty));
+            }
+            let (value, ty) = self.generate_expression_ir(arm.body, function);
+            self.restore_bindings(&before_scope);
+            if let Some(expected) = &result_ty {
+                assert_eq!(expected, &ty, "checked match result type remains exact");
+            } else {
+                result_ty = Some(ty.clone());
+            }
+            let value = self.load_copy_aggregate_value(value, &ty, function);
+            function.body.push(Inst::CheckedOwnedPlaceAssignment {
+                target: result_place.clone(),
+                value,
+                ty: self.admitted_owned_place_logical_type(&ty),
+            });
+            function.body.push(Inst::Jump(end_label.clone()));
+        }
+        function.body.push(Inst::Label(end_label));
+        let result_ty = result_ty.expect("admitted enum has at least one arm");
+        let result_type = self.admitted_owned_place_logical_type(&result_ty);
+        let Inst::CheckedMatchResultPlaceAlloca {
+            result_type: stored_result_type,
+            ..
+        } = &mut function.body[result_place_position]
+        else {
+            unreachable!("checked Match result place remains at its recorded position")
+        };
+        *stored_result_type = result_type;
+        let result = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(result.clone(), result_place));
+        let result = self.store_copy_aggregate_value(result, &result_ty, function);
+        (result, result_ty)
+    }
+
+    fn scope_snapshot(&self) -> GeneratedScopeSnapshot {
+        GeneratedScopeSnapshot {
+            bindings: self.symbol_table.clone(),
+            mutable_owned_enum_places: self.mutable_owned_enum_places.clone(),
+        }
+    }
+
+    fn restore_bindings(&mut self, before_scope: &GeneratedScopeSnapshot) {
+        self.symbol_table.clone_from(&before_scope.bindings);
+        self.mutable_owned_enum_places
+            .clone_from(&before_scope.mutable_owned_enum_places);
+    }
+
+    fn end_new_mutable_references(
+        &mut self,
+        before_scope: &HashMap<String, (Value, Ty)>,
+        function: &mut Function,
+    ) {
+        let ended = self
+            .symbol_table
+            .iter()
+            .filter_map(|(name, (reference, ty))| {
+                let Ty::Reference(pointee, true) = ty else {
+                    return None;
+                };
+                let existed = before_scope
+                    .get(name)
+                    .is_some_and(|(prior, prior_ty)| prior == reference && prior_ty == ty);
+                if existed {
+                    return None;
+                }
+                let Value::Reg(reference_id) = reference else {
+                    unreachable!("checked mutable references use place identifiers")
+                };
+                let source = self
+                    .mutable_reference_sources
+                    .get(reference_id)
+                    .expect("checked mutable reference retains direct source")
+                    .clone();
+                let pointee = self.admitted_copy_place_logical_type(
+                    pointee,
+                    CopyPlaceExecutionContext::AdmittedMutableReference,
+                );
+                Some((*reference_id, reference.clone(), source, pointee))
+            })
+            .collect::<Vec<_>>();
+        for (id, reference, source, pointee) in ended {
+            function.body.push(Inst::CheckedMutableBorrowEnd {
+                reference,
+                source,
+                pointee,
+            });
+            self.mutable_reference_sources.remove(&id);
+        }
+    }
+
+    fn generate_binding_expression_ir(
+        &mut self,
+        expression: Expression,
+        type_annotation: Option<&Type>,
+        current_function: &mut Function,
+    ) -> (Value, Ty) {
+        let typed_empty = self.checked_mode.then(|| {
+            let Expression::ArrayLiteral(elements) = &expression else {
+                return None;
+            };
+            if !elements.is_empty() {
+                return None;
+            }
+            let contract = self
+                .struct_registry
+                .resolve_copy_annotation(type_annotation?)?;
+            matches!(contract.ty, Ty::Array(_, 0)).then_some(contract.ty)
+        });
+        if let Some(Some(expected)) = typed_empty {
+            let place = self.allocate_fixed_copy_array_place(&expected, current_function);
+            return (place, expected);
+        }
+        self.generate_expression_ir(expression, current_function)
+    }
+
+    fn allocate_copy_struct_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        let contract = self
+            .struct_registry
+            .copy_struct_contract(ty)
+            .expect("checked Copy-struct type has a shared contract");
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedStructAlloca {
+            result: place.clone(),
+            struct_name: contract.name,
+            field_types: contract
+                .fields
+                .iter()
+                .map(crate::struct_contract::StructFieldContract::logical_type)
+                .collect(),
+        });
+        place
+    }
+
+    fn load_copy_struct_value(&mut self, place: Value, function: &mut Function) -> Value {
+        let value = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(value.clone(), place));
+        value
+    }
+
+    fn store_copy_struct_value(&mut self, value: Value, ty: &Ty, function: &mut Function) -> Value {
+        let place = self.allocate_copy_struct_place(ty, function);
+        function.body.push(Inst::Store(place.clone(), value));
+        place
+    }
+
+    fn copy_tuple_contract(&self, ty: &Ty) -> CopyTupleContract {
+        let Ty::Tuple(elements) = ty else {
+            unreachable!("Copy tuple lowering requires a tuple type")
+        };
+        match classify_copy_tuple_elements(
+            elements,
+            &self.struct_registry,
+            TupleExecutionContext::AdmittedFunction,
+        ) {
+            TupleContractDisposition::Supported(contract) => contract,
+            _ => unreachable!("checked admission retains a supported recursive Copy tuple"),
+        }
+    }
+
+    fn allocate_copy_tuple_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        let contract = self.copy_tuple_contract(ty);
+        let LogicalType::Tuple { elements } = contract.logical_type() else {
+            unreachable!("Copy tuple contract has tuple logical type")
+        };
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedTupleAlloca {
+            result: place.clone(),
+            element_types: elements,
+        });
+        place
+    }
+
+    fn copy_tuple_field_ptr(
+        &mut self,
+        base: Value,
+        contract: &CopyTupleContract,
+        index: usize,
+        function: &mut Function,
+    ) -> Value {
+        let LogicalType::Tuple { elements } = contract.logical_type() else {
+            unreachable!("Copy tuple contract has tuple logical type")
+        };
+        let field_type = elements[index].clone();
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedTupleFieldPtr {
+            result: place.clone(),
+            base,
+            element_types: elements,
+            field_index: index,
+            field_type,
+        });
+        place
+    }
+
+    fn load_copy_tuple_value(&mut self, place: Value, function: &mut Function) -> Value {
+        let value = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(value.clone(), place));
+        value
+    }
+
+    fn store_copy_tuple_value(&mut self, value: Value, ty: &Ty, function: &mut Function) -> Value {
+        let place = self.allocate_copy_tuple_place(ty, function);
+        function.body.push(Inst::Store(place.clone(), value));
+        place
+    }
+
+    fn load_fixed_copy_array_value(&mut self, place: Value, function: &mut Function) -> Value {
+        let value = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(value.clone(), place));
+        value
+    }
+
+    fn load_copy_aggregate_value(
+        &mut self,
+        place: Value,
+        ty: &Ty,
+        function: &mut Function,
+    ) -> Value {
+        match ty {
+            Ty::Struct(_) => self.load_copy_struct_value(place, function),
+            Ty::Array(_, _) => self.load_fixed_copy_array_value(place, function),
+            Ty::Tuple(_) => self.load_copy_tuple_value(place, function),
+            _ => place,
+        }
+    }
+
+    fn allocate_fixed_copy_array_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        let contract = self
+            .struct_registry
+            .resolve_copy_type(ty)
+            .expect("checked fixed Copy array has one recursive contract");
+        let LogicalType::Array { element, count } = contract.logical_type else {
+            unreachable!("fixed Copy-array allocation requires an array type")
+        };
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedCopyStructArrayAlloca {
+            result: place.clone(),
+            element: *element,
+            count,
+        });
+        place
+    }
+
+    fn fixed_copy_array_element_ptr(
+        &mut self,
+        base: Value,
+        index: Value,
+        ty: &Ty,
+        function: &mut Function,
+    ) -> Value {
+        let contract = self
+            .struct_registry
+            .resolve_copy_type(ty)
+            .expect("checked fixed Copy array has one recursive contract");
+        let LogicalType::Array { element, count } = contract.logical_type else {
+            unreachable!("fixed Copy-array projection requires an array type")
+        };
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        function.body.push(Inst::CheckedCopyStructArrayElementPtr {
+            result: place.clone(),
+            base,
+            index,
+            element: *element,
+            count,
+        });
+        place
+    }
+
+    fn store_fixed_copy_array_value(
+        &mut self,
+        value: Value,
+        ty: &Ty,
+        function: &mut Function,
+    ) -> Value {
+        let place = self.allocate_fixed_copy_array_place(ty, function);
+        function.body.push(Inst::Store(place.clone(), value));
+        place
+    }
+
+    fn store_copy_aggregate_value(
+        &mut self,
+        value: Value,
+        ty: &Ty,
+        function: &mut Function,
+    ) -> Value {
+        match ty {
+            Ty::Struct(_) => self.store_copy_struct_value(value, ty, function),
+            Ty::Array(_, _) => self.store_fixed_copy_array_value(value, ty, function),
+            Ty::Tuple(_) => self.store_copy_tuple_value(value, ty, function),
+            _ => value,
+        }
+    }
+
+    fn allocate_copy_aggregate_place(&mut self, ty: &Ty, function: &mut Function) -> Value {
+        match ty {
+            Ty::Struct(_) => self.allocate_copy_struct_place(ty, function),
+            Ty::Array(_, _) => self.allocate_fixed_copy_array_place(ty, function),
+            Ty::Tuple(_) => self.allocate_copy_tuple_place(ty, function),
+            _ => unreachable!("Copy aggregate allocation requires an aggregate CopyData type"),
+        }
     }
 
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
         match stmt {
             Statement::Let {
                 name,
-                mutable: _,
-                type_annotation: _,
+                mutable,
+                type_annotation,
                 value,
             } => {
+                let binding_name = name.clone();
+                let mutable_borrow_source = self
+                    .checked_mode
+                    .then(|| {
+                        value.as_ref().and_then(|value| {
+                            let Expression::Borrow {
+                                expr,
+                                mutable: true,
+                            } = value
+                            else {
+                                return None;
+                            };
+                            let Expression::Identifier(source) = expr.as_ref() else {
+                                return None;
+                            };
+                            self.symbol_table
+                                .get(source)
+                                .map(|(place, _)| place.clone())
+                        })
+                    })
+                    .flatten();
+                let copies_existing_aggregate =
+                    matches!(value.as_ref(), Some(Expression::Identifier(_)));
                 let (expr_value, expr_type) = if let Some(val) = value {
-                    self.generate_expression_ir(val, current_function)
+                    self.generate_binding_expression_ir(
+                        val,
+                        type_annotation.as_ref(),
+                        current_function,
+                    )
                 } else {
                     (Value::ImmInt(0), Ty::Int)
                 };
 
-                if Self::stores_value_directly(&expr_type) {
+                let mutable_owned_place = self.checked_mode
+                    && mutable
+                    && resolve_owned_place_logical_type(
+                        &expr_type,
+                        &self.struct_registry,
+                        &self.enum_registry,
+                    )
+                    .is_ok();
+                self.mutable_owned_enum_places.remove(&name);
+                if mutable_owned_place {
+                    let initial = if matches!(expr_type, Ty::Enum(_)) {
+                        expr_value
+                    } else {
+                        self.load_copy_aggregate_value(expr_value, &expr_type, current_function)
+                    };
+                    let storage = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    let ty = self.admitted_owned_place_logical_type(&expr_type);
+                    current_function
+                        .body
+                        .push(Inst::CheckedMutableOwnedPlaceAlloca {
+                            result: storage.clone(),
+                            name: name.clone(),
+                            ty,
+                        });
+                    current_function
+                        .body
+                        .push(Inst::Store(storage.clone(), initial));
+                    if matches!(expr_type, Ty::Enum(_)) {
+                        self.mutable_owned_enum_places
+                            .insert(name.clone(), storage.clone());
+                    }
+                    self.symbol_table.insert(name, (storage, expr_type));
+                } else if matches!(&expr_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
+                    let storage = if copies_existing_aggregate {
+                        let value = self.load_copy_aggregate_value(
+                            expr_value,
+                            &expr_type,
+                            current_function,
+                        );
+                        self.store_copy_aggregate_value(value, &expr_type, current_function)
+                    } else {
+                        expr_value
+                    };
+                    self.symbol_table.insert(name, (storage, expr_type));
+                } else if Self::stores_value_directly(&expr_type) {
                     // Keep string values as immediates for now; pointer-backed string variables
                     // and aggregate values are not fully modeled in the scalar slot pipeline yet.
                     self.symbol_table.insert(name, (expr_value, expr_type));
@@ -94,13 +3533,107 @@ impl IrGenerator {
                     // Store the expression result into the allocated slot
                     current_function.body.push(Inst::Store(ptr_reg, expr_value));
                 }
+                if let Some(source) = mutable_borrow_source {
+                    let (reference, reference_type) = self
+                        .symbol_table
+                        .get(&binding_name)
+                        .expect("mutable reference binding was generated");
+                    debug_assert!(matches!(reference_type, Ty::Reference(_, true)));
+                    let Value::Reg(reference_id) = reference else {
+                        unreachable!("checked mutable reference uses a place identifier")
+                    };
+                    self.mutable_reference_sources.insert(*reference_id, source);
+                }
+            }
+            Statement::Assignment { target, value } => {
+                let (assigned_value, assigned_type) =
+                    self.generate_expression_ir(value, current_function);
+                match target {
+                    Expression::Identifier(name) => {
+                        let (target_place, target_type) = self
+                            .symbol_table
+                            .get(&name)
+                            .expect("checked admission resolves assignment targets")
+                            .clone();
+                        debug_assert_eq!(assigned_type, target_type);
+                        if self.checked_mode {
+                            let assigned_value = self.load_copy_aggregate_value(
+                                assigned_value,
+                                &assigned_type,
+                                current_function,
+                            );
+                            current_function
+                                .body
+                                .push(Inst::CheckedOwnedPlaceAssignment {
+                                    target: target_place,
+                                    value: assigned_value,
+                                    ty: self.admitted_owned_place_logical_type(&target_type),
+                                });
+                        } else {
+                            current_function
+                                .body
+                                .push(Inst::Store(target_place, assigned_value));
+                        }
+                    }
+                    Expression::Deref(_) if !self.checked_mode => {
+                        // Raw IR is a compatibility surface and must not acquire the
+                        // checked mutable-reference identities. The checked pipeline
+                        // below is the sole admitted lowering path for this topology.
+                    }
+                    Expression::Deref(reference) => {
+                        let Expression::Identifier(name) = reference.as_ref() else {
+                            unreachable!(
+                                "checked admission requires an identifier mutable reference"
+                            )
+                        };
+                        let (target_place, target_type) = self
+                            .symbol_table
+                            .get(name)
+                            .expect("checked admission resolves mutable reference target")
+                            .clone();
+                        let Ty::Reference(pointee, true) = target_type else {
+                            unreachable!("checked admission requires a mutable reference target")
+                        };
+                        debug_assert_eq!(assigned_type, *pointee);
+                        let assigned_value = self.load_copy_aggregate_value(
+                            assigned_value,
+                            &assigned_type,
+                            current_function,
+                        );
+                        current_function
+                            .body
+                            .push(Inst::CheckedMutableDereferenceAssignment {
+                                target: target_place,
+                                value: assigned_value,
+                                pointee: self.admitted_copy_place_logical_type(
+                                    &pointee,
+                                    CopyPlaceExecutionContext::AdmittedMutableReference,
+                                ),
+                            });
+                    }
+                    _ => unreachable!("checked admission rejects assignment target topology"),
+                }
             }
             Statement::Return(expr) => {
-                let (return_value, _) = if let Some(val) = expr {
+                let (mut return_value, return_type) = if let Some(val) = expr {
                     self.generate_expression_ir(val, current_function)
                 } else {
                     (Value::ImmInt(0), Ty::Int)
                 };
+                return_value =
+                    self.load_copy_aggregate_value(return_value, &return_type, current_function);
+                if self.checked_mode
+                    && current_function.name == "main"
+                    && !self.function_return_types.contains_key("main")
+                    && matches!(return_type, Ty::Float)
+                {
+                    let converted = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    current_function
+                        .body
+                        .push(Inst::FPToSI(converted.clone(), return_value));
+                    return_value = converted;
+                }
                 current_function.body.push(Inst::Return(return_value));
             }
             Statement::Function {
@@ -126,17 +3659,23 @@ impl IrGenerator {
                 self.generate_if_statement_ir(condition, then_block, else_block, current_function);
             }
             Statement::While { condition, body } => {
+                let scope_snapshot = self.scope_snapshot();
                 self.generate_while_loop_ir(condition, body, current_function);
+                self.restore_bindings(&scope_snapshot);
             }
             Statement::For {
                 variable,
                 iterable,
                 body,
             } => {
+                let scope_snapshot = self.scope_snapshot();
                 self.generate_for_loop_ir(variable, iterable, body, current_function);
+                self.restore_bindings(&scope_snapshot);
             }
             Statement::Loop { body } => {
+                let scope_snapshot = self.scope_snapshot();
                 self.generate_infinite_loop_ir(body, current_function);
+                self.restore_bindings(&scope_snapshot);
             }
             Statement::Break => {
                 self.generate_break_ir(current_function);
@@ -149,6 +3688,7 @@ impl IrGenerator {
                 self.generate_expression_ir(expr, current_function);
             }
             Statement::Block(block) => {
+                let scope_snapshot = self.scope_snapshot();
                 // Generate IR for block statements
                 for stmt in block.statements {
                     self.generate_statement_ir(stmt, current_function);
@@ -156,6 +3696,15 @@ impl IrGenerator {
                 if let Some(expr) = block.expression {
                     self.generate_expression_ir(expr, current_function);
                 }
+                if self.checked_mode
+                    && !current_function
+                        .body
+                        .last()
+                        .is_some_and(Self::instruction_terminates_block)
+                {
+                    self.end_new_mutable_references(&scope_snapshot.bindings, current_function);
+                }
+                self.restore_bindings(&scope_snapshot);
             }
             // Phase 4: struct/enum/impl definitions are processed at a higher level;
             // they don't generate body IR in the same way as executable statements.
@@ -175,12 +3724,19 @@ impl IrGenerator {
         match expr {
             Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
             Expression::FloatLiteral(f) => (Value::ImmFloat(f), Ty::Float),
+            Expression::CharacterLiteral(character) => (Value::ImmChar(character), Ty::Char),
             Expression::Identifier(name) => {
                 let (storage, var_type) = self
                     .symbol_table
                     .get(&name)
                     .expect("Undeclared variable")
                     .clone();
+                if self.is_mutable_owned_enum_place(&name, &storage, &var_type) {
+                    let result = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(Inst::Load(result.clone(), storage));
+                    return (result, var_type);
+                }
                 if Self::stores_value_directly(&var_type) {
                     return (storage, var_type);
                 }
@@ -254,31 +3810,86 @@ impl IrGenerator {
                 (result_reg, result_type)
             }
             Expression::FunctionCall { name, arguments } => {
+                let mutable_call_source_mode = self
+                    .checked_mode
+                    .then(|| self.reference_function_contracts.get(&name))
+                    .flatten()
+                    .filter(|contract| contract.mutable_parameter_pointee().is_some())
+                    .and_then(|_| reference_call_source_mode(&arguments));
                 // Generate IR for arguments
                 let mut arg_values = Vec::new();
+                let mut temporary_mutable_borrows = Vec::new();
                 for arg in arguments {
-                    let (arg_value, _) = self.generate_expression_ir(arg, function);
+                    let direct_mutable_source = if mutable_call_source_mode
+                        == Some(ReferenceCallSourceMode::DirectOwnerBorrow)
+                        && let Expression::Borrow {
+                            expr,
+                            mutable: true,
+                        } = &arg
+                        && let Expression::Identifier(source) = expr.as_ref()
+                    {
+                        self.symbol_table
+                            .get(source)
+                            .map(|(place, ty)| (place.clone(), ty.clone()))
+                    } else {
+                        None
+                    };
+                    let (mut arg_value, arg_type) = self.generate_expression_ir(arg, function);
+                    if let Some((source, pointee)) = direct_mutable_source {
+                        let Ty::Reference(actual, true) = &arg_type else {
+                            unreachable!("checked direct mutable call retains reference type")
+                        };
+                        debug_assert_eq!(actual.as_ref(), &pointee);
+                        temporary_mutable_borrows.push((
+                            arg_value.clone(),
+                            source,
+                            self.admitted_copy_place_logical_type(
+                                &pointee,
+                                CopyPlaceExecutionContext::AdmittedMutableReference,
+                            ),
+                        ));
+                    } else if mutable_call_source_mode
+                        == Some(ReferenceCallSourceMode::MutableReferenceIdentifier)
+                    {
+                        let Ty::Reference(pointee, true) = &arg_type else {
+                            unreachable!(
+                                "checked mutable-reference identifier call retains reference type"
+                            )
+                        };
+                        let parent = arg_value;
+                        let child = Value::Reg(self.next_ptr);
+                        self.next_ptr += 1;
+                        let logical_pointee = self.admitted_copy_place_logical_type(
+                            pointee,
+                            CopyPlaceExecutionContext::AdmittedMutableReference,
+                        );
+                        function.body.push(Inst::CheckedMutableBorrow {
+                            result: child.clone(),
+                            source: parent.clone(),
+                            pointee: logical_pointee.clone(),
+                        });
+                        temporary_mutable_borrows.push((child.clone(), parent, logical_pointee));
+                        arg_value = child;
+                    }
+                    let arg_value = self.load_copy_aggregate_value(arg_value, &arg_type, function);
                     arg_values.push(arg_value);
                 }
 
-                // Generate result register for function call
-                let result_reg = Value::Reg(self.next_reg);
-                self.next_reg += 1;
-
-                // Resolve closure variables to their generated function symbol.
-                let function_name = self.resolve_callable_name(&name);
-
-                // Create function call instruction
-                let call_inst = Inst::Call {
-                    function: function_name,
-                    arguments: arg_values,
-                    result: Some(result_reg.clone()),
-                };
-
+                let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
                 function.body.push(call_inst);
-
-                // For now, assume function calls return int (this should be looked up from function table in semantic analysis)
-                (result_reg, Ty::Int)
+                for (reference, source, pointee) in temporary_mutable_borrows {
+                    function.body.push(Inst::CheckedMutableBorrowEnd {
+                        reference,
+                        source,
+                        pointee,
+                    });
+                }
+                if matches!(&return_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
+                    let place = self.store_copy_aggregate_value(result, &return_type, function);
+                    (place, return_type)
+                } else {
+                    (result, return_type)
+                }
             }
             Expression::Print {
                 format_string,
@@ -302,6 +3913,61 @@ impl IrGenerator {
                 arguments,
             } => {
                 let (object_value, object_ty) = self.generate_expression_ir(*object, function);
+                if self.checked_mode {
+                    let static_string = match (&object_value, &object_ty) {
+                        (Value::ImmString(value), Ty::String) => Some(value.as_str()),
+                        _ => None,
+                    };
+                    let static_arguments = arguments
+                        .iter()
+                        .cloned()
+                        .map(|argument| {
+                            let (value, ty) = self.generate_expression_ir(argument, function);
+                            match (value, ty) {
+                                (Value::ImmString(value), Ty::String) => Some(value),
+                                _ => None,
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let static_argument_refs = static_arguments
+                        .iter()
+                        .map(|argument| argument.as_deref())
+                        .collect::<Vec<_>>();
+                    let disposition = classify_intrinsic_method(
+                        &object_ty,
+                        &method,
+                        arguments.len(),
+                        static_string,
+                        &static_argument_refs,
+                        &self.struct_registry,
+                        IntrinsicMethodPhase::Checked,
+                        false,
+                    );
+                    if let IntrinsicMethodDisposition::Supported { result, lowering } = disposition
+                    {
+                        return match lowering {
+                            Some(IntrinsicMethodLowering::ConstantInt(value)) => {
+                                (Value::ImmInt(i64::from(value)), result)
+                            }
+                            Some(IntrinsicMethodLowering::ConstantBool(value)) => {
+                                let result_reg = Value::Reg(self.next_reg);
+                                self.next_reg += 1;
+                                function.body.push(Inst::ICmp {
+                                    op: if value { "eq" } else { "ne" }.to_string(),
+                                    result: result_reg.clone(),
+                                    left: Value::ImmInt(0),
+                                    right: Value::ImmInt(0),
+                                });
+                                (result_reg, result)
+                            }
+                            Some(IntrinsicMethodLowering::Receiver) => (object_value, result),
+                            None => unreachable!(
+                                "checked intrinsic method classification must include lowering"
+                            ),
+                        };
+                    }
+                    unreachable!("checked admission must reject unsupported intrinsic methods");
+                }
                 if method == "iter"
                     && arguments.is_empty()
                     && matches!(object_ty, Ty::Array(_, _) | Ty::Vec(_))
@@ -309,13 +3975,45 @@ impl IrGenerator {
                     // Minimal iterator protocol lowering: `.iter()` reuses the collection value.
                     (object_value, object_ty)
                 } else {
-                    // Method calls will be resolved to function calls as method lowering expands.
+                    // Quarantined legacy unchecked path. Checked IR admission cannot reach this
+                    // compatibility placeholder.
                     (Value::ImmInt(0), Ty::Int)
                 }
             }
             Expression::ArrayLiteral(elements) => {
                 let count = elements.len();
-                let arr_ptr = Value::Reg(self.next_ptr);
+                if self.checked_mode {
+                    let Some(first) = elements.first().cloned() else {
+                        unreachable!("checked empty arrays require an exact annotation")
+                    };
+                    let (first_value, element_ty) = self.generate_expression_ir(first, function);
+                    let array_ty = Ty::Array(Box::new(element_ty.clone()), count);
+                    let array = self.allocate_fixed_copy_array_place(&array_ty, function);
+                    let first_value =
+                        self.load_copy_aggregate_value(first_value, &element_ty, function);
+                    let first_element = self.fixed_copy_array_element_ptr(
+                        array.clone(),
+                        Value::ImmInt(0),
+                        &array_ty,
+                        function,
+                    );
+                    function.body.push(Inst::Store(first_element, first_value));
+                    for (index, expression) in elements.into_iter().skip(1).enumerate() {
+                        let (value, actual) = self.generate_expression_ir(expression, function);
+                        debug_assert_eq!(actual, element_ty);
+                        let value = self.load_copy_aggregate_value(value, &actual, function);
+                        let element = self.fixed_copy_array_element_ptr(
+                            array.clone(),
+                            Value::ImmInt((index + 1) as i64),
+                            &array_ty,
+                            function,
+                        );
+                        function.body.push(Inst::Store(element, value));
+                    }
+                    return (array, array_ty);
+                }
+                let arr_id = self.next_ptr;
+                let arr_ptr = Value::Reg(arr_id);
                 self.next_ptr += 1;
                 // Determine element type from first element
                 let elem_type = if count > 0 {
@@ -362,7 +4060,25 @@ impl IrGenerator {
             }
             Expression::ArrayRepeat { value, count } => {
                 let (val, elem_ty) = self.generate_expression_ir(*value, function);
-                let arr_ptr = Value::Reg(self.next_ptr);
+                if self.checked_mode {
+                    let array_ty = Ty::Array(Box::new(elem_ty.clone()), count);
+                    let copied_value = self.load_copy_aggregate_value(val, &elem_ty, function);
+                    let array = self.allocate_fixed_copy_array_place(&array_ty, function);
+                    for index in 0..count {
+                        let element = self.fixed_copy_array_element_ptr(
+                            array.clone(),
+                            Value::ImmInt(index as i64),
+                            &array_ty,
+                            function,
+                        );
+                        function
+                            .body
+                            .push(Inst::Store(element, copied_value.clone()));
+                    }
+                    return (array, array_ty);
+                }
+                let arr_id = self.next_ptr;
+                let arr_ptr = Value::Reg(arr_id);
                 self.next_ptr += 1;
                 function.body.push(Inst::AllocaArray {
                     result: arr_ptr.clone(),
@@ -385,6 +4101,19 @@ impl IrGenerator {
             Expression::IndexAccess { object, index } => {
                 let (arr_val, arr_ty) = self.generate_expression_ir(*object, function);
                 let (idx_val, _) = self.generate_expression_ir(*index, function);
+                if self.checked_mode {
+                    let Ty::Array(element_ty, _) = &arr_ty else {
+                        unreachable!("checked array index receiver was admitted")
+                    };
+                    let element_ty = element_ty.as_ref().clone();
+                    let element =
+                        self.fixed_copy_array_element_ptr(arr_val, idx_val, &arr_ty, function);
+                    let value = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(Inst::Load(value.clone(), element));
+                    let value = self.store_copy_aggregate_value(value, &element_ty, function);
+                    return (value, element_ty);
+                }
                 let (elem_ty, gep_elem_type) = match &arr_ty {
                     Ty::Array(et, len) => (*et.clone(), format!("[{} x double]", len)),
                     _ => (Ty::Int, "double".to_string()),
@@ -402,6 +4131,224 @@ impl IrGenerator {
                 function.body.push(Inst::Load(result.clone(), elem_ptr));
                 (result, elem_ty)
             }
+            Expression::Borrow { expr, mutable } if self.checked_mode => {
+                let Expression::Identifier(name) = expr.as_ref() else {
+                    unreachable!("checked reference admission requires an identifier place")
+                };
+                let (source, pointee) = self
+                    .symbol_table
+                    .get(name)
+                    .expect("checked borrowed binding exists")
+                    .clone();
+                let context = if mutable {
+                    CopyPlaceExecutionContext::AdmittedMutableReference
+                } else {
+                    CopyPlaceExecutionContext::AdmittedImmutableReference
+                };
+                let pointee_contract = self.admitted_copy_place_logical_type(&pointee, context);
+                let result = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(if mutable {
+                    Inst::CheckedMutableBorrow {
+                        result: result.clone(),
+                        source,
+                        pointee: pointee_contract,
+                    }
+                } else {
+                    Inst::CheckedImmutableBorrow {
+                        result: result.clone(),
+                        source,
+                        pointee: pointee_contract,
+                    }
+                });
+                (result, Ty::Reference(Box::new(pointee), mutable))
+            }
+            Expression::Deref(reference) if self.checked_mode => {
+                let (place, reference_type) = self.generate_expression_ir(*reference, function);
+                let Ty::Reference(pointee, _) = reference_type else {
+                    unreachable!("checked dereference admission requires a reference")
+                };
+                let pointee = *pointee;
+                if matches!(pointee, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
+                    let value = self.load_copy_aggregate_value(place, &pointee, function);
+                    let copied = self.store_copy_aggregate_value(value, &pointee, function);
+                    return (copied, pointee);
+                }
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::Load(result.clone(), place));
+                (result, pointee)
+            }
+            Expression::EnumVariant {
+                enum_name,
+                variant,
+                data,
+            } if self.checked_mode => {
+                let source_arity = data.as_ref().map(Vec::len);
+                let mut payload = Vec::new();
+                if let Some(fields) = data {
+                    payload.reserve(fields.len());
+                    for field in fields {
+                        let (value, ty) = self.generate_expression_ir(field, function);
+                        let value = self.load_copy_aggregate_value(value, &ty, function);
+                        payload.push((value, ty));
+                    }
+                }
+                let resolved = self
+                    .enum_registry
+                    .resolve_constructor(
+                        &enum_name,
+                        &variant,
+                        source_arity,
+                        EnumExecutionContext::AdmittedFunction,
+                    )
+                    .expect("checked enum constructor was admitted");
+                let payload_types = payload.iter().map(|(_, ty)| ty.clone()).collect::<Vec<_>>();
+                self.enum_registry
+                    .validate_constructor_payload(
+                        &resolved,
+                        source_arity.map(|_| payload_types.as_slice()),
+                    )
+                    .expect("checked enum payload type was admitted");
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                if payload.len() <= 1 {
+                    function.body.push(Inst::CheckedEnumVariant {
+                        result: result.clone(),
+                        schema: resolved.contract.schema.clone(),
+                        variant_index: resolved.variant_index,
+                        payload: payload.into_iter().next().map(|(value, _)| value),
+                    });
+                } else {
+                    function.body.push(Inst::CheckedEnumVariantFields {
+                        result: result.clone(),
+                        schema: resolved.contract.schema.clone(),
+                        variant_index: resolved.variant_index,
+                        fields: payload.into_iter().map(|(value, _)| value).collect(),
+                    });
+                }
+                (result, resolved.contract.ty())
+            }
+            Expression::Match { expr, arms } if self.checked_mode => {
+                self.generate_enum_match_ir(*expr, arms, function)
+            }
+            Expression::FieldAccess { object, field } if self.checked_mode => {
+                let (base, receiver) = self.generate_expression_ir(*object, function);
+                let (contract, field_index, field_contract) = self
+                    .struct_registry
+                    .resolve_field(&receiver, &field, StructExecutionContext::AdmittedFunction)
+                    .expect("checked struct field access was admitted");
+                let field_ptr = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(Inst::CheckedStructFieldPtr {
+                    result: field_ptr.clone(),
+                    base,
+                    struct_name: contract.name,
+                    field_index: field_index as u32,
+                    field_type: field_contract.logical_type(),
+                });
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::Load(result.clone(), field_ptr));
+                let field_type = field_contract.ty();
+                let result = self.store_copy_aggregate_value(result, &field_type, function);
+                (result, field_type)
+            }
+            Expression::StructLiteral { name, fields } if self.checked_mode => {
+                let resolved = self
+                    .struct_registry
+                    .resolve_construction(&name, &fields, StructExecutionContext::AdmittedFunction)
+                    .expect("checked struct construction was admitted");
+                let mut values = Vec::with_capacity(fields.len());
+                for (source_index, (_, expression)) in fields.into_iter().enumerate() {
+                    let declaration_index = resolved.source_to_declaration[source_index];
+                    let expected = resolved.contract.fields[declaration_index].ty();
+                    let (value, actual) = if matches!(
+                        (&expression, &expected),
+                        (Expression::ArrayLiteral(elements), Ty::Array(_, 0)) if elements.is_empty()
+                    ) {
+                        (
+                            self.allocate_fixed_copy_array_place(&expected, function),
+                            expected.clone(),
+                        )
+                    } else {
+                        self.generate_expression_ir(expression, function)
+                    };
+                    values.push(self.load_copy_aggregate_value(value, &actual, function));
+                }
+                let base = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                function.body.push(Inst::CheckedStructAlloca {
+                    result: base.clone(),
+                    struct_name: resolved.contract.name.clone(),
+                    field_types: resolved
+                        .contract
+                        .fields
+                        .iter()
+                        .map(crate::struct_contract::StructFieldContract::logical_type)
+                        .collect(),
+                });
+                for (value, declaration_index) in
+                    values.into_iter().zip(resolved.source_to_declaration)
+                {
+                    let declaration_field = &resolved.contract.fields[declaration_index];
+                    let field_ptr = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    function.body.push(Inst::CheckedStructFieldPtr {
+                        result: field_ptr.clone(),
+                        base: base.clone(),
+                        struct_name: resolved.contract.name.clone(),
+                        field_index: declaration_index as u32,
+                        field_type: declaration_field.logical_type(),
+                    });
+                    function.body.push(Inst::Store(field_ptr, value));
+                }
+                (base, Ty::Struct(resolved.contract.name))
+            }
+            Expression::TupleLiteral(elements) if self.checked_mode => {
+                let mut values = Vec::with_capacity(elements.len());
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let (value, ty) = self.generate_expression_ir(element, function);
+                    values.push(self.load_copy_aggregate_value(value, &ty, function));
+                    element_types.push(ty);
+                }
+                let contract = match classify_copy_tuple_elements(
+                    &element_types,
+                    &self.struct_registry,
+                    TupleExecutionContext::AdmittedFunction,
+                ) {
+                    TupleContractDisposition::Supported(contract) => contract,
+                    _ => unreachable!("checked tuple literal was admitted"),
+                };
+                let tuple_ty = contract.ty();
+                let base = self.allocate_copy_tuple_place(&tuple_ty, function);
+                for (index, value) in values.into_iter().enumerate() {
+                    let field = self.copy_tuple_field_ptr(base.clone(), &contract, index, function);
+                    function.body.push(Inst::Store(field, value));
+                }
+                (base, tuple_ty)
+            }
+            Expression::TupleIndex { object, index } if self.checked_mode => {
+                let (base, receiver) = self.generate_expression_ir(*object, function);
+                let projection = match classify_tuple_projection(
+                    &receiver,
+                    index,
+                    &self.struct_registry,
+                    TupleExecutionContext::AdmittedFunction,
+                ) {
+                    TupleContractDisposition::Supported(contract) => contract,
+                    _ => unreachable!("checked tuple projection was admitted"),
+                };
+                let field =
+                    self.copy_tuple_field_ptr(base, &projection.tuple, projection.index, function);
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::Load(result.clone(), field));
+                let element = projection.element;
+                let result = self.store_copy_aggregate_value(result, &element, function);
+                (result, element)
+            }
             Expression::FieldAccess { .. }
             | Expression::TupleLiteral(_)
             | Expression::TupleIndex { .. }
@@ -413,7 +4360,7 @@ impl IrGenerator {
                 // Stub: these will be implemented as remaining Phase 4/5 tasks progress
                 (Value::ImmInt(0), Ty::Int)
             }
-            Expression::Closure { params, body } => self.lower_closure_expression(params, *body),
+            Expression::Closure { .. } => Self::quarantine_closure_expression(),
         }
     }
 
@@ -460,14 +4407,27 @@ impl IrGenerator {
     ) -> (Option<Value>, Option<Ty>) {
         match (lhs, rhs, result_type) {
             (Value::ImmInt(l), Value::ImmInt(r), Ty::Int) => {
+                if !self.checked_mode {
+                    let result = match op {
+                        "+" => l + r,
+                        "-" => l - r,
+                        "*" => l * r,
+                        "/" => l / r,
+                        _ => return (None, None),
+                    };
+                    return (Some(Value::ImmInt(result)), Some(Ty::Int));
+                }
                 let result = match op {
-                    "+" => l + r,
-                    "-" => l - r,
-                    "*" => l * r,
-                    "/" => l / r,
+                    "+" => l.checked_add(*r),
+                    "-" => l.checked_sub(*r),
+                    "*" => l.checked_mul(*r),
+                    "/" => l.checked_div(*r),
                     _ => return (None, None),
                 };
-                (Some(Value::ImmInt(result)), Some(Ty::Int))
+                match result.filter(|value| i32::try_from(*value).is_ok()) {
+                    Some(result) => (Some(Value::ImmInt(result)), Some(Ty::Int)),
+                    None => (None, None),
+                }
             }
             (Value::ImmFloat(l), Value::ImmFloat(r), Ty::Float) => {
                 let result = match op {
@@ -493,47 +4453,74 @@ impl IrGenerator {
     ) {
         // Save current state
         let saved_symbol_table = self.symbol_table.clone();
+        let saved_mutable_reference_sources = self.mutable_reference_sources.clone();
+        let saved_mutable_owned_enum_places = self.mutable_owned_enum_places.clone();
         let saved_next_reg = self.next_reg;
         let saved_next_ptr = self.next_ptr;
 
         // Reset for function generation
         self.symbol_table.clear();
+        self.mutable_reference_sources.clear();
+        self.mutable_owned_enum_places.clear();
         self.next_reg = 0;
         self.next_ptr = 0;
 
+        let copy_contract = self.copy_function_contracts.get(&name).cloned();
+        let enum_contract = self.enum_function_contracts.get(&name).cloned();
+        let reference_contract = self.reference_function_contracts.get(&name).cloned();
+
         // Create parameter names and types for IR
+        let eligible_contract = self.function_return_types.contains_key(&name);
         let param_names: Vec<(String, String)> = parameters
             .iter()
             .map(|p| {
                 (
                     p.name.clone(),
-                    match &p.param_type {
-                        Type::Named(name) => name.clone(),
-                        Type::Array(_, _) => "array".to_string(),
-                        Type::Tuple(_) => "tuple".to_string(),
-                        Type::Reference(_, mutable) => {
-                            if *mutable {
-                                "&mut".to_string()
-                            } else {
-                                "&".to_string()
+                    if eligible_contract {
+                        self.ast_type_to_ir_name(&p.param_type)
+                    } else {
+                        match &p.param_type {
+                            Type::Named(name) => name.clone(),
+                            Type::Array(_, _) => "array".to_string(),
+                            Type::Tuple(_) => "tuple".to_string(),
+                            Type::Reference(_, mutable) => {
+                                if *mutable {
+                                    "&mut".to_string()
+                                } else {
+                                    "&".to_string()
+                                }
                             }
+                            Type::Generic(name, _) => name.clone(),
                         }
-                        Type::Generic(name, _) => name.clone(),
                     },
                 )
             })
             .collect();
 
         // Set up parameter variables in symbol table
-        for param in &parameters {
-            let ptr_reg = Value::Reg(self.next_ptr);
-            self.next_ptr += 1;
-
-            // Convert AST Type to Ty
-            let param_type = self.ast_type_to_ty(&param.param_type);
+        for (index, param) in parameters.iter().enumerate() {
+            let param_type = if let Some(contract) = &reference_contract {
+                contract.parameters[index].1.ty.clone()
+            } else if let Some(contract) = &enum_contract {
+                contract.parameters[index].1.ty.clone()
+            } else {
+                copy_contract.as_ref().map_or_else(
+                    || self.ast_type_to_ty(&param.param_type),
+                    |contract| contract.parameters[index].1.ty.clone(),
+                )
+            };
+            let storage = if matches!(param_type, Ty::Enum(_)) {
+                let result = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                result
+            } else {
+                let place = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                place
+            };
 
             self.symbol_table
-                .insert(param.name.clone(), (ptr_reg, param_type));
+                .insert(param.name.clone(), (storage, param_type));
         }
 
         // Generate function body IR
@@ -545,11 +4532,52 @@ impl IrGenerator {
         };
 
         // Allocate parameters
-        for param in &parameters {
-            let (ptr_reg, _) = self.symbol_table.get(&param.name).unwrap().clone();
-            function_ir
-                .body
-                .push(Inst::Alloca(ptr_reg.clone(), param.name.clone()));
+        for (index, param) in parameters.iter().enumerate() {
+            let (storage, parameter_ty) = self.symbol_table.get(&param.name).unwrap().clone();
+            if let Some(contract) = &reference_contract
+                && let LogicalType::ImmutableReference { pointee } =
+                    &contract.parameters[index].1.logical_type
+            {
+                function_ir
+                    .body
+                    .push(Inst::CheckedImmutableReferenceParameter {
+                        result: storage,
+                        parameter: param.name.clone(),
+                        pointee: pointee.as_ref().clone(),
+                    });
+                debug_assert!(matches!(parameter_ty, Ty::Reference(_, false)));
+            } else if let Some(contract) = &reference_contract
+                && let LogicalType::MutableReference { pointee } =
+                    &contract.parameters[index].1.logical_type
+            {
+                function_ir
+                    .body
+                    .push(Inst::CheckedMutableReferenceParameter {
+                        result: storage,
+                        parameter: param.name.clone(),
+                        pointee: pointee.as_ref().clone(),
+                    });
+                debug_assert!(matches!(parameter_ty, Ty::Reference(_, true)));
+            } else if let Some(contract) = &enum_contract
+                && let LogicalType::Enum {
+                    name: enum_name,
+                    variants,
+                } = &contract.parameters[index].1.logical_type
+            {
+                function_ir.body.push(Inst::CheckedEnumParameter {
+                    result: storage,
+                    parameter: param.name.clone(),
+                    schema: EnumSchema {
+                        name: enum_name.clone(),
+                        variants: variants.clone(),
+                    },
+                });
+                debug_assert!(matches!(parameter_ty, Ty::Enum(_)));
+            } else {
+                function_ir
+                    .body
+                    .push(Inst::Alloca(storage, param.name.clone()));
+            }
         }
 
         // Generate statements
@@ -559,26 +4587,63 @@ impl IrGenerator {
 
         // Handle block expression (implicit return) or default return when needed.
         if let Some(expr) = body.expression {
-            let (return_value, _) = self.generate_expression_ir(expr, &mut function_ir);
+            let (mut return_value, return_ty) = self.generate_expression_ir(expr, &mut function_ir);
+            return_value =
+                self.load_copy_aggregate_value(return_value, &return_ty, &mut function_ir);
             function_ir.body.push(Inst::Return(return_value));
         } else if !function_ir
             .body
-            .iter()
-            .any(|inst| matches!(inst, Inst::Return(_)))
+            .last()
+            .is_some_and(Self::instruction_terminates_block)
         {
             // If no explicit return exists, emit a default scalar return.
             // `None` return type is lowered as `void` in codegen.
             function_ir.body.push(Inst::Return(Value::ImmInt(0)));
         }
 
-        let ir_return_type = return_type.as_ref().map(|ty| self.ast_type_to_ir_name(ty));
-
-        // Create function definition instruction
-        let func_def = Inst::FunctionDef {
-            name: name.clone(),
-            parameters: param_names,
-            return_type: ir_return_type,
-            body: function_ir.body.clone(),
+        // Create a schema-carrying checked definition only for an admitted Copy or
+        // enum transport contract; legacy/raw definitions keep their old shape.
+        let func_def = if let Some(contract) = reference_contract {
+            Inst::CheckedFunctionDef {
+                name: name.clone(),
+                parameters: contract
+                    .parameters
+                    .into_iter()
+                    .map(|(parameter, contract)| (parameter, contract.logical_type))
+                    .collect(),
+                result: contract.result.logical_type,
+                body: function_ir.body.clone(),
+            }
+        } else if let Some(contract) = enum_contract {
+            Inst::CheckedFunctionDef {
+                name: name.clone(),
+                parameters: contract
+                    .parameters
+                    .into_iter()
+                    .map(|(parameter, contract)| (parameter, contract.logical_type))
+                    .collect(),
+                result: contract.result.logical_type,
+                body: function_ir.body.clone(),
+            }
+        } else if let Some(contract) = copy_contract {
+            Inst::CheckedFunctionDef {
+                name: name.clone(),
+                parameters: contract
+                    .parameters
+                    .into_iter()
+                    .map(|(parameter, contract)| (parameter, contract.logical_type))
+                    .collect(),
+                result: contract.result.logical_type,
+                body: function_ir.body.clone(),
+            }
+        } else {
+            let ir_return_type = return_type.as_ref().map(|ty| self.ast_type_to_ir_name(ty));
+            Inst::FunctionDef {
+                name: name.clone(),
+                parameters: param_names,
+                return_type: ir_return_type,
+                body: function_ir.body.clone(),
+            }
         };
 
         // Add function definition to current function (main)
@@ -595,6 +4660,8 @@ impl IrGenerator {
 
         // Restore state
         self.symbol_table = saved_symbol_table;
+        self.mutable_reference_sources = saved_mutable_reference_sources;
+        self.mutable_owned_enum_places = saved_mutable_owned_enum_places;
         self.next_reg = saved_next_reg;
         self.next_ptr = saved_next_ptr;
     }
@@ -657,12 +4724,19 @@ impl IrGenerator {
         match expr {
             Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
             Expression::FloatLiteral(f) => (Value::ImmFloat(f), Ty::Float),
+            Expression::CharacterLiteral(character) => (Value::ImmChar(character), Ty::Char),
             Expression::Identifier(name) => {
                 let (storage, var_type) = self
                     .symbol_table
                     .get(&name)
                     .expect("Undeclared variable")
                     .clone();
+                if self.is_mutable_owned_enum_place(&name, &storage, &var_type) {
+                    let result = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function_body.push(Inst::Load(result.clone(), storage));
+                    return (result, var_type);
+                }
                 if Self::stores_value_directly(&var_type) {
                     return (storage, var_type);
                 }
@@ -769,6 +4843,8 @@ impl IrGenerator {
                 {
                     (object_value, object_ty)
                 } else {
+                    // Quarantined legacy function-level stub. Checked generation uses the
+                    // shared intrinsic-method classifier in `generate_expression_ir`.
                     (Value::ImmInt(0), Ty::Int)
                 }
             }
@@ -783,7 +4859,7 @@ impl IrGenerator {
             | Expression::Match { .. }
             | Expression::Borrow { .. }
             | Expression::Deref(_) => (Value::ImmInt(0), Ty::Int),
-            Expression::Closure { params, body } => self.lower_closure_expression(params, *body),
+            Expression::Closure { .. } => Self::quarantine_closure_expression(),
         }
     }
 
@@ -830,24 +4906,9 @@ impl IrGenerator {
             arg_values.push(arg_value);
         }
 
-        // Generate result register for function call
-        let result_reg = Value::Reg(self.next_reg);
-        self.next_reg += 1;
-
-        // Resolve closure variables to their generated function symbol.
-        let function_name = self.resolve_callable_name(&name);
-
-        // Create function call instruction
-        let call_inst = Inst::Call {
-            function: function_name,
-            arguments: arg_values,
-            result: Some(result_reg.clone()),
-        };
-
+        let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
         function_body.push(call_inst);
-
-        // For now, assume function calls return int (this should be looked up from function table in semantic analysis)
-        (result_reg, Ty::Int)
+        (result, return_type)
     }
 
     // Control flow IR generation methods
@@ -876,6 +4937,8 @@ impl IrGenerator {
             false_label: else_label.clone(),
         });
 
+        let scope_snapshot = self.scope_snapshot();
+
         // Generate then block
         current_function.body.push(Inst::Label(then_label));
         for stmt in then_block.statements {
@@ -884,17 +4947,36 @@ impl IrGenerator {
         if let Some(expr) = then_block.expression {
             self.generate_expression_ir(expr, current_function);
         }
-        current_function.body.push(Inst::Jump(end_label.clone()));
+        let then_terminates = current_function
+            .body
+            .last()
+            .is_some_and(Self::instruction_terminates_block);
+        if !then_terminates {
+            if self.checked_mode {
+                self.end_new_mutable_references(&scope_snapshot.bindings, current_function);
+            }
+            current_function.body.push(Inst::Jump(end_label.clone()));
+        }
+        self.restore_bindings(&scope_snapshot);
 
         // Generate else block
         current_function.body.push(Inst::Label(else_label));
         if let Some(else_stmt) = else_block {
             self.generate_statement_ir(*else_stmt, current_function);
         }
-        current_function.body.push(Inst::Jump(end_label.clone()));
+        let else_terminates = current_function
+            .body
+            .last()
+            .is_some_and(Self::instruction_terminates_block);
+        if !else_terminates {
+            current_function.body.push(Inst::Jump(end_label.clone()));
+        }
+        self.restore_bindings(&scope_snapshot);
 
-        // End label
-        current_function.body.push(Inst::Label(end_label));
+        // A merge block is only reachable when at least one arm falls through.
+        if !then_terminates || !else_terminates {
+            current_function.body.push(Inst::Label(end_label));
+        }
     }
 
     fn generate_while_loop_ir(
@@ -903,17 +4985,14 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        // Generate unique labels
-        let loop_start = format!("while_start_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_body = format!("while_body_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_end = format!("while_end_{}", self.next_reg);
-        self.next_reg += 1;
+        let labels = self.statement_loop_labels(StatementLoopKind::While);
+        let loop_start = labels.header;
+        let loop_body = labels.body.expect("while loop has a body label");
+        let loop_end = labels.exit;
 
         // Push loop labels onto stack for break/continue
         self.loop_label_stack
-            .push((loop_start.clone(), loop_end.clone()));
+            .push((labels.continue_target, loop_end.clone()));
 
         // Jump to loop start
         current_function.body.push(Inst::Jump(loop_start.clone()));
@@ -931,11 +5010,24 @@ impl IrGenerator {
         current_function.body.push(Inst::Label(loop_body));
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
+            if current_function
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+            {
+                break;
+            }
         }
         if let Some(expr) = body.expression {
             self.generate_expression_ir(expr, current_function);
         }
-        current_function.body.push(Inst::Jump(loop_start));
+        if !current_function
+            .body
+            .last()
+            .is_some_and(Self::instruction_terminates_block)
+        {
+            current_function.body.push(Inst::Jump(loop_start));
+        }
 
         // Pop loop labels
         self.loop_label_stack.pop();
@@ -985,27 +5077,39 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        let loop_start = format!("for_start_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_body = format!("for_body_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_end = format!("for_end_{}", self.next_reg);
-        self.next_reg += 1;
+        let labels = self.statement_loop_labels(StatementLoopKind::For);
+        let loop_start = labels.header;
+        let loop_body = labels.body.expect("for loop has a body label");
+        let loop_continue = labels.continue_target;
+        let loop_end = labels.exit;
 
         self.loop_label_stack
-            .push((loop_start.clone(), loop_end.clone()));
+            .push((loop_continue.clone(), loop_end.clone()));
 
         // User-visible loop variable slot (updated each iteration with current element).
-        let loop_var_ptr = Value::Reg(self.next_ptr);
-        self.next_ptr += 1;
-        current_function
-            .body
-            .push(Inst::Alloca(loop_var_ptr.clone(), variable.clone()));
-        current_function
-            .body
-            .push(Inst::Store(loop_var_ptr.clone(), Value::ImmInt(0)));
+        let array_ty = Ty::Array(Box::new(element_ty.clone()), array_len);
+        let copy_element = self
+            .struct_registry
+            .resolve_copy_type(&element_ty)
+            .is_some();
+        let loop_var_ptr = if matches!(element_ty, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
+            self.allocate_copy_aggregate_place(&element_ty, current_function)
+        } else {
+            let place = Value::Reg(self.next_ptr);
+            self.next_ptr += 1;
+            current_function
+                .body
+                .push(Inst::Alloca(place.clone(), variable.clone()));
+            let initial_element = PrimitiveKind::from_ty(&element_ty)
+                .map(PrimitiveKind::raw_zero_value)
+                .unwrap_or(Value::ImmInt(0));
+            current_function
+                .body
+                .push(Inst::Store(place.clone(), initial_element));
+            place
+        };
         self.symbol_table
-            .insert(variable.clone(), (loop_var_ptr.clone(), element_ty));
+            .insert(variable.clone(), (loop_var_ptr.clone(), element_ty.clone()));
 
         // Internal iteration index.
         let index_ptr = Value::Reg(self.next_ptr);
@@ -1044,14 +5148,25 @@ impl IrGenerator {
 
         // Body: load element at idx, assign loop variable, execute body, idx += 1.
         current_function.body.push(Inst::Label(loop_body));
-        let elem_ptr = Value::Reg(self.next_ptr);
-        self.next_ptr += 1;
-        current_function.body.push(Inst::GetElementPtr {
-            result: elem_ptr.clone(),
-            base: array_ptr.clone(),
-            index: index_reg.clone(),
-            elem_type: format!("[{} x double]", array_len),
-        });
+        let body_start = current_function.body.len();
+        let elem_ptr = if copy_element {
+            self.fixed_copy_array_element_ptr(
+                array_ptr.clone(),
+                index_reg.clone(),
+                &array_ty,
+                current_function,
+            )
+        } else {
+            let place = Value::Reg(self.next_ptr);
+            self.next_ptr += 1;
+            current_function.body.push(Inst::GetElementPtr {
+                result: place.clone(),
+                base: array_ptr.clone(),
+                index: index_reg.clone(),
+                elem_type: format!("[{} x double]", array_len),
+            });
+            place
+        };
         let elem_val = Value::Reg(self.next_reg);
         self.next_reg += 1;
         current_function
@@ -1063,20 +5178,26 @@ impl IrGenerator {
 
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
+            if current_function
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+            {
+                break;
+            }
         }
         if let Some(expr) = body.expression {
             self.generate_expression_ir(expr, current_function);
         }
 
-        let next_index = Value::Reg(self.next_reg);
-        self.next_reg += 1;
-        current_function
-            .body
-            .push(Inst::Add(next_index.clone(), index_reg, Value::ImmInt(1)));
-        current_function
-            .body
-            .push(Inst::Store(index_ptr, next_index));
-        current_function.body.push(Inst::Jump(loop_start));
+        self.generate_for_iteration_tail(
+            body_start,
+            loop_continue,
+            loop_start,
+            index_ptr,
+            index_reg,
+            current_function,
+        );
 
         self.loop_label_stack.pop();
         current_function.body.push(Inst::Label(loop_end));
@@ -1090,15 +5211,14 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        let loop_start = format!("for_start_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_body = format!("for_body_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_end = format!("for_end_{}", self.next_reg);
-        self.next_reg += 1;
+        let labels = self.statement_loop_labels(StatementLoopKind::For);
+        let loop_start = labels.header;
+        let loop_body = labels.body.expect("for loop has a body label");
+        let loop_continue = labels.continue_target;
+        let loop_end = labels.exit;
 
         self.loop_label_stack
-            .push((loop_start.clone(), loop_end.clone()));
+            .push((loop_continue.clone(), loop_end.clone()));
 
         let var_ptr = Value::Reg(self.next_ptr);
         self.next_ptr += 1;
@@ -1135,24 +5255,29 @@ impl IrGenerator {
         });
 
         current_function.body.push(Inst::Label(loop_body));
+        let body_start = current_function.body.len();
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
+            if current_function
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+            {
+                break;
+            }
         }
         if let Some(expr) = body.expression {
             self.generate_expression_ir(expr, current_function);
         }
 
-        let incremented_reg = Value::Reg(self.next_reg);
-        self.next_reg += 1;
-        current_function.body.push(Inst::Add(
-            incremented_reg.clone(),
+        self.generate_for_iteration_tail(
+            body_start,
+            loop_continue,
+            loop_start,
+            var_ptr,
             loop_var_reg,
-            Value::ImmInt(1),
-        ));
-        current_function
-            .body
-            .push(Inst::Store(var_ptr, incremented_reg));
-        current_function.body.push(Inst::Jump(loop_start));
+            current_function,
+        );
 
         self.loop_label_stack.pop();
         current_function.body.push(Inst::Label(loop_end));
@@ -1163,15 +5288,13 @@ impl IrGenerator {
         body: crate::ast::Block,
         current_function: &mut Function,
     ) {
-        // Generate unique labels
-        let loop_start = format!("loop_start_{}", self.next_reg);
-        self.next_reg += 1;
-        let loop_end = format!("loop_end_{}", self.next_reg);
-        self.next_reg += 1;
+        let labels = self.statement_loop_labels(StatementLoopKind::Loop);
+        let loop_start = labels.header;
+        let loop_end = labels.exit;
 
         // Push loop labels onto stack for break/continue
         self.loop_label_stack
-            .push((loop_start.clone(), loop_end.clone()));
+            .push((labels.continue_target, loop_end.clone()));
 
         // Jump to loop start
         current_function.body.push(Inst::Jump(loop_start.clone()));
@@ -1182,19 +5305,71 @@ impl IrGenerator {
         // Loop body
         for stmt in body.statements {
             self.generate_statement_ir(stmt, current_function);
+            if current_function
+                .body
+                .last()
+                .is_some_and(Self::instruction_terminates_block)
+            {
+                break;
+            }
         }
         if let Some(expr) = body.expression {
             self.generate_expression_ir(expr, current_function);
         }
 
         // Jump back to start (infinite loop)
-        current_function.body.push(Inst::Jump(loop_start));
+        if !current_function
+            .body
+            .last()
+            .is_some_and(Self::instruction_terminates_block)
+        {
+            current_function.body.push(Inst::Jump(loop_start));
+        }
 
         // Pop loop labels
         self.loop_label_stack.pop();
 
         // Loop end (reachable via break)
         current_function.body.push(Inst::Label(loop_end));
+    }
+
+    fn generate_for_iteration_tail(
+        &mut self,
+        body_start: usize,
+        continue_target: String,
+        header: String,
+        index_place: Value,
+        current_index: Value,
+        current_function: &mut Function,
+    ) {
+        let falls_through = !current_function
+            .body
+            .last()
+            .is_some_and(Self::instruction_terminates_block);
+        if falls_through {
+            current_function
+                .body
+                .push(Inst::Jump(continue_target.clone()));
+        }
+        let has_explicit_continue = current_function.body[body_start..].iter().any(
+            |instruction| matches!(instruction, Inst::Jump(target) if target == &continue_target),
+        );
+        if !falls_through && !has_explicit_continue {
+            return;
+        }
+
+        current_function.body.push(Inst::Label(continue_target));
+        let next_index = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        current_function.body.push(Inst::Add(
+            next_index.clone(),
+            current_index,
+            Value::ImmInt(1),
+        ));
+        current_function
+            .body
+            .push(Inst::Store(index_place, next_index));
+        current_function.body.push(Inst::Jump(header));
     }
 
     fn generate_break_ir(&mut self, current_function: &mut Function) {
@@ -1217,13 +5392,15 @@ impl IrGenerator {
 
     fn ast_type_to_ty(&self, ty: &Type) -> Ty {
         match ty {
-            Type::Named(name) => match name.as_str() {
-                "i32" | "int" => Ty::Int,
-                "f64" | "float" => Ty::Float,
-                "bool" => Ty::Bool,
-                "String" => Ty::String,
-                other => Ty::Struct(other.to_string()),
-            },
+            Type::Named(name) => PrimitiveKind::from_source_name(name)
+                .map(PrimitiveKind::ty)
+                .unwrap_or_else(|| {
+                    if name == "String" {
+                        Ty::String
+                    } else {
+                        Ty::Struct(name.clone())
+                    }
+                }),
             Type::Array(elem, size) => Ty::Array(Box::new(self.ast_type_to_ty(elem)), *size),
             Type::Tuple(types) => Ty::Tuple(types.iter().map(|t| self.ast_type_to_ty(t)).collect()),
             Type::Reference(inner, mutable) => {
@@ -1238,6 +5415,7 @@ impl IrGenerator {
             Ty::Int => "i32".to_string(),
             Ty::Float => "f64".to_string(),
             Ty::Bool => "bool".to_string(),
+            Ty::Char => "char".to_string(),
             Ty::String => "String".to_string(),
             Ty::Void => "void".to_string(),
             Ty::Array(_, _) => "array".to_string(),
@@ -1267,78 +5445,10 @@ impl IrGenerator {
         name.to_string()
     }
 
-    fn lower_closure_expression(
-        &mut self,
-        params: Vec<crate::ast::Parameter>,
-        body: Expression,
-    ) -> (Value, Ty) {
-        let closure_id = self.closure_count as i64;
-        let closure_name = format!("__closure_{}", self.closure_count);
-        self.closure_count += 1;
-
-        let ir_params: Vec<(String, String)> = params
-            .iter()
-            .map(|p| {
-                let ty_str = match &p.param_type {
-                    Type::Named(n) => match n.as_str() {
-                        "i32" | "int" => "i32".to_string(),
-                        "f64" | "float" => "double".to_string(),
-                        "bool" => "i1".to_string(),
-                        _ => "i32".to_string(),
-                    },
-                    _ => "i32".to_string(),
-                };
-                (p.name.clone(), ty_str)
-            })
-            .collect();
-
-        // Closures currently do not capture outer variables; compile them as plain
-        // standalone functions with their own symbol table/register space.
-        let saved_symbol_table = self.symbol_table.clone();
-        let saved_next_reg = self.next_reg;
-        let saved_next_ptr = self.next_ptr;
-
-        self.symbol_table.clear();
-        self.next_reg = 0;
-        self.next_ptr = 0;
-
-        let mut closure_body = Vec::new();
-        for p in &params {
-            let ptr = Value::Reg(self.next_ptr);
-            self.next_ptr += 1;
-            closure_body.push(Inst::Alloca(ptr.clone(), p.name.clone()));
-            let ty = self.ast_type_to_ty(&p.param_type);
-            self.symbol_table.insert(p.name.clone(), (ptr, ty));
-        }
-
-        let (body_val, body_ty) = self.generate_expression_ir_for_function(body, &mut closure_body);
-        closure_body.push(Inst::Return(body_val));
-
-        let return_type = match &body_ty {
-            Ty::Int => Some("i32".to_string()),
-            Ty::Float => Some("double".to_string()),
-            Ty::Bool => Some("i1".to_string()),
-            _ => Some("i32".to_string()),
-        };
-
-        let closure_fn = Function {
-            name: closure_name.clone(),
-            body: vec![Inst::FunctionDef {
-                name: closure_name.clone(),
-                parameters: ir_params,
-                return_type,
-                body: closure_body,
-            }],
-            next_reg: self.next_reg,
-            next_ptr: self.next_ptr,
-        };
-        self.functions.insert(closure_name.clone(), closure_fn);
-
-        self.symbol_table = saved_symbol_table;
-        self.next_reg = saved_next_reg;
-        self.next_ptr = saved_next_ptr;
-
-        (Value::ImmInt(closure_id), Ty::Fn(closure_name))
+    fn quarantine_closure_expression() -> (Value, Ty) {
+        // Deprecated unchecked generation keeps the parsed node inert. It must not
+        // synthesize a callable type, signature, environment, layout, or symbol.
+        (Value::ImmInt(0), Ty::Void)
     }
 
     // I/O and enhanced expression IR generation methods
@@ -1384,6 +5494,30 @@ impl IrGenerator {
     ) -> (Value, Ty) {
         let (left_val, left_type) = self.generate_expression_ir(left, function);
         let (right_val, right_type) = self.generate_expression_ir(right, function);
+
+        if self.checked_mode {
+            let left_static = match (&left_val, &left_type) {
+                (Value::ImmString(value), Ty::String) => Some(value.as_str()),
+                _ => None,
+            };
+            let right_static = match (&right_val, &right_type) {
+                (Value::ImmString(value), Ty::String) => Some(value.as_str()),
+                _ => None,
+            };
+            if let StaticStringEqualityDisposition::StaticBool(value) =
+                classify_static_string_equality(left_static, &op, right_static)
+            {
+                let result_reg = Value::Reg(self.next_reg);
+                self.next_reg += 1;
+                function.body.push(Inst::ICmp {
+                    op: if value { "eq" } else { "ne" }.to_string(),
+                    result: result_reg.clone(),
+                    left: Value::ImmInt(0),
+                    right: Value::ImmInt(0),
+                });
+                return (result_reg, Ty::Bool);
+            }
+        }
 
         let result_reg = Value::Reg(self.next_reg);
         self.next_reg += 1;
@@ -1478,6 +5612,12 @@ impl IrGenerator {
                 left: left_val,
                 right: right_val,
             },
+            (Ty::Char, Ty::Char) => Inst::ICmp {
+                op: op_str.to_string(),
+                result: result_reg.clone(),
+                left: left_val,
+                right: right_val,
+            },
             _ => panic!(
                 "Unsupported comparison between {:?} and {:?}",
                 left_type, right_type
@@ -1524,6 +5664,19 @@ impl IrGenerator {
         operand: Expression,
         function: &mut Function,
     ) -> (Value, Ty) {
+        if self.checked_mode
+            && matches!(op, crate::ast::UnaryOp::Negate)
+            && let Expression::IntegerLiteral(value) = &operand
+        {
+            return (
+                Value::ImmInt(
+                    value
+                        .checked_neg()
+                        .expect("checked admission validated the negated integer literal"),
+                ),
+                Ty::Int,
+            );
+        }
         let (operand_val, operand_type) = self.generate_expression_ir(operand, function);
 
         let result_reg = Value::Reg(self.next_reg);
@@ -1730,6 +5883,19 @@ impl IrGenerator {
         operand: Expression,
         function_body: &mut Vec<Inst>,
     ) -> (Value, Ty) {
+        if self.checked_mode
+            && matches!(op, crate::ast::UnaryOp::Negate)
+            && let Expression::IntegerLiteral(value) = &operand
+        {
+            return (
+                Value::ImmInt(
+                    value
+                        .checked_neg()
+                        .expect("checked admission validated the negated integer literal"),
+                ),
+                Ty::Int,
+            );
+        }
         let (operand_val, operand_type) =
             self.generate_expression_ir_for_function(operand, function_body);
 
@@ -1762,13 +5928,54 @@ impl IrGenerator {
 mod tests {
     use super::*;
     use crate::ast::{AstNode, BinaryOp, Block, Expression, Parameter, Statement, Type};
+    use crate::errors::SourceLocation;
     use crate::types::Ty;
+    use std::panic::{AssertUnwindSafe, catch_unwind};
 
     #[test]
     fn generates_main_function() {
         let mut ir_gen = IrGenerator::new();
         let ir = ir_gen.generate_ir(vec![]);
         assert!(ir.contains_key("main"));
+    }
+
+    #[test]
+    fn checked_direct_ast_rejects_unlowerable_nodes_without_unwinding() {
+        let cases = vec![
+            (
+                "typed modulo",
+                vec![AstNode::Statement(Statement::Let {
+                    name: "remainder".to_string(),
+                    mutable: false,
+                    type_annotation: None,
+                    value: Some(Expression::Binary {
+                        op: BinaryOp::Modulo,
+                        left: Box::new(Expression::IntegerLiteral(5)),
+                        right: Box::new(Expression::IntegerLiteral(2)),
+                        ty: Some(Ty::Int),
+                    }),
+                })],
+            ),
+            (
+                "top-level expression",
+                vec![AstNode::Expression(Expression::IntegerLiteral(1))],
+            ),
+            (
+                "break outside loop",
+                vec![AstNode::Statement(Statement::Break)],
+            ),
+            (
+                "continue outside loop",
+                vec![AstNode::Statement(Statement::Continue)],
+            ),
+        ];
+
+        for (name, ast) in cases {
+            let outcome =
+                catch_unwind(AssertUnwindSafe(|| IrGenerator::new().try_generate_ir(ast)));
+            let result = outcome.unwrap_or_else(|_| panic!("{name}: checked API unwound"));
+            assert!(result.is_err(), "{name}: checked API published partial IR");
+        }
     }
 
     #[test]
@@ -1822,53 +6029,44 @@ mod tests {
     }
 
     #[test]
-    fn closure_call_uses_generated_function_symbol() {
+    fn unchecked_closure_is_quarantined_without_a_function_symbol() {
         let mut ir_gen = IrGenerator::new();
-        let ast = vec![
-            AstNode::Statement(Statement::Let {
-                name: "add".to_string(),
-                mutable: false,
-                type_annotation: None,
-                value: Some(Expression::Closure {
-                    params: vec![
-                        Parameter {
-                            name: "x".to_string(),
-                            param_type: Type::Named("i32".to_string()),
-                        },
-                        Parameter {
-                            name: "y".to_string(),
-                            param_type: Type::Named("i32".to_string()),
-                        },
-                    ],
-                    body: Box::new(Expression::Binary {
-                        op: BinaryOp::Add,
-                        left: Box::new(Expression::Identifier("x".to_string())),
-                        right: Box::new(Expression::Identifier("y".to_string())),
-                        ty: Some(Ty::Int),
-                    }),
+        let ast = vec![AstNode::Statement(Statement::Let {
+            name: "add".to_string(),
+            mutable: false,
+            type_annotation: None,
+            value: Some(Expression::Closure {
+                params: vec![
+                    Parameter {
+                        name: "x".to_string(),
+                        param_type: Type::Named("i32".to_string()),
+                    },
+                    Parameter {
+                        name: "y".to_string(),
+                        param_type: Type::Named("i32".to_string()),
+                    },
+                ],
+                body: Box::new(Expression::Binary {
+                    op: BinaryOp::Add,
+                    left: Box::new(Expression::Identifier("x".to_string())),
+                    right: Box::new(Expression::Identifier("y".to_string())),
+                    ty: Some(Ty::Int),
                 }),
+                location: SourceLocation::new(1, 1),
             }),
-            AstNode::Statement(Statement::Expression(Expression::FunctionCall {
-                name: "add".to_string(),
-                arguments: vec![Expression::IntegerLiteral(1), Expression::IntegerLiteral(2)],
-            })),
-        ];
+        })];
 
         let ir = ir_gen.generate_ir(ast);
         let main = &ir["main"].body;
 
+        assert!(main.iter().all(|inst| !matches!(
+            inst,
+            crate::ir::Inst::Call { function, .. } if function.starts_with("__closure_")
+        )));
         assert!(
-            main.iter()
-                .any(|inst| matches!(inst, crate::ir::Inst::Call { function, .. } if function == "__closure_0"))
-        );
-        assert!(ir.contains_key("__closure_0"));
-
-        let closure_func = &ir["__closure_0"];
-        assert!(
-            closure_func
-                .body
-                .iter()
-                .any(|inst| matches!(inst, crate::ir::Inst::FunctionDef { body, .. } if body.iter().any(|i| matches!(i, crate::ir::Inst::Return(_)))))
+            ir.keys().all(|name| !name.starts_with("__closure_")),
+            "unchecked closure lowering manufactured a closure symbol: {:?}",
+            ir.keys().collect::<Vec<_>>()
         );
     }
 

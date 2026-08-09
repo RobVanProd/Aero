@@ -1,0 +1,27 @@
+enum Phase { Cold, Warm, Hot }
+
+struct ModuleRow { value: int, ready: bool }
+
+fn module_phase() -> Phase { Phase::Warm }
+
+fn module_forward(value: Phase) -> Phase { value }
+
+fn module_make(value: int) -> ModuleRow {
+    ModuleRow { value: value, ready: value > 0 }
+}
+
+fn module_score(value: Phase, row: ModuleRow, values: [int; 2]) -> int {
+    let base = match value {
+        Phase::Cold => 3,
+        Phase::Warm => 7,
+        Phase::Hot => 11
+    };
+    base + row.value + values[1]
+}
+
+fn module_scan(rows: [ModuleRow; 2]) -> int {
+    for row in rows.iter() {
+        if !row.ready { return 0; }
+    }
+    rows.len()
+}

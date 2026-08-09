@@ -1,5 +1,8 @@
 # Built-in Collections Library Demo - Task 11
 
+> **Historical record — not current capability evidence.** This helper/demo material
+> is not connected to a supported source-to-execution collections pipeline.
+
 ## Implementation Overview
 
 Task 11 has been comprehensively implemented with a complete Built-in Collections Library that includes:

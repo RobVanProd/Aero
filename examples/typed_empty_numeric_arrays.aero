@@ -1,0 +1,9 @@
+// Exact executable CORE-037 class: one zero-length array for each numeric alias.
+// The arrays are never indexed; native execution proves construction and lowering.
+fn main() -> int {
+    let int_values: [int; 0] = [];
+    let i32_values: [i32; 0] = [];
+    let float_values: [float; 0] = [];
+    let f64_values: [f64; 0] = [];
+    return 37;
+}
