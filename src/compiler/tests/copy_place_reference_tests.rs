@@ -431,7 +431,7 @@ fn immutable_copy_place_reference_class_is_complete_checked_and_executable() {
         (
             "enum pointee",
             "enum Mode { Off, On } fn bad(value: &Mode) -> int { 0 } fn main() -> int { 0 }",
-            "admitted Copy-data",
+            "immutable enum reference pointee",
         ),
         (
             "nested reference pointee",

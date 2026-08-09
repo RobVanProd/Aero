@@ -59,6 +59,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Convergent direct-enum loop ownership fixed points | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Mutable whole-place enum references (`CORE-083` candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -85,6 +86,17 @@ IR; no constant storage, global, symbol, public layout/ABI, aggregate constant,
 cross-module lookup, runtime dependency, or general CTFE is claimed. Bounded PR #6,
 all nine exact-head checks, protected merge `962bb49f`, and the three exact post-merge
 master workflows pass; the row remains `PARTIAL`.
+
+Local unpublished candidate `CORE-083` adds only non-escaping mutable whole-place
+references to the already admitted destructor-free enum class. One shared pointee
+classifier serves semantics and independent checked admission; exact schema-bearing
+loan/parameter/write/end identities reach independently verified private pointer LLVM.
+The focused target is 5/5 and the exact repository-root gate is green at 211 library
+and 32 binary tests. Immutable enum references, reads or Match through a reference,
+reference results/escape/storage/capture, projected or partial mutation, enum aggregate
+storage, generic/named-field/String-payload enums, drop/lifetimes/NLL, stable ABI/FFI,
+and memory-safety claims remain absent. The row is candidate-only until exact-head
+public Linux/Windows LLVM 22 exit-83 evidence and protected integration succeed.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

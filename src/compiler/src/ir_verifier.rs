@@ -352,7 +352,7 @@ fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
 }
 
 fn valid_mutable_reference_pointee(ty: &LogicalType) -> bool {
-    valid_immutable_reference_pointee(ty)
+    valid_owned_place_type(ty)
 }
 
 fn valid_owned_place_type(ty: &LogicalType) -> bool {
@@ -1149,7 +1149,6 @@ struct FunctionVerifier<'a> {
     place_names: BTreeMap<PlaceId, Option<String>>,
     element_owners: BTreeMap<PlaceId, PlaceId>,
     mutable_owned_places: BTreeSet<PlaceId>,
-    mutable_copy_places: BTreeSet<PlaceId>,
     match_result_places: BTreeSet<PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
@@ -1178,7 +1177,6 @@ impl<'a> FunctionVerifier<'a> {
             place_names: BTreeMap::new(),
             element_owners: BTreeMap::new(),
             mutable_owned_places: BTreeSet::new(),
-            mutable_copy_places: BTreeSet::new(),
             match_result_places: BTreeSet::new(),
             mutable_reference_origins: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
@@ -1234,6 +1232,21 @@ impl<'a> FunctionVerifier<'a> {
                 .or(Some(EnumOwner::Result(result))),
             _ => Some(EnumOwner::Result(result)),
         }
+    }
+
+    fn mutable_reference_root(&self, place: PlaceId) -> Option<PlaceId> {
+        let mut current = place;
+        let mut seen = BTreeSet::new();
+        while seen.insert(current) {
+            if self.mutable_reference_parameters.contains(&current) {
+                return None;
+            }
+            let Some(parent) = self.mutable_reference_origins.get(&current).copied() else {
+                return Some(current);
+            };
+            current = parent;
+        }
+        None
     }
 
     fn consume_enum_owner(
@@ -1322,6 +1335,53 @@ impl<'a> FunctionVerifier<'a> {
                     }
                     self.consume_enum_owner(value, consumed, block, "checked enum assignment")?;
                     consumed.remove(&EnumOwner::Place(target));
+                }
+                Inst::CheckedMutableBorrow {
+                    source, pointee, ..
+                } if matches!(pointee, LogicalType::Enum { .. }) => {
+                    let source = PlaceId(reg(source).expect("checked mutable borrow source"));
+                    if let Some(root) = self.mutable_reference_root(source)
+                        && self.enum_place(&Value::Reg(root.0)).is_some()
+                        && consumed.contains(&EnumOwner::Place(root))
+                    {
+                        return Err(self.error(
+                            block,
+                            IrVerificationErrorKind::MetadataMismatch(format!(
+                                "checked mutable enum borrow cannot use consumed owner place {}",
+                                root.0
+                            )),
+                        ));
+                    }
+                }
+                Inst::CheckedMutableDereferenceAssignment {
+                    target,
+                    value,
+                    pointee,
+                } if matches!(pointee, LogicalType::Enum { .. }) => {
+                    let target = PlaceId(reg(target).expect("checked mutable reference target"));
+                    let root = self
+                        .mutable_reference_root(target)
+                        .filter(|root| self.enum_place(&Value::Reg(root.0)).is_some());
+                    if root
+                        .is_some_and(|root| self.enum_owner(value) == Some(EnumOwner::Place(root)))
+                    {
+                        return Err(self.error(
+                            block,
+                            IrVerificationErrorKind::MetadataMismatch(
+                                "checked mutable enum dereference assignment cannot replace an owner from that same owner's consumed value"
+                                    .to_string(),
+                            ),
+                        ));
+                    }
+                    self.consume_enum_owner(
+                        value,
+                        consumed,
+                        block,
+                        "checked mutable enum dereference assignment",
+                    )?;
+                    if let Some(root) = root {
+                        consumed.remove(&EnumOwner::Place(root));
+                    }
                 }
                 Inst::Load(_, source)
                     if self
@@ -1828,9 +1888,6 @@ impl<'a> FunctionVerifier<'a> {
                                 ));
                             }
                             self.mutable_owned_places.insert(id);
-                            if valid_copy_data_type(ty) {
-                                self.mutable_copy_places.insert(id);
-                            }
                             let place_type = match ty {
                                 LogicalType::Array { element, count } => PlaceType::Array {
                                     logical_element: Some((**element).clone()),
@@ -2314,7 +2371,7 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             };
-                            if !self.mutable_copy_places.contains(&source_id)
+                            if !self.mutable_owned_places.contains(&source_id)
                                 && !self.mutable_reference_origins.contains_key(&source_id)
                                 && !self.mutable_reference_parameters.contains(&source_id)
                             {
@@ -2371,7 +2428,7 @@ impl<'a> FunctionVerifier<'a> {
                                     &self.body.name,
                                     Some(&block.label),
                                     IrVerificationErrorKind::MetadataMismatch(format!(
-                                        "checked mutable reference parameter `{parameter}` must bind a supported Copy-data pointee in the entry block"
+                                        "checked mutable reference parameter `{parameter}` must bind a supported mutable pointee in the entry block"
                                     )),
                                 ));
                             }
@@ -3039,6 +3096,22 @@ impl<'a> FunctionVerifier<'a> {
                     }
                     Inst::Load(_, place) => {
                         let place = self.require_place(place, "load", block_index, position)?;
+                        if (self.mutable_reference_origins.contains_key(&place)
+                            || self.mutable_reference_parameters.contains(&place))
+                            && self
+                                .places
+                                .get(&place)
+                                .and_then(PlaceType::logical)
+                                .is_some_and(|ty| matches!(ty, LogicalType::Enum { .. }))
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "load from mutable enum reference place {} is forbidden; CORE-083 admits whole-place replacement only",
+                                    place.0
+                                )),
+                            ));
+                        }
                         if active_mutable_sources.contains(&place) {
                             return Err(self.error(
                                 block_index,
@@ -3520,7 +3593,7 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
-                        let initialized_owner = self.mutable_copy_places.contains(&source)
+                        let initialized_owner = self.mutable_owned_places.contains(&source)
                             && initialized_mutable_places.contains(&source);
                         let active_local_parent = active_mutable_references.contains(&source)
                             && self.mutable_reference_origins.contains_key(&source);
@@ -3531,7 +3604,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked mutable borrow source place {} is not an initialized mutable Copy-data owner, active local mutable reference, or mutable-reference parameter",
+                                    "checked mutable borrow source place {} is not an initialized mutable admitted owner, active local mutable reference, or mutable-reference parameter",
                                     source.0
                                 )),
                             ));
@@ -3691,7 +3764,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked mutable reference parameter `{parameter}` must bind a supported Copy-data pointee in the entry block"
+                                    "checked mutable reference parameter `{parameter}` must bind a supported mutable pointee in the entry block"
                                 )),
                             ));
                         }
@@ -7864,16 +7937,6 @@ mod tests {
         let mut non_adjacent_initializer = valid();
         non_adjacent_initializer.insert(2, Inst::Load(Value::Reg(3), Value::Reg(5)));
 
-        let mut enum_borrow = valid();
-        enum_borrow.insert(
-            4,
-            Inst::CheckedMutableBorrow {
-                result: Value::Reg(6),
-                source: Value::Reg(5),
-                pointee: logical.clone(),
-            },
-        );
-
         let mut kind_collision = valid();
         kind_collision[1] = Inst::CheckedMutableOwnedPlaceAlloca {
             result: Value::Reg(0),
@@ -7889,12 +7952,197 @@ mod tests {
             ("generic alloca substitution", generic_alloca),
             ("missing initializer", missing_initializer),
             ("non-adjacent initializer", non_adjacent_initializer),
-            ("enum borrow", enum_borrow),
             ("result/place kind collision", kind_collision),
         ] {
             assert!(
                 verify_ir(function(body)).is_err(),
                 "{label} passed mutable owned enum verification"
+            );
+        }
+    }
+
+    #[test]
+    fn mutable_enum_reference_schema_loans_and_writes_are_fail_closed() {
+        let schema = unit_schema("State", &["Idle", "Ready"]);
+        let logical = schema.logical_type();
+        let mutable_reference = LogicalType::MutableReference {
+            pointee: Box::new(logical.clone()),
+        };
+        let callee = || {
+            vec![
+                Inst::CheckedMutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    pointee: logical.clone(),
+                },
+                checked_variant(Value::Reg(1), schema.clone(), 1),
+                Inst::CheckedMutableDereferenceAssignment {
+                    target: Value::Reg(0),
+                    value: Value::Reg(1),
+                    pointee: logical.clone(),
+                },
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+        let caller = || {
+            vec![
+                Inst::CheckedFunctionDef {
+                    name: "replace".to_string(),
+                    parameters: vec![("value".to_string(), mutable_reference.clone())],
+                    result: LogicalType::Int,
+                    body: callee(),
+                },
+                checked_variant(Value::Reg(0), schema.clone(), 0),
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(5),
+                    name: "owner".to_string(),
+                    ty: logical.clone(),
+                },
+                Inst::Store(Value::Reg(5), Value::Reg(0)),
+                Inst::CheckedMutableBorrow {
+                    result: Value::Reg(6),
+                    source: Value::Reg(5),
+                    pointee: logical.clone(),
+                },
+                Inst::Call {
+                    function: "replace".to_string(),
+                    arguments: vec![Value::Reg(6)],
+                    result: Some(Value::Reg(7)),
+                },
+                Inst::CheckedMutableBorrowEnd {
+                    reference: Value::Reg(6),
+                    source: Value::Reg(5),
+                    pointee: logical.clone(),
+                },
+                Inst::Load(Value::Reg(2), Value::Reg(5)),
+                Inst::Return(Value::Reg(7)),
+            ]
+        };
+        let program = |callee_body: Vec<Inst>, mut caller_body: Vec<Inst>| {
+            let Inst::CheckedFunctionDef { body, .. } = &mut caller_body[0] else {
+                unreachable!("caller fixture starts with the checked callee definition")
+            };
+            *body = callee_body;
+            HashMap::from([
+                (
+                    "main".to_string(),
+                    Function {
+                        name: "main".to_string(),
+                        body: caller_body,
+                        next_reg: 16,
+                        next_ptr: 16,
+                    },
+                ),
+                (
+                    "replace".to_string(),
+                    Function {
+                        name: "replace".to_string(),
+                        body: Vec::new(),
+                        next_reg: 16,
+                        next_ptr: 16,
+                    },
+                ),
+            ])
+        };
+
+        verify_ir(program(callee(), caller())).expect(
+            "exact mutable enum reference signature, replacement, call, and loan end verify",
+        );
+
+        let mut wrong_binder = callee();
+        wrong_binder[0] = Inst::CheckedMutableReferenceParameter {
+            result: Value::Reg(0),
+            parameter: "value".to_string(),
+            pointee: unit_schema("Other", &["Idle", "Ready"]).logical_type(),
+        };
+
+        let mut wrong_write = callee();
+        wrong_write[2] = Inst::CheckedMutableDereferenceAssignment {
+            target: Value::Reg(0),
+            value: Value::ImmInt(1),
+            pointee: logical.clone(),
+        };
+
+        let mut generic_write = callee();
+        generic_write[2] = Inst::Store(Value::Reg(0), Value::Reg(1));
+
+        let mut read_through_reference = callee();
+        read_through_reference.insert(1, Inst::Load(Value::Reg(8), Value::Reg(0)));
+
+        for (label, body) in [
+            ("wrong mutable enum binder schema", wrong_binder),
+            ("wrong enum replacement value", wrong_write),
+            ("generic store through enum reference", generic_write),
+            (
+                "enum read through mutable reference",
+                read_through_reference,
+            ),
+        ] {
+            assert!(
+                verify_ir(program(body, caller())).is_err(),
+                "{label} passed checked IR verification"
+            );
+        }
+
+        let mut wrong_borrow_schema = caller();
+        wrong_borrow_schema[4] = Inst::CheckedMutableBorrow {
+            result: Value::Reg(6),
+            source: Value::Reg(5),
+            pointee: unit_schema("Other", &["Idle", "Ready"]).logical_type(),
+        };
+
+        let mut generic_call_store = caller();
+        generic_call_store[5] = Inst::Store(Value::Reg(6), Value::Reg(0));
+
+        let mut missing_end = caller();
+        missing_end.remove(6);
+
+        let mut wrong_end = caller();
+        wrong_end[6] = Inst::CheckedMutableBorrowEnd {
+            reference: Value::Reg(6),
+            source: Value::Reg(6),
+            pointee: logical.clone(),
+        };
+
+        let mut consumed_owner = caller();
+        consumed_owner.splice(
+            4..4,
+            [
+                Inst::Load(Value::Reg(8), Value::Reg(5)),
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(9),
+                    name: "moved".to_string(),
+                    ty: logical.clone(),
+                },
+                Inst::Store(Value::Reg(9), Value::Reg(8)),
+            ],
+        );
+
+        let invalid_schema = LogicalType::Enum {
+            name: "State".to_string(),
+            variants: vec![EnumVariantSchema {
+                name: "Bad".to_string(),
+                payload: Some(LogicalType::String),
+            }],
+        };
+        let mut unsupported_schema = caller();
+        unsupported_schema[2] = Inst::CheckedMutableOwnedPlaceAlloca {
+            result: Value::Reg(5),
+            name: "owner".to_string(),
+            ty: invalid_schema,
+        };
+
+        for (label, body) in [
+            ("borrow schema substitution", wrong_borrow_schema),
+            ("generic store through call temporary", generic_call_store),
+            ("missing lexical loan end", missing_end),
+            ("wrong lexical loan identity", wrong_end),
+            ("borrow of consumed enum owner", consumed_owner),
+            ("unsupported enum reference schema", unsupported_schema),
+        ] {
+            assert!(
+                verify_ir(program(callee(), body)).is_err(),
+                "{label} passed checked IR verification"
             );
         }
     }

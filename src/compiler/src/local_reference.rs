@@ -3,6 +3,7 @@ use crate::copy_place_contract::{
     CopyPlaceDisposition, CopyPlaceExecutionContext, classify_copy_place_annotation,
     classify_copy_place_type,
 };
+use crate::enum_match_contract::EnumRegistry;
 use crate::ir::LogicalType;
 use crate::struct_contract::StructRegistry;
 use crate::types::{OwnershipState, Ty};
@@ -55,6 +56,84 @@ pub(crate) enum MutableReferenceAssignmentDisposition {
 pub(crate) struct ReferenceTransportTypeContract {
     pub(crate) ty: Ty,
     pub(crate) logical_type: LogicalType,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReferencePointeeContext {
+    Immutable,
+    Mutable,
+}
+
+pub(crate) fn classify_reference_pointee_annotation(
+    annotation: &Type,
+    context: ReferencePointeeContext,
+    structs: &StructRegistry,
+    enums: &EnumRegistry,
+) -> Result<ReferenceTransportTypeContract, String> {
+    match enums.reference_annotation_type(annotation) {
+        Ok(Some(contract)) if context == ReferencePointeeContext::Mutable => {
+            return Ok(ReferenceTransportTypeContract {
+                ty: contract.ty,
+                logical_type: contract.logical_type,
+            });
+        }
+        Ok(Some(contract)) => {
+            return Err(format!(
+                "immutable enum reference pointee `{}` is not admitted; CORE-083 permits only non-escaping mutable whole-place enum replacement",
+                contract.ty
+            ));
+        }
+        Err(error) => return Err(error.diagnostic()),
+        Ok(None) => {}
+    }
+    let copy_context = match context {
+        ReferencePointeeContext::Immutable => CopyPlaceExecutionContext::AdmittedImmutableReference,
+        ReferencePointeeContext::Mutable => CopyPlaceExecutionContext::AdmittedMutableReference,
+    };
+    match classify_copy_place_annotation(annotation, structs, copy_context) {
+        CopyPlaceDisposition::Supported(contract) => Ok(ReferenceTransportTypeContract {
+            ty: contract.ty,
+            logical_type: contract.logical_type,
+        }),
+        CopyPlaceDisposition::ExplicitlyRejected(message) => Err(message),
+        CopyPlaceDisposition::Preserved => unreachable!("reference pointee context is admitted"),
+    }
+}
+
+pub(crate) fn classify_reference_pointee_type(
+    ty: &Ty,
+    context: ReferencePointeeContext,
+    structs: &StructRegistry,
+    enums: &EnumRegistry,
+) -> Result<ReferenceTransportTypeContract, String> {
+    match enums.reference_pointee_type(ty) {
+        Ok(Some(contract)) if context == ReferencePointeeContext::Mutable => {
+            return Ok(ReferenceTransportTypeContract {
+                ty: contract.ty,
+                logical_type: contract.logical_type,
+            });
+        }
+        Ok(Some(contract)) => {
+            return Err(format!(
+                "immutable enum reference pointee `{}` is not admitted; CORE-083 permits only non-escaping mutable whole-place enum replacement",
+                contract.ty
+            ));
+        }
+        Err(error) => return Err(error.diagnostic()),
+        Ok(None) => {}
+    }
+    let copy_context = match context {
+        ReferencePointeeContext::Immutable => CopyPlaceExecutionContext::AdmittedImmutableReference,
+        ReferencePointeeContext::Mutable => CopyPlaceExecutionContext::AdmittedMutableReference,
+    };
+    match classify_copy_place_type(ty, structs, copy_context) {
+        CopyPlaceDisposition::Supported(contract) => Ok(ReferenceTransportTypeContract {
+            ty: contract.ty,
+            logical_type: contract.logical_type,
+        }),
+        CopyPlaceDisposition::ExplicitlyRejected(message) => Err(message),
+        CopyPlaceDisposition::Preserved => unreachable!("reference pointee context is admitted"),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,29 +211,28 @@ fn scalar_reference_contract(ty: &Ty, mutable: bool) -> Option<LocalReferenceCon
 
 fn reference_transport_type(
     annotation: &Type,
-    registry: &StructRegistry,
-) -> Result<Option<ReferenceTransportTypeContract>, &'static str> {
+    structs: &StructRegistry,
+    enums: &EnumRegistry,
+) -> Result<Option<ReferenceTransportTypeContract>, String> {
     let Type::Reference(pointee, mutable) = annotation else {
         return Ok(None);
     };
     let context = if *mutable {
-        CopyPlaceExecutionContext::AdmittedMutableReference
+        ReferencePointeeContext::Mutable
     } else {
-        CopyPlaceExecutionContext::AdmittedImmutableReference
+        ReferencePointeeContext::Immutable
     };
-    let pointee = match classify_copy_place_annotation(pointee, registry, context) {
-        CopyPlaceDisposition::Supported(contract) => ReferenceTransportTypeContract {
-            ty: contract.ty,
-            logical_type: contract.logical_type,
+    let pointee = classify_reference_pointee_annotation(pointee, context, structs, enums).map_err(
+        |message| {
+            if enums.annotation_mentions_declared_enum(pointee) {
+                message
+            } else if *mutable {
+                "mutable reference parameter pointee is not admitted Copy-data".to_string()
+            } else {
+                "immutable reference parameter pointee is not admitted Copy-data".to_string()
+            }
         },
-        CopyPlaceDisposition::ExplicitlyRejected(_) if *mutable => {
-            return Err("mutable reference parameter pointee is not admitted Copy-data");
-        }
-        CopyPlaceDisposition::ExplicitlyRejected(_) => {
-            return Err("immutable reference parameter pointee is not admitted Copy-data");
-        }
-        CopyPlaceDisposition::Preserved => unreachable!("reference context is admitted"),
-    };
+    )?;
     Ok(Some(ReferenceTransportTypeContract {
         ty: Ty::Reference(Box::new(pointee.ty), *mutable),
         logical_type: if *mutable {
@@ -169,12 +247,31 @@ fn reference_transport_type(
     }))
 }
 
+#[cfg(test)]
 pub(crate) fn classify_reference_function(
     name: &str,
     parameters: &[Parameter],
     return_type: Option<&Type>,
     type_params: &[String],
     registry: &StructRegistry,
+) -> ReferenceFunctionDisposition {
+    classify_reference_function_with_enums(
+        name,
+        parameters,
+        return_type,
+        type_params,
+        registry,
+        &EnumRegistry::default(),
+    )
+}
+
+pub(crate) fn classify_reference_function_with_enums(
+    name: &str,
+    parameters: &[Parameter],
+    return_type: Option<&Type>,
+    type_params: &[String],
+    registry: &StructRegistry,
+    enums: &EnumRegistry,
 ) -> ReferenceFunctionDisposition {
     let mentions_reference = parameters
         .iter()
@@ -215,10 +312,10 @@ pub(crate) fn classify_reference_function(
 
     let mut resolved_parameters = Vec::with_capacity(parameters.len());
     for parameter in parameters {
-        let contract = match reference_transport_type(&parameter.param_type, registry) {
+        let contract = match reference_transport_type(&parameter.param_type, registry, enums) {
             Ok(Some(contract)) => contract,
             Err(diagnostic) => {
-                return ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic.to_string());
+                return ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic);
             }
             Ok(None) => {
                 let contract = match classify_copy_place_annotation(
@@ -286,11 +383,28 @@ pub(crate) fn classify_reference_function(
     })
 }
 
+#[cfg(test)]
 pub(crate) fn classify_reference_call(
     contract: &ReferenceFunctionContract,
     arguments: &[Expression],
     facts: Option<&LocalReferenceSourceFacts>,
     registry: &StructRegistry,
+) -> ReferenceCallDisposition {
+    classify_reference_call_with_enums(
+        contract,
+        arguments,
+        facts,
+        registry,
+        &EnumRegistry::default(),
+    )
+}
+
+pub(crate) fn classify_reference_call_with_enums(
+    contract: &ReferenceFunctionContract,
+    arguments: &[Expression],
+    facts: Option<&LocalReferenceSourceFacts>,
+    registry: &StructRegistry,
+    enums: &EnumRegistry,
 ) -> ReferenceCallDisposition {
     let Some(expected_pointee) = contract.mutable_parameter_pointee() else {
         return ReferenceCallDisposition::Preserved;
@@ -329,20 +443,20 @@ pub(crate) fn classify_reference_call(
                 "mutable reference call requires a mutable-reference identifier or direct `&mut` local owner argument".to_string(),
             );
         };
-        let reference = match classify_copy_place_type(
+        let reference = match classify_reference_pointee_type(
             actual_pointee,
+            ReferencePointeeContext::Mutable,
             registry,
-            CopyPlaceExecutionContext::AdmittedMutableReference,
+            enums,
         ) {
-            CopyPlaceDisposition::Supported(contract) => LocalReferenceContract {
+            Ok(contract) => LocalReferenceContract {
                 pointee: contract.ty,
                 logical_pointee: contract.logical_type,
                 mutable: true,
             },
-            CopyPlaceDisposition::ExplicitlyRejected(message) => {
+            Err(message) => {
                 return ReferenceCallDisposition::ExplicitlyRejected(message);
             }
-            CopyPlaceDisposition::Preserved => unreachable!("mutable call context is admitted"),
         };
         match facts.ownership {
             OwnershipState::Owned => {}
@@ -375,7 +489,7 @@ pub(crate) fn classify_reference_call(
         };
     }
 
-    match classify_local_borrow(source, true, facts, registry) {
+    match classify_local_borrow_with_enums(source, true, facts, registry, enums) {
         LocalReferenceDisposition::Supported(contract) if contract.pointee == *expected_pointee => {
             ReferenceCallDisposition::Supported(ReferenceCallContract {
                 reference: contract,
@@ -426,11 +540,28 @@ pub(crate) fn reference_call_source_mode(
     reference_call_source_topology(arguments).map(|(mode, _)| mode)
 }
 
+#[cfg(test)]
 pub(crate) fn classify_local_borrow(
     expression: &Expression,
     mutable: bool,
     facts: Option<&LocalReferenceSourceFacts>,
     registry: &StructRegistry,
+) -> LocalReferenceDisposition {
+    classify_local_borrow_with_enums(
+        expression,
+        mutable,
+        facts,
+        registry,
+        &EnumRegistry::default(),
+    )
+}
+
+pub(crate) fn classify_local_borrow_with_enums(
+    expression: &Expression,
+    mutable: bool,
+    facts: Option<&LocalReferenceSourceFacts>,
+    registry: &StructRegistry,
+    enums: &EnumRegistry,
 ) -> LocalReferenceDisposition {
     let Expression::Identifier(name) = expression else {
         let qualifier = if mutable { "mutable " } else { "immutable " };
@@ -454,20 +585,19 @@ pub(crate) fn classify_local_borrow(
         ));
     }
     let context = if mutable {
-        CopyPlaceExecutionContext::AdmittedMutableReference
+        ReferencePointeeContext::Mutable
     } else {
-        CopyPlaceExecutionContext::AdmittedImmutableReference
+        ReferencePointeeContext::Immutable
     };
-    let contract = match classify_copy_place_type(&facts.ty, registry, context) {
-        CopyPlaceDisposition::Supported(contract) => LocalReferenceContract {
+    let contract = match classify_reference_pointee_type(&facts.ty, context, registry, enums) {
+        Ok(contract) => LocalReferenceContract {
             pointee: contract.ty,
             logical_pointee: contract.logical_type,
             mutable,
         },
-        CopyPlaceDisposition::ExplicitlyRejected(message) => {
+        Err(message) => {
             return LocalReferenceDisposition::ExplicitlyRejected(message);
         }
-        CopyPlaceDisposition::Preserved => unreachable!("borrow context is admitted"),
     };
     if mutable && !facts.mutable {
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
@@ -541,10 +671,25 @@ pub(crate) fn classify_local_dereference(
     }
 }
 
+#[cfg(test)]
 pub(crate) fn classify_local_reference_annotation(
     annotation: &Type,
     initialized: bool,
     registry: &StructRegistry,
+) -> LocalReferenceDisposition {
+    classify_local_reference_annotation_with_enums(
+        annotation,
+        initialized,
+        registry,
+        &EnumRegistry::default(),
+    )
+}
+
+pub(crate) fn classify_local_reference_annotation_with_enums(
+    annotation: &Type,
+    initialized: bool,
+    registry: &StructRegistry,
+    enums: &EnumRegistry,
 ) -> LocalReferenceDisposition {
     let Type::Reference(inner, mutable) = annotation else {
         return LocalReferenceDisposition::Preserved;
@@ -552,52 +697,46 @@ pub(crate) fn classify_local_reference_annotation(
     if !initialized {
         return LocalReferenceDisposition::Preserved;
     }
-    if *mutable {
-        return match classify_copy_place_annotation(
-            inner,
-            registry,
-            CopyPlaceExecutionContext::AdmittedMutableReference,
-        ) {
-            CopyPlaceDisposition::Supported(contract) => {
-                LocalReferenceDisposition::Supported(LocalReferenceContract {
-                    pointee: contract.ty,
-                    logical_pointee: contract.logical_type,
-                    mutable: true,
-                })
-            }
-            CopyPlaceDisposition::ExplicitlyRejected(message) => {
-                LocalReferenceDisposition::ExplicitlyRejected(message)
-            }
-            CopyPlaceDisposition::Preserved => {
-                unreachable!("reference annotation context is admitted")
-            }
-        };
-    }
-    match classify_copy_place_annotation(
-        inner,
-        registry,
-        CopyPlaceExecutionContext::AdmittedImmutableReference,
-    ) {
-        CopyPlaceDisposition::Supported(contract) => {
-            LocalReferenceDisposition::Supported(LocalReferenceContract {
-                pointee: contract.ty,
-                logical_pointee: contract.logical_type,
-                mutable: false,
-            })
-        }
-        CopyPlaceDisposition::ExplicitlyRejected(message) => {
-            LocalReferenceDisposition::ExplicitlyRejected(message)
-        }
-        CopyPlaceDisposition::Preserved => unreachable!("reference annotation context is admitted"),
+    let context = if *mutable {
+        ReferencePointeeContext::Mutable
+    } else {
+        ReferencePointeeContext::Immutable
+    };
+    match classify_reference_pointee_annotation(inner, context, registry, enums) {
+        Ok(contract) => LocalReferenceDisposition::Supported(LocalReferenceContract {
+            pointee: contract.ty,
+            logical_pointee: contract.logical_type,
+            mutable: *mutable,
+        }),
+        Err(message) => LocalReferenceDisposition::ExplicitlyRejected(message),
     }
 }
 
+#[cfg(test)]
 pub(crate) fn classify_mutable_reference_assignment(
     target: &Expression,
     facts: Option<&MutableReferenceAssignmentFacts>,
     rhs: &Ty,
     inside_admitted_function: bool,
     registry: &StructRegistry,
+) -> MutableReferenceAssignmentDisposition {
+    classify_mutable_reference_assignment_with_enums(
+        target,
+        facts,
+        rhs,
+        inside_admitted_function,
+        registry,
+        &EnumRegistry::default(),
+    )
+}
+
+pub(crate) fn classify_mutable_reference_assignment_with_enums(
+    target: &Expression,
+    facts: Option<&MutableReferenceAssignmentFacts>,
+    rhs: &Ty,
+    inside_admitted_function: bool,
+    registry: &StructRegistry,
+    enums: &EnumRegistry,
 ) -> MutableReferenceAssignmentDisposition {
     let Expression::Deref(reference) = target else {
         return MutableReferenceAssignmentDisposition::Preserved;
@@ -648,21 +787,19 @@ pub(crate) fn classify_mutable_reference_assignment(
             );
         }
         Ty::Reference(pointee, true) => {
-            match classify_copy_place_type(
+            match classify_reference_pointee_type(
                 pointee,
+                ReferencePointeeContext::Mutable,
                 registry,
-                CopyPlaceExecutionContext::AdmittedMutableReference,
+                enums,
             ) {
-                CopyPlaceDisposition::Supported(contract) => LocalReferenceContract {
+                Ok(contract) => LocalReferenceContract {
                     pointee: contract.ty,
                     logical_pointee: contract.logical_type,
                     mutable: true,
                 },
-                CopyPlaceDisposition::ExplicitlyRejected(message) => {
+                Err(message) => {
                     return MutableReferenceAssignmentDisposition::ExplicitlyRejected(message);
-                }
-                CopyPlaceDisposition::Preserved => {
-                    unreachable!("mutable assignment context is admitted")
                 }
             }
         }
@@ -698,6 +835,86 @@ pub(crate) fn classify_mutable_reference_binding(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::{AstNode, Statement, VariantDecl, VariantDeclKind};
+
+    fn enum_registry() -> EnumRegistry {
+        EnumRegistry::from_top_level_ast(
+            &[AstNode::Statement(Statement::EnumDef {
+                name: "State".to_string(),
+                variants: vec![
+                    VariantDecl {
+                        name: "Idle".to_string(),
+                        kind: VariantDeclKind::Unit,
+                    },
+                    VariantDecl {
+                        name: "Count".to_string(),
+                        kind: VariantDeclKind::Tuple(vec![Type::Named("int".to_string())]),
+                    },
+                ],
+                type_params: Vec::new(),
+            })],
+            &StructRegistry::default(),
+        )
+    }
+
+    #[test]
+    fn shared_pointee_classifier_admits_exact_mutable_enums_without_broadening_reads() {
+        let structs = StructRegistry::default();
+        let enums = enum_registry();
+        let expected_logical = LogicalType::Enum {
+            name: "State".to_string(),
+            variants: vec![
+                crate::ir::EnumVariantSchema {
+                    name: "Idle".to_string(),
+                    payload: None,
+                },
+                crate::ir::EnumVariantSchema {
+                    name: "Count".to_string(),
+                    payload: Some(LogicalType::Int),
+                },
+            ],
+        };
+
+        for contract in [
+            classify_reference_pointee_annotation(
+                &Type::Named("State".to_string()),
+                ReferencePointeeContext::Mutable,
+                &structs,
+                &enums,
+            )
+            .expect("admitted enum annotation"),
+            classify_reference_pointee_type(
+                &Ty::Enum("State".to_string()),
+                ReferencePointeeContext::Mutable,
+                &structs,
+                &enums,
+            )
+            .expect("admitted enum type"),
+        ] {
+            assert_eq!(contract.ty, Ty::Enum("State".to_string()));
+            assert_eq!(contract.logical_type, expected_logical);
+        }
+
+        let immutable = classify_reference_pointee_annotation(
+            &Type::Named("State".to_string()),
+            ReferencePointeeContext::Immutable,
+            &structs,
+            &enums,
+        )
+        .expect_err("enum reads through references remain excluded");
+        assert!(immutable.contains("immutable enum reference pointee"));
+        assert!(immutable.contains("whole-place enum replacement"));
+
+        for context in [
+            ReferencePointeeContext::Immutable,
+            ReferencePointeeContext::Mutable,
+        ] {
+            let scalar = classify_reference_pointee_type(&Ty::Int, context, &structs, &enums)
+                .expect("CORE-052/055 scalar reference behavior remains admitted");
+            assert_eq!(scalar.ty, Ty::Int);
+            assert_eq!(scalar.logical_type, LogicalType::Int);
+        }
+    }
 
     #[test]
     fn classifier_partitions_supported_rejected_and_preserved_reference_shapes() {

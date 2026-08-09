@@ -490,6 +490,18 @@ aero lsp
 > diff-hygiene, and exact root gates pass; immutable public evidence remains pending. This changes no source
 > semantics, diagnostic, checked IR/LLVM, cache identity, CLI status, backend, or ABI.
 
+> CORE-083 is a locally green, unpublished mutable enum reference candidate. An
+> initialized mutable direct owner of an already admitted destructor-free enum may be
+> borrowed or locally reborrowed into one exact `&mut E` parameter and replaced only as
+> a whole. One shared pointee classifier serves semantics and independent checked
+> admission; schema-bearing checked loan/parameter/write/end identities are independently
+> verified before private pointer LLVM. The focused target is 5/5 and the exact root
+> gate is green at 211 library and 32 binary tests. Immutable enum references, reads or
+> Match through a reference, reference results/escape/storage, projections/partial
+> mutation, aggregate enum storage, unsupported enums, lifetime/NLL/drop, stable ABI,
+> and memory-safety claims remain excluded. Public exact-head Linux/Windows LLVM 22
+> exit-83 evidence is pending.
+
 > **Pattern matching status:** CORE-049 accepts one bounded owned unit-enum class:
 > unique top-level non-generic enums with one or more unit variants, exact payload-free
 > construction, immutable local moves, and exhaustive matches containing exactly one

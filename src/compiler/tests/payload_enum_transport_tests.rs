@@ -395,7 +395,7 @@ fn main() -> int { return 0; }
         (
             "enum reference parameter",
             "enum Value { Int(int) } fn take(value: &Value) -> int { 1 } fn main() -> int { 0 }",
-            "immutable reference parameter pointee is not admitted Copy-data",
+            "immutable enum reference pointee",
         ),
         (
             "String mixed parameter",

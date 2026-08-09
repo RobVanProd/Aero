@@ -16687,3 +16687,186 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   runtime initialization, public layout/ABI, release, stability, safety, or performance
   claim follows. The prior candidate-only paragraph remains chronological evidence and
   is superseded by this checkpoint.
+
+## CORE-083 - mutable whole-place references to admitted enums
+
+- Date/task/status: 2026-08-08, `CORE-083`, lead-owned red-first positive vertical
+  slice starting from accepted and post-merge-verified master
+  `469cdc4ab5d968d42dec6af81823796e3db14f71`. Work belongs only on
+  `agent/core-083-mutable-enum-references`; user-owned untracked `tmp/` remains outside
+  the task.
+- Source-grounded observed behavior: Aero's ownership specification requires a mutable
+  borrow to be exclusive, non-owning, and able to modify the borrowed value while the
+  owner remains responsible for it. The compiler already executes non-escaping mutable
+  whole-place references for recursive CopyData and already executes direct owned enums
+  whose payloads are recursively finite CopyData. However, every reference classifier
+  routes through `CopyPlaceDisposition`, so `&mut E`, `&mut E` parameters, reborrows,
+  and `*alias = E::Variant` reject admitted enums. The independent verifier also
+  explicitly accepts only CopyData reference pointees even though owned enum places and
+  enum LLVM layouts already exist. This is a real composition gap, not a request for a
+  new enum representation or lifetime model.
+- Hypothesis and shared authority: one deterministic reference-pointee classifier can
+  compose the existing CopyData place contract with the existing admitted-enum schema
+  authority. It will classify immutable CopyData, mutable CopyData, and mutable admitted
+  enum pointees while continuing to reject immutable enum reads and every unsupported
+  topology. Semantic analysis, independent checked admission, trusted lowering, and
+  verifier validation must consume that classification instead of adding phase-local
+  enum matches.
+- Frozen positive class: an enum pointee is exactly one non-generic, uniquely defined,
+  already admitted unit/unary/positional-multi-field enum whose payloads are recursive
+  CopyData. Its owner is an initialized, mutable, direct local whole place in `Owned`
+  state. A non-generic non-entry function has exactly one parameter, `&mut E`, and
+  returns only existing admitted CopyData or `Void`; its body may replace the whole
+  pointee through an identifier reference using an exact-`E` fresh constructor,
+  exact-`E` returning call, admitted owned Match result, or initialized direct `E`
+  owner under the existing RHS ownership rules. Calls accept either a direct
+  `&mut owner` or the existing non-relocating local mutable-reference/reborrow topology.
+  Borrow/reborrow end restores access to the original owner. The private checked IR
+  carries the exact enum schema through mutable borrow, mutable-reference parameter,
+  whole-dereference assignment, and borrow end; LLVM transports the existing enum
+  layout by pointer; native execution must observe the replacement through an
+  exhaustive Match after the call.
+- Frozen negative boundary: no immutable enum reference, dereference read or Match
+  through a reference, enum reference result, escaping/stored/captured reference,
+  multiple mutable-reference parameters, mixed by-value/reference signature, entry
+  reference parameter, immutable/nonlocal/projected/indexed/dereferenced owner source,
+  uninitialized owner, `Moved`/`MaybeMoved` owner, overlapping mutable/immutable borrow,
+  reference relocation, wrong enum schema, unsupported/generic/named-field enum,
+  partial payload move, enum inside struct/array/tuple, reference inside an aggregate,
+  destructor/drop/lifetime/NLL inference, public/stable enum or reference ABI, FFI,
+  imports, runtime String/collection, closure/generic/trait expansion, accelerator,
+  performance, release, or safety/stability claim. Existing CopyData reference behavior
+  must remain byte- and behavior-exact.
+- Red-first proof: add one focused integration target before production mutation. Its
+  first run must show the complete positive matrix failing at the current shared
+  `not admitted Copy-data` reference boundary, while existing enum execution and
+  CopyData reference controls remain green. Positive coverage enumerates every admitted
+  enum topology, direct borrow, local alias/reborrow, constructor/call/owned-Match/direct
+  owner RHS origins, replacement after prior owner state, calls from a collected direct
+  module, check/build/run, checked IR identities, LLVM pointer/store shape, and pinned
+  native exit. Negative coverage enumerates every frozen exclusion in semantic analysis,
+  direct checked admission, CLI artifact hygiene, and verifier corruption controls.
+- Allowed production files: `src/compiler/src/local_reference.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, `ir_verifier.rs`, and only directly coupled
+  reference/enum contract or IR documentation if the red proof demonstrates a required
+  shared invariant. Allowed tests/specimens: one focused
+  `src/compiler/tests/mutable_enum_reference_tests.rs`, directly coupled verifier unit
+  corruption cases, directly coupled existing reference/enum expectation updates, one
+  tracked `examples/mutable_enum_references/` multi-file native specimen, and the exact
+  existing public workflow entries needed to execute it.
+  Allowed records only after exact green: this ledger and directly affected project-
+  state/capability/matrix/framework/roadmap/decision/risk/README records. No dependency,
+  package, release, benchmark, claim-verification, unrelated workflow, master, external
+  repository, or `tmp/` mutation is authorized.
+- Acceptance gates: focused red then green; exact classifier product; semantic and
+  checked-admission parity; verified checked IR plus independent corruption controls;
+  existing reference, enum, ownership-CFG, module, constant, closure, aggregate, and
+  primitive compatibility rings; formatting; all-target/all-feature check;
+  correctness-denying Clippy; docs; `git diff --check`; exact repository-root
+  `./tools/test.sh`; one bounded PR with exact-head public workflows; and pinned stable,
+  nightly, and Windows LLVM/Clang 22 native proof. Candidate status and public acceptance
+  remain separate.
+- Risks and stop conditions: enum replacement through a reference must consume the RHS
+  exactly once without consuming the borrowed owner, and verifier ownership must trace
+  a local reference back to its exact owner while treating a parameter as an external
+  exclusive place. Stop rather than approximate if a read through the reference is
+  required, the enum schema is not available before function classification, a generic
+  store can bypass the checked assignment, borrow end fails to restore the same owner,
+  source soundness depends on backend behavior, the complete frozen topology cannot
+  share one classifier, a new layout/drop/lifetime/ABI rule is needed, an unrelated
+  baseline is red, or any test/spec must be weakened. The four scaling controls remain
+  active: bounded PR, hard-capability progress, proportional/structured evidence, and
+  a composed source-to-native system gate.
+
+### CORE-083 exact red checkpoint
+
+- Before any production mutation, the focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  mutable_enum_reference_tests -- --nocapture` runs 0/3 green. Parser corrections were
+  made inside the new test only until the specimen reached the intended compiler
+  boundary. Semantic analysis, compile-program integration, and semantic-independent
+  checked admission then all reject the same complete unit/unary/multi-field enum
+  reference product with `mutable reference parameter pointee is not admitted
+  Copy-data`.
+- The red source already covers direct `&mut` calls, a local alias and child reborrow,
+  exact constructor/call/owned-Match/direct-owner replacement origins, and post-call
+  exhaustive Match observation. No compiler production, existing test expectation,
+  workflow, example, dependency, master, external repository, or user-owned `tmp/`
+  content changed at this checkpoint.
+
+### CORE-083 locally green candidate checkpoint
+
+- Status and identity: the bounded candidate is locally green on
+  `agent/core-083-mutable-enum-references` from accepted master
+  `469cdc4ab5d968d42dec6af81823796e3db14f71`. Immutable implementation commit
+  `524b2c2a01f62764d307b19b6cd9a5c9786f2283` has tree
+  `74a3709525f7f8195b79d2dfe79139e4de56667c` and stable patch ID
+  `fa81a9df55a28d5f1d32e7e13a0459a45746b269`. This section is candidate evidence
+  only and does not claim public acceptance.
+- Implementation summary: `EnumRegistry` exposes exact admitted-enum reference
+  products; one `ReferencePointeeContext` classifier composes those products with the
+  recursive CopyData contract and admits enums only for mutable whole-place use.
+  Semantic analysis and independent checked admission use the same classifier for
+  signatures, direct loans, local aliases/reborrows, calls, annotations, and exact
+  dereference replacement. Lowering retains the enum schema through checked mutable
+  owner allocation, borrow, parameter binder, assignment, and lexical end without
+  applying Copy-aggregate loads to enum RHS values.
+- Independent trust proof: the verifier accepts exact admitted enum pointees, traces a
+  local mutable-reference chain to its root owner, rejects borrowing a consumed root,
+  consumes the replacement RHS exactly once, reinitializes only that local root, and
+  never fabricates an external parameter owner. Generic stores and all enum loads
+  through mutable references reject; schema, binder, value, loan-end, consumed-owner,
+  unsupported-layout, and raw-instruction substitutions are covered by corruption
+  tests.
+- Positive and negative evidence: the focused integration target runs 5/5. Its source
+  covers unit, unary, and positional multi-field recursive CopyData enums; constructor,
+  exact call, owned Match result, and direct-owner RHS origins; direct loans, local
+  aliases, and child reborrows; post-loan exhaustive Match; direct checked admission;
+  public compile/check/build; and the tracked two-module specimen. Twenty-one source
+  exclusion groups are checked in both semantic and direct-admission phases, including
+  immutable/read/reference-result/signature/entry/ownership/alias/schema/unsupported-
+  enum/storage cases. Invalid CLI `check`, `build`, and `run` share the immutable-enum
+  cause and publish no requested build artifact.
+- Compatibility and complete gates: mutable Copy-place, mutable-parameter, reborrow,
+  immutable reference, payload-enum, and unit-enum affected targets pass after updating
+  only the superseded enum-reference expectations. `./tools/test.sh` passes formatting,
+  correctness-denying Clippy, 211 library tests, 32 binary tests, every integration
+  target, and doc tests. `git diff --check` passes. Checkout-only CRLF differences in
+  tracked `.aero` byte-identity fixtures were normalized content-neutrally for the
+  exact gate and every tracked fixture was restored afterward; user-owned `tmp/` was
+  never read, changed, staged, or removed.
+- System proof: `examples/mutable_enum_references/` composes direct modules, ordinary
+  calls, structs, arrays, tuples, primitive constants, compile-time String length,
+  unit/multi-field enums, exhaustive Match, direct mutable loans, alias/reborrow, and
+  post-call owner observation. Public `check` and `build` pass locally. Stable/nightly
+  Linux and the SHA-256-pinned Windows LLVM/Clang 22.1.8 lane now require external and
+  machine verification, object emission, linking, public `run`, manual execution, and
+  exact exit 83. Local public `run` correctly stopped at the required-verifier boundary
+  because this workstation has no LLVM 22 `opt`/`llvm-as`; the public native result is
+  pending and must not be inferred.
+- Files changed: `TASK_LEDGER.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, `README.md`,
+  `.github/workflows/rust.yml`, `src/compiler/src/{enum_match_contract,local_reference,
+  semantic_analyzer,ir_generator,ir_verifier}.rs`, the focused integration target,
+  directly coupled legacy expectation targets, the Windows workflow contract target,
+  and the two tracked example sources. No dependency, release, benchmark,
+  claim-verification, master, external repository, or user-owned temporary content
+  changed.
+- Commands and results: focused red/green `cargo test` runs; classifier and verifier
+  unit controls; all directly affected reference/enum suites; public CLI `check`,
+  `build`, and attempted local `run`; `cargo fmt`; `cargo clippy --all-targets
+  --all-features -- -D clippy::correctness`; all repository tests via
+  `./tools/test.sh`; and diff/status audits. Every required local result is green except
+  the explicitly unavailable local external-LLVM run, for which no success is claimed.
+- Remaining uncertainty and regression risk: public exact-head native evidence has not
+  run; the private enum/reference layouts remain non-ABI; no enum read through a
+  reference is admitted; and ownership correctness remains bounded to the frozen
+  whole-place lexical topology. The principal regression risks are schema drift between
+  source and checked metadata, accidental RHS double-consumption, restoring the wrong
+  root across reborrow chains, or later reintroducing generic load/store bypasses; the
+  shared classifier and verifier corruption matrix directly guard those risks.
+- Recommended next action: commit this exact bounded candidate, record its immutable
+  identity, rerun the exact root gate, push one bounded branch/PR whose rendered title
+  and first heading identify CORE-083, require every exact-head public workflow and the
+  pinned Linux/Windows exit-83 evidence, then integrate through protected master only
+  if the exact candidate remains green. Do not stack CORE-084 or claim acceptance first.

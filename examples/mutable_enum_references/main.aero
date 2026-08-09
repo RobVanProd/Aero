@@ -1,0 +1,41 @@
+mod mutations;
+
+struct Leaf { value: int, ready: bool }
+
+enum Mode { Off, On }
+enum Packet { Empty, Pair(int, bool), Leaf(Leaf) }
+
+fn score_mode(value: Mode) -> int {
+    match value { Mode::Off => 0, Mode::On => 7 }
+}
+
+fn score_packet(value: Packet) -> int {
+    match value {
+        Packet::Empty => 0,
+        Packet::Pair(number, ready) => number + ready_score(ready),
+        Packet::Leaf(leaf) => leaf.value
+    }
+}
+
+fn ready_score(value: bool) -> int {
+    if value { return 3; }
+    0
+}
+
+fn main() -> int {
+    const OFFSET: int = 1;
+
+    let mut mode = Mode::Off;
+    replace_mode(&mut mode);
+
+    let mut packet = Packet::Leaf(Leaf { value: 1, ready: 1 < 2 });
+    {
+        let alias: &mut Packet = &mut packet;
+        forward_packet(alias);
+    }
+
+    let values = [5, 6];
+    let pair = (8, 9);
+    score_mode(mode) + score_packet(packet) + values[0] + values[1]
+        + pair.0 + pair.1 + "Aero".len() + OFFSET
+}
