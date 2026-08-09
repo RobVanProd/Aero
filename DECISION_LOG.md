@@ -3,7 +3,8 @@
 ## DEC-080 — Lower bounded primitive constants before checked IR
 
 - Date: 2026-08-08
-- Status: candidate; public acceptance pending
+- Status: accepted public through bounded PR #6 and protected merge
+  `962bb49f1428a36b8ba7cf897778e4c0bab2ac09`
 - Decision: Admit only `const NAME: TYPE = EXPR;` declarations with exact existing
   primitive annotations and closed expressions over literals, prior lexical constants,
   parentheses, and already admitted primitive operators. Evaluate through one shared
@@ -11,7 +12,8 @@
   storage, symbol, global initialization, layout, ABI, or new IR instruction.
 - Evidence: CORE-082 parser, semantic, independent checked-admission, CLI/artifact,
   module-isolation, verifier, full-root, and pinned LLVM/Clang 22.1.8 native exit-81
-  gates are locally green; immutable public evidence remains pending.
+  gates pass. All nine candidate-head checks and post-merge CI `31287892380`, Rust CI
+  `31287892372`, and CodeQL `31287892204` pass.
 - Alternatives rejected: inventing a runtime `let`, lowering constants as globals,
   allowing host/runtime dependencies, or using this slice to imply general CTFE.
 - Compatibility consequences: previously rejected exact primitive `const` source is

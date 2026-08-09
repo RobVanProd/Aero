@@ -59,13 +59,13 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
-Unpublished candidate `CORE-082` is the first bounded step from the founding
+Accepted public `CORE-082` is the first bounded step from the founding
 `const identifier : type = expr;` and constant-expression-evaluation direction. It
 admits only closed, exactly annotated primitive constants and erases them by checked
 substitution before IR. It intentionally defers aggregate/global constants, static
 storage, array-size expressions, arbitrary CTFE, import lookup, generics, ABI, and
-runtime initialization. Local repository and pinned native evidence are green, but
-public acceptance remains pending.
+runtime initialization. Bounded PR #6, all nine exact-head checks, protected merge,
+three post-merge master workflows, and the pinned native exit-81 proof pass.
 
 Accepted `CORE-061` combines a hard executable ownership slice with closure
 false-success containment. Accepted `CORE-062` takes the next framework-

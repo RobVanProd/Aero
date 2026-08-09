@@ -26,13 +26,12 @@ open until a regression test and the applicable full gate prove closure.
 | R-017 | Registry install can escape its destination and publish omits package bytes | MEDIUM | CRITICAL | Accepted CORE-012 at `6780a23` guards every live function and CLI live branch before auth/I/O/transport while keeping local search and dry-run plans credential/network-free; focused/full gates, exact review, and all public CI checks pass | Preserve quarantine; later specify and adversarially test paths, payload, response, auth, overwrite, dependencies, and transport before separate re-enablement | CONTROLLED — live transport fail closed; protocol remains unimplemented |
 | R-018 | The cumulative draft integration PR grows beyond a reviewable and controllable checkpoint | HIGH | CRITICAL | PR #4 reached 283 commits/226 files. CHECKPOINT-003 corrected the impossible independent-review rule for the solo-maintainer topology, then merged exact frozen head `9b13feb2` as merge commit `bf5f8a96`; its tree equals accepted tree `6d5825a1`, the source branch is retained, and exact-SHA post-merge CI/Rust CI/CodeQL pass. | Preserve strict app-bound checks, resolved conversations, admin enforcement, force-push/deletion denial, merge-commit/revert identity, and bounded successor PRs; never recreate a cumulative mega-PR | CONTROLLED — urgent accumulation closed by verified protected merge; recurrence remains an active scaling risk |
 
-Pending candidate `CORE-082` adds bounded evidence for R-002/R-003/R-005/R-010:
+Accepted public `CORE-082` adds bounded evidence for R-002/R-003/R-005/R-010:
 one shared evaluator admits only exact closed primitive constants, rejects excluded or
 invalid expressions before checked IR/artifacts, and substitutes admitted values with
-no storage or ABI. Its focused, full-root, verifier, and pinned native exit-81 gates
-are locally green. No risk status moves until the bounded PR and protected post-merge
-evidence are public; arbitrary CTFE, aggregate/global constants, and module lookup
-remain open.
+no storage or ABI. Its focused, full-root, verifier, all-nine exact-head, protected
+merge, post-merge, and pinned native exit-81 gates pass. The existing risk-row statuses
+do not move; arbitrary CTFE, aggregate/global constants, and module lookup remain open.
 
 The local `CORE-061-CLOSURE` amendment adds a pending R-002/R-003 control: closure
 syntax remains parsed, but both semantic inference paths and independent checked

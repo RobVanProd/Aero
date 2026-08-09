@@ -16541,8 +16541,8 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 
 - Date/task/status: 2026-08-08, `CORE-082`, authorized by the standing language-growth
   mandate after CHECKPOINT-003 established verified master
-  `20d45fc1c70c789e4e907a5d83d8782af41e26de`; locally green candidate, public
-  acceptance pending.
+  `20d45fc1c70c789e4e907a5d83d8782af41e26de`; accepted public through bounded
+  PR #6 and protected merge `962bb49f1428a36b8ba7cf897778e4c0bab2ac09`.
 - Observed behavior: both founding Aero documents preserve `const identifier : type =
   expr;` in the language path and describe constant-expression evaluation, but the
   active lexer has no `const` token, the parser has no constant declaration AST, and
@@ -16654,3 +16654,36 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   bounded PR, exact-head public workflows, protected merge, and post-merge verification
   succeed. No release, stability, safety, performance, general CTFE, layout, or ABI
   claim follows.
+
+### CORE-082 accepted public checkpoint
+
+- Public candidate: record commit `3edfa1398450ebbd077ddc645efb461ae718b27e`
+  contains implementation `d0312e809792448b6c8c0fc4159dd0f37dbc10ba` and changes
+  exactly 20 files across two commits from accepted base
+  `20d45fc1c70c789e4e907a5d83d8782af41e26de`. Bounded PR #6's rendered title and
+  first heading identify CORE-082; its body records the exact head, implementation,
+  tree, stable patch, semantics, exclusions, and evidence without stale milestone text.
+- Exact-head public evidence: push CI `31287762917`, PR CI `31287780586`, Rust CI
+  `31287780565`, and CodeQL `31287780303` all pass on `3edfa139`. The nine check
+  results are both compiler-test runs, stable, nightly, the pinned Windows LLVM 22
+  native system gate, the three language analyses, and aggregate CodeQL.
+- Protected integration: PR #6 was made ready only after all exact-head checks passed.
+  It was `MERGEABLE`/`CLEAN`, had no review threads, and satisfied strict app-bound
+  checks, zero approvals for the actual solo-maintainer topology, conversation
+  resolution, administrator enforcement, and force-push/deletion denial. GitHub merged
+  the exact expected head as merge commit
+  `962bb49f1428a36b8ba7cf897778e4c0bab2ac09`; its ordered parents are old master then
+  candidate head, its tree is `705a3dd858890c0e08ee23261704a584df67b23e`, and the
+  source branch remains retained.
+- Post-merge evidence: CI `31287892380`, Rust CI `31287892372`, and CodeQL
+  `31287892204` pass on exact master `962bb49f`. The pinned stable/nightly and Windows
+  LLVM/Clang 22.1.8 lanes include the tracked primitive-const specimen and preserve
+  exact exit 81 alongside every earlier system specimen. The record-only acceptance
+  synchronization also passes the exact repository-root gate at 209 library and 32
+  binary tests before publication.
+- Accepted boundary: closed exactly annotated primitive constants are now accepted
+  public inside the frozen CORE-082 subset. No general CTFE, aggregate/global constant,
+  addressable storage, array-size expression, cross-module lookup, generic constant,
+  runtime initialization, public layout/ABI, release, stability, safety, or performance
+  claim follows. The prior candidate-only paragraph remains chronological evidence and
+  is superseded by this checkpoint.

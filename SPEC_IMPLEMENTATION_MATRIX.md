@@ -21,7 +21,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Booleans | Y | Y | Y | — | P | — | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unicode characters | Y | Y | Y | — | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Bindings and mutability | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
-| Primitive compile-time const (`CORE-082` local candidate) | Y | Y | Y | P | P | — | P | P | P | Y | Y | Y | P | PARTIAL |
+| Primitive compile-time const (accepted `CORE-082`) | Y | Y | Y | P | P | — | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Type annotations | Y | Y | Y | P | P | N | P | P | P | Y | P | P | Y | PARTIAL |
 | Comparisons/logical/unary ops | Y | Y | P | — | P | — | P | P | ? | Y | P | P | Y | PARTIAL |
 | Functions and returns | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
@@ -78,13 +78,13 @@ import authority. Executable imports still fail before checked IR, so no positiv
 semantic, IR, backend, execution, or stability cell changes and the row remains
 `PARSED_ONLY`.
 
-Unpublished candidate `CORE-082` adds only exact annotated primitive constants whose
+Accepted public `CORE-082` adds only exact annotated primitive constants whose
 closed expressions use literals, prior lexical constants, and the already admitted
 primitive operators. One shared contract evaluates and substitutes them before checked
 IR; no constant storage, global, symbol, public layout/ABI, aggregate constant,
-cross-module lookup, runtime dependency, or general CTFE is claimed. This row is a
-candidate record and must not be read as accepted public capability until the bounded
-PR and post-merge gates pass.
+cross-module lookup, runtime dependency, or general CTFE is claimed. Bounded PR #6,
+all nine exact-head checks, protected merge `962bb49f`, and the three exact post-merge
+master workflows pass; the row remains `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact
