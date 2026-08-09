@@ -6,7 +6,10 @@ Last updated: 2026-08-08 (America/New_York)
 
 Milestone 104 `CORE-083` is a locally green, unpublished candidate on
 `agent/core-083-mutable-enum-references`, based on accepted master
-`469cdc4ab5d968d42dec6af81823796e3db14f71`. One shared reference-pointee
+`469cdc4ab5d968d42dec6af81823796e3db14f71`. Its immutable implementation
+identity is commit `524b2c2a01f62764d307b19b6cd9a5c9786f2283`, tree
+`74a3709525f7f8195b79d2dfe79139e4de56667c`, and stable patch ID
+`fa81a9df55a28d5f1d32e7e13a0459a45746b269`. One shared reference-pointee
 classifier now composes the existing recursive CopyData universe with the existing
 admitted destructor-free enum schemas for mutable use only. An initialized mutable
 direct enum owner can be borrowed or locally reborrowed into an exact sole `&mut E`

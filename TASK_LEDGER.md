@@ -16798,9 +16798,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
 
 - Status and identity: the bounded candidate is locally green on
   `agent/core-083-mutable-enum-references` from accepted master
-  `469cdc4ab5d968d42dec6af81823796e3db14f71`; immutable implementation commit,
-  tree, and stable patch identities are pending the candidate commit. This section is
-  candidate evidence only and does not claim public acceptance.
+  `469cdc4ab5d968d42dec6af81823796e3db14f71`. Immutable implementation commit
+  `524b2c2a01f62764d307b19b6cd9a5c9786f2283` has tree
+  `74a3709525f7f8195b79d2dfe79139e4de56667c` and stable patch ID
+  `fa81a9df55a28d5f1d32e7e13a0459a45746b269`. This section is candidate evidence
+  only and does not claim public acceptance.
 - Implementation summary: `EnumRegistry` exposes exact admitted-enum reference
   products; one `ReferencePointeeContext` classifier composes those products with the
   recursive CopyData contract and admits enums only for mutable whole-place use.
