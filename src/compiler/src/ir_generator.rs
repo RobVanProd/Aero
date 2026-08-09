@@ -5,9 +5,6 @@ use crate::binding_annotation::{
 };
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::const_contract::normalize_primitive_consts;
-use crate::copy_place_contract::{
-    CopyPlaceDisposition, CopyPlaceExecutionContext, classify_copy_place_type,
-};
 use crate::enum_match_contract::{
     EnumError, EnumExecutionContext, EnumFunctionContract, EnumRegistry,
 };
@@ -20,11 +17,12 @@ use crate::ir_verifier::PlaceTypeHints;
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceCallSourceMode,
-    ReferenceFunctionContract, ReferenceFunctionDisposition, classify_local_borrow,
-    classify_local_dereference, classify_local_reference_annotation,
-    classify_mutable_reference_assignment, classify_mutable_reference_binding,
-    classify_reference_call, classify_reference_function, reference_call_fact_subject,
-    reference_call_source_mode,
+    ReferenceFunctionContract, ReferenceFunctionDisposition, ReferencePointeeContext,
+    classify_local_borrow_with_enums, classify_local_dereference,
+    classify_local_reference_annotation_with_enums,
+    classify_mutable_reference_assignment_with_enums, classify_mutable_reference_binding,
+    classify_reference_call_with_enums, classify_reference_function_with_enums,
+    classify_reference_pointee_type, reference_call_fact_subject, reference_call_source_mode,
 };
 use crate::method_call_contract::{
     IntrinsicMethodDisposition, IntrinsicMethodLowering, IntrinsicMethodPhase,
@@ -264,12 +262,13 @@ impl IrGenerator {
             }) = node
             {
                 let reference_contract = if self.checked_mode {
-                    match classify_reference_function(
+                    match classify_reference_function_with_enums(
                         name,
                         parameters,
                         return_type.as_ref(),
                         type_params,
                         &self.struct_registry,
+                        &self.enum_registry,
                     ) {
                         ReferenceFunctionDisposition::Supported(contract) => Some(contract),
                         ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
@@ -523,20 +522,18 @@ impl IrGenerator {
         )
     }
 
-    fn admitted_copy_place_logical_type(
+    fn admitted_reference_pointee_logical_type(
         &self,
         ty: &Ty,
-        context: CopyPlaceExecutionContext,
+        context: ReferencePointeeContext,
     ) -> LogicalType {
-        match classify_copy_place_type(ty, &self.struct_registry, context) {
-            CopyPlaceDisposition::Supported(contract) => contract.logical_type,
-            CopyPlaceDisposition::ExplicitlyRejected(message) => {
-                unreachable!("checked Copy-place admission escaped classification: {message}")
-            }
-            CopyPlaceDisposition::Preserved => {
-                unreachable!("checked Copy-place lowering has an admitted context")
-            }
-        }
+        classify_reference_pointee_type(ty, context, &self.struct_registry, &self.enum_registry)
+            .unwrap_or_else(|message| {
+                unreachable!(
+                    "checked reference-pointee admission escaped classification: {message}"
+                )
+            })
+            .logical_type
     }
 
     fn admitted_owned_place_logical_type(&self, ty: &Ty) -> LogicalType {
@@ -586,12 +583,13 @@ impl IrGenerator {
                 ..
             }) = node
             {
-                let reference_contract = match classify_reference_function(
+                let reference_contract = match classify_reference_function_with_enums(
                     name,
                     parameters,
                     return_type.as_ref(),
                     type_params,
                     &structs,
+                    &enums,
                 ) {
                     ReferenceFunctionDisposition::Supported(contract) => Some(contract),
                     ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
@@ -1175,10 +1173,11 @@ impl IrGenerator {
                         type_annotation.as_ref().map_or(
                             LocalReferenceDisposition::Preserved,
                             |annotation| {
-                                classify_local_reference_annotation(
+                                classify_local_reference_annotation_with_enums(
                                     annotation,
                                     true,
                                     &program.structs,
+                                    &program.enums,
                                 )
                             },
                         )
@@ -1255,6 +1254,17 @@ impl IrGenerator {
                         };
                     }
                     Self::apply_enum_expression_ownership(value, bindings, program, inside_loop)?;
+                    if let Expression::Identifier(source) = value
+                        && matches!(
+                            bindings.get(source).map(|binding| &binding.ty),
+                            Some(Ty::Enum(_))
+                        )
+                    {
+                        bindings
+                            .get_mut(source)
+                            .expect("checked enum binding move source remains in scope")
+                            .ownership = OwnershipState::Moved;
+                    }
                     bindings.insert(
                         name.clone(),
                         AdmissionBinding {
@@ -1295,12 +1305,13 @@ impl IrGenerator {
                 } else {
                     None
                 };
-                match classify_mutable_reference_assignment(
+                match classify_mutable_reference_assignment_with_enums(
                     target,
                     mutable_reference_facts.as_ref(),
                     &rhs,
                     inside_admitted_function,
                     &program.structs,
+                    &program.enums,
                 ) {
                     MutableReferenceAssignmentDisposition::Supported(_) => return Ok(()),
                     MutableReferenceAssignmentDisposition::ExplicitlyRejected(message) => {
@@ -1457,12 +1468,13 @@ impl IrGenerator {
                 body,
                 ..
             } => {
-                let reference_contract = match classify_reference_function(
+                let reference_contract = match classify_reference_function_with_enums(
                     name,
                     parameters,
                     return_type.as_ref(),
                     type_params,
                     &program.structs,
+                    &program.enums,
                 ) {
                     ReferenceFunctionDisposition::Supported(contract) => Some(contract),
                     ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
@@ -1966,7 +1978,13 @@ impl IrGenerator {
                             inside_admitted_function,
                         )
                     });
-                    classify_reference_call(contract, arguments, facts.as_ref(), &program.structs)
+                    classify_reference_call_with_enums(
+                        contract,
+                        arguments,
+                        facts.as_ref(),
+                        &program.structs,
+                        &program.enums,
+                    )
                 } else {
                     ReferenceCallDisposition::Preserved
                 };
@@ -2376,7 +2394,13 @@ impl IrGenerator {
                         admit_static_string_equality,
                     )?;
                 }
-                match classify_local_borrow(expr, *mutable, facts.as_ref(), &program.structs) {
+                match classify_local_borrow_with_enums(
+                    expr,
+                    *mutable,
+                    facts.as_ref(),
+                    &program.structs,
+                    &program.enums,
+                ) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => {
                         Err(admission_error(&message))
@@ -3201,9 +3225,9 @@ impl IrGenerator {
                     .get(reference_id)
                     .expect("checked mutable reference retains direct source")
                     .clone();
-                let pointee = self.admitted_copy_place_logical_type(
+                let pointee = self.admitted_reference_pointee_logical_type(
                     pointee,
-                    CopyPlaceExecutionContext::AdmittedMutableReference,
+                    ReferencePointeeContext::Mutable,
                 );
                 Some((*reference_id, reference.clone(), source, pointee))
             })
@@ -3605,19 +3629,23 @@ impl IrGenerator {
                             unreachable!("checked admission requires a mutable reference target")
                         };
                         debug_assert_eq!(assigned_type, *pointee);
-                        let assigned_value = self.load_copy_aggregate_value(
-                            assigned_value,
-                            &assigned_type,
-                            current_function,
-                        );
+                        let assigned_value = if matches!(assigned_type, Ty::Enum(_)) {
+                            assigned_value
+                        } else {
+                            self.load_copy_aggregate_value(
+                                assigned_value,
+                                &assigned_type,
+                                current_function,
+                            )
+                        };
                         current_function
                             .body
                             .push(Inst::CheckedMutableDereferenceAssignment {
                                 target: target_place,
                                 value: assigned_value,
-                                pointee: self.admitted_copy_place_logical_type(
+                                pointee: self.admitted_reference_pointee_logical_type(
                                     &pointee,
-                                    CopyPlaceExecutionContext::AdmittedMutableReference,
+                                    ReferencePointeeContext::Mutable,
                                 ),
                             });
                     }
@@ -3853,9 +3881,9 @@ impl IrGenerator {
                         temporary_mutable_borrows.push((
                             arg_value.clone(),
                             source,
-                            self.admitted_copy_place_logical_type(
+                            self.admitted_reference_pointee_logical_type(
                                 &pointee,
-                                CopyPlaceExecutionContext::AdmittedMutableReference,
+                                ReferencePointeeContext::Mutable,
                             ),
                         ));
                     } else if mutable_call_source_mode
@@ -3869,9 +3897,9 @@ impl IrGenerator {
                         let parent = arg_value;
                         let child = Value::Reg(self.next_ptr);
                         self.next_ptr += 1;
-                        let logical_pointee = self.admitted_copy_place_logical_type(
+                        let logical_pointee = self.admitted_reference_pointee_logical_type(
                             pointee,
-                            CopyPlaceExecutionContext::AdmittedMutableReference,
+                            ReferencePointeeContext::Mutable,
                         );
                         function.body.push(Inst::CheckedMutableBorrow {
                             result: child.clone(),
@@ -4151,11 +4179,12 @@ impl IrGenerator {
                     .expect("checked borrowed binding exists")
                     .clone();
                 let context = if mutable {
-                    CopyPlaceExecutionContext::AdmittedMutableReference
+                    ReferencePointeeContext::Mutable
                 } else {
-                    CopyPlaceExecutionContext::AdmittedImmutableReference
+                    ReferencePointeeContext::Immutable
                 };
-                let pointee_contract = self.admitted_copy_place_logical_type(&pointee, context);
+                let pointee_contract =
+                    self.admitted_reference_pointee_logical_type(&pointee, context);
                 let result = Value::Reg(self.next_ptr);
                 self.next_ptr += 1;
                 function.body.push(if mutable {

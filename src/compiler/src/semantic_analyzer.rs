@@ -17,9 +17,10 @@ use crate::function_call_contract::{
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
-    ReferenceFunctionDisposition, classify_local_borrow, classify_local_dereference,
-    classify_local_reference_annotation, classify_mutable_reference_assignment,
-    classify_mutable_reference_binding, classify_reference_call, classify_reference_function,
+    ReferenceFunctionDisposition, classify_local_borrow_with_enums, classify_local_dereference,
+    classify_local_reference_annotation_with_enums,
+    classify_mutable_reference_assignment_with_enums, classify_mutable_reference_binding,
+    classify_reference_call_with_enums, classify_reference_function_with_enums,
     reference_call_fact_subject,
 };
 use crate::method_call_contract::{IntrinsicMethodPhase, classify_intrinsic_method};
@@ -1074,7 +1075,13 @@ impl SemanticAnalyzer {
         };
         let facts = reference_call_fact_subject(arguments)
             .and_then(|subject| self.local_reference_source_facts(subject));
-        classify_reference_call(contract, arguments, facts.as_ref(), &self.struct_registry)
+        classify_reference_call_with_enums(
+            contract,
+            arguments,
+            facts.as_ref(),
+            &self.struct_registry,
+            &self.enum_registry,
+        )
     }
 
     fn readable_identifier_type(&self, name: &str) -> Result<Ty, String> {
@@ -1213,12 +1220,13 @@ impl SemanticAnalyzer {
                 ..
             }) = node
             {
-                let reference_transport = match classify_reference_function(
+                let reference_transport = match classify_reference_function_with_enums(
                     name,
                     parameters,
                     return_type.as_ref(),
                     type_params,
                     &self.struct_registry,
+                    &self.enum_registry,
                 ) {
                     ReferenceFunctionDisposition::Supported(contract) => Some(contract),
                     ReferenceFunctionDisposition::ExplicitlyRejected(diagnostic) => {
@@ -1844,7 +1852,13 @@ impl SemanticAnalyzer {
                 if facts.is_none() {
                     self.infer_and_validate_expression(expr)?;
                 }
-                match classify_local_borrow(expr, *mutable, facts.as_ref(), &self.struct_registry) {
+                match classify_local_borrow_with_enums(
+                    expr,
+                    *mutable,
+                    facts.as_ref(),
+                    &self.struct_registry,
+                    &self.enum_registry,
+                ) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
@@ -2619,7 +2633,13 @@ impl SemanticAnalyzer {
                 if facts.is_none() {
                     self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
                 }
-                match classify_local_borrow(expr, *mutable, facts.as_ref(), &self.struct_registry) {
+                match classify_local_borrow_with_enums(
+                    expr,
+                    *mutable,
+                    facts.as_ref(),
+                    &self.struct_registry,
+                    &self.enum_registry,
+                ) {
                     LocalReferenceDisposition::Supported(contract) => Ok(contract.reference_type()),
                     LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
                     LocalReferenceDisposition::Preserved => unreachable!(
@@ -2900,10 +2920,11 @@ impl SemanticAnalyzer {
                     type_annotation.as_ref().map_or(
                         LocalReferenceDisposition::Preserved,
                         |annotation| {
-                            classify_local_reference_annotation(
+                            classify_local_reference_annotation_with_enums(
                                 annotation,
                                 value.is_some(),
                                 &self.struct_registry,
+                                &self.enum_registry,
                             )
                         },
                     )
@@ -3027,12 +3048,13 @@ impl SemanticAnalyzer {
                 } else {
                     None
                 };
-                match classify_mutable_reference_assignment(
+                match classify_mutable_reference_assignment_with_enums(
                     target,
                     mutable_reference_facts.as_ref(),
                     &rhs,
                     inside_admitted_function,
                     &self.struct_registry,
+                    &self.enum_registry,
                 ) {
                     MutableReferenceAssignmentDisposition::Supported(_) => {
                         self.apply_enum_match_moves(value)?;

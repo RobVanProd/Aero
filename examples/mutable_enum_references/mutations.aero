@@ -1,0 +1,15 @@
+fn make_packet(value: int) -> Packet {
+    Packet::Pair(value, value > 0)
+}
+
+fn replace_mode(value: &mut Mode) {
+    *value = Mode::On;
+}
+
+fn replace_packet(value: &mut Packet) {
+    *value = make_packet(40);
+}
+
+fn forward_packet(value: &mut Packet) {
+    replace_packet(value);
+}

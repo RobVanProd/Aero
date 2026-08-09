@@ -446,7 +446,38 @@ impl EnumRegistry {
             .map(|contract| contract.schema.logical_type())
     }
 
-    fn annotation_mentions_declared_enum(&self, annotation: &Type) -> bool {
+    pub(crate) fn reference_annotation_type(
+        &self,
+        annotation: &Type,
+    ) -> Result<Option<EnumTransportType>, EnumError> {
+        let Type::Named(name) = annotation else {
+            return Ok(None);
+        };
+        if !self.definitions.contains_key(name) {
+            return Ok(None);
+        }
+        let contract = self.contract(name)?;
+        Ok(Some(EnumTransportType {
+            ty: contract.ty(),
+            logical_type: contract.schema.logical_type(),
+        }))
+    }
+
+    pub(crate) fn reference_pointee_type(
+        &self,
+        ty: &Ty,
+    ) -> Result<Option<EnumTransportType>, EnumError> {
+        let Ty::Enum(name) = ty else {
+            return Ok(None);
+        };
+        let contract = self.contract(name)?;
+        Ok(Some(EnumTransportType {
+            ty: contract.ty(),
+            logical_type: contract.schema.logical_type(),
+        }))
+    }
+
+    pub(crate) fn annotation_mentions_declared_enum(&self, annotation: &Type) -> bool {
         match annotation {
             Type::Named(name) => self.definitions.contains_key(name),
             Type::Array(element, _) | Type::Reference(element, _) => {

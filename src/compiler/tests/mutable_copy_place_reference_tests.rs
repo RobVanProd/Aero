@@ -443,11 +443,6 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
             "admitted Copy-data",
         ),
         (
-            "enum pointee",
-            "enum Mode { Off, On } fn bad(value: &mut Mode) { } fn main() -> int { 0 }",
-            "admitted Copy-data",
-        ),
-        (
             "non-Copy struct pointee",
             "struct Bad { text: String } fn bad(value: &mut Bad) { } fn main() -> int { 0 }",
             "admitted Copy-data",
