@@ -55,6 +55,9 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
         "-filetype=obj $llvmPath -o $objectPath",
         "Windows public run passed with exit code 227",
         "Windows manual native execution passed with exit code 227",
+        "Test Windows primitive const system specimen",
+        "Windows primitive const public run passed with exit code 81",
+        "Windows primitive const manual native execution passed with exit code 81",
     ];
 
     let mut failures = Vec::new();
@@ -93,9 +96,9 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
     }
 
     let expected_exit_reset_count = workflow.matches("$global:LASTEXITCODE = 0").count();
-    if expected_exit_reset_count != 4 {
+    if expected_exit_reset_count != 5 {
         failures.push(format!(
-            "the four expected-nonzero Windows control groups must reset LASTEXITCODE, found {expected_exit_reset_count} resets"
+            "the five expected-nonzero Windows control groups must reset LASTEXITCODE, found {expected_exit_reset_count} resets"
         ));
     }
 

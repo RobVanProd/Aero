@@ -21,6 +21,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Booleans | Y | Y | Y | — | P | — | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unicode characters | Y | Y | Y | — | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Bindings and mutability | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
+| Primitive compile-time const (`CORE-082` local candidate) | Y | Y | Y | P | P | — | P | P | P | Y | Y | Y | P | PARTIAL |
 | Type annotations | Y | Y | Y | P | P | N | P | P | P | Y | P | P | Y | PARTIAL |
 | Comparisons/logical/unary ops | Y | Y | P | — | P | — | P | P | ? | Y | P | P | Y | PARTIAL |
 | Functions and returns | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
@@ -76,6 +77,14 @@ Accepted public `CORE-080` adds syntax evidence for the founding direct/aliased 
 import authority. Executable imports still fail before checked IR, so no positive
 semantic, IR, backend, execution, or stability cell changes and the row remains
 `PARSED_ONLY`.
+
+Unpublished candidate `CORE-082` adds only exact annotated primitive constants whose
+closed expressions use literals, prior lexical constants, and the already admitted
+primitive operators. One shared contract evaluates and substitutes them before checked
+IR; no constant storage, global, symbol, public layout/ABI, aggregate constant,
+cross-module lookup, runtime dependency, or general CTFE is claimed. This row is a
+candidate record and must not be read as accepted public capability until the bounded
+PR and post-merge gates pass.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact
@@ -371,7 +380,7 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
   generic, composite, method, string, and richer closure contracts remain open.
 - Many declarations lose visibility, bounds, arguments, or source locations in
   the AST; parser presence alone therefore does not imply faithful parsing.
-- Active candidate `CORE-081` removes the exact 35-module CLI/library overlap and makes
+- Accepted public `CORE-081` removes the exact 35-module CLI/library overlap and makes
   compiler phases library-owned. The binary retains only CLI-specific modules and uses
   narrow hidden service bridges for direct-module cache material and registry
   quarantine without exposing resolver/IR representations. Architecture, unit,

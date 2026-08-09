@@ -5,6 +5,7 @@ mod closure_contract;
 mod code_generator;
 mod compatibility;
 pub mod conformance;
+mod const_contract;
 mod copy_place_contract;
 mod enum_match_contract;
 pub mod errors;
@@ -147,6 +148,7 @@ pub fn collect_direct_modules_for_compiler_service(
     entry_file: Option<&str>,
     mut on_resolved: impl FnMut(&str, &Path),
 ) -> Result<Option<Vec<u8>>, String> {
+    *ast = const_contract::normalize_primitive_consts(std::mem::take(ast))?;
     let direct_modules = module_resolver::collect_direct_modules(ast, entry_file)?;
     if direct_modules.is_empty() {
         return Ok(None);
@@ -155,6 +157,7 @@ pub fn collect_direct_modules_for_compiler_service(
     let mut cache_material = Vec::new();
     cache_material.extend_from_slice(&(direct_modules.len() as u64).to_be_bytes());
     for module in direct_modules {
+        let module_ast = const_contract::normalize_primitive_consts(module.ast)?;
         on_resolved(&module.name, &module.file_path);
         push_direct_module_cache_frame(&mut cache_material, "name", module.name.as_bytes());
         push_direct_module_cache_frame(
@@ -163,7 +166,7 @@ pub fn collect_direct_modules_for_compiler_service(
             module.candidate.as_bytes(),
         );
         push_direct_module_cache_frame(&mut cache_material, "source", module.source.as_bytes());
-        ast.extend(module.ast);
+        ast.extend(module_ast);
     }
 
     Ok(Some(cache_material))

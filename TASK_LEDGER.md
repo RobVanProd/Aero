@@ -16536,3 +16536,117 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   specimen, release, package, registry, benchmark, external artifact, history rewrite,
   branch deletion, or user-owned `tmp/` content changed. PR #4's mega-PR instance is
   merged and verified; successor work must start from verified master in bounded PRs.
+
+## CORE-082 - admit closed primitive compile-time constants
+
+- Date/task/status: 2026-08-08, `CORE-082`, authorized by the standing language-growth
+  mandate after CHECKPOINT-003 established verified master
+  `20d45fc1c70c789e4e907a5d83d8782af41e26de`; locally green candidate, public
+  acceptance pending.
+- Observed behavior: both founding Aero documents preserve `const identifier : type =
+  expr;` in the language path and describe constant-expression evaluation, but the
+  active lexer has no `const` token, the parser has no constant declaration AST, and
+  executable `const` source therefore fails before semantic analysis. This is missing
+  capability, not a false-success path.
+- Hypothesis: one shared primitive-constant contract can classify and evaluate a closed
+  expression once per trust phase, allowing semantic analysis and checked IR admission
+  to agree without adding a new runtime value, storage class, global, ABI, or backend
+  instruction. Lowering the admitted result to existing checked immediate values should
+  preserve LLVM verification and native behavior.
+- Frozen semantics: `const NAME: TYPE = EXPR;` is admitted at top level and in lexical
+  blocks only when `TYPE` is an exact existing primitive type and `EXPR` is a closed,
+  deterministic combination of primitive literals, previously declared in-scope
+  constants, parentheses, and existing unary/binary primitive operators. Constants are
+  immutable, obey current lexical scoping and declaration-before-use, and are inlined
+  into checked IR without addressable storage or public ABI. The annotation must exactly
+  match the evaluated value under existing primitive operator rules. Integer evaluation
+  is checked and must remain in the admitted i32 range; division/modulo by zero and
+  non-finite float results fail closed. A later constant may depend on an earlier one.
+- Explicit exclusions: no annotation inference, mutable constants, runtime binding or
+  parameter dependencies, function/method/macro calls, formatted strings, borrows,
+  dereferences, closures, assignments, arrays, tuples, structs, enums, references,
+  generics, forward references, cycles, public/global storage, exported symbols,
+  cross-module constant lookup, arbitrary CTFE, new import visibility, or release/
+  performance claim. String concatenation and modulo are deferred because the current
+  executable binary-operator contract does not admit them; static string equality may
+  be admitted only if it reuses the existing checked static-string predicate exactly.
+  The existing parser deliberately represents an `f"..."` outside print macros as a
+  raw `StringLiteral`; CORE-082 preserves that raw spelling behavior and does not claim
+  interpolation or formatted-string CTFE. Interpolating print/macro expressions remain
+  excluded.
+- Smallest complete proof: first add a red parser/AST test and red library/CLI tests that
+  show primitive constants cannot yet compile. Then cover every admitted primitive,
+  earlier-constant dependency, shadowing, use in arithmetic/comparison/control flow/
+  calls/returns, no emitted allocation, and a tracked multi-file native specimen where
+  a module function uses its own local constants. Negative coverage must prove rejection
+  of each excluded expression family, annotation mismatch, duplicate declaration,
+  forward/cyclic use, runtime dependency, assignment, overflow, division/modulo by zero,
+  and non-finite result before checked IR or artifact output.
+- Shared authority requirement: add one `const_contract` classifier/evaluator used by
+  semantic validation, independent checked admission, and trusted lowering. Do not copy
+  topology-specific guard ladders among phases. Parser/AST identity must remain explicit
+  so later CTFE work is preserved rather than silently rewritten as `let`.
+- Allowed production files: `src/compiler/src/ast.rs`, `lexer.rs`, `parser.rs`,
+  `const_contract.rs`, `lib.rs`, `semantic_analyzer.rs`, `ir_generator.rs`, and only the
+  exhaustive AST visitors in `compatibility.rs` and `optimizations.rs` if compilation
+  requires them. Allowed tests/specimens: focused compiler unit/integration targets, a
+  new `src/compiler/tests/primitive_const_tests.rs`, one tracked
+  `examples/primitive_consts/` multi-file native specimen, and the exact workflow entry
+  needed to run it. Allowed records after exact green: `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, `Roadmap.md`,
+  `DECISION_LOG.md`, `CURRENT_CAPABILITY_AUDIT.md`, `INITIAL_RISK_REGISTER.md`, and this
+  ledger. Preserve every unrelated file and user-owned untracked `tmp/` content.
+- Acceptance gates: focused red/green tests; independent semantic and checked-admission
+  negatives; verifier corruption controls; `cargo fmt --check`; all-target/all-feature
+  `cargo check`; correctness-denying Clippy; docs; `git diff --check`; exact repository
+  root `./tools/test.sh`; all public workflows at one immutable candidate; and the pinned
+  LLVM/Clang 22 native system gate executing the tracked multi-file specimen with its
+  asserted exit. Candidate evidence must remain separate from public acceptance.
+- Risks: compile-time evaluation may drift from runtime arithmetic, constants could
+  accidentally become writable/addressable bindings, top-level flattening could be
+  mistaken for module visibility, float host evaluation needs deterministic finite
+  checks, or one phase could accept a topology another rejects. The bounded PR rule and
+  the four scaling controls remain active: no new mega-PR, do not optimize only for easy
+  slices indefinitely, keep evidence proportional/structured, and run a cross-phase
+  system proof rather than counting local unit tests alone.
+- Stop conditions: stop if the slice requires import/name-resolution semantics,
+  aggregate layout, global storage/initialization order, a new callable ABI, arbitrary
+  interpreter execution, changes to existing primitive runtime semantics, more than the
+  named compiler surfaces, weakening a test/verifier, master mutation outside a reviewed
+  PR, release publication, or any unsupported claim.
+
+### CORE-082 locally green candidate checkpoint
+
+- Red evidence: the first focused parser/library/CLI run rejected `const` as an
+  identifier at both top-level and block scope, proving the capability was absent
+  before production changes.
+- Implementation: the AST retains a located `Statement::Const`; lexer/parser preserve
+  the syntax; one `const_contract` authority performs scoped exact primitive
+  evaluation and substitution; semantic analysis, independent checked admission, and
+  trusted lowering consume that authority. Root and each direct module are normalized
+  independently, preventing flattened module lookup from becoming constant visibility.
+- Positive evidence: all five primitive annotations, prior lexical dependencies,
+  shadowing, arithmetic/comparison/control-flow/call/return use, no emitted constant
+  storage, and the tracked two-file module specimen pass. The specimen exits 81.
+- Negative evidence: annotation mismatch, duplicates, forward/unknown references,
+  runtime dependencies, assignment, calls/methods/macros, aggregates, references,
+  closures, Match, overflow, division or modulo by zero, non-finite floats, cross-module
+  leakage, semantic entry, independent checked admission, and CLI check/build/run
+  artifact hygiene fail closed with locations.
+- Local gates: `primitive_const_tests` 6/6, Windows workflow contract 1/1,
+  `cargo check --all-targets --all-features`, formatting, correctness-denying Clippy,
+  docs, verifier corruption controls, and exact repository-root `./tools/test.sh` pass.
+  The root gate records 209 library and 32 binary tests. A checkout-only Windows CRLF
+  mismatch in legacy byte-identity fixtures was isolated by content-neutral LF
+  normalization for that gate; unrelated tracked files were then restored. A permanent
+  line-ending policy is a separate governance task.
+- Native evidence: pinned LLVM/Clang 22.1.8 performs public check/build with required
+  verification, external `opt` verification, `llc` machine verification, COFF object
+  generation, Clang/MSVC linking, public `run`, and manual execution. Public/manual
+  exit is 81; generated LLVM SHA-256 is
+  `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
+- Public boundary: this record describes an unpublished local candidate based on
+  master `20d45fc1c70c789e4e907a5d83d8782af41e26de`. It is not accepted until one
+  bounded PR, exact-head public workflows, protected merge, and post-merge verification
+  succeed. No release, stability, safety, performance, general CTFE, layout, or ABI
+  claim follows.
