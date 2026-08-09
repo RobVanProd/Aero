@@ -16870,3 +16870,62 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   and first heading identify CORE-083, require every exact-head public workflow and the
   pinned Linux/Windows exit-83 evidence, then integrate through protected master only
   if the exact candidate remains green. Do not stack CORE-084 or claim acceptance first.
+
+### CORE-083 accepted public checkpoint
+
+- Date/task/status: 2026-08-08, `CORE-083-ACCEPTANCE`, documentation-only public
+  acceptance record from post-merge-verified master
+  `680bc6ca0bc6284e773083504ed24367b34fae73`. The observed records still described
+  CORE-083 as unpublished after the exact candidate and merge workflows had passed.
+  The hypothesis is administrative only: replacing those pending statements with exact
+  immutable identities restores truthful public state without changing semantics.
+- Frozen semantics and allowed files: no source, checked-IR, verifier, LLVM, CLI,
+  workflow, example, dependency, claim-verification, release, benchmark, or protection
+  behavior may change. Only `TASK_LEDGER.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and `README.md` may record
+  the already-established result. The existing CORE-083 positive class and fail-closed
+  exclusions remain byte-for-byte authoritative.
+- Acceptance tests and stop conditions: verify the candidate and merge identities,
+  parent order, trees, PR state/body, candidate-head run SHAs, post-merge run SHAs,
+  changed-file scope, Markdown/diff hygiene, and the repository-root gate. Stop if any
+  identity differs, any cited run is not successful on its claimed SHA, a wording
+  change broadens the capability, any non-record file changes, or the baseline is red.
+- Accepted candidate: bounded PR #8 carried exact head
+  `43e9bfc7d07414737c8978c3fc3621b984a1146d` from verified base
+  `469cdc4ab5d968d42dec6af81823796e3db14f71`. Its implementation commit is
+  `524b2c2a01f62764d307b19b6cd9a5c9786f2283`, implementation tree is
+  `74a3709525f7f8195b79d2dfe79139e4de56667c`, and stable patch ID is
+  `fa81a9df55a28d5f1d32e7e13a0459a45746b269`. The review surface was two commits,
+  20 files, 1,660 additions, and 165 deletions.
+- Exact-head evidence: CI run `31291291046`, Rust CI run `31291291039`, and CodeQL
+  run `31291290190` completed successfully on candidate head `43e9bfc7`. Stable and
+  nightly Linux pass; the SHA-256-pinned Windows LLVM/Clang 22.1.8 lane verifies,
+  lowers, links, executes both public and manual paths, and observes exact exit 83.
+  No local native-run success is substituted for that public evidence.
+- Protected integration: PR #8 merged without head substitution as
+  `680bc6ca0bc6284e773083504ed24367b34fae73`, tree
+  `6d6a5a7a7c332e6ba7d6e64f82c177df599a5541`. Its ordered parents are exactly old
+  master `469cdc4a` then accepted candidate `43e9bfc7`. Required approvals remain zero
+  under the established solo-maintainer protection rule; no reviewer was invited and
+  no impossible author self-approval was claimed.
+- Post-merge evidence: CI run `31291435878`, Rust CI run `31291435867`, and CodeQL
+  run `31291435769` completed successfully on exact merge `680bc6ca`. PR #8's rendered
+  front page now leads with CORE-083 and records candidate, merge, exclusions, exact-
+  head evidence, and post-merge evidence instead of the stale pending state.
+- Local record verification: the changed-file audit contains exactly the five authorized
+  Markdown records, and `git diff --check` passes. The repository-root
+  `./tools/test.sh` gate passes formatting, correctness-denying Clippy, 211 library
+  tests, 32 binary tests, every integration target, and doc tests. Git-tracked `.aero`
+  fixtures were normalized content-neutrally for the Windows byte-identity checks and
+  restored byte-for-byte afterward; user-owned untracked `tmp/` was untouched.
+- Remaining uncertainty and regression risk: acceptance remains limited to mutable,
+  non-escaping, whole-place replacement for the admitted enum class. Immutable enum
+  references, reads or Match through references, escapes/results/storage/captures,
+  projections/partial moves, aggregate enum storage, unsupported payload topologies,
+  lifetimes/NLL/drop, stable ABI/FFI, release, performance, and general memory-safety
+  claims remain absent. Later work must not infer those semantics from this checkpoint.
+- Recommended next action: publish this five-file acceptance record in its own bounded
+  PR, require exact-head checks, and merge it only if the records remain truthful and
+  the full baseline stays green. Then freeze a separately authorized hard-capability
+  slice; do not reopen CORE-083 or stack implementation on a red/unpublished branch.
+  Keep all four scaling controls active.

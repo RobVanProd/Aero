@@ -4,28 +4,32 @@ Last updated: 2026-08-08 (America/New_York)
 
 ## Current objective
 
-Milestone 104 `CORE-083` is a locally green, unpublished candidate on
-`agent/core-083-mutable-enum-references`, based on accepted master
-`469cdc4ab5d968d42dec6af81823796e3db14f71`. Its immutable implementation
-identity is commit `524b2c2a01f62764d307b19b6cd9a5c9786f2283`, tree
+Milestone 104 `CORE-083` is accepted public at candidate head
+`43e9bfc7d07414737c8978c3fc3621b984a1146d`, implementation commit
+`524b2c2a01f62764d307b19b6cd9a5c9786f2283`, implementation tree
 `74a3709525f7f8195b79d2dfe79139e4de56667c`, and stable patch ID
-`fa81a9df55a28d5f1d32e7e13a0459a45746b269`. One shared reference-pointee
-classifier now composes the existing recursive CopyData universe with the existing
-admitted destructor-free enum schemas for mutable use only. An initialized mutable
-direct enum owner can be borrowed or locally reborrowed into an exact sole `&mut E`
-parameter and replaced as a whole; immutable enum references, reads through an enum
-reference, escaping/reference-result behavior, aggregate enum storage, projections,
-partial moves, and new lifetime/drop/ABI semantics remain rejected. Checked IR carries
-the exact enum schema through the loan, parameter, write, and lexical end, while the
-independent verifier rejects generic stores, enum loads through the reference, schema
-substitution, consumed-owner borrows, bad loan identity, and malformed enum layouts.
-Focused evidence is 5/5; the exact repository-root gate passes formatting,
-correctness-denying Clippy, 211 library tests, 32 binary tests, every integration
-target, and doc tests. The tracked two-module source composes enums, Match, functions,
-struct payloads, arrays, tuples, Strings, primitive constants, and local reborrowing;
-stable/nightly Linux and pinned Windows LLVM/Clang 22.1.8 lanes are declared for exact
-exit 83 but have not yet run on a public candidate head. This is candidate evidence,
-not public acceptance, a release, or a general memory-safety/reference/ABI claim.
+`fa81a9df55a28d5f1d32e7e13a0459a45746b269`. Bounded PR #8 carried two commits
+across 20 files from verified base `469cdc4ab5d968d42dec6af81823796e3db14f71`
+and merged through protected master as `680bc6ca0bc6284e773083504ed24367b34fae73`
+with tree `6d6a5a7a7c332e6ba7d6e64f82c177df599a5541`. Its parents are exactly that base
+and accepted candidate head. Candidate-head CI `31291291046`, Rust CI `31291291039`,
+and CodeQL `31291290190` pass; post-merge CI `31291435878`, Rust CI `31291435867`,
+and CodeQL `31291435769` also pass on the exact merge.
+
+One shared reference-pointee classifier now composes the existing recursive CopyData
+universe with admitted destructor-free enum schemas for mutable use only. An
+initialized mutable direct enum owner can be borrowed or locally reborrowed into an
+exact sole `&mut E` parameter and replaced as a whole. Checked IR carries the exact
+enum schema through the loan, parameter, write, and lexical end, while the independent
+verifier rejects generic stores, enum loads through the reference, schema substitution,
+consumed-owner borrows, bad loan identity, and malformed layouts. The focused target is
+5/5; the exact repository-root gate passes formatting, correctness-denying Clippy, 211
+library tests, 32 binary tests, every integration target, and doc tests. Stable/nightly
+Linux and pinned Windows LLVM/Clang 22.1.8 verify the tracked composed specimen at exact
+native exit 83. Immutable enum references, reads through enum references, escape or
+reference results, aggregate enum storage, projections, partial moves, and new
+lifetime/drop/ABI semantics remain rejected. This is bounded public acceptance, not a
+release or general memory-safety/reference/ABI claim.
 
 Milestone 103 `CORE-082` is accepted public at implementation commit
 `d0312e809792448b6c8c0fc4159dd0f37dbc10ba`, tree
@@ -41,11 +45,12 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to commit the bounded CORE-083 candidate, record its immutable
-identity, rerun the exact local gate, publish one bounded PR, synchronize its rendered
-front page to that head, and require every exact-head public workflow before protected
-integration. The four scaling controls remain active; no new compiler capability may
-stack on this unpublished candidate.
+The exact next action is to publish this documentation-only CORE-083 acceptance record,
+then freeze the next bounded hard-capability slice from verified master. The four
+scaling controls remain active: bounded checkpoint PRs, deliberate hard-capability
+progress, proportional/structured evidence administration, and periodic composed
+source-to-native system gates. No new compiler capability may stack on an unpublished
+or red candidate.
 
 Milestone 102 `CHECKPOINT-001` is accepted public and integrated through the corrected
 solo-maintainer `CHECKPOINT-003` handoff. PR #4 merged the exact frozen head
@@ -747,11 +752,11 @@ composition rather than a module system.
   CORE-062's accepted exit-109 gate composes recursive arrays, tuples, and named structs
   through source, semantics, checked IR, independent verification, LLVM, direct modules,
   ownership operations, and native execution under the pinned public LLVM/Clang 22 lane.
-  Local candidate CORE-083 adds an exit-83 direct-module specimen that composes
+  Accepted CORE-083 adds an exit-83 direct-module specimen that composes
   primitive constants, compile-time String length, arrays, tuples, structs, unit and
   multi-field enums, exhaustive Match, direct mutable enum loans, alias/reborrow, exact
-  checked schema, and post-call owner observation. Its complete local compiler gate is
-  green; pinned Linux/Windows native execution remains pending public exact-head proof.
+  checked schema, and post-call owner observation. Its complete compiler gate and
+  pinned Linux/Windows native execution pass on the exact candidate and protected merge.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
