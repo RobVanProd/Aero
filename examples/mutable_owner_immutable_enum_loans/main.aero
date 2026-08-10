@@ -1,0 +1,28 @@
+mod observations;
+
+enum Mode { Off, On }
+enum Packet { Empty, Pair(int, bool) }
+
+fn main() -> int {
+    const OFFSET: int = 4;
+    let mut mode = Mode::On;
+    let mut packet = Packet::Pair(17, 1 < 2);
+    let mut observed = 0;
+
+    {
+        let mode_ref: &Mode = &mode;
+        let first: &Packet = &packet;
+        let second = &packet;
+        observed = read_mode(mode_ref) + read_packet(first) + read_packet(second);
+    }
+
+    mode = Mode::Off;
+    replace_mode(&mut mode);
+    packet = Packet::Pair(20, 1 < 2);
+    replace_packet(&mut packet);
+    observed = observed + read_mode(&mode) + read_packet(&packet);
+
+    let values = [3, 4];
+    let pair = (2, 1);
+    observed + values[0] + values[1] + pair.0 + pair.1 + "Aero".len() + OFFSET
+}

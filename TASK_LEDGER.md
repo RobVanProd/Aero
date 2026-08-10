@@ -16930,6 +16930,194 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   slice; do not reopen CORE-083 or stack implementation on a red/unpublished branch.
   Keep all four scaling controls active.
 
+## CORE-085 - immutable observation loans from mutable enum owners
+
+- Date/task/status: 2026-08-10, `CORE-085`, lead-owned red-first positive vertical
+  slice from accepted and post-merge-verified master
+  `01a1bb65413253309dd5d74c1faddee8721bd7f2`, tree
+  `644ee11832f9c0c109ab3f53214a2d02f3ff2402`. Work belongs only on
+  `agent/core-085-mutable-owner-immutable-enum-loans`; user-owned untracked `tmp/`
+  remains outside the task.
+- Source-grounded observed behavior: the normative ownership rules permit any number
+  of shared borrows when no mutable borrow is active and forbid any overlapping mutable
+  borrow. The existing compiler already counts/releases lexical immutable CopyData
+  loans, executes exclusive mutable whole-place enum replacement (`CORE-083`), and
+  executes repeated immutable enum-reference Match observation from immutable owners
+  (`CORE-084`). One explicit guard in the shared local-reference classifier nevertheless
+  rejects every `&E` borrow solely because an initialized direct enum owner was declared
+  mutable, with `mutable-owner loan lifetimes are not admitted`. Checked verification
+  likewise accepts enum `CheckedImmutableBorrow` only from an immutable-enum-owner
+  place. This is one missing ownership-composition class, not a new enum layout or ABI.
+- Hypothesis and shared authority: extend the existing shared borrow classifier to admit
+  one exact mutable-owner/shared-enum mode, preserve that mode with an exact lexical
+  checked end identity, and independently verify source provenance plus non-overlap.
+  Semantic analysis and semantic-independent checked admission continue to call the
+  same source classifier. Trusted LLVM may reuse the existing private enum pointer only
+  after the verifier proves the exact mutable owner, initialization, immutable alias,
+  Match read, and lexical end; no phase-local source-shape guard may substitute.
+- Frozen positive class: the pointee is exactly one already admitted unique,
+  non-generic unit, unary, or positional multi-field enum whose payloads are recursive
+  CopyData. The source is an initialized mutable direct local whole-place owner in
+  `Owned` state. A direct identifier borrow may create one or more non-escaping
+  immutable `&E` local aliases, including aliases passed to exact non-entry,
+  non-generic immutable-reference parameters. The sole enum read remains exhaustive
+  `match *identifier { ... }` with existing CopyData or `Void` result. A direct
+  temporary `&owner` call loan ends immediately after its exact call. Bound aliases end
+  at their lexical block fallthrough; the owner remains inaccessible for move, owned
+  Match, reassignment, or mutable borrowing until every alias ends. After the final
+  exact end, direct whole-owner reassignment and the accepted sole-parameter `&mut E`
+  replacement path may execute, and the owner may be observed or consumed through the
+  existing accepted rules. Nested straight-line blocks and naturally falling-through
+  conditional/loop-local scopes are admitted only when every outgoing edge has ended
+  every loan created in that scope.
+- Frozen negative boundary: no mutable borrow/reborrow, direct owner assignment, move,
+  owned Match, by-value call/return, or generic load from the owner while any immutable
+  alias is live; no Match read through `&mut E`; no free enum dereference or transport;
+  no reference result, escape, storage, capture, owner projection/index/dereference,
+  `*(&owner)`, entry reference parameter, uninitialized/`Moved`/`MaybeMoved` source,
+  unsupported/generic/named-field/String-payload enum, mismatched schema, or fabricated
+  end. A live loan may not cross `break`/`continue` or an ownership-divergent CFG edge.
+  No NLL/use-site shortening, lifetime parameter, drop/destructor, partial move,
+  aggregate enum storage, public layout, stable ABI/FFI, accelerator, release,
+  performance, stability, or general memory-safety behavior follows.
+- Red-first and acceptance tests: before production mutation, add one focused target
+  that enumerates unit/unary/multi-field mutable owners; explicit and inferred aliases;
+  multiple aliases; exact immutable-reference parameters; direct temporary call loans;
+  repeated Match reads; nested lexical release; post-loan direct owner reassignment;
+  post-loan exact mutable-reference replacement; owner preservation; semantic and
+  semantic-independent admission parity; exact checked identities; verifier corruption
+  substitutions; CLI check/build/run; direct modules; and a pinned LLVM/Clang 22 native
+  specimen. Negative groups cover every frozen overlap, move/transport/storage/escape,
+  source-state, schema, and control-transfer boundary before checked IR or trusted LLVM.
+- Allowed files: `TASK_LEDGER.md`; `src/compiler/src/local_reference.rs`;
+  `src/compiler/src/ownership_flow.rs`; `src/compiler/src/semantic_analyzer.rs`;
+  `src/compiler/src/ir.rs`;
+  `src/compiler/src/ir_generator.rs`; `src/compiler/src/ir_verifier.rs`;
+  `src/compiler/src/code_generator.rs`;
+  `src/compiler/tests/mutable_owner_immutable_enum_loan_tests.rs`;
+  narrowly superseded expectations in
+  `src/compiler/tests/immutable_enum_reference_tests.rs` and
+  `src/compiler/tests/mutable_enum_reference_tests.rs`, plus the obsolete
+  mutable-owner blanket-rejection cases in `conditional_enum_ownership_tests.rs`,
+  `loop_local_enum_ownership_tests.rs`, `multi_field_enum_tests.rs`,
+  `owned_enum_reinitialization_tests.rs`, and `owned_enum_reassignment_tests.rs`;
+  `src/compiler/tests/windows_native_system_gate_tests.rs`;
+  `examples/mutable_owner_immutable_enum_loans/main.aero` and its one direct module;
+  `.github/workflows/rust.yml`; and proportional updates to `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and `README.md`. No
+  dependency, release, benchmark, claim-verification, protection, master, external
+  repository, or user-owned `tmp/` change is authorized.
+- Scope amendment before the new file edits: red exclusion enumeration proved that
+  fresh loop-local loans can otherwise disappear from the outer loop snapshot and that
+  legacy ownership tests still assert the superseded blanket rejection. The allowed
+  surface therefore includes the existing shared `ownership_flow.rs` authority and
+  only those five narrow expectation corrections; this does not broaden the frozen
+  semantics or authorize unrelated ownership changes.
+- Stop conditions and risks: stop before broadening if the positive class requires
+  projected provenance, NLL/use-site inference, drop/lifetime semantics, a public enum
+  layout or ABI, unsupported enum payloads, a phase-local duplicate guard, more than
+  the existing private pointer representation, weakening any test/specification, or
+  stacking on a red baseline. Primary regression risks are ending only one of several
+  aliases, accepting owner mutation while another alias remains live, accepting a
+  forged end/source/schema, losing a loan on a CFG edge, or treating an immutable alias
+  as a freely transportable owned enum. Candidate and public acceptance remain
+  separate. The four scaling controls remain active: bounded PR, hard-capability
+  progress, proportional structured evidence, and a composed source-to-native gate.
+
+### CORE-085 exact red checkpoint
+
+- Before any production mutation, focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  mutable_owner_immutable_enum_loan_tests -- --nocapture` runs 0/2 green. The first
+  test-only specimen used an unsupported `true` identifier; replacing it with the
+  established `1 < 2` Boolean expression exposed the authoritative boundary in both
+  tests: `immutable enum borrow source \`unit\` must not be declared mutable;
+  mutable-owner loan lifetimes are not admitted`.
+- The red product already contains admitted unit, unary, and positional multi-field
+  recursive-CopyData enums; explicit and inferred local aliases; simultaneous and
+  nested aliases; exact immutable-reference parameters; repeated exhaustive Match
+  reads; direct temporary loans; lexical release; post-loan direct owner assignment;
+  post-loan exact mutable-reference replacement; final owned Match; semantic-to-checked
+  and direct checked-admission paths; expected checked identities; and trusted LLVM
+  generation. No compiler production, existing test expectation, workflow, example,
+  dependency, master, external repository, or user-owned `tmp/` content changed at
+  this checkpoint.
+
+### CORE-085 local green candidate checkpoint
+
+- Implementation summary: the shared local-reference pointee classifier now admits an
+  immutable reference to an initialized mutable direct owner only for the already
+  admitted destructor-free enum class. Semantic analysis and semantic-independent
+  checked admission use that same classifier. One shared ownership-flow predicate
+  rejects a live mutable-owner immutable-enum loan on `break` or `continue`; moves,
+  owned Match, assignment, and mutable borrowing remain excluded while a shared loan is
+  live. No phase-local duplicate source-shape guard was added.
+- Exact checked contract: `CheckedMutableOwnerImmutableEnumBorrowEnd` carries the
+  reference place, source owner place, and exact enum schema. The generator records
+  every bound and direct-call loan, ends direct temporaries immediately after their
+  exact call, ends bound aliases at lexical fallthrough or function return, restores
+  loan maps across generated sibling paths, and leaves legacy mutable-reference return
+  behavior unchanged. The independent verifier validates borrow/end provenance and
+  schema, counts overlapping aliases, forbids owner access until the last exact end,
+  requires identical loan state at reachable CFG joins, and rejects live loans at
+  return. LLVM treats the verified end as a no-op over the existing private pointer
+  representation; no new public layout or ABI exists.
+- Enumeration and corruption evidence: the focused target covers unit, unary, and
+  positional multi-field recursive-CopyData enums; explicit/inferred, simultaneous,
+  nested, and function-scope aliases; immutable-reference parameters; immediate direct
+  call loans; repeated exhaustive Match; post-loan assignment, exact mutable
+  replacement, and final owned Match. Its negative product covers every frozen owner
+  access, free dereference/transport/storage/escape, source-state, schema, unsupported
+  topology, and live loop-transfer boundary in semantic, direct checked-admission, and
+  compile paths. The dedicated verifier control rejects missing, duplicate, wrong-
+  reference, wrong-source, wrong-schema, fabricated, overlapping-owner-access,
+  one-branch-only end mutations, and a reference call after its loan end while accepting
+  two exact overlapping aliases and an exact active-reference call.
+- Regression correction before publication: the first repository gate passed 213/213
+  library and 32/32 binary tests but exposed a panic in the existing
+  `mutable_scalar_reference_tests` target. Return cleanup had been applied to legacy
+  mutable scalar loans as well as the new class, so one generated early-return arm
+  removed state needed by its sibling. The existing target was the red proof. Cleanup
+  was narrowed to mutable-owner immutable-enum loans and their exact map alone; the
+  unchanged legacy target, CORE-083 target, and CORE-085 target then pass together
+  1/1, 5/5, and 4/4. An exploratory loan-across-conditional-join specimen remains
+  rejected by the already frozen control-flow boundary and was not used to invent or
+  broaden semantics.
+- Final diff audit found that call lowering initially ended any mapped immutable enum
+  reference argument after its first call, conflating a named bound alias with a direct
+  temporary `&owner`. A new ordering assertion ran red 0/1 by proving the end preceded
+  the bound alias's second call. Immediate cleanup is now restricted to syntactic direct
+  borrow arguments; one named alias may be reused across calls until its single lexical
+  end, and the independent CFG verifier rejects any call after that end. The focused
+  ordering and corruption controls pass after this pre-publication correction.
+- Files changed: the task's seven authorized compiler modules; the new focused test;
+  narrow superseded expectations in the seven listed ownership/reference targets; the
+  Windows gate contract; the two-file direct-module example; the Rust workflow; and the
+  four proportional capability/state documents plus this one authorization record.
+  No dependency, release, benchmark, claim-verification, protection, master, external
+  repository, or user-owned `tmp/` content changed.
+- Commands and results: `cargo fmt --all -- --check` and `git diff --check` pass;
+  `cargo clippy --locked --all-targets -- -D clippy::correctness` passes; the complete
+  nine-target changed-class neighborhood passes 19/19; the dedicated verifier test
+  passes 1/1; public CLI `check` and `build` pass for the tracked module example; the
+  Windows gate contract passes 1/1; and final `./tools/test.sh` passes formatting,
+  correctness-denying Clippy, 213 library tests, 32 binary tests, every integration
+  target, and doc tests. Ninety-seven unchanged tracked `.aero` fixtures were
+  normalized from their Windows checkout CRLF bytes only for byte-identity tests and
+  restored afterward with no tracked example/benchmark diff. This workstation has no
+  accepted LLVM 22 verifier, so local native execution is not claimed.
+- Remaining uncertainty and regression risk: exact candidate identity, public
+  stable/nightly Linux and pinned Windows LLVM/Clang 22 native exit 85, CodeQL,
+  protected merge, and post-merge workflows remain pending. Loans live across CFG
+  joins, projected or free enum reference use, reference results/escape/storage,
+  aggregate enum storage, unsupported enums, lifetime/NLL/drop, stable ABI/FFI,
+  accelerator, release, performance, stability, and general memory-safety claims remain
+  absent. Candidate status is local only.
+- Recommended next action: freeze the exact implementation commit and tree, publish one
+  bounded CORE-085 PR with a current front page, require every exact-head workflow and
+  native exit-85 lane, merge only through protected master, and verify the exact merge
+  before selecting the next executable capability class.
+
 ## CORE-084 - immutable Match access to admitted enums
 
 - Date/task/status: 2026-08-10, `CORE-084`, lead-owned red-first positive vertical

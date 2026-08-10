@@ -283,6 +283,9 @@ impl CodeGenerator {
                 | Inst::CheckedMutableReferenceParameter { pointee, .. } => {
                     Self::collect_logical_struct_schema(pointee, schemas);
                 }
+                Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { schema, .. } => {
+                    Self::collect_logical_struct_schema(&schema.logical_type(), schemas);
+                }
                 Inst::CheckedStructAlloca {
                     struct_name,
                     field_types,
@@ -416,6 +419,9 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, reference);
                 }
                 Inst::CheckedMutableBorrowEnd {
+                    reference, source, ..
+                }
+                | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
                     reference, source, ..
                 } => {
                     Self::bump_seed_from_value(&mut seed, reference);
@@ -866,6 +872,7 @@ impl CodeGenerator {
                 | Inst::CheckedImmutableEnumMatchRead { .. }
                 | Inst::CheckedMutableBorrow { .. }
                 | Inst::CheckedMutableBorrowEnd { .. }
+                | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { .. }
                 | Inst::CheckedImmutableReferenceParameter { .. }
                 | Inst::CheckedMutableReferenceParameter { .. }
                 | Inst::CheckedEnumParameter { .. }
@@ -1927,7 +1934,8 @@ impl CodeGenerator {
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %{parameter}, i64 0\n"
                     ));
                 }
-                Inst::CheckedMutableBorrowEnd { .. } => {}
+                Inst::CheckedMutableBorrowEnd { .. }
+                | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { .. } => {}
                 Inst::CheckedEnumParameter {
                     result,
                     parameter,

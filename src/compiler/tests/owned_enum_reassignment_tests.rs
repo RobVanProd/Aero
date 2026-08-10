@@ -286,12 +286,9 @@ fn owned_enum_reassignment_class_is_complete_checked_and_executable() {
             vec!["moved"],
         ),
         (
-            "mutable enum owner immutable loan remains excluded",
+            "assignment while immutable enum loan remains live",
             "enum E { A } fn main() { let mut value = E::A; let alias = &value; value = E::A; }",
-            vec![
-                "immutable enum borrow source",
-                "mutable-owner loan lifetimes",
-            ],
+            vec!["borrowed"],
         ),
         (
             "enum field storage remains excluded",

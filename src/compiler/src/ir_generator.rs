@@ -33,7 +33,8 @@ use crate::ownership_flow::{
     ConditionalOwnershipArm, LOOP_OWNERSHIP_FIXED_POINT_LIMIT, LoopControlSnapshots,
     LoopOwnershipDisposition, LoopOwnershipEdge, LoopOwnershipEdgeKind, LoopOwnershipKind,
     OwnershipFlowDisposition, block_reaches_merge, classify_conditional_ownership,
-    classify_loop_ownership, classify_owned_consumption_paths, maybe_moved_diagnostic,
+    classify_loop_ownership, classify_owned_consumption_paths,
+    live_mutable_owner_immutable_enum_loan_edge_diagnostic, maybe_moved_diagnostic,
     statement_reaches_merge,
 };
 use crate::primitive_contract::PrimitiveKind;
@@ -122,6 +123,7 @@ struct GeneratedScopeSnapshot {
     bindings: HashMap<String, (Value, Ty)>,
     immutable_owned_enum_places: HashMap<String, Value>,
     mutable_owned_enum_places: HashMap<String, Value>,
+    mutable_owner_immutable_enum_reference_sources: HashMap<u32, (Value, EnumSchema)>,
 }
 
 #[derive(Clone, Copy)]
@@ -146,6 +148,7 @@ pub struct IrGenerator {
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
     mutable_reference_sources: HashMap<u32, Value>,
+    mutable_owner_immutable_enum_reference_sources: HashMap<u32, (Value, EnumSchema)>,
     immutable_owned_enum_places: HashMap<String, Value>,
     mutable_owned_enum_places: HashMap<String, Value>,
     function_return_types: HashMap<String, Ty>,
@@ -168,6 +171,7 @@ impl IrGenerator {
             next_ptr: 0,
             symbol_table: HashMap::new(),
             mutable_reference_sources: HashMap::new(),
+            mutable_owner_immutable_enum_reference_sources: HashMap::new(),
             immutable_owned_enum_places: HashMap::new(),
             mutable_owned_enum_places: HashMap::new(),
             function_return_types: HashMap::new(),
@@ -233,6 +237,7 @@ impl IrGenerator {
         self.next_ptr = 0;
         self.symbol_table.clear();
         self.mutable_reference_sources.clear();
+        self.mutable_owner_immutable_enum_reference_sources.clear();
         self.immutable_owned_enum_places.clear();
         self.mutable_owned_enum_places.clear();
         self.function_return_types.clear();
@@ -1018,12 +1023,27 @@ impl IrGenerator {
         let Some(mut paths) = Self::owned_match_consumption_paths(expression, bindings, program)
         else {
             for name in consumed {
-                let binding = bindings.get_mut(&name).ok_or_else(|| {
+                let binding = bindings.get(&name).ok_or_else(|| {
                     IrGenerationError::Admission(format!(
                         "checked IR has no binding for consumed enum owner `{name}`"
                     ))
                 })?;
-                binding.ownership = OwnershipState::Moved;
+                let ty = binding.ty.clone();
+                let entry = binding.ownership.clone();
+                let paths = vec![vec![name.clone()]];
+                match classify_owned_consumption_paths(&name, &ty, &entry, &paths, inside_loop) {
+                    OwnershipFlowDisposition::Joined(Some(state)) => {
+                        bindings
+                            .get_mut(&name)
+                            .expect("consumed enum owner remains admitted")
+                            .ownership = state;
+                    }
+                    OwnershipFlowDisposition::Joined(None)
+                    | OwnershipFlowDisposition::PreserveExistingBehavior => {}
+                    OwnershipFlowDisposition::ExplicitlyRejected(message) => {
+                        return Err(IrGenerationError::Admission(message));
+                    }
+                }
             }
             return Ok(());
         };
@@ -1853,6 +1873,17 @@ impl IrGenerator {
                         "break and continue are only admitted inside loops".to_string(),
                     ));
                 }
+                for (name, binding) in bindings.iter() {
+                    if let Some(message) = live_mutable_owner_immutable_enum_loan_edge_diagnostic(
+                        name,
+                        &binding.ty,
+                        binding.mutable,
+                        &binding.ownership,
+                        LoopOwnershipEdgeKind::Break,
+                    ) {
+                        return Err(IrGenerationError::Admission(message));
+                    }
+                }
                 loop_controls
                     .last_mut()
                     .expect("inside_loop requires an admission control frame")
@@ -1864,6 +1895,17 @@ impl IrGenerator {
                     return Err(IrGenerationError::Admission(
                         "break and continue are only admitted inside loops".to_string(),
                     ));
+                }
+                for (name, binding) in bindings.iter() {
+                    if let Some(message) = live_mutable_owner_immutable_enum_loan_edge_diagnostic(
+                        name,
+                        &binding.ty,
+                        binding.mutable,
+                        &binding.ownership,
+                        LoopOwnershipEdgeKind::Continue,
+                    ) {
+                        return Err(IrGenerationError::Admission(message));
+                    }
                 }
                 loop_controls
                     .last_mut()
@@ -3022,6 +3064,9 @@ impl IrGenerator {
                 }
                 Inst::CheckedMutableBorrowEnd {
                     reference, source, ..
+                }
+                | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+                    reference, source, ..
                 } => {
                     Self::rewrite_place(reference, &places);
                     Self::rewrite_place(source, &places);
@@ -3278,6 +3323,9 @@ impl IrGenerator {
             bindings: self.symbol_table.clone(),
             immutable_owned_enum_places: self.immutable_owned_enum_places.clone(),
             mutable_owned_enum_places: self.mutable_owned_enum_places.clone(),
+            mutable_owner_immutable_enum_reference_sources: self
+                .mutable_owner_immutable_enum_reference_sources
+                .clone(),
         }
     }
 
@@ -3287,6 +3335,8 @@ impl IrGenerator {
             .clone_from(&before_scope.immutable_owned_enum_places);
         self.mutable_owned_enum_places
             .clone_from(&before_scope.mutable_owned_enum_places);
+        self.mutable_owner_immutable_enum_reference_sources
+            .clone_from(&before_scope.mutable_owner_immutable_enum_reference_sources);
     }
 
     fn end_new_mutable_references(
@@ -3330,6 +3380,81 @@ impl IrGenerator {
             });
             self.mutable_reference_sources.remove(&id);
         }
+    }
+
+    fn end_new_mutable_owner_immutable_enum_references(
+        &mut self,
+        before_scope: &HashMap<String, (Value, Ty)>,
+        function: &mut Function,
+    ) {
+        let ended = self
+            .symbol_table
+            .iter()
+            .filter_map(|(name, (reference, ty))| {
+                let Ty::Reference(pointee, false) = ty else {
+                    return None;
+                };
+                if !matches!(pointee.as_ref(), Ty::Enum(_)) {
+                    return None;
+                }
+                let existed = before_scope
+                    .get(name)
+                    .is_some_and(|(prior, prior_ty)| prior == reference && prior_ty == ty);
+                if existed {
+                    return None;
+                }
+                let Value::Reg(reference_id) = reference else {
+                    unreachable!("checked immutable enum references use place identifiers")
+                };
+                self.mutable_owner_immutable_enum_reference_sources
+                    .get(reference_id)
+                    .map(|(source, schema)| {
+                        (
+                            *reference_id,
+                            reference.clone(),
+                            source.clone(),
+                            schema.clone(),
+                        )
+                    })
+            })
+            .collect::<Vec<_>>();
+        for (id, reference, source, schema) in ended {
+            function
+                .body
+                .push(Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+                    reference,
+                    source,
+                    schema,
+                });
+            self.mutable_owner_immutable_enum_reference_sources
+                .remove(&id);
+        }
+    }
+
+    fn end_new_lexical_references(
+        &mut self,
+        before_scope: &HashMap<String, (Value, Ty)>,
+        function: &mut Function,
+    ) {
+        self.end_new_mutable_owner_immutable_enum_references(before_scope, function);
+        self.end_new_mutable_references(before_scope, function);
+    }
+
+    fn end_all_active_mutable_owner_immutable_enum_references(&mut self, function: &mut Function) {
+        let nonlocal_bindings = self
+            .symbol_table
+            .iter()
+            .filter(|(_, (value, _))| {
+                let Value::Reg(id) = value else {
+                    return true;
+                };
+                !self
+                    .mutable_owner_immutable_enum_reference_sources
+                    .contains_key(id)
+            })
+            .map(|(name, binding)| (name.clone(), binding.clone()))
+            .collect::<HashMap<_, _>>();
+        self.end_new_mutable_owner_immutable_enum_references(&nonlocal_bindings, function);
     }
 
     fn generate_binding_expression_ir(
@@ -3789,6 +3914,9 @@ impl IrGenerator {
                         .push(Inst::FPToSI(converted.clone(), return_value));
                     return_value = converted;
                 }
+                if self.checked_mode {
+                    self.end_all_active_mutable_owner_immutable_enum_references(current_function);
+                }
                 current_function.body.push(Inst::Return(return_value));
             }
             Statement::Function {
@@ -3857,7 +3985,7 @@ impl IrGenerator {
                         .last()
                         .is_some_and(Self::instruction_terminates_block)
                 {
-                    self.end_new_mutable_references(&scope_snapshot.bindings, current_function);
+                    self.end_new_lexical_references(&scope_snapshot.bindings, current_function);
                 }
                 self.restore_bindings(&scope_snapshot);
             }
@@ -3976,7 +4104,10 @@ impl IrGenerator {
                 // Generate IR for arguments
                 let mut arg_values = Vec::new();
                 let mut temporary_mutable_borrows = Vec::new();
+                let mut temporary_mutable_owner_immutable_enum_borrows = Vec::new();
                 for arg in arguments {
+                    let direct_mutable_owner_immutable_enum_borrow =
+                        matches!(&arg, Expression::Borrow { mutable: false, .. });
                     let direct_mutable_source = if mutable_call_source_mode
                         == Some(ReferenceCallSourceMode::DirectOwnerBorrow)
                         && let Expression::Borrow {
@@ -3992,6 +4123,20 @@ impl IrGenerator {
                         None
                     };
                     let (mut arg_value, arg_type) = self.generate_expression_ir(arg, function);
+                    if direct_mutable_owner_immutable_enum_borrow
+                        && let Value::Reg(reference_id) = &arg_value
+                        && let Some((source, schema)) = self
+                            .mutable_owner_immutable_enum_reference_sources
+                            .get(reference_id)
+                            .cloned()
+                    {
+                        temporary_mutable_owner_immutable_enum_borrows.push((
+                            *reference_id,
+                            arg_value.clone(),
+                            source,
+                            schema,
+                        ));
+                    }
                     if let Some((source, pointee)) = direct_mutable_source {
                         let Ty::Reference(actual, true) = &arg_type else {
                             unreachable!("checked direct mutable call retains reference type")
@@ -4040,6 +4185,19 @@ impl IrGenerator {
                         source,
                         pointee,
                     });
+                }
+                for (id, reference, source, schema) in
+                    temporary_mutable_owner_immutable_enum_borrows
+                {
+                    function
+                        .body
+                        .push(Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+                            reference,
+                            source,
+                            schema,
+                        });
+                    self.mutable_owner_immutable_enum_reference_sources
+                        .remove(&id);
                 }
                 if matches!(&return_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
                     let place = self.store_copy_aggregate_value(result, &return_type, function);
@@ -4306,19 +4464,33 @@ impl IrGenerator {
                     self.admitted_reference_pointee_logical_type(&pointee, context);
                 let result = Value::Reg(self.next_ptr);
                 self.next_ptr += 1;
-                function.body.push(if mutable {
+                let instruction = if mutable {
                     Inst::CheckedMutableBorrow {
                         result: result.clone(),
-                        source,
-                        pointee: pointee_contract,
+                        source: source.clone(),
+                        pointee: pointee_contract.clone(),
                     }
                 } else {
                     Inst::CheckedImmutableBorrow {
                         result: result.clone(),
-                        source,
-                        pointee: pointee_contract,
+                        source: source.clone(),
+                        pointee: pointee_contract.clone(),
                     }
-                });
+                };
+                function.body.push(instruction);
+                if !mutable
+                    && matches!(pointee, Ty::Enum(_))
+                    && self.mutable_owned_enum_places.get(name) == Some(&source)
+                {
+                    let LogicalType::Enum { name, variants } = pointee_contract else {
+                        unreachable!("checked immutable enum borrow retains an exact schema")
+                    };
+                    let Value::Reg(reference_id) = &result else {
+                        unreachable!("checked immutable enum borrow uses a place identifier")
+                    };
+                    self.mutable_owner_immutable_enum_reference_sources
+                        .insert(*reference_id, (source, EnumSchema { name, variants }));
+                }
                 (result, Ty::Reference(Box::new(pointee), mutable))
             }
             Expression::Deref(reference) if self.checked_mode => {
@@ -4612,6 +4784,8 @@ impl IrGenerator {
         // Save current state
         let saved_symbol_table = self.symbol_table.clone();
         let saved_mutable_reference_sources = self.mutable_reference_sources.clone();
+        let saved_mutable_owner_immutable_enum_reference_sources =
+            self.mutable_owner_immutable_enum_reference_sources.clone();
         let saved_immutable_owned_enum_places = self.immutable_owned_enum_places.clone();
         let saved_mutable_owned_enum_places = self.mutable_owned_enum_places.clone();
         let saved_next_reg = self.next_reg;
@@ -4620,6 +4794,7 @@ impl IrGenerator {
         // Reset for function generation
         self.symbol_table.clear();
         self.mutable_reference_sources.clear();
+        self.mutable_owner_immutable_enum_reference_sources.clear();
         self.immutable_owned_enum_places.clear();
         self.mutable_owned_enum_places.clear();
         self.next_reg = 0;
@@ -4750,6 +4925,9 @@ impl IrGenerator {
             let (mut return_value, return_ty) = self.generate_expression_ir(expr, &mut function_ir);
             return_value =
                 self.load_copy_aggregate_value(return_value, &return_ty, &mut function_ir);
+            if self.checked_mode {
+                self.end_all_active_mutable_owner_immutable_enum_references(&mut function_ir);
+            }
             function_ir.body.push(Inst::Return(return_value));
         } else if !function_ir
             .body
@@ -4758,6 +4936,9 @@ impl IrGenerator {
         {
             // If no explicit return exists, emit a default scalar return.
             // `None` return type is lowered as `void` in codegen.
+            if self.checked_mode {
+                self.end_all_active_mutable_owner_immutable_enum_references(&mut function_ir);
+            }
             function_ir.body.push(Inst::Return(Value::ImmInt(0)));
         }
 
@@ -4821,6 +5002,8 @@ impl IrGenerator {
         // Restore state
         self.symbol_table = saved_symbol_table;
         self.mutable_reference_sources = saved_mutable_reference_sources;
+        self.mutable_owner_immutable_enum_reference_sources =
+            saved_mutable_owner_immutable_enum_reference_sources;
         self.immutable_owned_enum_places = saved_immutable_owned_enum_places;
         self.mutable_owned_enum_places = saved_mutable_owned_enum_places;
         self.next_reg = saved_next_reg;
@@ -5114,7 +5297,7 @@ impl IrGenerator {
             .is_some_and(Self::instruction_terminates_block);
         if !then_terminates {
             if self.checked_mode {
-                self.end_new_mutable_references(&scope_snapshot.bindings, current_function);
+                self.end_new_lexical_references(&scope_snapshot.bindings, current_function);
             }
             current_function.body.push(Inst::Jump(end_label.clone()));
         }

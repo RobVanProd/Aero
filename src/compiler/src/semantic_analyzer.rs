@@ -29,7 +29,8 @@ use crate::ownership_flow::{
     ConditionalOwnershipArm, LOOP_OWNERSHIP_FIXED_POINT_LIMIT, LoopControlSnapshots,
     LoopOwnershipDisposition, LoopOwnershipEdge, LoopOwnershipEdgeKind, LoopOwnershipKind,
     OwnershipFlowDisposition, block_reaches_merge, classify_conditional_ownership,
-    classify_loop_ownership, classify_owned_consumption_paths, maybe_moved_diagnostic,
+    classify_loop_ownership, classify_owned_consumption_paths,
+    live_mutable_owner_immutable_enum_loan_edge_diagnostic, maybe_moved_diagnostic,
     statement_reaches_merge,
 };
 use crate::primitive_contract::PrimitiveKind;
@@ -586,6 +587,11 @@ impl ScopeManager {
                     }
                     OwnershipState::MaybeMoved => {
                         return Err(maybe_moved_diagnostic(name));
+                    }
+                    OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
+                        return Err(format!(
+                            "enum owner `{name}` cannot move while it is borrowed"
+                        ));
                     }
                     _ => {}
                 }
@@ -3516,12 +3522,42 @@ impl SemanticAnalyzer {
                 if !self.scope_manager.can_break_continue() {
                     return Err("Error: Break statement outside of loop.".to_string());
                 }
+                for scope in self.scope_manager.scopes.iter().rev() {
+                    for (name, variable) in scope {
+                        if let Some(message) =
+                            live_mutable_owner_immutable_enum_loan_edge_diagnostic(
+                                name,
+                                &variable.var_type,
+                                variable.mutable,
+                                &variable.ownership,
+                                LoopOwnershipEdgeKind::Break,
+                            )
+                        {
+                            return Err(message);
+                        }
+                    }
+                }
                 self.scope_manager.record_loop_break();
                 Ok(())
             }
             Statement::Continue => {
                 if !self.scope_manager.can_break_continue() {
                     return Err("Error: Continue statement outside of loop.".to_string());
+                }
+                for scope in self.scope_manager.scopes.iter().rev() {
+                    for (name, variable) in scope {
+                        if let Some(message) =
+                            live_mutable_owner_immutable_enum_loan_edge_diagnostic(
+                                name,
+                                &variable.var_type,
+                                variable.mutable,
+                                &variable.ownership,
+                                LoopOwnershipEdgeKind::Continue,
+                            )
+                        {
+                            return Err(message);
+                        }
+                    }
                 }
                 self.scope_manager.record_loop_continue();
                 Ok(())

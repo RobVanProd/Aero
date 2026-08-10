@@ -587,11 +587,6 @@ pub(crate) fn classify_local_borrow_with_enums(
             return LocalReferenceDisposition::ExplicitlyRejected(message);
         }
     };
-    if !mutable && matches!(contract.pointee, Ty::Enum(_)) && facts.mutable {
-        return LocalReferenceDisposition::ExplicitlyRejected(format!(
-            "immutable enum borrow source `{name}` must not be declared mutable; mutable-owner loan lifetimes are not admitted"
-        ));
-    }
     if mutable && !facts.mutable {
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
             "mutable borrow source `{name}` must be declared mutable"
