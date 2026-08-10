@@ -1154,6 +1154,7 @@ struct FunctionVerifier<'a> {
     immutable_enum_owner_places: BTreeSet<PlaceId>,
     mutable_owned_places: BTreeSet<PlaceId>,
     match_result_places: BTreeSet<PlaceId>,
+    immutable_enum_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
     dominators: Vec<BTreeSet<usize>>,
@@ -1183,6 +1184,7 @@ impl<'a> FunctionVerifier<'a> {
             immutable_enum_owner_places: BTreeSet::new(),
             mutable_owned_places: BTreeSet::new(),
             match_result_places: BTreeSet::new(),
+            immutable_enum_reference_origins: BTreeMap::new(),
             mutable_reference_origins: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
             dominators,
@@ -1304,6 +1306,160 @@ impl<'a> FunctionVerifier<'a> {
         ) {
             consumed.remove(&EnumOwner::Result(result));
         }
+    }
+
+    fn verify_mutable_owner_immutable_enum_loan_flow(&self) -> Result<(), IrVerificationError> {
+        let by_label = self
+            .blocks
+            .iter()
+            .enumerate()
+            .map(|(index, block)| (block.label.clone(), index))
+            .collect::<HashMap<_, _>>();
+        let mut incoming = vec![None::<BTreeMap<PlaceId, PlaceId>>; self.blocks.len()];
+        incoming[0] = Some(BTreeMap::new());
+        let mut queue = VecDeque::from([0]);
+
+        while let Some(block_index) = queue.pop_front() {
+            let mut active = incoming[block_index]
+                .clone()
+                .expect("queued loan-flow block has an incoming state");
+            for (position, instruction) in &self.blocks[block_index].instructions {
+                match instruction {
+                    Inst::CheckedImmutableBorrow { result, source, .. } => {
+                        let Some(reference) = reg(result).map(PlaceId) else {
+                            continue;
+                        };
+                        let Some(source) = reg(source).map(PlaceId) else {
+                            continue;
+                        };
+                        if self.mutable_owned_places.contains(&source)
+                            && self.immutable_enum_reference_origins.get(&reference)
+                                == Some(&source)
+                            && active.insert(reference, source).is_some()
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "immutable enum reference place {} is activated more than once on one control-flow path",
+                                    reference.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+                        reference, source, ..
+                    } => {
+                        let Some(reference) = reg(reference).map(PlaceId) else {
+                            continue;
+                        };
+                        let Some(source) = reg(source).map(PlaceId) else {
+                            continue;
+                        };
+                        if active.remove(&reference) != Some(source) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "mutable-owner immutable enum loan end for reference place {} does not match the active control-flow state",
+                                    reference.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedImmutableEnumMatchRead { reference, .. } => {
+                        let Some(reference) = reg(reference).map(PlaceId) else {
+                            continue;
+                        };
+                        if let Some(source) = self
+                            .immutable_enum_reference_origins
+                            .get(&reference)
+                            .copied()
+                            && self.mutable_owned_places.contains(&source)
+                            && active.get(&reference) != Some(&source)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "immutable enum Match read through reference place {} is outside its active control-flow loan",
+                                    reference.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::Call { arguments, .. } => {
+                        for argument in arguments {
+                            let Some(reference) = reg(argument).map(PlaceId) else {
+                                continue;
+                            };
+                            if let Some(source) = self
+                                .immutable_enum_reference_origins
+                                .get(&reference)
+                                .copied()
+                                && self.mutable_owned_places.contains(&source)
+                                && active.get(&reference) != Some(&source)
+                            {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "immutable enum reference place {} is passed outside its active control-flow loan",
+                                        reference.0
+                                    )),
+                                ));
+                            }
+                        }
+                    }
+                    Inst::Store(target, _)
+                    | Inst::CheckedOwnedPlaceAssignment { target, .. }
+                    | Inst::Load(_, target)
+                    | Inst::CheckedMutableBorrow { source: target, .. } => {
+                        let Some(target) = reg(target).map(PlaceId) else {
+                            continue;
+                        };
+                        if active.values().any(|source| *source == target) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "owner place {} is accessed while an immutable enum loan is active on this control-flow path",
+                                    target.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::Return(_) if !active.is_empty() => {
+                        return Err(self.error(
+                            block_index,
+                            IrVerificationErrorKind::MetadataMismatch(
+                                "mutable-owner immutable enum loans must end before every return"
+                                    .to_string(),
+                            ),
+                        ));
+                    }
+                    _ => {
+                        let _ = position;
+                    }
+                }
+            }
+
+            for successor in &self.blocks[block_index].successors {
+                let successor = by_label[successor];
+                match &incoming[successor] {
+                    None => {
+                        incoming[successor] = Some(active.clone());
+                        queue.push_back(successor);
+                    }
+                    Some(existing) if existing == &active => {}
+                    Some(_) => {
+                        return Err(self.error(
+                            successor,
+                            IrVerificationErrorKind::MetadataMismatch(
+                                "mutable-owner immutable enum loan state differs across a control-flow join"
+                                    .to_string(),
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn transfer_enum_ownership(
@@ -2385,6 +2541,9 @@ impl<'a> FunctionVerifier<'a> {
                                     )),
                                 ));
                             }
+                            if matches!(pointee, LogicalType::Enum { .. }) {
+                                self.immutable_enum_reference_origins.insert(id, source_id);
+                            }
                             (PlaceType::Known(pointee.clone()), None)
                         }
                         Inst::CheckedMutableBorrow {
@@ -2899,6 +3058,8 @@ impl<'a> FunctionVerifier<'a> {
         let mut bound_mutable_reference_parameters = BTreeSet::new();
         let mut initialized_immutable_enum_places = BTreeSet::new();
         let mut initialized_mutable_places = BTreeSet::new();
+        let mut active_mutable_owner_immutable_enum_references = BTreeSet::new();
+        let mut active_mutable_owner_immutable_enum_sources = BTreeMap::<PlaceId, usize>::new();
         let mut active_mutable_references = BTreeSet::new();
         let mut active_mutable_sources = BTreeSet::new();
         for block_index in 0..self.blocks.len() {
@@ -2996,6 +3157,15 @@ impl<'a> FunctionVerifier<'a> {
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "generic store to source place {} is forbidden while its mutable reference is active",
+                                    id.0
+                                )),
+                            ));
+                        }
+                        if active_mutable_owner_immutable_enum_sources.contains_key(&id) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "generic store to source place {} is forbidden while an immutable enum reference is active",
                                     id.0
                                 )),
                             ));
@@ -3141,6 +3311,15 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
+                        if active_mutable_owner_immutable_enum_sources.contains_key(&target) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked owned-place assignment to source place {} is forbidden while an immutable enum reference is active",
+                                    target.0
+                                )),
+                            ));
+                        }
                         let actual = self.places.get(&target).and_then(PlaceType::logical);
                         if actual.as_ref() != Some(ty) {
                             return Err(self.error(
@@ -3192,6 +3371,15 @@ impl<'a> FunctionVerifier<'a> {
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "load from source place {} is forbidden while its mutable reference is active",
+                                    place.0
+                                )),
+                            ));
+                        }
+                        if active_mutable_owner_immutable_enum_sources.contains_key(&place) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "load from source place {} is forbidden while an immutable enum reference is active",
                                     place.0
                                 )),
                             ));
@@ -3621,8 +3809,18 @@ impl<'a> FunctionVerifier<'a> {
                         )?;
                     }
                     Inst::CheckedImmutableBorrow {
-                        source, pointee, ..
+                        result,
+                        source,
+                        pointee,
                     } => {
+                        let Some(reference) = reg(result).map(PlaceId) else {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                    "checked immutable borrow result",
+                                ),
+                            ));
+                        };
                         let source = self.require_place(
                             source,
                             "checked immutable borrow source",
@@ -3648,17 +3846,40 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
-                        if matches!(pointee, LogicalType::Enum { .. })
-                            && (!self.immutable_enum_owner_places.contains(&source)
-                                || !initialized_immutable_enum_places.contains(&source))
-                        {
-                            return Err(self.error(
-                                block_index,
-                                IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "checked immutable enum borrow source place {} is not an initialized immutable enum owner",
-                                    source.0
-                                )),
-                            ));
+                        if matches!(pointee, LogicalType::Enum { .. }) {
+                            let initialized_immutable_owner =
+                                self.immutable_enum_owner_places.contains(&source)
+                                    && initialized_immutable_enum_places.contains(&source);
+                            let initialized_mutable_owner =
+                                self.mutable_owned_places.contains(&source)
+                                    && initialized_mutable_places.contains(&source);
+                            if (!initialized_immutable_owner && !initialized_mutable_owner)
+                                || self.immutable_enum_reference_origins.get(&reference)
+                                    != Some(&source)
+                            {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked immutable enum borrow source place {} is not an initialized admitted enum owner or its origin metadata is inconsistent",
+                                        source.0
+                                    )),
+                                ));
+                            }
+                            if initialized_mutable_owner {
+                                if !active_mutable_owner_immutable_enum_references.insert(reference)
+                                {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(format!(
+                                            "immutable enum reference place {} is already active",
+                                            reference.0
+                                        )),
+                                    ));
+                                }
+                                *active_mutable_owner_immutable_enum_sources
+                                    .entry(source)
+                                    .or_insert(0) += 1;
+                            }
                         }
                     }
                     Inst::CheckedImmutableEnumMatchRead {
@@ -3689,6 +3910,21 @@ impl<'a> FunctionVerifier<'a> {
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "checked immutable enum Match read reference place {} does not carry the exact immutable enum schema",
+                                    reference.0
+                                )),
+                            ));
+                        }
+                        if let Some(source) = self
+                            .immutable_enum_reference_origins
+                            .get(&reference)
+                            .copied()
+                            && self.mutable_owned_places.contains(&source)
+                            && !active_mutable_owner_immutable_enum_references.contains(&reference)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked immutable enum Match read reference place {} occurs outside its active mutable-owner loan",
                                     reference.0
                                 )),
                             ));
@@ -3754,6 +3990,15 @@ impl<'a> FunctionVerifier<'a> {
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "checked mutable borrow source place {} is not an initialized mutable admitted owner, active local mutable reference, or mutable-reference parameter",
+                                    source.0
+                                )),
+                            ));
+                        }
+                        if active_mutable_owner_immutable_enum_sources.contains_key(&source) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable borrow of source place {} is forbidden while an immutable enum reference is active",
                                     source.0
                                 )),
                             ));
@@ -3865,6 +4110,59 @@ impl<'a> FunctionVerifier<'a> {
                                     reference.0, source.0
                                 )),
                             ));
+                        }
+                    }
+                    Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+                        reference,
+                        source,
+                        schema,
+                    } => {
+                        let reference = self.require_place(
+                            reference,
+                            "checked mutable-owner immutable enum borrow end reference",
+                            block_index,
+                            position,
+                        )?;
+                        let source = self.require_place(
+                            source,
+                            "checked mutable-owner immutable enum borrow end source",
+                            block_index,
+                            position,
+                        )?;
+                        let exact_schema = valid_enum_schema(schema)
+                            && self.places.get(&reference).and_then(PlaceType::logical)
+                                == Some(schema.logical_type())
+                            && self.places.get(&source).and_then(PlaceType::logical)
+                                == Some(schema.logical_type());
+                        let exact_origin =
+                            self.immutable_enum_reference_origins.get(&reference) == Some(&source);
+                        if !exact_schema
+                            || !exact_origin
+                            || !self.mutable_owned_places.contains(&source)
+                            || !active_mutable_owner_immutable_enum_references.remove(&reference)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable-owner immutable enum borrow end does not match active reference place {} and source place {}",
+                                    reference.0, source.0
+                                )),
+                            ));
+                        }
+                        let Some(count) =
+                            active_mutable_owner_immutable_enum_sources.get_mut(&source)
+                        else {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable-owner immutable enum borrow end has no active source place {}",
+                                    source.0
+                                )),
+                            ));
+                        };
+                        *count -= 1;
+                        if *count == 0 {
+                            active_mutable_owner_immutable_enum_sources.remove(&source);
                         }
                     }
                     Inst::CheckedImmutableReferenceParameter {
@@ -4232,6 +4530,19 @@ impl<'a> FunctionVerifier<'a> {
 
         self.verify_match_result_flow()?;
         self.verify_enum_ownership_flow()?;
+        self.verify_mutable_owner_immutable_enum_loan_flow()?;
+
+        if !active_mutable_owner_immutable_enum_references.is_empty()
+            || !active_mutable_owner_immutable_enum_sources.is_empty()
+        {
+            return Err(self.error(
+                0,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "mutable-owner immutable enum loans must end on every admitted function path"
+                        .to_string(),
+                ),
+            ));
+        }
 
         if initialized_immutable_enum_places != self.immutable_enum_owner_places {
             return Err(self.error(
@@ -4564,7 +4875,8 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                     register_type(ty, schemas, enum_schemas)?;
                 }
                 Inst::CheckedImmutableEnumOwnerPlaceAlloca { schema, .. }
-                | Inst::CheckedImmutableEnumMatchRead { schema, .. } => {
+                | Inst::CheckedImmutableEnumMatchRead { schema, .. }
+                | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { schema, .. } => {
                     register_enum(schema, schemas, enum_schemas)?;
                 }
                 Inst::CheckedTupleAlloca { element_types, .. }
@@ -8229,6 +8541,228 @@ mod tests {
             assert!(
                 verify_ir(function(body)).is_err(),
                 "{label} passed immutable enum Match-read verification"
+            );
+        }
+    }
+
+    #[test]
+    fn mutable_owner_immutable_enum_loan_identity_and_overlap_are_fail_closed() {
+        let schema = unit_schema("State", &["Idle", "Ready"]);
+        let logical = schema.logical_type();
+        let variant = || checked_variant(Value::Reg(0), schema.clone(), 0);
+        let owner = || Inst::CheckedMutableOwnedPlaceAlloca {
+            result: Value::Reg(10),
+            name: "owner".to_string(),
+            ty: logical.clone(),
+        };
+        let borrow = |reference| Inst::CheckedImmutableBorrow {
+            result: Value::Reg(reference),
+            source: Value::Reg(10),
+            pointee: logical.clone(),
+        };
+        let end = |reference| Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+            reference: Value::Reg(reference),
+            source: Value::Reg(10),
+            schema: schema.clone(),
+        };
+        let valid = || {
+            vec![
+                variant(),
+                owner(),
+                Inst::Store(Value::Reg(10), Value::Reg(0)),
+                borrow(11),
+                borrow(12),
+                end(12),
+                end(11),
+                checked_variant(Value::Reg(1), schema.clone(), 1),
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(10),
+                    value: Value::Reg(1),
+                    ty: logical.clone(),
+                },
+                Inst::Load(Value::Reg(2), Value::Reg(10)),
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+
+        verify_ir(function(valid()))
+            .expect("two exact immutable aliases must preserve the mutable owner after both ends");
+
+        let immutable_reference = LogicalType::ImmutableReference {
+            pointee: Box::new(logical.clone()),
+        };
+        let observe_body = vec![
+            Inst::CheckedImmutableReferenceParameter {
+                result: Value::Reg(0),
+                parameter: "value".to_string(),
+                pointee: logical.clone(),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ];
+        let observe_definition = Inst::CheckedFunctionDef {
+            name: "observe".to_string(),
+            parameters: vec![("value".to_string(), immutable_reference)],
+            result: LogicalType::Int,
+            body: observe_body,
+        };
+        let call_program = |runtime: Vec<Inst>| {
+            let mut main = vec![observe_definition.clone()];
+            main.extend(runtime);
+            HashMap::from([
+                (
+                    "main".to_string(),
+                    Function {
+                        name: "main".to_string(),
+                        body: main,
+                        next_reg: 32,
+                        next_ptr: 32,
+                    },
+                ),
+                (
+                    "observe".to_string(),
+                    Function {
+                        name: "observe".to_string(),
+                        body: Vec::new(),
+                        next_reg: 32,
+                        next_ptr: 32,
+                    },
+                ),
+            ])
+        };
+        let valid_call = vec![
+            variant(),
+            owner(),
+            Inst::Store(Value::Reg(10), Value::Reg(0)),
+            borrow(11),
+            Inst::Call {
+                function: "observe".to_string(),
+                arguments: vec![Value::Reg(11)],
+                result: Some(Value::Reg(1)),
+            },
+            end(11),
+            Inst::Return(Value::Reg(1)),
+        ];
+        verify_ir(call_program(valid_call.clone()))
+            .expect("an exact active immutable enum alias may be passed to its checked callee");
+        let mut call_after_end = valid_call;
+        call_after_end.swap(4, 5);
+        assert!(
+            verify_ir(call_program(call_after_end)).is_err(),
+            "immutable enum reference call after its exact loan end passed verification"
+        );
+
+        let mut missing_end = valid();
+        missing_end.remove(6);
+
+        let mut duplicate_end = valid();
+        duplicate_end.insert(7, end(11));
+
+        let mut wrong_reference = valid();
+        wrong_reference[5] = Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+            reference: Value::Reg(11),
+            source: Value::Reg(10),
+            schema: schema.clone(),
+        };
+
+        let mut wrong_source = valid();
+        wrong_source[5] = Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+            reference: Value::Reg(12),
+            source: Value::Reg(11),
+            schema: schema.clone(),
+        };
+
+        let mut wrong_schema = valid();
+        wrong_schema[5] = Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+            reference: Value::Reg(12),
+            source: Value::Reg(10),
+            schema: unit_schema("Other", &["Idle", "Ready"]),
+        };
+
+        let mut assignment_while_one_alias_remains = valid();
+        assignment_while_one_alias_remains.swap(6, 8);
+
+        let mut load_while_live = valid();
+        load_while_live.insert(5, Inst::Load(Value::Reg(3), Value::Reg(10)));
+
+        let mut mutable_borrow_while_live = valid();
+        mutable_borrow_while_live.insert(
+            5,
+            Inst::CheckedMutableBorrow {
+                result: Value::Reg(13),
+                source: Value::Reg(10),
+                pointee: logical.clone(),
+            },
+        );
+
+        let mut generic_store_while_live = valid();
+        generic_store_while_live.insert(5, Inst::Store(Value::Reg(10), Value::Reg(0)));
+
+        let mut immutable_owner_end = valid();
+        immutable_owner_end[1] = Inst::CheckedImmutableEnumOwnerPlaceAlloca {
+            result: Value::Reg(10),
+            name: "owner".to_string(),
+            schema: schema.clone(),
+        };
+
+        let fabricated_end = vec![
+            variant(),
+            owner(),
+            Inst::Store(Value::Reg(10), Value::Reg(0)),
+            end(11),
+            Inst::Return(Value::ImmInt(0)),
+        ];
+
+        let end_on_only_one_branch = vec![
+            variant(),
+            owner(),
+            Inst::Store(Value::Reg(10), Value::Reg(0)),
+            borrow(11),
+            Inst::ICmp {
+                op: "eq".to_string(),
+                result: Value::Reg(3),
+                left: Value::ImmInt(1),
+                right: Value::ImmInt(1),
+            },
+            Inst::Branch {
+                condition: Value::Reg(3),
+                true_label: "ended".to_string(),
+                false_label: "live".to_string(),
+            },
+            Inst::Label("ended".to_string()),
+            end(11),
+            Inst::Jump("merge".to_string()),
+            Inst::Label("live".to_string()),
+            Inst::Jump("merge".to_string()),
+            Inst::Label("merge".to_string()),
+            checked_variant(Value::Reg(1), schema.clone(), 1),
+            Inst::CheckedOwnedPlaceAssignment {
+                target: Value::Reg(10),
+                value: Value::Reg(1),
+                ty: logical.clone(),
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ];
+
+        for (label, body) in [
+            ("missing end", missing_end),
+            ("duplicate end", duplicate_end),
+            ("wrong reference", wrong_reference),
+            ("wrong source", wrong_source),
+            ("wrong schema", wrong_schema),
+            (
+                "assignment while one alias remains",
+                assignment_while_one_alias_remains,
+            ),
+            ("owner load while live", load_while_live),
+            ("mutable borrow while live", mutable_borrow_while_live),
+            ("generic store while live", generic_store_while_live),
+            ("immutable owner end substitution", immutable_owner_end),
+            ("fabricated end", fabricated_end),
+            ("end on only one CFG branch", end_on_only_one_branch),
+        ] {
+            assert!(
+                verify_ir(function(body)).is_err(),
+                "{label} passed mutable-owner immutable enum loan verification"
             );
         }
     }

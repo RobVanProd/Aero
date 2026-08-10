@@ -392,7 +392,7 @@ fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
         (
             "immutable loan conflict",
             "enum E { A } fn main() -> int { let mut owner = E::A; let first = &owner; let second = &mut owner; 0 }",
-            &["mutable-owner loan lifetimes", "also borrowed as immutable"],
+            &["also borrowed as immutable"],
         ),
         (
             "generic enum",

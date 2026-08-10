@@ -1,0 +1,18 @@
+fn read_mode(value: &Mode) -> int {
+    match *value { Mode::Off => 0, Mode::On => 5 }
+}
+
+fn read_packet(value: &Packet) -> int {
+    match *value {
+        Packet::Empty => 0,
+        Packet::Pair(number, ready) => number
+    }
+}
+
+fn replace_mode(value: &mut Mode) {
+    *value = Mode::On;
+}
+
+fn replace_packet(value: &mut Packet) {
+    *value = Packet::Pair(23, 1 < 2);
+}

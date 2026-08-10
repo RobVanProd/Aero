@@ -64,6 +64,24 @@ pub(crate) struct LoopOwnershipEdge {
     pub(crate) state: OwnershipState,
 }
 
+pub(crate) fn live_mutable_owner_immutable_enum_loan_edge_diagnostic(
+    name: &str,
+    ty: &Ty,
+    mutable_owner: bool,
+    ownership: &OwnershipState,
+    edge: LoopOwnershipEdgeKind,
+) -> Option<String> {
+    (mutable_owner
+        && matches!(ty, Ty::Enum(_))
+        && matches!(ownership, OwnershipState::ImmutablyBorrowed(_)))
+    .then(|| {
+        format!(
+            "immutable enum loan from mutable owner `{name}` cannot cross the {}",
+            edge.diagnostic_name()
+        )
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LoopControlSnapshots<S> {
     pub(crate) breaks: Vec<S>,

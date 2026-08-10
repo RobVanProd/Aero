@@ -61,6 +61,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mutable whole-place enum references (`CORE-083`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Immutable enum-reference Match reads (`CORE-084`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Mutable-owner immutable enum loans (`CORE-085` local candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -113,6 +114,20 @@ mutable-owner loans,
 mutable-reference reads, reference results/escape/storage/capture, aggregate enum
 storage, unsupported enums, drop/lifetimes/NLL, stable ABI/FFI, and memory-safety claims
 remain absent; the row therefore remains `PARTIAL`.
+
+Local candidate `CORE-085` adds only multiple non-escaping immutable references to an
+initialized mutable direct owner of that admitted enum class. One shared predicate
+controls source admission and live-loan loop-edge exclusion; exact reference, source,
+schema, and lexical-end identities reach private pointer LLVM; and the independent
+verifier counts overlapping aliases and proves identical loan state at CFG joins.
+Focused positive, negative, diagnostic, direct-admission, CLI, and corruption controls
+pass, and the tracked exit-85 system specimen is pinned in both public lanes. The exact
+repository gate is green at 213 library and 32 binary tests; candidate-head,
+protected-merge, and post-merge proof remain pending, so this row is a local candidate
+and not public acceptance. Mutation, move, mutable borrow,
+owned Match, escape, free enum dereference/transport, reference results or storage,
+aggregate enum storage, unsupported enums, lifetime/NLL/drop, stable ABI/FFI, and
+memory-safety claims remain absent; the row therefore remains `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

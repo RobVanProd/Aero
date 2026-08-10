@@ -255,11 +255,6 @@ fn immutable_enum_match_reference_exclusions_fail_closed_in_both_trust_phases() 
             &["not admitted Copy-data", "not admitted"],
         ),
         (
-            "mutable owner immutable loan",
-            "enum E { A } fn main() -> int { let mut owner = E::A; let alias = &owner; 0 }",
-            &["mutable-owner loan lifetimes"],
-        ),
-        (
             "mutable enum reference read",
             "enum E { A } fn read(value: &mut E) -> int { match *value { E::A => 1 } } fn main() -> int { 0 }",
             &["Match through mutable enum reference"],

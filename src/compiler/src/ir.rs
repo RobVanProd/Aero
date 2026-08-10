@@ -97,6 +97,12 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
+    /// Verified lexical end of a read-only enum alias whose source is a mutable owner.
+    CheckedMutableOwnerImmutableEnumBorrowEnd {
+        reference: Value,
+        source: Value,
+        schema: EnumSchema,
+    },
     /// Verified non-owning enum observation used only by its adjacent exhaustive Match.
     CheckedImmutableEnumMatchRead {
         result: Value,

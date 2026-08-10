@@ -4,6 +4,30 @@ Last updated: 2026-08-10 (America/New_York)
 
 ## Current objective
 
+Milestone 106 `CORE-085` is a local candidate only on branch
+`agent/core-085-mutable-owner-immutable-enum-loans`, based on accepted master
+`01a1bb65413253309dd5d74c1faddee8721bd7f2`, tree
+`644ee11832f9c0c109ab3f53214a2d02f3ff2402`. Its frozen implementation commit is
+`97d3b5deebd5bc0ac19c47760abe5110344718a9`, tree
+`7628780d6378d24e671e1b4b762fe4a1c9606ecc`, with stable patch ID
+`a06dd7a3939a9c7ce1eba759070118ad667bf2f3`. It admits the exhaustively
+enumerated class of initialized mutable direct owners of the already admitted
+destructor-free enum class to multiple non-escaping immutable `&E` aliases. One
+shared source predicate controls admission and loop-edge exclusion; checked IR
+carries exact reference, source-owner, schema, and lexical-end identity; and the
+independent verifier counts overlapping aliases, proves identical loan state at CFG
+joins, and excludes owner mutation, move, mutable borrow, owned Match, and escape
+while any alias is live. The tracked direct-module specimen composes multiple aliases,
+immutable-reference calls, post-loan assignment and mutable replacement, arrays,
+tuples, compile-time String observation, and final owned Match at expected native exit
+85. Focused vertical-slice tests are 4/4 and the dedicated verifier-corruption control
+passes 1/1; local public CLI check/build and the Windows system-gate contract pass.
+The exact repository-root gate passes formatting, correctness-denying Clippy, 213
+library tests, 32 binary tests, every integration target, and doc tests. Candidate-head
+public workflows, protected merge, and post-merge evidence are still pending. This is
+not yet public acceptance, a release, or a general borrowing, lifetime, memory-safety,
+layout, or ABI claim.
+
 Milestone 105 `CORE-084` is accepted public at corrected candidate head
 `0ebef3ac7b19cb14390368ffcc432fbba55815a8`, tree
 `cbe48fe2207d699660aeca3c0ffc985e5f4e074f`, from verified base
@@ -16,7 +40,10 @@ Milestone 105 `CORE-084` is accepted public at corrected candidate head
 score so its native system exit is exactly 84. Bounded PR #10 carried four commits
 across 27 files and merged through protected master without head substitution as
 `ae0f090169b161b6c73537ff59eb0bdcbc5c7901`, with the candidate tree and ordered
-parents old master then corrected candidate.
+parents old master then corrected candidate. The exact five-file acceptance record
+then merged through bounded PR #11 as
+`01a1bb65413253309dd5d74c1faddee8721bd7f2`, tree
+`644ee11832f9c0c109ab3f53214a2d02f3ff2402`.
 
 The accepted checkpoint admits immutable references only to the already admitted non-generic,
 destructor-free enum class. Initialized immutable direct local enum owners may have
@@ -35,8 +62,10 @@ required LLVM 22 verifier, so native execution is not claimed locally. Candidate
 CI `31362774499` and `31362777496`, Rust CI `31362777546`, and CodeQL
 `31362775267` pass on the exact corrected head; stable/nightly Linux and pinned Windows
 LLVM/Clang 22 execute exact native exit 84. Post-merge CI `31362984522`, Rust CI
-`31362984536`, and CodeQL `31362984082` pass on the exact merge. This is bounded public
-acceptance, not a release or general memory-safety/reference/ABI claim.
+`31362984536`, and CodeQL `31362984082` pass on the implementation merge. Acceptance-
+record post-merge CI `31364094279`, Rust CI `31364094313`, and CodeQL `31364094135`
+pass on exact accepted master. This is bounded public acceptance, not a release or
+general memory-safety/reference/ABI claim.
 
 Milestone 104 `CORE-083` is accepted public at candidate head
 `43e9bfc7d07414737c8978c3fc3621b984a1146d`, implementation commit
@@ -79,15 +108,14 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to publish this five-file CORE-084 acceptance record in one
-bounded PR, synchronize PR #10's historical front page to the verified candidate and
-merge, require every exact-head documentation workflow, and merge only through
-protected master while the record remains truthful. Then freeze a separately authorized
-hard capability; positive imports remain deferred until lookup, namespace, visibility,
-collision, cycle, and cache semantics are specified. The four scaling controls remain
-active: bounded checkpoint PRs, deliberate hard-capability progress,
-proportional/structured evidence administration, and periodic composed source-to-native
-system gates. No new compiler capability may stack on a red or unpublished record.
+The exact next action is to publish the frozen CORE-085 implementation and this identity
+amendment in one bounded PR, require every exact-head public workflow and pinned LLVM 22
+gate, and merge only through protected master while the record remains truthful.
+Positive imports remain deferred until lookup, namespace, visibility, collision, cycle,
+and cache semantics are specified. The four scaling controls remain active: bounded
+checkpoint PRs, deliberate hard-capability progress, proportional/structured evidence
+administration, and periodic composed source-to-native system gates. No new compiler
+capability may stack on a red or unpublished record.
 
 Milestone 102 `CHECKPOINT-001` is accepted public and integrated through the corrected
 solo-maintainer `CHECKPOINT-003` handoff. PR #4 merged the exact frozen head
@@ -800,6 +828,12 @@ composition rather than a module system.
   compile-time String length, arrays, tuples, and owned enum use. Its complete local
   compiler gate, corrected exact-head Linux/Windows native evidence, protected merge,
   and all three post-merge workflows pass.
+  Local candidate CORE-085 adds a distinct exit-85 direct-module specimen that composes
+  mutable enum owners, multiple immutable aliases, exact immutable-reference parameters,
+  post-loan whole-owner assignment and mutable replacement, arrays, tuples, compile-time
+  String observation, and final owned Match. Its focused source-to-LLVM and corruption
+  controls and complete repository gate pass; public workflow, protected-merge, and
+  post-merge proof remain pending, so it is not public acceptance.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.

@@ -1040,6 +1040,34 @@ jobs:
         fi
         echo "immutable enum reference example passed with exit code 84"
 
+    - name: Test mutable-owner immutable enum loan integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/mutable_owner_immutable_enum_loans/main.aero
+        set +e
+        cargo run -- run ../../examples/mutable_owner_immutable_enum_loans/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 85 ]; then
+          echo "Expected public mutable-owner immutable enum loan run exit code 85, got $public_run_exit"
+          exit 1
+        fi
+        cargo run -- build ../../examples/mutable_owner_immutable_enum_loans/main.aero -o ../../mutable_owner_immutable_enum_loans.ll
+        opt-22 -passes=verify -disable-output ../../mutable_owner_immutable_enum_loans.ll
+        llc-22 -verify-machineinstrs ../../mutable_owner_immutable_enum_loans.ll -o /dev/null
+        llc-22 -filetype=obj ../../mutable_owner_immutable_enum_loans.ll -o ../../mutable_owner_immutable_enum_loans.o
+        clang-22 -no-pie ../../mutable_owner_immutable_enum_loans.o -o ../../mutable_owner_immutable_enum_loans
+        set +e
+        ../../mutable_owner_immutable_enum_loans
+        mutable_owner_immutable_enum_loan_exit_code=$?
+        set -e
+        if [ $mutable_owner_immutable_enum_loan_exit_code -ne 85 ]; then
+          echo "Expected mutable-owner immutable enum loan exit code 85, got $mutable_owner_immutable_enum_loan_exit_code"
+          exit 1
+        fi
+        echo "mutable-owner immutable enum loan example passed with exit code 85"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
@@ -1431,6 +1459,59 @@ jobs:
           throw "Windows immutable enum reference manual native execution returned $manualExit, expected 84"
         }
         Write-Host "Windows immutable enum reference manual native execution passed with exit code 84"
+        $global:LASTEXITCODE = 0
+
+    - name: Test Windows mutable-owner immutable enum loan system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/mutable_owner_immutable_enum_loans/main.aero"
+        $loanLlvmPath = Join-Path $env:RUNNER_TEMP "mutable_owner_immutable_enum_loans.windows.ll"
+        $loanMachinePath = Join-Path $env:RUNNER_TEMP "mutable_owner_immutable_enum_loans.windows.s"
+        $loanObjectPath = Join-Path $env:RUNNER_TEMP "mutable_owner_immutable_enum_loans.windows.obj"
+        $loanExecutablePath = Join-Path $env:RUNNER_TEMP "mutable_owner_immutable_enum_loans.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check $example
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows mutable-owner immutable enum loan public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $loanLlvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $loanLlvmPath)) {
+          throw "Windows mutable-owner immutable enum loan public build failed or omitted its LLVM artifact"
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $loanLlvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows mutable-owner immutable enum loan opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $loanLlvmPath -o $loanMachinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $loanMachinePath)) {
+          throw "Windows mutable-owner immutable enum loan machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $loanLlvmPath -o $loanObjectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $loanObjectPath)) {
+          throw "Windows mutable-owner immutable enum loan object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $loanObjectPath -o $loanExecutablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $loanExecutablePath)) {
+          throw "Windows mutable-owner immutable enum loan Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run $example
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 85) {
+          throw "Windows mutable-owner immutable enum loan public run returned $publicRunExit, expected 85"
+        }
+        Write-Host "Windows mutable-owner immutable enum loan public run passed with exit code 85"
+
+        & $loanExecutablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 85) {
+          throw "Windows mutable-owner immutable enum loan manual native execution returned $manualExit, expected 85"
+        }
+        Write-Host "Windows mutable-owner immutable enum loan manual native execution passed with exit code 85"
         $global:LASTEXITCODE = 0
 
 

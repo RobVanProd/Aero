@@ -495,11 +495,6 @@ fn positional_multi_field_enum_class_is_complete_checked_and_executable() {
             "enum E { Pair(int, bool) } struct S { value: E } fn main() { let value = S { value: E::Pair(1, 1 < 2) }; }",
             vec!["not admitted", "Struct construction", "unsupported"],
         ),
-        (
-            "mutable enum owner immutable borrowing",
-            "enum E { Pair(int, bool) } fn main() { let mut value = E::Pair(1, 1 < 2); let alias = &value; }",
-            vec!["mutable-owner loan lifetimes"],
-        ),
     ] {
         if let Some(failure) = expect_rejection(label, source, &expected) {
             failures.push(failure);

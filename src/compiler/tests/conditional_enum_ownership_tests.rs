@@ -347,11 +347,6 @@ fn conditional_enum_ownership_class_is_complete_checked_and_executable() {
             vec!["Use of moved value", "moved value"],
         ),
         (
-            "mutable enum owner immutable borrowing remains excluded",
-            "enum E { A } fn main() { let mut value = E::A; if 1 < 2 { return; } let alias = &value; }",
-            vec!["mutable-owner loan lifetimes"],
-        ),
-        (
             "enum field storage remains excluded",
             "enum E { A } struct Boxed { value: E } fn main() { let value = Boxed { value: E::A }; }",
             vec!["not an admitted", "unsupported", "Struct construction"],
