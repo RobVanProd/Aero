@@ -483,9 +483,9 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
             "also borrowed as immutable",
         ),
         (
-            "multiple mutable signature",
-            "struct Row { value: int } fn bad(left: &mut Row, right: &mut Row) { } fn main() -> int { 0 }",
-            "at most one mutable-reference parameter",
+            "repeated Copy-place source across mutable signature",
+            "struct Row { value: int } fn bad(left: &mut Row, right: &mut Row) { } fn main() -> int { let mut row = Row { value: 1 }; bad(&mut row, &mut row); 0 }",
+            "pairwise-distinct source identities",
         ),
         (
             "reference result escape",

@@ -1,0 +1,34 @@
+fn update_pair(
+    left: &mut int,
+    right: &mut int,
+    observed: &int,
+    bias: int
+) -> int {
+    *left = *left + *observed;
+    *right = *right + bias;
+    *left + *right
+}
+
+fn update_three(
+    first: &mut int,
+    second: &mut int,
+    observed: &int,
+    third: &mut int,
+    bias: int
+) -> int {
+    *first = *first + *observed;
+    *second = *second + bias;
+    *third = *third + *first + *second;
+    *first + *second + *third
+}
+
+fn forward_pair(left: &mut int, right: &mut int) -> int {
+    *left = *left + 1;
+    *right = *right + 2;
+    *left + *right
+}
+
+fn set_flags(first: &mut bool, observed: &bool, second: &mut bool) {
+    *first = *observed;
+    *second = *observed;
+}

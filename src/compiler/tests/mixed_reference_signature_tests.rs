@@ -267,12 +267,9 @@ fn complete_mixed_exclusive_shared_reference_class_is_checked_and_executable() {
 fn mixed_reference_exclusions_fail_closed_in_every_trust_phase() {
     let cases: &[(&str, &str, &[&str])] = &[
         (
-            "two mutable references",
-            "fn bad(left: &mut int, observed: &int, right: &mut int) -> int { *left + *observed + *right } fn main() -> int { 0 }",
-            &[
-                "at most one mutable-reference parameter",
-                "simultaneous mutable-reference parameters are not supported",
-            ],
+            "repeated mutable source",
+            "fn bad(left: &mut int, observed: &int, right: &mut int) -> int { *left + *observed + *right } fn main() -> int { let mut value = 1; let observed = 2; bad(&mut value, &observed, &mut value) }",
+            &["pairwise-distinct source identities"],
         ),
         (
             "direct mutable and immutable overlap",
@@ -319,7 +316,7 @@ fn mixed_reference_exclusions_fail_closed_in_every_trust_phase() {
             "fn bad(target: &mut int, observed: &int) -> int { *target + *observed } fn main() -> int { let mut target = 1; bad(&mut target) }",
             &[
                 "requires exactly 2 arguments",
-                "mutable reference at position 1",
+                "mutable references at positions 1",
             ],
         ),
         (
@@ -462,7 +459,7 @@ fn tracked_direct_module_and_public_system_gate_are_anchored() {
     let invalid_output = invalid_root.join("invalid.ll");
     fs::write(
         &invalid_source,
-        "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
+        "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { let mut value = 1; bad(&mut value, &mut value) }",
     )
     .expect("write invalid CORE-088 source");
     let invalid = Command::new(env!("CARGO_BIN_EXE_aero"))
@@ -477,7 +474,7 @@ fn tracked_direct_module_and_public_system_gate_are_anchored() {
     assert!(
         !invalid.status.success()
             && !invalid_output.exists()
-            && invalid_diagnostics.contains("at most one mutable-reference parameter"),
+            && invalid_diagnostics.contains("pairwise-distinct source identities"),
         "invalid CORE-088 build did not fail closed without an artifact:\n{invalid_diagnostics}"
     );
     fs::remove_dir_all(&invalid_root).expect("remove invalid CORE-088 workspace");

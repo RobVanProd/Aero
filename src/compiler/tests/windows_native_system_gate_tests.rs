@@ -76,6 +76,9 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
         "Test Windows mixed exclusive/shared-reference signature system specimen",
         "Windows mixed-reference signature public run passed with exit code 88",
         "Windows mixed-reference signature manual native execution passed with exit code 88",
+        "Test Windows multiple exclusive-reference signature system specimen",
+        "Windows multiple-exclusive signature public run passed with exit code 89",
+        "Windows multiple-exclusive signature manual native execution passed with exit code 89",
     ];
 
     let mut failures = Vec::new();
@@ -114,9 +117,9 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
     }
 
     let expected_exit_reset_count = workflow.matches("$global:LASTEXITCODE = 0").count();
-    if expected_exit_reset_count != 11 {
+    if expected_exit_reset_count != 12 {
         failures.push(format!(
-            "the eleven expected-nonzero Windows control groups must reset LASTEXITCODE, found {expected_exit_reset_count} resets"
+            "the twelve expected-nonzero Windows control groups must reset LASTEXITCODE, found {expected_exit_reset_count} resets"
         ));
     }
 

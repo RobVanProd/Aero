@@ -1,5 +1,135 @@
 # Aero Task Ledger
 
+## CORE-089 - multiple exclusive-reference function signatures
+
+- Date/task/status: 2026-08-10, `CORE-089`, authorized lead-owned red-first
+  executable vertical slice from accepted, post-merge-verified master
+  `a7627aa107a137f00ad17b4175de438e7d43f4e0`, tree
+  `a8cc832796b0802549291d9b633c13979cfef623`. Work belongs only on
+  `agent/core-089-multiple-exclusive-reference-signatures`; user-owned untracked
+  `tmp/` remains outside the task.
+- Once-per-class audit and observed behavior: accepted CORE-088 leaves exactly one
+  topology boundary in the already shared reference-signature classifier:
+  `admitted_reference_parameter_topology` rejects every signature containing two or
+  more mutable-reference parameters. The complete signature, binder, private pointer
+  LLVM, and per-reference loan identities already exist, but the call contract exposes
+  only the first mutable parameter, both semantic consumers synthesize facts and types
+  for only that index, lowering constructs only one terminal mutable-borrow window, and
+  independent call verification requires each mutable operand to be the sole
+  immediately preceding borrow and sole immediately following end. These are the
+  complete consumers of one multiple-exclusive-signature class; this audit is not
+  repeated per count, position, pointee, source mode, or future head.
+- Source-grounded hypothesis and frozen semantics: the founding ownership rule permits
+  one mutable reference to a value at a time; it does not forbid simultaneous exclusive
+  references to distinct values. Therefore a non-entry, non-generic function may have
+  two or more admitted mutable whole-place reference parameters, zero or more admitted
+  immutable whole-place reference parameters, and zero or more recursive finite
+  CopyData parameters in any declared order, with CopyData or `Void` result. At every
+  call, each mutable argument remains exactly a direct `&mut` identifier owner or an
+  admitted mutable-reference identifier reborrow. Mutable source identities must be
+  pairwise distinct and each must be absent from every other argument tree; immutable
+  arguments may share only with other immutable arguments. Non-mutable arguments keep
+  relative source order and complete first, mutable arguments are acquired in declared
+  parameter order, call operands retain declared order, and the call is enclosed by one
+  contiguous N-borrow/call/N-end lexical window. Every pointee stays inside the already
+  admitted CopyData or destructor-free enum reference class.
+- One shared predicate and exhaustive enumeration: the unbounded topology is exactly
+  the integer relation `references >= mutable >= 0`; CORE-089 closes its previously
+  rejected partition `mutable >= 2`, while retaining the accepted zero- and one-mutable
+  partitions. A bounded decision-table proof must enumerate all `(references, mutable)`
+  pairs through at least six parameters and assert the algebraic predicate. The shared
+  reference-call authority must enumerate every mutable parameter index and the full
+  Cartesian source-mode product (direct owner or identifier reborrow), classify every
+  source once, enforce pairwise/source-tree disjointness once, and return the complete
+  ordered mutable-argument contract to both semantic routes and checked admission.
+  Positive integration coverage must include two and three mutable references; mutable
+  first/middle/last and interleaved orders; zero/one/many immutable and CopyData sides;
+  scalar, recursive aggregate, and admitted enum pointees; all-direct, all-reborrow,
+  mixed, and parameter-forwarded sources; CopyData and `Void` results; repeated calls
+  and post-call reuse; checked identities; corruption controls; direct modules; pinned
+  LLVM verification; and a native exit-89 CI specimen.
+- Frozen negative boundary: repeated or transitively shared mutable source identity,
+  any mutable source mentioned by an immutable-reference or CopyData argument, wrong
+  arity/order/type/mutability/state/pointee/schema/binder, missing/duplicated/reordered
+  borrow or end, non-contiguous multi-borrow window, projected/indexed/dereferenced or
+  temporary mutable origins, reference results/escape/storage/capture, entry/generic
+  signatures, unsupported pointees or CopyData companions/results, new enum topology,
+  NLL/lifetime/drop behavior, public layout, stable ABI/FFI, accelerators, releases,
+  benchmarks, performance, stability, safety, and general memory-safety claims remain
+  excluded. Zero/one mutable signatures and every CORE-043--088 behavior remain exact.
+- Red-first and acceptance tests: before production mutation, add one focused target
+  proving an executable two-and-three-mutable product reaches the single shared topology
+  rejection in both semantic routes and semantic-independent checked admission. The
+  same target must enumerate every frozen negative and public check/build/run artifact
+  hygiene. After the source red is authoritative, add an independent checked-IR
+  corruption red for any newly exposed false-success. Acceptance requires the focused
+  target, affected reference/CopyData/enum rings, exact multi-borrow/call/end identities,
+  pinned LLVM/Clang 22 external and machine verification, object/link/native exit 89,
+  formatting, `git diff --check`, correctness-denying Clippy, docs, all public workflow
+  anchors, and the complete repository-root `./tools/test.sh`.
+- Exact red checkpoint: before production mutation, `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test
+  multiple_mutable_reference_signature_tests
+  complete_multiple_exclusive_reference_class_is_checked_and_executable -- --exact
+  --nocapture` passes its red assertion 1/1. The same parsed specimen contains two-
+  and three-mutable signatures, interleaved immutable and CopyData sides, direct-owner
+  calls, and local parameter reborrows; semantic analysis, semantic-independent checked
+  admission, and public compilation all stop at the exact shared
+  `at most one mutable-reference parameter; simultaneous mutable-reference parameters
+  are not supported` topology boundary. No production file had changed.
+- Checked-trust red checkpoint: after the shared source contract enumerated and
+  admitted all mutable parameter indices, the same focused test progressed through
+  semantic analysis and stopped in independent verification of `forward_pair` with
+  `call mutable reference argument place 3 must be an exact borrow/call/end
+  temporary`. This proves the legacy verifier reconstructs only a one-borrow window;
+  CORE-089 must replace that single-operand adjacency assumption with one exact
+  ordered N-borrow/call/reverse-N-end proof and pairwise-distinct checked origins.
+- Local green checkpoint: `ReferenceFunctionContract` and `ReferenceCallContract` now
+  enumerate every mutable position and source mode under the single shared topology/
+  call authority. Both semantic routes and independent checked admission consume that
+  complete contract; lowering evaluates non-mutable arguments first in relative order,
+  acquires mutable roots in declared order, preserves declared operands, and emits
+  reverse-order lexical ends. Independent verification reconstructs pairwise-distinct
+  mutable roots, disjoint immutable roots, exact binders, and the contiguous window.
+  Its corruption control passes 1/1 for duplicate roots, reordered or separated
+  borrows, reordered/duplicated operands, missing/reordered/forged ends, raw owners,
+  binder corruption, and mutable/immutable overlap. The focused target passes 3/3,
+  pinned LLVM/Clang 22.1.8 externally and machine verifies, emits COFF, links, and
+  executes public and independent exact exit 89. An affected-ring run exposed one
+  candidate-only bookkeeping regression: general immutable origins had accidentally
+  entered an enum-specific return-loan invariant. Retaining the original enum-only map
+  beside the new general root map corrected that defect without changing semantics;
+  the complete CORE-087--089 affected reference ring then passes 19/19. The exact
+  repository-root `./tools/test.sh` exits 0 after formatting, correctness-denying
+  Clippy, 216 library tests, 32 binary tests, every integration target, and doc tests;
+  the reversible LF wrapper restores all 105 tracked `.aero` files byte-clean. Public
+  gates remain pending, so no public acceptance is claimed.
+- Frozen implementation identity: commit
+  `1ce9ff3db9157dbade2886c6327b092e3c5503f4`, tree
+  `70970690a5758dc1020949ca4669c299451adc08`, stable patch ID
+  `b92e829b88dee5ef97b944d6d8c3765ae1665141`. The following identity-only
+  amendment changes this ledger and `PROJECT_STATE.md`; it does not change compiler
+  behavior, tests, workflows, examples, or the frozen implementation tree.
+- Allowed files: this single ledger record; `src/compiler/src/local_reference.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs`; one focused
+  `src/compiler/tests/multiple_mutable_reference_signature_tests.rs`; only narrowly
+  superseded blanket-multiple-mutable expectations in existing reference targets;
+  `examples/multiple_mutable_reference_signatures/main.aero` and one direct module;
+  the exact Rust workflow and Windows gate anchors for that specimen; and proportional
+  post-green updates to `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `FRAMEWORK_ALIGNMENT.md`, and `README.md`. No AST, parser, dependency, package,
+  release, benchmark, claim-verification, protection, master, external repository, or
+  `tmp/` mutation is authorized.
+- Stop conditions and risks: stop rather than broaden if pairwise whole-place identity
+  cannot be proved in the shared source contract and independently reconstructed from
+  checked IR, or if safe execution needs projections, reference results, hidden alias
+  provenance, NLL/lifetime/drop semantics, public ABI, a phase-local duplicate topology
+  guard, test/spec weakening, or stacking on red. Primary risks are accepting the same
+  owner through two mutable operands, overlapping an immutable/CopyData side, losing
+  source or operand order, ending only part of the window, or teaching LLVM a layout not
+  independently verified. Candidate/public status remains separate; corrections amend
+  this record before publication, and the four scaling controls remain active.
+
 ## CORE-088 - mixed exclusive/shared-reference function signatures
 
 - Date/task/status: 2026-08-10, `CORE-088`, authorized lead-owned red-first

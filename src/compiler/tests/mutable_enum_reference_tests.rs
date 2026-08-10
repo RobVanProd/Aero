@@ -338,9 +338,9 @@ fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
             &["reference results require lifetime semantics"],
         ),
         (
-            "multiple mutable signature",
-            "enum E { A } fn bad(left: &mut E, right: &mut E) {} fn main() -> int { 0 }",
-            &["at most one mutable-reference parameter"],
+            "repeated enum source across mutable signature",
+            "enum E { A } fn bad(left: &mut E, right: &mut E) {} fn main() -> int { let mut value = E::A; bad(&mut value, &mut value); 0 }",
+            &["pairwise-distinct source identities"],
         ),
         (
             "entry reference parameter",

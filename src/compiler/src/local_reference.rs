@@ -132,16 +132,17 @@ pub(crate) struct ReferenceFunctionContract {
 }
 
 impl ReferenceFunctionContract {
-    pub(crate) fn mutable_parameter(&self) -> Option<(usize, &Ty)> {
+    pub(crate) fn mutable_parameters(&self) -> Vec<(usize, &Ty)> {
         self.parameters
             .iter()
             .enumerate()
-            .find_map(|(index, (_, parameter))| {
+            .filter_map(|(index, (_, parameter))| {
                 let Ty::Reference(pointee, true) = &parameter.ty else {
                     return None;
                 };
                 Some((index, pointee.as_ref()))
             })
+            .collect()
     }
 }
 
@@ -149,7 +150,7 @@ pub(crate) fn admitted_reference_parameter_topology(
     reference_parameters: usize,
     mutable_parameters: usize,
 ) -> bool {
-    mutable_parameters <= 1 && mutable_parameters <= reference_parameters
+    mutable_parameters <= reference_parameters
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -173,15 +174,34 @@ pub(crate) enum ReferenceCallSourceMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ReferenceCallContract {
+pub(crate) struct MutableReferenceCallArgumentContract {
     pub(crate) reference: LocalReferenceContract,
     pub(crate) source_mode: ReferenceCallSourceMode,
     pub(crate) reference_parameter_index: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReferenceCallContract {
+    pub(crate) mutable_arguments: Vec<MutableReferenceCallArgumentContract>,
+}
+
 impl ReferenceCallContract {
-    pub(crate) fn reference_type(&self) -> Ty {
-        self.reference.reference_type()
+    pub(crate) fn mutable_argument(
+        &self,
+        parameter_index: usize,
+    ) -> Option<&MutableReferenceCallArgumentContract> {
+        self.mutable_arguments
+            .iter()
+            .find(|argument| argument.reference_parameter_index == parameter_index)
+    }
+
+    pub(crate) fn is_mutable_parameter(&self, parameter_index: usize) -> bool {
+        self.mutable_argument(parameter_index).is_some()
+    }
+
+    pub(crate) fn reference_type(&self, parameter_index: usize) -> Option<Ty> {
+        self.mutable_argument(parameter_index)
+            .map(|argument| argument.reference.reference_type())
     }
 }
 
@@ -393,74 +413,126 @@ pub(crate) fn classify_reference_call(
     classify_reference_call_with_enums(
         contract,
         arguments,
-        facts,
+        |_| facts.cloned(),
         registry,
         &EnumRegistry::default(),
     )
 }
 
-pub(crate) fn classify_reference_call_with_enums(
+pub(crate) fn classify_reference_call_with_enums<F>(
     contract: &ReferenceFunctionContract,
     arguments: &[Expression],
-    facts: Option<&LocalReferenceSourceFacts>,
+    mut facts_for_subject: F,
     registry: &StructRegistry,
     enums: &EnumRegistry,
-) -> ReferenceCallDisposition {
-    let Some((reference_parameter_index, expected_pointee)) = contract.mutable_parameter() else {
+) -> ReferenceCallDisposition
+where
+    F: FnMut(&Expression) -> Option<LocalReferenceSourceFacts>,
+{
+    let mutable_parameters = contract.mutable_parameters();
+    if mutable_parameters.is_empty() {
         return ReferenceCallDisposition::Preserved;
-    };
+    }
     if arguments.len() != contract.parameters.len() {
         if contract.parameters.len() == 1 {
             return ReferenceCallDisposition::ExplicitlyRejected(
                 "mutable reference call requires exactly one mutable-reference identifier or direct `&mut` local owner argument".to_string(),
             );
         }
+        let positions = mutable_parameters
+            .iter()
+            .map(|(index, _)| (index + 1).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
         return ReferenceCallDisposition::ExplicitlyRejected(format!(
-            "mutable reference call requires exactly {} arguments with the mutable reference at position {}",
+            "mutable reference call requires exactly {} arguments with mutable references at positions {positions}",
             contract.parameters.len(),
-            reference_parameter_index + 1
         ));
     }
-    let Some((source_mode, source)) = reference_call_source_topology(contract, arguments) else {
-        return ReferenceCallDisposition::ExplicitlyRejected(
-            "mutable reference call requires a mutable-reference identifier or direct `&mut` local owner argument".to_string(),
-        );
-    };
+
+    let mutable_parameter_indices = mutable_parameters
+        .iter()
+        .map(|(index, _)| *index)
+        .collect::<Vec<_>>();
+    let mut source_names = Vec::with_capacity(mutable_parameters.len());
+    let mut mutable_arguments = Vec::with_capacity(mutable_parameters.len());
+    for (reference_parameter_index, expected_pointee) in mutable_parameters {
+        let Some((source_mode, source)) =
+            reference_call_source_topology_at(contract, arguments, reference_parameter_index)
+        else {
+            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "mutable reference call argument at position {} requires a mutable-reference identifier or direct `&mut` local owner argument",
+                reference_parameter_index + 1
+            ));
+        };
+        let facts = facts_for_subject(source);
+        let argument = match classify_mutable_reference_call_argument(
+            source,
+            source_mode,
+            reference_parameter_index,
+            expected_pointee,
+            facts.as_ref(),
+            registry,
+            enums,
+        ) {
+            Ok(argument) => argument,
+            Err(message) => return ReferenceCallDisposition::ExplicitlyRejected(message),
+        };
+        let Expression::Identifier(source_name) = source else {
+            unreachable!("admitted mutable call source retains an identifier place")
+        };
+        if source_names.iter().any(|prior| prior == source_name) {
+            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "mutable reference call requires pairwise-distinct source identities; `{source_name}` is used by more than one mutable argument"
+            ));
+        }
+        if arguments.iter().enumerate().any(|(index, argument)| {
+            !mutable_parameter_indices.contains(&index)
+                && expression_mentions_identifier(argument, source_name)
+        }) {
+            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "mutable reference call non-mutable arguments must be independent of reference source `{source_name}`"
+            ));
+        }
+        source_names.push(source_name.clone());
+        mutable_arguments.push(argument);
+    }
+
+    ReferenceCallDisposition::Supported(ReferenceCallContract { mutable_arguments })
+}
+
+fn classify_mutable_reference_call_argument(
+    source: &Expression,
+    source_mode: ReferenceCallSourceMode,
+    reference_parameter_index: usize,
+    expected_pointee: &Ty,
+    facts: Option<&LocalReferenceSourceFacts>,
+    registry: &StructRegistry,
+    enums: &EnumRegistry,
+) -> Result<MutableReferenceCallArgumentContract, String> {
     let source_name = match source {
         Expression::Identifier(name) => Some(name.as_str()),
         _ => None,
     };
-    if let Some(source_name) = source_name {
-        if arguments.iter().enumerate().any(|(index, argument)| {
-            index != reference_parameter_index
-                && expression_mentions_identifier(argument, source_name)
-        }) {
-            return ReferenceCallDisposition::ExplicitlyRejected(format!(
-                "mutable reference call Copy-data arguments must be independent of reference source `{source_name}`"
-            ));
-        }
-    }
     if source_mode == ReferenceCallSourceMode::MutableReferenceIdentifier {
         let Some(name) = source_name else {
             unreachable!("shared mutable-reference identifier topology retained its identifier")
         };
         let Some(facts) = facts else {
-            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+            return Err(format!(
                 "mutable reference call argument `{name}` is not an initialized local binding"
             ));
         };
         if !facts.initialized {
-            return ReferenceCallDisposition::ExplicitlyRejected(format!(
-                "Error: Use of uninitialized variable `{name}`."
-            ));
+            return Err(format!("Error: Use of uninitialized variable `{name}`."));
         }
         if !facts.local {
-            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+            return Err(format!(
                 "mutable reference call argument `{name}` is not an initialized local binding"
             ));
         }
         let Ty::Reference(actual_pointee, true) = &facts.ty else {
-            return ReferenceCallDisposition::ExplicitlyRejected(
+            return Err(
                 "mutable reference call requires a mutable-reference identifier or direct `&mut` local owner argument".to_string(),
             );
         };
@@ -476,35 +548,31 @@ pub(crate) fn classify_reference_call_with_enums(
                 mutable: true,
             },
             Err(message) => {
-                return ReferenceCallDisposition::ExplicitlyRejected(message);
+                return Err(message);
             }
         };
         match facts.ownership {
             OwnershipState::Owned => {}
             OwnershipState::Moved => {
-                return ReferenceCallDisposition::ExplicitlyRejected(format!(
-                    "cannot reborrow moved mutable reference `{name}`"
-                ));
+                return Err(format!("cannot reborrow moved mutable reference `{name}`"));
             }
             OwnershipState::MaybeMoved => {
-                return ReferenceCallDisposition::ExplicitlyRejected(
-                    crate::ownership_flow::maybe_moved_diagnostic(name),
-                );
+                return Err(crate::ownership_flow::maybe_moved_diagnostic(name));
             }
             OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
-                return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                return Err(format!(
                     "mutable reference call argument `{name}` has an invalid ownership state"
                 ));
             }
         }
         return if reference.pointee == *expected_pointee {
-            ReferenceCallDisposition::Supported(ReferenceCallContract {
+            Ok(MutableReferenceCallArgumentContract {
                 reference,
                 source_mode,
                 reference_parameter_index,
             })
         } else {
-            ReferenceCallDisposition::ExplicitlyRejected(format!(
+            Err(format!(
                 "mutable reference call pointee mismatch: expected {expected_pointee}, actual {}",
                 reference.pointee
             ))
@@ -512,33 +580,38 @@ pub(crate) fn classify_reference_call_with_enums(
     }
 
     match classify_local_borrow_with_enums(source, true, facts, registry, enums) {
-        LocalReferenceDisposition::Supported(contract) if contract.pointee == *expected_pointee => {
-            ReferenceCallDisposition::Supported(ReferenceCallContract {
-                reference: contract,
+        LocalReferenceDisposition::Supported(reference)
+            if reference.pointee == *expected_pointee =>
+        {
+            Ok(MutableReferenceCallArgumentContract {
+                reference,
                 source_mode,
                 reference_parameter_index,
             })
         }
-        LocalReferenceDisposition::Supported(contract) => {
-            ReferenceCallDisposition::ExplicitlyRejected(format!(
-                "mutable reference call pointee mismatch: expected {expected_pointee}, actual {}",
-                contract.pointee
-            ))
-        }
-        LocalReferenceDisposition::ExplicitlyRejected(message) => {
-            ReferenceCallDisposition::ExplicitlyRejected(message)
-        }
+        LocalReferenceDisposition::Supported(contract) => Err(format!(
+            "mutable reference call pointee mismatch: expected {expected_pointee}, actual {}",
+            contract.pointee
+        )),
+        LocalReferenceDisposition::ExplicitlyRejected(message) => Err(message),
         LocalReferenceDisposition::Preserved => unreachable!(
             "direct mutable call borrow is fully classified by the local reference contract"
         ),
     }
 }
 
-fn reference_call_source_topology<'a>(
+fn reference_call_source_topology_at<'a>(
     contract: &ReferenceFunctionContract,
     arguments: &'a [Expression],
+    reference_parameter_index: usize,
 ) -> Option<(ReferenceCallSourceMode, &'a Expression)> {
-    let (reference_parameter_index, _) = contract.mutable_parameter()?;
+    if !contract
+        .mutable_parameters()
+        .iter()
+        .any(|(index, _)| *index == reference_parameter_index)
+    {
+        return None;
+    }
     let argument = arguments.get(reference_parameter_index)?;
     match argument {
         Expression::Borrow {
@@ -553,18 +626,18 @@ fn reference_call_source_topology<'a>(
     }
 }
 
-pub(crate) fn reference_call_fact_subject<'a>(
-    contract: &ReferenceFunctionContract,
-    arguments: &'a [Expression],
-) -> Option<&'a Expression> {
-    reference_call_source_topology(contract, arguments).map(|(_, expression)| expression)
-}
-
-pub(crate) fn reference_call_source_mode(
+pub(crate) fn reference_call_source_modes(
     contract: &ReferenceFunctionContract,
     arguments: &[Expression],
-) -> Option<ReferenceCallSourceMode> {
-    reference_call_source_topology(contract, arguments).map(|(mode, _)| mode)
+) -> Vec<(usize, ReferenceCallSourceMode)> {
+    contract
+        .mutable_parameters()
+        .into_iter()
+        .filter_map(|(index, _)| {
+            reference_call_source_topology_at(contract, arguments, index)
+                .map(|(mode, _)| (index, mode))
+        })
+        .collect()
 }
 
 fn expression_mentions_identifier(expression: &Expression, target: &str) -> bool {
@@ -1053,7 +1126,7 @@ mod tests {
             for mutable_count in 0..=6 {
                 assert_eq!(
                     admitted_reference_parameter_topology(reference_count, mutable_count),
-                    mutable_count <= 1 && mutable_count <= reference_count,
+                    mutable_count <= reference_count,
                     "topology drifted for {reference_count} references and {mutable_count} mutable references"
                 );
             }
@@ -1217,14 +1290,14 @@ mod tests {
         };
         assert!(matches!(
             classify_reference_call(&function, &direct, Some(&owner), &registry),
-            ReferenceCallDisposition::Supported(ReferenceCallContract {
-                source_mode: ReferenceCallSourceMode::DirectOwnerBorrow,
-                ..
-            })
+            ReferenceCallDisposition::Supported(ReferenceCallContract { mutable_arguments })
+                if mutable_arguments.len() == 1
+                    && mutable_arguments[0].source_mode
+                        == ReferenceCallSourceMode::DirectOwnerBorrow
         ));
         assert_eq!(
-            reference_call_source_mode(&function, &direct),
-            Some(ReferenceCallSourceMode::DirectOwnerBorrow)
+            reference_call_source_modes(&function, &direct),
+            vec![(0, ReferenceCallSourceMode::DirectOwnerBorrow)]
         );
 
         let identifier = vec![Expression::Identifier("alias".to_string())];
@@ -1237,15 +1310,15 @@ mod tests {
         };
         assert!(matches!(
             classify_reference_call(&function, &identifier, Some(&alias), &registry),
-            ReferenceCallDisposition::Supported(ReferenceCallContract {
-                source_mode: ReferenceCallSourceMode::MutableReferenceIdentifier,
-                ..
-            })
+            ReferenceCallDisposition::Supported(ReferenceCallContract { mutable_arguments })
+                if mutable_arguments.len() == 1
+                    && mutable_arguments[0].source_mode
+                        == ReferenceCallSourceMode::MutableReferenceIdentifier
         ));
-        assert!(matches!(
-            reference_call_fact_subject(&function, &identifier),
-            Some(Expression::Identifier(name)) if name == "alias"
-        ));
+        assert_eq!(
+            reference_call_source_modes(&function, &identifier),
+            vec![(0, ReferenceCallSourceMode::MutableReferenceIdentifier)]
+        );
 
         let immutable_alias = LocalReferenceSourceFacts {
             ty: Ty::Reference(Box::new(Ty::Int), false),
