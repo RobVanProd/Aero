@@ -9,7 +9,7 @@ fn read_signal(value: &Signal) -> int {
 fn read_packet(value: &Packet) -> int {
     match *value {
         Packet::Empty => 0,
-        Packet::Pair(number, ready) => number - 10
+        Packet::Pair(number, ready) => number
     }
 }
 
