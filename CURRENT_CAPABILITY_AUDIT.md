@@ -2,11 +2,91 @@
 
 Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 
-Audit date: 2026-08-02
+Audit date: 2026-08-02; corrective roadmap checkpoint: 2026-08-10
 
-Current accepted master: `962bb49f1428a36b8ba7cf897778e4c0bab2ac09`
+Current accepted compiler-capability master:
+`128205615c53156138c4effa740b61ab455a760f`
+
+## Corrective roadmap checkpoint after CORE-090
+
+Accepted CORE-083 through CORE-090 are valid bounded Milestone 2 fragments. They add
+enum-reference replacement and observation, mixed and multiple reference signatures,
+and static projected CopyData assignment. CORE-090 candidate
+`af68d0e842ed2973087d2e3c78d2a19546e29ff7`, tree
+`8455a06a4473a826ef1ea180e291e2ddb790bed0`, passed all nine exact-head checks,
+merged through protected PR #17 as the master above, and passed post-merge CI
+`31421325338`, Rust CI `31421326818`, and CodeQL `31421323785`. These checkpoints
+remain `PARTIAL`; they do not establish general borrowing, lifetime/drop, memory
+safety, public layout/ABI, or a stable language.
+
+### Milestone 0 gap classification
+
+| Requirement | State | Evidence and remaining gap |
+|---|---|---|
+| Fatal invalid lexical/syntactic input on trusted paths | Met for the current checked compiler/CLI routes | Strict lexer/parser, CLI status, module, and no-artifact controls pass; unchecked compatibility APIs remain outside certification. |
+| No invented or silently dropped unsupported expressions | Partial | The audited closure/call/method/import classes fail closed and checked admission is verifier-gated, but the selected stable subset and every public unchecked entrypoint have not been closed as one milestone contract. |
+| Function, return, binding, and scope contracts before IR | Partial | Many exact classes are controlled, while generic/context annotation, broader scope, unsupported result, and public-API residuals remain excluded rather than milestone-complete. |
+| Nonzero failure and no invalid artifacts | Met for checked public `check`/`build`/`run` routes | CLI status and artifact-hygiene suites cover admitted failure paths; experimental tools are not promoted into this contract. |
+| Claim inventory by stage | Met and continuously maintained | The matrix, backend status, current audit, claim-verification controls, and README separate parsed, partial, experimental, and unsupported behavior. |
+| Exit: stable subset, canonical diagnostic/artifact contract, full gates, independent boundary verification | Partial | Per-slice full gates and independent checked-IR/corruption controls exist, but no authoritative stable subset or single canonical diagnostic contract is frozen and no feature is `STABLE`. |
+
+### Milestone 1 gap classification
+
+| Requirement | State | Evidence and remaining gap |
+|---|---|---|
+| Authoritative grammar and type subset | Open | Accepted slices are documented individually, but no bounded scalar subset is frozen as one user-facing contract. |
+| Fallible typed IR with CFG and ownership/type invariants | Partial | Checked IR and an independent verifier protect many accepted routes; the invariant surface remains incomplete and unchecked/raw compatibility paths are uncertified. |
+| LLVM verification before object generation | Met for trusted build/run routes | Known-invalid corruption controls and pinned LLVM 22 verification run before object/link steps. |
+| Representative scalar source-to-native execution on Linux and Windows | Partial | Numerous feature specimens execute on both platforms, but they are isolated proofs; there is no maintained application-shaped composition gate. |
+| Optimized/unoptimized differential runtime and real compile-fail corpus | Open | The repository verifies generated LLVM and has extensive negative tests, but no `-O0` versus `-O2` application equivalence gate or explicitly frozen scalar compile-fail corpus exists. |
+| Exit: selected scalar subset is `END_TO_END` with exact output, diagnostics, verifier, platform, and reproducibility evidence | Open | No matrix row is `END_TO_END`; the missing subset definition, representative program, differential lane, and consolidated reproducibility evidence block exit. |
+
+### Work already attributable to Milestone 2
+
+CORE-043 through CORE-090 implemented substantial typed aggregate, enum/`Match`,
+CopyData composition, CFG ownership, borrowing, and mutation fragments before the
+Milestone 0/1 exits were closed. This work is retained, tested, and useful, but it does
+not satisfy Milestone 2: collections, generic substitution, trait dispatch, error
+types, general lifetimes/drop/unsafe boundaries, public layout/ABI/destruction, a
+generic data structure, and an ownership-intensive representative program remain open.
+The project therefore remains **Minimal Prototype / correctness recovery**.
+
+### Highest-leverage remaining gaps
+
+Scores are 1--5 with higher better. `Risk` and `Evidence` are delivery favorability
+(5 means lower implementation risk or lower evidence cost), so totals reward project
+payoff without hiding cost.
+
+| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | Freeze and certify one representative scalar application/subset, including `-O0`/`-O2` equivalence | 4 | 5 | 5 | 5 | 4 | 3 | 26 |
+| 2 | Close the Milestone 0 canonical diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+| 3 | Implement positive module/import/name resolution after its graph and namespace semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
+
+Rank 1 is selected as `M1-001`. Before it, no application-shaped Aero program is
+certified as one portable, optimization-equivalent user workflow. After it, a small
+fixed-size telemetry-policy program can compose direct modules, functions, constants,
+control flow, structs, arrays/tuples, enums and `Match`, mutation, references, and
+projected writes under exact Linux/Windows behavior. This is the shortest credible
+Milestone 1 exit path and a permanent growing integration gate. A red that exposes a
+real missing shared compiler contract changes the task into closing that complete
+blocking class, not adding a specimen-specific exception. Evidence of unspecified
+semantics, nonportable behavior, optimizer divergence, or a cheaper higher-leverage
+path would stop or reorder the selection.
 
 ## Verified progress after the audit commit
+
+- `CORE-083` through `CORE-089` are accepted through bounded protected PRs #8--#16
+  (including the CORE-083 and CORE-084 acceptance syncs). Post-merge workflows pass
+  on each accepted master. Their exact enum-reference and callable-signature slices
+  remain bounded `PARTIAL` behavior, not general borrow checking or ABI evidence.
+
+- `CORE-090` is accepted public at implementation commit `ca00cdb`, implementation
+  tree `701b2d9`, and stable patch `623c2951`. Its complete static field/tuple/literal-
+  array projected-write class passes focused 1/1, classifier/verifier controls 2/2,
+  the affected ring 15/15, the 218-library/32-binary root gate, and pinned native exit
+  90 on Linux and Windows. Dynamic indexing, projected borrowing, partial moves,
+  enum/non-Copy subplaces, lifetime/drop, layout/ABI, and safety claims remain absent.
 
 - `CORE-082` is accepted public at implementation commit `d0312e8`, tree
   `516d9f1ac2cfb1406a2ae0cb8716c40869d316f9`, and stable patch

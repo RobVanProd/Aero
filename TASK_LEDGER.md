@@ -1,9 +1,132 @@
 # Aero Task Ledger
 
+## ROADMAP-001 - re-anchor accepted truth and select the next milestone path
+
+- Date/task/status: 2026-08-10, `ROADMAP-001`, authorized project-level
+  corrective checkpoint from accepted, post-merge-verified master
+  `128205615c53156138c4effa740b61ab455a760f`, tree
+  `8455a06a4473a826ef1ea180e291e2ddb790bed0`. Work belongs only on
+  `agent/roadmap-reanchor-after-core-090`; user-owned untracked `tmp/` remains
+  outside the task. The previously started CORE-091 topology extension is paused
+  and preserved only in local stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6`;
+  it is not part of this branch, candidate, or public capability.
+- Observed behavior and checkpoint scope: CORE-090 is accepted through protected
+  PR #17 and exact post-merge CI/Rust/CodeQL on `1282056`, but the five mandated
+  project-truth surfaces materially disagree: `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and `README.md`
+  still call CORE-090 a local candidate, `CURRENT_CAPABILITY_AUDIT.md` still names
+  CORE-082 merge `962bb49f` as current accepted master, and `Roadmap.md` does not
+  reconcile CORE-083--090 against its Milestone 0/1/2 exits. This is an
+  observability and prioritization defect. The task performs one roadmap-gap audit,
+  synchronizes accepted truth, ranks the three highest-leverage gaps, and freezes
+  the shortest credible next milestone path before any new compiler implementation.
+- Mechanism: no language, compiler, IR, verifier, backend, runtime, workflow, or
+  release behavior changes. The task updates only authoritative project-state text:
+  exact accepted CORE-090 identities/evidence/capability/exclusions; an honest
+  Milestone 0/1 gap classification and Milestone 2 attribution; one comparable
+  top-three decision table; one selected next capability destination; and the
+  representative-program gate requirement. It does not rewrite roadmap exit gates
+  to fit current work, re-run closed defect audits per head, or resurrect the
+  topology-by-topology task sequence.
+- Assumptions: protected merge `1282056` has parent order `7fbaaaa4` then exact
+  candidate `af68d0e`, its tree equals candidate tree `8455a06`, exact-head PR #17
+  passed both compiler gates, stable/nightly Rust, CodeQL, and pinned Windows LLVM
+  22.1.8 native exit 90, and post-merge CI `31421325338`, Rust CI `31421326818`,
+  and CodeQL `31421323785` all passed. Existing feature rows and exclusions remain
+  `PARTIAL` unless current source-to-native evidence proves otherwise.
+- Evidence for assumptions: immutable Git identities and parent/tree comparison;
+  rendered PR #17 metadata; exact GitHub workflow conclusions; tracked CORE-090
+  focused/classifier/verifier/system specimens; current roadmap, capability matrix,
+  audit, state, README, and founding-framework alignment. No benchmark, release,
+  stability, safety, production-readiness, or generalized ownership inference is
+  permitted.
+- Measurement and decision threshold: success requires all mandated truth documents
+  to name accepted master `1282056` and CORE-090 as accepted, with no material
+  pending/candidate contradiction; every Milestone 0 and Milestone 1 bullet and exit
+  requirement must be classified as met, partial, or open with evidence; Milestone 2
+  work already performed must be identified without promoting the project; three
+  capability gaps must be ranked by real-program usefulness, roadmap criticality,
+  architectural leverage, correctness/safety value, implementation risk, and
+  evidence cost; the selected next task must state its before/after real-program
+  delta and shortest milestone-exit contribution; and one representative application
+  gate must have a concrete initial composition target. Merge is forbidden until
+  cross-document searches, Markdown review, `git diff --check`, the full repository
+  gate, exact-head public workflows, and rendered PR metadata are green.
+- Failure modes and detection: stale candidate tense or wrong identities are caught
+  by cross-document searches and Git/GitHub comparison; inflated maturity or hidden
+  exclusions are caught by matrix/roadmap/source-test reconciliation; convenience-
+  biased ranking is caught by the explicit weighted decision table and real-program
+  delta; roadmap rewriting is caught by preserving existing milestone bullets and
+  exit gates verbatim; documentation-only drift is caught by the complete root gate;
+  and evidence-administration bloat is limited to this one authorization record and
+  proportional edits in the five mandated truth surfaces plus framework alignment.
+- Recovery: the clean rollback boundary is the single bounded documentation/audit
+  commit and PR. Reverting it changes no compiler artifact or accepted capability.
+  The quarantined CORE-091 stash remains separate and may be dropped only by a later
+  explicit decision after the ranking; it must never be silently published or
+  treated as accepted work.
+- Strategic value: this checkpoint restores one source of truth, prevents further
+  low-leverage topology subdivision, turns task selection toward a Milestone 0/1
+  exit and useful programs, and establishes the first representative-application
+  destination. The expected decision question is not “what adjacent compiler case
+  is easiest?” but “what shortest safe capability unlocks the largest ordinary Aero
+  program delta?”
+- What would change our mind: evidence that an apparently open Milestone 0/1 item is
+  already completely satisfied would remove it from the gap list; evidence that a
+  candidate capability depends on unspecified semantics, crosses an unsafe trust
+  boundary without independent verification, cannot compose into the representative
+  application, or costs more than a higher-ranked alternative would stop or reorder
+  it; and evidence that the roadmap itself conflicts with the founding framework or
+  validated user needs would trigger a separately authorized roadmap revision rather
+  than silently changing exit gates here.
+- Audit result and ranking: Milestone 0 is controlled but not closed because the
+  accepted per-slice containment has not been frozen as one stable-subset and canonical
+  diagnostic/trusted-entrypoint contract. Milestone 1 has checked IR, independent
+  verification, LLVM verification, and many Linux/Windows native specimens, but no
+  authoritative scalar subset, application-shaped composition gate, `-O0`/`-O2`
+  equivalence lane, declared compile-fail corpus, or `END_TO_END` row. CORE-043--090
+  already constitute substantial Milestone 2 aggregate/ownership/reference fragments,
+  while collections, generics/traits/errors, general lifetime/drop/unsafe behavior,
+  public ABI/destruction, a generic data structure, and a real ownership-intensive
+  program remain open. On the documented 1--5 benefit/favorability scale, (1) the
+  representative scalar subset/application scores 26, (2) the Milestone 0 canonical
+  diagnostic/artifact/trusted-entrypoint contract scores 24, and (3) positive module/
+  import name resolution scores 21. The first is selected as `M1-001`.
+- Selected real-program delta: before `M1-001`, Aero has many trustworthy micro-
+  specimens but no application-shaped program certified across one authoritative
+  subset, both CPU platforms, and both optimization levels. After it, a deterministic
+  fixed-size telemetry-policy application composes direct modules, ordinary functions,
+  primitive constants, control flow, structs, fixed arrays/tuples, enums and `Match`,
+  mutation, whole-place references, and CORE-090 projected writes through checked IR,
+  independent verification, LLVM verification, object/link/native execution, and
+  exact stdout/stderr/exit equivalence at `-O0` and `-O2` on Linux and Windows. It is a
+  permanent growing application gate, not a one-feature specimen. Any red identifies
+  and freezes a real shared blocking class; no program-specific compiler exception is
+  permitted.
+- Local verification: Git and rendered PR #17 metadata confirm merge parent order,
+  candidate/merge tree equality, exact head identity, and all nine candidate checks.
+  Cross-document searches find no material CORE-090 pending/local-candidate wording,
+  `git diff --check` passes, and exactly the seven authorized documents differ. The
+  first raw Windows root gate passed all 218 library tests but stopped in the first
+  integration target because cached LF source was compared with checkout-only CRLF
+  fixture bytes. That unchanged known environment condition reproduced in the focused
+  target. With all and only tracked `.aero` files reversibly normalized to index LF,
+  the focused target passes 1/1 and the exact repository-root `./tools/test.sh` exits
+  0 with formatting, correctness-denying Clippy, 218 library tests, 32 binary tests,
+  every integration target, and doc tests. The wrapper restored every tracked fixture;
+  no `.aero` diff remains and user-owned `tmp/` was never included.
+- Allowed files: this `ROADMAP-001` record plus exact stale CORE-090 acceptance-status
+  lines in this ledger; `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`,
+  `README.md`, and `FRAMEWORK_ALIGNMENT.md`. No compiler source/test/example,
+  workflow, dependency, benchmark, claim-verification, package/release, branch-
+  protection, external repository, `master`, quarantined CORE-091 stash, or `tmp/`
+  mutation is authorized.
+
 ## CORE-090 - statically addressed projected CopyData assignment
 
-- Date/task/status: 2026-08-10, `CORE-090`, local candidate after authorized lead-owned red-first
-  executable vertical slice from accepted, post-merge-verified master
+- Date/task/status: 2026-08-10, `CORE-090`, accepted public after an authorized lead-owned red-first
+  executable vertical slice from accepted, post-merge-verified prior master
   `7fbaaaa4e26e50edd667771f6bce268e2429043e`, tree
   `e2f0da6ffd591a6ee22cf6585e48159d914cfd81`. Work belongs only on
   `agent/core-090-projected-copydata-assignment`; user-owned untracked `tmp/`
@@ -93,8 +216,15 @@
   LLVM/Clang 22.1.8 externally verifies, machine-verifies, object-lowers, links, and
   executes the tracked direct-module specimen at exact exit 90. The complete root gate
   passes formatting, correctness-denying Clippy, 218 library tests, 32 binary tests,
-  every integration target, and doc tests. Public exact-head workflows remain pending,
-  so this evidence is candidate status and not public acceptance.
+  every integration target, and doc tests. This was the pre-publication candidate
+  evidence; the acceptance result follows.
+- Public acceptance: exact candidate `af68d0e842ed2973087d2e3c78d2a19546e29ff7`,
+  tree `8455a06a4473a826ef1ea180e291e2ddb790bed0`, passed all nine exact-head
+  checks in bounded PR #17 and merged through protected master as
+  `128205615c53156138c4effa740b61ab455a760f`, with ordered parents prior master
+  then candidate and a tree exactly equal to the candidate tree. Post-merge CI
+  `31421325338`, Rust CI `31421326818`, and CodeQL `31421323785` pass on the
+  exact merge. The accepted exclusions above remain unchanged.
 - Allowed files: this single ledger record; `src/compiler/src/scalar_assignment.rs`,
   `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs`; `ir.rs` or
   `code_generator.rs` only if the existing checked projection/write identities cannot
