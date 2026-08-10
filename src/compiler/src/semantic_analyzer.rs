@@ -36,7 +36,8 @@ use crate::ownership_flow::{
 use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
     OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
-    classify_owned_place_assignment,
+    ProjectedCopyDataAssignmentDisposition, classify_owned_place_assignment,
+    classify_projected_copydata_assignment,
 };
 use crate::struct_contract::{CopyArrayIndexDisposition, StructExecutionContext, StructRegistry};
 use crate::tuple_contract::{
@@ -1735,7 +1736,10 @@ impl SemanticAnalyzer {
                     _ => Err("Cannot index into non-array type".to_string()),
                 }
             }
-            Expression::FieldAccess { .. } => Ok(Ty::Int), // Stub
+            Expression::FieldAccess { object, field } => {
+                let mut array_types = ArrayInferenceCache::new();
+                self.infer_supported_field_type(object, field, &mut array_types)
+            }
             Expression::TupleLiteral(elements) => {
                 let mut element_types = Vec::with_capacity(elements.len());
                 for element in elements {
@@ -3126,6 +3130,32 @@ impl SemanticAnalyzer {
                         return Err(message);
                     }
                     MutableReferenceAssignmentDisposition::Preserved => {}
+                }
+                match classify_projected_copydata_assignment(
+                    target,
+                    &rhs,
+                    inside_admitted_function,
+                    &self.struct_registry,
+                    |name| {
+                        self.scope_manager.get_variable(name).map(|variable| {
+                            OwnedPlaceAssignmentTargetFacts {
+                                ty: variable.var_type.clone(),
+                                mutable: variable.mutable,
+                                initialized: variable.initialized,
+                                local: variable.scope_level > 0,
+                                ownership: variable.ownership.clone(),
+                            }
+                        })
+                    },
+                ) {
+                    ProjectedCopyDataAssignmentDisposition::Supported(_) => {
+                        self.apply_enum_match_moves(value)?;
+                        return Ok(());
+                    }
+                    ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(message) => {
+                        return Err(message);
+                    }
+                    ProjectedCopyDataAssignmentDisposition::PreserveExistingBehavior => {}
                 }
                 let facts = if let Expression::Identifier(name) = target {
                     self.scope_manager.get_variable(name).map(|variable| {

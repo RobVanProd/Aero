@@ -1,0 +1,60 @@
+mod updates;
+
+struct Cell { value: int, ready: bool }
+struct Packet { pair: (Cell, [int; 3]), rows: [Cell; 2] }
+struct Envelope { packet: Packet }
+enum Pick { Left, Right }
+
+fn make_cell(value: int) -> Cell { Cell { value: value, ready: value > 0 } }
+
+fn main() -> int {
+    let seed = Cell { value: 1, ready: 1 < 2 };
+    let pair = (seed, [2, 3, 4]);
+    let rows = [seed, seed];
+    let packet = Packet { pair: pair, rows: rows };
+    let mut envelope: Envelope = Envelope { packet: packet };
+
+    envelope.packet.pair.0.value = 10;
+    (envelope.packet.pair.1)[0] = 11;
+    envelope.packet.rows[1] = make_cell(12);
+    envelope.packet.rows[0].ready = 2 < 3;
+    envelope.packet.rows[0].value = match Pick::Left {
+        Pick::Left => 13,
+        Pick::Right => 1
+    };
+
+    let mut tuple = ([1, 2], Cell { value: 3, ready: 1 == 2 });
+    (tuple.0)[1] = 14;
+    tuple.1 = make_cell(15);
+    tuple.1.ready = 3 > 2;
+
+    let mut matrix = [[1, 2], [3, 4]];
+    matrix[1][0] = 16;
+
+    if tuple.1.ready {
+        envelope.packet.pair.0.value = 17;
+    } else {
+        envelope.packet.pair.0.value = 1;
+    }
+    let mut step = 0;
+    while step < 1 {
+        envelope.packet.pair.1[2] = 18;
+        step = step + 1;
+    }
+
+    {
+        let view = &envelope;
+        let observed = (*view).packet.rows[1].value;
+    }
+    envelope.packet.rows[1].value = 19;
+
+    envelope.packet.pair.0.value
+        + envelope.packet.pair.1[0]
+        + envelope.packet.rows[0].value
+        + tuple.0[1]
+        + tuple.1.value
+        + matrix[1][0]
+        + envelope.packet.pair.1[2]
+        - envelope.packet.rows[1].value
+        + module_projection()
+}

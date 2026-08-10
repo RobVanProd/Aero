@@ -432,6 +432,21 @@ fn copy_place_reassignment_class_is_complete_checked_and_executable() {
             "struct Row { value: int } fn main() -> int { let mut row = Row { value: 0 }; if 1 < 2 { row = Row { value: 1 }; } else { row = Row { value: 9 }; } let mut step = 0; while step < 2 { row = Row { value: row.value + 1 }; step = step + 1; } { let mut row = Row { value: 4 }; row = Row { value: 5 }; } { let alias = &mut row; *alias = Row { value: 6 }; } row = Row { value: 7 }; row.value }",
             vec!["while_start", "store %aero.struct.Row"],
         ),
+        (
+            "projected struct field replacement",
+            "struct Row { value: int } fn main() -> int { let mut row = Row { value: 1 }; row.value = 2; row.value }",
+            vec!["getelementptr inbounds %aero.struct.Row", "store double"],
+        ),
+        (
+            "projected fixed-array element replacement",
+            "fn main() -> int { let mut values = [1, 2]; values[0] = 3; values[0] }",
+            vec!["getelementptr inbounds [2 x double]", "store double"],
+        ),
+        (
+            "projected tuple element replacement",
+            "fn main() -> int { let mut value = (1, 2); value.0 = 3; value.0 }",
+            vec!["getelementptr inbounds { double, double }", "store double"],
+        ),
     ] {
         failures.extend(expect_success(label, source, &required));
     }
@@ -490,21 +505,6 @@ fn copy_place_reassignment_class_is_complete_checked_and_executable() {
             "non-Copy struct target",
             "struct Bad { text: String } fn main() -> int { let mut value = Bad { text: \"a\" }; value = Bad { text: \"b\" }; 0 }",
             "Struct construction expressions are not supported",
-        ),
-        (
-            "field assignment target",
-            "struct Row { value: int } fn main() -> int { let mut row = Row { value: 1 }; row.value = 2; row.value }",
-            "assignment target must be a local identifier",
-        ),
-        (
-            "index assignment target",
-            "fn main() -> int { let mut values = [1, 2]; values[0] = 3; values[0] }",
-            "assignment target must be a local identifier",
-        ),
-        (
-            "tuple projection target",
-            "fn main() -> int { let mut value = (1, 2); value.0 = 3; value.0 }",
-            "assignment target must be a local identifier",
         ),
         (
             "struct schema mismatch",

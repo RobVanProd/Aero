@@ -1,5 +1,107 @@
 # Aero Task Ledger
 
+## CORE-090 - statically addressed projected CopyData assignment
+
+- Date/task/status: 2026-08-10, `CORE-090`, authorized lead-owned red-first
+  executable vertical slice from accepted, post-merge-verified master
+  `7fbaaaa4e26e50edd667771f6bce268e2429043e`, tree
+  `e2f0da6ffd591a6ee22cf6585e48159d914cfd81`. Work belongs only on
+  `agent/core-090-projected-copydata-assignment`; user-owned untracked `tmp/`
+  remains outside the task.
+- Once-per-class audit and observed behavior: the parser already retains every
+  assignment target as an expression, and the executable CopyData universe already
+  has exact recursive struct-field, tuple-element, and fixed-array-element place
+  identities. Semantic analysis and checked admission nevertheless send every
+  non-identifier/non-dereference target to the whole-place classifier, which rejects
+  it as `assignment target must be a local identifier`; checked lowering consequently
+  has no projected-target arm. The complete missing class is one nonempty, statically
+  addressed projection path rooted at a direct local CopyData owner. This audit closes
+  once for the recursive path grammar below and is not repeated per field, index,
+  nesting depth, pointee type, placement, or future head. A dead compatibility
+  inference arm still fabricates `Int` for `FieldAccess`; it may be removed or made to
+  delegate only if required by this class, but dead-code cleanup cannot be the task's
+  completion result.
+- Source authority, hypothesis, and frozen semantics: the founding design makes
+  mutation explicit through mutable bindings; the type-system specification gives
+  fixed-array element assignment as executable language behavior; and the ownership
+  specification defines scalars plus tuples/arrays/structs whose components are Copy
+  as replaceable Copy values. Therefore an initialized mutable direct local owner of
+  recursive finite CopyData may have exactly one statically selected CopyData subplace
+  replaced by an exact-type CopyData value. The write changes that subvalue and leaves
+  the root `Owned`; no move, drop, alias, reference, or partial-ownership state is
+  introduced. The right-hand side is evaluated exactly once before the side-effect-free
+  static place path is materialized, matching the existing assignment pipeline.
+- One shared predicate and exhaustive enumeration: the target grammar is
+  `Identifier Selector+`, where every `Selector` is one declared named-struct field,
+  one in-range tuple index, or one nonnegative in-range integer-literal fixed-array
+  index. The path may mix selectors at arbitrary finite depth and every intermediate
+  and final type must belong to the existing recursive finite CopyData authority. One
+  shared projected-place classifier must resolve the root facts, exact ordered path,
+  root and leaf types, logical schemas, mutability, initialization, locality,
+  ownership, bounds, and RHS identity. Semantic analysis, semantic-independent
+  checked admission, and lowering must consume that contract; no phase may restate the
+  topology. The verifier independently checks the existing typed projection chain and
+  exact leaf write before LLVM.
+- Complete positive surface: scalar and aggregate leaves through direct and arbitrarily
+  mixed field/tuple/array paths; first/middle/last and deep selectors; zero-, one-, and
+  multi-element neighboring containers where a valid index exists; inferred and exact
+  mutable roots; literal/local/projection/index/call/Match RHS values already admitted
+  at the exact leaf type; repeated and branch/loop-contained writes whose root remains
+  `Owned`; subsequent whole-root reads, copies, calls, returns, immutable/mutable
+  whole-place borrows, and whole-root replacement; both semantic routes; checked
+  metadata and corruption controls; direct modules; deterministic LLVM; public
+  `check`, `build`, and `run`; and one pinned LLVM/Clang 22 native exit-90 specimen.
+- Frozen negative boundary: empty paths; immutable, uninitialized, nonlocal, moved,
+  maybe-moved, or borrowed roots; unknown fields; unit/unary or out-of-range tuples;
+  zero-length or constant-out-of-range arrays; negative, computed, dynamic, call,
+  field-derived, or otherwise non-literal array target indexes; temporary/call/
+  constructor/reference/dereference roots; unsupported String/reference/enum/generic/
+  trait/closure/collection leaves or schemas; mismatched RHS; compound assignment;
+  projected borrow, projected dereference, reference transport, alias disjointness,
+  partial move, runtime bounds, NLL/lifetime/drop, stable layout/ABI/FFI, accelerator,
+  release, benchmark, performance, stability, safety, and general memory-safety claims
+  remain rejected or separately governed. Whole-place assignment and all CORE-043--089
+  behavior remain exact.
+- Red-first and acceptance tests: before production mutation, add one focused target
+  whose positive matrix reaches the single shared identifier-only rejection in both
+  semantic routes, semantic-independent checked admission, and public compilation.
+  The same target must prove the recursive grammar complete with one table of all
+  selector transitions and every excluded neighbor, retain child/root diagnostic
+  precedence, require CLI no-artifact behavior, and pin the expected checked projection
+  plus leaf-write identities. Add an independent verifier corruption red only if the
+  newly emitted shape exposes a trust false-success. Acceptance requires focused and
+  affected CopyData/assignment/reference/enum rings, exact check/build/run native exit
+  90 under pinned LLVM/Clang 22, formatting, `git diff --check`, correctness-denying
+  Clippy, docs, all public workflow anchors, and the complete repository-root
+  `./tools/test.sh`.
+- Exact red checkpoint: before any production, example, workflow, or capability-record
+  mutation, the focused target builds and fails 0/1. Its parser proof retains field-,
+  tuple-, and array-terminal targets plus mixed recursive paths. The complete positive
+  source then independently reaches `assignment target must be a local identifier` in
+  semantic analysis, semantic-independent checked admission, and public compilation.
+  All twelve negative quotient representatives reach that same identifier-only
+  boundary rather than their required root/path/type diagnostics. This is the single
+  authoritative red for the class; no per-selector audit or new-head reranking follows.
+- Allowed files: this single ledger record; `src/compiler/src/scalar_assignment.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs`; `ir.rs` or
+  `code_generator.rs` only if the existing checked projection/write identities cannot
+  carry the frozen exact contract; one focused
+  `src/compiler/tests/projected_copydata_assignment_tests.rs`; only exact now-obsolete
+  projected-assignment expectations in existing tests; one tracked
+  `examples/projected_copydata_assignment/` direct-module specimen;
+  `.github/workflows/rust.yml`; the Windows system-gate test anchors; and proportional
+  post-green updates to `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `FRAMEWORK_ALIGNMENT.md`, and `README.md`. No lexer/parser/AST, dependency, runtime,
+  stdlib, import resolver, benchmark, claim-verification, package/release, protection,
+  external repository, `master`, or `tmp/` mutation is authorized.
+- Risks and stop conditions: stop rather than broaden if the complete recursive path
+  cannot be owned by one classifier, checked IR cannot independently prove the root-to-
+  leaf chain, a write needs runtime bounds or projected alias semantics, a non-Copy or
+  enum subplace needs partial ownership/drop behavior, a phase-local topology guard is
+  required, any specification/test must be weakened, or the baseline becomes red.
+  Candidate and public acceptance remain distinct; corrections amend this one record
+  before publication, and the four scaling controls remain active.
+
 ## CORE-089 - multiple exclusive-reference function signatures
 
 - Date/task/status: 2026-08-10, `CORE-089`, authorized lead-owned red-first

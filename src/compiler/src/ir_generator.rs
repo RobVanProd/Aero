@@ -39,8 +39,9 @@ use crate::ownership_flow::{
 };
 use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
-    OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
-    classify_owned_place_assignment, resolve_owned_place_logical_type,
+    CopyProjectionStep, OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
+    ProjectedCopyDataAssignmentDisposition, classify_owned_place_assignment,
+    classify_projected_copydata_assignment, resolve_owned_place_logical_type,
 };
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
@@ -1352,6 +1353,29 @@ impl IrGenerator {
                         return Err(IrGenerationError::Admission(message));
                     }
                     MutableReferenceAssignmentDisposition::Preserved => {}
+                }
+                match classify_projected_copydata_assignment(
+                    target,
+                    &rhs,
+                    inside_admitted_function,
+                    &program.structs,
+                    |name| {
+                        bindings
+                            .get(name)
+                            .map(|binding| OwnedPlaceAssignmentTargetFacts {
+                                ty: binding.ty.clone(),
+                                mutable: binding.mutable,
+                                initialized: binding.initialized,
+                                local: inside_admitted_function,
+                                ownership: binding.ownership.clone(),
+                            })
+                    },
+                ) {
+                    ProjectedCopyDataAssignmentDisposition::Supported(_) => return Ok(()),
+                    ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(message) => {
+                        return Err(IrGenerationError::Admission(message));
+                    }
+                    ProjectedCopyDataAssignmentDisposition::PreserveExistingBehavior => {}
                 }
                 let facts = if let Expression::Identifier(name) = target {
                     bindings
@@ -3879,6 +3903,95 @@ impl IrGenerator {
             Statement::Assignment { target, value } => {
                 let (assigned_value, assigned_type) =
                     self.generate_expression_ir(value, current_function);
+                if self.checked_mode {
+                    let projected = classify_projected_copydata_assignment(
+                        &target,
+                        &assigned_type,
+                        true,
+                        &self.struct_registry,
+                        |name| {
+                            self.symbol_table.get(name).map(|(_, ty)| {
+                                OwnedPlaceAssignmentTargetFacts {
+                                    ty: ty.clone(),
+                                    mutable: true,
+                                    initialized: true,
+                                    local: true,
+                                    ownership: OwnershipState::Owned,
+                                }
+                            })
+                        },
+                    );
+                    if let ProjectedCopyDataAssignmentDisposition::Supported(contract) = projected {
+                        let (mut target_place, root_type) = self
+                            .symbol_table
+                            .get(&contract.root_name)
+                            .expect("shared projected assignment contract resolved its root")
+                            .clone();
+                        debug_assert_eq!(root_type, contract.root_type);
+                        for step in contract.path {
+                            target_place = match step {
+                                CopyProjectionStep::StructField {
+                                    receiver,
+                                    field_index,
+                                    field,
+                                } => {
+                                    let result = Value::Reg(self.next_ptr);
+                                    self.next_ptr += 1;
+                                    current_function.body.push(Inst::CheckedStructFieldPtr {
+                                        result: result.clone(),
+                                        base: target_place,
+                                        struct_name: receiver.name,
+                                        field_index: field_index as u32,
+                                        field_type: field.logical_type(),
+                                    });
+                                    result
+                                }
+                                CopyProjectionStep::TupleElement {
+                                    receiver,
+                                    index,
+                                    element,
+                                } => {
+                                    debug_assert_eq!(receiver.elements[index], element);
+                                    self.copy_tuple_field_ptr(
+                                        target_place,
+                                        &receiver,
+                                        index,
+                                        current_function,
+                                    )
+                                }
+                                CopyProjectionStep::ArrayElement {
+                                    receiver,
+                                    index,
+                                    element,
+                                } => {
+                                    debug_assert!(matches!(
+                                        &receiver,
+                                        Ty::Array(actual, _) if actual.as_ref() == &element
+                                    ));
+                                    self.fixed_copy_array_element_ptr(
+                                        target_place,
+                                        Value::ImmInt(index as i64),
+                                        &receiver,
+                                        current_function,
+                                    )
+                                }
+                            };
+                        }
+                        let assigned_value = self.load_copy_aggregate_value(
+                            assigned_value,
+                            &contract.leaf_type,
+                            current_function,
+                        );
+                        current_function
+                            .body
+                            .push(Inst::CheckedOwnedPlaceAssignment {
+                                target: target_place,
+                                value: assigned_value,
+                                ty: contract.leaf_logical_type,
+                            });
+                        return;
+                    }
+                }
                 match target {
                     Expression::Identifier(name) => {
                         let (target_place, target_type) = self
