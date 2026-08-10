@@ -17029,3 +17029,69 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   checkpoint. The PowerShell session initially omitted Cargo from `PATH`; rerunning the
   same command through `%USERPROFILE%\.cargo\bin\cargo.exe` produced the authoritative
   language red above and did not trigger a Windows Security denial.
+
+### CORE-084 locally green candidate checkpoint
+
+- Status and identity: implementation commit
+  `47b5142b312786975b53934cd943f6efd04e5575` has tree
+  `e325ce0427cc7db0de70960c2ae9e1c0892ae015` and stable patch ID
+  `c62abff2165a996eba67ede77d53048b66c05958` on
+  `agent/core-084-immutable-enum-references`, based exactly on accepted master
+  `23474fb45e57bed5c80ceed81597060aee2663f5`. This is candidate evidence only;
+  no public workflow, protected merge, or public acceptance is claimed.
+- Implementation summary: the shared reference-pointee authority now admits exact
+  immutable references to already admitted non-generic unit, unary, and positional
+  multi-field recursive-CopyData enums. A second shared classifier admits only direct
+  exhaustive `Match *identifier` reads from exact immutable `&E` locals or parameters,
+  and one result guard admits only existing CopyData or `Void`. Initialized immutable
+  direct enum owners receive exact checked storage; multiple immutable aliases and
+  repeated reads preserve the owner. Mutable-owner immutable loans, mutable-reference
+  reads, free enum dereference, transport, storage, and escape remain rejected.
+- Independent trust proof: checked IR adds exact immutable enum owner-place and Match-
+  read identities. The verifier requires one adjacent initializer, immutable-reference
+  provenance from that exact owner or an exact parameter binder, matching enum schema,
+  an adjacent exact result allocation and exhaustive dispatch, and no generic load or
+  store substitution. Ten corruption mutations cover generic owner allocation, wrong
+  schema, missing/nonadjacent initialization, mutable-reference substitution, owner-as-
+  reference substitution, wrong read schema, generic reference load, separated read,
+  and wrong dispatch. Trusted LLVM lowers only the verified exact enum pointer load.
+- Positive and negative evidence: the focused target passes 4/4. Its positive product
+  covers unit/unary/multi-field enums, explicit local aliases, multiple aliases,
+  immutable-reference parameters, a local parameter alias, repeated reads, payload
+  extraction, direct semantic-independent checked admission, exact checked identities,
+  LLVM pointer loads, CLI check/build/run, direct modules, and preserved owned use. Its
+  thirteen negative source groups run through semantic analysis, independent checked
+  admission, and public compilation, including free values, returns, by-value calls,
+  comparisons, binding/array/tuple storage, mutable-owner and mutable-reference reads,
+  non-identifier dereference, enum Match results, reference escape, entry parameters,
+  and unsupported generic enums. Invalid CLI check/build/run fail without a requested
+  artifact.
+- Compatibility and complete gates: affected conditional/loop/multi-field ownership,
+  mutable enum-reference, payload/unit enum transport, scalar/unit enum Match,
+  immutable Copy-place-reference, reference-parameter, owned enum reassignment, and
+  reinitialization targets pass after updating only superseded enum-reference negative
+  diagnostics. The Windows native workflow contract now requires the seventh expected-
+  nonzero specimen and its exact `LASTEXITCODE` reset. `cargo test --lib` passes 212/212.
+  Exact repository-root `./tools/test.sh` passes formatting, correctness-denying Clippy,
+  212 library tests, 32 binary tests, every integration target, and doc tests.
+  `git diff --check` passes. On this Windows checkout, 93 tracked `.aero` fixtures were
+  normalized from CRLF to LF only for byte-exact fixture tests and restored without an
+  indexed content diff afterward. User-owned untracked `tmp/` remained untouched.
+- System and workflow evidence: the tracked two-module specimen compiles through the
+  public CLI and returns exact exit 84 locally while composing immutable enum owners,
+  multiple aliases, immutable-reference parameters, repeated Match reads, owner
+  preservation, owned enum use, primitive constants, compile-time String length,
+  arrays, tuples, and direct modules. Stable/nightly Linux and pinned Windows
+  LLVM/Clang 22 workflow steps now require public check/run/build, LLVM verification,
+  machine verification, object lowering, linking, and independent native exit 84.
+  These workflow declarations are not public acceptance until the exact candidate head
+  passes them.
+- Remaining boundary and risks: free enum dereference or transport, mutable-owner
+  immutable loans, mutable-reference reads, enum/reference aggregate storage, reference
+  result/escape/capture, projections, partial moves, generic/named-field/unsupported
+  enums, lifetime/NLL/drop, public layout, stable ABI/FFI, accelerator execution,
+  performance, release, stability, and memory-safety claims remain absent. Positive
+  imports remain deferred because lookup, namespace, visibility, collision, cycle, and
+  cache semantics are not frozen. The next action is one bounded draft PR with exact-
+  head public checks and a synchronized front page; acceptance records must remain
+  separate from candidate status. The four scaling controls remain active.

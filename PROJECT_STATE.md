@@ -1,8 +1,31 @@
 # Aero Project State
 
-Last updated: 2026-08-08 (America/New_York)
+Last updated: 2026-08-10 (America/New_York)
 
 ## Current objective
+
+Milestone 105 `CORE-084` is a locally green candidate on
+`agent/core-084-immutable-enum-references`, based on accepted master
+`23474fb45e57bed5c80ceed81597060aee2663f5`. Its implementation commit is
+`47b5142b312786975b53934cd943f6efd04e5575`, with tree
+`e325ce0427cc7db0de70960c2ae9e1c0892ae015` and stable patch ID
+`c62abff2165a996eba67ede77d53048b66c05958`.
+
+The candidate admits immutable references only to the already admitted non-generic,
+destructor-free enum class. Initialized immutable direct local enum owners may have
+multiple non-escaping `&E` aliases, and non-entry internal functions may accept exact
+immutable enum-reference parameters. The sole enum read is exhaustive
+`match *identifier { ... }` with a CopyData or `Void` result; free enum dereference,
+mutable-owner immutable loans, mutable-reference reads, transport/storage/escape, and
+all new lifetime, drop, layout, ABI, FFI, safety, or stability semantics remain rejected.
+Checked IR uses exact immutable enum owner-place and Match-read identities, and the
+independent verifier ties schema, immutable reference provenance, read adjacency, and
+dispatch use together while rejecting generic-load substitution. The focused target is
+4/4 and the exact repository-root gate passes formatting, correctness-denying Clippy,
+212 library tests, 32 binary tests, every integration target, and doc tests. The tracked
+two-module specimen compiles and returns 84 through the local public CLI path; pinned
+Linux/Windows LLVM 22 public workflow acceptance is still pending. This is candidate
+evidence only, not accepted public capability or a release claim.
 
 Milestone 104 `CORE-083` is accepted public at candidate head
 `43e9bfc7d07414737c8978c3fc3621b984a1146d`, implementation commit
@@ -45,12 +68,14 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to publish this documentation-only CORE-083 acceptance record,
-then freeze the next bounded hard-capability slice from verified master. The four
-scaling controls remain active: bounded checkpoint PRs, deliberate hard-capability
-progress, proportional/structured evidence administration, and periodic composed
-source-to-native system gates. No new compiler capability may stack on an unpublished
-or red candidate.
+The exact next action is to publish CORE-084 in one bounded draft PR, synchronize its
+front page to the exact head, require every exact-head workflow including the pinned
+LLVM/Clang 22 Linux/Windows exit-84 lanes, and merge only through protected master after
+the candidate remains green. Public acceptance must then be recorded separately from
+candidate evidence. The four scaling controls remain active: bounded checkpoint PRs,
+deliberate hard-capability progress, proportional/structured evidence administration,
+and periodic composed source-to-native system gates. No new compiler capability may
+stack on an unpublished or red candidate.
 
 Milestone 102 `CHECKPOINT-001` is accepted public and integrated through the corrected
 solo-maintainer `CHECKPOINT-003` handoff. PR #4 merged the exact frozen head
@@ -757,6 +782,11 @@ composition rather than a module system.
   multi-field enums, exhaustive Match, direct mutable enum loans, alias/reborrow, exact
   checked schema, and post-call owner observation. Its complete compiler gate and
   pinned Linux/Windows native execution pass on the exact candidate and protected merge.
+  The locally green CORE-084 candidate adds a distinct exit-84 direct-module specimen
+  that composes immutable enum owners, multiple aliases, immutable enum-reference
+  parameters, repeated exhaustive Match reads, owner preservation, primitive constants,
+  compile-time String length, arrays, tuples, and owned enum use. Its complete local
+  compiler gate passes; exact-head public Linux/Windows native evidence remains pending.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.
