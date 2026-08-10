@@ -7,7 +7,12 @@ Last updated: 2026-08-10 (America/New_York)
 Milestone 109 `CORE-088` is a local working candidate on branch
 `agent/core-088-mixed-reference-signatures`, based on accepted, post-merge-verified
 master `b07efe291c8d2e03e6796a6e74284f7304f8162c`, tree
-`337f5350d401d1fed65d383920cd6d23c892a940`. The one shared reference-signature
+`337f5350d401d1fed65d383920cd6d23c892a940`. Its frozen implementation commit is
+`f0833a80aa6e91d71faf837879072c63ef1eba15`, tree
+`83445e55b5847ced27f5843fbc3cb50debdcb995`, with stable patch ID
+`6f87a3a53cccb60f413229749988573a85c4c617`. The following identity-only
+amendment changes repository records, not compiler behavior, tests, workflows, or
+the frozen implementation tree. The one shared reference-signature
 topology predicate now admits every ordered non-entry, non-generic signature with at
 most one mutable whole-place reference, any number of immutable whole-place
 references, and recursive finite CopyData companions. CORE-088 specifically closes

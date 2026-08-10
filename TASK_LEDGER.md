@@ -100,6 +100,12 @@
   Pinned local LLVM/Clang 22.1.8 passes public check/build/run, external verification,
   machine verification, COFF generation, linking, and independent native execution at
   exact exit 88. Public workflows remain pending, so no public acceptance is claimed.
+- Frozen implementation identity: commit
+  `f0833a80aa6e91d71faf837879072c63ef1eba15`, tree
+  `83445e55b5847ced27f5843fbc3cb50debdcb995`, stable patch ID
+  `6f87a3a53cccb60f413229749988573a85c4c617`. The following identity-only
+  amendment changes this ledger and `PROJECT_STATE.md`; it does not change compiler
+  behavior, tests, workflows, examples, or the frozen implementation tree.
 - Allowed files: this one ledger record; `src/compiler/src/local_reference.rs`,
   `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs` only if the red
   proof requires a coupled consumer correction; one focused
