@@ -17,12 +17,12 @@ use crate::function_call_contract::{
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
-    ReferenceFunctionDisposition, classify_immutable_enum_match_dereference,
+    ReferenceFunctionDisposition, classify_enum_match_dereference,
     classify_local_borrow_with_enums, classify_local_dereference,
     classify_local_reference_annotation_with_enums,
     classify_mutable_reference_assignment_with_enums, classify_mutable_reference_binding,
     classify_reference_call_with_enums, classify_reference_function_with_enums,
-    reference_call_fact_subject, validate_immutable_enum_match_result,
+    reference_call_fact_subject, validate_enum_reference_match_result,
 };
 use crate::method_call_contract::{IntrinsicMethodPhase, classify_intrinsic_method};
 use crate::ownership_flow::{
@@ -812,6 +812,10 @@ pub struct SemanticAnalyzer {
 }
 
 impl SemanticAnalyzer {
+    fn print_expression_result() -> Ty {
+        Ty::Void
+    }
+
     pub fn new() -> Self {
         let mut trait_registry = HashMap::new();
         // Built-in protocol used by `for x in ...`.
@@ -1617,14 +1621,14 @@ impl SemanticAnalyzer {
                 arguments,
             } => {
                 self.validate_format_string_and_args(format_string, arguments)?;
-                Ok(Ty::Int)
+                Ok(Self::print_expression_result())
             }
             Expression::Println {
                 format_string,
                 arguments,
             } => {
                 self.validate_format_string_and_args(format_string, arguments)?;
-                Ok(Ty::Int)
+                Ok(Self::print_expression_result())
             }
             Expression::Comparison { op, left, right } => {
                 let left_type = self.infer_and_validate_expression(left)?;
@@ -1853,7 +1857,7 @@ impl SemanticAnalyzer {
                     )
                     .map(|resolved| resolved.result_contract.ty())
                     .map_err(|error| error.diagnostic())?;
-                validate_immutable_enum_match_result(expr, &result, &self.struct_registry)?;
+                validate_enum_reference_match_result(expr, &result, &self.struct_registry)?;
                 Ok(result)
             }
             // Phase 5: Borrow and Deref
@@ -2291,11 +2295,7 @@ impl SemanticAnalyzer {
         if let Expression::Deref(reference) = expr {
             let operand =
                 self.infer_and_validate_expression_immutable_with_cache(reference, array_types)?;
-            match classify_immutable_enum_match_dereference(
-                reference,
-                &operand,
-                &self.enum_registry,
-            ) {
+            match classify_enum_match_dereference(reference, &operand, &self.enum_registry) {
                 LocalReferenceDisposition::Supported(contract) => return Ok(contract.pointee),
                 LocalReferenceDisposition::ExplicitlyRejected(message) => return Err(message),
                 LocalReferenceDisposition::Preserved => {}
@@ -2397,14 +2397,14 @@ impl SemanticAnalyzer {
                 arguments,
             } => {
                 self.validate_format_string_and_args_immutable(format_string, arguments)?;
-                Ok(Ty::Int)
+                Ok(Self::print_expression_result())
             }
             Expression::Println {
                 format_string,
                 arguments,
             } => {
                 self.validate_format_string_and_args_immutable(format_string, arguments)?;
-                Ok(Ty::Int)
+                Ok(Self::print_expression_result())
             }
             Expression::Comparison { op, left, right } => {
                 let left_type =
@@ -2664,7 +2664,7 @@ impl SemanticAnalyzer {
                     )
                     .map(|resolved| resolved.result_contract.ty())
                     .map_err(|error| error.diagnostic())?;
-                validate_immutable_enum_match_result(expr, &result, &self.struct_registry)?;
+                validate_enum_reference_match_result(expr, &result, &self.struct_registry)?;
                 Ok(result)
             }
             // Phase 5: Borrow and Deref

@@ -1,0 +1,42 @@
+mod observations;
+
+struct Leaf { value: int, ready: bool }
+
+enum Mode { Off, On }
+enum Packet { Empty, Pair(int, bool), Leaf(Leaf) }
+
+fn score_mode(value: Mode) -> int {
+    match value { Mode::Off => 0, Mode::On => 7 }
+}
+
+fn score_packet(value: Packet) -> int {
+    match value {
+        Packet::Empty => 0,
+        Packet::Pair(number, ready) => number + ready_score(ready),
+        Packet::Leaf(leaf) => leaf.value
+    }
+}
+
+fn ready_score(value: bool) -> int {
+    if value { return 3; }
+    0
+}
+
+fn main() -> int {
+    const ZERO: int = 0;
+    let mut mode = Mode::Off;
+    let mode_observations = observe_mode(&mut mode);
+
+    let mut packet = Packet::Leaf(Leaf { value: 5, ready: 1 < 2 });
+    let mut packet_observations = 0;
+    {
+        let alias: &mut Packet = &mut packet;
+        packet_observations = observe_then_replace(alias);
+        observe_packet_void(alias);
+    }
+
+    let values = [5, 6];
+    let pair = (ZERO, 1 < 2);
+    mode_observations + packet_observations + score_mode(mode) + score_packet(packet)
+        + values[0] + values[1] + pair.0 + "Aero".len()
+}

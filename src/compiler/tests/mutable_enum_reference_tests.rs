@@ -326,15 +326,6 @@ fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
             &["not admitted Copy-data"],
         ),
         (
-            "Match through mutable enum reference",
-            "enum E { A } fn read(value: &mut E) -> int { match *value { E::A => 1 } } fn main() -> int { 0 }",
-            &[
-                "Match through mutable enum reference",
-                "not admitted Copy-data",
-                "Match expressions are not supported",
-            ],
-        ),
-        (
             "reference result escape",
             "enum E { A } fn escape(value: &mut E) -> &mut E { value } fn main() -> int { 0 }",
             &["reference results require lifetime semantics"],

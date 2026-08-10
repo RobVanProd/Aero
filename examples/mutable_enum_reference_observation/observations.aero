@@ -1,0 +1,29 @@
+fn observe_mode(value: &mut Mode) -> int {
+    let before = match *value { Mode::Off => 0, Mode::On => 7 };
+    *value = Mode::On;
+    let after = match *value { Mode::Off => 0, Mode::On => 7 };
+    before + after
+}
+
+fn observe_then_replace(value: &mut Packet) -> int {
+    let before = match *value {
+        Packet::Empty => 0,
+        Packet::Pair(number, ready) => number + ready_score(ready),
+        Packet::Leaf(leaf) => leaf.value
+    };
+    *value = Packet::Pair(23, 1 < 2);
+    let after = match *value {
+        Packet::Empty => 0,
+        Packet::Pair(number, ready) => number + ready_score(ready),
+        Packet::Leaf(leaf) => leaf.value
+    };
+    before + after
+}
+
+fn observe_packet_void(value: &mut Packet) {
+    match *value {
+        Packet::Empty => println!("empty"),
+        Packet::Pair(number, ready) => println!("pair"),
+        Packet::Leaf(leaf) => println!("leaf")
+    }
+}

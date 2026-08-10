@@ -659,14 +659,14 @@ pub(crate) fn classify_local_dereference(
     }
 }
 
-pub(crate) fn classify_immutable_enum_match_dereference(
+pub(crate) fn classify_enum_match_dereference(
     reference: &Expression,
     operand: &Ty,
     enums: &EnumRegistry,
 ) -> LocalReferenceDisposition {
-    let Expression::Identifier(name) = reference else {
+    let Expression::Identifier(_) = reference else {
         return LocalReferenceDisposition::ExplicitlyRejected(
-            "immutable enum Match dereference requires an identifier reference".to_string(),
+            "enum Match dereference requires an identifier reference".to_string(),
         );
     };
     let Ty::Reference(pointee, mutable) = operand else {
@@ -679,19 +679,14 @@ pub(crate) fn classify_immutable_enum_match_dereference(
             return LocalReferenceDisposition::ExplicitlyRejected(error.diagnostic());
         }
     };
-    if *mutable {
-        return LocalReferenceDisposition::ExplicitlyRejected(format!(
-            "Match through mutable enum reference `{name}` is not admitted; CORE-084 reads only immutable enum references"
-        ));
-    }
     LocalReferenceDisposition::Supported(LocalReferenceContract {
         pointee: enum_contract.ty,
         logical_pointee: enum_contract.logical_type,
-        mutable: false,
+        mutable: *mutable,
     })
 }
 
-pub(crate) fn validate_immutable_enum_match_result(
+pub(crate) fn validate_enum_reference_match_result(
     scrutinee: &Expression,
     result: &Ty,
     structs: &StructRegistry,
@@ -706,8 +701,7 @@ pub(crate) fn validate_immutable_enum_match_result(
     ) {
         CopyPlaceDisposition::Supported(_) => Ok(()),
         CopyPlaceDisposition::ExplicitlyRejected(_) | CopyPlaceDisposition::Preserved => Err(
-            "immutable enum Match through a reference must produce admitted Copy-data or Void"
-                .to_string(),
+            "enum Match through a reference must produce admitted Copy-data or Void".to_string(),
         ),
     }
 }
