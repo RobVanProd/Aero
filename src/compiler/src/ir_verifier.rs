@@ -266,6 +266,30 @@ impl PlaceType {
             }),
         }
     }
+
+    fn checked_copy_array_contract(&self) -> Option<(LogicalType, usize)> {
+        match self {
+            Self::Known(LogicalType::Array { element, count }) if valid_copy_data_type(element) => {
+                Some((element.as_ref().clone(), *count))
+            }
+            Self::Array {
+                logical_element: Some(element),
+                count,
+                checked_copy_data: true,
+                ..
+            } => Some((element.clone(), *count)),
+            Self::Known(_)
+            | Self::Numeric
+            | Self::Array {
+                logical_element: None,
+                ..
+            }
+            | Self::Array {
+                checked_copy_data: false,
+                ..
+            } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1157,6 +1181,7 @@ struct FunctionVerifier<'a> {
     places: BTreeMap<PlaceId, PlaceType>,
     place_names: BTreeMap<PlaceId, Option<String>>,
     element_owners: BTreeMap<PlaceId, PlaceId>,
+    projection_parents: BTreeMap<PlaceId, PlaceId>,
     immutable_enum_owner_places: BTreeSet<PlaceId>,
     mutable_owned_places: BTreeSet<PlaceId>,
     match_result_places: BTreeSet<PlaceId>,
@@ -1188,6 +1213,7 @@ impl<'a> FunctionVerifier<'a> {
             places: BTreeMap::new(),
             place_names: BTreeMap::new(),
             element_owners: BTreeMap::new(),
+            projection_parents: BTreeMap::new(),
             immutable_enum_owner_places: BTreeSet::new(),
             mutable_owned_places: BTreeSet::new(),
             match_result_places: BTreeSet::new(),
@@ -1294,6 +1320,18 @@ impl<'a> FunctionVerifier<'a> {
         let mut seen = BTreeSet::new();
         while seen.insert(current) {
             let Some(parent) = self.immutable_reference_origins.get(&current).copied() else {
+                return Some(current);
+            };
+            current = parent;
+        }
+        None
+    }
+
+    fn projection_root_identity(&self, place: PlaceId) -> Option<PlaceId> {
+        let mut current = place;
+        let mut seen = BTreeSet::new();
+        while seen.insert(current) {
+            let Some(parent) = self.projection_parents.get(&current).copied() else {
                 return Some(current);
             };
             current = parent;
@@ -2446,12 +2484,10 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             };
-                            let Some(PlaceType::Array {
-                                logical_element: Some(actual_element),
-                                count: actual_count,
-                                checked_copy_data: true,
-                                ..
-                            }) = self.places.get(&base_id)
+                            let Some((actual_element, actual_count)) = self
+                                .places
+                                .get(&base_id)
+                                .and_then(PlaceType::checked_copy_array_contract)
                             else {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
@@ -2461,7 +2497,7 @@ impl<'a> FunctionVerifier<'a> {
                                     ),
                                 ));
                             };
-                            if actual_element != element || actual_count != count {
+                            if &actual_element != element || &actual_count != count {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
@@ -2472,6 +2508,7 @@ impl<'a> FunctionVerifier<'a> {
                                 ));
                             }
                             self.element_owners.insert(id, base_id);
+                            self.projection_parents.insert(id, base_id);
                             (PlaceType::Known(element.clone()), None)
                         }
                         Inst::CheckedStructAlloca {
@@ -2533,6 +2570,7 @@ impl<'a> FunctionVerifier<'a> {
                                     )),
                                 ));
                             }
+                            self.projection_parents.insert(id, PlaceId(base_id));
                             (PlaceType::Known(field_type.clone()), None)
                         }
                         Inst::CheckedTupleAlloca { element_types, .. } => {
@@ -2598,6 +2636,7 @@ impl<'a> FunctionVerifier<'a> {
                                     )),
                                 ));
                             }
+                            self.projection_parents.insert(id, base_id);
                             (PlaceType::Known(field_type.clone()), None)
                         }
                         Inst::CheckedImmutableBorrow {
@@ -3392,8 +3431,19 @@ impl<'a> FunctionVerifier<'a> {
                             position,
                         )?;
                         let match_result = self.match_result_places.contains(&target);
+                        let assignment_root =
+                            self.projection_root_identity(target).ok_or_else(|| {
+                                self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(
+                                        "checked owned-place assignment projection contains a cycle"
+                                            .to_string(),
+                                    ),
+                                )
+                            })?;
                         if !valid_owned_place_type(ty)
-                            || (!self.mutable_owned_places.contains(&target) && !match_result)
+                            || (!self.mutable_owned_places.contains(&assignment_root)
+                                && !match_result)
                         {
                             return Err(self.error(
                                 block_index,
@@ -3403,30 +3453,32 @@ impl<'a> FunctionVerifier<'a> {
                                 ),
                             ));
                         }
-                        if !match_result && !initialized_mutable_places.contains(&target) {
+                        if !match_result && !initialized_mutable_places.contains(&assignment_root) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "checked owned-place assignment target {} is not initialized by its adjacent declaration store",
-                                    target.0
+                                    assignment_root.0
                                 )),
                             ));
                         }
-                        if active_mutable_sources.contains(&target) {
+                        if active_mutable_sources.contains(&assignment_root) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "checked owned-place assignment to source place {} is forbidden while its mutable reference is active",
-                                    target.0
+                                    assignment_root.0
                                 )),
                             ));
                         }
-                        if active_mutable_owner_immutable_enum_sources.contains_key(&target) {
+                        if active_mutable_owner_immutable_enum_sources
+                            .contains_key(&assignment_root)
+                        {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "checked owned-place assignment to source place {} is forbidden while an immutable enum reference is active",
-                                    target.0
+                                    assignment_root.0
                                 )),
                             ));
                         }
@@ -3958,13 +4010,12 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
-                        if !matches!(
-                            self.places.get(&base),
-                            Some(PlaceType::Array {
-                                checked_copy_data: true,
-                                ..
-                            })
-                        ) {
+                        if self
+                            .places
+                            .get(&base)
+                            .and_then(PlaceType::checked_copy_array_contract)
+                            .is_none()
+                        {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::ExpectedPlaceIdentifier(
@@ -7102,6 +7153,94 @@ mod tests {
                 "{label} passed checked IR verification"
             );
         }
+    }
+
+    #[test]
+    fn projected_copydata_assignment_requires_a_typed_mutable_owner_root() {
+        let tuple = LogicalType::Tuple {
+            elements: vec![LogicalType::Int, LogicalType::Int],
+        };
+        let valid = || {
+            vec![
+                Inst::CheckedTupleAlloca {
+                    result: Value::Reg(0),
+                    element_types: vec![LogicalType::Int, LogicalType::Int],
+                },
+                Inst::CheckedTupleFieldPtr {
+                    result: Value::Reg(1),
+                    base: Value::Reg(0),
+                    element_types: vec![LogicalType::Int, LogicalType::Int],
+                    field_index: 0,
+                    field_type: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(1), Value::ImmInt(1)),
+                Inst::CheckedTupleFieldPtr {
+                    result: Value::Reg(2),
+                    base: Value::Reg(0),
+                    element_types: vec![LogicalType::Int, LogicalType::Int],
+                    field_index: 1,
+                    field_type: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(2), Value::ImmInt(2)),
+                Inst::Load(Value::Reg(3), Value::Reg(0)),
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(4),
+                    name: "pair".to_string(),
+                    ty: tuple.clone(),
+                },
+                Inst::Store(Value::Reg(4), Value::Reg(3)),
+                Inst::CheckedTupleFieldPtr {
+                    result: Value::Reg(5),
+                    base: Value::Reg(4),
+                    element_types: vec![LogicalType::Int, LogicalType::Int],
+                    field_index: 1,
+                    field_type: LogicalType::Int,
+                },
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(5),
+                    value: Value::ImmInt(9),
+                    ty: LogicalType::Int,
+                },
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+
+        verify_ir(function(valid()))
+            .expect("an exact projected write rooted at a mutable CopyData owner must verify");
+
+        let mut temporary_root = valid();
+        temporary_root[9] = Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(2),
+            value: Value::ImmInt(9),
+            ty: LogicalType::Int,
+        };
+        assert!(
+            verify_ir(function(temporary_root)).is_err(),
+            "a projection of compiler-temporary storage passed as a source-level mutable target"
+        );
+
+        let mut wrong_leaf_type = valid();
+        wrong_leaf_type[9] = Inst::CheckedOwnedPlaceAssignment {
+            target: Value::Reg(5),
+            value: Value::ImmFloat(9.5),
+            ty: LogicalType::Float,
+        };
+        assert!(
+            verify_ir(function(wrong_leaf_type)).is_err(),
+            "a projected write with substituted leaf metadata passed verification"
+        );
+
+        let mut bypassed_projection = valid();
+        bypassed_projection[8] = Inst::GetElementPtr {
+            result: Value::Reg(5),
+            base: Value::Reg(4),
+            index: Value::ImmInt(1),
+            elem_type: "{ double, double }".to_string(),
+        };
+        assert!(
+            verify_ir(function(bypassed_projection)).is_err(),
+            "a legacy untyped pointer substituted for a checked tuple projection"
+        );
     }
 
     #[test]

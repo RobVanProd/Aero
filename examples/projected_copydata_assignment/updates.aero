@@ -1,0 +1,5 @@
+fn module_projection() -> int {
+    let mut cell = Cell { value: 0, ready: 1 < 2 };
+    cell.value = 5;
+    cell.value
+}

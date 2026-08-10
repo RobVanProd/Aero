@@ -1180,6 +1180,34 @@ jobs:
         fi
         echo "multiple exclusive-reference signature example passed with exit code 89"
 
+    - name: Test projected CopyData assignment integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/projected_copydata_assignment/main.aero
+        set +e
+        cargo run -- run ../../examples/projected_copydata_assignment/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 90 ]; then
+          echo "Expected public projected CopyData assignment run exit code 90, got $public_run_exit"
+          exit 1
+        fi
+        cargo run -- build ../../examples/projected_copydata_assignment/main.aero -o ../../projected_copydata_assignment.ll
+        opt-22 -passes=verify -disable-output ../../projected_copydata_assignment.ll
+        llc-22 -verify-machineinstrs ../../projected_copydata_assignment.ll -o /dev/null
+        llc-22 -filetype=obj ../../projected_copydata_assignment.ll -o ../../projected_copydata_assignment.o
+        clang-22 -no-pie ../../projected_copydata_assignment.o -o ../../projected_copydata_assignment
+        set +e
+        ../../projected_copydata_assignment
+        projected_copydata_assignment_exit_code=$?
+        set -e
+        if [ $projected_copydata_assignment_exit_code -ne 90 ]; then
+          echo "Expected projected CopyData assignment exit code 90, got $projected_copydata_assignment_exit_code"
+          exit 1
+        fi
+        echo "projected CopyData assignment example passed with exit code 90"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
@@ -1836,4 +1864,57 @@ jobs:
           throw "Windows multiple-exclusive signature manual native execution returned $manualExit, expected 89"
         }
         Write-Host "Windows multiple-exclusive signature manual native execution passed with exit code 89"
+        $global:LASTEXITCODE = 0
+
+    - name: Test Windows projected CopyData assignment system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/projected_copydata_assignment/main.aero"
+        $projectedAssignmentLlvmPath = Join-Path $env:RUNNER_TEMP "projected_copydata_assignment.windows.ll"
+        $projectedAssignmentMachinePath = Join-Path $env:RUNNER_TEMP "projected_copydata_assignment.windows.s"
+        $projectedAssignmentObjectPath = Join-Path $env:RUNNER_TEMP "projected_copydata_assignment.windows.obj"
+        $projectedAssignmentExecutablePath = Join-Path $env:RUNNER_TEMP "projected_copydata_assignment.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check $example
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows projected CopyData assignment public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $projectedAssignmentLlvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $projectedAssignmentLlvmPath)) {
+          throw "Windows projected CopyData assignment public build failed or omitted its LLVM artifact"
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $projectedAssignmentLlvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows projected CopyData assignment opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $projectedAssignmentLlvmPath -o $projectedAssignmentMachinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $projectedAssignmentMachinePath)) {
+          throw "Windows projected CopyData assignment machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $projectedAssignmentLlvmPath -o $projectedAssignmentObjectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $projectedAssignmentObjectPath)) {
+          throw "Windows projected CopyData assignment object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $projectedAssignmentObjectPath -o $projectedAssignmentExecutablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $projectedAssignmentExecutablePath)) {
+          throw "Windows projected CopyData assignment Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run $example
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 90) {
+          throw "Windows projected CopyData assignment public run returned $publicRunExit, expected 90"
+        }
+        Write-Host "Windows projected CopyData assignment public run passed with exit code 90"
+
+        & $projectedAssignmentExecutablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 90) {
+          throw "Windows projected CopyData assignment manual native execution returned $manualExit, expected 90"
+        }
+        Write-Host "Windows projected CopyData assignment manual native execution passed with exit code 90"
         $global:LASTEXITCODE = 0

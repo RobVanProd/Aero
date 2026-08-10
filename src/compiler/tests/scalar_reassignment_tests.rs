@@ -401,12 +401,12 @@ fn main() -> int {
         (
             "field target",
             "struct Row { value: int } fn main() -> int { let row = Row { value: 1 }; row.value = 2; 0 }",
-            "assignment target must be a local identifier",
+            "projected assignment root `row` must be a mutable local owned binding",
         ),
         (
             "index target",
             "fn main() -> int { let items = [1, 2]; items[0] = 3; 0 }",
-            "assignment target must be a local identifier",
+            "projected assignment root `items` must be a mutable local owned binding",
         ),
         (
             "immutable dereference target",
