@@ -685,41 +685,6 @@ impl CodeGenerator {
         }
     }
 
-    fn value_to_win_printf_f64_bits_operand(
-        &mut self,
-        llvm_ir: &mut String,
-        value: &Value,
-    ) -> String {
-        match value {
-            Value::ImmInt(n) => ((*n as f64).to_bits() as i64).to_string(),
-            Value::ImmFloat(f) => (f.to_bits() as i64).to_string(),
-            Value::ImmChar(_) => {
-                panic!("Character value cannot be lowered as a printf floating operand")
-            }
-            Value::Reg(r) => {
-                let floating_register = if self.is_checked_bool_result(value) {
-                    let converted = self.fresh_reg();
-                    llvm_ir.push_str(&format!(
-                        "  %{} = uitofp i1 %reg{} to double\n",
-                        converted, r
-                    ));
-                    converted
-                } else {
-                    format!("reg{}", r)
-                };
-                let tmp = self.fresh_reg();
-                llvm_ir.push_str(&format!(
-                    "  %{} = bitcast double %{} to i64\n",
-                    tmp, floating_register
-                ));
-                format!("%{}", tmp)
-            }
-            Value::ImmString(_) => {
-                panic!("String value cannot be lowered as Windows printf floating operand")
-            }
-        }
-    }
-
     fn type_to_llvm(&self, type_name: &str) -> &str {
         match type_name {
             "int" | "i32" => "i32",
@@ -2729,32 +2694,28 @@ impl CodeGenerator {
                     printf_args.push_str(&arg_ptr);
                 }
                 _ => {
-                    if cfg!(windows) {
-                        // MSVC varargs require floating arguments in integer vararg slots.
-                        // Pass raw f64 bits so `%g` can reconstruct the correct value.
-                        printf_args.push_str(", i64 ");
-                        printf_args
-                            .push_str(&self.value_to_win_printf_f64_bits_operand(llvm_ir, arg));
+                    // Keep numeric varargs typed as LLVM doubles. The target backend
+                    // owns ABI classification, including the Windows x64 requirement
+                    // to duplicate variadic floating values into both XMM and general-
+                    // purpose registers.
+                    printf_args.push_str(", double ");
+                    if self.is_checked_bool_result(arg) {
+                        let converted = self.fresh_reg();
+                        llvm_ir.push_str(&format!(
+                            "  %{} = uitofp i1 {} to double\n",
+                            converted,
+                            self.bool_value_to_string(arg)
+                        ));
+                        printf_args.push_str(&format!("%{}", converted));
                     } else {
-                        printf_args.push_str(", double ");
-                        if self.is_checked_bool_result(arg) {
-                            let converted = self.fresh_reg();
-                            llvm_ir.push_str(&format!(
-                                "  %{} = uitofp i1 {} to double\n",
-                                converted,
-                                self.bool_value_to_string(arg)
-                            ));
-                            printf_args.push_str(&format!("%{}", converted));
-                        } else {
-                            printf_args.push_str(&self.value_to_string(arg));
-                        }
+                        printf_args.push_str(&self.value_to_string(arg));
                     }
                 }
             }
         }
 
         // Call printf
-        llvm_ir.push_str(&format!("  call i32 @printf({})\n", printf_args));
+        llvm_ir.push_str(&format!("  call i32 (i8*, ...) @printf({})\n", printf_args));
     }
 
     fn escape_for_llvm(&self, input: &str) -> String {
@@ -3125,7 +3086,7 @@ mod tests {
         assert!(llvm_ir.contains("define void @print_hello()"));
 
         // Check that print statement is generated with printf call
-        assert!(llvm_ir.contains("call i32 @printf"));
+        assert!(llvm_ir.contains("call i32 (i8*, ...) @printf"));
     }
 
     #[test]
@@ -3152,7 +3113,7 @@ mod tests {
         assert!(llvm_ir.contains("declare i32 @printf(i8*, ...)"));
 
         // Check that print call is generated
-        assert!(llvm_ir.contains("call i32 @printf"));
+        assert!(llvm_ir.contains("call i32 (i8*, ...) @printf"));
         assert!(llvm_ir.contains("Hello, World!"));
     }
 
@@ -3180,7 +3141,7 @@ mod tests {
         assert!(llvm_ir.contains("declare i32 @printf(i8*, ...)"));
 
         // Check that println call is generated with newline
-        assert!(llvm_ir.contains("call i32 @printf"));
+        assert!(llvm_ir.contains("call i32 (i8*, ...) @printf"));
         assert!(llvm_ir.contains("Hello, World!\\0A"));
     }
 
@@ -3208,11 +3169,7 @@ mod tests {
         assert!(llvm_ir.contains("Value: %g"));
 
         // Check that argument is passed
-        if cfg!(windows) {
-            assert!(llvm_ir.contains("i64 4631107791820423168")); // f64 bits for 42.0
-        } else {
-            assert!(llvm_ir.contains("double 0x4045000000000000")); // 42.0 in hex
-        }
+        assert!(llvm_ir.contains("double 0x4045000000000000")); // 42.0 in hex
     }
 
     #[test]
@@ -3235,7 +3192,7 @@ mod tests {
         let llvm_ir = generator.generate_code(functions);
 
         assert!(llvm_ir.contains("Hello, %s\\0A"));
-        assert!(llvm_ir.contains("call i32 @printf(i8*"));
+        assert!(llvm_ir.contains("call i32 (i8*, ...) @printf(i8*"));
         assert!(llvm_ir.contains(", i8* %"));
     }
 
@@ -3394,15 +3351,9 @@ mod tests {
         assert!(llvm_ir.contains("Sum: %g + %g = %g"));
 
         // Check that all arguments are passed
-        if cfg!(windows) {
-            assert!(llvm_ir.contains("i64 4617315517961601024")); // 5.0 bits
-            assert!(llvm_ir.contains("i64 4613937818241073152")); // 3.0 bits
-            assert!(llvm_ir.contains("i64 4620693217682128896")); // 8.0 bits
-        } else {
-            assert!(llvm_ir.contains("double 0x4014000000000000")); // 5.0
-            assert!(llvm_ir.contains("double 0x4008000000000000")); // 3.0
-            assert!(llvm_ir.contains("double 0x4020000000000000")); // 8.0
-        }
+        assert!(llvm_ir.contains("double 0x4014000000000000")); // 5.0
+        assert!(llvm_ir.contains("double 0x4008000000000000")); // 3.0
+        assert!(llvm_ir.contains("double 0x4020000000000000")); // 8.0
     }
 
     #[test]
@@ -3463,7 +3414,7 @@ mod tests {
         let llvm_ir = generator.generate_code(functions);
 
         // Check that printf call is generated
-        assert!(llvm_ir.contains("call i32 @printf"));
+        assert!(llvm_ir.contains("call i32 (i8*, ...) @printf"));
         assert!(llvm_ir.contains("Hello, %g!")); // Format string should be processed
         assert!(llvm_ir.contains("getelementptr inbounds")); // String constant access
     }
@@ -3489,17 +3440,11 @@ mod tests {
         let llvm_ir = generator.generate_code(functions);
 
         // Check that printf call is generated with multiple arguments
-        assert!(llvm_ir.contains("call i32 @printf"));
+        assert!(llvm_ir.contains("call i32 (i8*, ...) @printf"));
         assert!(llvm_ir.contains("Values: %g, %g, %g"));
-        if cfg!(windows) {
-            assert!(llvm_ir.contains("i64 4607182418800017408")); // 1.0 bits
-            assert!(llvm_ir.contains("i64 4614253070214989087")); // 3.14 bits
-            assert!(llvm_ir.contains("bitcast double %reg5 to i64"));
-        } else {
-            assert!(llvm_ir.contains("double 0x3FF0000000000000")); // 1.0 in hex
-            assert!(llvm_ir.contains("double 0x40091EB851EB851F")); // 3.14 in hex
-            assert!(llvm_ir.contains("double %reg5"));
-        }
+        assert!(llvm_ir.contains("double 0x3FF0000000000000")); // 1.0 in hex
+        assert!(llvm_ir.contains("double 0x40091EB851EB851F")); // 3.14 in hex
+        assert!(llvm_ir.contains("double %reg5"));
     }
 
     #[test]
@@ -3586,7 +3531,7 @@ mod tests {
         assert!(llvm_ir.contains("or i1"));
         assert!(llvm_ir.contains("xor i1"));
         assert!(llvm_ir.contains("fsub double 0.0"));
-        assert!(llvm_ir.contains("call i32 @printf"));
+        assert!(llvm_ir.contains("call i32 (i8*, ...) @printf"));
         assert!(llvm_ir.contains("Results: %g, %g, %g"));
         assert!(llvm_ir.contains("Test completed!\\0A"));
     }
@@ -3686,7 +3631,7 @@ mod tests {
         let llvm_ir = generator.generate_code(functions);
 
         // Check that printf call is generated with just format string
-        assert!(llvm_ir.contains("call i32 @printf(i8*"));
+        assert!(llvm_ir.contains("call i32 (i8*, ...) @printf(i8*"));
         assert!(llvm_ir.contains("Hello, World!"));
     }
 }

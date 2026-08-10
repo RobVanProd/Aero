@@ -28,6 +28,8 @@
 /examples/*
 !/examples/*.aero
 !/examples/*.md
+!/examples/representative_telemetry/
+!/examples/representative_telemetry/**
 
 # OS / editor
 .DS_Store

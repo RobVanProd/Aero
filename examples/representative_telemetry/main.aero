@@ -1,0 +1,41 @@
+mod model;
+mod policy;
+
+fn main() -> int {
+    const BASE: int = 10 + 1;
+    const EXPECTED: int = 91;
+
+    let mut batch: Batch = make_batch();
+    batch.sensors[0].value = BASE;
+    batch.sensors[1].value = 20;
+    batch.sensors[2].value = 30;
+    batch.meta.0 = 4;
+    batch.meta.1 = 2 > 1;
+
+    let observed = batch.sensors[0].value;
+    let observed_ref = &observed;
+    let bias = batch.meta.0;
+    let mut total = batch.sensors[1].value + batch.sensors[2].value;
+    total = add_bias(&mut total, observed_ref, bias);
+
+    for weight in [1, 2, 3] {
+        total = total + weight;
+    }
+    let mut step = 0;
+    while step < 2 {
+        total = total + step + 1;
+        step = step + 1;
+    }
+    if batch.meta.1 {
+        total = total + 16;
+    } else {
+        total = 1;
+    }
+
+    let trusted = batch.sensors[0].trusted;
+    let decision = classify(total, trusted);
+    let score = decision_score(decision);
+    println!("telemetry score: {}", score);
+    if score == EXPECTED { return EXPECTED; }
+    1
+}

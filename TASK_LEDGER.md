@@ -1,5 +1,182 @@
 # Aero Task Ledger
 
+## M1-001 - representative scalar telemetry application and conformance gate
+
+- Date/task/status: 2026-08-10, `M1-001`, authorized tests-first integration
+  capability from accepted, post-merge-verified ROADMAP-001 master
+  `2bfa75d017e8b13fca3b22c148f11102e39f35bd`, tree
+  `c66ca823b3f3e5f681c12b99eee86efa7aaa79c5`. Work belongs only on
+  `agent/m1-001-representative-scalar-application`; user-owned untracked `tmp/`
+  remains outside the task. The quarantined CORE-091 stash remains unpublished and
+  cannot be applied to satisfy this task.
+- Observed behavior and once-per-class audit: Aero has many exact source-to-native
+  feature specimens, checked-IR corruption controls, and Linux/Windows LLVM 22 lanes,
+  but no application-shaped program defines one authoritative compositional subset.
+  There is no gate that compiles the same program at `-O0` and `-O2`, compares exact
+  runtime behavior, or treats a maintained compile-fail corpus as the negative side of
+  that same user workflow. This audit closes when that single conformance workflow is
+  enumerated and gated; it is not re-run per feature or later program revision.
+- Before/after real-program delta: before this task, a user cannot point to one small
+  Aero application whose modules, functions, data modeling, control flow, mutation,
+  borrowing, diagnostics, verified LLVM, native behavior, and optimization equivalence
+  are certified together. After it, a deterministic fixed-size telemetry-policy
+  evaluator is buildable and executable through the public compiler on Linux and
+  Windows, prints one exact result line, returns one exact sentinel, and behaves
+  identically at `-O0` and `-O2`. The program becomes a growing integration gate for
+  later strategically important capabilities.
+- Frozen authoritative subset for this task: direct root-level `mod` source
+  collection with flattened declarations; nongeneric internal functions and exact
+  calls/results; local primitive `const`; `int` and `bool`; immutable static format
+  strings used only by effectful `println!`; mutable and immutable bindings; `if`/
+  `else`, `while`, fixed-array `for`, blocks, and returns; finite acyclic CopyData
+  structs, fixed arrays, arity-at-least-two tuples, positional destructor-free enums,
+  exhaustive identifier-bound `Match`; whole-place immutable/mutable references with
+  nonescaping internal calls; whole-place replacement; and accepted CORE-090 static
+  field/tuple/in-range integer-literal array projected writes. This is a conformance
+  subset, not a stable grammar, public ABI, or general ownership claim.
+- Representative program contract: `examples/representative_telemetry/` contains one
+  root plus two direct modules. It constructs a fixed sensor batch, calibrates exact
+  nested fields, observes independent values through references, classifies the batch
+  through an owned enum and exhaustive `Match`, accumulates deterministic loop work,
+  prints exactly `telemetry score: 91\n`, and exits exactly 91. The compiler may not
+  special-case this program. Each major future capability should enrich this same
+  application when composition is semantically appropriate.
+- Negative corpus and evidence: tracked compile-fail fixtures cover one exact type-
+  incorrect policy call, one immutable projected update, and one unknown projected
+  field. The focused test requires deterministic source-located diagnostics and no
+  requested LLVM/object/executable artifact through public `check`, `build`, and `run`.
+  Existing lexer/parser, call, projection, ownership, checked-IR corruption, and CLI
+  status suites remain the broader negative controls.
+- Mechanism: add only the representative source/corpus, one integration test that
+  proves tracked-source identity, public file compilation, checked IR and independent
+  codegen verification, deterministic LLVM, CLI status/artifact behavior, exact native
+  output/exit when pinned tools are available, workflow anchors, and an explicit
+  `-O0`/`-O2` equivalence lane on Linux and Windows. No compiler behavior changes are
+  authorized initially. If the red exposes a real shared compiler defect, stop and
+  amend this same contract with the complete blocking class before changing compiler
+  source; no specimen-specific bypass is allowed.
+- Assumptions: all frozen constructs are already accepted independently; direct module
+  collection is library-owned; trusted generation produces fallible checked IR and is
+  independently reverified before LLVM; LLVM 22 rejects corrupt IR before object
+  creation; Clang 22 optimization levels preserve defined semantics; and Windows/MSVC
+  target evidence remains private and bounded. Evidence is the accepted CORE-043--090
+  tests, current compiler invariants, the ROADMAP-001 audit/ranking, and the existing
+  pinned Linux/Windows workflow contracts.
+- Measurement and decision threshold: merge requires the application to pass public
+  `check`, `build`, and `run`; library checked-file compilation and deterministic LLVM;
+  direct checked-IR generation plus independent verified codegen; exact external LLVM
+  verification and machine verification; separate `-O0` and `-O2` object/link/native
+  runs with byte-identical stdout/stderr and exit 91 on Linux and Windows; all three
+  compile-fail cases with exact diagnostics/no artifacts; focused and adjacent suites;
+  formatting, correctness-denying Clippy, docs, `git diff --check`, the complete root
+  gate, all exact-head public workflows, protected merge, and exact post-merge gates.
+- Failure modes and detection: missing module composition is caught by file/CLI tests;
+  type or ownership false success by compile-fail and checked-admission controls;
+  fabricated or malformed IR by independent verifier corruption controls and
+  `opt-22`; codegen divergence by deterministic LLVM plus `-O0`/`-O2` output/exit
+  comparison; platform drift by separate Linux/Windows jobs; artifact leakage by
+  per-command filesystem assertions; program-specific special casing by source review
+  and existing generic feature tests; and evidence bloat by one task record, one
+  focused target, shared helpers, and one application workflow block.
+- Recovery: the clean rollback boundary is one bounded M1-001 PR containing only the
+  new application/corpus/test, proportional workflow anchors, and post-green project-
+  truth updates. Revert removes the conformance claim without changing accepted
+  language behavior. Any necessary compiler fix must have its own clearly separable
+  commit inside the same bounded vertical slice and a complete shared-class contract.
+- Strategic value: this closes the largest ROADMAP-001 gap by turning isolated
+  primitives into a useful composed program and establishing the missing Milestone 1
+  integration and optimization-equivalence gate. It creates an objective workload for
+  selecting later modules, errors, collections, ownership, and AI/ML prerequisites.
+- What would change our mind: an undefined source semantic, a required stable ABI or
+  unsupported runtime service, optimizer-dependent defined behavior, inability to
+  verify both platforms, or evidence that the chosen program can pass only through a
+  one-off compiler exception stops this design. A red showing a different shared
+  language capability is the true blocker may re-scope this same vertical slice; a
+  lower-value neighboring topology does not.
+- Exact red checkpoint: before any example, workflow, compiler, or project-state
+  mutation, the focused target builds and fails 0/1. The complete three-file program
+  already passes direct-module `compile_file`, deterministic repeated compilation,
+  standalone semantic analysis, semantic-independent checked admission, and verified
+  codegen. The red contains no compiler rejection. It fails because the three tracked
+  representative sources and all Linux/Windows `-O0`/`-O2` workflow anchors are
+  absent, plus one test-only print-format LLVM substring assumed `%d` even though that
+  textual spelling is not a frozen backend contract. The implementation therefore
+  remains an integration/evidence slice; no compiler phase or semantics may change.
+- Shared blocking-class amendment after the initial red: native inspection exposed
+  one existing backend-wide ABI defect in every admitted dynamic numeric `print!` and
+  `println!` argument on Windows. The code generator changes each logical `int`,
+  `float`, or `bool` value represented as an LLVM `double` into raw `i64` bits before
+  the variadic `printf` call. That happens to produce the expected bytes with the
+  current CRT, but Clang 22's canonical Windows IR keeps the argument typed as
+  `double`, and the target backend then places it in the required XMM register and
+  duplicates it into the corresponding general-purpose register. Aero's `i64` call
+  supplies only the latter and therefore fabricates native success outside the ABI
+  contract. The complete admitted class is frozen here: immediate and computed
+  numeric values, in every argument position and count, for both `print!` and
+  `println!`, must remain LLVM `double` arguments and each call site must spell the
+  explicit variadic callee type `i32 (i8*, ...)` on every CPU target so the target
+  backend owns ABI classification. Static string arguments remain `i8*`;
+  printable characters, aggregates, dynamic strings, formatting syntax extensions,
+  and general C interoperability remain excluded. One shared lowering rule closes
+  the class; no per-value, per-position, or per-platform source-semantics guard is
+  allowed.
+- Blocking-class red, evidence, and stop threshold: before backend mutation, the
+  focused M1-001 test adds one source specimen enumerating `print!`/`println!`, single
+  and multiple arguments, immediate and computed `int`/`float`/`bool` values. On
+  Windows it fails because generated `printf` call sites contain `i64` varargs and
+  `bitcast double ... to i64`; Linux already emits the required `double` form. LLVM
+  22 verification, Windows assembly inspection, exact native `-O0`/`-O2` behavior,
+  existing formatting tests, and the full cross-platform gate detect invalid calls,
+  argument-order loss, scalar conversion errors, or optimizer-sensitive behavior.
+  The compiler amendment is limited to `src/compiler/src/code_generator.rs`, crosses
+  only the backend phase, and is a separable rollback boundary inside M1-001. Evidence
+  that LLVM's pinned Windows backend does not perform the documented duplication for
+  a typed variadic `double`, that any admitted scalar needs a different source-level
+  display contract, or that the change affects non-print ABI lowering stops the fix
+  and forces a different architecture.
+- Blocking-class refinement from the stop evidence: the first backend-only correction
+  kept numeric arguments as `double` but retained Aero's abbreviated call syntax
+  `call i32 @printf(...)`. The pinned Windows Clang 22 backend then emitted only the
+  XMM argument, public `run` exited 91 but printed `4.44659e-322`, and the candidate
+  remained red. A minimal differential LLVM specimen proves that the same declaration
+  and argument become conforming when the call spells the variadic function type
+  explicitly: `call i32 (i8*, ...) @printf(...)`; Clang then emits both XMM and GPR
+  copies. The shared fix is therefore refined—not broadened—to preserve `double` and
+  emit that explicit call-site type for every `print!`/`println!` call. The focused
+  contract must be red on the missing function type before this refinement is applied.
+- Local green candidate evidence: the refined focused ABI contract and all eight
+  adjacent print/codegen units pass; public `check`, external-verifier-required
+  `build`, and `run` accept the representative application, whose run prints exactly
+  `telemetry score: 91` and exits 91. All three compile-fail fixtures reject through
+  public `check`, `build`, and `run` with their frozen diagnostics and no regular
+  artifact. Official LLVM/Clang 22.1.8 externally verifies and machine-verifies the
+  candidate; direct Windows `-O0` and `-O2` executables both emit exact
+  `telemetry score: 91\r\n`, empty stderr, and exit 91. The focused target passes 3/3,
+  all 218 library tests including verifier corruption controls pass, the Windows
+  workflow self-contract passes, YAML parses, `git diff --check` passes, and the exact
+  repository-root gate exits 0 with formatting, correctness-denying Clippy, 218
+  library tests, 32 binary tests, every integration target, and doc tests. The first
+  root attempt exposed one stale platform-specific unit expectation; the second reached
+  the final workflow self-test and exposed one counted-reset mismatch; both evidence-
+  only expectations were corrected before this uninterrupted green gate. Candidate-
+  head workflows, protected merge, and post-merge verification remain pending; none of
+  this local evidence is public acceptance.
+- Frozen implementation commit: `a6705709f98b6eee76ecf68a778949c52282bb5b`,
+  tree `ce53892fe952b902985d3fd9644fc69bd18bc7a0`, stable patch ID
+  `6f702defa4ba8dba9d123c6ce249a68cd010126e`. The succeeding candidate-head
+  commit is restricted to the six proportional project-truth updates plus this exact
+  identity amendment; it does not alter compiler, specimen, test, or workflow behavior.
+- Allowed files: this single ledger record; new
+  `examples/representative_telemetry/` sources and compile-fail corpus; one new
+  `src/compiler/tests/representative_scalar_application_tests.rs` target;
+  `.gitignore`; `.github/workflows/rust.yml`; the shared blocking-class backend file
+  `src/compiler/src/code_generator.rs`; and post-green proportional updates to
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `Roadmap.md`, `README.md`, and `FRAMEWORK_ALIGNMENT.md`. Other compiler source or
+  tests and other examples, dependencies, release/package/benchmark/claim-verification files,
+  protection, external repositories, master, the CORE-091 stash, and `tmp/` are not
+  authorized unless a real shared blocking class is first recorded here.
+
 ## ROADMAP-001 - re-anchor accepted truth and select the next milestone path
 
 - Date/task/status: 2026-08-10, `ROADMAP-001`, authorized project-level

@@ -1,0 +1,19 @@
+struct Sensor { value: int, trusted: bool }
+struct Batch { sensors: [Sensor; 3], meta: (int, bool) }
+
+enum Decision {
+    Normal(int),
+    Alert(int, bool)
+}
+
+fn make_sensor(value: int, trusted: bool) -> Sensor {
+    Sensor { value: value, trusted: trusted }
+}
+
+fn make_batch() -> Batch {
+    let seed = make_sensor(0, 1 < 2);
+    Batch {
+        sensors: [seed, seed, seed],
+        meta: (0, 1 > 2)
+    }
+}

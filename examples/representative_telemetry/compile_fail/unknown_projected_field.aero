@@ -1,0 +1,7 @@
+struct Sensor { value: int, trusted: bool }
+
+fn main() -> int {
+    let mut sensor = Sensor { value: 1, trusted: 1 < 2 };
+    sensor.missing = 2;
+    sensor.value
+}
