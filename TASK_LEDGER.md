@@ -2,7 +2,7 @@
 
 ## M1-001 - representative scalar telemetry application and conformance gate
 
-- Date/task/status: 2026-08-10, `M1-001`, authorized tests-first integration
+- Date/task/status: 2026-08-10, `M1-001`, accepted tests-first integration
   capability from accepted, post-merge-verified ROADMAP-001 master
   `2bfa75d017e8b13fca3b22c148f11102e39f35bd`, tree
   `c66ca823b3f3e5f681c12b99eee86efa7aaa79c5`. Work belongs only on
@@ -158,14 +158,25 @@
   library tests, 32 binary tests, every integration target, and doc tests. The first
   root attempt exposed one stale platform-specific unit expectation; the second reached
   the final workflow self-test and exposed one counted-reset mismatch; both evidence-
-  only expectations were corrected before this uninterrupted green gate. Candidate-
-  head workflows, protected merge, and post-merge verification remain pending; none of
-  this local evidence is public acceptance.
+  only expectations were corrected before this uninterrupted green gate. At that
+  pre-publication checkpoint, candidate-head workflows, protected merge, and post-
+  merge verification remained pending; none of that local evidence was public
+  acceptance.
 - Frozen implementation commit: `a6705709f98b6eee76ecf68a778949c52282bb5b`,
   tree `ce53892fe952b902985d3fd9644fc69bd18bc7a0`, stable patch ID
   `6f702defa4ba8dba9d123c6ce249a68cd010126e`. The succeeding candidate-head
-  commit is restricted to the six proportional project-truth updates plus this exact
-  identity amendment; it does not alter compiler, specimen, test, or workflow behavior.
+  commit was restricted to the six proportional project-truth updates plus this exact
+  identity amendment; it did not alter compiler, specimen, test, or workflow behavior.
+- Public acceptance: exact candidate `e7a74e600d2e4dc7a58a383ae14282b7923e1a5e`,
+  tree `193c9590af18eed16fb126affcecc1dd617f98a4`, passed all nine exact-head
+  checks through bounded PR #19. Protected merge
+  `d7d1c7682911503470a19c97acb72d231824b193` has ordered parents prior master
+  `2bfa75d017e8b13fca3b22c148f11102e39f35bd` then the candidate and a tree exactly
+  equal to the candidate tree. Post-merge CI `31429517811`, Rust CI `31429517729`,
+  and CodeQL `31429517265` pass. The representative application/conformance-subset
+  workflow is accepted as `END_TO_END`; every component language feature remains
+  bounded `PARTIAL`, and no stability, public ABI, memory-safety, performance, GPU,
+  release, or general-language claim follows.
 - Allowed files: this single ledger record; new
   `examples/representative_telemetry/` sources and compile-fail corpus; one new
   `src/compiler/tests/representative_scalar_application_tests.rs` target;

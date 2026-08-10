@@ -5,8 +5,7 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; corrective roadmap checkpoint: 2026-08-10
 
 Current accepted compiler-capability master:
-`2bfa75d017e8b13fca3b22c148f11102e39f35bd` (`ROADMAP-001`; no language
-behavior beyond accepted CORE-090)
+`d7d1c7682911503470a19c97acb72d231824b193` (`M1-001`)
 
 ## Corrective roadmap checkpoint after CORE-090
 
@@ -15,14 +14,14 @@ enum-reference replacement and observation, mixed and multiple reference signatu
 and static projected CopyData assignment. CORE-090 candidate
 `af68d0e842ed2973087d2e3c78d2a19546e29ff7`, tree
 `8455a06a4473a826ef1ea180e291e2ddb790bed0`, passed all nine exact-head checks,
-merged through protected PR #17 as the master above, and passed post-merge CI
+merged through protected PR #17 as `128205615c53156138c4effa740b61ab455a760f`, and passed post-merge CI
 `31421325338`, Rust CI `31421326818`, and CodeQL `31421323785`. These checkpoints
 remain `PARTIAL`; they do not establish general borrowing, lifetime/drop, memory
 safety, public layout/ABI, or a stable language.
 
-### M1-001 candidate evidence (not accepted master)
+### M1-001 accepted representative-program evidence
 
-The locally green M1-001 candidate now tracks one three-file fixed-size telemetry
+Accepted M1-001 tracks one three-file fixed-size telemetry
 application plus three compile-fail fixtures. It composes direct module collection,
 functions, local primitive constants, control flow, recursive finite CopyData structs/
 arrays/tuples, positional enums and exhaustive `Match`, mutation, whole-place
@@ -32,13 +31,13 @@ correction also keeps every admitted numeric `print!`/`println!` argument as a t
 LLVM `double` under an explicit variadic `printf` call type; this removes the prior
 Windows raw-`i64` ABI false-success. Local official LLVM/Clang 22.1.8 verification,
 machine verification, and Windows `-O0`/`-O2` exact behavior pass, as do the 3/3
-focused target and complete 218-library/32-binary root gate.
-
-The Milestone 1 rows below intentionally continue to describe accepted master, so
-they remain open/partial until the candidate passes stable/nightly Linux and pinned
-Windows exact-head workflows, protected merge, and post-merge verification. No stable
-grammar, public ABI, general ownership/memory-safety, performance, or release claim
-follows from the candidate.
+focused target and complete 218-library/32-binary root gate. Exact candidate
+`e7a74e600d2e4dc7a58a383ae14282b7923e1a5e` passed all nine exact-head checks,
+merged through protected PR #19 as `d7d1c7682911503470a19c97acb72d231824b193`,
+and passed post-merge CI `31429517811`, Rust CI `31429517729`, and CodeQL
+`31429517265`. The composed workflow is `END_TO_END`; its component feature rows
+remain `PARTIAL`. No stable grammar, public ABI, general ownership/memory-safety,
+performance, or release claim follows.
 
 ### Milestone 0 gap classification
 
@@ -55,12 +54,12 @@ follows from the candidate.
 
 | Requirement | State | Evidence and remaining gap |
 |---|---|---|
-| Authoritative grammar and type subset | Open | Accepted slices are documented individually, but no bounded scalar subset is frozen as one user-facing contract. |
+| Authoritative grammar and type subset | Partial | M1-001 freezes one bounded conformance subset over accepted constructs, but it is not a stable or complete grammar/type contract. |
 | Fallible typed IR with CFG and ownership/type invariants | Partial | Checked IR and an independent verifier protect many accepted routes; the invariant surface remains incomplete and unchecked/raw compatibility paths are uncertified. |
 | LLVM verification before object generation | Met for trusted build/run routes | Known-invalid corruption controls and pinned LLVM 22 verification run before object/link steps. |
-| Representative scalar source-to-native execution on Linux and Windows | Partial | Numerous feature specimens execute on both platforms, but they are isolated proofs; there is no maintained application-shaped composition gate. |
-| Optimized/unoptimized differential runtime and real compile-fail corpus | Open | The repository verifies generated LLVM and has extensive negative tests, but no `-O0` versus `-O2` application equivalence gate or explicitly frozen scalar compile-fail corpus exists. |
-| Exit: selected scalar subset is `END_TO_END` with exact output, diagnostics, verifier, platform, and reproducibility evidence | Open | No matrix row is `END_TO_END`; the missing subset definition, representative program, differential lane, and consolidated reproducibility evidence block exit. |
+| Representative scalar source-to-native execution on Linux and Windows | Met for the bounded M1-001 subset | The maintained telemetry application passes public CLI, independent verification, and exact native exit/output on both CPU platforms. |
+| Optimized/unoptimized differential runtime and real compile-fail corpus | Met for the bounded M1-001 subset | Linux and Windows run the same verified program at `-O0` and `-O2`; three source-located compile-fail cases remain artifact-clean. |
+| Exit: selected scalar subset is `END_TO_END` with exact output, diagnostics, verifier, platform, and reproducibility evidence | Met for the bounded M1-001 workflow | The matrix now records the representative application/conformance subset as `END_TO_END`; no component feature becomes `STABLE`. |
 
 ### Work already attributable to Milestone 2
 
@@ -72,7 +71,7 @@ types, general lifetimes/drop/unsafe boundaries, public layout/ABI/destruction, 
 generic data structure, and an ownership-intensive representative program remain open.
 The project therefore remains **Minimal Prototype / correctness recovery**.
 
-### Highest-leverage remaining gaps
+### ROADMAP-001 ranking and M1-001 outcome
 
 Scores are 1--5 with higher better. `Risk` and `Evidence` are delivery favorability
 (5 means lower implementation risk or lower evidence cost), so totals reward project
@@ -84,8 +83,9 @@ payoff without hiding cost.
 | 2 | Close the Milestone 0 canonical diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
 | 3 | Implement positive module/import/name resolution after its graph and namespace semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
 
-Rank 1 is selected as `M1-001`. Before it, no application-shaped Aero program is
-certified as one portable, optimization-equivalent user workflow. After it, a small
+Rank 1 was selected as `M1-001` and is now accepted. Before it, no application-shaped
+Aero program was certified as one portable, optimization-equivalent user workflow.
+After it, a small
 fixed-size telemetry-policy program can compose direct modules, functions, constants,
 control flow, structs, arrays/tuples, enums and `Match`, mutation, references, and
 projected writes under exact Linux/Windows behavior. This is the shortest credible
@@ -93,7 +93,9 @@ Milestone 1 exit path and a permanent growing integration gate. A red that expos
 real missing shared compiler contract changes the task into closing that complete
 blocking class, not adding a specimen-specific exception. Evidence of unspecified
 semantics, nonportable behavior, optimizer divergence, or a cheaper higher-leverage
-path would stop or reorder the selection.
+path would stop or reorder the selection. Before another implementation task begins,
+the remaining gaps must be re-ranked against this new accepted baseline; rows 2 and 3
+remain inputs, not an automatic next-task decision.
 
 ## Verified progress after the audit commit
 

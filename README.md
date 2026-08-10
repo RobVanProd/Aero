@@ -159,15 +159,14 @@ aero lsp
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
-> **Project status after ROADMAP-001:** Aero remains a Minimal Prototype in correctness
+> **Project status after M1-001:** Aero remains a Minimal Prototype in correctness
 > recovery, not a complete or stable language. Accepted master is
-> `2bfa75d017e8b13fca3b22c148f11102e39f35bd`; CORE-090 is still the latest accepted
-> compiler capability. The corrective roadmap prioritizes one growing representative
-> scalar application over more neighboring reference/topology partitions. Positive
+> `d7d1c7682911503470a19c97acb72d231824b193`. The corrective roadmap prioritizes one
+> growing representative scalar application over more neighboring reference/topology partitions. Positive
 > import/name resolution remains high leverage but requires separately frozen namespace
 > and graph semantics first.
 
-> **M1-001 candidate (not accepted master):** the tracked multi-file telemetry-policy
+> **M1-001 accepted:** the tracked multi-file telemetry-policy
 > application now composes accepted functions, constants, control flow, aggregates,
 > enums/`Match`, mutation, references, and projected writes. Local public
 > `check`/verified `build`/`run`, independent LLVM/machine verification, the three-case
@@ -175,8 +174,9 @@ aero lsp
 > focused 3/3, and the complete 218-library/32-binary root gate pass. Its backend fix
 > preserves numeric `print!`/`println!` values as typed LLVM `double` arguments under
 > an explicit variadic `printf` call type instead of the prior Windows raw-`i64`
-> workaround. Linux/Windows exact-head workflows, protected merge, and post-merge
-> verification are still required before public acceptance. This is not a stable
+> workaround. Exact candidate `e7a74e6` passed all nine checks, merged through protected
+> PR #19 as `d7d1c768`, and passed post-merge CI, Rust CI, and CodeQL. The composed
+> workflow is `END_TO_END`; its component features remain `PARTIAL`. This is not a stable
 > grammar, public ABI, general ownership/memory-safety, performance, or release claim.
 
 > **Closure status:** closures are parsed but unsupported in executable code. The
