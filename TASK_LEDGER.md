@@ -17106,13 +17106,19 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   normalized from their Windows checkout CRLF bytes only for byte-identity tests and
   restored afterward with no tracked example/benchmark diff. This workstation has no
   accepted LLVM 22 verifier, so local native execution is not claimed.
-- Remaining uncertainty and regression risk: exact candidate identity, public
-  stable/nightly Linux and pinned Windows LLVM/Clang 22 native exit 85, CodeQL,
+- Remaining uncertainty and regression risk: candidate-head public stable/nightly Linux
+  and pinned Windows LLVM/Clang 22 native exit 85, CodeQL,
   protected merge, and post-merge workflows remain pending. Loans live across CFG
   joins, projected or free enum reference use, reference results/escape/storage,
   aggregate enum storage, unsupported enums, lifetime/NLL/drop, stable ABI/FFI,
   accelerator, release, performance, stability, and general memory-safety claims remain
   absent. Candidate status is local only.
+- Frozen implementation identity before publication: commit
+  `97d3b5deebd5bc0ac19c47760abe5110344718a9`, tree
+  `7628780d6378d24e671e1b4b762fe4a1c9606ecc`, stable patch ID
+  `a06dd7a3939a9c7ce1eba759070118ad667bf2f3`, with sole parent exact accepted master
+  `01a1bb65413253309dd5d74c1faddee8721bd7f2`. This identity amendment is made before
+  publication; candidate-head public checks and acceptance remain pending.
 - Recommended next action: freeze the exact implementation commit and tree, publish one
   bounded CORE-085 PR with a current front page, require every exact-head workflow and
   native exit-85 lane, merge only through protected master, and verify the exact merge
