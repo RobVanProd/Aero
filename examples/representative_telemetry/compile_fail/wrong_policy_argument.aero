@@ -1,0 +1,14 @@
+enum Decision { Normal(int), Alert(int, bool) }
+
+fn classify(total: int, trusted: bool) -> Decision {
+    if trusted { return Decision::Alert(total, trusted); }
+    Decision::Normal(total)
+}
+
+fn main() -> int {
+    let decision = classify(1, 2);
+    match decision {
+        Decision::Normal(value) => value,
+        Decision::Alert(value, trusted) => value
+    }
+}

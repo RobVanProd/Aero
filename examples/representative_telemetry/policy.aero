@@ -1,0 +1,21 @@
+fn add_bias(target: &mut int, observed: &int, bias: int) -> int {
+    *target = *target + *observed + bias;
+    *target
+}
+
+fn classify(total: int, trusted: bool) -> Decision {
+    if trusted && total > 50 { return Decision::Alert(total, 1 < 2); }
+    Decision::Normal(total)
+}
+
+fn add_urgent(urgent: bool, value: int) -> int {
+    if urgent { return value + 1; }
+    value
+}
+
+fn decision_score(decision: Decision) -> int {
+    match decision {
+        Decision::Normal(value) => value,
+        Decision::Alert(value, urgent) => add_urgent(urgent, value)
+    }
+}
