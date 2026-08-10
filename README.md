@@ -510,8 +510,10 @@ aero lsp
 > `match *identifier` with an existing CopyData or `Void` result. Exact checked owner
 > and read identities are independently verified before private pointer LLVM; generic
 > loads cannot substitute. Focused tests are 4/4 and the exact root gate passes at 212
-> library and 32 binary tests; the tracked composed CLI specimen returns 84. Public
-> exact-head Linux/Windows LLVM 22 evidence and protected merge remain pending. Free
+> library and 32 binary tests; the tracked composed specimen passes local CLI check/build
+> and declares native exit 84. This workstation lacks the required LLVM 22 verifier, so
+> no local native result is claimed. Public exact-head Linux/Windows LLVM 22 evidence and
+> protected merge remain pending. Free
 > enum dereference/transport, mutable-owner immutable loans, mutable-reference reads,
 > reference results/escape/storage, unsupported enums, lifetime/NLL/drop, stable ABI,
 > FFI, and memory-safety claims remain excluded.

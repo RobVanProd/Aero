@@ -17059,7 +17059,8 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   covers unit/unary/multi-field enums, explicit local aliases, multiple aliases,
   immutable-reference parameters, a local parameter alias, repeated reads, payload
   extraction, direct semantic-independent checked admission, exact checked identities,
-  LLVM pointer loads, CLI check/build/run, direct modules, and preserved owned use. Its
+  LLVM pointer loads, valid CLI check/build, workflow-anchored native run, direct
+  modules, and preserved owned use. Its
   thirteen negative source groups run through semantic analysis, independent checked
   admission, and public compilation, including free values, returns, by-value calls,
   comparisons, binding/array/tuple storage, mutable-owner and mutable-reference reads,
@@ -17078,10 +17079,11 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   normalized from CRLF to LF only for byte-exact fixture tests and restored without an
   indexed content diff afterward. User-owned untracked `tmp/` remained untouched.
 - System and workflow evidence: the tracked two-module specimen compiles through the
-  public CLI and returns exact exit 84 locally while composing immutable enum owners,
-  multiple aliases, immutable-reference parameters, repeated Match reads, owner
-  preservation, owned enum use, primitive constants, compile-time String length,
-  arrays, tuples, and direct modules. Stable/nightly Linux and pinned Windows
+  public CLI check/build paths while composing immutable enum owners, multiple aliases,
+  immutable-reference parameters, repeated Match reads, owner preservation, owned enum
+  use, primitive constants, compile-time String length, arrays, tuples, and direct
+  modules. This workstation lacks the required LLVM 22 verifier, so no local native
+  result is claimed. Stable/nightly Linux and pinned Windows
   LLVM/Clang 22 workflow steps now require public check/run/build, LLVM verification,
   machine verification, object lowering, linking, and independent native exit 84.
   These workflow declarations are not public acceptance until the exact candidate head
@@ -17095,3 +17097,28 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   cache semantics are not frozen. The next action is one bounded draft PR with exact-
   head public checks and a synchronized front page; acceptance records must remain
   separate from candidate status. The four scaling controls remain active.
+
+### CORE-084 first public candidate correction
+
+- Exact public head `f6b2e6138e85bc315f4b52daf2db5ad0e03f4f0c` passed both CI
+  runs and all CodeQL analyses. Rust CI run `31362292610` failed stable, nightly, and
+  Windows only at the new immutable enum-reference system specimen. All compiler build,
+  parsing, semantic, checked-IR, LLVM verification, and prior native specimen steps
+  before it passed. Stable/nightly Linux observed native exit 64 where the workflow
+  required 84; Windows failed the same specimen step.
+- Root cause was evidence arithmetic, not compiler semantics: `read_packet` returned
+  `number - 10`, so two reads contributed 20 and the complete program returned 64. The
+  intended exit-84 composition requires both reads to return the stored packet number,
+  contributing 40. No accepted type, ownership, checked-IR, verifier, LLVM, or exclusion
+  behavior changes.
+- Corrective commit `980fc6e81ecf7b4e486d0cbfc4b25df3cf159b33`, tree
+  `c34ea237aa577d9ee37fdb653d3355c43d521fe7`, and stable patch ID
+  `ca56fa73f857dab30a049bcbda5975bfcfa99625` changes exactly one specimen
+  expression from `number - 10` to `number`. The focused system contract is green after
+  the correction, and exact repository-root `./tools/test.sh` again passes formatting,
+  correctness-denying Clippy, 212 library tests, 32 binary tests, every integration
+  target, and doc tests with the corrected specimen and records. A direct local public
+  `run` stops before native execution because the
+  required LLVM 22 verifier is not installed; that tool limitation is recorded rather
+  than treated as exit-84 evidence. Exact public stable/nightly/Windows reruns remain
+  required before acceptance.

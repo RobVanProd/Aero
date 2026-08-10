@@ -9,7 +9,10 @@ Milestone 105 `CORE-084` is a locally green candidate on
 `23474fb45e57bed5c80ceed81597060aee2663f5`. Its implementation commit is
 `47b5142b312786975b53934cd943f6efd04e5575`, with tree
 `e325ce0427cc7db0de70960c2ae9e1c0892ae015` and stable patch ID
-`c62abff2165a996eba67ede77d53048b66c05958`.
+`c62abff2165a996eba67ede77d53048b66c05958`. Corrective specimen commit
+`980fc6e81ecf7b4e486d0cbfc4b25df3cf159b33`, tree
+`c34ea237aa577d9ee37fdb653d3355c43d521fe7`, changes only the tracked packet
+score so its declared native system exit is exactly 84.
 
 The candidate admits immutable references only to the already admitted non-generic,
 destructor-free enum class. Initialized immutable direct local enum owners may have
@@ -23,9 +26,10 @@ independent verifier ties schema, immutable reference provenance, read adjacency
 dispatch use together while rejecting generic-load substitution. The focused target is
 4/4 and the exact repository-root gate passes formatting, correctness-denying Clippy,
 212 library tests, 32 binary tests, every integration target, and doc tests. The tracked
-two-module specimen compiles and returns 84 through the local public CLI path; pinned
-Linux/Windows LLVM 22 public workflow acceptance is still pending. This is candidate
-evidence only, not accepted public capability or a release claim.
+two-module specimen passes local public CLI check/build; this workstation lacks the
+required LLVM 22 verifier, so native execution is not claimed locally. Pinned
+Linux/Windows LLVM 22 public workflow exit-84 acceptance is still pending. This is
+candidate evidence only, not accepted public capability or a release claim.
 
 Milestone 104 `CORE-083` is accepted public at candidate head
 `43e9bfc7d07414737c8978c3fc3621b984a1146d`, implementation commit
