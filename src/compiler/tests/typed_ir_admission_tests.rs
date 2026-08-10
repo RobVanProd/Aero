@@ -323,13 +323,13 @@ fn checked_admission_reports_panicking_scalar_sources_without_unwind() {
         RejectionCase {
             name: "Void print returned as scalar",
             source: "fn value() -> int { return println!(\"x\"); } fn main() { value(); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Error: Function `value` return type mismatch: expected int, actual void.",
             check_cli: true,
         },
         RejectionCase {
             name: "Void print passed as argument",
             source: "fn id(value: int) -> int { return value; } fn main() { id(println!(\"x\")); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: Unsupported function call `id`: Error: Function `id` parameter `value` type mismatch: expected int, actual ().",
             check_cli: true,
         },
         RejectionCase {

@@ -16930,6 +16930,185 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   slice; do not reopen CORE-083 or stack implementation on a red/unpublished branch.
   Keep all four scaling controls active.
 
+## CORE-086 - exhaustive observation through mutable enum references
+
+- Date/task/status: 2026-08-10, `CORE-086`, lead-owned red-first positive vertical
+  slice from accepted, post-merge-verified master
+  `d0832c6f4442095703a5f040eacb539a4a3774a7`, tree
+  `96f8eb67b1cddfcee33839a86f84b5c90fa38e23`. Work belongs only on
+  `agent/core-086-mutable-enum-reference-observation`; user-owned untracked `tmp/`
+  remains outside the task.
+- Source-grounded observed behavior: the founding framework states that Aero has
+  explicit immutable `&T` and mutable `&mut T` references, functions borrow values
+  temporarily, and the type checker enforces the ownership/borrowing rules at zero
+  runtime cost. Accepted CORE-083 already provides an exclusive, non-escaping mutable
+  whole-place reference to every admitted destructor-free enum schema and permits exact
+  whole-value replacement through it. CORE-084 provides an exhaustive, non-owning Match
+  observation through an immutable enum reference. The shared
+  `classify_immutable_enum_match_dereference` authority nevertheless rejects the same
+  Match solely when the exact reference is mutable; checked IR and its verifier expose
+  only `CheckedImmutableEnumMatchRead`. This is one missing reference-capability
+  composition class, not a new enum topology, lifetime, representation, or ABI.
+- Hypothesis and shared authority: generalize the existing shared enum-Match-reference
+  classifier so both semantic analysis and semantic-independent checked admission admit
+  the same exact active-reference class and preserve its mutability in one contract.
+  Lower mutable observation through a distinct provenance-bearing checked identity.
+  The independent verifier must require the exact admitted enum schema plus either an
+  active local mutable-borrow identity or the exact bound mutable-reference parameter;
+  trusted LLVM may then reuse the existing private enum-pointer load solely for the
+  immediately adjacent exhaustive dispatch. No phase-local source-shape guard may
+  substitute for the shared classifier.
+- Frozen positive class and exhaustive shape product: the pointee is exactly any already
+  admitted unique, non-generic unit, unary, or positional multi-field enum whose payloads
+  are recursive CopyData. The reference origin is exactly (a) an active explicit or
+  inferred local whole-place `&mut E` alias created from an initialized mutable direct
+  owner, or (b) the existing exact sole `&mut E` parameter of a non-entry, non-generic
+  function, reached by a direct `&mut owner` call or an accepted named-alias reborrow
+  call. The only observation is exhaustive `match *identifier { ... }`, including
+  payload bindings, with exactly `Void` or any result admitted by the existing recursive
+  CopyData result predicate: primitive, fixed array including the admitted zero-length
+  case, flat/recursive tuple, or
+  finite acyclic struct composition. Reads may repeat, may occur before and after an
+  accepted whole-value write through the same exclusive reference, and preserve the
+  exact existing lexical borrow end so the owner is usable afterward. The full class is
+  the product of those three schema shapes, two origin kinds, two call forms, two result
+  dispositions, and read-only/read-write-read orderings; a shared predicate test plus
+  semantic/direct-admission/checked-IR/native specimens must prove the product rather
+  than creating per-shape tasks.
+- Frozen negative boundary: raw `*reference` value extraction remains rejected for both
+  mutable and immutable enum references. No enum-valued Match result, reference result,
+  escape, return, storage, capture, alias relocation/copy, second mutable loan,
+  overlapping immutable loan, inactive/local-ended reference, immutable owner source,
+  uninitialized/`Moved`/`MaybeMoved` owner, mismatched schema, generic/named-field/
+  String-payload/cyclic enum, projected/indexed/dereferenced origin, `&mut *alias`
+  syntax expansion, entry reference parameter, multi-parameter reference signature,
+  non-exhaustive/guarded/nested/wildcard pattern expansion, or free enum transport is
+  admitted. Existing lexical lifetimes and CFG restrictions remain exact; no NLL,
+  lifetime inference, drop/destructor, partial move, aggregate enum storage, public
+  layout, stable ABI/FFI, accelerator, release, performance, stability, or general
+  memory-safety claim follows.
+- Red-first and acceptance tests: before production mutation, add one focused target
+  whose first red proves `match *value` through an otherwise admitted `&mut E` parameter
+  is rejected by the shared mutable-only guard. Expand that same target to enumerate the
+  complete positive product, semantic and direct checked-admission parity, exact mutable
+  Match-read identity, verifier corruption substitutions (immutable/mutable identity,
+  inactive local alias, unbound parameter, wrong reference/schema, generic-load
+  substitution, lost adjacency/dispatch), all negative boundaries, CLI check/build/run,
+  a two-module example, and pinned LLVM/Clang 22 native exit 86 on Linux and Windows.
+  Preserve ordinary functions, CopyData references, enums, owned Match, CORE-083 through
+  CORE-085, verifier known-invalid controls, and every public workflow.
+- Allowed files: this one authorization record; `src/compiler/src/local_reference.rs`;
+  `src/compiler/src/enum_match_contract.rs`;
+  `src/compiler/src/semantic_analyzer.rs`; `src/compiler/src/ir.rs`;
+  `src/compiler/src/ir_generator.rs`; `src/compiler/src/ir_verifier.rs`;
+  `src/compiler/src/code_generator.rs`; one new
+  `src/compiler/tests/mutable_enum_reference_observation_tests.rs`; only the superseded
+  mutable-Match rejection cells in `mutable_enum_reference_tests.rs` and
+  `immutable_enum_reference_tests.rs`; the two superseded print-as-value phase
+  assertions in `typed_ir_admission_tests.rs`; the Windows native system-gate contract;
+  `examples/mutable_enum_reference_observation/main.aero` and one direct module;
+  `.github/workflows/rust.yml`; and proportional acceptance/current-state updates in
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and
+  `README.md`. No dependency, release, benchmark, claim-verification, protection,
+  master, external repository, or user-owned `tmp/` change is authorized.
+- Stop conditions and risks: stop before broadening if the positive class requires a
+  generic enum load, new reference origin, lifetime/NLL inference, reference transport,
+  public enum layout/ABI, unsupported payload topology, duplicate semantic/admission
+  guards, test/specification weakening, or stacking on a red build. Primary regression
+  risks are accepting an inactive local alias, confusing an immutable reference with a
+  mutable one, permitting a generic load/free transport, losing exact dispatch
+  adjacency, or allowing observation through a mutable owner rather than through its
+  exclusive reference. Candidate and public acceptance remain separate. The four
+  scaling controls remain active: bounded checkpoint PR, deliberate hard-capability
+  progress, proportional evidence, and a composed source-to-native system gate.
+
+### CORE-086 exact red checkpoint
+
+- Before any production mutation, focused command `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test
+  mutable_enum_reference_observation_tests -- --nocapture` runs 0/1 green. The exact
+  unit-enum specimen parses and reaches semantic reference classification; its otherwise
+  admitted sole mutable-reference parameter is rejected only by the shared blanket
+  diagnostic `Match through mutable enum reference \`value\` is not admitted; CORE-084
+  reads only immutable enum references`. Checked admission and trusted LLVM are therefore
+  not reached. Only this authorization record and the new red test exist at the red
+  checkpoint; no production, existing test, workflow, example, dependency, external,
+  master, or user-owned `tmp/` content changed.
+- Pre-publication scope amendment from exhaustive result enumeration: after the minimal
+  mutable-read path went green, the required `Void` result cell passed semantics but
+  failed both analyzed and direct checked admission with `Void expressions cannot be
+  used as values`. The already accepted CORE-084 contract and shared result validator
+  explicitly admit CopyData **or `Void`**, so deleting the cell or narrowing the record
+  would change the specification to match a defect. CORE-086 therefore also closes the
+  one shared admitted enum-Match `Void` result class for every existing scrutinee origin:
+  owned enum, immutable enum reference, and mutable enum reference. This does not admit
+  unit values, mixed `Void`/value arms, `Void` bindings/returns, new patterns, or another
+  topology; it removes the checked-IR value fabrication assumption for an already
+  semantic-admitted discarded Match. The shared result authority
+  `enum_match_contract.rs` is added to the allowed compiler files so `Void` is admitted
+  once rather than special-cased in lowering; the existing focused test is sufficient,
+  and no new phase or file family is added.
+- Pre-publication correction found by the required executable specimen: the two semantic
+  inference routes still classified both effect-only `print!` and `println!` expressions
+  as `Int`, while semantic-independent checked admission already classified both as
+  `Void` and rejected them in value contexts. Consequently, the newly admitted discarded
+  `Void` Match reached source function validation as an invented scalar result. CORE-086
+  closes that exact two-spelling classification class under one shared semantic result
+  authority: after format/argument validation, `print!` and `println!` are `Void` in both
+  inference routes; they remain executable only as discarded expressions or homogeneous
+  `Void` Match arms, and remain rejected in bindings, returns, arguments, comparisons,
+  aggregate storage, and every other value context. This is required to execute the
+  already frozen `Void` result cell and removes an unsupported convenient-type fallback;
+  it adds no syntax, value representation, function ABI, format semantics, or file.
+- The full repository gate then proved that two pre-existing regression cells encoded
+  the superseded phase order by requiring print-as-return and print-as-argument to reach
+  `IR Generation Error`. Their source remains rejected and the focused CORE-086 target
+  independently feeds each unanalyzed AST to checked admission and proves the same
+  rejection there. Only those two expectations are strengthened to require the earlier
+  `Semantic Analysis Error`; no source is accepted, diagnostic cause is broadened, or
+  checked-admission control is removed. `typed_ir_admission_tests.rs` is therefore added
+  to the allowed files for exactly those two phase assertions before publication.
+
+### CORE-086 local green checkpoint
+
+- Implementation summary: one shared enum-reference Match classifier now admits the
+  frozen immutable/mutable reference product while preserving mutability. Lowering emits
+  `CheckedMutableEnumMatchRead` only for the active mutable path; the verifier requires
+  its exact active local-loan or bound-parameter provenance, enum schema, and immediate
+  exhaustive dispatch, and rejects immutable-identity, inactive/unbound, wrong-schema,
+  generic-load, and lost-adjacency substitutions. Raw enum dereference remains closed.
+- Complete result class: the shared enum Match result authority admits homogeneous
+  `Void` alongside the existing CopyData/owned-enum results for owned and both reference
+  scrutinees. Void Matches allocate no result place. Both print spellings use one
+  semantic `Void` result authority in both inference routes and remain rejected as
+  bindings, returns, arguments, comparisons, aggregate values, or any other value use;
+  semantic-independent admission retains the same negative control.
+- Focused evidence: `mutable_enum_reference_observation_tests` passes 5/5 across the
+  complete schema/origin/call/result/order product, both trust paths, exclusions, CLI
+  check/build, and workflow anchors. The dedicated checked-IR corruption test passes
+  1/1; preserved CORE-076 result tests pass 2/2 and the superseded phase-order cells in
+  `typed_ir_admission_tests` pass 1/1 with exact earlier semantic diagnostics.
+- System evidence: the tracked two-module specimen composes direct and named-alias
+  mutable-reference calls, repeated read/write/read, homogeneous Void Match arms,
+  post-loan owned Match, module collection, const, array, tuple, Bool, struct, and static
+  String observation. Public `check`, `build`, and `run` pass. Local pinned LLVM 22.1.8
+  `opt` verification, `llc -verify-machineinstrs`, COFF object generation, Clang/MSVC
+  linking, public run, and manual execution all observe exact exit 86 (with `pair`
+  printed by the effect-only Match).
+- Complete repository gate: after preserving the established CORE-076 diagnostic
+  prefix and strengthening the two print-as-value phase assertions, `./tools/test.sh`
+  passes formatting, correctness-denying Clippy, 214 library tests, 32 binary tests,
+  every integration target including verifier corruption and Windows workflow controls,
+  and doc tests. The 97 clean tracked `.aero` fixtures were temporarily normalized from
+  checkout CRLF to index LF for exact-source tests and restored afterward; no fixture,
+  dependency, user-owned `tmp/`, master, release, benchmark, or external artifact was
+  changed. Frozen implementation commit
+  `e12d6fe83cc1c8bd085a0b61e3d2f131003bfd81` has tree
+  `319f7a8136a852781aa852816a24c609097f15ca` and stable patch ID
+  `b8d0c027561176156ae8dedcb4faf2f200ad2d8e`; its sole parent is accepted master
+  `d0832c6f4442095703a5f040eacb539a4a3774a7`. This is a local green candidate only;
+  public checks, protected merge, and post-merge acceptance remain pending.
+
 ## CORE-085 - immutable observation loans from mutable enum owners
 
 - Date/task/status: 2026-08-10, `CORE-085`, lead-owned red-first positive vertical

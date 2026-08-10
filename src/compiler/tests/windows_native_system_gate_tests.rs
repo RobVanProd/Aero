@@ -67,6 +67,9 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
         "Test Windows mutable-owner immutable enum loan system specimen",
         "Windows mutable-owner immutable enum loan public run passed with exit code 85",
         "Windows mutable-owner immutable enum loan manual native execution passed with exit code 85",
+        "Test Windows mutable enum reference observation system specimen",
+        "Windows mutable enum reference observation public run passed with exit code 86",
+        "Windows mutable enum reference observation manual native execution passed with exit code 86",
     ];
 
     let mut failures = Vec::new();
@@ -105,9 +108,9 @@ fn pinned_windows_llvm_native_system_gate_is_complete_and_unique() {
     }
 
     let expected_exit_reset_count = workflow.matches("$global:LASTEXITCODE = 0").count();
-    if expected_exit_reset_count != 8 {
+    if expected_exit_reset_count != 9 {
         failures.push(format!(
-            "the eight expected-nonzero Windows control groups must reset LASTEXITCODE, found {expected_exit_reset_count} resets"
+            "the nine expected-nonzero Windows control groups must reset LASTEXITCODE, found {expected_exit_reset_count} resets"
         ));
     }
 

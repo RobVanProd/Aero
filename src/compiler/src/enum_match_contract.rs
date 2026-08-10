@@ -105,6 +105,7 @@ pub(crate) struct OwnedEnumMatchResult {
 pub(crate) enum EnumMatchResultContract {
     CopyData { ty: Ty, logical_type: LogicalType },
     OwnedEnum(OwnedEnumMatchResult),
+    Void,
 }
 
 impl EnumMatchResultContract {
@@ -112,6 +113,7 @@ impl EnumMatchResultContract {
         match self {
             Self::CopyData { ty, .. } => ty.clone(),
             Self::OwnedEnum(result) => result.contract.ty(),
+            Self::Void => Ty::Void,
         }
     }
 }
@@ -293,7 +295,7 @@ impl EnumError {
                 "enum match must cover every declared variant exactly once".to_string()
             }
             Self::UnsupportedResult => {
-                "enum match arms must return one identical admitted CopyData or owned enum value"
+                "enum match arms must return one identical admitted CopyData or owned enum value; the only additional homogeneous result is Void"
                     .to_string()
             }
             Self::UnsupportedOwnedResultOrigin(arm) => format!(
@@ -887,7 +889,9 @@ impl EnumRegistry {
                 });
             }
         }
-        let result_contract = if let Some(logical_type) = resolve_copy_data(&result) {
+        let result_contract = if result == Ty::Void {
+            EnumMatchResultContract::Void
+        } else if let Some(logical_type) = resolve_copy_data(&result) {
             EnumMatchResultContract::CopyData {
                 ty: result.clone(),
                 logical_type,

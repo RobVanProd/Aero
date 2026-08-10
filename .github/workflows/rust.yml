@@ -1068,6 +1068,34 @@ jobs:
         fi
         echo "mutable-owner immutable enum loan example passed with exit code 85"
 
+    - name: Test mutable enum reference observation integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/mutable_enum_reference_observation/main.aero
+        set +e
+        cargo run -- run ../../examples/mutable_enum_reference_observation/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 86 ]; then
+          echo "Expected public mutable enum reference observation run exit code 86, got $public_run_exit"
+          exit 1
+        fi
+        cargo run -- build ../../examples/mutable_enum_reference_observation/main.aero -o ../../mutable_enum_reference_observation.ll
+        opt-22 -passes=verify -disable-output ../../mutable_enum_reference_observation.ll
+        llc-22 -verify-machineinstrs ../../mutable_enum_reference_observation.ll -o /dev/null
+        llc-22 -filetype=obj ../../mutable_enum_reference_observation.ll -o ../../mutable_enum_reference_observation.o
+        clang-22 -no-pie ../../mutable_enum_reference_observation.o -o ../../mutable_enum_reference_observation
+        set +e
+        ../../mutable_enum_reference_observation
+        mutable_enum_reference_observation_exit_code=$?
+        set -e
+        if [ $mutable_enum_reference_observation_exit_code -ne 86 ]; then
+          echo "Expected mutable enum reference observation exit code 86, got $mutable_enum_reference_observation_exit_code"
+          exit 1
+        fi
+        echo "mutable enum reference observation example passed with exit code 86"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
@@ -1512,6 +1540,59 @@ jobs:
           throw "Windows mutable-owner immutable enum loan manual native execution returned $manualExit, expected 85"
         }
         Write-Host "Windows mutable-owner immutable enum loan manual native execution passed with exit code 85"
+        $global:LASTEXITCODE = 0
+
+    - name: Test Windows mutable enum reference observation system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/mutable_enum_reference_observation/main.aero"
+        $observationLlvmPath = Join-Path $env:RUNNER_TEMP "mutable_enum_reference_observation.windows.ll"
+        $observationMachinePath = Join-Path $env:RUNNER_TEMP "mutable_enum_reference_observation.windows.s"
+        $observationObjectPath = Join-Path $env:RUNNER_TEMP "mutable_enum_reference_observation.windows.obj"
+        $observationExecutablePath = Join-Path $env:RUNNER_TEMP "mutable_enum_reference_observation.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check $example
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows mutable enum reference observation public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $observationLlvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $observationLlvmPath)) {
+          throw "Windows mutable enum reference observation public build failed or omitted its LLVM artifact"
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $observationLlvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows mutable enum reference observation opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $observationLlvmPath -o $observationMachinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $observationMachinePath)) {
+          throw "Windows mutable enum reference observation machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $observationLlvmPath -o $observationObjectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $observationObjectPath)) {
+          throw "Windows mutable enum reference observation object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $observationObjectPath -o $observationExecutablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $observationExecutablePath)) {
+          throw "Windows mutable enum reference observation Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run $example
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 86) {
+          throw "Windows mutable enum reference observation public run returned $publicRunExit, expected 86"
+        }
+        Write-Host "Windows mutable enum reference observation public run passed with exit code 86"
+
+        & $observationExecutablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 86) {
+          throw "Windows mutable enum reference observation manual native execution returned $manualExit, expected 86"
+        }
+        Write-Host "Windows mutable enum reference observation manual native execution passed with exit code 86"
         $global:LASTEXITCODE = 0
 
 

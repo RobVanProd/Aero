@@ -987,7 +987,8 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedEnumVariantFields { result, .. }
         | Inst::CheckedEnumPayload { result, .. }
         | Inst::CheckedEnumField { result, .. }
-        | Inst::CheckedImmutableEnumMatchRead { result, .. } => Some(result),
+        | Inst::CheckedImmutableEnumMatchRead { result, .. }
+        | Inst::CheckedMutableEnumMatchRead { result, .. } => Some(result),
         Inst::Call { result, .. } => result.as_ref(),
         Inst::ICmp { result, .. }
         | Inst::FCmp { result, .. }
@@ -1053,7 +1054,8 @@ fn definition_type(
         Inst::CheckedEnumVariant { schema, .. }
         | Inst::CheckedEnumVariantFields { schema, .. }
         | Inst::CheckedEnumParameter { schema, .. }
-        | Inst::CheckedImmutableEnumMatchRead { schema, .. } => Some(schema.logical_type()),
+        | Inst::CheckedImmutableEnumMatchRead { schema, .. }
+        | Inst::CheckedMutableEnumMatchRead { schema, .. } => Some(schema.logical_type()),
         Inst::CheckedEnumPayload {
             schema,
             variant_index,
@@ -1270,6 +1272,78 @@ impl<'a> FunctionVerifier<'a> {
                 ..
             }
         )
+    }
+
+    fn verify_enum_reference_match_read_shape(
+        &self,
+        block_index: usize,
+        position: usize,
+        result: &Value,
+        reference: &Value,
+        schema: &EnumSchema,
+        mutability: &'static str,
+    ) -> Result<PlaceId, IrVerificationError> {
+        if !valid_enum_schema(schema) {
+            return Err(self.error(
+                block_index,
+                IrVerificationErrorKind::UnsupportedType(format!(
+                    "checked {mutability} enum Match read schema `{}`",
+                    schema.name
+                )),
+            ));
+        }
+        let reference = self.require_place(
+            reference,
+            "checked enum-reference Match read reference",
+            block_index,
+            position,
+        )?;
+        if self.places.get(&reference).and_then(PlaceType::logical) != Some(schema.logical_type()) {
+            return Err(self.error(
+                block_index,
+                IrVerificationErrorKind::MetadataMismatch(format!(
+                    "checked {mutability} enum Match read reference place {} does not carry the exact enum schema",
+                    reference.0
+                )),
+            ));
+        }
+        let result = reg(result).map(ResultId);
+        let valued_dispatch = matches!(
+            (
+                self.body.instructions.get(position + 1),
+                self.body.instructions.get(position + 2),
+            ),
+            (
+                Some(Inst::CheckedMatchResultPlaceAlloca {
+                    dispatch_schema,
+                    ..
+                }),
+                Some(Inst::CheckedEnumDispatch {
+                    value,
+                    schema: dispatch_schema_again,
+                    ..
+                })
+            ) if dispatch_schema == schema
+                && dispatch_schema_again == schema
+                && reg(value).map(ResultId) == result
+        );
+        let void_dispatch = matches!(
+            self.body.instructions.get(position + 1),
+            Some(Inst::CheckedEnumDispatch {
+                value,
+                schema: dispatch_schema,
+                ..
+            }) if dispatch_schema == schema && reg(value).map(ResultId) == result
+        );
+        if !valued_dispatch && !void_dispatch {
+            return Err(self.error(
+                block_index,
+                IrVerificationErrorKind::MetadataMismatch(format!(
+                    "checked {mutability} enum Match read must be followed by its exact exhaustive dispatch, with a result place only for a value-producing Match"
+                )),
+            ));
+        }
+        Ok(reference)
     }
 
     fn consume_enum_owner(
@@ -3361,7 +3435,7 @@ impl<'a> FunctionVerifier<'a> {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
-                                    "load from mutable enum reference place {} is forbidden; CORE-083 admits whole-place replacement only",
+                                    "generic load from mutable enum reference place {} is forbidden; CORE-086 requires CheckedMutableEnumMatchRead for exhaustive observation",
                                     place.0
                                 )),
                             ));
@@ -3887,25 +3961,15 @@ impl<'a> FunctionVerifier<'a> {
                         reference,
                         schema,
                     } => {
-                        if !valid_enum_schema(schema) {
-                            return Err(self.error(
-                                block_index,
-                                IrVerificationErrorKind::UnsupportedType(format!(
-                                    "checked immutable enum Match read schema `{}`",
-                                    schema.name
-                                )),
-                            ));
-                        }
-                        let reference = self.require_place(
-                            reference,
-                            "checked immutable enum Match read reference",
+                        let reference = self.verify_enum_reference_match_read_shape(
                             block_index,
                             position,
+                            result,
+                            reference,
+                            schema,
+                            "immutable",
                         )?;
-                        if !self.immutable_enum_reference_place(reference)
-                            || self.places.get(&reference).and_then(PlaceType::logical)
-                                != Some(schema.logical_type())
-                        {
+                        if !self.immutable_enum_reference_place(reference) {
                             return Err(self.error(
                                 block_index,
                                 IrVerificationErrorKind::MetadataMismatch(format!(
@@ -3929,33 +3993,32 @@ impl<'a> FunctionVerifier<'a> {
                                 )),
                             ));
                         }
-                        let result = reg(result).map(ResultId);
-                        let adjacent = matches!(
-                            (
-                                self.body.instructions.get(position + 1),
-                                self.body.instructions.get(position + 2),
-                            ),
-                            (
-                                Some(Inst::CheckedMatchResultPlaceAlloca {
-                                    dispatch_schema,
-                                    ..
-                                }),
-                                Some(Inst::CheckedEnumDispatch {
-                                    value,
-                                    schema: dispatch_schema_again,
-                                    ..
-                                })
-                            ) if dispatch_schema == schema
-                                && dispatch_schema_again == schema
-                                && reg(value).map(ResultId) == result
-                        );
-                        if !adjacent {
+                    }
+                    Inst::CheckedMutableEnumMatchRead {
+                        result,
+                        reference,
+                        schema,
+                    } => {
+                        let reference = self.verify_enum_reference_match_read_shape(
+                            block_index,
+                            position,
+                            result,
+                            reference,
+                            schema,
+                            "mutable",
+                        )?;
+                        let active_local = active_mutable_references.contains(&reference)
+                            && self.mutable_reference_origins.contains_key(&reference);
+                        let parameter = self.mutable_reference_parameters.contains(&reference);
+                        if (!active_local && !parameter)
+                            || active_mutable_sources.contains(&reference)
+                        {
                             return Err(self.error(
                                 block_index,
-                                IrVerificationErrorKind::MetadataMismatch(
-                                    "checked immutable enum Match read must be followed by its exact Match result place and exhaustive dispatch"
-                                        .to_string(),
-                                ),
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked mutable enum Match read reference place {} is not an active exclusive mutable enum reference",
+                                    reference.0
+                                )),
                             ));
                         }
                     }
@@ -4876,6 +4939,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 }
                 Inst::CheckedImmutableEnumOwnerPlaceAlloca { schema, .. }
                 | Inst::CheckedImmutableEnumMatchRead { schema, .. }
+                | Inst::CheckedMutableEnumMatchRead { schema, .. }
                 | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { schema, .. } => {
                     register_enum(schema, schemas, enum_schemas)?;
                 }
@@ -8543,6 +8607,216 @@ mod tests {
                 "{label} passed immutable enum Match-read verification"
             );
         }
+    }
+
+    #[test]
+    fn mutable_enum_match_reference_provenance_identity_and_topology_are_fail_closed() {
+        let schema = unit_schema("State", &["Idle"]);
+        let logical = schema.logical_type();
+        let mutable_reference = LogicalType::MutableReference {
+            pointee: Box::new(logical.clone()),
+        };
+        let valued_body = || {
+            vec![
+                Inst::CheckedMutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    pointee: logical.clone(),
+                },
+                Inst::CheckedMutableEnumMatchRead {
+                    result: Value::Reg(1),
+                    reference: Value::Reg(0),
+                    schema: schema.clone(),
+                },
+                Inst::CheckedMatchResultPlaceAlloca {
+                    result: Value::Reg(12),
+                    result_type: LogicalType::Int,
+                    dispatch_schema: schema.clone(),
+                },
+                checked_dispatch(Value::Reg(1), schema.clone(), &["arm"]),
+                Inst::Label("arm".to_string()),
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(12),
+                    value: Value::ImmInt(9),
+                    ty: LogicalType::Int,
+                },
+                Inst::Jump("end".to_string()),
+                Inst::Label("end".to_string()),
+                Inst::Load(Value::Reg(2), Value::Reg(12)),
+                Inst::Return(Value::Reg(2)),
+            ]
+        };
+        let void_body = || {
+            vec![
+                Inst::CheckedMutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "value".to_string(),
+                    pointee: logical.clone(),
+                },
+                Inst::CheckedMutableEnumMatchRead {
+                    result: Value::Reg(1),
+                    reference: Value::Reg(0),
+                    schema: schema.clone(),
+                },
+                checked_dispatch(Value::Reg(1), schema.clone(), &["arm"]),
+                Inst::Label("arm".to_string()),
+                Inst::Jump("end".to_string()),
+                Inst::Label("end".to_string()),
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+        let program = |body: Vec<Inst>| {
+            HashMap::from([
+                (
+                    "main".to_string(),
+                    Function {
+                        name: "main".to_string(),
+                        body: vec![
+                            Inst::CheckedFunctionDef {
+                                name: "observe".to_string(),
+                                parameters: vec![("value".to_string(), mutable_reference.clone())],
+                                result: LogicalType::Int,
+                                body,
+                            },
+                            Inst::Return(Value::ImmInt(0)),
+                        ],
+                        next_reg: 32,
+                        next_ptr: 32,
+                    },
+                ),
+                (
+                    "observe".to_string(),
+                    Function {
+                        name: "observe".to_string(),
+                        body: Vec::new(),
+                        next_reg: 32,
+                        next_ptr: 32,
+                    },
+                ),
+            ])
+        };
+
+        verify_ir(program(valued_body()))
+            .expect("exact valued Match through a mutable enum parameter must verify");
+        verify_ir(program(void_body()))
+            .expect("exact Void Match through a mutable enum parameter must verify");
+
+        let mut immutable_identity = valued_body();
+        immutable_identity[1] = Inst::CheckedImmutableEnumMatchRead {
+            result: Value::Reg(1),
+            reference: Value::Reg(0),
+            schema: schema.clone(),
+        };
+
+        let mut wrong_reference = valued_body();
+        wrong_reference[1] = Inst::CheckedMutableEnumMatchRead {
+            result: Value::Reg(1),
+            reference: Value::Reg(9),
+            schema: schema.clone(),
+        };
+
+        let mut wrong_schema = valued_body();
+        wrong_schema[1] = Inst::CheckedMutableEnumMatchRead {
+            result: Value::Reg(1),
+            reference: Value::Reg(0),
+            schema: unit_schema("Other", &["Idle"]),
+        };
+
+        let mut generic_load = valued_body();
+        generic_load[1] = Inst::Load(Value::Reg(1), Value::Reg(0));
+
+        let mut separated_read = valued_body();
+        separated_read.insert(
+            2,
+            Inst::Add(Value::Reg(7), Value::ImmInt(1), Value::ImmInt(2)),
+        );
+
+        let mut wrong_dispatch_value = valued_body();
+        wrong_dispatch_value[3] = checked_dispatch(Value::Reg(7), schema.clone(), &["arm"]);
+
+        let mut unbound_parameter = valued_body();
+        unbound_parameter.remove(0);
+
+        let mut separated_void_read = void_body();
+        separated_void_read.insert(
+            2,
+            Inst::Add(Value::Reg(7), Value::ImmInt(1), Value::ImmInt(2)),
+        );
+
+        for (label, body) in [
+            ("immutable read identity", immutable_identity),
+            ("wrong reference identity", wrong_reference),
+            ("wrong read schema", wrong_schema),
+            ("generic load substitution", generic_load),
+            ("lost valued dispatch adjacency", separated_read),
+            ("wrong dispatch value", wrong_dispatch_value),
+            ("unbound mutable parameter", unbound_parameter),
+            ("lost Void dispatch adjacency", separated_void_read),
+        ] {
+            assert!(
+                verify_ir(program(body)).is_err(),
+                "{label} passed mutable enum Match-read verification"
+            );
+        }
+
+        let local_body = || {
+            vec![
+                checked_variant(Value::Reg(0), schema.clone(), 0),
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(10),
+                    name: "owner".to_string(),
+                    ty: logical.clone(),
+                },
+                Inst::Store(Value::Reg(10), Value::Reg(0)),
+                Inst::CheckedMutableBorrow {
+                    result: Value::Reg(11),
+                    source: Value::Reg(10),
+                    pointee: logical.clone(),
+                },
+                Inst::CheckedMutableEnumMatchRead {
+                    result: Value::Reg(1),
+                    reference: Value::Reg(11),
+                    schema: schema.clone(),
+                },
+                Inst::CheckedMatchResultPlaceAlloca {
+                    result: Value::Reg(12),
+                    result_type: LogicalType::Int,
+                    dispatch_schema: schema.clone(),
+                },
+                checked_dispatch(Value::Reg(1), schema.clone(), &["arm"]),
+                Inst::Label("arm".to_string()),
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(12),
+                    value: Value::ImmInt(9),
+                    ty: LogicalType::Int,
+                },
+                Inst::Jump("end".to_string()),
+                Inst::Label("end".to_string()),
+                Inst::Load(Value::Reg(2), Value::Reg(12)),
+                Inst::CheckedMutableBorrowEnd {
+                    reference: Value::Reg(11),
+                    source: Value::Reg(10),
+                    pointee: logical.clone(),
+                },
+                Inst::Return(Value::Reg(2)),
+            ]
+        };
+        verify_ir(function(local_body()))
+            .expect("an exact active local mutable enum reference Match must verify");
+
+        let mut inactive_local = local_body();
+        inactive_local.insert(
+            4,
+            Inst::CheckedMutableBorrowEnd {
+                reference: Value::Reg(11),
+                source: Value::Reg(10),
+                pointee: logical,
+            },
+        );
+        assert!(
+            verify_ir(function(inactive_local)).is_err(),
+            "mutable enum Match read after the exact local loan end passed verification"
+        );
     }
 
     #[test]

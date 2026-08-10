@@ -414,6 +414,9 @@ impl CodeGenerator {
                 }
                 Inst::CheckedImmutableEnumMatchRead {
                     result, reference, ..
+                }
+                | Inst::CheckedMutableEnumMatchRead {
+                    result, reference, ..
                 } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, reference);
@@ -870,6 +873,7 @@ impl CodeGenerator {
                 | Inst::CheckedTupleFieldPtr { .. }
                 | Inst::CheckedImmutableBorrow { .. }
                 | Inst::CheckedImmutableEnumMatchRead { .. }
+                | Inst::CheckedMutableEnumMatchRead { .. }
                 | Inst::CheckedMutableBorrow { .. }
                 | Inst::CheckedMutableBorrowEnd { .. }
                 | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { .. }
@@ -1894,12 +1898,17 @@ impl CodeGenerator {
                     result,
                     reference,
                     schema,
+                }
+                | Inst::CheckedMutableEnumMatchRead {
+                    result,
+                    reference,
+                    schema,
                 } => {
                     let Value::Reg(result) = result else {
-                        panic!("Expected register for checked immutable enum Match read")
+                        panic!("Expected register for checked enum-reference Match read")
                     };
                     let Value::Reg(reference) = reference else {
-                        panic!("Expected reference place for checked immutable enum Match read")
+                        panic!("Expected reference place for checked enum-reference Match read")
                     };
                     let enum_type = Self::enum_schema_to_llvm(schema);
                     llvm_ir.push_str(&format!(

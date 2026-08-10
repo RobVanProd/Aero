@@ -18,12 +18,12 @@ use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceCallSourceMode,
     ReferenceFunctionContract, ReferenceFunctionDisposition, ReferencePointeeContext,
-    classify_immutable_enum_match_dereference, classify_local_borrow_with_enums,
-    classify_local_dereference, classify_local_reference_annotation_with_enums,
+    classify_enum_match_dereference, classify_local_borrow_with_enums, classify_local_dereference,
+    classify_local_reference_annotation_with_enums,
     classify_mutable_reference_assignment_with_enums, classify_mutable_reference_binding,
     classify_reference_call_with_enums, classify_reference_function_with_enums,
     classify_reference_pointee_type, reference_call_fact_subject, reference_call_source_mode,
-    validate_immutable_enum_match_result,
+    validate_enum_reference_match_result,
 };
 use crate::method_call_contract::{
     IntrinsicMethodDisposition, IntrinsicMethodLowering, IntrinsicMethodPhase,
@@ -116,6 +116,7 @@ enum ExpressionUse {
     Binding,
     PrintArgument,
     Discarded,
+    MatchArm,
 }
 
 #[derive(Clone)]
@@ -2077,7 +2078,10 @@ impl IrGenerator {
                                 name: name.clone(),
                                 target: FunctionCallTarget::Callable { result },
                                 arguments: argument_types,
-                                use_context: if expression_use == ExpressionUse::Discarded {
+                                use_context: if matches!(
+                                    expression_use,
+                                    ExpressionUse::Discarded | ExpressionUse::MatchArm
+                                ) {
                                     FunctionCallUse::Discarded
                                 } else {
                                     FunctionCallUse::Value
@@ -2114,7 +2118,10 @@ impl IrGenerator {
                     name: name.clone(),
                     target,
                     arguments: argument_types,
-                    use_context: if expression_use == ExpressionUse::Discarded {
+                    use_context: if matches!(
+                        expression_use,
+                        ExpressionUse::Discarded | ExpressionUse::MatchArm
+                    ) {
                         FunctionCallUse::Discarded
                     } else {
                         FunctionCallUse::Value
@@ -2184,7 +2191,10 @@ impl IrGenerator {
                         return Err(admission_error("print argument type is not admitted"));
                     }
                 }
-                if expression_use != ExpressionUse::Discarded {
+                if !matches!(
+                    expression_use,
+                    ExpressionUse::Discarded | ExpressionUse::MatchArm
+                ) {
                     return Err(admission_error("Void expressions cannot be used as values"));
                 }
                 Ok(Ty::Void)
@@ -2579,11 +2589,7 @@ impl IrGenerator {
                         inside_impl,
                         admit_static_string_equality,
                     )?;
-                    match classify_immutable_enum_match_dereference(
-                        reference,
-                        &operand,
-                        &program.enums,
-                    ) {
+                    match classify_enum_match_dereference(reference, &operand, &program.enums) {
                         LocalReferenceDisposition::Supported(contract) => contract.pointee,
                         LocalReferenceDisposition::ExplicitlyRejected(message) => {
                             return Err(admission_error(&message));
@@ -2637,7 +2643,7 @@ impl IrGenerator {
                         &arm.body,
                         &arm_bindings,
                         program,
-                        ExpressionUse::Value,
+                        ExpressionUse::MatchArm,
                         inside_impl,
                         admit_static_string_equality,
                     )?);
@@ -2696,7 +2702,7 @@ impl IrGenerator {
                     )
                     .map(|resolved| resolved.result_contract.ty())
                     .map_err(|error| admission_error(&error.diagnostic()))?;
-                validate_immutable_enum_match_result(expr, &result, &program.structs)
+                validate_enum_reference_match_result(expr, &result, &program.structs)
                     .map_err(|message| admission_error(&message))?;
                 Ok(result)
             }
@@ -3052,7 +3058,8 @@ impl IrGenerator {
                     Self::rewrite_place(result, &places);
                     Self::rewrite_place(source, &places);
                 }
-                Inst::CheckedImmutableEnumMatchRead { reference, .. } => {
+                Inst::CheckedImmutableEnumMatchRead { reference, .. }
+                | Inst::CheckedMutableEnumMatchRead { reference, .. } => {
                     Self::rewrite_place(reference, &places)
                 }
                 Inst::CheckedMutableBorrow { result, source, .. } => {
@@ -3136,7 +3143,8 @@ impl IrGenerator {
             | Inst::CheckedEnumVariantFields { result, .. }
             | Inst::CheckedEnumPayload { result, .. }
             | Inst::CheckedEnumField { result, .. }
-            | Inst::CheckedImmutableEnumMatchRead { result, .. } => Some(result),
+            | Inst::CheckedImmutableEnumMatchRead { result, .. }
+            | Inst::CheckedMutableEnumMatchRead { result, .. } => Some(result),
             Inst::Call {
                 result: Some(result),
                 ..
@@ -3174,26 +3182,33 @@ impl IrGenerator {
         {
             let (place, operand) =
                 self.generate_expression_ir(reference.as_ref().clone(), function);
-            match classify_immutable_enum_match_dereference(
-                reference,
-                &operand,
-                &self.enum_registry,
-            ) {
+            match classify_enum_match_dereference(reference, &operand, &self.enum_registry) {
                 LocalReferenceDisposition::Supported(contract) => {
+                    let mutable = contract.mutable;
+                    let pointee = contract.pointee;
                     let LogicalType::Enum { name, variants } = contract.logical_pointee else {
-                        unreachable!("checked immutable enum Match read has an enum schema")
+                        unreachable!("checked enum-reference Match read has an enum schema")
                     };
                     let result = Value::Reg(self.next_reg);
                     self.next_reg += 1;
-                    function.body.push(Inst::CheckedImmutableEnumMatchRead {
-                        result: result.clone(),
-                        reference: place,
-                        schema: EnumSchema { name, variants },
+                    let schema = EnumSchema { name, variants };
+                    function.body.push(if mutable {
+                        Inst::CheckedMutableEnumMatchRead {
+                            result: result.clone(),
+                            reference: place,
+                            schema,
+                        }
+                    } else {
+                        Inst::CheckedImmutableEnumMatchRead {
+                            result: result.clone(),
+                            reference: place,
+                            schema,
+                        }
                     });
-                    (result, contract.pointee)
+                    (result, pointee)
                 }
                 LocalReferenceDisposition::ExplicitlyRejected(message) => {
-                    unreachable!("checked immutable enum Match admission escaped: {message}")
+                    unreachable!("checked enum-reference Match admission escaped: {message}")
                 }
                 LocalReferenceDisposition::Preserved => {
                     self.generate_expression_ir(scrutinee_expression.clone(), function)
@@ -3292,16 +3307,26 @@ impl IrGenerator {
             } else {
                 result_ty = Some(ty.clone());
             }
-            let value = self.load_copy_aggregate_value(value, &ty, function);
-            function.body.push(Inst::CheckedOwnedPlaceAssignment {
-                target: result_place.clone(),
-                value,
-                ty: self.admitted_owned_place_logical_type(&ty),
-            });
+            if !matches!(ty, Ty::Void) {
+                let value = self.load_copy_aggregate_value(value, &ty, function);
+                function.body.push(Inst::CheckedOwnedPlaceAssignment {
+                    target: result_place.clone(),
+                    value,
+                    ty: self.admitted_owned_place_logical_type(&ty),
+                });
+            }
             function.body.push(Inst::Jump(end_label.clone()));
         }
         function.body.push(Inst::Label(end_label));
         let result_ty = result_ty.expect("admitted enum has at least one arm");
+        if matches!(result_ty, Ty::Void) {
+            let removed = function.body.remove(result_place_position);
+            assert!(
+                matches!(removed, Inst::CheckedMatchResultPlaceAlloca { .. }),
+                "checked Void Match removes only its unused result-place placeholder"
+            );
+            return (Value::ImmInt(0), Ty::Void);
+        }
         let result_type = self.admitted_owned_place_logical_type(&result_ty);
         let Inst::CheckedMatchResultPlaceAlloca {
             result_type: stored_result_type,
@@ -5825,8 +5850,9 @@ impl IrGenerator {
 
         function.body.push(print_inst);
 
-        // Print operations return unit type (represented as 0 for now)
-        (Value::ImmInt(0), Ty::Int)
+        // The placeholder is never a value: semantic and checked admission classify
+        // print expressions as Void, including discarded exhaustive Match arms.
+        (Value::ImmInt(0), Ty::Void)
     }
 
     fn generate_comparison_ir(

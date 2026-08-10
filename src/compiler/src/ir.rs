@@ -109,6 +109,12 @@ pub enum Inst {
         reference: Value,
         schema: EnumSchema,
     },
+    /// Verified exclusive enum observation used only by its adjacent exhaustive Match.
+    CheckedMutableEnumMatchRead {
+        result: Value,
+        reference: Value,
+        schema: EnumSchema,
+    },
     /// Verified exclusive non-escaping alias of a mutable Copy-data owner or reference place.
     CheckedMutableBorrow {
         result: Value,

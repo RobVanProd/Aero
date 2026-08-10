@@ -4,29 +4,48 @@ Last updated: 2026-08-10 (America/New_York)
 
 ## Current objective
 
-Milestone 106 `CORE-085` is a local candidate only on branch
-`agent/core-085-mutable-owner-immutable-enum-loans`, based on accepted master
-`01a1bb65413253309dd5d74c1faddee8721bd7f2`, tree
-`644ee11832f9c0c109ab3f53214a2d02f3ff2402`. Its frozen implementation commit is
-`97d3b5deebd5bc0ac19c47760abe5110344718a9`, tree
-`7628780d6378d24e671e1b4b762fe4a1c9606ecc`, with stable patch ID
-`a06dd7a3939a9c7ce1eba759070118ad667bf2f3`. It admits the exhaustively
-enumerated class of initialized mutable direct owners of the already admitted
-destructor-free enum class to multiple non-escaping immutable `&E` aliases. One
-shared source predicate controls admission and loop-edge exclusion; checked IR
-carries exact reference, source-owner, schema, and lexical-end identity; and the
-independent verifier counts overlapping aliases, proves identical loan state at CFG
-joins, and excludes owner mutation, move, mutable borrow, owned Match, and escape
-while any alias is live. The tracked direct-module specimen composes multiple aliases,
-immutable-reference calls, post-loan assignment and mutable replacement, arrays,
-tuples, compile-time String observation, and final owned Match at expected native exit
-85. Focused vertical-slice tests are 4/4 and the dedicated verifier-corruption control
-passes 1/1; local public CLI check/build and the Windows system-gate contract pass.
-The exact repository-root gate passes formatting, correctness-denying Clippy, 213
-library tests, 32 binary tests, every integration target, and doc tests. Candidate-head
-public workflows, protected merge, and post-merge evidence are still pending. This is
-not yet public acceptance, a release, or a general borrowing, lifetime, memory-safety,
-layout, or ABI claim.
+Milestone 107 `CORE-086` is a local candidate only on branch
+`agent/core-086-mutable-enum-reference-observation`, based on accepted master
+`d0832c6f4442095703a5f040eacb539a4a3774a7`, tree
+`96f8eb67b1cddfcee33839a86f84b5c90fa38e23`. Its frozen implementation commit is
+`e12d6fe83cc1c8bd085a0b61e3d2f131003bfd81`, tree
+`319f7a8136a852781aa852816a24c609097f15ca`, with stable patch ID
+`b8d0c027561176156ae8dedcb4faf2f200ad2d8e`. One shared enum-reference Match
+classifier now admits exhaustive observation through either immutable or active
+exclusive mutable references to the existing destructor-free enum class. Checked IR
+keeps distinct mutable/immutable Match-read identities; the independent verifier ties
+the mutable identity to an exact active local loan or bound mutable-reference parameter,
+the exact enum schema, and the immediately adjacent exhaustive dispatch. Read-only and
+read/write/read orderings execute for unit, unary, and positional multi-field recursive
+CopyData enums through direct calls and named-alias reborrows while raw enum extraction,
+transport, escape, overlap, and unsupported topologies remain rejected.
+
+The same closed result enumeration corrects homogeneous discarded enum Matches whose
+arms are all `Void`: owned, immutable-reference, and mutable-reference scrutinees share
+one result contract and generate no fabricated result place. `print!` and `println!`
+are now classified as effect-only `Void` in both semantic routes instead of silently
+becoming `Int`; every value context remains rejected in semantics and independently in
+checked admission. The focused target passes 5/5, the dedicated verifier corruption
+control passes 1/1, and the exact repository-root gate passes formatting,
+correctness-denying Clippy, 214 library tests, 32 binary tests, every integration target,
+and doc tests. The two-module specimen passes public check/build/run, external LLVM
+22.1.8 verification, machine verification, COFF generation, Clang/MSVC linking, and
+manual native execution at exact exit 86. Candidate-head public workflows, protected
+merge, and post-merge evidence are pending. This is not public acceptance, a release,
+or a general borrowing, lifetime, memory-safety, layout, or ABI claim.
+
+Milestone 106 `CORE-085` is accepted public at candidate head
+`f605a328c405a72766f44558c5615eb1e77f50ea`, with frozen implementation commit
+`97d3b5deebd5bc0ac19c47760abe5110344718a9`. Bounded PR #12 merged through
+protected master without head substitution as
+`d0832c6f4442095703a5f040eacb539a4a3774a7`, tree
+`96f8eb67b1cddfcee33839a86f84b5c90fa38e23`, with ordered parents old master then
+the exact candidate. Post-merge CI `31395036300`, Rust CI `31395036291`, and CodeQL
+`31395035620` pass on that exact merge. The accepted class permits multiple
+non-escaping immutable `&E` aliases from an initialized mutable direct enum owner,
+with exact lexical ends, CFG loan-state proof, post-loan assignment or mutable
+replacement, and pinned native exit 85. This is bounded public acceptance, not a
+release or a general borrowing, lifetime, memory-safety, layout, or ABI claim.
 
 Milestone 105 `CORE-084` is accepted public at corrected candidate head
 `0ebef3ac7b19cb14390368ffcc432fbba55815a8`, tree
@@ -108,9 +127,9 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to publish the frozen CORE-085 implementation and this identity
-amendment in one bounded PR, require every exact-head public workflow and pinned LLVM 22
-gate, and merge only through protected master while the record remains truthful.
+The exact next action is to freeze and publish CORE-086 in one bounded PR, require every
+exact-head public workflow and pinned LLVM 22 gate, and merge only through protected
+master while the record remains truthful.
 Positive imports remain deferred until lookup, namespace, visibility, collision, cycle,
 and cache semantics are specified. The four scaling controls remain active: bounded
 checkpoint PRs, deliberate hard-capability progress, proportional/structured evidence
@@ -828,12 +847,18 @@ composition rather than a module system.
   compile-time String length, arrays, tuples, and owned enum use. Its complete local
   compiler gate, corrected exact-head Linux/Windows native evidence, protected merge,
   and all three post-merge workflows pass.
-  Local candidate CORE-085 adds a distinct exit-85 direct-module specimen that composes
+  Accepted CORE-085 adds a distinct exit-85 direct-module specimen that composes
   mutable enum owners, multiple immutable aliases, exact immutable-reference parameters,
   post-loan whole-owner assignment and mutable replacement, arrays, tuples, compile-time
   String observation, and final owned Match. Its focused source-to-LLVM and corruption
-  controls and complete repository gate pass; public workflow, protected-merge, and
-  post-merge proof remain pending, so it is not public acceptance.
+  controls, complete repository gate, exact-head workflows, protected merge, and all
+  three post-merge workflows pass.
+  Local candidate CORE-086 adds a distinct exit-86 direct-module specimen that composes
+  direct and named-alias mutable enum-reference observation, repeated read/write/read,
+  homogeneous discarded Void Match, post-loan owned Match, modules, const, arrays,
+  tuples, structs, Bool, and static String observation. Its focused and complete root
+  gates plus local pinned LLVM/Clang 22.1.8 public/manual native execution pass; public
+  exact-head and protected-merge proof remain pending.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.

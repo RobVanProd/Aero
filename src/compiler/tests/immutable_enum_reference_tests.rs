@@ -255,11 +255,6 @@ fn immutable_enum_match_reference_exclusions_fail_closed_in_both_trust_phases() 
             &["not admitted Copy-data", "not admitted"],
         ),
         (
-            "mutable enum reference read",
-            "enum E { A } fn read(value: &mut E) -> int { match *value { E::A => 1 } } fn main() -> int { 0 }",
-            &["Match through mutable enum reference"],
-        ),
-        (
             "non-identifier enum reference Match",
             "enum E { A } fn main() -> int { let owner = E::A; match *(&owner) { E::A => 1 } }",
             &["requires an identifier reference"],

@@ -146,14 +146,14 @@ aero lsp
 | Category | Features |
 |----------|----------|
 | **Type System** | Static scalar checks. Accepted CORE-072 adds exact Unicode `char` identity and equality/inequality across the complete existing recursive CopyData transport class. Generic and trait syntax is parsed but quarantined; generic substitution, trait-bound enforcement, and where-clause semantics are not supported contracts. |
-| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Accepted CORE-064 extends direct whole-owner replacement to admitted enums; CORE-065 adds exact acyclic conditional joins; CORE-066 adds fresh per-iteration enum owners; CORE-073 adds exact acyclic whole-owner reinitialization from `Moved`/`MaybeMoved`; CORE-074–076 add typed owned Match results; CORE-077 accepts exact balanced loop-carried reinitialization; accepted CORE-079 adds a convergent direct-enum `Owned`/`Moved`/`MaybeMoved` fixed point; accepted CORE-083 adds non-escaping mutable whole-place replacement through an exact sole-parameter enum reference; and accepted CORE-084 adds repeated exhaustive Match reads through multiple non-escaping immutable aliases to initialized immutable direct enum owners. Local candidate CORE-085 composes those bounded contracts by permitting multiple non-escaping immutable observation loans from an initialized mutable direct enum owner, with exact lexical ends and CFG loan-state proof; public acceptance is pending. Projected writes/borrows, partial moves, free enum dereference/transport, enum aggregate storage, and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
-| **Data Types** | Recursive finite CopyData composition and bounded positional recursive CopyData owned enums—including exact variants with two or more fields—are publicly accepted with exhaustive identifier-bound Match, internal transport, exact mutable whole-owner replacement/reinitialization, acyclic conditional ownership joins, and fresh per-iteration loop-local owners. Accepted CORE-072 adds `char`; CORE-074/075 add fresh and direct-owner enum Match results; accepted CORE-076 admits identical exact primitive, fixed-array, recursive-tuple, finite-struct, or owned-enum Match results through one shared classifier and generic checked result place; accepted CORE-083 admits only non-escaping mutable whole-place references to the admitted enum class; and accepted CORE-084 admits only exhaustive CopyData/`Void` Match observation through immutable enum references. Local candidate CORE-085 admits the same bounded observation from mutable direct owners but does not broaden enum topology or reference transport; public acceptance is pending. Named-field/generic variants, wider patterns, enum aggregate storage, enum fields/arrays, free enum dereference or transport through references, projection, dynamic collections, unsupported/cyclic structs, and broader storage or destructuring semantics remain unsupported. |
+| **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Accepted CORE-064–079 add bounded owned-enum replacement, joins, reinitialization, Match results, and loop ownership. Accepted CORE-083 adds non-escaping mutable whole-place enum replacement; CORE-084 adds immutable enum-reference Match reads; and CORE-085 adds multiple immutable observation loans from mutable direct owners with exact lexical ends and CFG proof. Local candidate CORE-086 adds repeated exhaustive observation through an active exclusive mutable enum reference, including read/write/read, with exact checked provenance and dispatch verification; public acceptance is pending. Projected writes/borrows, partial moves, free enum dereference/transport, enum aggregate storage, and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
+| **Data Types** | Recursive finite CopyData composition and bounded positional recursive CopyData owned enums—including exact variants with two or more fields—are publicly accepted with exhaustive identifier-bound Match, internal transport, exact mutable whole-owner replacement/reinitialization, acyclic conditional ownership joins, and fresh per-iteration loop-local owners. Accepted CORE-072 adds `char`; CORE-074–076 add typed Match results; and CORE-083–085 add bounded enum-reference replacement and immutable observation compositions. Local candidate CORE-086 adds mutable-reference exhaustive observation and homogeneous discarded `Void` Match results over owned and both reference scrutinees. `print!` and `println!` are effect-only `Void`, not scalar values. Named-field/generic variants, wider patterns, enum aggregate storage, enum fields/arrays, free enum dereference or transport through references, projection, dynamic collections, unsupported/cyclic structs, and broader storage or destructuring semantics remain unsupported. |
 | **Control Flow** | Functions, if/else, while/checked fixed-array for/loop, and nearest-loop break/continue are partial. Accepted CORE-066 corrects checked `for` continue and proves fresh per-iteration enum consumption. Accepted CORE-077 adds exact balanced direct enum-owner restoration. Accepted CORE-079 iterates direct-enum header and exit joins to convergence across condition/iterable, fallthrough/continue, and break edges, with return paths excluded and nested transfers attributed to the nearest loop. Labels, loop expressions/break values, non-array checked iterators, non-enum fixed points, and general CFG ownership remain unsupported. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
 | **Function calls** | Accepted CORE-068 centralizes exact named-call classification across both semantic paths and checked admission/lowering. Existing nongeneric functions over admitted scalar, recursive CopyData, owned-enum, and reference-parameter contracts remain supported; missing or unsupported signatures, wrong arguments, and `Void` value use fail before checked IR. All eight public checks and the pinned LLVM/Clang 22 native-exit-181 gate pass. Overloads, conversions, generic/trait/closure calls, reference results, and stable callable ABI remain unsupported. |
 | **Intrinsic methods** | Accepted CORE-067 centralizes intrinsic method classification across semantics and checked IR. Exact recursive CopyData fixed-array `.len()`/`.is_empty()`, immutable compile-time String queries, and Array/Vec `.iter()` compatibility are the only admitted executable method forms. Runtime Strings, other collection methods, general dispatch, generic/trait methods, and callable ABI remain unsupported. |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. Accepted CORE-070 adds public library `compile_file(path, options)` over this exact collector and the checked library frontend; it returns in-memory LLVM and writes no artifact. Accepted CORE-071 preserves Rust-like `use` syntax and source locations but rejects executable use before checked IR. Accepted CORE-080 likewise preserves the founding direct/aliased dotted `import` syntax with a distinct AST identity and fail-closed diagnostic. Active CORE-081 makes the collector and compiler phases library-owned while preserving current flattened behavior. Positive import/name-resolution, `pub` visibility semantics, namespaces, recursive modules, cycle graphs, and separate compilation are not implemented. |
 | **Codegen** | LLVM IR backend with optimization passes |
-| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp`. Locally green CORE-081 removes the binary's duplicate compiler-phase module graph; public acceptance is pending. |
+| **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp`. Accepted CORE-081 removes the binary's duplicate compiler-phase module graph so these surfaces share the canonical library compiler implementation. |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
@@ -513,13 +513,13 @@ aero lsp
 > library and 32 binary tests; the tracked composed specimen passes local CLI check/build
 > while stable/nightly Linux and pinned Windows LLVM 22 execute exact native exit 84.
 > Bounded PR #10 passed corrected exact-head CI, Rust CI, and CodeQL, merged as
-> `ae0f0901`, and passed all three exact post-merge workflows. This workstation lacks
-> the required LLVM 22 verifier, so no local native result is claimed. Free
+> `ae0f0901`, and passed all three exact post-merge workflows. No additional local
+> native result was part of that checkpoint's acceptance. Free
 > enum dereference/transport, mutable-owner immutable loans, mutable-reference reads,
 > reference results/escape/storage, unsupported enums, lifetime/NLL/drop, stable ABI,
 > FFI, and memory-safety claims remain excluded.
 
-> CORE-085 is a local candidate mutable-owner immutable enum-loan checkpoint.
+> CORE-085 is an accepted public mutable-owner immutable enum-loan checkpoint.
 > Initialized mutable direct owners of the admitted destructor-free enum class may have
 > multiple non-escaping `&E` aliases, including exact internal immutable-reference
 > parameters, and may be observed only by the accepted exhaustive `match *identifier`
@@ -527,13 +527,24 @@ aero lsp
 > IR preserves exact reference/source/schema/end identity; and the verifier counts
 > overlapping aliases and proves identical state at CFG joins. Owner mutation, move,
 > mutable borrow, owned Match, and escape remain rejected while any alias is live. The
-> focused target is 4/4, the dedicated corruption control passes, local CLI check/build
-> pass, and the tracked composed specimen is pinned at native exit 85 in both public
-> lanes. The exact repository gate passes 213 library tests, 32 binary tests, every
-> integration target, and doc tests. Exact-head, protected-merge, and post-merge gates
-> remain pending, so this is not public acceptance. Free enum dereference/transport, reference
+> focused target is 4/4, the dedicated corruption control passes, and bounded PR #12,
+> exact-head workflows, protected merge `d0832c6f`, all three post-merge workflows, and
+> pinned native exit 85 pass. Free enum dereference/transport, reference
 > results/escape/storage, unsupported enums, lifetime/NLL/drop, stable ABI, FFI, and
 > memory-safety claims remain excluded.
+
+> CORE-086 is a local candidate mutable enum-reference observation checkpoint. Active
+> exclusive local aliases and exact sole mutable-reference parameters may be observed by
+> repeated exhaustive `match *identifier`, including before and after accepted
+> whole-value replacement. A shared classifier, distinct checked mutable-read identity,
+> and independent provenance/schema/adjacency verification close the class. Homogeneous
+> discarded `Void` Matches share one contract across owned, immutable-reference, and
+> mutable-reference scrutinees without result storage; `print!`/`println!` remain
+> effect-only. Focused tests are 5/5, the exact root gate passes 214 library and 32
+> binary tests, and local pinned LLVM/Clang 22.1.8 executes the two-module specimen at
+> exact exit 86. Public exact-head and protected-merge proof remain pending. Raw enum
+> extraction/transport, escape, overlap, new lifetime/NLL/drop, stable ABI/FFI,
+> accelerator, safety, and stability semantics remain excluded.
 
 > **Pattern matching status:** CORE-049 accepts one bounded owned unit-enum class:
 > unique top-level non-generic enums with one or more unit variants, exact payload-free
