@@ -7,7 +7,10 @@ Last updated: 2026-08-10 (America/New_York)
 Milestone 107 `CORE-086` is a local candidate only on branch
 `agent/core-086-mutable-enum-reference-observation`, based on accepted master
 `d0832c6f4442095703a5f040eacb539a4a3774a7`, tree
-`96f8eb67b1cddfcee33839a86f84b5c90fa38e23`. One shared enum-reference Match
+`96f8eb67b1cddfcee33839a86f84b5c90fa38e23`. Its frozen implementation commit is
+`e12d6fe83cc1c8bd085a0b61e3d2f131003bfd81`, tree
+`319f7a8136a852781aa852816a24c609097f15ca`, with stable patch ID
+`b8d0c027561176156ae8dedcb4faf2f200ad2d8e`. One shared enum-reference Match
 classifier now admits exhaustive observation through either immutable or active
 exclusive mutable references to the existing destructor-free enum class. Checked IR
 keeps distinct mutable/immutable Match-read identities; the independent verifier ties

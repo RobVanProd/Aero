@@ -17102,8 +17102,12 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   and doc tests. The 97 clean tracked `.aero` fixtures were temporarily normalized from
   checkout CRLF to index LF for exact-source tests and restored afterward; no fixture,
   dependency, user-owned `tmp/`, master, release, benchmark, or external artifact was
-  changed. This is a local green candidate only; exact commit identity, public checks,
-  protected merge, and post-merge acceptance remain pending.
+  changed. Frozen implementation commit
+  `e12d6fe83cc1c8bd085a0b61e3d2f131003bfd81` has tree
+  `319f7a8136a852781aa852816a24c609097f15ca` and stable patch ID
+  `b8d0c027561176156ae8dedcb4faf2f200ad2d8e`; its sole parent is accepted master
+  `d0832c6f4442095703a5f040eacb539a4a3774a7`. This is a local green candidate only;
+  public checks, protected merge, and post-merge acceptance remain pending.
 
 ## CORE-085 - immutable observation loans from mutable enum owners
 
