@@ -4,40 +4,54 @@ Last updated: 2026-08-10 (America/New_York)
 
 ## Current objective
 
-Milestone 110 `CORE-089` is a local working candidate on branch
-`agent/core-089-multiple-exclusive-reference-signatures`, based on accepted,
-post-merge-verified master `a7627aa107a137f00ad17b4175de438e7d43f4e0`, tree
-`a8cc832796b0802549291d9b633c13979cfef623`. The one shared reference-signature
-classifier now enumerates every mutable parameter and admits the complete remaining
-non-entry, non-generic signature partition with two or more mutable whole-place
-references, any number of immutable whole-place references, and recursive finite
-CopyData companions. Each mutable source must be pairwise distinct and absent from
-every non-mutable argument tree. Non-mutable arguments retain relative evaluation
-order, mutable borrows are acquired in declared order, call operands retain declared
-order, and exact lexical ends occur in reverse order around one contiguous
-N-borrow/call/N-end window.
+Milestone 111 `CORE-090` is a local working candidate on branch
+`agent/core-090-projected-copydata-assignment`, based on accepted,
+post-merge-verified master `7fbaaaa4e26e50edd667771f6bce268e2429043e`, tree
+`e2f0da6ffd591a6ee22cf6585e48159d914cfd81`. One shared classifier now closes the
+complete statically addressed projected CopyData assignment class: an initialized,
+mutable, owned direct local CopyData root may be followed by any nonempty finite mix
+of declared struct fields, tuple constants, and nonnegative in-range integer-literal
+fixed-array indexes, and the exact CopyData leaf may be replaced by an exact-type RHS.
+Semantic analysis, semantic-independent checked admission, and lowering consume that
+single contract. Existing typed projection identities plus `CheckedOwnedPlaceAssignment`
+carry the result; the independent verifier reconstructs the projection root and
+requires a typed mutable owner before admitting the leaf write.
 
-The focused target passes 3/3 across two and three mutable parameters, every parameter
-position, direct owners, reborrows, parameter forwarding, scalar/recursive aggregate/
-enum pointees, immutable and CopyData companions, CopyData and `Void` results, both
-trust routes, public CLI artifact hygiene, and direct modules. The verifier corruption
-control passes 1/1 for duplicate roots, reordered or separated windows, forged or
-missing ends, raw-owner substitution, binder corruption, and mutable/immutable root
-overlap. The complete affected CORE-087--089 reference ring passes 19/19 after a
-candidate regression was corrected by retaining enum-specific loan bookkeeping beside
-the new general immutable-origin map. Pinned local LLVM/Clang 22.1.8 externally
-verifies, machine-verifies, emits COFF, links, and executes the tracked public and
-independent paths at exact exit 89. The exact repository-root gate passes formatting,
-correctness-denying Clippy, 216 library tests, 32 binary tests, every integration
-target, and doc tests. Its frozen implementation commit is
+The focused executable target passes 1/1 across direct and arbitrarily mixed paths,
+scalar and aggregate leaves, calls and Match RHS values, branch/loop writes, post-loan
+reuse, all frozen negative neighbors, direct modules, CLI artifact hygiene, and public
+workflow anchors. Shared classifier and verifier corruption controls pass 2/2. The
+affected CopyData/assignment/reference ring passes 15/15, and the Windows workflow
+contract passes 1/1. Pinned local LLVM/Clang 22.1.8 externally verifies,
+machine-verifies, emits COFF, links, and executes the tracked module specimen at exact
+exit 90. The repository-root gate passes formatting, correctness-denying Clippy, 218
+library tests, 32 binary tests, every integration target, and doc tests. Its frozen
+implementation commit is `ca00cdb70fc0a1940fa94126c49774b99d03c515`, tree
+`701b2d9a6a371fdfba8a6e11ff34c44f023731df`, with stable patch ID
+`623c295190227eda07712cad34a36ec81c2e43c7`. The following identity-only amendment
+changes repository records, not compiler behavior, tests, workflows, examples, or the
+frozen implementation tree. Public workflows remain pending, so no public acceptance
+is claimed. Dynamic/computed target indexes, projected borrowing, partial moves,
+enum/non-Copy subplaces, alias analysis, NLL/lifetime/drop, public layout, stable
+ABI/FFI, accelerators, and general memory-safety claims remain excluded.
+
+Milestone 110 `CORE-089` is accepted public at exact candidate head
+`82cec768ec117d18517e5624a9afa012c4fe66c6`, tree
+`e2f0da6ffd591a6ee22cf6585e48159d914cfd81`. Its frozen implementation commit is
 `1ce9ff3db9157dbade2886c6327b092e3c5503f4`, tree
 `70970690a5758dc1020949ca4669c299451adc08`, with stable patch ID
-`b92e829b88dee5ef97b944d6d8c3765ae1665141`. The following identity-only
-amendment changes repository records, not compiler behavior, tests, workflows,
-examples, or the frozen implementation tree. Public workflows remain pending, so no
-public acceptance is claimed.
-Projections, reference results/escape/storage/capture, NLL/lifetime/drop, public layout,
-stable ABI/FFI, accelerators, and general memory-safety claims remain excluded.
+`b92e829b88dee5ef97b944d6d8c3765ae1665141`. Bounded PR #16 passed all nine
+exact-head checks and merged through protected master as
+`7fbaaaa4e26e50edd667771f6bce268e2429043e`, with the exact candidate tree and
+ordered parents prior master `a7627aa107a137f00ad17b4175de438e7d43f4e0` then the
+candidate. Post-merge CI `31416437489`, Rust CI `31416438721`, and CodeQL
+`31416437379` pass on that exact merge. The accepted class admits every ordered
+non-entry, non-generic signature containing two or more pairwise-disjoint mutable
+whole-place references, any immutable references, and recursive finite CopyData
+companions under one shared classifier and one exact N-borrow/call/reverse-N-end
+window. Projected calls, reference results/escape/storage/capture, NLL/lifetime/drop,
+public layout, stable ABI/FFI, accelerators, and general memory-safety claims remain
+excluded.
 
 Milestone 109 `CORE-088` is accepted public at exact candidate head
 `4e807b59c32890ee31406bfc10d4720a8f3228ab`. Its frozen implementation commit is
@@ -182,9 +196,9 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to complete CORE-089's repository-root gate, freeze and
-publish it in one bounded PR, require every exact-head public workflow and pinned LLVM
-22 gate, and merge only through protected master while the record remains truthful.
+The exact next action is to publish CORE-090 in one bounded PR, require every
+exact-head public workflow and pinned LLVM 22 gate, and merge only through protected
+master while the record remains truthful.
 Positive imports remain deferred until lookup, namespace, visibility, collision, cycle,
 and cache semantics are specified. The four scaling controls remain active: bounded
 checkpoint PRs, deliberate hard-capability progress, proportional/structured evidence

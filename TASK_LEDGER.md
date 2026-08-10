@@ -2,7 +2,7 @@
 
 ## CORE-090 - statically addressed projected CopyData assignment
 
-- Date/task/status: 2026-08-10, `CORE-090`, authorized lead-owned red-first
+- Date/task/status: 2026-08-10, `CORE-090`, local candidate after authorized lead-owned red-first
   executable vertical slice from accepted, post-merge-verified master
   `7fbaaaa4e26e50edd667771f6bce268e2429043e`, tree
   `e2f0da6ffd591a6ee22cf6585e48159d914cfd81`. Work belongs only on
@@ -82,6 +82,19 @@
   All twelve negative quotient representatives reach that same identifier-only
   boundary rather than their required root/path/type diagnostics. This is the single
   authoritative red for the class; no per-selector audit or new-head reranking follows.
+- Green implementation checkpoint: frozen implementation commit
+  `ca00cdb70fc0a1940fa94126c49774b99d03c515`, tree
+  `701b2d9a6a371fdfba8a6e11ff34c44f023731df`, stable patch ID
+  `623c295190227eda07712cad34a36ec81c2e43c7`, retains the existing checked field,
+  tuple, and fixed-array projection identities and adds no raw IR opcode. Focused
+  execution passes 1/1; shared recursive classifier enumeration plus independent
+  verifier corruption controls pass 2/2; the affected CopyData/assignment/reference
+  ring passes 15/15; the Windows workflow contract passes 1/1; and pinned local
+  LLVM/Clang 22.1.8 externally verifies, machine-verifies, object-lowers, links, and
+  executes the tracked direct-module specimen at exact exit 90. The complete root gate
+  passes formatting, correctness-denying Clippy, 218 library tests, 32 binary tests,
+  every integration target, and doc tests. Public exact-head workflows remain pending,
+  so this evidence is candidate status and not public acceptance.
 - Allowed files: this single ledger record; `src/compiler/src/scalar_assignment.rs`,
   `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs`; `ir.rs` or
   `code_generator.rs` only if the existing checked projection/write identities cannot

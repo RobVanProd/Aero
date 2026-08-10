@@ -65,7 +65,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Mutable enum-reference Match reads and homogeneous `Void` Match results (`CORE-086` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mixed mutable-reference and CopyData signatures (`CORE-087` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mixed exclusive/shared-reference signatures (`CORE-088` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Multiple exclusive-reference signatures (`CORE-089` local candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Multiple exclusive-reference signatures (`CORE-089` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Static projected CopyData assignment (`CORE-090` local candidate) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -178,7 +179,7 @@ parameters, projections, reference results/escape/storage/capture, lifetime/NLL/
 public layout/ABI/FFI, accelerators, and memory-safety claims remain absent; the row
 therefore remains `PARTIAL`.
 
-Local candidate `CORE-089` closes the complete remaining multiple-exclusive-reference
+Accepted public `CORE-089` closes the complete remaining multiple-exclusive-reference
 signature partition under the same shared classifier: two or more mutable whole-place
 references, any admitted immutable references, and recursive CopyData companions in
 every declared order and count. The call contract enumerates every mutable parameter,
@@ -189,9 +190,26 @@ window reordering or separation, raw owners, binder corruption, and forged ends.
 focused target is 3/3, the corruption control is 1/1, the affected reference ring is
 19/19, and pinned local LLVM/Clang 22.1.8 executes public and independent native exit
 89. The full root gate is green at 216 library tests, 32 binary tests, every
-integration target, and doc tests; public gates remain pending. Projections, reference
+integration target, and doc tests. Bounded PR #16 passed all nine exact-head checks,
+merged through protected master as `7fbaaaa4`, and passed post-merge CI, Rust CI, and
+CodeQL. Projections, reference
 results/escape/storage/capture, lifetime/NLL/drop, public layout/ABI/FFI, accelerators,
 and memory-safety claims remain absent; the row therefore remains `PARTIAL`.
+
+Local candidate `CORE-090` admits exactly one nonempty static projection path rooted
+at an initialized mutable owned direct local recursive finite CopyData value. The path
+may contain any finite mix of declared named fields, tuple constants, and nonnegative
+in-range integer-literal fixed-array indexes; the exact CopyData leaf accepts only an
+exact-type RHS. One shared classifier serves both semantic routes and checked
+admission/lowering, while the verifier independently reconstructs the projection root
+and requires an existing typed mutable-owner allocation. The focused target passes
+1/1, shared classifier and corruption controls pass 2/2, the affected ring passes
+15/15, the full root gate is green at 218 library tests and 32 binary tests plus every
+integration target and doc tests, and pinned local LLVM/Clang 22.1.8 executes the
+tracked direct-module specimen at exact exit 90. Public gates remain pending.
+Dynamic/computed indexes, projected borrows, partial moves, enum/non-Copy subplaces,
+alias analysis, NLL/lifetime/drop, public layout/ABI/FFI, accelerators, and memory-safety
+claims remain absent; the row therefore remains `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact
