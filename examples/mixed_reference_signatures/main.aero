@@ -1,0 +1,46 @@
+mod references;
+
+struct Packet { value: int, ready: bool }
+enum State { Idle, Count(int) }
+
+fn main() -> int {
+    let left = 2;
+    let right = 3;
+    let left_ref = &left;
+    let left_again = &left;
+    let right_ref = &right;
+    let mut total = 1;
+
+    let first = mutable_first(&mut total, left_ref);
+    let middle = mutable_middle(left_ref, &mut total, right_ref);
+    let last = mutable_last(left_again, right_ref, &mut total, 4);
+    let mut forwarded_result = 0;
+    {
+        let alias = &mut total;
+        forwarded_result = forwarded(left_ref, alias, right_ref, 5);
+    }
+
+    let observed_packet = Packet { value: 6, ready: 1 < 2 };
+    let mut target_packet = Packet { value: 0, ready: 1 > 2 };
+    let values = [7, 8];
+    let aggregate = aggregate_mix(
+        &observed_packet,
+        &mut target_packet,
+        &values,
+        (1 < 2, 9)
+    );
+
+    let observed_state = State::Count(10);
+    let mut target_state = State::Idle;
+    let enum_result = enum_mix(&observed_state, &mut target_state);
+    let truth = 2 > 1;
+    let mut flag = 1 > 2;
+    set_from(&mut flag, &truth);
+
+    if flag && first == 3 && middle == 8 && last == 17
+        && forwarded_result == 27 && aggregate == 22 && enum_result == 11
+        && total == 27 && target_packet.ready && left == 2 && right == 3 {
+        return 88;
+    }
+    1
+}

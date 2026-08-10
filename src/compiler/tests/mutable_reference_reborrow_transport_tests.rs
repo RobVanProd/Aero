@@ -386,7 +386,7 @@ fn main() -> int { let mut value = 1; let alias = &mut value; outer(alias); *ali
         (
             "two mutable parameters remain excluded",
             "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
-            "exactly one mutable-reference parameter",
+            "at most one mutable-reference parameter",
         ),
         (
             "mutable reference result remains excluded",

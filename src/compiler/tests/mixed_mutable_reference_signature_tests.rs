@@ -221,16 +221,16 @@ fn mixed_signature_exclusions_fail_closed_in_every_trust_phase() {
             "two mutable references",
             "fn bad(left: &mut int, amount: int, right: &mut int) -> int { *left + amount + *right } fn main() -> int { 0 }",
             &[
-                "exactly one mutable-reference parameter",
-                "no other reference parameters",
+                "at most one mutable-reference parameter",
+                "simultaneous mutable-reference parameters are not supported",
             ],
         ),
         (
-            "mutable and immutable references",
-            "fn bad(value: &mut int, other: &int) -> int { *value + *other } fn main() -> int { 0 }",
+            "two mutable references beside an immutable reference",
+            "fn bad(value: &mut int, other: &int, second: &mut int) -> int { *value + *other + *second } fn main() -> int { 0 }",
             &[
-                "exactly one mutable-reference parameter",
-                "no other reference parameters",
+                "at most one mutable-reference parameter",
+                "simultaneous mutable-reference parameters are not supported",
             ],
         ),
         (

@@ -485,7 +485,7 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
         (
             "multiple mutable signature",
             "struct Row { value: int } fn bad(left: &mut Row, right: &mut Row) { } fn main() -> int { 0 }",
-            "exactly one mutable",
+            "at most one mutable-reference parameter",
         ),
         (
             "reference result escape",

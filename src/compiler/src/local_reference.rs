@@ -149,7 +149,7 @@ pub(crate) fn admitted_reference_parameter_topology(
     reference_parameters: usize,
     mutable_parameters: usize,
 ) -> bool {
-    mutable_parameters == 0 || (mutable_parameters == 1 && reference_parameters == 1)
+    mutable_parameters <= 1 && mutable_parameters <= reference_parameters
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -306,7 +306,7 @@ pub(crate) fn classify_reference_function_with_enums(
         .count();
     if !admitted_reference_parameter_topology(reference_parameters, mutable_parameters) {
         return ReferenceFunctionDisposition::ExplicitlyRejected(
-            "mutable reference transport functions require exactly one mutable-reference parameter and no other reference parameters".to_string(),
+            "reference transport functions support at most one mutable-reference parameter; simultaneous mutable-reference parameters are not supported".to_string(),
         );
     }
 
@@ -1049,6 +1049,16 @@ mod tests {
 
     #[test]
     fn classifier_partitions_supported_rejected_and_preserved_reference_shapes() {
+        for reference_count in 0..=6 {
+            for mutable_count in 0..=6 {
+                assert_eq!(
+                    admitted_reference_parameter_topology(reference_count, mutable_count),
+                    mutable_count <= 1 && mutable_count <= reference_count,
+                    "topology drifted for {reference_count} references and {mutable_count} mutable references"
+                );
+            }
+        }
+
         let registry = StructRegistry::default();
         for pointee in [Ty::Int, Ty::Float, Ty::Bool] {
             let facts = LocalReferenceSourceFacts {
