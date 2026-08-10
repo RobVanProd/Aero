@@ -393,9 +393,9 @@ fn main() -> int { return 0; }
             "enum transport function `take` parameter `values` is not an admitted by-value type",
         ),
         (
-            "enum reference parameter",
-            "enum Value { Int(int) } fn take(value: &Value) -> int { 1 } fn main() -> int { 0 }",
-            "immutable enum reference pointee",
+            "free enum reference dereference",
+            "enum Value { Int(int) } fn take(value: &Value) -> Value { *value } fn main() -> int { 0 }",
+            "not admitted Copy-data",
         ),
         (
             "String mixed parameter",

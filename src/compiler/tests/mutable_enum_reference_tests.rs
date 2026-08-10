@@ -311,14 +311,14 @@ fn mutable_enum_reference_checked_admission_does_not_depend_on_semantic_mutation
 fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
     let cases: &[(&str, &str, &[&str])] = &[
         (
-            "immutable enum parameter",
-            "enum E { A } fn inspect(value: &E) {} fn main() -> int { 0 }",
-            &["immutable enum reference pointee"],
+            "free immutable enum parameter read",
+            "enum E { A } fn inspect(value: &E) -> E { *value } fn main() -> int { 0 }",
+            &["not admitted Copy-data"],
         ),
         (
-            "immutable enum local alias",
-            "enum E { A } fn main() -> int { let owner = E::A; let alias = &owner; 0 }",
-            &["immutable enum reference pointee"],
+            "free immutable enum local-alias read",
+            "enum E { A } fn main() -> int { let owner = E::A; let alias = &owner; let copy = *alias; 0 }",
+            &["not admitted Copy-data"],
         ),
         (
             "read through mutable enum reference",
@@ -329,6 +329,7 @@ fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
             "Match through mutable enum reference",
             "enum E { A } fn read(value: &mut E) -> int { match *value { E::A => 1 } } fn main() -> int { 0 }",
             &[
+                "Match through mutable enum reference",
                 "not admitted Copy-data",
                 "Match expressions are not supported",
             ],
@@ -391,10 +392,7 @@ fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
         (
             "immutable loan conflict",
             "enum E { A } fn main() -> int { let mut owner = E::A; let first = &owner; let second = &mut owner; 0 }",
-            &[
-                "immutable enum reference pointee",
-                "also borrowed as immutable",
-            ],
+            &["mutable-owner loan lifetimes", "also borrowed as immutable"],
         ),
         (
             "generic enum",
@@ -504,13 +502,13 @@ fn mutable_enum_reference_cli_and_system_integration_are_anchored() {
     let invalid_artifact = invalid_workspace.path("must-not-exist.ll");
     fs::write(
         &invalid,
-        "enum E { A } fn inspect(value: &E) -> int { 0 } fn main() -> int { let owner = E::A; inspect(&owner) }",
+        "enum E { A } fn inspect(value: &E) -> int { let copy = *value; 0 } fn main() -> int { let owner = E::A; inspect(&owner) }",
     )
     .expect("write invalid immutable enum reference source");
     for command in ["check", "run"] {
         let output = run_cli(&invalid_workspace, &[Path::new(command), &invalid]);
         let diagnostic = output_text(&output);
-        if output.status.success() || !diagnostic.contains("immutable enum reference pointee") {
+        if output.status.success() || !diagnostic.contains("not admitted Copy-data") {
             failures.push(format!(
                 "invalid mutable enum reference CLI {command} did not fail with the shared cause: {diagnostic}"
             ));
@@ -528,7 +526,7 @@ fn mutable_enum_reference_cli_and_system_integration_are_anchored() {
     let invalid_diagnostic = output_text(&invalid_build);
     if invalid_build.status.success()
         || invalid_artifact.exists()
-        || !invalid_diagnostic.contains("immutable enum reference pointee")
+        || !invalid_diagnostic.contains("not admitted Copy-data")
     {
         failures.push(format!(
             "invalid mutable enum reference CLI build did not fail closed without an artifact: {invalid_diagnostic}"

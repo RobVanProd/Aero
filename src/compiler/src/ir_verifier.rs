@@ -348,7 +348,7 @@ fn valid_symbol(name: &str) -> bool {
 }
 
 fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
-    valid_copy_data_type(ty)
+    valid_owned_place_type(ty)
 }
 
 fn valid_mutable_reference_pointee(ty: &LogicalType) -> bool {
@@ -986,7 +986,8 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedEnumVariant { result, .. }
         | Inst::CheckedEnumVariantFields { result, .. }
         | Inst::CheckedEnumPayload { result, .. }
-        | Inst::CheckedEnumField { result, .. } => Some(result),
+        | Inst::CheckedEnumField { result, .. }
+        | Inst::CheckedImmutableEnumMatchRead { result, .. } => Some(result),
         Inst::Call { result, .. } => result.as_ref(),
         Inst::ICmp { result, .. }
         | Inst::FCmp { result, .. }
@@ -1002,6 +1003,7 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
     match instruction {
         Inst::Alloca(result, _)
         | Inst::CheckedMutableOwnedPlaceAlloca { result, .. }
+        | Inst::CheckedImmutableEnumOwnerPlaceAlloca { result, .. }
         | Inst::CheckedMatchResultPlaceAlloca { result, .. }
         | Inst::AllocaArray { result, .. }
         | Inst::GetElementPtr { result, .. }
@@ -1050,7 +1052,8 @@ fn definition_type(
         Inst::Call { function, .. } => signatures.get(function).map(|sig| sig.result.clone()),
         Inst::CheckedEnumVariant { schema, .. }
         | Inst::CheckedEnumVariantFields { schema, .. }
-        | Inst::CheckedEnumParameter { schema, .. } => Some(schema.logical_type()),
+        | Inst::CheckedEnumParameter { schema, .. }
+        | Inst::CheckedImmutableEnumMatchRead { schema, .. } => Some(schema.logical_type()),
         Inst::CheckedEnumPayload {
             schema,
             variant_index,
@@ -1148,6 +1151,7 @@ struct FunctionVerifier<'a> {
     places: BTreeMap<PlaceId, PlaceType>,
     place_names: BTreeMap<PlaceId, Option<String>>,
     element_owners: BTreeMap<PlaceId, PlaceId>,
+    immutable_enum_owner_places: BTreeSet<PlaceId>,
     mutable_owned_places: BTreeSet<PlaceId>,
     match_result_places: BTreeSet<PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
@@ -1176,6 +1180,7 @@ impl<'a> FunctionVerifier<'a> {
             places: BTreeMap::new(),
             place_names: BTreeMap::new(),
             element_owners: BTreeMap::new(),
+            immutable_enum_owner_places: BTreeSet::new(),
             mutable_owned_places: BTreeSet::new(),
             match_result_places: BTreeSet::new(),
             mutable_reference_origins: BTreeMap::new(),
@@ -1247,6 +1252,22 @@ impl<'a> FunctionVerifier<'a> {
             current = parent;
         }
         None
+    }
+
+    fn immutable_enum_reference_place(&self, place: PlaceId) -> bool {
+        let Some(definition) = self.place_definitions.get(&place) else {
+            return false;
+        };
+        matches!(
+            self.body.instructions[definition.position],
+            Inst::CheckedImmutableBorrow {
+                pointee: LogicalType::Enum { .. },
+                ..
+            } | Inst::CheckedImmutableReferenceParameter {
+                pointee: LogicalType::Enum { .. },
+                ..
+            }
+        )
     }
 
     fn consume_enum_owner(
@@ -1832,6 +1853,9 @@ impl<'a> FunctionVerifier<'a> {
                                 Inst::CheckedMutableOwnedPlaceAlloca { .. } => {
                                     "checked mutable owned-place alloca"
                                 }
+                                Inst::CheckedImmutableEnumOwnerPlaceAlloca { .. } => {
+                                    "checked immutable enum owner-place alloca"
+                                }
                                 Inst::CheckedMatchResultPlaceAlloca { .. } => {
                                     "checked Match result-place alloca"
                                 }
@@ -1898,6 +1922,19 @@ impl<'a> FunctionVerifier<'a> {
                                 _ => PlaceType::Known(ty.clone()),
                             };
                             (place_type, Some(name.clone()))
+                        }
+                        Inst::CheckedImmutableEnumOwnerPlaceAlloca { name, schema, .. } => {
+                            if !valid_symbol(name) || !valid_enum_schema(schema) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked immutable enum owner place `{name}` requires a valid name and admitted enum schema"
+                                    )),
+                                ));
+                            }
+                            self.immutable_enum_owner_places.insert(id);
+                            (PlaceType::Known(schema.logical_type()), Some(name.clone()))
                         }
                         Inst::CheckedMatchResultPlaceAlloca {
                             result_type,
@@ -2860,6 +2897,7 @@ impl<'a> FunctionVerifier<'a> {
         let mut bound_enum_parameters = BTreeSet::new();
         let mut bound_reference_parameters = BTreeSet::new();
         let mut bound_mutable_reference_parameters = BTreeSet::new();
+        let mut initialized_immutable_enum_places = BTreeSet::new();
         let mut initialized_mutable_places = BTreeSet::new();
         let mut active_mutable_references = BTreeSet::new();
         let mut active_mutable_sources = BTreeSet::new();
@@ -2926,12 +2964,22 @@ impl<'a> FunctionVerifier<'a> {
                     }
                     Inst::Alloca(..)
                     | Inst::CheckedMutableOwnedPlaceAlloca { .. }
+                    | Inst::CheckedImmutableEnumOwnerPlaceAlloca { .. }
                     | Inst::AllocaArray { .. }
                     | Inst::CheckedStructAlloca { .. }
                     | Inst::CheckedTupleAlloca { .. }
                     | Inst::Label(_) => {}
                     Inst::Store(place, value) => {
                         let id = self.require_place(place, "store", block_index, position)?;
+                        if self.immutable_enum_reference_place(id) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "generic store through immutable enum reference place {} is forbidden",
+                                    id.0
+                                )),
+                            ));
+                        }
                         if self.mutable_reference_origins.contains_key(&id)
                             || self.mutable_reference_parameters.contains(&id)
                         {
@@ -2965,6 +3013,24 @@ impl<'a> FunctionVerifier<'a> {
                                     block_index,
                                     IrVerificationErrorKind::MetadataMismatch(format!(
                                         "generic store to mutable place {} is permitted only once as the adjacent initializer; later writes require a checked assignment",
+                                        id.0
+                                    )),
+                                ));
+                            }
+                        }
+                        if self.immutable_enum_owner_places.contains(&id) {
+                            let definition = self
+                                .place_definitions
+                                .get(&id)
+                                .expect("immutable enum owner place definition was collected");
+                            if definition.block != block_index
+                                || definition.position.checked_add(1) != Some(position)
+                                || !initialized_immutable_enum_places.insert(id)
+                            {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked immutable enum owner place {} requires exactly one adjacent initializer store",
                                         id.0
                                     )),
                                 ));
@@ -3096,6 +3162,15 @@ impl<'a> FunctionVerifier<'a> {
                     }
                     Inst::Load(_, place) => {
                         let place = self.require_place(place, "load", block_index, position)?;
+                        if self.immutable_enum_reference_place(place) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "generic load from immutable enum reference place {} is forbidden; CORE-084 requires CheckedImmutableEnumMatchRead",
+                                    place.0
+                                )),
+                            ));
+                        }
                         if (self.mutable_reference_origins.contains_key(&place)
                             || self.mutable_reference_parameters.contains(&place))
                             && self
@@ -3571,6 +3646,80 @@ impl<'a> FunctionVerifier<'a> {
                                     "checked immutable borrow pointee mismatch: declared {pointee}, source {}",
                                     actual.map_or_else(|| "unknown".to_string(), |ty| ty.to_string())
                                 )),
+                            ));
+                        }
+                        if matches!(pointee, LogicalType::Enum { .. })
+                            && (!self.immutable_enum_owner_places.contains(&source)
+                                || !initialized_immutable_enum_places.contains(&source))
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked immutable enum borrow source place {} is not an initialized immutable enum owner",
+                                    source.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedImmutableEnumMatchRead {
+                        result,
+                        reference,
+                        schema,
+                    } => {
+                        if !valid_enum_schema(schema) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::UnsupportedType(format!(
+                                    "checked immutable enum Match read schema `{}`",
+                                    schema.name
+                                )),
+                            ));
+                        }
+                        let reference = self.require_place(
+                            reference,
+                            "checked immutable enum Match read reference",
+                            block_index,
+                            position,
+                        )?;
+                        if !self.immutable_enum_reference_place(reference)
+                            || self.places.get(&reference).and_then(PlaceType::logical)
+                                != Some(schema.logical_type())
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked immutable enum Match read reference place {} does not carry the exact immutable enum schema",
+                                    reference.0
+                                )),
+                            ));
+                        }
+                        let result = reg(result).map(ResultId);
+                        let adjacent = matches!(
+                            (
+                                self.body.instructions.get(position + 1),
+                                self.body.instructions.get(position + 2),
+                            ),
+                            (
+                                Some(Inst::CheckedMatchResultPlaceAlloca {
+                                    dispatch_schema,
+                                    ..
+                                }),
+                                Some(Inst::CheckedEnumDispatch {
+                                    value,
+                                    schema: dispatch_schema_again,
+                                    ..
+                                })
+                            ) if dispatch_schema == schema
+                                && dispatch_schema_again == schema
+                                && reg(value).map(ResultId) == result
+                        );
+                        if !adjacent {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked immutable enum Match read must be followed by its exact Match result place and exhaustive dispatch"
+                                        .to_string(),
+                                ),
                             ));
                         }
                     }
@@ -4084,6 +4233,16 @@ impl<'a> FunctionVerifier<'a> {
         self.verify_match_result_flow()?;
         self.verify_enum_ownership_flow()?;
 
+        if initialized_immutable_enum_places != self.immutable_enum_owner_places {
+            return Err(self.error(
+                0,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "checked immutable enum owner places must each have one adjacent initializer store"
+                        .to_string(),
+                ),
+            ));
+        }
+
         let declared_mutable_places = self.mutable_owned_places.clone();
         if initialized_mutable_places != declared_mutable_places {
             return Err(self.error(
@@ -4403,6 +4562,10 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 Inst::CheckedMutableOwnedPlaceAlloca { ty, .. }
                 | Inst::CheckedOwnedPlaceAssignment { ty, .. } => {
                     register_type(ty, schemas, enum_schemas)?;
+                }
+                Inst::CheckedImmutableEnumOwnerPlaceAlloca { schema, .. }
+                | Inst::CheckedImmutableEnumMatchRead { schema, .. } => {
+                    register_enum(schema, schemas, enum_schemas)?;
                 }
                 Inst::CheckedTupleAlloca { element_types, .. }
                 | Inst::CheckedTupleFieldPtr { element_types, .. } => {
@@ -7957,6 +8120,115 @@ mod tests {
             assert!(
                 verify_ir(function(body)).is_err(),
                 "{label} passed mutable owned enum verification"
+            );
+        }
+    }
+
+    #[test]
+    fn immutable_enum_match_reference_provenance_and_use_are_fail_closed() {
+        let schema = unit_schema("State", &["Idle"]);
+        let logical = schema.logical_type();
+        let valid = || {
+            vec![
+                checked_variant(Value::Reg(0), schema.clone(), 0),
+                Inst::CheckedImmutableEnumOwnerPlaceAlloca {
+                    result: Value::Reg(10),
+                    name: "owner".to_string(),
+                    schema: schema.clone(),
+                },
+                Inst::Store(Value::Reg(10), Value::Reg(0)),
+                Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(11),
+                    source: Value::Reg(10),
+                    pointee: logical.clone(),
+                },
+                Inst::CheckedImmutableEnumMatchRead {
+                    result: Value::Reg(1),
+                    reference: Value::Reg(11),
+                    schema: schema.clone(),
+                },
+                Inst::CheckedMatchResultPlaceAlloca {
+                    result: Value::Reg(12),
+                    result_type: LogicalType::Int,
+                    dispatch_schema: schema.clone(),
+                },
+                checked_dispatch(Value::Reg(1), schema.clone(), &["arm"]),
+                Inst::Label("arm".to_string()),
+                Inst::CheckedOwnedPlaceAssignment {
+                    target: Value::Reg(12),
+                    value: Value::ImmInt(9),
+                    ty: LogicalType::Int,
+                },
+                Inst::Jump("end".to_string()),
+                Inst::Label("end".to_string()),
+                Inst::Load(Value::Reg(2), Value::Reg(12)),
+                Inst::Return(Value::Reg(2)),
+            ]
+        };
+
+        verify_ir(function(valid())).expect("exact immutable enum Match read must verify");
+
+        let mut generic_owner = valid();
+        generic_owner[1] = Inst::Alloca(Value::Reg(10), "owner".to_string());
+
+        let mut wrong_owner_schema = valid();
+        wrong_owner_schema[1] = Inst::CheckedImmutableEnumOwnerPlaceAlloca {
+            result: Value::Reg(10),
+            name: "owner".to_string(),
+            schema: unit_schema("Other", &["Idle"]),
+        };
+
+        let mut missing_initializer = valid();
+        missing_initializer.remove(2);
+
+        let mut non_adjacent_initializer = valid();
+        non_adjacent_initializer.insert(2, Inst::Load(Value::Reg(3), Value::Reg(10)));
+
+        let mut mutable_reference = valid();
+        mutable_reference[3] = Inst::CheckedMutableBorrow {
+            result: Value::Reg(11),
+            source: Value::Reg(10),
+            pointee: logical.clone(),
+        };
+
+        let mut owner_as_reference = valid();
+        owner_as_reference[4] = Inst::CheckedImmutableEnumMatchRead {
+            result: Value::Reg(1),
+            reference: Value::Reg(10),
+            schema: schema.clone(),
+        };
+
+        let mut wrong_read_schema = valid();
+        wrong_read_schema[4] = Inst::CheckedImmutableEnumMatchRead {
+            result: Value::Reg(1),
+            reference: Value::Reg(11),
+            schema: unit_schema("Other", &["Idle"]),
+        };
+
+        let mut generic_reference_load = valid();
+        generic_reference_load[4] = Inst::Load(Value::Reg(1), Value::Reg(11));
+
+        let mut separated_read = valid();
+        separated_read.insert(5, Inst::Load(Value::Reg(3), Value::Reg(10)));
+
+        let mut wrong_dispatch_value = valid();
+        wrong_dispatch_value[6] = checked_dispatch(Value::Reg(0), schema, &["arm"]);
+
+        for (label, body) in [
+            ("generic owner alloca", generic_owner),
+            ("wrong owner schema", wrong_owner_schema),
+            ("missing owner initializer", missing_initializer),
+            ("non-adjacent owner initializer", non_adjacent_initializer),
+            ("mutable reference substitution", mutable_reference),
+            ("owner substituted for reference", owner_as_reference),
+            ("wrong Match-read schema", wrong_read_schema),
+            ("generic reference load", generic_reference_load),
+            ("separated Match read", separated_read),
+            ("wrong dispatch value", wrong_dispatch_value),
+        ] {
+            assert!(
+                verify_ir(function(body)).is_err(),
+                "{label} passed immutable enum Match-read verification"
             );
         }
     }

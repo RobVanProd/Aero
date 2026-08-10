@@ -70,6 +70,13 @@ pub enum Inst {
         name: String,
         ty: LogicalType,
     },
+    /// Verified immutable owner storage for an admitted enum that may be observed
+    /// through a non-escaping immutable reference.
+    CheckedImmutableEnumOwnerPlaceAlloca {
+        result: Value,
+        name: String,
+        schema: EnumSchema,
+    },
     /// Verified compiler-owned storage for one exhaustive admitted Match result.
     /// The place begins uninitialized and every reachable dispatch arm must write one
     /// exact-type value before the single merged load.
@@ -89,6 +96,12 @@ pub enum Inst {
         result: Value,
         source: Value,
         pointee: LogicalType,
+    },
+    /// Verified non-owning enum observation used only by its adjacent exhaustive Match.
+    CheckedImmutableEnumMatchRead {
+        result: Value,
+        reference: Value,
+        schema: EnumSchema,
     },
     /// Verified exclusive non-escaping alias of a mutable Copy-data owner or reference place.
     CheckedMutableBorrow {

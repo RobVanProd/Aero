@@ -17,11 +17,12 @@ use crate::function_call_contract::{
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
-    ReferenceFunctionDisposition, classify_local_borrow_with_enums, classify_local_dereference,
+    ReferenceFunctionDisposition, classify_immutable_enum_match_dereference,
+    classify_local_borrow_with_enums, classify_local_dereference,
     classify_local_reference_annotation_with_enums,
     classify_mutable_reference_assignment_with_enums, classify_mutable_reference_binding,
     classify_reference_call_with_enums, classify_reference_function_with_enums,
-    reference_call_fact_subject,
+    reference_call_fact_subject, validate_immutable_enum_match_result,
 };
 use crate::method_call_contract::{IntrinsicMethodPhase, classify_intrinsic_method};
 use crate::ownership_flow::{
@@ -1546,7 +1547,7 @@ impl SemanticAnalyzer {
                     },
                 ) {
                     self.check_expression_initialization(expr)?;
-                    let scrutinee = self.infer_and_validate_expression_immutable(expr)?;
+                    let scrutinee = self.infer_admitted_match_scrutinee(expr)?;
                     let patterns = self
                         .enum_registry
                         .resolve_match_patterns(
@@ -1806,7 +1807,7 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::Match { expr, arms } => {
-                let scrutinee = self.infer_and_validate_expression(expr)?;
+                let scrutinee = self.infer_admitted_match_scrutinee(expr)?;
                 let patterns = self
                     .enum_registry
                     .resolve_match_patterns(&scrutinee, expr, arms, self.enum_execution_context())
@@ -1822,7 +1823,8 @@ impl SemanticAnalyzer {
                     arm_owned_consumptions.push(consumed?);
                 }
                 let consumed = self.enum_consumed_names(expr)?;
-                self.enum_registry
+                let result = self
+                    .enum_registry
                     .resolve_match_with_consumed(
                         &scrutinee,
                         expr,
@@ -1844,7 +1846,9 @@ impl SemanticAnalyzer {
                         self.enum_execution_context(),
                     )
                     .map(|resolved| resolved.result_contract.ty())
-                    .map_err(|error| error.diagnostic())
+                    .map_err(|error| error.diagnostic())?;
+                validate_immutable_enum_match_result(expr, &result, &self.struct_registry)?;
+                Ok(result)
             }
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {
@@ -2151,7 +2155,8 @@ impl SemanticAnalyzer {
                     }
                     return Err("Match expressions are not supported.".to_string());
                 }
-                let scrutinee = self.infer_expression_immutable_with_cache(expr, array_types)?;
+                let scrutinee =
+                    self.infer_admitted_match_scrutinee_with_cache(expr, array_types)?;
                 let patterns = self
                     .enum_registry
                     .resolve_match_patterns(&scrutinee, expr, arms, context)
@@ -2265,6 +2270,32 @@ impl SemanticAnalyzer {
     fn infer_and_validate_expression_immutable(&self, expr: &Expression) -> Result<Ty, String> {
         let mut array_types = ArrayInferenceCache::new();
         self.infer_and_validate_expression_immutable_with_cache(expr, &mut array_types)
+    }
+
+    fn infer_admitted_match_scrutinee(&self, expr: &Expression) -> Result<Ty, String> {
+        let mut array_types = ArrayInferenceCache::new();
+        self.infer_admitted_match_scrutinee_with_cache(expr, &mut array_types)
+    }
+
+    fn infer_admitted_match_scrutinee_with_cache(
+        &self,
+        expr: &Expression,
+        array_types: &mut ArrayInferenceCache,
+    ) -> Result<Ty, String> {
+        if let Expression::Deref(reference) = expr {
+            let operand =
+                self.infer_and_validate_expression_immutable_with_cache(reference, array_types)?;
+            match classify_immutable_enum_match_dereference(
+                reference,
+                &operand,
+                &self.enum_registry,
+            ) {
+                LocalReferenceDisposition::Supported(contract) => return Ok(contract.pointee),
+                LocalReferenceDisposition::ExplicitlyRejected(message) => return Err(message),
+                LocalReferenceDisposition::Preserved => {}
+            }
+        }
+        self.infer_and_validate_expression_immutable_with_cache(expr, array_types)
     }
 
     fn infer_and_validate_expression_immutable_with_cache(
@@ -2586,7 +2617,7 @@ impl SemanticAnalyzer {
             },
             Expression::Match { expr, arms } => {
                 let scrutinee =
-                    self.infer_and_validate_expression_immutable_with_cache(expr, array_types)?;
+                    self.infer_admitted_match_scrutinee_with_cache(expr, array_types)?;
                 let patterns = self
                     .enum_registry
                     .resolve_match_patterns(&scrutinee, expr, arms, self.enum_execution_context())
@@ -2603,7 +2634,8 @@ impl SemanticAnalyzer {
                     arm_owned_consumptions.push(consumed?);
                 }
                 let consumed = self.enum_consumed_names(expr)?;
-                self.enum_registry
+                let result = self
+                    .enum_registry
                     .resolve_match_with_consumed(
                         &scrutinee,
                         expr,
@@ -2625,7 +2657,9 @@ impl SemanticAnalyzer {
                         self.enum_execution_context(),
                     )
                     .map(|resolved| resolved.result_contract.ty())
-                    .map_err(|error| error.diagnostic())
+                    .map_err(|error| error.diagnostic())?;
+                validate_immutable_enum_match_result(expr, &result, &self.struct_registry)?;
+                Ok(result)
             }
             // Phase 5: Borrow and Deref
             Expression::Borrow { expr, mutable } => {

@@ -16929,3 +16929,196 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   the full baseline stays green. Then freeze a separately authorized hard-capability
   slice; do not reopen CORE-083 or stack implementation on a red/unpublished branch.
   Keep all four scaling controls active.
+
+## CORE-084 - immutable Match access to admitted enums
+
+- Date/task/status: 2026-08-10, `CORE-084`, lead-owned red-first positive vertical
+  slice starting from accepted and post-merge-verified master
+  `23474fb45e57bed5c80ceed81597060aee2663f5`. Work belongs only on
+  `agent/core-084-immutable-enum-references`; user-owned untracked `tmp/` remains
+  outside the task. This task follows a once-per-class audit of the next hard
+  ownership composition boundary; positive module imports were audited and deferred
+  because the founding grammar specifies dotted syntax but neither founding document
+  freezes lookup, namespace, visibility, collision, cycle, or cache semantics.
+- Source-grounded observed behavior and hypothesis: Aero's founding ownership model
+  explicitly admits multiple immutable `&T` aliases that may read but not modify the
+  owner. The compiler already executes that non-escaping lexical topology for recursive
+  CopyData, and independently executes owned unit, unary, and positional multi-field
+  enums whose payloads are recursive CopyData. CORE-083 deliberately rejects every
+  immutable enum reference in the shared reference-pointee classifier, while generic
+  checked `Load` could otherwise manufacture a freely transportable owned enum value.
+  One shared enum-aware immutable-reference classification plus one provenance-bearing
+  checked read identity can compose the existing contracts without treating an enum as
+  CopyData or broadening by-value enum transport.
+- Frozen positive class: the pointee is exactly one already admitted non-generic,
+  uniquely defined unit/unary/positional-multi-field enum with recursive CopyData
+  payloads. An initialized immutable direct local whole-place owner in `Owned` or
+  existing immutable-borrowed state may be borrowed as `&E`; the existing lexical immutable
+  reference topology, including multiple direct immutable aliases and non-entry,
+  non-generic immutable-reference parameters, remains authoritative. The sole enum read
+  is direct exhaustive `Match *identifier { ... }`, where the identifier is an exact
+  local immutable `&E` binding or immutable `&E` parameter. Each Match creates a fresh
+  non-owning enum SSA observation carrying the exact schema, dispatches and extracts
+  recursive CopyData payload fields through existing checked identities, returns only
+  an already admitted CopyData/`Void` Match result, and does not consume or mutate the
+  owner. LLVM loads the existing private enum representation through the verified
+  immutable pointer; native execution must observe repeated Match reads and preserved
+  owner access after lexical borrow end.
+- Frozen negative boundary: no dereferenced enum as a free value, return, by-value call
+  argument, binding initializer, assignment RHS, comparison, array/struct/tuple field,
+  constructor payload, nested Match result, mutable-owner borrow, or mutable-reference read; no direct
+  `Match *(&owner)`, projection/index/double-dereference source, mutable enum access,
+  reference result/escape/storage/capture, entry reference parameter, generic/named-
+  field/unsupported enum, enum inside an aggregate, partial move, layout/ABI/FFI,
+  lifetime/NLL/drop expansion, import semantics, runtime String/collection, closure,
+  generic/trait, accelerator, performance, release, safety, or stability claim. A
+  generic `Load` may not substitute for the checked immutable-enum Match read, and the
+  read result may be used only by its exact exhaustive dispatch and guarded payload
+  extraction. Existing CopyData references and CORE-043--083 behavior remain exact.
+- Red-first proof and acceptance tests: before production mutation, add one focused
+  integration target whose positive unit/unary/multi-field, local-alias, multiple-alias,
+  parameter, repeated-read, owner-preservation, direct checked-admission, checked-IR,
+  LLVM, CLI check/build/run, direct-module, and native specimen product reaches the
+  current deterministic `immutable enum reference pointee` rejection. Negative source
+  coverage enumerates every frozen use topology in semantic analysis and independent
+  checked admission; verifier corruption controls replace schema, provenance, reference
+  mutability, read identity, dispatch adjacency/use, and generic-load substitutions.
+  Then require focused green, affected reference/enum/ownership/module compatibility
+  rings, formatting, all-target/all-feature check, correctness-denying Clippy, docs,
+  `git diff --check`, exact repository-root `./tools/test.sh`, one bounded exact-head PR,
+  all public workflows, and the SHA-256-pinned LLVM/Clang 22 native system gate.
+- Allowed production files: `src/compiler/src/local_reference.rs`,
+  `semantic_analyzer.rs`, `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`,
+  `code_generator.rs`, and only a directly coupled enum/reference contract if the red
+  proof demonstrates a shared invariant. Allowed tests/specimens: one focused
+  `src/compiler/tests/immutable_enum_reference_tests.rs`, directly coupled verifier and
+  existing reference/enum expectation controls, one tracked
+  `examples/immutable_enum_references/` multi-file specimen, and exact existing public
+  workflow entries needed to execute it. Allowed records only after exact green: this
+  ledger and directly affected project-state/capability/matrix/framework/README records.
+  No dependency, package, release, benchmark, claim-verification, unrelated workflow,
+  master, external repository, or `tmp/` mutation is authorized.
+- Risks and stop conditions: stop rather than approximate if the exact enum schema is
+  unavailable at classification or verification, the Match read can be transported as
+  an owned enum, payload extraction cannot be tied to the same guarded dispatch, the
+  owner becomes consumed or mutable, immutable/mutable alias exclusion diverges from
+  the established reference contract, source safety depends on backend behavior, a new
+  lifetime/drop/layout/ABI rule is required, the class cannot share one predicate, an
+  unrelated baseline is red, or any test/spec must be weakened. Candidate and public
+  acceptance remain separate. The four scaling controls remain active: bounded PR,
+  hard-capability progress, proportional structured evidence, and a composed
+  source-to-native system gate.
+
+### CORE-084 exact red checkpoint
+
+- Before any compiler production mutation, the focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  immutable_enum_reference_tests -- --nocapture` runs 0/2 green. A test-only parser
+  correction removed an unsupported block expression so the complete specimen reached
+  the intended existing boundary. Public compilation and semantic-to-checked admission
+  both reject the first exact enum product with “immutable enum reference pointee
+  `Unit` is not admitted; CORE-083 permits only non-escaping mutable whole-place enum
+  replacement.”
+- The red source already enumerates admitted unit, unary, and positional multi-field
+  recursive-CopyData enum schemas; explicitly typed local references; multiple aliases;
+  immutable-reference parameters and a local parameter alias; repeated Match reads;
+  payload extraction; and owner use after lexical borrow end. Direct semantic-independent
+  checked admission and the exact checked identity remain asserted behind the same red
+  boundary. No compiler production, existing test expectation, workflow, example,
+  dependency, master, external repository, or user-owned `tmp/` content changed at this
+  checkpoint. The PowerShell session initially omitted Cargo from `PATH`; rerunning the
+  same command through `%USERPROFILE%\.cargo\bin\cargo.exe` produced the authoritative
+  language red above and did not trigger a Windows Security denial.
+
+### CORE-084 locally green candidate checkpoint
+
+- Status and identity: implementation commit
+  `47b5142b312786975b53934cd943f6efd04e5575` has tree
+  `e325ce0427cc7db0de70960c2ae9e1c0892ae015` and stable patch ID
+  `c62abff2165a996eba67ede77d53048b66c05958` on
+  `agent/core-084-immutable-enum-references`, based exactly on accepted master
+  `23474fb45e57bed5c80ceed81597060aee2663f5`. This is candidate evidence only;
+  no public workflow, protected merge, or public acceptance is claimed.
+- Implementation summary: the shared reference-pointee authority now admits exact
+  immutable references to already admitted non-generic unit, unary, and positional
+  multi-field recursive-CopyData enums. A second shared classifier admits only direct
+  exhaustive `Match *identifier` reads from exact immutable `&E` locals or parameters,
+  and one result guard admits only existing CopyData or `Void`. Initialized immutable
+  direct enum owners receive exact checked storage; multiple immutable aliases and
+  repeated reads preserve the owner. Mutable-owner immutable loans, mutable-reference
+  reads, free enum dereference, transport, storage, and escape remain rejected.
+- Independent trust proof: checked IR adds exact immutable enum owner-place and Match-
+  read identities. The verifier requires one adjacent initializer, immutable-reference
+  provenance from that exact owner or an exact parameter binder, matching enum schema,
+  an adjacent exact result allocation and exhaustive dispatch, and no generic load or
+  store substitution. Ten corruption mutations cover generic owner allocation, wrong
+  schema, missing/nonadjacent initialization, mutable-reference substitution, owner-as-
+  reference substitution, wrong read schema, generic reference load, separated read,
+  and wrong dispatch. Trusted LLVM lowers only the verified exact enum pointer load.
+- Positive and negative evidence: the focused target passes 4/4. Its positive product
+  covers unit/unary/multi-field enums, explicit local aliases, multiple aliases,
+  immutable-reference parameters, a local parameter alias, repeated reads, payload
+  extraction, direct semantic-independent checked admission, exact checked identities,
+  LLVM pointer loads, valid CLI check/build, workflow-anchored native run, direct
+  modules, and preserved owned use. Its
+  thirteen negative source groups run through semantic analysis, independent checked
+  admission, and public compilation, including free values, returns, by-value calls,
+  comparisons, binding/array/tuple storage, mutable-owner and mutable-reference reads,
+  non-identifier dereference, enum Match results, reference escape, entry parameters,
+  and unsupported generic enums. Invalid CLI check/build/run fail without a requested
+  artifact.
+- Compatibility and complete gates: affected conditional/loop/multi-field ownership,
+  mutable enum-reference, payload/unit enum transport, scalar/unit enum Match,
+  immutable Copy-place-reference, reference-parameter, owned enum reassignment, and
+  reinitialization targets pass after updating only superseded enum-reference negative
+  diagnostics. The Windows native workflow contract now requires the seventh expected-
+  nonzero specimen and its exact `LASTEXITCODE` reset. `cargo test --lib` passes 212/212.
+  Exact repository-root `./tools/test.sh` passes formatting, correctness-denying Clippy,
+  212 library tests, 32 binary tests, every integration target, and doc tests.
+  `git diff --check` passes. On this Windows checkout, 93 tracked `.aero` fixtures were
+  normalized from CRLF to LF only for byte-exact fixture tests and restored without an
+  indexed content diff afterward. User-owned untracked `tmp/` remained untouched.
+- System and workflow evidence: the tracked two-module specimen compiles through the
+  public CLI check/build paths while composing immutable enum owners, multiple aliases,
+  immutable-reference parameters, repeated Match reads, owner preservation, owned enum
+  use, primitive constants, compile-time String length, arrays, tuples, and direct
+  modules. This workstation lacks the required LLVM 22 verifier, so no local native
+  result is claimed. Stable/nightly Linux and pinned Windows
+  LLVM/Clang 22 workflow steps now require public check/run/build, LLVM verification,
+  machine verification, object lowering, linking, and independent native exit 84.
+  These workflow declarations are not public acceptance until the exact candidate head
+  passes them.
+- Remaining boundary and risks: free enum dereference or transport, mutable-owner
+  immutable loans, mutable-reference reads, enum/reference aggregate storage, reference
+  result/escape/capture, projections, partial moves, generic/named-field/unsupported
+  enums, lifetime/NLL/drop, public layout, stable ABI/FFI, accelerator execution,
+  performance, release, stability, and memory-safety claims remain absent. Positive
+  imports remain deferred because lookup, namespace, visibility, collision, cycle, and
+  cache semantics are not frozen. The next action is one bounded draft PR with exact-
+  head public checks and a synchronized front page; acceptance records must remain
+  separate from candidate status. The four scaling controls remain active.
+
+### CORE-084 first public candidate correction
+
+- Exact public head `f6b2e6138e85bc315f4b52daf2db5ad0e03f4f0c` passed both CI
+  runs and all CodeQL analyses. Rust CI run `31362292610` failed stable, nightly, and
+  Windows only at the new immutable enum-reference system specimen. All compiler build,
+  parsing, semantic, checked-IR, LLVM verification, and prior native specimen steps
+  before it passed. Stable/nightly Linux observed native exit 64 where the workflow
+  required 84; Windows failed the same specimen step.
+- Root cause was evidence arithmetic, not compiler semantics: `read_packet` returned
+  `number - 10`, so two reads contributed 20 and the complete program returned 64. The
+  intended exit-84 composition requires both reads to return the stored packet number,
+  contributing 40. No accepted type, ownership, checked-IR, verifier, LLVM, or exclusion
+  behavior changes.
+- Corrective commit `980fc6e81ecf7b4e486d0cbfc4b25df3cf159b33`, tree
+  `c34ea237aa577d9ee37fdb653d3355c43d521fe7`, and stable patch ID
+  `ca56fa73f857dab30a049bcbda5975bfcfa99625` changes exactly one specimen
+  expression from `number - 10` to `number`. The focused system contract is green after
+  the correction, and exact repository-root `./tools/test.sh` again passes formatting,
+  correctness-denying Clippy, 212 library tests, 32 binary tests, every integration
+  target, and doc tests with the corrected specimen and records. A direct local public
+  `run` stops before native execution because the
+  required LLVM 22 verifier is not installed; that tool limitation is recorded rather
+  than treated as exit-84 evidence. Exact public stable/nightly/Windows reruns remain
+  required before acceptance.

@@ -717,6 +717,7 @@ impl EnumRegistry {
             Expression::FunctionCall { name, .. } => {
                 matches!(lookup_call_result(name), Some(Ty::Enum(_)))
             }
+            Expression::Deref(_) => true,
             _ => false,
         }
     }
