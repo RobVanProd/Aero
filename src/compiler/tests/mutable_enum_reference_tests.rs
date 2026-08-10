@@ -309,6 +309,13 @@ fn mutable_enum_reference_checked_admission_does_not_depend_on_semantic_mutation
 
 #[test]
 fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
+    compile_program(
+        "enum E { A } fn set(value: &mut E, count: int) { if count > 0 { *value = E::A; } } fn main() -> int { let mut value = E::A; set(&mut value, 1); 0 }",
+        CompilerOptions::default(),
+    )
+    .unwrap_or_else(|error| {
+        panic!("mixed mutable enum-reference and CopyData signature regressed: {error}")
+    });
     let cases: &[(&str, &str, &[&str])] = &[
         (
             "free immutable enum parameter read",
@@ -329,11 +336,6 @@ fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
             "reference result escape",
             "enum E { A } fn escape(value: &mut E) -> &mut E { value } fn main() -> int { 0 }",
             &["reference results require lifetime semantics"],
-        ),
-        (
-            "mixed mutable signature",
-            "enum E { A } fn bad(value: &mut E, count: int) {} fn main() -> int { 0 }",
-            &["exactly one mutable-reference parameter"],
         ),
         (
             "multiple mutable signature",

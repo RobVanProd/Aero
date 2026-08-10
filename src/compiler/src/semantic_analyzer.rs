@@ -1084,7 +1084,7 @@ impl SemanticAnalyzer {
         let Some(contract) = self.reference_function_contracts.get(name) else {
             return ReferenceCallDisposition::Preserved;
         };
-        let facts = reference_call_fact_subject(arguments)
+        let facts = reference_call_fact_subject(contract, arguments)
             .and_then(|subject| self.local_reference_source_facts(subject));
         classify_reference_call_with_enums(
             contract,
@@ -1504,7 +1504,14 @@ impl SemanticAnalyzer {
             }
             Expression::FunctionCall { name, arguments } => {
                 match self.reference_call_disposition(name, arguments) {
-                    ReferenceCallDisposition::Supported(_) => return Ok(()),
+                    ReferenceCallDisposition::Supported(contract) => {
+                        for (index, argument) in arguments.iter().enumerate() {
+                            if index != contract.reference_parameter_index {
+                                self.check_expression_initialization(argument)?;
+                            }
+                        }
+                        return Ok(());
+                    }
                     ReferenceCallDisposition::ExplicitlyRejected(message) => {
                         return Err(message);
                     }
@@ -1597,9 +1604,17 @@ impl SemanticAnalyzer {
             Expression::FunctionCall { name, arguments } => {
                 match self.reference_call_disposition(name, arguments) {
                     ReferenceCallDisposition::Supported(contract) => {
+                        let mut argument_types = Vec::with_capacity(arguments.len());
+                        for (index, argument) in arguments.iter_mut().enumerate() {
+                            if index == contract.reference_parameter_index {
+                                argument_types.push(contract.reference_type());
+                            } else {
+                                argument_types.push(self.infer_and_validate_expression(argument)?);
+                            }
+                        }
                         return self
                             .function_table
-                            .validate_admitted_call(name, &[contract.reference_type()]);
+                            .validate_admitted_call(name, &argument_types);
                     }
                     ReferenceCallDisposition::ExplicitlyRejected(message) => {
                         return Err(message);
@@ -2354,7 +2369,16 @@ impl SemanticAnalyzer {
         };
         let mut argument_types = Vec::with_capacity(arguments.len());
         if let Some(contract) = direct_mutable_call {
-            argument_types.push(contract.reference_type());
+            for (index, argument) in arguments.iter().enumerate() {
+                if index == contract.reference_parameter_index {
+                    argument_types.push(contract.reference_type());
+                } else {
+                    argument_types.push(self.infer_and_validate_expression_immutable_with_cache(
+                        argument,
+                        array_types,
+                    )?);
+                }
+            }
         } else {
             for argument in arguments {
                 argument_types.push(
@@ -3784,13 +3808,20 @@ impl SemanticAnalyzer {
     fn track_expression_moves(&mut self, expr: &Expression) -> Result<(), String> {
         match expr {
             Expression::FunctionCall { name, arguments } => {
-                if matches!(
-                    self.reference_call_disposition(name, arguments),
-                    ReferenceCallDisposition::Supported(_)
-                ) {
-                    return Ok(());
-                }
-                for arg in arguments {
+                let reference_parameter_index =
+                    match self.reference_call_disposition(name, arguments) {
+                        ReferenceCallDisposition::Supported(contract) => {
+                            Some(contract.reference_parameter_index)
+                        }
+                        ReferenceCallDisposition::ExplicitlyRejected(message) => {
+                            return Err(message);
+                        }
+                        ReferenceCallDisposition::Preserved => None,
+                    };
+                for (index, arg) in arguments.iter().enumerate() {
+                    if reference_parameter_index == Some(index) {
+                        continue;
+                    }
                     if let Expression::Identifier(arg_name) = arg {
                         let arg_type = self.infer_and_validate_expression_immutable(arg)?;
                         if !matches!(arg_type, Ty::Enum(_))

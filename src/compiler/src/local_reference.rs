@@ -132,14 +132,24 @@ pub(crate) struct ReferenceFunctionContract {
 }
 
 impl ReferenceFunctionContract {
-    pub(crate) fn mutable_parameter_pointee(&self) -> Option<&Ty> {
-        self.parameters.iter().find_map(|(_, parameter)| {
-            let Ty::Reference(pointee, true) = &parameter.ty else {
-                return None;
-            };
-            Some(pointee.as_ref())
-        })
+    pub(crate) fn mutable_parameter(&self) -> Option<(usize, &Ty)> {
+        self.parameters
+            .iter()
+            .enumerate()
+            .find_map(|(index, (_, parameter))| {
+                let Ty::Reference(pointee, true) = &parameter.ty else {
+                    return None;
+                };
+                Some((index, pointee.as_ref()))
+            })
     }
+}
+
+pub(crate) fn admitted_reference_parameter_topology(
+    reference_parameters: usize,
+    mutable_parameters: usize,
+) -> bool {
+    mutable_parameters == 0 || (mutable_parameters == 1 && reference_parameters == 1)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -166,6 +176,7 @@ pub(crate) enum ReferenceCallSourceMode {
 pub(crate) struct ReferenceCallContract {
     pub(crate) reference: LocalReferenceContract,
     pub(crate) source_mode: ReferenceCallSourceMode,
+    pub(crate) reference_parameter_index: usize,
 }
 
 impl ReferenceCallContract {
@@ -285,16 +296,17 @@ pub(crate) fn classify_reference_function_with_enums(
         );
     }
 
+    let reference_parameters = parameters
+        .iter()
+        .filter(|parameter| matches!(parameter.param_type, Type::Reference(_, _)))
+        .count();
     let mutable_parameters = parameters
         .iter()
         .filter(|parameter| matches!(parameter.param_type, Type::Reference(_, true)))
         .count();
-    if mutable_parameters > 0
-        && (parameters.len() != 1 || !matches!(parameters[0].param_type, Type::Reference(_, true)))
-    {
+    if !admitted_reference_parameter_topology(reference_parameters, mutable_parameters) {
         return ReferenceFunctionDisposition::ExplicitlyRejected(
-            "mutable reference transport functions require exactly one mutable-reference parameter"
-                .to_string(),
+            "mutable reference transport functions require exactly one mutable-reference parameter and no other reference parameters".to_string(),
         );
     }
 
@@ -394,22 +406,43 @@ pub(crate) fn classify_reference_call_with_enums(
     registry: &StructRegistry,
     enums: &EnumRegistry,
 ) -> ReferenceCallDisposition {
-    let Some(expected_pointee) = contract.mutable_parameter_pointee() else {
+    let Some((reference_parameter_index, expected_pointee)) = contract.mutable_parameter() else {
         return ReferenceCallDisposition::Preserved;
     };
-    if arguments.len() != 1 {
-        return ReferenceCallDisposition::ExplicitlyRejected(
-            "mutable reference call requires exactly one mutable-reference identifier or direct `&mut` local owner argument".to_string(),
-        );
+    if arguments.len() != contract.parameters.len() {
+        if contract.parameters.len() == 1 {
+            return ReferenceCallDisposition::ExplicitlyRejected(
+                "mutable reference call requires exactly one mutable-reference identifier or direct `&mut` local owner argument".to_string(),
+            );
+        }
+        return ReferenceCallDisposition::ExplicitlyRejected(format!(
+            "mutable reference call requires exactly {} arguments with the mutable reference at position {}",
+            contract.parameters.len(),
+            reference_parameter_index + 1
+        ));
     }
-    let Some((source_mode, source)) = reference_call_source_topology(arguments) else {
+    let Some((source_mode, source)) = reference_call_source_topology(contract, arguments) else {
         return ReferenceCallDisposition::ExplicitlyRejected(
             "mutable reference call requires a mutable-reference identifier or direct `&mut` local owner argument".to_string(),
         );
     };
+    let source_name = match source {
+        Expression::Identifier(name) => Some(name.as_str()),
+        _ => None,
+    };
+    if let Some(source_name) = source_name {
+        if arguments.iter().enumerate().any(|(index, argument)| {
+            index != reference_parameter_index
+                && expression_mentions_identifier(argument, source_name)
+        }) {
+            return ReferenceCallDisposition::ExplicitlyRejected(format!(
+                "mutable reference call Copy-data arguments must be independent of reference source `{source_name}`"
+            ));
+        }
+    }
     if source_mode == ReferenceCallSourceMode::MutableReferenceIdentifier {
-        let Expression::Identifier(name) = source else {
-            unreachable!("shared mutable-reference call topology retained its identifier")
+        let Some(name) = source_name else {
+            unreachable!("shared mutable-reference identifier topology retained its identifier")
         };
         let Some(facts) = facts else {
             return ReferenceCallDisposition::ExplicitlyRejected(format!(
@@ -468,6 +501,7 @@ pub(crate) fn classify_reference_call_with_enums(
             ReferenceCallDisposition::Supported(ReferenceCallContract {
                 reference,
                 source_mode,
+                reference_parameter_index,
             })
         } else {
             ReferenceCallDisposition::ExplicitlyRejected(format!(
@@ -482,6 +516,7 @@ pub(crate) fn classify_reference_call_with_enums(
             ReferenceCallDisposition::Supported(ReferenceCallContract {
                 reference: contract,
                 source_mode,
+                reference_parameter_index,
             })
         }
         LocalReferenceDisposition::Supported(contract) => {
@@ -499,12 +534,12 @@ pub(crate) fn classify_reference_call_with_enums(
     }
 }
 
-fn reference_call_source_topology(
-    arguments: &[Expression],
-) -> Option<(ReferenceCallSourceMode, &Expression)> {
-    let [argument] = arguments else {
-        return None;
-    };
+fn reference_call_source_topology<'a>(
+    contract: &ReferenceFunctionContract,
+    arguments: &'a [Expression],
+) -> Option<(ReferenceCallSourceMode, &'a Expression)> {
+    let (reference_parameter_index, _) = contract.mutable_parameter()?;
+    let argument = arguments.get(reference_parameter_index)?;
     match argument {
         Expression::Borrow {
             expr,
@@ -518,14 +553,80 @@ fn reference_call_source_topology(
     }
 }
 
-pub(crate) fn reference_call_fact_subject(arguments: &[Expression]) -> Option<&Expression> {
-    reference_call_source_topology(arguments).map(|(_, expression)| expression)
+pub(crate) fn reference_call_fact_subject<'a>(
+    contract: &ReferenceFunctionContract,
+    arguments: &'a [Expression],
+) -> Option<&'a Expression> {
+    reference_call_source_topology(contract, arguments).map(|(_, expression)| expression)
 }
 
 pub(crate) fn reference_call_source_mode(
+    contract: &ReferenceFunctionContract,
     arguments: &[Expression],
 ) -> Option<ReferenceCallSourceMode> {
-    reference_call_source_topology(arguments).map(|(mode, _)| mode)
+    reference_call_source_topology(contract, arguments).map(|(mode, _)| mode)
+}
+
+fn expression_mentions_identifier(expression: &Expression, target: &str) -> bool {
+    match expression {
+        Expression::Identifier(name) => name == target,
+        Expression::Binary { left, right, .. }
+        | Expression::Comparison { left, right, .. }
+        | Expression::Logical { left, right, .. } => {
+            expression_mentions_identifier(left, target)
+                || expression_mentions_identifier(right, target)
+        }
+        Expression::FunctionCall { arguments, .. }
+        | Expression::Print { arguments, .. }
+        | Expression::Println { arguments, .. }
+        | Expression::TupleLiteral(arguments)
+        | Expression::ArrayLiteral(arguments) => arguments
+            .iter()
+            .any(|argument| expression_mentions_identifier(argument, target)),
+        Expression::MethodCall {
+            object, arguments, ..
+        } => {
+            expression_mentions_identifier(object, target)
+                || arguments
+                    .iter()
+                    .any(|argument| expression_mentions_identifier(argument, target))
+        }
+        Expression::Unary { operand, .. }
+        | Expression::FieldAccess {
+            object: operand, ..
+        }
+        | Expression::TupleIndex {
+            object: operand, ..
+        }
+        | Expression::Borrow { expr: operand, .. }
+        | Expression::Deref(operand)
+        | Expression::Closure { body: operand, .. }
+        | Expression::ArrayRepeat { value: operand, .. } => {
+            expression_mentions_identifier(operand, target)
+        }
+        Expression::IndexAccess { object, index } => {
+            expression_mentions_identifier(object, target)
+                || expression_mentions_identifier(index, target)
+        }
+        Expression::StructLiteral { fields, .. } => fields
+            .iter()
+            .any(|(_, value)| expression_mentions_identifier(value, target)),
+        Expression::EnumVariant { data, .. } => data.as_ref().is_some_and(|fields| {
+            fields
+                .iter()
+                .any(|value| expression_mentions_identifier(value, target))
+        }),
+        Expression::Match { expr, arms } => {
+            expression_mentions_identifier(expr, target)
+                || arms
+                    .iter()
+                    .any(|arm| expression_mentions_identifier(&arm.body, target))
+        }
+        Expression::IntegerLiteral(_)
+        | Expression::FloatLiteral(_)
+        | Expression::CharacterLiteral(_)
+        | Expression::StringLiteral(_) => false,
+    }
 }
 
 #[cfg(test)]
@@ -1112,7 +1213,7 @@ mod tests {
             })
         ));
         assert_eq!(
-            reference_call_source_mode(&direct),
+            reference_call_source_mode(&function, &direct),
             Some(ReferenceCallSourceMode::DirectOwnerBorrow)
         );
 
@@ -1132,7 +1233,7 @@ mod tests {
             })
         ));
         assert!(matches!(
-            reference_call_fact_subject(&identifier),
+            reference_call_fact_subject(&function, &identifier),
             Some(Expression::Identifier(name)) if name == "alias"
         ));
 

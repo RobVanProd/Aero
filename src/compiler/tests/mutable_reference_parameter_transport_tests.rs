@@ -255,6 +255,12 @@ fn main() -> int { let mut value = 1; bump(&mut value) }
         failures.extend(expect_success(label, source, &required));
     }
 
+    failures.extend(expect_success(
+        "mixed mutable and scalar parameters",
+        "fn add(value: &mut int, amount: int) -> int { *value = *value + amount; *value } fn main() -> int { let mut value = 1; add(&mut value, 2) }",
+        &["define i32 @add(double*", "call i32 @add(double*"],
+    ));
+
     let checked_source = "fn bump(value: &mut int) -> int { *value = *value + 1; *value } fn main() -> int { let mut value = 4; let result = bump(&mut value); value + result }";
     match checked_ir_and_llvm(checked_source) {
         Err(error) => failures.push(format!("checked mutable parameter case failed: {error}")),
@@ -295,11 +301,6 @@ fn main() -> int { let mut value = 1; bump(&mut value) }
         (
             "two mutable parameters",
             "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
-            "exactly one mutable-reference parameter",
-        ),
-        (
-            "mixed mutable and scalar parameters",
-            "fn bad(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { 0 }",
             "exactly one mutable-reference parameter",
         ),
         (

@@ -62,7 +62,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Mutable whole-place enum references (`CORE-083`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Immutable enum-reference Match reads (`CORE-084`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mutable-owner immutable enum loans (`CORE-085` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Mutable enum-reference Match reads and homogeneous `Void` Match results (`CORE-086` local candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Mutable enum-reference Match reads and homogeneous `Void` Match results (`CORE-086` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Mixed mutable-reference and CopyData signatures (`CORE-087` local candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -128,7 +129,7 @@ owned Match, escape, free enum dereference/transport, reference results or stora
 aggregate enum storage, unsupported enums, lifetime/NLL/drop, stable ABI/FFI, and
 memory-safety claims remain absent; the row therefore remains `PARTIAL`.
 
-Local candidate `CORE-086` adds exhaustive Match observation through the existing
+Accepted public `CORE-086` adds exhaustive Match observation through the existing
 active exclusive mutable enum-reference class. The same source classifier handles
 immutable and mutable reference Match while preserving mutability; checked IR retains
 distinct identities, and the verifier requires exact active provenance, schema, and
@@ -138,10 +139,24 @@ scrutinees without result storage. `print!` and `println!` are effect-only `Void
 both semantic routes and remain rejected in every value context. The focused target is
 5/5, the exact repository gate is green at 214 library and 32 binary tests, and the
 two-module specimen externally verifies and executes under local pinned LLVM/Clang
-22.1.8 at exact exit 86. Exact-head public workflows and protected merge remain
-pending, so this is not public acceptance. Raw enum extraction/transport, overlap,
+22.1.8 at exact exit 86. Bounded PR #13, its exact-head checks, protected merge
+`e2014a17`, and all three post-merge workflows pass. Raw enum extraction/transport, overlap,
 escape, new lifetime/NLL/drop, layout/ABI, accelerator, safety, or stability semantics
 remain absent; the row therefore remains `PARTIAL`.
+
+Local candidate `CORE-087` composes exactly one admitted mutable whole-place reference
+parameter with one or more recursive finite CopyData parameters under one shared
+signature-topology predicate. Reference-first, -middle, and -last forms, arbitrary side
+counts, CopyData and admitted enum pointees, direct owners, alias reborrows, parameter
+forwarding, CopyData/`Void` results, and direct modules execute through checked IR,
+independent verification, private pointer LLVM, and pinned native exit 87. Side
+arguments must be independent of the reference source and retain their relative
+evaluation order before the adjacent borrow/call/end window. The focused target is 3/3,
+the verifier corruption control is 1/1, and the exact root gate passes 215 library and
+32 binary tests plus every integration target and doc tests. Public gates remain pending,
+so this is not public acceptance. Multiple references, projections, reference
+results/escape/storage/capture, lifetime/NLL/drop, public layout/ABI/FFI, accelerators,
+and memory-safety claims remain absent; the row therefore remains `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

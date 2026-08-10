@@ -1927,6 +1927,131 @@ impl IrGenerator {
         Ok(())
     }
 
+    #[inline(never)]
+    fn validate_function_call_expression(
+        name: &str,
+        arguments: &[Expression],
+        bindings: &HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        expression_use: ExpressionUse,
+        inside_impl: bool,
+        admit_static_string_equality: bool,
+    ) -> Result<Ty, IrGenerationError> {
+        let admission_error = |message: &str| IrGenerationError::Admission(message.to_string());
+        let inside_admitted_function =
+            bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
+        let reference_call = if let Some(contract) = program.reference_functions.get(name) {
+            let facts = reference_call_fact_subject(contract, arguments).and_then(|subject| {
+                Self::admission_local_reference_source_facts(
+                    subject,
+                    bindings,
+                    inside_admitted_function,
+                )
+            });
+            classify_reference_call_with_enums(
+                contract,
+                arguments,
+                facts.as_ref(),
+                &program.structs,
+                &program.enums,
+            )
+        } else {
+            ReferenceCallDisposition::Preserved
+        };
+        let mut argument_types = Vec::with_capacity(arguments.len());
+        match reference_call {
+            ReferenceCallDisposition::Supported(contract) => {
+                for (index, argument) in arguments.iter().enumerate() {
+                    if index == contract.reference_parameter_index {
+                        argument_types.push(contract.reference_type());
+                    } else {
+                        argument_types.push(Self::validate_expression(
+                            argument,
+                            bindings,
+                            program,
+                            ExpressionUse::Value,
+                            inside_impl,
+                            admit_static_string_equality,
+                        )?);
+                    }
+                }
+            }
+            ReferenceCallDisposition::ExplicitlyRejected(message) => {
+                return Err(admission_error(&message));
+            }
+            ReferenceCallDisposition::Preserved => {
+                for argument in arguments {
+                    argument_types.push(Self::validate_expression(
+                        argument,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?);
+                }
+            }
+        }
+        if let Some(binding) = bindings.get(name)
+            && binding.callable
+        {
+            let result = match &binding.ty {
+                Ty::Fn(signature) => Self::callable_result_type(signature)?,
+                _ => return Err(admission_error("callable binding lost its signature")),
+            };
+            return Self::classified_call_result(classify_function_call(FunctionCallFacts {
+                name: name.to_string(),
+                target: FunctionCallTarget::Callable { result },
+                arguments: argument_types,
+                use_context: if matches!(
+                    expression_use,
+                    ExpressionUse::Discarded | ExpressionUse::MatchArm
+                ) {
+                    FunctionCallUse::Discarded
+                } else {
+                    FunctionCallUse::Value
+                },
+            }));
+        }
+        let target = if let Some(function) = program.functions.get(name) {
+            match (&function.parameter_types, function.arity) {
+                (Some(parameter_types), Some(_)) => FunctionCallTarget::Admitted {
+                    parameters: Some(
+                        parameter_types
+                            .iter()
+                            .cloned()
+                            .map(|ty| FunctionCallParameter { name: None, ty })
+                            .collect(),
+                    ),
+                    result: function.result.clone(),
+                },
+                _ => FunctionCallTarget::DeclaredUnadmitted,
+            }
+        } else if matches!(name, "Some" | "Ok") {
+            FunctionCallTarget::PreservedContext {
+                diagnostic: unsupported_function_call_diagnostic(
+                    name,
+                    "enum and Option/Result construction is not admitted in checked IR",
+                ),
+            }
+        } else {
+            FunctionCallTarget::Missing
+        };
+        Self::classified_call_result(classify_function_call(FunctionCallFacts {
+            name: name.to_string(),
+            target,
+            arguments: argument_types,
+            use_context: if matches!(
+                expression_use,
+                ExpressionUse::Discarded | ExpressionUse::MatchArm
+            ) {
+                FunctionCallUse::Discarded
+            } else {
+                FunctionCallUse::Value
+            },
+        }))
+    }
+
     fn validate_expression(
         expression: &Expression,
         bindings: &HashMap<String, AdmissionBinding>,
@@ -2024,109 +2149,15 @@ impl IrGenerator {
                 Ok(derived_ty)
             }
             Expression::FunctionCall { name, arguments } => {
-                let inside_admitted_function =
-                    bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
-                let reference_call = if let Some(contract) = program.reference_functions.get(name) {
-                    let facts = reference_call_fact_subject(arguments).and_then(|subject| {
-                        Self::admission_local_reference_source_facts(
-                            subject,
-                            bindings,
-                            inside_admitted_function,
-                        )
-                    });
-                    classify_reference_call_with_enums(
-                        contract,
-                        arguments,
-                        facts.as_ref(),
-                        &program.structs,
-                        &program.enums,
-                    )
-                } else {
-                    ReferenceCallDisposition::Preserved
-                };
-                let mut argument_types = Vec::with_capacity(arguments.len());
-                match reference_call {
-                    ReferenceCallDisposition::Supported(contract) => {
-                        argument_types.push(contract.reference_type());
-                    }
-                    ReferenceCallDisposition::ExplicitlyRejected(message) => {
-                        return Err(admission_error(&message));
-                    }
-                    ReferenceCallDisposition::Preserved => {
-                        for argument in arguments {
-                            argument_types.push(Self::validate_expression(
-                                argument,
-                                bindings,
-                                program,
-                                ExpressionUse::Value,
-                                inside_impl,
-                                admit_static_string_equality,
-                            )?);
-                        }
-                    }
-                }
-                if let Some(binding) = bindings.get(name) {
-                    if binding.callable {
-                        let result = match &binding.ty {
-                            Ty::Fn(signature) => Self::callable_result_type(signature)?,
-                            _ => {
-                                return Err(admission_error("callable binding lost its signature"));
-                            }
-                        };
-                        return Self::classified_call_result(classify_function_call(
-                            FunctionCallFacts {
-                                name: name.clone(),
-                                target: FunctionCallTarget::Callable { result },
-                                arguments: argument_types,
-                                use_context: if matches!(
-                                    expression_use,
-                                    ExpressionUse::Discarded | ExpressionUse::MatchArm
-                                ) {
-                                    FunctionCallUse::Discarded
-                                } else {
-                                    FunctionCallUse::Value
-                                },
-                            },
-                        ));
-                    }
-                }
-                let target = if let Some(function) = program.functions.get(name) {
-                    match (&function.parameter_types, function.arity) {
-                        (Some(parameter_types), Some(_)) => FunctionCallTarget::Admitted {
-                            parameters: Some(
-                                parameter_types
-                                    .iter()
-                                    .cloned()
-                                    .map(|ty| FunctionCallParameter { name: None, ty })
-                                    .collect(),
-                            ),
-                            result: function.result.clone(),
-                        },
-                        _ => FunctionCallTarget::DeclaredUnadmitted,
-                    }
-                } else if matches!(name.as_str(), "Some" | "Ok") {
-                    FunctionCallTarget::PreservedContext {
-                        diagnostic: unsupported_function_call_diagnostic(
-                            name,
-                            "enum and Option/Result construction is not admitted in checked IR",
-                        ),
-                    }
-                } else {
-                    FunctionCallTarget::Missing
-                };
-                Self::classified_call_result(classify_function_call(FunctionCallFacts {
-                    name: name.clone(),
-                    target,
-                    arguments: argument_types,
-                    use_context: if matches!(
-                        expression_use,
-                        ExpressionUse::Discarded | ExpressionUse::MatchArm
-                    ) {
-                        FunctionCallUse::Discarded
-                    } else {
-                        FunctionCallUse::Value
-                    },
-                }))
+                Self::validate_function_call_expression(
+                    name,
+                    arguments,
+                    bindings,
+                    program,
+                    expression_use,
+                    inside_impl,
+                    admit_static_string_equality,
+                )
             }
             Expression::MethodCall {
                 object,
@@ -4028,6 +4059,128 @@ impl IrGenerator {
         }
     }
 
+    #[inline(never)]
+    fn generate_mixed_mutable_function_call(
+        &mut self,
+        name: String,
+        arguments: Vec<Expression>,
+        reference_parameter_index: usize,
+        source_mode: ReferenceCallSourceMode,
+        function: &mut Function,
+    ) -> (Value, Ty) {
+        let mutable_call = (reference_parameter_index, source_mode);
+        let mut pending_arguments = arguments.into_iter().map(Some).collect::<Vec<_>>();
+        let mut argument_order = (0..pending_arguments.len())
+            .filter(|index| *index != reference_parameter_index)
+            .collect::<Vec<_>>();
+        argument_order.push(reference_parameter_index);
+        let mut arg_values = vec![None; pending_arguments.len()];
+        let mut temporary_mutable_borrows = Vec::new();
+        let mut temporary_mutable_owner_immutable_enum_borrows = Vec::new();
+
+        for index in argument_order {
+            let arg = pending_arguments[index]
+                .take()
+                .expect("each checked call argument is lowered exactly once");
+            let direct_mutable_owner_immutable_enum_borrow =
+                matches!(&arg, Expression::Borrow { mutable: false, .. });
+            let direct_mutable_source = if mutable_call
+                == (index, ReferenceCallSourceMode::DirectOwnerBorrow)
+                && let Expression::Borrow {
+                    expr,
+                    mutable: true,
+                } = &arg
+                && let Expression::Identifier(source) = expr.as_ref()
+            {
+                self.symbol_table
+                    .get(source)
+                    .map(|(place, ty)| (place.clone(), ty.clone()))
+            } else {
+                None
+            };
+            let (mut arg_value, arg_type) = self.generate_expression_ir(arg, function);
+            if direct_mutable_owner_immutable_enum_borrow
+                && let Value::Reg(reference_id) = &arg_value
+                && let Some((source, schema)) = self
+                    .mutable_owner_immutable_enum_reference_sources
+                    .get(reference_id)
+                    .cloned()
+            {
+                temporary_mutable_owner_immutable_enum_borrows.push((
+                    *reference_id,
+                    arg_value.clone(),
+                    source,
+                    schema,
+                ));
+            }
+            if let Some((source, pointee)) = direct_mutable_source {
+                let Ty::Reference(actual, true) = &arg_type else {
+                    unreachable!("checked direct mutable call retains reference type")
+                };
+                debug_assert_eq!(actual.as_ref(), &pointee);
+                temporary_mutable_borrows.push((
+                    arg_value.clone(),
+                    source,
+                    self.admitted_reference_pointee_logical_type(
+                        &pointee,
+                        ReferencePointeeContext::Mutable,
+                    ),
+                ));
+            } else if mutable_call == (index, ReferenceCallSourceMode::MutableReferenceIdentifier) {
+                let Ty::Reference(pointee, true) = &arg_type else {
+                    unreachable!("checked mutable-reference identifier call retains reference type")
+                };
+                let parent = arg_value;
+                let child = Value::Reg(self.next_ptr);
+                self.next_ptr += 1;
+                let logical_pointee = self.admitted_reference_pointee_logical_type(
+                    pointee,
+                    ReferencePointeeContext::Mutable,
+                );
+                function.body.push(Inst::CheckedMutableBorrow {
+                    result: child.clone(),
+                    source: parent.clone(),
+                    pointee: logical_pointee.clone(),
+                });
+                temporary_mutable_borrows.push((child.clone(), parent, logical_pointee));
+                arg_value = child;
+            }
+            let arg_value = self.load_copy_aggregate_value(arg_value, &arg_type, function);
+            arg_values[index] = Some(arg_value);
+        }
+
+        let arg_values = arg_values
+            .into_iter()
+            .map(|argument| argument.expect("checked call argument retained its position"))
+            .collect();
+        let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
+        function.body.push(call_inst);
+        for (reference, source, pointee) in temporary_mutable_borrows {
+            function.body.push(Inst::CheckedMutableBorrowEnd {
+                reference,
+                source,
+                pointee,
+            });
+        }
+        for (id, reference, source, schema) in temporary_mutable_owner_immutable_enum_borrows {
+            function
+                .body
+                .push(Inst::CheckedMutableOwnerImmutableEnumBorrowEnd {
+                    reference,
+                    source,
+                    schema,
+                });
+            self.mutable_owner_immutable_enum_reference_sources
+                .remove(&id);
+        }
+        if matches!(&return_type, Ty::Struct(_) | Ty::Array(_, _) | Ty::Tuple(_)) {
+            let place = self.store_copy_aggregate_value(result, &return_type, function);
+            (place, return_type)
+        } else {
+            (result, return_type)
+        }
+    }
+
     fn generate_expression_ir(&mut self, expr: Expression, function: &mut Function) -> (Value, Ty) {
         match expr {
             Expression::IntegerLiteral(n) => (Value::ImmInt(n), Ty::Int),
@@ -4120,13 +4273,30 @@ impl IrGenerator {
                 (result_reg, result_type)
             }
             Expression::FunctionCall { name, arguments } => {
-                let mutable_call_source_mode = self
+                let mutable_call = self
                     .checked_mode
                     .then(|| self.reference_function_contracts.get(&name))
                     .flatten()
-                    .filter(|contract| contract.mutable_parameter_pointee().is_some())
-                    .and_then(|_| reference_call_source_mode(&arguments));
-                // Generate IR for arguments
+                    .and_then(|contract| {
+                        contract.mutable_parameter().and_then(|(index, _)| {
+                            reference_call_source_mode(contract, &arguments)
+                                .map(|mode| (index, mode))
+                        })
+                    });
+                if let Some((reference_parameter_index, source_mode)) = mutable_call
+                    && arguments.len() > 1
+                {
+                    return self.generate_mixed_mutable_function_call(
+                        name,
+                        arguments,
+                        reference_parameter_index,
+                        source_mode,
+                        function,
+                    );
+                }
+                let mutable_call_source_mode = mutable_call.map(|(_, source_mode)| source_mode);
+                // Ordinary and sole-reference calls retain the established shallow lowering
+                // path. Only mixed calls need the separate ordered buffer above.
                 let mut arg_values = Vec::new();
                 let mut temporary_mutable_borrows = Vec::new();
                 let mut temporary_mutable_owner_immutable_enum_borrows = Vec::new();
@@ -4201,7 +4371,6 @@ impl IrGenerator {
                     let arg_value = self.load_copy_aggregate_value(arg_value, &arg_type, function);
                     arg_values.push(arg_value);
                 }
-
                 let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
                 function.body.push(call_inst);
                 for (reference, source, pointee) in temporary_mutable_borrows {

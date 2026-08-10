@@ -417,6 +417,13 @@ fn enum_match_void_result_is_shared_across_all_admitted_scrutinee_origins() {
 
 #[test]
 fn mutable_enum_reference_observation_exclusions_fail_closed_in_both_trust_phases() {
+    compile_program(
+        "enum E { A } fn read(value: &mut E, count: int) -> int { match *value { E::A => count } } fn main() -> int { let mut value = E::A; read(&mut value, 7) }",
+        CompilerOptions::default(),
+    )
+    .unwrap_or_else(|error| {
+        panic!("mixed mutable enum-reference observation signature regressed: {error}")
+    });
     let cases: &[(&str, &str, &[&str])] = &[
         (
             "free enum return",
@@ -508,11 +515,6 @@ fn mutable_enum_reference_observation_exclusions_fail_closed_in_both_trust_phase
             "entry mutable reference parameter",
             "enum E { A } fn main(value: &mut E) -> int { match *value { E::A => 1 } }",
             &["process entry cannot use reference parameters"],
-        ),
-        (
-            "mixed signature",
-            "enum E { A } fn read(value: &mut E, count: int) -> int { match *value { E::A => count } } fn main() -> int { 0 }",
-            &["exactly one mutable-reference parameter"],
         ),
         (
             "generic enum",

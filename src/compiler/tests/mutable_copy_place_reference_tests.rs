@@ -483,11 +483,6 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
             "also borrowed as immutable",
         ),
         (
-            "mixed mutable signature",
-            "struct Row { value: int } fn bad(value: &mut Row, bias: int) { } fn main() -> int { 0 }",
-            "exactly one mutable",
-        ),
-        (
             "multiple mutable signature",
             "struct Row { value: int } fn bad(left: &mut Row, right: &mut Row) { } fn main() -> int { 0 }",
             "exactly one mutable",
@@ -503,6 +498,11 @@ fn mutable_copy_place_reference_class_is_complete_checked_and_executable() {
             failures.push(failure);
         }
     }
+    failures.extend(expect_success(
+        "mixed mutable Copy-place and scalar signature",
+        "struct Row { value: int } fn replace(value: &mut Row, bias: int) { *value = Row { value: bias }; } fn main() -> int { let mut row = Row { value: 1 }; replace(&mut row, 2); row.value }",
+        &["define void @replace", "call void @replace"],
+    ));
 
     match analyzed_ast(
         "struct Row { value: int } fn main() -> int { let mut row = Row { value: 1 }; { let alias = &mut row; *alias = Row { value: 2 }; } row.value }",

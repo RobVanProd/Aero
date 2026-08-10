@@ -2,6 +2,7 @@ use crate::ir::{
     BlockMetadata, CheckedIr, EnumSchema, EnumVariantSchema, FunctionMetadata, FunctionSignature,
     Inst, IrMetadata, LogicalType, PlaceId, PlaceMetadata, RawIr, ResultId, Value,
 };
+use crate::local_reference::admitted_reference_parameter_topology;
 use crate::primitive_contract::PrimitiveKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::error::Error;
@@ -603,22 +604,25 @@ fn checked_signature(
             IrVerificationErrorKind::UnsupportedType(format!("checked function return {result}")),
         ));
     }
+    let reference_parameters = parameters
+        .iter()
+        .filter(|(_, ty)| {
+            matches!(
+                ty,
+                LogicalType::ImmutableReference { .. } | LogicalType::MutableReference { .. }
+            )
+        })
+        .count();
     let mutable_parameters = parameters
         .iter()
         .filter(|(_, ty)| matches!(ty, LogicalType::MutableReference { .. }))
         .count();
-    if mutable_parameters > 0
-        && (parameters.len() != 1
-            || !parameters
-                .first()
-                .is_some_and(|(_, ty)| matches!(ty, LogicalType::MutableReference { .. })))
-    {
+    if !admitted_reference_parameter_topology(reference_parameters, mutable_parameters) {
         return Err(IrVerificationError::new(
             function,
             None,
             IrVerificationErrorKind::MetadataMismatch(
-                "checked mutable reference transport requires exactly one mutable-reference parameter"
-                    .to_string(),
+                "checked mutable reference transport requires exactly one mutable-reference parameter and no other reference parameters".to_string(),
             ),
         ));
     }
@@ -9671,5 +9675,150 @@ mod tests {
             verify_ir(program(consumed_place)).is_err(),
             "a second load and consumption passed without exact enum place replacement"
         );
+    }
+
+    #[test]
+    fn mixed_mutable_reference_signature_identity_is_fail_closed() {
+        let mutable_int = LogicalType::MutableReference {
+            pointee: Box::new(LogicalType::Int),
+        };
+        let signature = || {
+            vec![
+                ("prefix".to_string(), LogicalType::Int),
+                ("value".to_string(), mutable_int.clone()),
+                ("suffix".to_string(), LogicalType::Int),
+            ]
+        };
+        let callee = || {
+            vec![
+                Inst::Alloca(Value::Reg(0), "prefix".to_string()),
+                Inst::CheckedMutableReferenceParameter {
+                    result: Value::Reg(1),
+                    parameter: "value".to_string(),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Alloca(Value::Reg(2), "suffix".to_string()),
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+        let caller = || {
+            vec![
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(0),
+                    name: "owner".to_string(),
+                    ty: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(0), Value::ImmInt(1)),
+                Inst::CheckedMutableBorrow {
+                    result: Value::Reg(1),
+                    source: Value::Reg(0),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Call {
+                    function: "mix".to_string(),
+                    arguments: vec![Value::ImmInt(2), Value::Reg(1), Value::ImmInt(3)],
+                    result: Some(Value::Reg(2)),
+                },
+                Inst::CheckedMutableBorrowEnd {
+                    reference: Value::Reg(1),
+                    source: Value::Reg(0),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Return(Value::Reg(2)),
+            ]
+        };
+        let program =
+            |parameters: Vec<(String, LogicalType)>, body: Vec<Inst>, runtime: Vec<Inst>| {
+                let mut main = vec![Inst::CheckedFunctionDef {
+                    name: "mix".to_string(),
+                    parameters,
+                    result: LogicalType::Int,
+                    body,
+                }];
+                main.extend(runtime);
+                HashMap::from([
+                    (
+                        "main".to_string(),
+                        Function {
+                            name: "main".to_string(),
+                            body: main,
+                            next_reg: 8,
+                            next_ptr: 8,
+                        },
+                    ),
+                    (
+                        "mix".to_string(),
+                        Function {
+                            name: "mix".to_string(),
+                            body: Vec::new(),
+                            next_reg: 8,
+                            next_ptr: 8,
+                        },
+                    ),
+                ])
+            };
+
+        verify_ir(program(signature(), callee(), caller()))
+            .expect("one exact middle-position mutable-reference signature must verify");
+
+        let mut duplicate_reference_signature = signature();
+        duplicate_reference_signature[2].1 = mutable_int.clone();
+        let mut wrong_binder = callee();
+        wrong_binder[1] = Inst::CheckedMutableReferenceParameter {
+            result: Value::Reg(1),
+            parameter: "prefix".to_string(),
+            pointee: LogicalType::Int,
+        };
+        let mut missing_side_argument = caller();
+        if let Inst::Call { arguments, .. } = &mut missing_side_argument[3] {
+            arguments.pop();
+        }
+        let mut wrong_argument_order = caller();
+        if let Inst::Call { arguments, .. } = &mut wrong_argument_order[3] {
+            arguments.swap(0, 1);
+        }
+        let mut separated_temporary = caller();
+        separated_temporary.insert(
+            3,
+            Inst::Add(Value::Reg(3), Value::ImmInt(1), Value::ImmInt(2)),
+        );
+        let mut forged_end = caller();
+        forged_end[4] = Inst::CheckedMutableBorrowEnd {
+            reference: Value::Reg(1),
+            source: Value::Reg(4),
+            pointee: LogicalType::Int,
+        };
+
+        for (label, candidate) in [
+            (
+                "duplicate reference parameter",
+                program(duplicate_reference_signature, callee(), caller()),
+            ),
+            (
+                "wrong reference binder identity",
+                program(signature(), wrong_binder, caller()),
+            ),
+            (
+                "missing CopyData argument",
+                program(signature(), callee(), missing_side_argument),
+            ),
+            (
+                "wrong ordered argument types",
+                program(signature(), callee(), wrong_argument_order),
+            ),
+            (
+                "separated borrow/call/end window",
+                program(signature(), callee(), separated_temporary),
+            ),
+            (
+                "forged borrow end source",
+                program(signature(), callee(), forged_end),
+            ),
+        ] {
+            assert!(
+                verify_ir(candidate).is_err(),
+                "{label} passed mixed-signature checked IR verification"
+            );
+        }
     }
 }
