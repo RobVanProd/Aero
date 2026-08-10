@@ -17122,3 +17122,61 @@ Both reviewers approve exact `daa024d` with no P0-P3 findings.
   required LLVM 22 verifier is not installed; that tool limitation is recorded rather
   than treated as exit-84 evidence. Exact public stable/nightly/Windows reruns remain
   required before acceptance.
+
+### CORE-084 accepted public checkpoint
+
+- Date/task/status: 2026-08-10, `CORE-084-ACCEPTANCE`, documentation-only public
+  acceptance record from post-merge-verified master
+  `ae0f090169b161b6c73537ff59eb0bdcbc5c7901`. The observed records still describe
+  CORE-084 as unpublished after the corrected exact candidate, protected merge, and
+  exact post-merge workflows passed. The hypothesis is administrative only: replacing
+  those pending statements with exact immutable identities restores truthful public
+  state without changing semantics.
+- Frozen semantics and allowed files: no source, checked-IR, verifier, LLVM, CLI,
+  workflow, example, dependency, claim-verification, release, benchmark, or protection
+  behavior may change. Only `TASK_LEDGER.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and `README.md` may record
+  the already-established result. The existing CORE-084 positive class and fail-closed
+  exclusions remain authoritative.
+- Acceptance tests and stop conditions: verify the candidate and merge identities,
+  parent order, trees, PR state/body, candidate-head run SHAs, post-merge run SHAs,
+  changed-file scope, Markdown/diff hygiene, and the repository-root gate. Stop if any
+  identity differs, any cited run is not successful on its claimed SHA, a wording
+  change broadens the capability, any non-record file changes, or the baseline is red.
+- Initial immutable evidence: bounded PR #10 carried corrected exact head
+  `0ebef3ac7b19cb14390368ffcc432fbba55815a8`, tree
+  `cbe48fe2207d699660aeca3c0ffc985e5f4e074f`, from verified base
+  `23474fb45e57bed5c80ceed81597060aee2663f5`. Candidate CI runs `31362774499` and
+  `31362777496`, Rust CI run `31362777546`, and CodeQL run `31362775267` pass on that
+  exact head, including stable/nightly Linux and pinned Windows LLVM/Clang 22 native
+  exit 84. PR #10 merged without head substitution as
+  `ae0f090169b161b6c73537ff59eb0bdcbc5c7901`, with the same tree and ordered parents
+  old master then corrected candidate. Post-merge CI run `31362984522`, Rust CI run
+  `31362984536`, and CodeQL run `31362984082` pass on that exact merge.
+- Protected integration and review identity: PR #10's review surface was four commits,
+  27 files, 1,497 additions, and 124 deletions. Merge tree
+  `cbe48fe2207d699660aeca3c0ffc985e5f4e074f` exactly matches the accepted candidate
+  tree. Required approvals remain zero under the established solo-maintainer protection
+  rule; no reviewer was invited and no impossible author self-approval was claimed.
+  The rendered PR front page now leads with CORE-084 accepted identity, evidence,
+  correction chronology, exclusions, and scaling controls instead of pending results.
+- Local record verification: the changed-file audit contains exactly the five authorized
+  Markdown records, and `git diff --check` passes. The repository-root
+  `./tools/test.sh` gate passes formatting, correctness-denying Clippy, 212 library
+  tests, 32 binary tests, every integration target, and doc tests. Git-tracked `.aero`
+  fixtures were normalized content-neutrally for the Windows byte-identity checks and
+  restored without an indexed content diff afterward; user-owned untracked `tmp/` was
+  untouched.
+- Remaining uncertainty and regression risk: acceptance remains limited to exhaustive
+  CopyData/`Void` Match observation through non-escaping immutable references to
+  initialized immutable direct owners of the admitted enum class. Free dereference or
+  transport, mutable-owner immutable loans, mutable-reference reads, aggregate storage,
+  reference results/escape/capture, projections, partial moves, unsupported enums,
+  lifetime/NLL/drop, stable ABI/FFI, release, performance, and general memory-safety
+  claims remain absent. Positive imports remain deferred until lookup, namespace,
+  visibility, collision, cycle, and cache semantics are frozen.
+- Recommended next action: publish this five-file acceptance record in its own bounded
+  PR, require exact-head checks, and merge it only if the records remain truthful and
+  the full baseline stays green. Then freeze a separately authorized hard-capability
+  slice; do not reopen CORE-084 or stack implementation on a red/unpublished branch.
+  Keep all four scaling controls active.
