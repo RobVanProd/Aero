@@ -37,10 +37,17 @@ excluded.
 `31424978028`, Rust CI `31424978021`, and CodeQL `31424975839`. It changed no
 compiler behavior; it selected `M1-001` as the highest-leverage next checkpoint.
 
-`M1-001` is locally green but not yet public acceptance. Its frozen implementation
-commit is `a6705709f98b6eee76ecf68a778949c52282bb5b`, tree
+`M1-001` is accepted public at exact candidate head
+`e7a74e600d2e4dc7a58a383ae14282b7923e1a5e`, tree
+`193c9590af18eed16fb126affcecc1dd617f98a4`. Its frozen implementation commit is
+`a6705709f98b6eee76ecf68a778949c52282bb5b`, tree
 `ce53892fe952b902985d3fd9644fc69bd18bc7a0`, with stable patch ID
-`6f702defa4ba8dba9d123c6ce249a68cd010126e`. Its candidate introduces the
+`6f702defa4ba8dba9d123c6ce249a68cd010126e`. Bounded PR #19 passed all nine
+exact-head checks and merged through protected master as
+`d7d1c7682911503470a19c97acb72d231824b193`, with a tree exactly equal to the
+candidate and ordered parents prior master `2bfa75d017e8b13fca3b22c148f11102e39f35bd`
+then the candidate. Post-merge CI `31429517811`, Rust CI `31429517729`, and CodeQL
+`31429517265` pass on that exact merge. The accepted capability introduces the
 tracked three-file representative telemetry application and compile-fail corpus,
 composes the accepted scalar/direct-module/function/control-flow/CopyData/enum/
 reference/projected-write surface, and returns 91 after printing one computed result.
@@ -52,10 +59,12 @@ Clang 22.1.8 verifies the IR and machine instructions, and Windows `-O0`/`-O2`
 executables have identical exact stdout/stderr and exit 91. The focused target passes
 3/3 and the complete root gate passes 218 library tests, 32 binary tests, every
 integration target, formatting, correctness-denying Clippy, and doc tests. Linux and
-Windows public workflow acceptance, protected merge, and post-merge verification are
-still pending. This is a candidate representative subset, not a stable grammar,
-general ABI, ownership/memory-safety, optimizer-performance, or release claim. The
-interrupted neighboring projected-borrow experiment remains quarantined locally.
+Windows exact-head workflows, protected merge, and post-merge verification all pass.
+The representative application/conformance-subset workflow is
+therefore `END_TO_END`; its component language rows remain bounded `PARTIAL` and this
+is not a stable grammar, general ABI, ownership/memory-safety, optimizer-performance,
+or release claim. The interrupted neighboring projected-borrow experiment remains
+quarantined locally.
 
 Milestone 110 `CORE-089` is accepted public at exact candidate head
 `82cec768ec117d18517e5624a9afa012c4fe66c6`, tree
@@ -2537,15 +2546,15 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish the exact green `M1-001` candidate through one bounded protected PR from
-accepted ROADMAP-001 master. Require stable/nightly Linux and pinned Windows LLVM/
-Clang 22.1.8 to prove the representative public `check`/`build`/`run` workflow,
-explicit variadic call contract, independent LLVM/machine verification, and identical
-`-O0`/`-O2` stdout/stderr/exit 91 before merge. After protected merge, synchronize the
-six project-truth surfaces to the exact accepted head before choosing another
-capability. The quarantined neighboring projected-reference work remains excluded
-unless later evidence re-ranks it. Do not publish releases, packages, benchmarks, or
-unsupported claims; rewrite history; force-push; or delete retained integration work.
+Publish this bounded M1-001 acceptance synchronization so all project-truth surfaces
+name exact accepted master `d7d1c7682911503470a19c97acb72d231824b193` and its
+public evidence. Only after that merge, re-rank at least three remaining capability
+gaps against the now-accepted representative program and select by real-program delta,
+roadmap criticality, architectural leverage, safety value, risk, and proportional
+evidence cost. Do not default to CORE-091 or another neighboring topology. The
+quarantined projected-reference work remains excluded unless later evidence re-ranks
+it. Do not publish releases, packages, benchmarks, or unsupported claims; rewrite
+history; force-push; or delete retained integration work.
 
 ## Unauthorized actions
 

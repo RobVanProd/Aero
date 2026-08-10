@@ -12,9 +12,8 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-The current accepted master is ROADMAP-001 merge
-`2bfa75d017e8b13fca3b22c148f11102e39f35bd`; that documentation checkpoint changed
-no language behavior, so CORE-090 remains the latest accepted compiler capability.
+The current accepted master is M1-001 merge
+`d7d1c7682911503470a19c97acb72d231824b193`.
 Exact CORE-090 candidate `af68d0e`, all nine
 exact-head checks, protected PR #17, post-merge CI/Rust CI/CodeQL, the full root gate,
 and pinned LLVM/Clang 22.1.8 Linux/Windows native exit 90 pass. CORE-090 adds only
@@ -194,31 +193,31 @@ structured evidence-manifest automation remain active scaling controls.
 
 ## Corrective checkpoint after CORE-090
 
-The original milestone exits below remain unchanged. Reconciliation against accepted
-master shows that Aero has deepened Milestone 2 fragments while foundational
-Milestone 0/1 exits remain open.
+The original milestone exits below remain controlling. M1-001 closes the bounded
+representative-program and optimization-equivalence portion of Milestone 1, while
+foundational Milestone 0 contracts and broader Milestone 1 feature invariants remain
+partial. The previously accumulated Milestone 2 fragments remain bounded.
 
 ### Milestone gap audit
 
 | Roadmap area | Met | Partial | Open |
 |---|---|---|---|
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; current lexical/syntactic controls and claim inventory are established. | False-success containment, function/binding/scope contracts, full gates, and independent verification are strong per accepted slice but not frozen as one selected stable-subset contract. | One canonical diagnostic/artifact contract and closure of remaining critical trusted-entrypoint residuals for the selected subset. |
-| Milestone 1 | Trusted build/run routes verify LLVM before object generation; bounded Linux and Windows native specimens pass. | Fallible checked IR, CFG/ownership invariants, negative corpora, and platform execution exist across many isolated slices. | One authoritative scalar subset, one representative application gate, `-O0`/`-O2` runtime equivalence, a declared compile-fail corpus, and the evidence needed to classify that subset `END_TO_END`. |
+| Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
 | Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, and projected mutation have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. | Collections, generics, traits, error types, general lifetimes/drop/unsafe, public ABI/destruction, a generic data structure, and an ownership-intensive real program. |
 
-### Ranked next capability gaps
+### ROADMAP-001 ranked gaps and M1-001 outcome
 
 Scores are 1--5 with higher better; `Risk` and `Evidence` are delivery favorability,
 so 5 means lower risk or lower evidence cost.
 
 | Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Representative scalar application plus frozen subset and optimization-equivalence gate | 4 | 5 | 5 | 5 | 4 | 3 | 26 |
+| 1 | Representative scalar application plus frozen subset and optimization-equivalence gate (accepted as M1-001) | 4 | 5 | 5 | 5 | 4 | 3 | 26 |
 | 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
 | 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
 
-`M1-001` is selected and its local candidate is green, but accepted master has not
-moved. The candidate's fixed-size telemetry-policy program composes direct modules,
+`M1-001` is accepted. Its fixed-size telemetry-policy program composes direct modules,
 functions, constants, control flow, structs, arrays/tuples, enums and `Match`,
 mutation, references, and CORE-090 projected writes. Its red exposed a shared Windows
 variadic-call false-success, closed in the backend by retaining typed LLVM `double`
@@ -226,15 +225,17 @@ arguments and spelling the explicit variadic `printf` call type rather than pass
 `i64` bits. Public `check`, verified `build`, and `run`; independent LLVM and machine
 verification; exact local Windows `-O0`/`-O2` stdout/stderr/exit 91; the three-case
 compile-fail corpus; focused 3/3; and the full 218-library/32-binary root gate pass.
+Exact candidate `e7a74e6` passed all nine checks, merged through protected PR #19 as
+`d7d1c768`, and passed post-merge CI, Rust CI, and CodeQL.
 
 Real-program delta: before `M1-001`, users cannot point to any application-shaped Aero
-program covered by an authoritative end-to-end subset contract. The candidate now
-supplies that program and its bounded subset, but the delta is not accepted until
-stable/nightly Linux and pinned Windows exact-head workflows, protected merge, and
-post-merge verification pass. The Milestone 1 gap table therefore remains an
-accepted-master view and is not prematurely closed. Unspecified semantics,
+program covered by an authoritative end-to-end subset contract. Accepted M1-001 now
+supplies that program and classifies only its bounded conformance workflow as
+`END_TO_END`; individual language features remain `PARTIAL`. Unspecified semantics,
 nonportable behavior, optimizer divergence, or evidence that a different task closes
-the milestone more safely would still change this decision.
+later gaps more safely would still change future decisions. Before another
+implementation, at least three remaining gaps must be re-ranked against this accepted
+baseline rather than inheriting the old order.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 

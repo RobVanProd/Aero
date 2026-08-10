@@ -188,15 +188,16 @@ The post-CORE-090 corrective checkpoint re-anchors work to the founding progress
 prove primitives, compose them, build useful programs, and close a milestone before
 deepening another neighboring topology. It ranks a representative scalar application
 and authoritative subset ahead of further projected-reference permutations. The
-selected `M1-001` local candidate now supplies a deterministic multi-file telemetry-
+accepted `M1-001` supplies a deterministic multi-file telemetry-
 policy program that composes the accepted functions, direct modules, constants,
 control flow, aggregates, enums/`Match`, mutation, references, and projected writes.
 It also replaces an ABI-nonconforming Windows raw-`i64` numeric-print workaround with
 typed LLVM `double` arguments and an explicit variadic `printf` call type. Local
 public CLI, independent verification, compile-fail, exact Windows LLVM/Clang 22.1.8
-`-O0`/`-O2` exit-91, focused 3/3, and complete root evidence pass. This remains
-candidate evidence until exact-head Linux/Windows workflows, protected merge, and
-post-merge verification pass; it does not establish stable grammar, public ABI,
+`-O0`/`-O2` exit-91, focused 3/3, and complete root evidence pass. Exact candidate
+`e7a74e6` passed all nine checks, merged through protected PR #19 as `d7d1c768`, and
+passed all post-merge workflows. The composed workflow is `END_TO_END`, while its
+component language rows remain `PARTIAL`; it does not establish stable grammar, public ABI,
 general ownership/memory safety, performance, or release readiness. Positive import/
 name resolution remains strategically valuable, but its namespace, visibility,
 collision, cycle, and cache contracts must be frozen before implementation.

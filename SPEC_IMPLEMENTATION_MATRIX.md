@@ -213,17 +213,18 @@ Dynamic/computed indexes, projected borrows, partial moves, enum/non-Copy subpla
 alias analysis, NLL/lifetime/drop, public layout/ABI/FFI, accelerators, and memory-safety
 claims remain absent; the row therefore remains `PARTIAL`.
 
-Candidate `M1-001` (not accepted master) adds no new source grammar or type topology.
+Accepted `M1-001` adds no new source grammar or type topology.
 It freezes a representative scalar subset over already accepted constructs, tracks a
 three-file telemetry application and three-case compile-fail corpus, and closes one
 shared CPU-backend contract: numeric `print!`/`println!` values remain LLVM `double`
 arguments under an explicit `i32 (i8*, ...)` variadic call type. Local public
 `check`/verified `build`/`run`, independent LLVM and machine verification, exact
 Windows `-O0`/`-O2` stdout/stderr/exit 91, focused 3/3, and the complete
-218-library/32-binary root gate pass. The language rows above and tooling/backend rows
-below intentionally retain accepted-master classifications until exact-head Linux/
-Windows workflows, protected merge, and post-merge verification pass. In particular,
-no row is yet promoted to `END_TO_END` or `STABLE` by this candidate.
+218-library/32-binary root gate pass. Exact candidate `e7a74e6` passed all nine
+exact-head checks, protected PR #19 merged it as `d7d1c768`, and all three post-merge
+workflows pass. The representative application/conformance-subset workflow below is
+therefore `END_TO_END`; each component language row remains `PARTIAL`, and no row is
+`STABLE`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact
@@ -326,10 +327,8 @@ evidence is not general Windows or stable ABI support.
 | Module resolver | Y | P | Resolved source | P | P | Y | EXPERIMENTAL |
 | Registry | Y | — | Local search and dry-run plans; live transport quarantined | Y | N | Y | EXPERIMENTAL |
 | Conformance command | Y | P | 3 cases + 4 deterministic checks | P | P | P | EXPERIMENTAL |
+| Representative scalar application/conformance subset (`M1-001`) | Y | Y | Verified LLVM plus exact Linux/Windows native output and exit 91 | Y | Y | Y | END_TO_END |
 | Package lock/reproducible resolution | P | ? | ? | ? | ? | P | DESIGNED |
-
-The M1-001 representative-application workflow is candidate evidence only and is not
-included as an accepted row in this table yet.
 
 ## Backend summary
 
