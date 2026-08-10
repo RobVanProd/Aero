@@ -22,7 +22,7 @@ use crate::local_reference::{
     classify_local_reference_annotation_with_enums,
     classify_mutable_reference_assignment_with_enums, classify_mutable_reference_binding,
     classify_reference_call_with_enums, classify_reference_function_with_enums,
-    reference_call_fact_subject, validate_enum_reference_match_result,
+    validate_enum_reference_match_result,
 };
 use crate::method_call_contract::{IntrinsicMethodPhase, classify_intrinsic_method};
 use crate::ownership_flow::{
@@ -1084,12 +1084,10 @@ impl SemanticAnalyzer {
         let Some(contract) = self.reference_function_contracts.get(name) else {
             return ReferenceCallDisposition::Preserved;
         };
-        let facts = reference_call_fact_subject(contract, arguments)
-            .and_then(|subject| self.local_reference_source_facts(subject));
         classify_reference_call_with_enums(
             contract,
             arguments,
-            facts.as_ref(),
+            |subject| self.local_reference_source_facts(subject),
             &self.struct_registry,
             &self.enum_registry,
         )
@@ -1506,7 +1504,7 @@ impl SemanticAnalyzer {
                 match self.reference_call_disposition(name, arguments) {
                     ReferenceCallDisposition::Supported(contract) => {
                         for (index, argument) in arguments.iter().enumerate() {
-                            if index != contract.reference_parameter_index {
+                            if !contract.is_mutable_parameter(index) {
                                 self.check_expression_initialization(argument)?;
                             }
                         }
@@ -1606,8 +1604,8 @@ impl SemanticAnalyzer {
                     ReferenceCallDisposition::Supported(contract) => {
                         let mut argument_types = Vec::with_capacity(arguments.len());
                         for (index, argument) in arguments.iter_mut().enumerate() {
-                            if index == contract.reference_parameter_index {
-                                argument_types.push(contract.reference_type());
+                            if let Some(reference_type) = contract.reference_type(index) {
+                                argument_types.push(reference_type);
                             } else {
                                 argument_types.push(self.infer_and_validate_expression(argument)?);
                             }
@@ -2370,8 +2368,8 @@ impl SemanticAnalyzer {
         let mut argument_types = Vec::with_capacity(arguments.len());
         if let Some(contract) = direct_mutable_call {
             for (index, argument) in arguments.iter().enumerate() {
-                if index == contract.reference_parameter_index {
-                    argument_types.push(contract.reference_type());
+                if let Some(reference_type) = contract.reference_type(index) {
+                    argument_types.push(reference_type);
                 } else {
                     argument_types.push(self.infer_and_validate_expression_immutable_with_cache(
                         argument,
@@ -3808,18 +3806,19 @@ impl SemanticAnalyzer {
     fn track_expression_moves(&mut self, expr: &Expression) -> Result<(), String> {
         match expr {
             Expression::FunctionCall { name, arguments } => {
-                let reference_parameter_index =
+                let mutable_reference_parameters =
                     match self.reference_call_disposition(name, arguments) {
-                        ReferenceCallDisposition::Supported(contract) => {
-                            Some(contract.reference_parameter_index)
-                        }
+                        ReferenceCallDisposition::Supported(contract) => Some(contract),
                         ReferenceCallDisposition::ExplicitlyRejected(message) => {
                             return Err(message);
                         }
                         ReferenceCallDisposition::Preserved => None,
                     };
                 for (index, arg) in arguments.iter().enumerate() {
-                    if reference_parameter_index == Some(index) {
+                    if mutable_reference_parameters
+                        .as_ref()
+                        .is_some_and(|contract| contract.is_mutable_parameter(index))
+                    {
                         continue;
                     }
                     if let Expression::Identifier(arg_name) = arg {

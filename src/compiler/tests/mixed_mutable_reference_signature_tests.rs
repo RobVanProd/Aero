@@ -218,20 +218,14 @@ fn complete_mixed_mutable_reference_signature_class_is_executable() {
 fn mixed_signature_exclusions_fail_closed_in_every_trust_phase() {
     let cases: &[(&str, &str, &[&str])] = &[
         (
-            "two mutable references",
-            "fn bad(left: &mut int, amount: int, right: &mut int) -> int { *left + amount + *right } fn main() -> int { 0 }",
-            &[
-                "at most one mutable-reference parameter",
-                "simultaneous mutable-reference parameters are not supported",
-            ],
+            "repeated source across two mutable references",
+            "fn bad(left: &mut int, amount: int, right: &mut int) -> int { *left + amount + *right } fn main() -> int { let mut value = 1; bad(&mut value, 2, &mut value) }",
+            &["pairwise-distinct source identities"],
         ),
         (
-            "two mutable references beside an immutable reference",
-            "fn bad(value: &mut int, other: &int, second: &mut int) -> int { *value + *other + *second } fn main() -> int { 0 }",
-            &[
-                "at most one mutable-reference parameter",
-                "simultaneous mutable-reference parameters are not supported",
-            ],
+            "mutable source reused by immutable reference argument",
+            "fn bad(value: &mut int, other: &int, second: &mut int) -> int { *value + *other + *second } fn main() -> int { let mut value = 1; let mut second = 2; bad(&mut value, &value, &mut second) }",
+            &["non-mutable arguments must be independent of reference source `value`"],
         ),
         (
             "reference result",
@@ -268,7 +262,7 @@ fn mixed_signature_exclusions_fail_closed_in_every_trust_phase() {
             "fn add(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { let mut value = 1; add(&mut value) }",
             &[
                 "requires exactly 2 arguments",
-                "mutable reference at position 1",
+                "mutable references at positions 1",
             ],
         ),
         (
@@ -310,12 +304,12 @@ fn mixed_signature_exclusions_fail_closed_in_every_trust_phase() {
         (
             "direct owner reused as side argument",
             "fn add(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { let mut value = 1; add(&mut value, value) }",
-            &["Copy-data arguments must be independent of reference source `value`"],
+            &["non-mutable arguments must be independent of reference source `value`"],
         ),
         (
             "mutable alias reused as side argument",
             "fn add(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { let mut value = 1; let alias = &mut value; add(alias, *alias) }",
-            &["Copy-data arguments must be independent of reference source `alias`"],
+            &["non-mutable arguments must be independent of reference source `alias`"],
         ),
         (
             "projected mutable source",

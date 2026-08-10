@@ -1161,6 +1161,7 @@ struct FunctionVerifier<'a> {
     mutable_owned_places: BTreeSet<PlaceId>,
     match_result_places: BTreeSet<PlaceId>,
     immutable_enum_reference_origins: BTreeMap<PlaceId, PlaceId>,
+    immutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
     dominators: Vec<BTreeSet<usize>>,
@@ -1191,6 +1192,7 @@ impl<'a> FunctionVerifier<'a> {
             mutable_owned_places: BTreeSet::new(),
             match_result_places: BTreeSet::new(),
             immutable_enum_reference_origins: BTreeMap::new(),
+            immutable_reference_origins: BTreeMap::new(),
             mutable_reference_origins: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
             dominators,
@@ -1262,6 +1264,21 @@ impl<'a> FunctionVerifier<'a> {
         None
     }
 
+    fn mutable_reference_root_identity(&self, place: PlaceId) -> Option<PlaceId> {
+        let mut current = place;
+        let mut seen = BTreeSet::new();
+        while seen.insert(current) {
+            if self.mutable_reference_parameters.contains(&current) {
+                return Some(current);
+            }
+            let Some(parent) = self.mutable_reference_origins.get(&current).copied() else {
+                return Some(current);
+            };
+            current = parent;
+        }
+        None
+    }
+
     fn immutable_reference_place(&self, place: PlaceId) -> bool {
         let Some(definition) = self.place_definitions.get(&place) else {
             return false;
@@ -1270,6 +1287,18 @@ impl<'a> FunctionVerifier<'a> {
             self.body.instructions[definition.position],
             Inst::CheckedImmutableBorrow { .. } | Inst::CheckedImmutableReferenceParameter { .. }
         )
+    }
+
+    fn immutable_reference_root_identity(&self, place: PlaceId) -> Option<PlaceId> {
+        let mut current = place;
+        let mut seen = BTreeSet::new();
+        while seen.insert(current) {
+            let Some(parent) = self.immutable_reference_origins.get(&current).copied() else {
+                return Some(current);
+            };
+            current = parent;
+        }
+        None
     }
 
     fn immutable_enum_reference_place(&self, place: PlaceId) -> bool {
@@ -2621,6 +2650,7 @@ impl<'a> FunctionVerifier<'a> {
                                     )),
                                 ));
                             }
+                            self.immutable_reference_origins.insert(id, source_id);
                             if matches!(pointee, LogicalType::Enum { .. }) {
                                 self.immutable_enum_reference_origins.insert(id, source_id);
                             }
@@ -3541,6 +3571,8 @@ impl<'a> FunctionVerifier<'a> {
                                 },
                             ));
                         }
+                        let mut immutable_argument_roots = BTreeSet::new();
+                        let mut mutable_call_arguments = Vec::new();
                         for (index, (argument, (_, expected))) in
                             arguments.iter().zip(&signature.parameters).enumerate()
                         {
@@ -3572,6 +3604,18 @@ impl<'a> FunctionVerifier<'a> {
                                         },
                                     ));
                                 }
+                                let root = self
+                                    .immutable_reference_root_identity(place)
+                                    .ok_or_else(|| {
+                                        self.error(
+                                            block_index,
+                                            IrVerificationErrorKind::MetadataMismatch(format!(
+                                                "call immutable reference argument place {} has cyclic origin metadata",
+                                                place.0
+                                            )),
+                                        )
+                                    })?;
+                                immutable_argument_roots.insert(root);
                             } else if let LogicalType::MutableReference { pointee } = expected {
                                 let place = self.require_place(
                                     argument,
@@ -3603,40 +3647,11 @@ impl<'a> FunctionVerifier<'a> {
                                     ));
                                 }
                                 let source = self.mutable_reference_origins[&place];
-                                let preceding_borrow = position
-                                    .checked_sub(1)
-                                    .and_then(|index| self.body.instructions.get(index).copied());
-                                let following_end =
-                                    self.body.instructions.get(position + 1).copied();
-                                let exact_borrow = matches!(
-                                    preceding_borrow,
-                                    Some(Inst::CheckedMutableBorrow {
-                                        result: Value::Reg(result),
-                                        source: Value::Reg(origin),
-                                        pointee: borrow_pointee,
-                                    }) if PlaceId(*result) == place
-                                        && PlaceId(*origin) == source
-                                        && borrow_pointee == pointee.as_ref()
-                                );
-                                let exact_end = matches!(
-                                    following_end,
-                                    Some(Inst::CheckedMutableBorrowEnd {
-                                        reference: Value::Reg(reference),
-                                        source: Value::Reg(origin),
-                                        pointee: end_pointee,
-                                    }) if PlaceId(*reference) == place
-                                        && PlaceId(*origin) == source
-                                        && end_pointee == pointee.as_ref()
-                                );
-                                if !exact_borrow || !exact_end {
-                                    return Err(self.error(
-                                        block_index,
-                                        IrVerificationErrorKind::MetadataMismatch(format!(
-                                            "call mutable reference argument place {} must be an exact borrow/call/end temporary",
-                                            place.0
-                                        )),
-                                    ));
-                                }
+                                mutable_call_arguments.push((
+                                    place,
+                                    source,
+                                    pointee.as_ref().clone(),
+                                ));
                             } else {
                                 self.require_type(
                                     argument,
@@ -3655,6 +3670,102 @@ impl<'a> FunctionVerifier<'a> {
                                     let _ = index;
                                     error
                                 })?;
+                            }
+                        }
+                        if !mutable_call_arguments.is_empty() {
+                            let mut mutable_roots = BTreeSet::new();
+                            for (place, _, _) in &mutable_call_arguments {
+                                let root = self.mutable_reference_root_identity(*place).ok_or_else(
+                                    || {
+                                        self.error(
+                                            block_index,
+                                            IrVerificationErrorKind::MetadataMismatch(format!(
+                                                "call mutable reference argument place {} has cyclic origin metadata",
+                                                place.0
+                                            )),
+                                        )
+                                    },
+                                )?;
+                                if !mutable_roots.insert(root) {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(format!(
+                                            "call mutable reference arguments do not have pairwise-distinct root identities; root place {} is repeated",
+                                            root.0
+                                        )),
+                                    ));
+                                }
+                            }
+                            if let Some(overlap) = mutable_roots
+                                .intersection(&immutable_argument_roots)
+                                .next()
+                                .copied()
+                            {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "call mutable and immutable reference arguments overlap at root place {}",
+                                        overlap.0
+                                    )),
+                                ));
+                            }
+
+                            let borrow_start = position
+                                .checked_sub(mutable_call_arguments.len())
+                                .ok_or_else(|| {
+                                    self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(
+                                            "call mutable reference window has too few preceding instructions"
+                                                .to_string(),
+                                        ),
+                                    )
+                                })?;
+                            for (offset, (place, source, pointee)) in
+                                mutable_call_arguments.iter().enumerate()
+                            {
+                                let exact_borrow = matches!(
+                                    self.body.instructions.get(borrow_start + offset).copied(),
+                                    Some(Inst::CheckedMutableBorrow {
+                                        result: Value::Reg(result),
+                                        source: Value::Reg(origin),
+                                        pointee: borrow_pointee,
+                                    }) if PlaceId(*result) == *place
+                                        && PlaceId(*origin) == *source
+                                        && borrow_pointee == pointee
+                                );
+                                if !exact_borrow {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(format!(
+                                            "call mutable reference argument place {} is not in the exact ordered N-borrow/call window",
+                                            place.0
+                                        )),
+                                    ));
+                                }
+                            }
+                            for (offset, (place, source, pointee)) in
+                                mutable_call_arguments.iter().rev().enumerate()
+                            {
+                                let exact_end = matches!(
+                                    self.body.instructions.get(position + 1 + offset).copied(),
+                                    Some(Inst::CheckedMutableBorrowEnd {
+                                        reference: Value::Reg(reference),
+                                        source: Value::Reg(origin),
+                                        pointee: end_pointee,
+                                    }) if PlaceId(*reference) == *place
+                                        && PlaceId(*origin) == *source
+                                        && end_pointee == pointee
+                                );
+                                if !exact_end {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(format!(
+                                            "call mutable reference argument place {} is not in the exact reverse-N-end window",
+                                            place.0
+                                        )),
+                                    ));
+                                }
                             }
                         }
                         match (&signature.result, result) {
@@ -9883,6 +9994,191 @@ mod tests {
             assert!(
                 verify_ir(candidate).is_err(),
                 "{label} passed mixed-reference checked IR verification"
+            );
+        }
+    }
+
+    #[test]
+    fn multiple_mutable_call_window_is_fail_closed() {
+        let immutable_int = LogicalType::ImmutableReference {
+            pointee: Box::new(LogicalType::Int),
+        };
+        let mutable_int = LogicalType::MutableReference {
+            pointee: Box::new(LogicalType::Int),
+        };
+        let signature = || {
+            vec![
+                ("left".to_string(), mutable_int.clone()),
+                ("observed".to_string(), immutable_int.clone()),
+                ("right".to_string(), mutable_int.clone()),
+                ("third".to_string(), mutable_int.clone()),
+            ]
+        };
+        let mutable_binder = |result, parameter: &str| Inst::CheckedMutableReferenceParameter {
+            result: Value::Reg(result),
+            parameter: parameter.to_string(),
+            pointee: LogicalType::Int,
+        };
+        let callee = || {
+            vec![
+                mutable_binder(0, "left"),
+                Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(1),
+                    parameter: "observed".to_string(),
+                    pointee: LogicalType::Int,
+                },
+                mutable_binder(2, "right"),
+                mutable_binder(3, "third"),
+                Inst::Return(Value::ImmInt(0)),
+            ]
+        };
+        let borrow = |result, source| Inst::CheckedMutableBorrow {
+            result: Value::Reg(result),
+            source: Value::Reg(source),
+            pointee: LogicalType::Int,
+        };
+        let end = |reference, source| Inst::CheckedMutableBorrowEnd {
+            reference: Value::Reg(reference),
+            source: Value::Reg(source),
+            pointee: LogicalType::Int,
+        };
+        let caller = || {
+            vec![
+                Inst::Alloca(Value::Reg(0), "observed".to_string()),
+                Inst::Store(Value::Reg(0), Value::ImmInt(4)),
+                Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(1),
+                    source: Value::Reg(0),
+                    pointee: LogicalType::Int,
+                },
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(2),
+                    name: "left_owner".to_string(),
+                    ty: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(2), Value::ImmInt(1)),
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(3),
+                    name: "right_owner".to_string(),
+                    ty: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(3), Value::ImmInt(2)),
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(4),
+                    name: "third_owner".to_string(),
+                    ty: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(4), Value::ImmInt(3)),
+                borrow(5, 2),
+                borrow(6, 3),
+                borrow(7, 4),
+                Inst::Call {
+                    function: "mix_many".to_string(),
+                    arguments: vec![Value::Reg(5), Value::Reg(1), Value::Reg(6), Value::Reg(7)],
+                    result: Some(Value::Reg(8)),
+                },
+                end(7, 4),
+                end(6, 3),
+                end(5, 2),
+                Inst::Return(Value::Reg(8)),
+            ]
+        };
+        let program = |body: Vec<Inst>, runtime: Vec<Inst>| {
+            let mut main = vec![Inst::CheckedFunctionDef {
+                name: "mix_many".to_string(),
+                parameters: signature(),
+                result: LogicalType::Int,
+                body,
+            }];
+            main.extend(runtime);
+            HashMap::from([
+                (
+                    "main".to_string(),
+                    Function {
+                        name: "main".to_string(),
+                        body: main,
+                        next_reg: 20,
+                        next_ptr: 20,
+                    },
+                ),
+                (
+                    "mix_many".to_string(),
+                    Function {
+                        name: "mix_many".to_string(),
+                        body: Vec::new(),
+                        next_reg: 20,
+                        next_ptr: 20,
+                    },
+                ),
+            ])
+        };
+
+        verify_ir(program(callee(), caller()))
+            .expect("exact three-mutable ordered call window must verify");
+
+        let mut duplicate_root = caller();
+        duplicate_root[10] = borrow(6, 2);
+        let mut reordered_borrows = caller();
+        reordered_borrows.swap(9, 10);
+        let mut reordered_operands = caller();
+        if let Inst::Call { arguments, .. } = &mut reordered_operands[12] {
+            arguments.swap(0, 2);
+        }
+        let mut separated_window = caller();
+        separated_window.insert(
+            12,
+            Inst::Add(Value::Reg(9), Value::ImmInt(1), Value::ImmInt(2)),
+        );
+        let mut reordered_ends = caller();
+        reordered_ends.swap(13, 14);
+        let mut missing_end = caller();
+        missing_end.remove(14);
+        let mut forged_end = caller();
+        forged_end[13] = end(7, 3);
+        let mut raw_owner_operand = caller();
+        if let Inst::Call { arguments, .. } = &mut raw_owner_operand[12] {
+            arguments[2] = Value::Reg(3);
+        }
+        let mut duplicate_operand = caller();
+        if let Inst::Call { arguments, .. } = &mut duplicate_operand[12] {
+            arguments[2] = Value::Reg(5);
+        }
+        let mut immutable_overlap = caller();
+        immutable_overlap.remove(2);
+        immutable_overlap.insert(
+            9,
+            Inst::CheckedImmutableBorrow {
+                result: Value::Reg(1),
+                source: Value::Reg(2),
+                pointee: LogicalType::Int,
+            },
+        );
+        let mut wrong_binder = callee();
+        wrong_binder[2] = mutable_binder(2, "third");
+        let mut missing_binder = callee();
+        missing_binder.remove(3);
+
+        for (label, body, runtime) in [
+            ("duplicate mutable root", callee(), duplicate_root),
+            ("reordered mutable borrows", callee(), reordered_borrows),
+            ("reordered mutable operands", callee(), reordered_operands),
+            ("separated multi-borrow window", callee(), separated_window),
+            ("reordered mutable ends", callee(), reordered_ends),
+            ("missing mutable end", callee(), missing_end),
+            ("forged mutable end source", callee(), forged_end),
+            ("raw owner mutable operand", callee(), raw_owner_operand),
+            ("duplicate mutable operand", callee(), duplicate_operand),
+            (
+                "mutable/immutable root overlap",
+                callee(),
+                immutable_overlap,
+            ),
+            ("wrong mutable binder", wrong_binder, caller()),
+            ("missing mutable binder", missing_binder, caller()),
+        ] {
+            assert!(
+                verify_ir(program(body, runtime)).is_err(),
+                "{label} passed multiple-mutable checked IR verification"
             );
         }
     }

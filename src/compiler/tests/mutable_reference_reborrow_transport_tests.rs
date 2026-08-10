@@ -384,9 +384,9 @@ fn main() -> int { let mut value = 1; let alias = &mut value; outer(alias); *ali
             "requires a mutable-reference identifier",
         ),
         (
-            "two mutable parameters remain excluded",
-            "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
-            "at most one mutable-reference parameter",
+            "repeated source across mutable parameters remains excluded",
+            "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { let mut value = 1; bad(&mut value, &mut value) }",
+            "pairwise-distinct source identities",
         ),
         (
             "mutable reference result remains excluded",

@@ -299,14 +299,14 @@ fn main() -> int { let mut value = 1; bump(&mut value) }
 
     for (label, source, expected) in [
         (
-            "two mutable parameters",
-            "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
-            "at most one mutable-reference parameter",
+            "repeated source across two mutable parameters",
+            "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { let mut value = 1; bad(&mut value, &mut value) }",
+            "pairwise-distinct source identities",
         ),
         (
-            "two mutable parameters beside an immutable reference",
-            "fn bad(value: &mut int, other: &int, second: &mut int) -> int { *value + *other + *second } fn main() -> int { 0 }",
-            "at most one mutable-reference parameter",
+            "mutable source overlaps immutable reference",
+            "fn bad(value: &mut int, other: &int, second: &mut int) -> int { *value + *other + *second } fn main() -> int { let mut value = 1; let mut second = 2; bad(&mut value, &value, &mut second) }",
+            "non-mutable arguments must be independent of reference source `value`",
         ),
         (
             "mutable reference result",

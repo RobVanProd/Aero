@@ -1152,6 +1152,34 @@ jobs:
         fi
         echo "mixed exclusive/shared-reference signature example passed with exit code 88"
 
+    - name: Test multiple exclusive-reference signature integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/multiple_mutable_reference_signatures/main.aero
+        set +e
+        cargo run -- run ../../examples/multiple_mutable_reference_signatures/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 89 ]; then
+          echo "Expected public multiple exclusive-reference signature run exit code 89, got $public_run_exit"
+          exit 1
+        fi
+        cargo run -- build ../../examples/multiple_mutable_reference_signatures/main.aero -o ../../multiple_mutable_reference_signatures.ll
+        opt-22 -passes=verify -disable-output ../../multiple_mutable_reference_signatures.ll
+        llc-22 -verify-machineinstrs ../../multiple_mutable_reference_signatures.ll -o /dev/null
+        llc-22 -filetype=obj ../../multiple_mutable_reference_signatures.ll -o ../../multiple_mutable_reference_signatures.o
+        clang-22 -no-pie ../../multiple_mutable_reference_signatures.o -o ../../multiple_mutable_reference_signatures
+        set +e
+        ../../multiple_mutable_reference_signatures
+        multiple_mutable_reference_signatures_exit_code=$?
+        set -e
+        if [ $multiple_mutable_reference_signatures_exit_code -ne 89 ]; then
+          echo "Expected multiple exclusive-reference signature exit code 89, got $multiple_mutable_reference_signatures_exit_code"
+          exit 1
+        fi
+        echo "multiple exclusive-reference signature example passed with exit code 89"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
@@ -1755,4 +1783,57 @@ jobs:
           throw "Windows mixed-reference signature manual native execution returned $manualExit, expected 88"
         }
         Write-Host "Windows mixed-reference signature manual native execution passed with exit code 88"
+        $global:LASTEXITCODE = 0
+
+    - name: Test Windows multiple exclusive-reference signature system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/multiple_mutable_reference_signatures/main.aero"
+        $multipleMutableLlvmPath = Join-Path $env:RUNNER_TEMP "multiple_mutable_reference_signatures.windows.ll"
+        $multipleMutableMachinePath = Join-Path $env:RUNNER_TEMP "multiple_mutable_reference_signatures.windows.s"
+        $multipleMutableObjectPath = Join-Path $env:RUNNER_TEMP "multiple_mutable_reference_signatures.windows.obj"
+        $multipleMutableExecutablePath = Join-Path $env:RUNNER_TEMP "multiple_mutable_reference_signatures.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check $example
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows multiple-exclusive signature public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $multipleMutableLlvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $multipleMutableLlvmPath)) {
+          throw "Windows multiple-exclusive signature public build failed or omitted its LLVM artifact"
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $multipleMutableLlvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows multiple-exclusive signature opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $multipleMutableLlvmPath -o $multipleMutableMachinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $multipleMutableMachinePath)) {
+          throw "Windows multiple-exclusive signature machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $multipleMutableLlvmPath -o $multipleMutableObjectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $multipleMutableObjectPath)) {
+          throw "Windows multiple-exclusive signature object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $multipleMutableObjectPath -o $multipleMutableExecutablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $multipleMutableExecutablePath)) {
+          throw "Windows multiple-exclusive signature Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run $example
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 89) {
+          throw "Windows multiple-exclusive signature public run returned $publicRunExit, expected 89"
+        }
+        Write-Host "Windows multiple-exclusive signature public run passed with exit code 89"
+
+        & $multipleMutableExecutablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 89) {
+          throw "Windows multiple-exclusive signature manual native execution returned $manualExit, expected 89"
+        }
+        Write-Host "Windows multiple-exclusive signature manual native execution passed with exit code 89"
         $global:LASTEXITCODE = 0

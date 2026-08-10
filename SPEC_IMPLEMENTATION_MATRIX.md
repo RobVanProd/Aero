@@ -64,7 +64,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Mutable-owner immutable enum loans (`CORE-085` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mutable enum-reference Match reads and homogeneous `Void` Match results (`CORE-086` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mixed mutable-reference and CopyData signatures (`CORE-087` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Mixed exclusive/shared-reference signatures (`CORE-088` local candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Mixed exclusive/shared-reference signatures (`CORE-088` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Multiple exclusive-reference signatures (`CORE-089` local candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -160,7 +161,7 @@ projections, reference results/escape/storage/capture, lifetime/NLL/drop, public
 layout/ABI/FFI, accelerators, and memory-safety claims remain absent from CORE-087;
 the row therefore remains `PARTIAL`.
 
-Local candidate `CORE-088` closes the complete next signature class: exactly one
+Accepted public `CORE-088` closes the complete next signature class: exactly one
 admitted mutable whole-place reference, one or more admitted immutable whole-place
 references, and zero or more recursive CopyData companions in every declared order.
 One shared predicate serves semantic classification and independent checked signature
@@ -169,11 +170,28 @@ independent from every other argument; immutable arguments may repeat an immutab
 source. Checked verification additionally requires each immutable call operand to be
 an exact immutable-borrow or immutable-parameter identity, rejecting raw-owner and
 active-mutable substitutions. The focused target is 3/3, its corruption control is
-1/1, the full root gate is green, and pinned local LLVM/Clang 22.1.8 executes public
-and independent native exit 88. Public checks remain pending. Multiple mutable
+1/1, the full root gate is green, and pinned LLVM/Clang 22.1.8 executes public and
+independent native exit 88. Bounded PR #15 passed all nine exact-head checks, merged
+through protected master as `a7627aa1`, and passed post-merge CI `31410739806`, Rust
+CI `31410739830`, and CodeQL `31410738951`. Multiple mutable
 parameters, projections, reference results/escape/storage/capture, lifetime/NLL/drop,
 public layout/ABI/FFI, accelerators, and memory-safety claims remain absent; the row
 therefore remains `PARTIAL`.
+
+Local candidate `CORE-089` closes the complete remaining multiple-exclusive-reference
+signature partition under the same shared classifier: two or more mutable whole-place
+references, any admitted immutable references, and recursive CopyData companions in
+every declared order and count. The call contract enumerates every mutable parameter,
+requires pairwise-distinct mutable roots disjoint from every non-mutable argument tree,
+and lowers one exact declared-order N-borrow/call/reverse-N-end window. Independent
+verification reconstructs the same roots and rejects duplicate/overlapping operands,
+window reordering or separation, raw owners, binder corruption, and forged ends. The
+focused target is 3/3, the corruption control is 1/1, the affected reference ring is
+19/19, and pinned local LLVM/Clang 22.1.8 executes public and independent native exit
+89. The full root gate is green at 216 library tests, 32 binary tests, every
+integration target, and doc tests; public gates remain pending. Projections, reference
+results/escape/storage/capture, lifetime/NLL/drop, public layout/ABI/FFI, accelerators,
+and memory-safety claims remain absent; the row therefore remains `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

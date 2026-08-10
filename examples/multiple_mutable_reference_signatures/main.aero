@@ -1,0 +1,37 @@
+mod references;
+
+fn main() -> int {
+    let observed = 3;
+    let observed_ref = &observed;
+    let mut left = 1;
+    let mut right = 2;
+    let pair = update_pair(&mut left, &mut right, observed_ref, 4);
+
+    let mut third = 5;
+    let triple = update_three(
+        &mut left,
+        &mut right,
+        observed_ref,
+        &mut third,
+        1
+    );
+
+    let mut forwarded = 0;
+    {
+        let left_alias = &mut left;
+        let right_alias = &mut right;
+        forwarded = forward_pair(left_alias, right_alias);
+    }
+
+    let truth = 2 > 1;
+    let mut first_flag = 1 > 2;
+    let mut second_flag = 1 > 2;
+    set_flags(&mut first_flag, &truth, &mut second_flag);
+
+    if pair == 10 && triple == 33 && forwarded == 17
+        && left == 8 && right == 9 && third == 19
+        && first_flag && second_flag && observed == 3 {
+        return 89;
+    }
+    1
+}

@@ -22,7 +22,7 @@ use crate::local_reference::{
     classify_local_reference_annotation_with_enums,
     classify_mutable_reference_assignment_with_enums, classify_mutable_reference_binding,
     classify_reference_call_with_enums, classify_reference_function_with_enums,
-    classify_reference_pointee_type, reference_call_fact_subject, reference_call_source_mode,
+    classify_reference_pointee_type, reference_call_source_modes,
     validate_enum_reference_match_result,
 };
 use crate::method_call_contract::{
@@ -1941,17 +1941,16 @@ impl IrGenerator {
         let inside_admitted_function =
             bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl;
         let reference_call = if let Some(contract) = program.reference_functions.get(name) {
-            let facts = reference_call_fact_subject(contract, arguments).and_then(|subject| {
-                Self::admission_local_reference_source_facts(
-                    subject,
-                    bindings,
-                    inside_admitted_function,
-                )
-            });
             classify_reference_call_with_enums(
                 contract,
                 arguments,
-                facts.as_ref(),
+                |subject| {
+                    Self::admission_local_reference_source_facts(
+                        subject,
+                        bindings,
+                        inside_admitted_function,
+                    )
+                },
                 &program.structs,
                 &program.enums,
             )
@@ -1962,8 +1961,8 @@ impl IrGenerator {
         match reference_call {
             ReferenceCallDisposition::Supported(contract) => {
                 for (index, argument) in arguments.iter().enumerate() {
-                    if index == contract.reference_parameter_index {
-                        argument_types.push(contract.reference_type());
+                    if let Some(reference_type) = contract.reference_type(index) {
+                        argument_types.push(reference_type);
                     } else {
                         argument_types.push(Self::validate_expression(
                             argument,
@@ -4060,32 +4059,37 @@ impl IrGenerator {
     }
 
     #[inline(never)]
-    fn generate_mixed_mutable_function_call(
+    fn generate_reference_function_call(
         &mut self,
         name: String,
         arguments: Vec<Expression>,
-        reference_parameter_index: usize,
-        source_mode: ReferenceCallSourceMode,
+        mutable_calls: Vec<(usize, ReferenceCallSourceMode)>,
         function: &mut Function,
     ) -> (Value, Ty) {
-        let mutable_call = (reference_parameter_index, source_mode);
         let mut pending_arguments = arguments.into_iter().map(Some).collect::<Vec<_>>();
         let mut argument_order = (0..pending_arguments.len())
-            .filter(|index| *index != reference_parameter_index)
+            .filter(|index| {
+                !mutable_calls
+                    .iter()
+                    .any(|(mutable_index, _)| mutable_index == index)
+            })
             .collect::<Vec<_>>();
-        argument_order.push(reference_parameter_index);
+        argument_order.extend(mutable_calls.iter().map(|(index, _)| *index));
         let mut arg_values = vec![None; pending_arguments.len()];
         let mut temporary_mutable_borrows = Vec::new();
         let mut temporary_mutable_owner_immutable_enum_borrows = Vec::new();
 
         for index in argument_order {
+            let mutable_source_mode = mutable_calls
+                .iter()
+                .find_map(|(mutable_index, mode)| (*mutable_index == index).then_some(*mode));
             let arg = pending_arguments[index]
                 .take()
                 .expect("each checked call argument is lowered exactly once");
             let direct_mutable_owner_immutable_enum_borrow =
                 matches!(&arg, Expression::Borrow { mutable: false, .. });
-            let direct_mutable_source = if mutable_call
-                == (index, ReferenceCallSourceMode::DirectOwnerBorrow)
+            let direct_mutable_source = if mutable_source_mode
+                == Some(ReferenceCallSourceMode::DirectOwnerBorrow)
                 && let Expression::Borrow {
                     expr,
                     mutable: true,
@@ -4126,7 +4130,9 @@ impl IrGenerator {
                         ReferencePointeeContext::Mutable,
                     ),
                 ));
-            } else if mutable_call == (index, ReferenceCallSourceMode::MutableReferenceIdentifier) {
+            } else if mutable_source_mode
+                == Some(ReferenceCallSourceMode::MutableReferenceIdentifier)
+            {
                 let Ty::Reference(pointee, true) = &arg_type else {
                     unreachable!("checked mutable-reference identifier call retains reference type")
                 };
@@ -4155,7 +4161,7 @@ impl IrGenerator {
             .collect();
         let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
         function.body.push(call_inst);
-        for (reference, source, pointee) in temporary_mutable_borrows {
+        for (reference, source, pointee) in temporary_mutable_borrows.into_iter().rev() {
             function.body.push(Inst::CheckedMutableBorrowEnd {
                 reference,
                 source,
@@ -4273,51 +4279,27 @@ impl IrGenerator {
                 (result_reg, result_type)
             }
             Expression::FunctionCall { name, arguments } => {
-                let mutable_call = self
+                let mutable_calls = self
                     .checked_mode
                     .then(|| self.reference_function_contracts.get(&name))
                     .flatten()
-                    .and_then(|contract| {
-                        contract.mutable_parameter().and_then(|(index, _)| {
-                            reference_call_source_mode(contract, &arguments)
-                                .map(|mode| (index, mode))
-                        })
-                    });
-                if let Some((reference_parameter_index, source_mode)) = mutable_call
-                    && arguments.len() > 1
-                {
-                    return self.generate_mixed_mutable_function_call(
+                    .map(|contract| reference_call_source_modes(contract, &arguments))
+                    .filter(|calls| !calls.is_empty());
+                if let Some(mutable_calls) = mutable_calls {
+                    return self.generate_reference_function_call(
                         name,
                         arguments,
-                        reference_parameter_index,
-                        source_mode,
+                        mutable_calls,
                         function,
                     );
                 }
-                let mutable_call_source_mode = mutable_call.map(|(_, source_mode)| source_mode);
-                // Ordinary and sole-reference calls retain the established shallow lowering
-                // path. Only mixed calls need the separate ordered buffer above.
+                // Calls without mutable parameters retain the ordinary lowering path.
                 let mut arg_values = Vec::new();
-                let mut temporary_mutable_borrows = Vec::new();
                 let mut temporary_mutable_owner_immutable_enum_borrows = Vec::new();
                 for arg in arguments {
                     let direct_mutable_owner_immutable_enum_borrow =
                         matches!(&arg, Expression::Borrow { mutable: false, .. });
-                    let direct_mutable_source = if mutable_call_source_mode
-                        == Some(ReferenceCallSourceMode::DirectOwnerBorrow)
-                        && let Expression::Borrow {
-                            expr,
-                            mutable: true,
-                        } = &arg
-                        && let Expression::Identifier(source) = expr.as_ref()
-                    {
-                        self.symbol_table
-                            .get(source)
-                            .map(|(place, ty)| (place.clone(), ty.clone()))
-                    } else {
-                        None
-                    };
-                    let (mut arg_value, arg_type) = self.generate_expression_ir(arg, function);
+                    let (arg_value, arg_type) = self.generate_expression_ir(arg, function);
                     if direct_mutable_owner_immutable_enum_borrow
                         && let Value::Reg(reference_id) = &arg_value
                         && let Some((source, schema)) = self
@@ -4332,54 +4314,11 @@ impl IrGenerator {
                             schema,
                         ));
                     }
-                    if let Some((source, pointee)) = direct_mutable_source {
-                        let Ty::Reference(actual, true) = &arg_type else {
-                            unreachable!("checked direct mutable call retains reference type")
-                        };
-                        debug_assert_eq!(actual.as_ref(), &pointee);
-                        temporary_mutable_borrows.push((
-                            arg_value.clone(),
-                            source,
-                            self.admitted_reference_pointee_logical_type(
-                                &pointee,
-                                ReferencePointeeContext::Mutable,
-                            ),
-                        ));
-                    } else if mutable_call_source_mode
-                        == Some(ReferenceCallSourceMode::MutableReferenceIdentifier)
-                    {
-                        let Ty::Reference(pointee, true) = &arg_type else {
-                            unreachable!(
-                                "checked mutable-reference identifier call retains reference type"
-                            )
-                        };
-                        let parent = arg_value;
-                        let child = Value::Reg(self.next_ptr);
-                        self.next_ptr += 1;
-                        let logical_pointee = self.admitted_reference_pointee_logical_type(
-                            pointee,
-                            ReferencePointeeContext::Mutable,
-                        );
-                        function.body.push(Inst::CheckedMutableBorrow {
-                            result: child.clone(),
-                            source: parent.clone(),
-                            pointee: logical_pointee.clone(),
-                        });
-                        temporary_mutable_borrows.push((child.clone(), parent, logical_pointee));
-                        arg_value = child;
-                    }
                     let arg_value = self.load_copy_aggregate_value(arg_value, &arg_type, function);
                     arg_values.push(arg_value);
                 }
                 let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
                 function.body.push(call_inst);
-                for (reference, source, pointee) in temporary_mutable_borrows {
-                    function.body.push(Inst::CheckedMutableBorrowEnd {
-                        reference,
-                        source,
-                        pointee,
-                    });
-                }
                 for (id, reference, source, schema) in
                     temporary_mutable_owner_immutable_enum_borrows
                 {
