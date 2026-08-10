@@ -7,7 +7,10 @@ Last updated: 2026-08-10 (America/New_York)
 Milestone 108 `CORE-087` is a local candidate only on branch
 `agent/core-087-reference-copydata-signatures`, based on accepted master
 `e2014a1762664461ad8fc952cece6f9fa39aa4c2`, tree
-`4caeee7d9602783525bb87856908ac459447184d`. One shared reference-signature
+`4caeee7d9602783525bb87856908ac459447184d`. Its frozen implementation commit is
+`a1e5c697e34eb7be1b7ce46da21a3fadfda53ca0`, tree
+`d3c0b317133e3a1ecfc1b7d72551585418928820`, with stable patch ID
+`0312d58f4422bd8c8e598b0cbf4c63f208097e5d`. One shared reference-signature
 topology predicate now composes exactly one mutable whole-place reference parameter
 with one or more ordinary recursive finite CopyData parameters. The reference may be
 first, middle, or last; the same indexed contract drives both semantic routes,

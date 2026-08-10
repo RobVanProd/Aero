@@ -99,6 +99,12 @@
   repository-root gate then exits 0 with 215/215 library tests, 32/32 binary tests,
   every integration target, and doc tests. Candidate publication may proceed only from
   this exact content; public acceptance is still pending.
+- Frozen implementation identity: commit
+  `a1e5c697e34eb7be1b7ce46da21a3fadfda53ca0`, tree
+  `d3c0b317133e3a1ecfc1b7d72551585418928820`, stable patch ID
+  `0312d58f4422bd8c8e598b0cbf4c63f208097e5d`. The following identity-only amendment
+  changes this ledger and `PROJECT_STATE.md`; it does not change compiler behavior,
+  tests, workflows, examples, or the frozen implementation tree.
 - Allowed files: this one ledger record; `src/compiler/src/local_reference.rs`,
   `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs` only if the red proof
   requires independent trust-window validation; one focused
