@@ -1124,6 +1124,34 @@ jobs:
         fi
         echo "mixed mutable-reference signature example passed with exit code 87"
 
+    - name: Test mixed exclusive/shared-reference signature integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/mixed_reference_signatures/main.aero
+        set +e
+        cargo run -- run ../../examples/mixed_reference_signatures/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 88 ]; then
+          echo "Expected public mixed-reference signature run exit code 88, got $public_run_exit"
+          exit 1
+        fi
+        cargo run -- build ../../examples/mixed_reference_signatures/main.aero -o ../../mixed_reference_signatures.ll
+        opt-22 -passes=verify -disable-output ../../mixed_reference_signatures.ll
+        llc-22 -verify-machineinstrs ../../mixed_reference_signatures.ll -o /dev/null
+        llc-22 -filetype=obj ../../mixed_reference_signatures.ll -o ../../mixed_reference_signatures.o
+        clang-22 -no-pie ../../mixed_reference_signatures.o -o ../../mixed_reference_signatures
+        set +e
+        ../../mixed_reference_signatures
+        mixed_reference_signatures_exit_code=$?
+        set -e
+        if [ $mixed_reference_signatures_exit_code -ne 88 ]; then
+          echo "Expected mixed-reference signature exit code 88, got $mixed_reference_signatures_exit_code"
+          exit 1
+        fi
+        echo "mixed exclusive/shared-reference signature example passed with exit code 88"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
@@ -1676,3 +1704,55 @@ jobs:
         Write-Host "Windows mixed mutable-reference signature manual native execution passed with exit code 87"
         $global:LASTEXITCODE = 0
 
+    - name: Test Windows mixed exclusive/shared-reference signature system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/mixed_reference_signatures/main.aero"
+        $mixedReferencesLlvmPath = Join-Path $env:RUNNER_TEMP "mixed_reference_signatures.windows.ll"
+        $mixedReferencesMachinePath = Join-Path $env:RUNNER_TEMP "mixed_reference_signatures.windows.s"
+        $mixedReferencesObjectPath = Join-Path $env:RUNNER_TEMP "mixed_reference_signatures.windows.obj"
+        $mixedReferencesExecutablePath = Join-Path $env:RUNNER_TEMP "mixed_reference_signatures.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check $example
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows mixed-reference signature public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $mixedReferencesLlvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $mixedReferencesLlvmPath)) {
+          throw "Windows mixed-reference signature public build failed or omitted its LLVM artifact"
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $mixedReferencesLlvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows mixed-reference signature opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $mixedReferencesLlvmPath -o $mixedReferencesMachinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $mixedReferencesMachinePath)) {
+          throw "Windows mixed-reference signature machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $mixedReferencesLlvmPath -o $mixedReferencesObjectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $mixedReferencesObjectPath)) {
+          throw "Windows mixed-reference signature object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $mixedReferencesObjectPath -o $mixedReferencesExecutablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $mixedReferencesExecutablePath)) {
+          throw "Windows mixed-reference signature Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run $example
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 88) {
+          throw "Windows mixed-reference signature public run returned $publicRunExit, expected 88"
+        }
+        Write-Host "Windows mixed-reference signature public run passed with exit code 88"
+
+        & $mixedReferencesExecutablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 88) {
+          throw "Windows mixed-reference signature manual native execution returned $manualExit, expected 88"
+        }
+        Write-Host "Windows mixed-reference signature manual native execution passed with exit code 88"
+        $global:LASTEXITCODE = 0

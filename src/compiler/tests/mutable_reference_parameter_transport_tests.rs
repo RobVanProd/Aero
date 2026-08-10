@@ -301,12 +301,12 @@ fn main() -> int { let mut value = 1; bump(&mut value) }
         (
             "two mutable parameters",
             "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
-            "exactly one mutable-reference parameter",
+            "at most one mutable-reference parameter",
         ),
         (
-            "mixed mutable and immutable references",
-            "fn bad(value: &mut int, other: &int) -> int { *value + *other } fn main() -> int { 0 }",
-            "exactly one mutable-reference parameter",
+            "two mutable parameters beside an immutable reference",
+            "fn bad(value: &mut int, other: &int, second: &mut int) -> int { *value + *other + *second } fn main() -> int { 0 }",
+            "at most one mutable-reference parameter",
         ),
         (
             "mutable reference result",

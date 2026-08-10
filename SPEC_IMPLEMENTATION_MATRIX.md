@@ -63,7 +63,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Immutable enum-reference Match reads (`CORE-084`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mutable-owner immutable enum loans (`CORE-085` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mutable enum-reference Match reads and homogeneous `Void` Match results (`CORE-086` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Mixed mutable-reference and CopyData signatures (`CORE-087` local candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Mixed mutable-reference and CopyData signatures (`CORE-087` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Mixed exclusive/shared-reference signatures (`CORE-088` local candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -144,19 +145,35 @@ two-module specimen externally verifies and executes under local pinned LLVM/Cla
 escape, new lifetime/NLL/drop, layout/ABI, accelerator, safety, or stability semantics
 remain absent; the row therefore remains `PARTIAL`.
 
-Local candidate `CORE-087` composes exactly one admitted mutable whole-place reference
+Accepted public `CORE-087` composes exactly one admitted mutable whole-place reference
 parameter with one or more recursive finite CopyData parameters under one shared
 signature-topology predicate. Reference-first, -middle, and -last forms, arbitrary side
 counts, CopyData and admitted enum pointees, direct owners, alias reborrows, parameter
 forwarding, CopyData/`Void` results, and direct modules execute through checked IR,
 independent verification, private pointer LLVM, and pinned native exit 87. Side
 arguments must be independent of the reference source and retain their relative
-evaluation order before the adjacent borrow/call/end window. The focused target is 3/3,
-the verifier corruption control is 1/1, and the exact root gate passes 215 library and
-32 binary tests plus every integration target and doc tests. Public gates remain pending,
-so this is not public acceptance. Multiple references, projections, reference
-results/escape/storage/capture, lifetime/NLL/drop, public layout/ABI/FFI, accelerators,
-and memory-safety claims remain absent; the row therefore remains `PARTIAL`.
+evaluation order before the adjacent borrow/call/end window. The focused target is 3/3
+and the verifier corruption control is 1/1. Bounded PR #14 passed all nine exact-head
+checks, merged through protected master as `b07efe29`, and passed post-merge CI
+`31406731077`, Rust CI `31406731094`, and CodeQL `31406730798`. Multiple references,
+projections, reference results/escape/storage/capture, lifetime/NLL/drop, public
+layout/ABI/FFI, accelerators, and memory-safety claims remain absent from CORE-087;
+the row therefore remains `PARTIAL`.
+
+Local candidate `CORE-088` closes the complete next signature class: exactly one
+admitted mutable whole-place reference, one or more admitted immutable whole-place
+references, and zero or more recursive CopyData companions in every declared order.
+One shared predicate serves semantic classification and independent checked signature
+verification. The existing indexed call authority proves the sole mutable source
+independent from every other argument; immutable arguments may repeat an immutable
+source. Checked verification additionally requires each immutable call operand to be
+an exact immutable-borrow or immutable-parameter identity, rejecting raw-owner and
+active-mutable substitutions. The focused target is 3/3, its corruption control is
+1/1, the full root gate is green, and pinned local LLVM/Clang 22.1.8 executes public
+and independent native exit 88. Public checks remain pending. Multiple mutable
+parameters, projections, reference results/escape/storage/capture, lifetime/NLL/drop,
+public layout/ABI/FFI, accelerators, and memory-safety claims remain absent; the row
+therefore remains `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

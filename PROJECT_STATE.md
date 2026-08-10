@@ -4,34 +4,59 @@ Last updated: 2026-08-10 (America/New_York)
 
 ## Current objective
 
-Milestone 108 `CORE-087` is a local candidate only on branch
-`agent/core-087-reference-copydata-signatures`, based on accepted master
-`e2014a1762664461ad8fc952cece6f9fa39aa4c2`, tree
-`4caeee7d9602783525bb87856908ac459447184d`. Its frozen implementation commit is
+Milestone 109 `CORE-088` is a local working candidate on branch
+`agent/core-088-mixed-reference-signatures`, based on accepted, post-merge-verified
+master `b07efe291c8d2e03e6796a6e74284f7304f8162c`, tree
+`337f5350d401d1fed65d383920cd6d23c892a940`. Its frozen implementation commit is
+`f0833a80aa6e91d71faf837879072c63ef1eba15`, tree
+`83445e55b5847ced27f5843fbc3cb50debdcb995`, with stable patch ID
+`6f87a3a53cccb60f413229749988573a85c4c617`. The following identity-only
+amendment changes repository records, not compiler behavior, tests, workflows, or
+the frozen implementation tree. The one shared reference-signature
+topology predicate now admits every ordered non-entry, non-generic signature with at
+most one mutable whole-place reference, any number of immutable whole-place
+references, and recursive finite CopyData companions. CORE-088 specifically closes
+the complete exactly-one-mutable plus one-or-more-immutable class in every parameter
+position and count. The existing indexed call contract still proves the sole mutable
+source independent from every other argument; immutable arguments may share an
+immutable source. Non-mutable arguments retain relative evaluation order before the
+exact adjacent mutable borrow/call/end window, and call operands retain declared order.
+
+The focused target passes 3/3 across direct owners, repeated immutable aliases, local
+mutable reborrows, immutable/mutable parameter forwarding, recursive aggregate and
+admitted enum pointees, CopyData and `Void` results, both trust routes, public CLI
+artifact hygiene, and direct modules. The verifier corruption control passes 1/1 and
+now rejects raw-owner or mutable-reference substitution for an immutable call operand
+by requiring an exact checked immutable-borrow or parameter identity. The reversible
+Windows repository-root gate passes all 215 library tests, 32 binary tests, every
+integration target, and doc tests. Pinned local LLVM/Clang 22.1.8 externally verifies,
+machine-verifies, emits COFF, links, and executes the tracked public and independent
+paths at exact exit 88. No frozen implementation identity or public acceptance is
+claimed yet. Multiple mutable-reference parameters, overlapping mutable-source
+arguments, projections, reference results/escape/storage/capture, NLL/lifetime/drop,
+public layout, stable ABI/FFI, accelerators, and general memory-safety claims remain
+excluded.
+
+Milestone 108 `CORE-087` is accepted public at exact candidate head
+`0c144276906d5038066867e6a8689de1124d6d60`. Its frozen implementation commit is
 `a1e5c697e34eb7be1b7ce46da21a3fadfda53ca0`, tree
 `d3c0b317133e3a1ecfc1b7d72551585418928820`, with stable patch ID
-`0312d58f4422bd8c8e598b0cbf4c63f208097e5d`. One shared reference-signature
-topology predicate now composes exactly one mutable whole-place reference parameter
-with one or more ordinary recursive finite CopyData parameters. The reference may be
-first, middle, or last; the same indexed contract drives both semantic routes,
-semantic-independent checked admission, lowering, and independent verification.
-Independent CopyData arguments are evaluated in their original relative order before
-the exact adjacent borrow/call/end window, then restored to declared call order.
+`0312d58f4422bd8c8e598b0cbf4c63f208097e5d`. Bounded PR #14 passed all nine
+exact-head checks and merged through protected master as
+`b07efe291c8d2e03e6796a6e74284f7304f8162c`, tree
+`337f5350d401d1fed65d383920cd6d23c892a940`, with ordered parents prior master
+`e2014a1762664461ad8fc952cece6f9fa39aa4c2` then the exact candidate. Post-merge
+CI `31406731077`, Rust CI `31406731094`, and CodeQL `31406730798` pass on that
+exact merge.
 
-The focused target passes 3/3 across direct-owner calls, local alias reborrows,
-parameter forwarding, recursive aggregates, admitted enum pointees, CopyData and
-`Void` results, all parameter positions, direct modules, and the complete frozen
-negative boundary. The verifier corruption control passes 1/1, the affected reference,
-CopyData, and enum compatibility ring is green, and the tracked two-module specimen
-passes public check/build/run, LLVM 22.1.8 verification, machine verification, COFF
-generation, Clang/MSVC linking, and manual native execution at exact exit 87. The exact
-repository-root gate passes 215 library tests, 32 binary tests, every integration target,
-and doc tests after correcting a candidate-introduced admission-stack regression without
-changing the accepted CORE-062 test. Public workflows remain pending, so this is not
-public acceptance.
-Multiple reference parameters, owner-dependent side arguments, projections, reference
-results or escape/storage/capture, new lifetime/drop/layout/ABI rules, accelerators,
-and any general memory-safety claim remain excluded.
+The accepted CORE-087 class composes exactly one mutable whole-place reference with
+one or more independent recursive finite CopyData parameters in any declared
+position. Its focused target is 3/3, verifier corruption control is 1/1, complete
+repository gate is green, and the pinned Linux/Windows LLVM 22 system specimen
+executes exact exit 87. Multiple reference parameters, owner-dependent side
+arguments, projections, reference results or escape/storage/capture, lifetime/drop,
+stable ABI/FFI, accelerators, and general memory-safety claims did not move in that
+checkpoint.
 
 Milestone 107 `CORE-086` is accepted public at candidate head
 `e4447599b7989ba1276d4f32ddc8832900877132`, with frozen implementation commit
@@ -140,7 +165,7 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to finish and publish CORE-087 in one bounded PR, require every
+The exact next action is to freeze and publish CORE-088 in one bounded PR, require every
 exact-head public workflow and pinned LLVM 22 gate, and merge only through protected
 master while the record remains truthful.
 Positive imports remain deferred until lookup, namespace, visibility, collision, cycle,

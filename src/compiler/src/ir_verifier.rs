@@ -622,7 +622,7 @@ fn checked_signature(
             function,
             None,
             IrVerificationErrorKind::MetadataMismatch(
-                "checked mutable reference transport requires exactly one mutable-reference parameter and no other reference parameters".to_string(),
+                "checked reference transport supports at most one mutable-reference parameter; simultaneous mutable-reference parameters are not supported".to_string(),
             ),
         ));
     }
@@ -1262,20 +1262,22 @@ impl<'a> FunctionVerifier<'a> {
         None
     }
 
-    fn immutable_enum_reference_place(&self, place: PlaceId) -> bool {
+    fn immutable_reference_place(&self, place: PlaceId) -> bool {
         let Some(definition) = self.place_definitions.get(&place) else {
             return false;
         };
         matches!(
             self.body.instructions[definition.position],
-            Inst::CheckedImmutableBorrow {
-                pointee: LogicalType::Enum { .. },
-                ..
-            } | Inst::CheckedImmutableReferenceParameter {
-                pointee: LogicalType::Enum { .. },
-                ..
-            }
+            Inst::CheckedImmutableBorrow { .. } | Inst::CheckedImmutableReferenceParameter { .. }
         )
+    }
+
+    fn immutable_enum_reference_place(&self, place: PlaceId) -> bool {
+        self.immutable_reference_place(place)
+            && matches!(
+                self.places.get(&place).and_then(PlaceType::logical),
+                Some(LogicalType::Enum { .. })
+            )
     }
 
     fn verify_enum_reference_match_read_shape(
@@ -3549,6 +3551,15 @@ impl<'a> FunctionVerifier<'a> {
                                     block_index,
                                     position,
                                 )?;
+                                if !self.immutable_reference_place(place) {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(format!(
+                                            "call immutable reference argument place {} is not an exact checked immutable borrow or immutable-reference parameter",
+                                            place.0
+                                        )),
+                                    ));
+                                }
                                 let actual = self.places.get(&place).and_then(PlaceType::logical);
                                 if actual.as_ref() != Some(pointee.as_ref()) {
                                     return Err(self.error(
@@ -9678,53 +9689,85 @@ mod tests {
     }
 
     #[test]
-    fn mixed_mutable_reference_signature_identity_is_fail_closed() {
+    fn mixed_reference_signature_identity_is_fail_closed() {
+        let immutable_int = LogicalType::ImmutableReference {
+            pointee: Box::new(LogicalType::Int),
+        };
         let mutable_int = LogicalType::MutableReference {
             pointee: Box::new(LogicalType::Int),
         };
         let signature = || {
             vec![
-                ("prefix".to_string(), LogicalType::Int),
+                ("left".to_string(), immutable_int.clone()),
                 ("value".to_string(), mutable_int.clone()),
-                ("suffix".to_string(), LogicalType::Int),
+                ("right".to_string(), immutable_int.clone()),
+                ("bias".to_string(), LogicalType::Int),
             ]
         };
         let callee = || {
             vec![
-                Inst::Alloca(Value::Reg(0), "prefix".to_string()),
+                Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(0),
+                    parameter: "left".to_string(),
+                    pointee: LogicalType::Int,
+                },
                 Inst::CheckedMutableReferenceParameter {
                     result: Value::Reg(1),
                     parameter: "value".to_string(),
                     pointee: LogicalType::Int,
                 },
-                Inst::Alloca(Value::Reg(2), "suffix".to_string()),
+                Inst::CheckedImmutableReferenceParameter {
+                    result: Value::Reg(2),
+                    parameter: "right".to_string(),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Alloca(Value::Reg(3), "bias".to_string()),
                 Inst::Return(Value::ImmInt(0)),
             ]
         };
         let caller = || {
             vec![
-                Inst::CheckedMutableOwnedPlaceAlloca {
-                    result: Value::Reg(0),
-                    name: "owner".to_string(),
-                    ty: LogicalType::Int,
-                },
+                Inst::Alloca(Value::Reg(0), "left_owner".to_string()),
                 Inst::Store(Value::Reg(0), Value::ImmInt(1)),
-                Inst::CheckedMutableBorrow {
+                Inst::CheckedImmutableBorrow {
                     result: Value::Reg(1),
                     source: Value::Reg(0),
                     pointee: LogicalType::Int,
                 },
-                Inst::Call {
-                    function: "mix".to_string(),
-                    arguments: vec![Value::ImmInt(2), Value::Reg(1), Value::ImmInt(3)],
-                    result: Some(Value::Reg(2)),
-                },
-                Inst::CheckedMutableBorrowEnd {
-                    reference: Value::Reg(1),
-                    source: Value::Reg(0),
+                Inst::Alloca(Value::Reg(2), "right_owner".to_string()),
+                Inst::Store(Value::Reg(2), Value::ImmInt(2)),
+                Inst::CheckedImmutableBorrow {
+                    result: Value::Reg(3),
+                    source: Value::Reg(2),
                     pointee: LogicalType::Int,
                 },
-                Inst::Return(Value::Reg(2)),
+                Inst::CheckedMutableOwnedPlaceAlloca {
+                    result: Value::Reg(4),
+                    name: "owner".to_string(),
+                    ty: LogicalType::Int,
+                },
+                Inst::Store(Value::Reg(4), Value::ImmInt(3)),
+                Inst::CheckedMutableBorrow {
+                    result: Value::Reg(5),
+                    source: Value::Reg(4),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Call {
+                    function: "mix".to_string(),
+                    arguments: vec![
+                        Value::Reg(1),
+                        Value::Reg(5),
+                        Value::Reg(3),
+                        Value::ImmInt(4),
+                    ],
+                    result: Some(Value::Reg(6)),
+                },
+                Inst::CheckedMutableBorrowEnd {
+                    reference: Value::Reg(5),
+                    source: Value::Reg(4),
+                    pointee: LogicalType::Int,
+                },
+                Inst::Return(Value::Reg(6)),
             ]
         };
         let program =
@@ -9742,8 +9785,8 @@ mod tests {
                         Function {
                             name: "main".to_string(),
                             body: main,
-                            next_reg: 8,
-                            next_ptr: 8,
+                            next_reg: 16,
+                            next_ptr: 16,
                         },
                     ),
                     (
@@ -9751,60 +9794,82 @@ mod tests {
                         Function {
                             name: "mix".to_string(),
                             body: Vec::new(),
-                            next_reg: 8,
-                            next_ptr: 8,
+                            next_reg: 16,
+                            next_ptr: 16,
                         },
                     ),
                 ])
             };
 
         verify_ir(program(signature(), callee(), caller()))
-            .expect("one exact middle-position mutable-reference signature must verify");
+            .expect("one exact mixed exclusive/shared-reference signature must verify");
 
-        let mut duplicate_reference_signature = signature();
-        duplicate_reference_signature[2].1 = mutable_int.clone();
-        let mut wrong_binder = callee();
-        wrong_binder[1] = Inst::CheckedMutableReferenceParameter {
-            result: Value::Reg(1),
-            parameter: "prefix".to_string(),
+        let mut duplicate_mutable_signature = signature();
+        duplicate_mutable_signature[2].1 = mutable_int.clone();
+        let mut wrong_immutable_binder = callee();
+        wrong_immutable_binder[0] = Inst::CheckedImmutableReferenceParameter {
+            result: Value::Reg(0),
+            parameter: "right".to_string(),
             pointee: LogicalType::Int,
         };
+        let mut missing_immutable_binder = callee();
+        missing_immutable_binder.remove(2);
         let mut missing_side_argument = caller();
-        if let Inst::Call { arguments, .. } = &mut missing_side_argument[3] {
+        if let Inst::Call { arguments, .. } = &mut missing_side_argument[9] {
             arguments.pop();
         }
         let mut wrong_argument_order = caller();
-        if let Inst::Call { arguments, .. } = &mut wrong_argument_order[3] {
+        if let Inst::Call { arguments, .. } = &mut wrong_argument_order[9] {
             arguments.swap(0, 1);
+        }
+        let mut raw_owner_as_immutable = caller();
+        if let Inst::Call { arguments, .. } = &mut raw_owner_as_immutable[9] {
+            arguments[0] = Value::Reg(0);
+        }
+        let mut mutable_reference_as_immutable = caller();
+        if let Inst::Call { arguments, .. } = &mut mutable_reference_as_immutable[9] {
+            arguments[0] = Value::Reg(5);
         }
         let mut separated_temporary = caller();
         separated_temporary.insert(
-            3,
-            Inst::Add(Value::Reg(3), Value::ImmInt(1), Value::ImmInt(2)),
+            9,
+            Inst::Add(Value::Reg(7), Value::ImmInt(1), Value::ImmInt(2)),
         );
         let mut forged_end = caller();
-        forged_end[4] = Inst::CheckedMutableBorrowEnd {
-            reference: Value::Reg(1),
-            source: Value::Reg(4),
+        forged_end[10] = Inst::CheckedMutableBorrowEnd {
+            reference: Value::Reg(5),
+            source: Value::Reg(7),
             pointee: LogicalType::Int,
         };
 
         for (label, candidate) in [
             (
-                "duplicate reference parameter",
-                program(duplicate_reference_signature, callee(), caller()),
+                "duplicate mutable-reference parameter",
+                program(duplicate_mutable_signature, callee(), caller()),
             ),
             (
-                "wrong reference binder identity",
-                program(signature(), wrong_binder, caller()),
+                "wrong immutable-reference binder identity",
+                program(signature(), wrong_immutable_binder, caller()),
             ),
             (
-                "missing CopyData argument",
+                "missing immutable-reference binder",
+                program(signature(), missing_immutable_binder, caller()),
+            ),
+            (
+                "missing ordered argument",
                 program(signature(), callee(), missing_side_argument),
             ),
             (
                 "wrong ordered argument types",
                 program(signature(), callee(), wrong_argument_order),
+            ),
+            (
+                "raw owner substituted for immutable reference",
+                program(signature(), callee(), raw_owner_as_immutable),
+            ),
+            (
+                "mutable reference substituted for immutable reference",
+                program(signature(), callee(), mutable_reference_as_immutable),
             ),
             (
                 "separated borrow/call/end window",
@@ -9817,7 +9882,7 @@ mod tests {
         ] {
             assert!(
                 verify_ir(candidate).is_err(),
-                "{label} passed mixed-signature checked IR verification"
+                "{label} passed mixed-reference checked IR verification"
             );
         }
     }

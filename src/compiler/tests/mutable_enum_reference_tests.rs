@@ -340,7 +340,7 @@ fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
         (
             "multiple mutable signature",
             "enum E { A } fn bad(left: &mut E, right: &mut E) {} fn main() -> int { 0 }",
-            &["exactly one mutable-reference parameter"],
+            &["at most one mutable-reference parameter"],
         ),
         (
             "entry reference parameter",

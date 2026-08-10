@@ -1,0 +1,50 @@
+fn mutable_first(target: &mut int, observed: &int) -> int {
+    *target = *target + *observed;
+    *target
+}
+
+fn mutable_middle(left: &int, target: &mut int, right: &int) -> int {
+    *target = *target + *left + *right;
+    *target
+}
+
+fn mutable_last(left: &int, right: &int, target: &mut int, bias: int) -> int {
+    *target = *target + *left + *right + bias;
+    *target
+}
+
+fn aggregate_mix(
+    observed: &Packet,
+    target: &mut Packet,
+    values: &[int; 2],
+    flags: (bool, int)
+) -> int {
+    let packet = *observed;
+    let copied = *values;
+    *target = Packet {
+        value: packet.value + copied[0] + flags.1,
+        ready: flags.0
+    };
+    let result = *target;
+    result.value
+}
+
+fn enum_mix(observed: &State, target: &mut State) -> int {
+    let amount = match *observed {
+        State::Idle => 1,
+        State::Count(inner) => inner
+    };
+    *target = State::Count(amount + 1);
+    match *target {
+        State::Idle => 0,
+        State::Count(inner) => inner
+    }
+}
+
+fn set_from(target: &mut bool, observed: &bool) {
+    *target = *observed;
+}
+
+fn forwarded(left: &int, target: &mut int, right: &int, bias: int) -> int {
+    mutable_last(left, right, target, bias)
+}
