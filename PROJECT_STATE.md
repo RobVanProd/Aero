@@ -4,17 +4,21 @@ Last updated: 2026-08-10 (America/New_York)
 
 ## Current objective
 
-Milestone 105 `CORE-084` is a locally green candidate on
-`agent/core-084-immutable-enum-references`, based on accepted master
+Milestone 105 `CORE-084` is accepted public at corrected candidate head
+`0ebef3ac7b19cb14390368ffcc432fbba55815a8`, tree
+`cbe48fe2207d699660aeca3c0ffc985e5f4e074f`, from verified base
 `23474fb45e57bed5c80ceed81597060aee2663f5`. Its implementation commit is
 `47b5142b312786975b53934cd943f6efd04e5575`, with tree
 `e325ce0427cc7db0de70960c2ae9e1c0892ae015` and stable patch ID
 `c62abff2165a996eba67ede77d53048b66c05958`. Corrective specimen commit
 `980fc6e81ecf7b4e486d0cbfc4b25df3cf159b33`, tree
 `c34ea237aa577d9ee37fdb653d3355c43d521fe7`, changes only the tracked packet
-score so its declared native system exit is exactly 84.
+score so its native system exit is exactly 84. Bounded PR #10 carried four commits
+across 27 files and merged through protected master without head substitution as
+`ae0f090169b161b6c73537ff59eb0bdcbc5c7901`, with the candidate tree and ordered
+parents old master then corrected candidate.
 
-The candidate admits immutable references only to the already admitted non-generic,
+The accepted checkpoint admits immutable references only to the already admitted non-generic,
 destructor-free enum class. Initialized immutable direct local enum owners may have
 multiple non-escaping `&E` aliases, and non-entry internal functions may accept exact
 immutable enum-reference parameters. The sole enum read is exhaustive
@@ -27,9 +31,12 @@ dispatch use together while rejecting generic-load substitution. The focused tar
 4/4 and the exact repository-root gate passes formatting, correctness-denying Clippy,
 212 library tests, 32 binary tests, every integration target, and doc tests. The tracked
 two-module specimen passes local public CLI check/build; this workstation lacks the
-required LLVM 22 verifier, so native execution is not claimed locally. Pinned
-Linux/Windows LLVM 22 public workflow exit-84 acceptance is still pending. This is
-candidate evidence only, not accepted public capability or a release claim.
+required LLVM 22 verifier, so native execution is not claimed locally. Candidate-head
+CI `31362774499` and `31362777496`, Rust CI `31362777546`, and CodeQL
+`31362775267` pass on the exact corrected head; stable/nightly Linux and pinned Windows
+LLVM/Clang 22 execute exact native exit 84. Post-merge CI `31362984522`, Rust CI
+`31362984536`, and CodeQL `31362984082` pass on the exact merge. This is bounded public
+acceptance, not a release or general memory-safety/reference/ABI claim.
 
 Milestone 104 `CORE-083` is accepted public at candidate head
 `43e9bfc7d07414737c8978c3fc3621b984a1146d`, implementation commit
@@ -72,14 +79,15 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to publish CORE-084 in one bounded draft PR, synchronize its
-front page to the exact head, require every exact-head workflow including the pinned
-LLVM/Clang 22 Linux/Windows exit-84 lanes, and merge only through protected master after
-the candidate remains green. Public acceptance must then be recorded separately from
-candidate evidence. The four scaling controls remain active: bounded checkpoint PRs,
-deliberate hard-capability progress, proportional/structured evidence administration,
-and periodic composed source-to-native system gates. No new compiler capability may
-stack on an unpublished or red candidate.
+The exact next action is to publish this five-file CORE-084 acceptance record in one
+bounded PR, synchronize PR #10's historical front page to the verified candidate and
+merge, require every exact-head documentation workflow, and merge only through
+protected master while the record remains truthful. Then freeze a separately authorized
+hard capability; positive imports remain deferred until lookup, namespace, visibility,
+collision, cycle, and cache semantics are specified. The four scaling controls remain
+active: bounded checkpoint PRs, deliberate hard-capability progress,
+proportional/structured evidence administration, and periodic composed source-to-native
+system gates. No new compiler capability may stack on a red or unpublished record.
 
 Milestone 102 `CHECKPOINT-001` is accepted public and integrated through the corrected
 solo-maintainer `CHECKPOINT-003` handoff. PR #4 merged the exact frozen head
@@ -786,11 +794,12 @@ composition rather than a module system.
   multi-field enums, exhaustive Match, direct mutable enum loans, alias/reborrow, exact
   checked schema, and post-call owner observation. Its complete compiler gate and
   pinned Linux/Windows native execution pass on the exact candidate and protected merge.
-  The locally green CORE-084 candidate adds a distinct exit-84 direct-module specimen
+  Accepted CORE-084 adds a distinct exit-84 direct-module specimen
   that composes immutable enum owners, multiple aliases, immutable enum-reference
   parameters, repeated exhaustive Match reads, owner preservation, primitive constants,
   compile-time String length, arrays, tuples, and owned enum use. Its complete local
-  compiler gate passes; exact-head public Linux/Windows native evidence remains pending.
+  compiler gate, corrected exact-head Linux/Windows native evidence, protected merge,
+  and all three post-merge workflows pass.
   Local slice tests alone never establish whole-language coherence.
 
 `CORE-041` is accepted public at `a69b7899a3dc05f663b6a68ea307ea37f5f1f401`.

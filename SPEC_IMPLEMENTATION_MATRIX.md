@@ -60,7 +60,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Local immutable Copy-place references | Y | Y | Y | P | P | P | P | P | Y | Y | Y | Y | Y | PARTIAL |
 | Mutable/general references | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mutable whole-place enum references (`CORE-083`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Immutable enum-reference Match reads (`CORE-084` candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Immutable enum-reference Match reads (`CORE-084`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -100,17 +100,19 @@ reference results/escape/storage/capture, projected or partial mutation, enum ag
 storage, generic/named-field/String-payload enums, drop/lifetimes/NLL, stable ABI/FFI,
 and memory-safety claims remain absent; the row therefore remains `PARTIAL`.
 
-Locally green candidate `CORE-084` adds only repeated exhaustive Match reads through
+Accepted public `CORE-084` adds only repeated exhaustive Match reads through
 non-escaping immutable references to initialized immutable direct owners of that same
 admitted enum class. One shared classifier serves semantic analysis and independent
 checked admission; exact owner-place and immutable Match-read identities reach private
 pointer LLVM, and the verifier ties schema, reference provenance, read adjacency, and
 dispatch use together. The focused target is 4/4 and the exact repository-root gate is
-green at 212 library and 32 binary tests. Public exact-head workflows and protected
-merge evidence remain pending. Free enum dereference or transport, mutable-owner loans,
+green at 212 library and 32 binary tests. Bounded PR #10, corrected exact-head CI/Rust
+CI/CodeQL, protected merge `ae0f0901`, all three exact post-merge master workflows, and
+pinned Linux/Windows LLVM 22 native exit 84 pass. Free enum dereference or transport,
+mutable-owner loans,
 mutable-reference reads, reference results/escape/storage/capture, aggregate enum
 storage, unsupported enums, drop/lifetimes/NLL, stable ABI/FFI, and memory-safety claims
-remain absent; the candidate row is `PARTIAL` and is not yet accepted public capability.
+remain absent; the row therefore remains `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact
