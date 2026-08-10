@@ -5,7 +5,8 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; corrective roadmap checkpoint: 2026-08-10
 
 Current accepted compiler-capability master:
-`128205615c53156138c4effa740b61ab455a760f`
+`2bfa75d017e8b13fca3b22c148f11102e39f35bd` (`ROADMAP-001`; no language
+behavior beyond accepted CORE-090)
 
 ## Corrective roadmap checkpoint after CORE-090
 
@@ -18,6 +19,26 @@ merged through protected PR #17 as the master above, and passed post-merge CI
 `31421325338`, Rust CI `31421326818`, and CodeQL `31421323785`. These checkpoints
 remain `PARTIAL`; they do not establish general borrowing, lifetime/drop, memory
 safety, public layout/ABI, or a stable language.
+
+### M1-001 candidate evidence (not accepted master)
+
+The locally green M1-001 candidate now tracks one three-file fixed-size telemetry
+application plus three compile-fail fixtures. It composes direct module collection,
+functions, local primitive constants, control flow, recursive finite CopyData structs/
+arrays/tuples, positional enums and exhaustive `Match`, mutation, whole-place
+references, and static projected writes. Public `check`, verified `build`, and `run`
+produce one computed `telemetry score: 91` line and exit 91. A red-first backend
+correction also keeps every admitted numeric `print!`/`println!` argument as a typed
+LLVM `double` under an explicit variadic `printf` call type; this removes the prior
+Windows raw-`i64` ABI false-success. Local official LLVM/Clang 22.1.8 verification,
+machine verification, and Windows `-O0`/`-O2` exact behavior pass, as do the 3/3
+focused target and complete 218-library/32-binary root gate.
+
+The Milestone 1 rows below intentionally continue to describe accepted master, so
+they remain open/partial until the candidate passes stable/nightly Linux and pinned
+Windows exact-head workflows, protected merge, and post-merge verification. No stable
+grammar, public ABI, general ownership/memory-safety, performance, or release claim
+follows from the candidate.
 
 ### Milestone 0 gap classification
 

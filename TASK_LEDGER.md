@@ -161,6 +161,11 @@
   only expectations were corrected before this uninterrupted green gate. Candidate-
   head workflows, protected merge, and post-merge verification remain pending; none of
   this local evidence is public acceptance.
+- Frozen implementation commit: `a6705709f98b6eee76ecf68a778949c52282bb5b`,
+  tree `ce53892fe952b902985d3fd9644fc69bd18bc7a0`, stable patch ID
+  `6f702defa4ba8dba9d123c6ce249a68cd010126e`. The succeeding candidate-head
+  commit is restricted to the six proportional project-truth updates plus this exact
+  identity amendment; it does not alter compiler, specimen, test, or workflow behavior.
 - Allowed files: this single ledger record; new
   `examples/representative_telemetry/` sources and compile-fail corpus; one new
   `src/compiler/tests/representative_scalar_application_tests.rs` target;

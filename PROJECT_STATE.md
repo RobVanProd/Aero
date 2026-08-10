@@ -31,11 +31,31 @@ borrowing, partial moves, enum/non-Copy subplaces, alias analysis, NLL/lifetime/
 public layout, stable ABI/FFI, accelerators, and general memory-safety claims remain
 excluded.
 
-The current corrective checkpoint is `ROADMAP-001`: synchronize this accepted truth,
-classify the actual Milestone 0/1 gaps and already-performed Milestone 2 work, rank the
-three highest-leverage gaps, and select the shortest credible milestone-exit path
-before any new compiler implementation. The interrupted neighboring projected-borrow
-experiment is quarantined locally and is not part of accepted or candidate behavior.
+`ROADMAP-001` is accepted through bounded protected PR #18 as master
+`2bfa75d017e8b13fca3b22c148f11102e39f35bd`, with candidate tree
+`c66ca823b3f3e5f681c12b99eee86efa7aaa79c5` and green exact post-merge CI
+`31424978028`, Rust CI `31424978021`, and CodeQL `31424975839`. It changed no
+compiler behavior; it selected `M1-001` as the highest-leverage next checkpoint.
+
+`M1-001` is locally green but not yet public acceptance. Its frozen implementation
+commit is `a6705709f98b6eee76ecf68a778949c52282bb5b`, tree
+`ce53892fe952b902985d3fd9644fc69bd18bc7a0`, with stable patch ID
+`6f702defa4ba8dba9d123c6ce249a68cd010126e`. Its candidate introduces the
+tracked three-file representative telemetry application and compile-fail corpus,
+composes the accepted scalar/direct-module/function/control-flow/CopyData/enum/
+reference/projected-write surface, and returns 91 after printing one computed result.
+It also closes one shared CPU-backend false-success: numeric `print!`/`println!`
+arguments remain typed LLVM `double` values and each call spells the explicit
+variadic `printf` callee type, allowing the target backend to satisfy the Windows x64
+vararg ABI. Local public `check`, verified `build`, and `run` pass; official LLVM/
+Clang 22.1.8 verifies the IR and machine instructions, and Windows `-O0`/`-O2`
+executables have identical exact stdout/stderr and exit 91. The focused target passes
+3/3 and the complete root gate passes 218 library tests, 32 binary tests, every
+integration target, formatting, correctness-denying Clippy, and doc tests. Linux and
+Windows public workflow acceptance, protected merge, and post-merge verification are
+still pending. This is a candidate representative subset, not a stable grammar,
+general ABI, ownership/memory-safety, optimizer-performance, or release claim. The
+interrupted neighboring projected-borrow experiment remains quarantined locally.
 
 Milestone 110 `CORE-089` is accepted public at exact candidate head
 `82cec768ec117d18517e5624a9afa012c4fe66c6`, tree
@@ -2517,17 +2537,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish `ROADMAP-001` through one bounded protected documentation PR from accepted
-CORE-090 master. Once its exact-head and post-merge gates are green, start `M1-001`
-from verified master: freeze the smallest authoritative scalar subset already capable
-of supporting a deterministic fixed-size telemetry-policy application, then make that
-one growing application pass source-to-checked-IR verification, LLVM verification,
-object/link/native execution, exact stdout/stderr/exit checks, and optimized versus
-unoptimized equivalence on Linux and Windows. Compose direct modules, functions,
-constants, control flow, structs, fixed arrays/tuples, enums and `Match`, mutation,
-references, and CORE-090 projected writes; do not special-case the program. If its red
-exposes a real shared compiler gap, freeze and close that complete class before retrying
-the application. The quarantined neighboring projected-reference work remains excluded
+Publish the exact green `M1-001` candidate through one bounded protected PR from
+accepted ROADMAP-001 master. Require stable/nightly Linux and pinned Windows LLVM/
+Clang 22.1.8 to prove the representative public `check`/`build`/`run` workflow,
+explicit variadic call contract, independent LLVM/machine verification, and identical
+`-O0`/`-O2` stdout/stderr/exit 91 before merge. After protected merge, synchronize the
+six project-truth surfaces to the exact accepted head before choosing another
+capability. The quarantined neighboring projected-reference work remains excluded
 unless later evidence re-ranks it. Do not publish releases, packages, benchmarks, or
 unsupported claims; rewrite history; force-push; or delete retained integration work.
 

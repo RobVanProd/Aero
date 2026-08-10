@@ -12,8 +12,10 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-The current accepted compiler-capability head is CORE-090 merge
-`128205615c53156138c4effa740b61ab455a760f`. Exact candidate `af68d0e`, all nine
+The current accepted master is ROADMAP-001 merge
+`2bfa75d017e8b13fca3b22c148f11102e39f35bd`; that documentation checkpoint changed
+no language behavior, so CORE-090 remains the latest accepted compiler capability.
+Exact CORE-090 candidate `af68d0e`, all nine
 exact-head checks, protected PR #17, post-merge CI/Rust CI/CodeQL, the full root gate,
 and pinned LLVM/Clang 22.1.8 Linux/Windows native exit 90 pass. CORE-090 adds only
 static projected CopyData assignment; dynamic indexes, projected borrowing, partial
@@ -215,23 +217,24 @@ so 5 means lower risk or lower evidence cost.
 | 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
 | 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
 
-`M1-001` is selected. Before it, Aero has many native micro-specimens but no small
-application certified as one portable and optimization-equivalent workflow. After it,
-a fixed-size telemetry-policy program will compose direct modules, functions,
-constants, control flow, structs, arrays/tuples, enums and `Match`, mutation,
-references, and CORE-090 projected writes with exact stdout/stderr/exit behavior under
-checked IR, independent verification, LLVM verification, object/link/native execution,
-and `-O0`/`-O2` equivalence on Linux and Windows. This application becomes a permanent
-growing integration gate. If its red identifies a shared missing compiler contract,
-that complete blocking class is closed before the application is retried; no
-program-specific compiler exception is permitted.
+`M1-001` is selected and its local candidate is green, but accepted master has not
+moved. The candidate's fixed-size telemetry-policy program composes direct modules,
+functions, constants, control flow, structs, arrays/tuples, enums and `Match`,
+mutation, references, and CORE-090 projected writes. Its red exposed a shared Windows
+variadic-call false-success, closed in the backend by retaining typed LLVM `double`
+arguments and spelling the explicit variadic `printf` call type rather than passing raw
+`i64` bits. Public `check`, verified `build`, and `run`; independent LLVM and machine
+verification; exact local Windows `-O0`/`-O2` stdout/stderr/exit 91; the three-case
+compile-fail corpus; focused 3/3; and the full 218-library/32-binary root gate pass.
 
 Real-program delta: before `M1-001`, users cannot point to any application-shaped Aero
-program covered by an authoritative end-to-end subset contract. After it, they can
-build and run one deterministic multi-file telemetry evaluator through both supported
-CPU platform lanes and both optimization levels. Unspecified semantics, nonportable
-behavior, optimizer divergence, or evidence that a different task closes the milestone
-more safely would change this decision.
+program covered by an authoritative end-to-end subset contract. The candidate now
+supplies that program and its bounded subset, but the delta is not accepted until
+stable/nightly Linux and pinned Windows exact-head workflows, protected merge, and
+post-merge verification pass. The Milestone 1 gap table therefore remains an
+accepted-master view and is not prematurely closed. Unspecified semantics,
+nonportable behavior, optimizer divergence, or evidence that a different task closes
+the milestone more safely would still change this decision.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 
