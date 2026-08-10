@@ -29,8 +29,13 @@ the new general immutable-origin map. Pinned local LLVM/Clang 22.1.8 externally
 verifies, machine-verifies, emits COFF, links, and executes the tracked public and
 independent paths at exact exit 89. The exact repository-root gate passes formatting,
 correctness-denying Clippy, 216 library tests, 32 binary tests, every integration
-target, and doc tests. Public workflows remain pending, so no frozen implementation
-identity or public acceptance is claimed.
+target, and doc tests. Its frozen implementation commit is
+`1ce9ff3db9157dbade2886c6327b092e3c5503f4`, tree
+`70970690a5758dc1020949ca4669c299451adc08`, with stable patch ID
+`b92e829b88dee5ef97b944d6d8c3765ae1665141`. The following identity-only
+amendment changes repository records, not compiler behavior, tests, workflows,
+examples, or the frozen implementation tree. Public workflows remain pending, so no
+public acceptance is claimed.
 Projections, reference results/escape/storage/capture, NLL/lifetime/drop, public layout,
 stable ABI/FFI, accelerators, and general memory-safety claims remain excluded.
 

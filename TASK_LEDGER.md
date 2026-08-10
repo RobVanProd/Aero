@@ -103,7 +103,13 @@
   repository-root `./tools/test.sh` exits 0 after formatting, correctness-denying
   Clippy, 216 library tests, 32 binary tests, every integration target, and doc tests;
   the reversible LF wrapper restores all 105 tracked `.aero` files byte-clean. Public
-  gates remain pending, so no frozen identity or public acceptance is claimed.
+  gates remain pending, so no public acceptance is claimed.
+- Frozen implementation identity: commit
+  `1ce9ff3db9157dbade2886c6327b092e3c5503f4`, tree
+  `70970690a5758dc1020949ca4669c299451adc08`, stable patch ID
+  `b92e829b88dee5ef97b944d6d8c3765ae1665141`. The following identity-only
+  amendment changes this ledger and `PROJECT_STATE.md`; it does not change compiler
+  behavior, tests, workflows, examples, or the frozen implementation tree.
 - Allowed files: this single ledger record; `src/compiler/src/local_reference.rs`,
   `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs`; one focused
   `src/compiler/tests/multiple_mutable_reference_signature_tests.rs`; only narrowly
