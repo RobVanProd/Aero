@@ -18,11 +18,12 @@ use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceCallSourceMode,
     ReferenceFunctionContract, ReferenceFunctionDisposition, ReferencePointeeContext,
-    classify_local_borrow_with_enums, classify_local_dereference,
-    classify_local_reference_annotation_with_enums,
+    classify_immutable_enum_match_dereference, classify_local_borrow_with_enums,
+    classify_local_dereference, classify_local_reference_annotation_with_enums,
     classify_mutable_reference_assignment_with_enums, classify_mutable_reference_binding,
     classify_reference_call_with_enums, classify_reference_function_with_enums,
     classify_reference_pointee_type, reference_call_fact_subject, reference_call_source_mode,
+    validate_immutable_enum_match_result,
 };
 use crate::method_call_contract::{
     IntrinsicMethodDisposition, IntrinsicMethodLowering, IntrinsicMethodPhase,
@@ -119,6 +120,7 @@ enum ExpressionUse {
 #[derive(Clone)]
 struct GeneratedScopeSnapshot {
     bindings: HashMap<String, (Value, Ty)>,
+    immutable_owned_enum_places: HashMap<String, Value>,
     mutable_owned_enum_places: HashMap<String, Value>,
 }
 
@@ -144,6 +146,7 @@ pub struct IrGenerator {
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
     mutable_reference_sources: HashMap<u32, Value>,
+    immutable_owned_enum_places: HashMap<String, Value>,
     mutable_owned_enum_places: HashMap<String, Value>,
     function_return_types: HashMap<String, Ty>,
     copy_function_contracts: HashMap<String, CopyFunctionContract>,
@@ -165,6 +168,7 @@ impl IrGenerator {
             next_ptr: 0,
             symbol_table: HashMap::new(),
             mutable_reference_sources: HashMap::new(),
+            immutable_owned_enum_places: HashMap::new(),
             mutable_owned_enum_places: HashMap::new(),
             function_return_types: HashMap::new(),
             copy_function_contracts: HashMap::new(),
@@ -229,6 +233,7 @@ impl IrGenerator {
         self.next_ptr = 0;
         self.symbol_table.clear();
         self.mutable_reference_sources.clear();
+        self.immutable_owned_enum_places.clear();
         self.mutable_owned_enum_places.clear();
         self.function_return_types.clear();
         self.copy_function_contracts.clear();
@@ -547,6 +552,14 @@ impl IrGenerator {
         matches!(ty, Ty::Enum(_))
             && self
                 .mutable_owned_enum_places
+                .get(name)
+                .is_some_and(|place| place == storage)
+    }
+
+    fn is_immutable_owned_enum_place(&self, name: &str, storage: &Value, ty: &Ty) -> bool {
+        matches!(ty, Ty::Enum(_))
+            && self
+                .immutable_owned_enum_places
                 .get(name)
                 .is_some_and(|place| place == storage)
     }
@@ -2515,14 +2528,43 @@ impl IrGenerator {
                 Ok(Ty::Struct(resolved.contract.name))
             }
             Expression::Match { expr, arms } => {
-                let scrutinee = Self::validate_expression(
-                    expr,
-                    bindings,
-                    program,
-                    ExpressionUse::Value,
-                    inside_impl,
-                    admit_static_string_equality,
-                )?;
+                let scrutinee = if let Expression::Deref(reference) = expr.as_ref() {
+                    let operand = Self::validate_expression(
+                        reference,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?;
+                    match classify_immutable_enum_match_dereference(
+                        reference,
+                        &operand,
+                        &program.enums,
+                    ) {
+                        LocalReferenceDisposition::Supported(contract) => contract.pointee,
+                        LocalReferenceDisposition::ExplicitlyRejected(message) => {
+                            return Err(admission_error(&message));
+                        }
+                        LocalReferenceDisposition::Preserved => Self::validate_expression(
+                            expr,
+                            bindings,
+                            program,
+                            ExpressionUse::Value,
+                            inside_impl,
+                            admit_static_string_equality,
+                        )?,
+                    }
+                } else {
+                    Self::validate_expression(
+                        expr,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?
+                };
                 let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) {
                     EnumExecutionContext::AdmittedFunction
                 } else {
@@ -2586,7 +2628,7 @@ impl IrGenerator {
                         },
                     )
                     .map_err(|error| admission_error(&error.diagnostic()))?;
-                program
+                let result = program
                     .enums
                     .resolve_match_with_consumed(
                         &scrutinee,
@@ -2611,7 +2653,10 @@ impl IrGenerator {
                         context,
                     )
                     .map(|resolved| resolved.result_contract.ty())
-                    .map_err(|error| admission_error(&error.diagnostic()))
+                    .map_err(|error| admission_error(&error.diagnostic()))?;
+                validate_immutable_enum_match_result(expr, &result, &program.structs)
+                    .map_err(|message| admission_error(&message))?;
+                Ok(result)
             }
             Expression::TupleLiteral(elements) => {
                 let context = if bindings.contains_key(STRUCT_ADMISSION_BINDING) && !inside_impl {
@@ -2847,6 +2892,10 @@ impl IrGenerator {
                     result: Value::Reg(register),
                     ..
                 }
+                | Inst::CheckedImmutableEnumOwnerPlaceAlloca {
+                    result: Value::Reg(register),
+                    ..
+                }
                 | Inst::CheckedMatchResultPlaceAlloca {
                     result: Value::Reg(register),
                     ..
@@ -2926,6 +2975,9 @@ impl IrGenerator {
                 Inst::CheckedMutableOwnedPlaceAlloca { result, .. } => {
                     Self::rewrite_place(result, &places)
                 }
+                Inst::CheckedImmutableEnumOwnerPlaceAlloca { result, .. } => {
+                    Self::rewrite_place(result, &places)
+                }
                 Inst::CheckedMatchResultPlaceAlloca { result, .. } => {
                     Self::rewrite_place(result, &places)
                 }
@@ -2957,6 +3009,9 @@ impl IrGenerator {
                 Inst::CheckedImmutableBorrow { result, source, .. } => {
                     Self::rewrite_place(result, &places);
                     Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedImmutableEnumMatchRead { reference, .. } => {
+                    Self::rewrite_place(reference, &places)
                 }
                 Inst::CheckedMutableBorrow { result, source, .. } => {
                     Self::rewrite_place(result, &places);
@@ -3035,7 +3090,8 @@ impl IrGenerator {
             | Inst::CheckedEnumVariant { result, .. }
             | Inst::CheckedEnumVariantFields { result, .. }
             | Inst::CheckedEnumPayload { result, .. }
-            | Inst::CheckedEnumField { result, .. } => Some(result),
+            | Inst::CheckedEnumField { result, .. }
+            | Inst::CheckedImmutableEnumMatchRead { result, .. } => Some(result),
             Inst::Call {
                 result: Some(result),
                 ..
@@ -3069,8 +3125,38 @@ impl IrGenerator {
         arms: Vec<crate::ast::MatchArm>,
         function: &mut Function,
     ) -> (Value, Ty) {
-        let (scrutinee, scrutinee_ty) =
-            self.generate_expression_ir(scrutinee_expression.clone(), function);
+        let (scrutinee, scrutinee_ty) = if let Expression::Deref(reference) = &scrutinee_expression
+        {
+            let (place, operand) =
+                self.generate_expression_ir(reference.as_ref().clone(), function);
+            match classify_immutable_enum_match_dereference(
+                reference,
+                &operand,
+                &self.enum_registry,
+            ) {
+                LocalReferenceDisposition::Supported(contract) => {
+                    let LogicalType::Enum { name, variants } = contract.logical_pointee else {
+                        unreachable!("checked immutable enum Match read has an enum schema")
+                    };
+                    let result = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(Inst::CheckedImmutableEnumMatchRead {
+                        result: result.clone(),
+                        reference: place,
+                        schema: EnumSchema { name, variants },
+                    });
+                    (result, contract.pointee)
+                }
+                LocalReferenceDisposition::ExplicitlyRejected(message) => {
+                    unreachable!("checked immutable enum Match admission escaped: {message}")
+                }
+                LocalReferenceDisposition::Preserved => {
+                    self.generate_expression_ir(scrutinee_expression.clone(), function)
+                }
+            }
+        } else {
+            self.generate_expression_ir(scrutinee_expression.clone(), function)
+        };
         let resolved = self
             .enum_registry
             .resolve_match_patterns(
@@ -3150,6 +3236,7 @@ impl IrGenerator {
                     function.body.push(Inst::Store(place.clone(), payload));
                     place
                 };
+                self.immutable_owned_enum_places.remove(&binding.name);
                 self.mutable_owned_enum_places.remove(&binding.name);
                 self.symbol_table.insert(binding.name, (place, binding.ty));
             }
@@ -3189,12 +3276,15 @@ impl IrGenerator {
     fn scope_snapshot(&self) -> GeneratedScopeSnapshot {
         GeneratedScopeSnapshot {
             bindings: self.symbol_table.clone(),
+            immutable_owned_enum_places: self.immutable_owned_enum_places.clone(),
             mutable_owned_enum_places: self.mutable_owned_enum_places.clone(),
         }
     }
 
     fn restore_bindings(&mut self, before_scope: &GeneratedScopeSnapshot) {
         self.symbol_table.clone_from(&before_scope.bindings);
+        self.immutable_owned_enum_places
+            .clone_from(&before_scope.immutable_owned_enum_places);
         self.mutable_owned_enum_places
             .clone_from(&before_scope.mutable_owned_enum_places);
     }
@@ -3514,8 +3604,35 @@ impl IrGenerator {
                         &self.enum_registry,
                     )
                     .is_ok();
+                self.immutable_owned_enum_places.remove(&name);
                 self.mutable_owned_enum_places.remove(&name);
-                if mutable_owned_place {
+                if self.checked_mode && !mutable && matches!(expr_type, Ty::Enum(_)) {
+                    let LogicalType::Enum {
+                        name: enum_name,
+                        variants,
+                    } = self.admitted_owned_place_logical_type(&expr_type)
+                    else {
+                        unreachable!("checked immutable enum binding has an exact schema")
+                    };
+                    let storage = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    current_function
+                        .body
+                        .push(Inst::CheckedImmutableEnumOwnerPlaceAlloca {
+                            result: storage.clone(),
+                            name: name.clone(),
+                            schema: EnumSchema {
+                                name: enum_name,
+                                variants,
+                            },
+                        });
+                    current_function
+                        .body
+                        .push(Inst::Store(storage.clone(), expr_value));
+                    self.immutable_owned_enum_places
+                        .insert(name.clone(), storage.clone());
+                    self.symbol_table.insert(name, (storage, expr_type));
+                } else if mutable_owned_place {
                     let initial = if matches!(expr_type, Ty::Enum(_)) {
                         expr_value
                     } else {
@@ -3769,7 +3886,9 @@ impl IrGenerator {
                     .get(&name)
                     .expect("Undeclared variable")
                     .clone();
-                if self.is_mutable_owned_enum_place(&name, &storage, &var_type) {
+                if self.is_immutable_owned_enum_place(&name, &storage, &var_type)
+                    || self.is_mutable_owned_enum_place(&name, &storage, &var_type)
+                {
                     let result = Value::Reg(self.next_reg);
                     self.next_reg += 1;
                     function.body.push(Inst::Load(result.clone(), storage));
@@ -4493,6 +4612,7 @@ impl IrGenerator {
         // Save current state
         let saved_symbol_table = self.symbol_table.clone();
         let saved_mutable_reference_sources = self.mutable_reference_sources.clone();
+        let saved_immutable_owned_enum_places = self.immutable_owned_enum_places.clone();
         let saved_mutable_owned_enum_places = self.mutable_owned_enum_places.clone();
         let saved_next_reg = self.next_reg;
         let saved_next_ptr = self.next_ptr;
@@ -4500,6 +4620,7 @@ impl IrGenerator {
         // Reset for function generation
         self.symbol_table.clear();
         self.mutable_reference_sources.clear();
+        self.immutable_owned_enum_places.clear();
         self.mutable_owned_enum_places.clear();
         self.next_reg = 0;
         self.next_ptr = 0;
@@ -4700,6 +4821,7 @@ impl IrGenerator {
         // Restore state
         self.symbol_table = saved_symbol_table;
         self.mutable_reference_sources = saved_mutable_reference_sources;
+        self.immutable_owned_enum_places = saved_immutable_owned_enum_places;
         self.mutable_owned_enum_places = saved_mutable_owned_enum_places;
         self.next_reg = saved_next_reg;
         self.next_ptr = saved_next_ptr;

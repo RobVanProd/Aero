@@ -380,9 +380,9 @@ fn immutable_scalar_reference_parameter_class_is_complete_checked_and_executable
             "admitted Copy-data",
         ),
         (
-            "enum reference parameter",
-            "enum Value { One } fn read(value: &Value) -> int { 0 } fn main() -> int { 0 }",
-            "immutable enum reference pointee",
+            "free enum reference dereference",
+            "enum Value { One } fn read(value: &Value) -> Value { *value } fn main() -> int { 0 }",
+            "not admitted Copy-data",
         ),
         (
             "nested reference parameter",

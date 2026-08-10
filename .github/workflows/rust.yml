@@ -1012,6 +1012,34 @@ jobs:
         fi
         echo "mutable enum reference example passed with exit code 83"
 
+    - name: Test immutable enum reference integration example
+      shell: bash
+      run: |
+        cd src/compiler
+        cargo run -- check ../../examples/immutable_enum_references/main.aero
+        set +e
+        cargo run -- run ../../examples/immutable_enum_references/main.aero
+        public_run_exit=$?
+        set -e
+        if [ $public_run_exit -ne 84 ]; then
+          echo "Expected public immutable enum reference run exit code 84, got $public_run_exit"
+          exit 1
+        fi
+        cargo run -- build ../../examples/immutable_enum_references/main.aero -o ../../immutable_enum_references.ll
+        opt-22 -passes=verify -disable-output ../../immutable_enum_references.ll
+        llc-22 -verify-machineinstrs ../../immutable_enum_references.ll -o /dev/null
+        llc-22 -filetype=obj ../../immutable_enum_references.ll -o ../../immutable_enum_references.o
+        clang-22 -no-pie ../../immutable_enum_references.o -o ../../immutable_enum_references
+        set +e
+        ../../immutable_enum_references
+        immutable_enum_reference_exit_code=$?
+        set -e
+        if [ $immutable_enum_reference_exit_code -ne 84 ]; then
+          echo "Expected immutable enum reference exit code 84, got $immutable_enum_reference_exit_code"
+          exit 1
+        fi
+        echo "immutable enum reference example passed with exit code 84"
+
     - name: Run tests
       run: cargo test --verbose
       working-directory: src/compiler
@@ -1350,6 +1378,59 @@ jobs:
           throw "Windows mutable enum reference manual native execution returned $manualExit, expected 83"
         }
         Write-Host "Windows mutable enum reference manual native execution passed with exit code 83"
+        $global:LASTEXITCODE = 0
+
+    - name: Test Windows immutable enum reference system specimen
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $example = "examples/immutable_enum_references/main.aero"
+        $enumReferenceLlvmPath = Join-Path $env:RUNNER_TEMP "immutable_enum_references.windows.ll"
+        $enumReferenceMachinePath = Join-Path $env:RUNNER_TEMP "immutable_enum_references.windows.s"
+        $enumReferenceObjectPath = Join-Path $env:RUNNER_TEMP "immutable_enum_references.windows.obj"
+        $enumReferenceExecutablePath = Join-Path $env:RUNNER_TEMP "immutable_enum_references.windows.exe"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- check $example
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows immutable enum reference public check failed with exit code $LASTEXITCODE"
+        }
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- build $example -o $enumReferenceLlvmPath --require-llvm-verifier
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $enumReferenceLlvmPath)) {
+          throw "Windows immutable enum reference public build failed or omitted its LLVM artifact"
+        }
+
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $enumReferenceLlvmPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows immutable enum reference opt verification failed with exit code $LASTEXITCODE"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $enumReferenceLlvmPath -o $enumReferenceMachinePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $enumReferenceMachinePath)) {
+          throw "Windows immutable enum reference machine verification failed or omitted assembly"
+        }
+        & "$llvmBin\llc.exe" -filetype=obj $enumReferenceLlvmPath -o $enumReferenceObjectPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $enumReferenceObjectPath)) {
+          throw "Windows immutable enum reference object generation failed or omitted its COFF object"
+        }
+        & "$llvmBin\clang.exe" $enumReferenceObjectPath -o $enumReferenceExecutablePath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $enumReferenceExecutablePath)) {
+          throw "Windows immutable enum reference Clang/MSVC link failed or omitted its executable"
+        }
+
+        cargo run --locked --manifest-path src/compiler/Cargo.toml -- run $example
+        $publicRunExit = $LASTEXITCODE
+        if ($publicRunExit -ne 84) {
+          throw "Windows immutable enum reference public run returned $publicRunExit, expected 84"
+        }
+        Write-Host "Windows immutable enum reference public run passed with exit code 84"
+
+        & $enumReferenceExecutablePath
+        $manualExit = $LASTEXITCODE
+        if ($manualExit -ne 84) {
+          throw "Windows immutable enum reference manual native execution returned $manualExit, expected 84"
+        }
+        Write-Host "Windows immutable enum reference manual native execution passed with exit code 84"
         $global:LASTEXITCODE = 0
 
 

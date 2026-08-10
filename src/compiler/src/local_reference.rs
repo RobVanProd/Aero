@@ -71,17 +71,11 @@ pub(crate) fn classify_reference_pointee_annotation(
     enums: &EnumRegistry,
 ) -> Result<ReferenceTransportTypeContract, String> {
     match enums.reference_annotation_type(annotation) {
-        Ok(Some(contract)) if context == ReferencePointeeContext::Mutable => {
+        Ok(Some(contract)) => {
             return Ok(ReferenceTransportTypeContract {
                 ty: contract.ty,
                 logical_type: contract.logical_type,
             });
-        }
-        Ok(Some(contract)) => {
-            return Err(format!(
-                "immutable enum reference pointee `{}` is not admitted; CORE-083 permits only non-escaping mutable whole-place enum replacement",
-                contract.ty
-            ));
         }
         Err(error) => return Err(error.diagnostic()),
         Ok(None) => {}
@@ -107,17 +101,11 @@ pub(crate) fn classify_reference_pointee_type(
     enums: &EnumRegistry,
 ) -> Result<ReferenceTransportTypeContract, String> {
     match enums.reference_pointee_type(ty) {
-        Ok(Some(contract)) if context == ReferencePointeeContext::Mutable => {
+        Ok(Some(contract)) => {
             return Ok(ReferenceTransportTypeContract {
                 ty: contract.ty,
                 logical_type: contract.logical_type,
             });
-        }
-        Ok(Some(contract)) => {
-            return Err(format!(
-                "immutable enum reference pointee `{}` is not admitted; CORE-083 permits only non-escaping mutable whole-place enum replacement",
-                contract.ty
-            ));
         }
         Err(error) => return Err(error.diagnostic()),
         Ok(None) => {}
@@ -599,6 +587,11 @@ pub(crate) fn classify_local_borrow_with_enums(
             return LocalReferenceDisposition::ExplicitlyRejected(message);
         }
     };
+    if !mutable && matches!(contract.pointee, Ty::Enum(_)) && facts.mutable {
+        return LocalReferenceDisposition::ExplicitlyRejected(format!(
+            "immutable enum borrow source `{name}` must not be declared mutable; mutable-owner loan lifetimes are not admitted"
+        ));
+    }
     if mutable && !facts.mutable {
         return LocalReferenceDisposition::ExplicitlyRejected(format!(
             "mutable borrow source `{name}` must be declared mutable"
@@ -667,6 +660,59 @@ pub(crate) fn classify_local_dereference(
         },
         _ => LocalReferenceDisposition::ExplicitlyRejected(
             "cannot dereference a non-reference value".to_string(),
+        ),
+    }
+}
+
+pub(crate) fn classify_immutable_enum_match_dereference(
+    reference: &Expression,
+    operand: &Ty,
+    enums: &EnumRegistry,
+) -> LocalReferenceDisposition {
+    let Expression::Identifier(name) = reference else {
+        return LocalReferenceDisposition::ExplicitlyRejected(
+            "immutable enum Match dereference requires an identifier reference".to_string(),
+        );
+    };
+    let Ty::Reference(pointee, mutable) = operand else {
+        return LocalReferenceDisposition::Preserved;
+    };
+    let enum_contract = match enums.reference_pointee_type(pointee) {
+        Ok(Some(contract)) => contract,
+        Ok(None) => return LocalReferenceDisposition::Preserved,
+        Err(error) => {
+            return LocalReferenceDisposition::ExplicitlyRejected(error.diagnostic());
+        }
+    };
+    if *mutable {
+        return LocalReferenceDisposition::ExplicitlyRejected(format!(
+            "Match through mutable enum reference `{name}` is not admitted; CORE-084 reads only immutable enum references"
+        ));
+    }
+    LocalReferenceDisposition::Supported(LocalReferenceContract {
+        pointee: enum_contract.ty,
+        logical_pointee: enum_contract.logical_type,
+        mutable: false,
+    })
+}
+
+pub(crate) fn validate_immutable_enum_match_result(
+    scrutinee: &Expression,
+    result: &Ty,
+    structs: &StructRegistry,
+) -> Result<(), String> {
+    if !matches!(scrutinee, Expression::Deref(_)) || matches!(result, Ty::Void) {
+        return Ok(());
+    }
+    match classify_copy_place_type(
+        result,
+        structs,
+        CopyPlaceExecutionContext::AdmittedImmutableReference,
+    ) {
+        CopyPlaceDisposition::Supported(_) => Ok(()),
+        CopyPlaceDisposition::ExplicitlyRejected(_) | CopyPlaceDisposition::Preserved => Err(
+            "immutable enum Match through a reference must produce admitted Copy-data or Void"
+                .to_string(),
         ),
     }
 }
@@ -858,7 +904,7 @@ mod tests {
     }
 
     #[test]
-    fn shared_pointee_classifier_admits_exact_mutable_enums_without_broadening_reads() {
+    fn shared_pointee_classifier_admits_exact_enum_reference_transport() {
         let structs = StructRegistry::default();
         let enums = enum_registry();
         let expected_logical = LogicalType::Enum {
@@ -875,35 +921,30 @@ mod tests {
             ],
         };
 
-        for contract in [
-            classify_reference_pointee_annotation(
-                &Type::Named("State".to_string()),
-                ReferencePointeeContext::Mutable,
-                &structs,
-                &enums,
-            )
-            .expect("admitted enum annotation"),
-            classify_reference_pointee_type(
-                &Ty::Enum("State".to_string()),
-                ReferencePointeeContext::Mutable,
-                &structs,
-                &enums,
-            )
-            .expect("admitted enum type"),
-        ] {
-            assert_eq!(contract.ty, Ty::Enum("State".to_string()));
-            assert_eq!(contract.logical_type, expected_logical);
-        }
-
-        let immutable = classify_reference_pointee_annotation(
-            &Type::Named("State".to_string()),
+        for context in [
             ReferencePointeeContext::Immutable,
-            &structs,
-            &enums,
-        )
-        .expect_err("enum reads through references remain excluded");
-        assert!(immutable.contains("immutable enum reference pointee"));
-        assert!(immutable.contains("whole-place enum replacement"));
+            ReferencePointeeContext::Mutable,
+        ] {
+            for contract in [
+                classify_reference_pointee_annotation(
+                    &Type::Named("State".to_string()),
+                    context,
+                    &structs,
+                    &enums,
+                )
+                .expect("admitted enum annotation"),
+                classify_reference_pointee_type(
+                    &Ty::Enum("State".to_string()),
+                    context,
+                    &structs,
+                    &enums,
+                )
+                .expect("admitted enum type"),
+            ] {
+                assert_eq!(contract.ty, Ty::Enum("State".to_string()));
+                assert_eq!(contract.logical_type, expected_logical);
+            }
+        }
 
         for context in [
             ReferencePointeeContext::Immutable,

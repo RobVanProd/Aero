@@ -347,9 +347,9 @@ fn conditional_enum_ownership_class_is_complete_checked_and_executable() {
             vec!["Use of moved value", "moved value"],
         ),
         (
-            "enum borrowing remains excluded",
-            "enum E { A } fn main() { let value = E::A; if 1 < 2 { return; } let alias = &value; }",
-            vec!["not admitted Copy-data", "reference"],
+            "mutable enum owner immutable borrowing remains excluded",
+            "enum E { A } fn main() { let mut value = E::A; if 1 < 2 { return; } let alias = &value; }",
+            vec!["mutable-owner loan lifetimes"],
         ),
         (
             "enum field storage remains excluded",

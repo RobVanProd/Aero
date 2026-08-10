@@ -286,9 +286,12 @@ fn owned_enum_reassignment_class_is_complete_checked_and_executable() {
             vec!["moved"],
         ),
         (
-            "enum borrow remains excluded",
+            "mutable enum owner immutable loan remains excluded",
             "enum E { A } fn main() { let mut value = E::A; let alias = &value; value = E::A; }",
-            vec!["not admitted Copy-data", "reference"],
+            vec![
+                "immutable enum borrow source",
+                "mutable-owner loan lifetimes",
+            ],
         ),
         (
             "enum field storage remains excluded",

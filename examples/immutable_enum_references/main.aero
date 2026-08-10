@@ -1,0 +1,34 @@
+mod observations;
+
+enum Mode { Off, On }
+enum Signal { Empty, Count(int) }
+enum Packet { Empty, Pair(int, bool) }
+
+fn owned_packet_score(value: Packet) -> int {
+    match value {
+        Packet::Empty => 0,
+        Packet::Pair(number, ready) => number
+    }
+}
+
+fn main() -> int {
+    const OFFSET: int = 3;
+    let mode = Mode::On;
+    let signal = Signal::Count(5);
+    let packet = Packet::Pair(20, 1 < 2);
+    let mut borrowed = 0;
+
+    {
+        let mode_ref: &Mode = &mode;
+        let signal_ref: &Signal = &signal;
+        let first = &packet;
+        let second = &packet;
+        borrowed = read_mode(mode_ref) + read_signal(signal_ref)
+            + read_packet_twice(first, second);
+    }
+
+    let values = [3, 4];
+    let pair = (2, 1);
+    borrowed + owned_packet_score(packet) + values[0] + values[1]
+        + pair.0 + pair.1 + "Aero".len() + OFFSET
+}

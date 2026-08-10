@@ -367,9 +367,9 @@ fn fresh_loop_local_enum_ownership_class_is_complete_checked_and_executable() {
             vec!["moved value `fresh`", "Use of moved value"],
         ),
         (
-            "enum borrowing remains excluded",
-            "enum E { A } fn main() { while 1 < 2 { let fresh = E::A; let alias = &fresh; break; } }",
-            vec!["not admitted Copy-data", "reference"],
+            "mutable enum owner immutable borrowing remains excluded",
+            "enum E { A } fn main() { while 1 < 2 { let mut fresh = E::A; let alias = &fresh; break; } }",
+            vec!["mutable-owner loan lifetimes"],
         ),
         (
             "enum array storage remains excluded",

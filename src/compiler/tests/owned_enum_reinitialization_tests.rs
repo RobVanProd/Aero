@@ -431,9 +431,12 @@ fn acyclic_owned_enum_reinitialization_is_complete_checked_and_executable() {
             vec!["moved value `value`", "Use of moved value"],
         ),
         (
-            "borrowed enum remains excluded",
+            "mutable enum owner immutable loan remains excluded",
             "enum E { A } fn main() { let mut value = E::A; let alias = &value; value = E::A; }",
-            vec!["not admitted Copy-data", "reference"],
+            vec![
+                "immutable enum borrow source",
+                "mutable-owner loan lifetimes",
+            ],
         ),
         (
             "while backedge without reinitialization",

@@ -398,6 +398,7 @@ impl CodeGenerator {
                 }
                 Inst::Alloca(ptr, _)
                 | Inst::CheckedMutableOwnedPlaceAlloca { result: ptr, .. }
+                | Inst::CheckedImmutableEnumOwnerPlaceAlloca { result: ptr, .. }
                 | Inst::CheckedMatchResultPlaceAlloca { result: ptr, .. }
                 | Inst::AllocaArray { result: ptr, .. }
                 | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
@@ -407,6 +408,12 @@ impl CodeGenerator {
                 | Inst::CheckedMutableBorrow { result, source, .. } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedImmutableEnumMatchRead {
+                    result, reference, ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, reference);
                 }
                 Inst::CheckedMutableBorrowEnd {
                     reference, source, ..
@@ -826,6 +833,7 @@ impl CodeGenerator {
                 | Inst::FDiv(..)
                 | Inst::Alloca(..)
                 | Inst::CheckedMutableOwnedPlaceAlloca { .. }
+                | Inst::CheckedImmutableEnumOwnerPlaceAlloca { .. }
                 | Inst::CheckedMatchResultPlaceAlloca { .. }
                 | Inst::CheckedOwnedPlaceAssignment { .. }
                 | Inst::CheckedMutableDereferenceAssignment { .. }
@@ -855,6 +863,7 @@ impl CodeGenerator {
                 | Inst::CheckedTupleAlloca { .. }
                 | Inst::CheckedTupleFieldPtr { .. }
                 | Inst::CheckedImmutableBorrow { .. }
+                | Inst::CheckedImmutableEnumMatchRead { .. }
                 | Inst::CheckedMutableBorrow { .. }
                 | Inst::CheckedMutableBorrowEnd { .. }
                 | Inst::CheckedImmutableReferenceParameter { .. }
@@ -1217,6 +1226,13 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!(
                         "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
                     ));
+                }
+                Inst::CheckedImmutableEnumOwnerPlaceAlloca { result, schema, .. } => {
+                    let Value::Reg(ptr_id) = result else {
+                        panic!("Expected register for checked immutable enum owner alloca")
+                    };
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca {enum_type}, align 8\n"));
                 }
                 Inst::CheckedMatchResultPlaceAlloca {
                     result,
@@ -1865,6 +1881,22 @@ impl CodeGenerator {
                     let pointee = Self::reference_pointee_to_llvm(pointee);
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = getelementptr inbounds {pointee}, {pointee}* %ptr{source}, i64 0\n"
+                    ));
+                }
+                Inst::CheckedImmutableEnumMatchRead {
+                    result,
+                    reference,
+                    schema,
+                } => {
+                    let Value::Reg(result) = result else {
+                        panic!("Expected register for checked immutable enum Match read")
+                    };
+                    let Value::Reg(reference) = reference else {
+                        panic!("Expected reference place for checked immutable enum Match read")
+                    };
+                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = load {enum_type}, {enum_type}* %ptr{reference}, align 8\n"
                     ));
                 }
                 Inst::CheckedImmutableReferenceParameter {
