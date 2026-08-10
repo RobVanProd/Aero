@@ -4,36 +4,38 @@ Last updated: 2026-08-10 (America/New_York)
 
 ## Current objective
 
-Milestone 111 `CORE-090` is a local working candidate on branch
-`agent/core-090-projected-copydata-assignment`, based on accepted,
-post-merge-verified master `7fbaaaa4e26e50edd667771f6bce268e2429043e`, tree
-`e2f0da6ffd591a6ee22cf6585e48159d914cfd81`. One shared classifier now closes the
-complete statically addressed projected CopyData assignment class: an initialized,
-mutable, owned direct local CopyData root may be followed by any nonempty finite mix
-of declared struct fields, tuple constants, and nonnegative in-range integer-literal
-fixed-array indexes, and the exact CopyData leaf may be replaced by an exact-type RHS.
-Semantic analysis, semantic-independent checked admission, and lowering consume that
-single contract. Existing typed projection identities plus `CheckedOwnedPlaceAssignment`
-carry the result; the independent verifier reconstructs the projection root and
-requires a typed mutable owner before admitting the leaf write.
-
-The focused executable target passes 1/1 across direct and arbitrarily mixed paths,
-scalar and aggregate leaves, calls and Match RHS values, branch/loop writes, post-loan
-reuse, all frozen negative neighbors, direct modules, CLI artifact hygiene, and public
-workflow anchors. Shared classifier and verifier corruption controls pass 2/2. The
-affected CopyData/assignment/reference ring passes 15/15, and the Windows workflow
-contract passes 1/1. Pinned local LLVM/Clang 22.1.8 externally verifies,
-machine-verifies, emits COFF, links, and executes the tracked module specimen at exact
-exit 90. The repository-root gate passes formatting, correctness-denying Clippy, 218
-library tests, 32 binary tests, every integration target, and doc tests. Its frozen
-implementation commit is `ca00cdb70fc0a1940fa94126c49774b99d03c515`, tree
+Milestone 111 `CORE-090` is accepted public at exact candidate head
+`af68d0e842ed2973087d2e3c78d2a19546e29ff7`, tree
+`8455a06a4473a826ef1ea180e291e2ddb790bed0`. Its frozen implementation commit is
+`ca00cdb70fc0a1940fa94126c49774b99d03c515`, tree
 `701b2d9a6a371fdfba8a6e11ff34c44f023731df`, with stable patch ID
-`623c295190227eda07712cad34a36ec81c2e43c7`. The following identity-only amendment
-changes repository records, not compiler behavior, tests, workflows, examples, or the
-frozen implementation tree. Public workflows remain pending, so no public acceptance
-is claimed. Dynamic/computed target indexes, projected borrowing, partial moves,
-enum/non-Copy subplaces, alias analysis, NLL/lifetime/drop, public layout, stable
-ABI/FFI, accelerators, and general memory-safety claims remain excluded.
+`623c295190227eda07712cad34a36ec81c2e43c7`. Bounded PR #17 passed all nine
+exact-head checks and merged through protected master as
+`128205615c53156138c4effa740b61ab455a760f`, with the exact candidate tree and
+ordered parents prior master `7fbaaaa4e26e50edd667771f6bce268e2429043e`
+then the candidate. Post-merge CI `31421325338`, Rust CI `31421326818`, and
+CodeQL `31421323785` pass on that exact merge.
+
+The accepted class closes statically addressed projected CopyData assignment: an
+initialized mutable owned direct-local CopyData root may be followed by any nonempty
+finite mix of declared struct fields, tuple constants, and nonnegative in-range
+integer-literal fixed-array indexes, and the exact CopyData leaf may be replaced by an
+exact-type RHS. Semantic analysis, semantic-independent checked admission, and
+lowering consume one shared contract; independent verification reconstructs the
+projection root and requires a typed mutable owner before admitting the leaf write.
+Focused execution passes 1/1, classifier and verifier corruption controls pass 2/2,
+the affected ring passes 15/15, the root gate passes 218 library and 32 binary tests
+plus every integration/doc target, and pinned LLVM/Clang 22.1.8 executes exact native
+exit 90 on Linux and Windows public lanes. Dynamic/computed target indexes, projected
+borrowing, partial moves, enum/non-Copy subplaces, alias analysis, NLL/lifetime/drop,
+public layout, stable ABI/FFI, accelerators, and general memory-safety claims remain
+excluded.
+
+The current corrective checkpoint is `ROADMAP-001`: synchronize this accepted truth,
+classify the actual Milestone 0/1 gaps and already-performed Milestone 2 work, rank the
+three highest-leverage gaps, and select the shortest credible milestone-exit path
+before any new compiler implementation. The interrupted neighboring projected-borrow
+experiment is quarantined locally and is not part of accepted or candidate behavior.
 
 Milestone 110 `CORE-089` is accepted public at exact candidate head
 `82cec768ec117d18517e5624a9afa012c4fe66c6`, tree
@@ -196,14 +198,13 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to publish CORE-090 in one bounded PR, require every
-exact-head public workflow and pinned LLVM 22 gate, and merge only through protected
-master while the record remains truthful.
-Positive imports remain deferred until lookup, namespace, visibility, collision, cycle,
-and cache semantics are specified. The four scaling controls remain active: bounded
-checkpoint PRs, deliberate hard-capability progress, proportional/structured evidence
-administration, and periodic composed source-to-native system gates. No new compiler
-capability may stack on a red or unpublished record.
+The governing next-task rule is now project-level payoff, not adjacent topology. The
+roadmap checkpoint below selects a representative scalar conformance application as
+the shortest credible Milestone 1 path; positive imports remain a high-leverage later
+candidate only after lookup, namespace, visibility, collision, cycle, and cache
+semantics are frozen. Bounded checkpoint PRs, deliberate hard-capability progress,
+proportional evidence, and periodic composed source-to-native system gates remain
+active. No new compiler capability may stack on a red or unpublished record.
 
 Milestone 102 `CHECKPOINT-001` is accepted public and integrated through the corrected
 solo-maintainer `CHECKPOINT-003` handoff. PR #4 merged the exact frozen head
@@ -2516,14 +2517,19 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish the proportional CHECKPOINT-002/003 control record through one small protected
-PR, then start the successor compiler branch from verified `master`. Select one already
-specified positive vertical slice that adds an end-to-end executable capability; do not
-repeat closed-class audits, split a class by syntax shape, duplicate phase guards, or
-recreate a mega-PR. Keep structured evidence-manifest generation, hard ownership/module/
-runtime/ABI work, real accelerator execution, and periodic composed system gates active
-as scaling controls. Do not publish releases/packages/benchmarks/unsupported claims,
-rewrite history, force-push, or delete the retained integration branch.
+Publish `ROADMAP-001` through one bounded protected documentation PR from accepted
+CORE-090 master. Once its exact-head and post-merge gates are green, start `M1-001`
+from verified master: freeze the smallest authoritative scalar subset already capable
+of supporting a deterministic fixed-size telemetry-policy application, then make that
+one growing application pass source-to-checked-IR verification, LLVM verification,
+object/link/native execution, exact stdout/stderr/exit checks, and optimized versus
+unoptimized equivalence on Linux and Windows. Compose direct modules, functions,
+constants, control flow, structs, fixed arrays/tuples, enums and `Match`, mutation,
+references, and CORE-090 projected writes; do not special-case the program. If its red
+exposes a real shared compiler gap, freeze and close that complete class before retrying
+the application. The quarantined neighboring projected-reference work remains excluded
+unless later evidence re-ranks it. Do not publish releases, packages, benchmarks, or
+unsupported claims; rewrite history; force-push; or delete retained integration work.
 
 ## Unauthorized actions
 

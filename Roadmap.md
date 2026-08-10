@@ -1,6 +1,6 @@
 # Aero Development Roadmap
 
-Last updated: 2026-08-06 (America/New_York)
+Last updated: 2026-08-10 (America/New_York)
 
 This roadmap translates Aero's founding Design -> Minimal Prototype -> Self-Host
 -> Stabilize -> Optimize path into evidence-gated engineering milestones. A
@@ -12,12 +12,15 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-Accepted public `CORE-082` is a bounded Milestone 1 slice: exact primitive
-`const` declarations are evaluated through one shared closed-expression contract and
-substituted before checked IR. The full local gate, all nine exact-head checks,
-protected merge and post-merge workflows, and pinned LLVM/Clang 22.1.8 native exit-81
-system proof pass. No general CTFE, constant storage, aggregate constant, module
-lookup, layout, or ABI work is included.
+The current accepted compiler-capability head is CORE-090 merge
+`128205615c53156138c4effa740b61ab455a760f`. Exact candidate `af68d0e`, all nine
+exact-head checks, protected PR #17, post-merge CI/Rust CI/CodeQL, the full root gate,
+and pinned LLVM/Clang 22.1.8 Linux/Windows native exit 90 pass. CORE-090 adds only
+static projected CopyData assignment; dynamic indexes, projected borrowing, partial
+moves, lifetime/drop, stable layout/ABI, memory safety, accelerators, and release
+claims remain excluded. Accepted CORE-082 remains a bounded Milestone 1 primitive-
+constant slice; accepted CORE-083 through CORE-090 are useful but partial Milestone 2
+reference, ownership, and aggregate-composition fragments.
 
 Current integration work has accepted `CORE-063` publicly: unary owned enums carry the
 accepted recursive CopyData grammar through construction, exhaustive
@@ -186,6 +189,49 @@ Windows LLVM/Clang 22.1.8 preserves exit 227 and executes exit 229 through publi
 independent native paths.
 PR #4's integration program is now merged and verified. Bounded successor PRs and
 structured evidence-manifest automation remain active scaling controls.
+
+## Corrective checkpoint after CORE-090
+
+The original milestone exits below remain unchanged. Reconciliation against accepted
+master shows that Aero has deepened Milestone 2 fragments while foundational
+Milestone 0/1 exits remain open.
+
+### Milestone gap audit
+
+| Roadmap area | Met | Partial | Open |
+|---|---|---|---|
+| Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; current lexical/syntactic controls and claim inventory are established. | False-success containment, function/binding/scope contracts, full gates, and independent verification are strong per accepted slice but not frozen as one selected stable-subset contract. | One canonical diagnostic/artifact contract and closure of remaining critical trusted-entrypoint residuals for the selected subset. |
+| Milestone 1 | Trusted build/run routes verify LLVM before object generation; bounded Linux and Windows native specimens pass. | Fallible checked IR, CFG/ownership invariants, negative corpora, and platform execution exist across many isolated slices. | One authoritative scalar subset, one representative application gate, `-O0`/`-O2` runtime equivalence, a declared compile-fail corpus, and the evidence needed to classify that subset `END_TO_END`. |
+| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, and projected mutation have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. | Collections, generics, traits, error types, general lifetimes/drop/unsafe, public ABI/destruction, a generic data structure, and an ownership-intensive real program. |
+
+### Ranked next capability gaps
+
+Scores are 1--5 with higher better; `Risk` and `Evidence` are delivery favorability,
+so 5 means lower risk or lower evidence cost.
+
+| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | Representative scalar application plus frozen subset and optimization-equivalence gate | 4 | 5 | 5 | 5 | 4 | 3 | 26 |
+| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
+
+`M1-001` is selected. Before it, Aero has many native micro-specimens but no small
+application certified as one portable and optimization-equivalent workflow. After it,
+a fixed-size telemetry-policy program will compose direct modules, functions,
+constants, control flow, structs, arrays/tuples, enums and `Match`, mutation,
+references, and CORE-090 projected writes with exact stdout/stderr/exit behavior under
+checked IR, independent verification, LLVM verification, object/link/native execution,
+and `-O0`/`-O2` equivalence on Linux and Windows. This application becomes a permanent
+growing integration gate. If its red identifies a shared missing compiler contract,
+that complete blocking class is closed before the application is retried; no
+program-specific compiler exception is permitted.
+
+Real-program delta: before `M1-001`, users cannot point to any application-shaped Aero
+program covered by an authoritative end-to-end subset contract. After it, they can
+build and run one deterministic multi-file telemetry evaluator through both supported
+CPU platform lanes and both optimization levels. Unspecified semantics, nonportable
+behavior, optimizer divergence, or evidence that a different task closes the milestone
+more safely would change this decision.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 

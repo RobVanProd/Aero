@@ -66,7 +66,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Mixed mutable-reference and CopyData signatures (`CORE-087` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Mixed exclusive/shared-reference signatures (`CORE-088` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Multiple exclusive-reference signatures (`CORE-089` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Static projected CopyData assignment (`CORE-090` local candidate) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
+| Static projected CopyData assignment (`CORE-090` accepted) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |
@@ -196,7 +196,7 @@ CodeQL. Projections, reference
 results/escape/storage/capture, lifetime/NLL/drop, public layout/ABI/FFI, accelerators,
 and memory-safety claims remain absent; the row therefore remains `PARTIAL`.
 
-Local candidate `CORE-090` admits exactly one nonempty static projection path rooted
+Accepted public `CORE-090` admits exactly one nonempty static projection path rooted
 at an initialized mutable owned direct local recursive finite CopyData value. The path
 may contain any finite mix of declared named fields, tuple constants, and nonnegative
 in-range integer-literal fixed-array indexes; the exact CopyData leaf accepts only an
@@ -206,7 +206,9 @@ and requires an existing typed mutable-owner allocation. The focused target pass
 1/1, shared classifier and corruption controls pass 2/2, the affected ring passes
 15/15, the full root gate is green at 218 library tests and 32 binary tests plus every
 integration target and doc tests, and pinned local LLVM/Clang 22.1.8 executes the
-tracked direct-module specimen at exact exit 90. Public gates remain pending.
+tracked direct-module specimen at exact exit 90. Bounded PR #17 passed all nine
+exact-head checks, merged through protected master as `12820561`, and passed exact
+post-merge CI, Rust CI, and CodeQL.
 Dynamic/computed indexes, projected borrows, partial moves, enum/non-Copy subplaces,
 alias analysis, NLL/lifetime/drop, public layout/ABI/FFI, accelerators, and memory-safety
 claims remain absent; the row therefore remains `PARTIAL`.
