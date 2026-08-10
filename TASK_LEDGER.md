@@ -1,5 +1,125 @@
 # Aero Task Ledger
 
+## CORE-087 - mixed mutable-reference and CopyData function signatures
+
+- Date/task/status: 2026-08-10, `CORE-087`, authorized lead-owned red-first
+  executable vertical slice from accepted, post-merge-verified master
+  `e2014a1762664461ad8fc952cece6f9fa39aa4c2`, tree
+  `4caeee7d9602783525bb87856908ac459447184d`. Work belongs only on
+  `agent/core-087-reference-copydata-signatures`; user-owned untracked `tmp/`
+  remains outside the task.
+- Once-per-class audit and observed behavior: the shared reference-function
+  classifier already resolves every parameter as either an admitted reference or
+  recursive CopyData and already carries the complete ordered signature into semantic
+  analysis, checked IR, verification, and LLVM. It nevertheless applies a blanket
+  `parameters.len() == 1` rule whenever any mutable-reference parameter exists. The
+  shared call classifier independently assumes the entire argument list is the sole
+  reference argument; semantic and checked-admission consumers consequently replace
+  the whole argument-type vector with one reference type, while LLVM lowering applies
+  the one reference source mode to every argument. Existing checked function
+  signatures and backend calls already carry mixed ordered parameter lists. This is
+  one exhaustively enumerated mixed-signature defect class, not a per-position audit.
+- Source-grounded hypothesis and frozen semantics: Aero's founding framework defines
+  explicit `&mut T` temporary function borrowing and ordinary typed by-value
+  parameters; accepted CORE-053 through CORE-086 independently execute both the exact
+  non-escaping mutable-reference topology and recursive finite CopyData transport.
+  Their safe composition is a non-entry, non-generic function with exactly one
+  mutable-reference parameter and at least one non-reference recursive CopyData
+  parameter. The reference may occur first, between, or last among any number of
+  CopyData parameters. Its pointee is exactly the already admitted CopyData or
+  destructor-free enum reference-pointee class; its source is exactly an existing
+  initialized direct mutable whole-place owner borrow or existing admitted mutable-
+  reference identifier reborrow. Side arguments retain their source order relative to
+  one another and use ordinary CopyData validation. Because acquiring the exact
+  non-escaping reference has no value-producing side effect, lowering may evaluate
+  independent CopyData arguments before the exact adjacent borrow/call/end window.
+  The function result remains exactly existing admitted CopyData or `Void`.
+- One shared predicate and complete positive enumeration: extend the existing
+  `ReferenceFunctionContract`/`classify_reference_call_with_enums` authority to carry
+  the sole mutable-reference parameter index and use it in both semantic and
+  semantic-independent checked admission. The same contract must classify arity,
+  reference position, direct-owner versus identifier-reborrow source, pointee, source
+  state, and side-argument independence. Positive coverage includes reference first,
+  middle, and last; one and multiple scalar/recursive aggregate CopyData parameters;
+  CopyData and admitted enum pointees; CopyData and `Void` results; direct owner calls;
+  local identifier reborrows; forwarding from a mutable-reference parameter; repeated
+  calls and owner reuse after the exact end; direct modules; checked identities;
+  verified LLVM; and one CI-native sentinel.
+- Frozen negative boundary: two or more reference parameters of either mutability,
+  zero reference parameters, a reference result, entry or generic reference
+  signature, non-CopyData side parameter/result, unsupported pointee, wrong arity,
+  wrong reference position/type/mutability/source state, or a side argument that
+  mentions the direct owner or mutable-reference identifier remains rejected before
+  checked IR. No evaluation-order claim beyond this independent-argument class; no
+  simultaneous reference parameters, alias overlap, projected/indexed source,
+  reference escape/return/storage/capture, free enum dereference/transport, new enum
+  topology, lifetime/NLL/drop rule, public layout, stable ABI/FFI, accelerator,
+  release, performance, stability, safety, or general memory-safety behavior follows.
+  Existing immutable-reference signatures and all CORE-043--086 behavior remain
+  unchanged.
+- Red-first and acceptance tests: before production mutation, add one focused target
+  that proves the complete positive order/count/pointee/source/result product currently
+  reaches the blanket exact-one-parameter rejection, and whose negative table covers
+  every frozen exclusion through semantic analysis, direct checked admission, and
+  public compilation. Require exact checked parameter order, one mutable binder, one
+  adjacent borrow/call/end window, ordered LLVM parameter/call types, verifier
+  corruption controls for wrong index/order/type/arity and separated or forged
+  temporaries, CLI check/build/run, a tracked direct-module example, and the pinned
+  LLVM/Clang 22 native system gate. Then run affected reference/CopyData/enum
+  compatibility rings, formatting, correctness-denying Clippy, docs, `git diff
+  --check`, and exact repository-root `./tools/test.sh` before one bounded PR and all
+  exact-head public workflows.
+- Exact red checkpoint: the test-only source first failed for an unrelated block-tail
+  parse shape, which was corrected before any production mutation. The authoritative
+  frozen positive then failed in semantic analysis with `mutable reference transport
+  functions require exactly one mutable-reference parameter`, proving the blanket
+  signature guard. The red command was `cargo test --locked --manifest-path
+  src/compiler/Cargo.toml --test mixed_mutable_reference_signature_tests --
+  --nocapture` with 0/1 passing.
+- Local pre-publication evidence: the shared indexed contract now passes the focused
+  target 3/3 and the dedicated verifier corruption control 1/1. All eight affected
+  mutable-reference, Copy-place, and enum-reference compatibility targets pass. The
+  workflow-anchor and Windows native-system contract tests pass; formatting,
+  `git diff --check`, and correctness-denying Clippy pass. Public CLI check/build/run,
+  external LLVM 22.1.8 verification, machine verification, COFF generation,
+  Clang/MSVC linking, and an independent native path all pass the tracked direct-module
+  specimen at exact exit 87. The complete repository-root gate remains the final local
+  candidate condition; no public acceptance is claimed here.
+- Full-gate regression correction: the first authoritative root gate passed 215/215
+  library tests and 32/32 binary tests, then exposed a deterministic Windows debug-stack
+  overflow while checked admission validated the accepted CORE-062 recursive aggregate
+  specimen. An isolated archive of accepted base `e2014a1` passed the same target,
+  proving candidate causality. Phase probes localized the overflow to the expanded
+  recursive `validate_expression` frame before registry construction; they were removed.
+  The complete named-call admission arm is now isolated behind one non-inlined helper,
+  and mixed-only lowering is likewise isolated while ordinary and sole-reference calls
+  retain their established shallow path. The unmodified CORE-062 target is green again,
+  CORE-087 remains 3/3, its verifier corruption control remains green, and both pinned
+  public/manual native paths still return exact exit 87. The corrected record-inclusive
+  repository-root gate then exits 0 with 215/215 library tests, 32/32 binary tests,
+  every integration target, and doc tests. Candidate publication may proceed only from
+  this exact content; public acceptance is still pending.
+- Allowed files: this one ledger record; `src/compiler/src/local_reference.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, and `ir_verifier.rs` only if the red proof
+  requires independent trust-window validation; one focused
+  `src/compiler/tests/mixed_mutable_reference_signature_tests.rs`; narrowly superseded
+  blanket-rejection expectations in existing mutable reference, Copy-place, and enum-
+  reference targets; `examples/mixed_mutable_reference_signatures/main.aero` and one
+  direct module; the exact Rust workflow and Windows gate anchors for that specimen;
+  and proportional post-green updates to `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `FRAMEWORK_ALIGNMENT.md`, and `README.md`. No AST,
+  parser, dependency, package, release, benchmark, claim-verification, protection,
+  master, external repository, or `tmp/` mutation is authorized.
+- Stop conditions and risks: stop rather than broaden if the class needs simultaneous
+  references, an owner-dependent side argument, new evaluation-order semantics,
+  projected provenance, reference escape, a public ABI/layout decision, a duplicated
+  phase-local guard, test/spec weakening, or stacking on a red baseline. Primary risks
+  are placing the reference type at the wrong argument index, skipping validation of a
+  side argument, applying reborrow lowering to every argument, losing aggregate
+  CopyData values, or admitting a non-adjacent/forged borrow lifetime. Candidate and
+  public acceptance remain separate; repository records are amended proportionally
+  before publication, and the four scaling controls remain active.
+
 ## AUDIT-001 — Specification and claims consistency
 
 - Problem: Public documents may contradict the grammar, compiler, examples, and

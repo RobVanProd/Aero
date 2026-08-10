@@ -1,0 +1,40 @@
+fn adjust_first(value: &mut int, amount: int) -> int {
+    *value = *value + amount;
+    *value
+}
+
+fn adjust_middle(prefix: int, value: &mut int, suffix: int) -> int {
+    *value = *value + prefix + suffix;
+    *value
+}
+
+fn adjust_last(prefix: int, suffix: int, value: &mut int) -> int {
+    *value = *value + prefix + suffix;
+    *value
+}
+
+fn adjust_aggregate(
+    value: &mut int,
+    packet: Packet,
+    values: [int; 2],
+    flags: (bool, int)
+) -> int {
+    *value = *value + packet.value + values[0] + flags.1;
+    *value
+}
+
+fn forward(value: &mut int, amount: int) -> int {
+    adjust_middle(1, value, amount)
+}
+
+fn replace_and_observe(prefix: int, value: &mut State, suffix: int) -> int {
+    *value = State::Count(prefix + suffix);
+    match *value {
+        State::Idle => 0,
+        State::Count(inner) => inner
+    }
+}
+
+fn set_flag(value: &mut bool, amount: int) {
+    *value = amount > 0;
+}

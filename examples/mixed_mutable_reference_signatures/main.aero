@@ -1,0 +1,32 @@
+mod mixers;
+
+struct Packet { value: int, ready: bool }
+enum State { Idle, Count(int) }
+
+fn main() -> int {
+    let mut number = 10;
+    let first = adjust_first(&mut number, 2);
+    let middle = adjust_middle(3, &mut number, 4);
+    let last = adjust_last(5, 6, &mut number);
+
+    let packet = Packet { value: 7, ready: 1 < 2 };
+    let values = [8, 9];
+    let aggregate = adjust_aggregate(&mut number, packet, values, (1 < 2, 10));
+
+    let mut forwarded = 0;
+    {
+        let alias = &mut number;
+        forwarded = forward(alias, 11);
+    }
+
+    let mut state = State::Idle;
+    let observed = replace_and_observe(12, &mut state, 13);
+    let mut flag = 1 > 2;
+    set_flag(&mut flag, 1);
+
+    if flag && packet.ready && first == 12 && middle == 19 && last == 30
+        && aggregate == 55 && forwarded == 67 && observed == 25 && number == 67 {
+        return 87;
+    }
+    1
+}

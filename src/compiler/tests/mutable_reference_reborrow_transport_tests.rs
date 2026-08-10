@@ -333,6 +333,15 @@ fn main() -> int { let mut value = 1; let alias = &mut value; outer(alias); *ali
         }
     }
 
+    if let Err(error) = compile_program(
+        "fn add(value: &mut int, amount: int) -> int { *value = *value + amount; *value } fn main() -> int { let mut value = 1; let alias = &mut value; add(alias, 2) }",
+        CompilerOptions::default(),
+    ) {
+        failures.push(format!(
+            "mixed mutable-reference reborrow and scalar parameter regressed: {error}"
+        ));
+    }
+
     for (label, source, expected) in [
         (
             "immutable alias argument",
@@ -377,11 +386,6 @@ fn main() -> int { let mut value = 1; let alias = &mut value; outer(alias); *ali
         (
             "two mutable parameters remain excluded",
             "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { 0 }",
-            "exactly one mutable-reference parameter",
-        ),
-        (
-            "mixed mutable and scalar parameters remain excluded",
-            "fn bad(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { 0 }",
             "exactly one mutable-reference parameter",
         ),
         (

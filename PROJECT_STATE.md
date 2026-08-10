@@ -4,35 +4,45 @@ Last updated: 2026-08-10 (America/New_York)
 
 ## Current objective
 
-Milestone 107 `CORE-086` is a local candidate only on branch
-`agent/core-086-mutable-enum-reference-observation`, based on accepted master
-`d0832c6f4442095703a5f040eacb539a4a3774a7`, tree
-`96f8eb67b1cddfcee33839a86f84b5c90fa38e23`. Its frozen implementation commit is
-`e12d6fe83cc1c8bd085a0b61e3d2f131003bfd81`, tree
-`319f7a8136a852781aa852816a24c609097f15ca`, with stable patch ID
-`b8d0c027561176156ae8dedcb4faf2f200ad2d8e`. One shared enum-reference Match
-classifier now admits exhaustive observation through either immutable or active
-exclusive mutable references to the existing destructor-free enum class. Checked IR
-keeps distinct mutable/immutable Match-read identities; the independent verifier ties
-the mutable identity to an exact active local loan or bound mutable-reference parameter,
-the exact enum schema, and the immediately adjacent exhaustive dispatch. Read-only and
-read/write/read orderings execute for unit, unary, and positional multi-field recursive
-CopyData enums through direct calls and named-alias reborrows while raw enum extraction,
-transport, escape, overlap, and unsupported topologies remain rejected.
+Milestone 108 `CORE-087` is a local candidate only on branch
+`agent/core-087-reference-copydata-signatures`, based on accepted master
+`e2014a1762664461ad8fc952cece6f9fa39aa4c2`, tree
+`4caeee7d9602783525bb87856908ac459447184d`. One shared reference-signature
+topology predicate now composes exactly one mutable whole-place reference parameter
+with one or more ordinary recursive finite CopyData parameters. The reference may be
+first, middle, or last; the same indexed contract drives both semantic routes,
+semantic-independent checked admission, lowering, and independent verification.
+Independent CopyData arguments are evaluated in their original relative order before
+the exact adjacent borrow/call/end window, then restored to declared call order.
 
-The same closed result enumeration corrects homogeneous discarded enum Matches whose
-arms are all `Void`: owned, immutable-reference, and mutable-reference scrutinees share
-one result contract and generate no fabricated result place. `print!` and `println!`
-are now classified as effect-only `Void` in both semantic routes instead of silently
-becoming `Int`; every value context remains rejected in semantics and independently in
-checked admission. The focused target passes 5/5, the dedicated verifier corruption
-control passes 1/1, and the exact repository-root gate passes formatting,
-correctness-denying Clippy, 214 library tests, 32 binary tests, every integration target,
-and doc tests. The two-module specimen passes public check/build/run, external LLVM
-22.1.8 verification, machine verification, COFF generation, Clang/MSVC linking, and
-manual native execution at exact exit 86. Candidate-head public workflows, protected
-merge, and post-merge evidence are pending. This is not public acceptance, a release,
-or a general borrowing, lifetime, memory-safety, layout, or ABI claim.
+The focused target passes 3/3 across direct-owner calls, local alias reborrows,
+parameter forwarding, recursive aggregates, admitted enum pointees, CopyData and
+`Void` results, all parameter positions, direct modules, and the complete frozen
+negative boundary. The verifier corruption control passes 1/1, the affected reference,
+CopyData, and enum compatibility ring is green, and the tracked two-module specimen
+passes public check/build/run, LLVM 22.1.8 verification, machine verification, COFF
+generation, Clang/MSVC linking, and manual native execution at exact exit 87. The exact
+repository-root gate passes 215 library tests, 32 binary tests, every integration target,
+and doc tests after correcting a candidate-introduced admission-stack regression without
+changing the accepted CORE-062 test. Public workflows remain pending, so this is not
+public acceptance.
+Multiple reference parameters, owner-dependent side arguments, projections, reference
+results or escape/storage/capture, new lifetime/drop/layout/ABI rules, accelerators,
+and any general memory-safety claim remain excluded.
+
+Milestone 107 `CORE-086` is accepted public at candidate head
+`e4447599b7989ba1276d4f32ddc8832900877132`, with frozen implementation commit
+`e12d6fe83cc1c8bd085a0b61e3d2f131003bfd81`, tree
+`319f7a8136a852781aa852816a24c609097f15ca`, and stable patch ID
+`b8d0c027561176156ae8dedcb4faf2f200ad2d8e`. Bounded PR #13 merged through
+protected master without head substitution as
+`e2014a1762664461ad8fc952cece6f9fa39aa4c2`, tree
+`4caeee7d9602783525bb87856908ac459447184d`, with ordered parents old master then
+the exact candidate. Post-merge CI `31401045285`, Rust CI `31401052016`, and
+CodeQL `31401039261` pass on that exact merge. The accepted slice adds exhaustive
+observation through active exclusive mutable enum references and homogeneous discarded
+`Void` Match results without adding enum extraction, reference escape, general
+borrowing, lifetime, memory-safety, layout, or ABI claims.
 
 Milestone 106 `CORE-085` is accepted public at candidate head
 `f605a328c405a72766f44558c5615eb1e77f50ea`, with frozen implementation commit
@@ -127,7 +137,7 @@ layout, ABI, or general CTFE claim. The tracked multi-file specimen returns 81 t
 pinned LLVM/Clang 22.1.8 public and manual native execution; generated LLVM SHA-256 is
 `AD2DFA947E03AF257F717E0FF5B2E9AB04281B49CC18D0D1230A8B12414050C6`.
 
-The exact next action is to freeze and publish CORE-086 in one bounded PR, require every
+The exact next action is to finish and publish CORE-087 in one bounded PR, require every
 exact-head public workflow and pinned LLVM 22 gate, and merge only through protected
 master while the record remains truthful.
 Positive imports remain deferred until lookup, namespace, visibility, collision, cycle,
