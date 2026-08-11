@@ -5,13 +5,13 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-protected CAP-004 compiler-capability merge
-`e4c515b9566a7d8fcb4f66c975c4e1769607515f`; this record is its bounded
+protected CAP-005 compiler-capability merge
+`59f7e47b476871fae8cecdf7e40900e0d1f1b377`; this record is its bounded
 acceptance synchronization.
 
-### CAP-005 exact local candidate: bound-free CopyData generic transport functions
+### CAP-005 accepted: bound-free CopyData generic transport functions
 
-CAP-005 is green locally but is not yet accepted public capability. One shared,
+Accepted CAP-005 supplies one shared,
 idempotent pre-semantic/pre-admission authority validates unique top-level bound-free
 generic transport templates, infers every type parameter from whole parameter
 positions, specializes only exact recursive finite CopyData substitutions, and feeds
@@ -29,8 +29,12 @@ The representative program now instantiates one `choose<T>` helper at both
 `Reading<int>` and `Reading<char>`. Bounds/traits, generic methods/enums/impls,
 recursion or generic-to-generic calls, abstract operations/projections, nested generic
 signatures, non-CopyData arguments, collections, lifetimes/drop, stable ABI, and broad
-generic or safety claims remain unsupported. CAP-004 remains the accepted baseline
-until the exact CAP-005 PR, protected merge, and merge-head workflows pass.
+generic or safety claims remain unsupported. Exact candidate
+`68e2cd8ef7766f3073bc9bf9714dafb0431525ef` and protected PR #31 merge
+`59f7e47b476871fae8cecdf7e40900e0d1f1b377` share tree
+`e0e6ac4d0bdec61fff30efee387b870ce63a282c`. All nine candidate-head checks pass;
+exact merge-head CI `31504122753`, Rust CI `31504122730`, and CodeQL
+`31504122424` pass.
 
 ### CAP-004 accepted: explicit generic CopyData structs
 
@@ -71,7 +75,7 @@ construction, moves, replacement, internal transport, and bound exhaustive `Matc
 reuse the checked owned-enum pipeline through deterministic private identities.
 
 Context-free constructors, wrong families or payloads, nested/non-CopyData carriers,
-generic functions, aggregate storage, borrowing, comparison, output, process results,
+carrier use in generic functions, aggregate storage, borrowing, comparison, output, process results,
 use after move, and incomplete Match all fail before trusted LLVM through semantic,
 raw checked-admission, and public compilation routes. Private identities are
 idempotence/corruption checked and do not appear in source diagnostics or emitted LLVM
@@ -201,16 +205,17 @@ benchmarks, and general memory-safety claims remain excluded.
 
 ### Work already attributable to Milestone 2
 
-CORE-043 through CORE-090 and CAP-001 through CAP-004 implemented substantial typed aggregate, enum/`Match`,
-CopyData composition, CFG ownership, borrowing, and mutation fragments before the
+CORE-043 through CORE-090 and CAP-001 through CAP-005 implemented substantial typed
+aggregate, enum/`Match`, CopyData composition, CFG ownership, borrowing, and mutation fragments before the
 Milestone 0/1 exits were closed. This work is retained, tested, and useful, but it does
 not satisfy Milestone 2: collections, general generic substitution, trait dispatch, general
 error propagation, general lifetimes/drop/unsafe boundaries, public layout/ABI/
 destruction, and an ownership-intensive representative program remain open. Accepted
 CAP-003 closes a bounded concrete CopyData `Option`/`Result` carrier slice; CAP-004
 closes the generic-data-definition half of the Milestone 2 exit only for explicit
-recursive finite CopyData structs. General substitution, collections, and broader
-error propagation remain open.
+recursive finite CopyData structs; CAP-005 adds one bound-free whole-value generic
+transport-function slice. General substitution and operations, collections, and
+broader error propagation remain open.
 The project therefore remains **Minimal Prototype / correctness recovery**.
 
 ### ROADMAP-001 ranking and M1-001 outcome
@@ -243,8 +248,9 @@ the next ranking and accepted explicit generic-struct outcome. The CAP-005 task-
 authorization records the required fresh ranking against accepted CAP-004: bounded
 generic transport functions scored 24, the Milestone 0 diagnostic/artifact contract
 scored 24, and an owned dynamic collection foundation scored 22. Generic transport
-won the tie on immediate real-program expressiveness and is now an exact green local
-candidate; it is not an automatic follow-on or accepted public capability.
+won the tie on immediate real-program expressiveness and is now accepted through
+protected PR #31 and exact merge-head workflows. No neighboring generic topology is
+an automatic follow-on; CAP-006 requires a fresh ranking against accepted CAP-005.
 
 ## Verified progress after the audit commit
 

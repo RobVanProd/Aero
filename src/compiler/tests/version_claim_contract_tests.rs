@@ -123,10 +123,13 @@ fn conformance_is_presented_as_deterministic_regression_evidence() {
 fn current_repository_surfaces_state_only_evidenced_capabilities() {
     let readme = repository_file("README.md");
     assert!(readme.contains(
-        "Accepted CAP-004 adds one explicit user-defined recursive-CopyData generic-struct substitution class."
+        "Accepted CAP-004 adds one explicit user-defined recursive-CopyData generic-struct substitution class"
     ));
+    assert!(
+        readme.contains("accepted CAP-005 adds bound-free whole-value generic transport functions")
+    );
     assert!(readme.contains(
-        "General generic functions/enums/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
+        "General generic operations/enums/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));
     assert!(readme.contains(
         "No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee."
@@ -303,9 +306,14 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
         "Accepted CAP-004 project-truth synchronization merged through protected PR #29"
     ));
     assert!(
-        project_state
-            .contains("The required fresh three-gap ranking against accepted CAP-004 is recorded")
+        project_state.contains("CAP-005 accepted: bound-free CopyData generic transport functions")
     );
-    assert!(project_state.contains("CAP-005 exact local candidate (not yet accepted)"));
-    assert!(project_state.contains("accepted public capability remains CAP-004"));
+    assert!(project_state.contains("59f7e47b476871fae8cecdf7e40900e0d1f1b377"));
+    assert!(!project_state.contains("CAP-005 exact local candidate (not yet accepted)"));
+    assert!(
+        project_state.contains(
+            "CAP-005 is accepted through protected PR #31 and exact merge-head workflows"
+        )
+    );
+    assert!(project_state.contains("fresh three-gap project-level ranking against accepted"));
 }

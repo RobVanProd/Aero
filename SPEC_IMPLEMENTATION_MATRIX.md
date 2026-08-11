@@ -2,23 +2,22 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-004 merge
-`e4c515b9566a7d8fcb4f66c975c4e1769607515f`. Exact candidate
-`a1554cab130ff62c37be535622439bb54e6efe5e` and the merge have identical tree
-`2011ba2f550c6ef6192319de6a8ab853c7bce776`; all nine candidate-head checks,
-protected integration, exact merge-head CI/Rust CI/CodeQL, and pinned Linux/Windows
-LLVM/Clang 22.1.8 native `-O0`/`-O2` gates pass.
+Latest accepted compiler-capability master is protected CAP-005 merge
+`59f7e47b476871fae8cecdf7e40900e0d1f1b377`. Exact candidate
+`68e2cd8ef7766f3073bc9bf9714dafb0431525ef` and the merge have identical tree
+`e0e6ac4d0bdec61fff30efee387b870ce63a282c`; all nine candidate-head checks,
+protected integration, exact merge-head CI `31504122753`, Rust CI `31504122730`,
+CodeQL `31504122424`, and pinned Linux/Windows LLVM/Clang 22.1.8 native `-O0`/`-O2`
+gates pass.
 
-Candidate overlay, not accepted master: the active CAP-005 branch has exact local
-evidence for one additional `PARTIAL` generics/function-call slice. Unique top-level
+Accepted CAP-005 adds one additional `PARTIAL` generics/function-call slice. Unique top-level
 bound-free generic functions whose type parameters are inferred from whole parameter
 positions can be compile-time-specialized at recursive finite CopyData arguments when
 their abstract values are only copied through direct parameters, annotated locals,
 branch selection, reassignment, and return. Focused 5/5, contract 2/2, verifier
 corruption, compatibility, the complete 232-library/32-binary/integration/doc/format/
 Clippy gate, and pinned LLVM/Clang 22.1.8 external, machine, `-O0`, and `-O2` execution
-pass locally. This overlay does not change the accepted matrix rows until a bounded
-PR, protected merge, and exact merge-head verification pass.
+pass locally and through the public gates above. This moves no row beyond `PARTIAL`.
 
 This matrix records stages independently. `Y` means direct evidence for the
 listed slice, `P` means partial or known-defective support, `N` means absent,
@@ -69,6 +68,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Unified typed CopyData/owned-enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Explicit concrete CopyData `Option`/`Result` construction, internal transport, replacement, and exhaustive bound Match (accepted `CAP-003`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Explicit user-defined recursive-CopyData generic structs (accepted `CAP-004`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Bound-free whole-value recursive-CopyData generic transport functions (accepted `CAP-005`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | P | P | P | P | P | P | Y | PARTIAL |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
@@ -290,12 +290,12 @@ and `Reading<char>` at unchanged score 91. Focused 5/5, contract 4/4, corruption
 compatibility, complete 229-library/32-binary local root, formatting, and Clippy gates
 pass. Exact candidate `a1554cab`, all nine candidate checks, protected PR #28 merge
 `e4c515b9`, and exact merge-head CI/Rust CI/CodeQL pass; pinned stable Linux and Windows
-LLVM/Clang 22.1.8 verify and execute `-O0`/`-O2`. Generic functions/enums/impls/traits,
+LLVM/Clang 22.1.8 verify and execute `-O0`/`-O2`. CAP-004 itself did not add generic functions/enums/impls/traits,
 inference/defaults, generic applications inside generic definitions, non-CopyData
 arguments, collections, heap/drop/lifetimes, public ABI, and general generics remain
 absent, so neither row is `END_TO_END` or `STABLE`.
 
-The local CAP-005 candidate extends that already-`PARTIAL` row with bounded generic
+Accepted CAP-005 extends that already-`PARTIAL` row with bounded generic
 function specialization, not full generics. One shared pre-semantic/pre-admission
 authority creates verifier-bound private nongeneric functions for exact recursive
 finite CopyData substitutions and preserves source-readable LLVM specialization
@@ -303,8 +303,8 @@ names. The representative program instantiates the same `choose<T>` at
 `Reading<int>` and `Reading<char>` and retains exact output/exit 91. Trait bounds,
 generic operations/methods/enums/impls, recursive or generic-to-generic calls,
 result-only inference, nested generic signatures, non-CopyData arguments, runtime
-polymorphism, collections, lifetimes/drop, and stable callable ABI remain absent. This
-paragraph is candidate evidence only; the accepted public row still rests on CAP-004.
+polymorphism, collections, lifetimes/drop, and stable callable ABI remain absent. The
+accepted broad generics row therefore remains `PARTIAL`, not `END_TO_END` or `STABLE`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

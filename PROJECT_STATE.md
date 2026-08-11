@@ -4,9 +4,9 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-### CAP-005 exact local candidate (not yet accepted)
+### CAP-005 accepted: bound-free CopyData generic transport functions
 
-The active `agent/cap-005-generic-copydata-functions` candidate adds one bounded
+Accepted CAP-005 adds one bounded
 compile-time specialization class for unique top-level, bound-free generic functions.
 Every type parameter is inferred from an exact whole-parameter occurrence, every
 substitution is already admitted recursive finite CopyData, and the parametric body
@@ -17,7 +17,7 @@ semantic analysis and checked admission, and gives the independent verifier enou
 identity data to reject signature or substitution forgery. No runtime polymorphism,
 boxing, type tags, or second executable semantic path is introduced.
 
-The candidate's focused product passes 5/5, its shared-contract controls pass 2/2,
+The focused product passes 5/5, its shared-contract controls pass 2/2,
 the private-identity corruption control and all affected compatibility rings pass,
 and the representative telemetry program uses the same `choose<T>` helper for
 `Reading<int>` and `Reading<char>` while retaining exact output and exit 91. The
@@ -25,8 +25,11 @@ complete local repository gate passes 232 library tests, 32 binary tests, every
 integration target, doc tests, formatting, and correctness-denying Clippy. Pinned
 LLVM/Clang 22.1.8 externally verifies and machine-verifies the candidate; independent
 Windows `-O0` and `-O2` executables and public `run` produce exact output and exit 91.
-This is local candidate evidence only. Until a bounded exact-head PR, protected merge,
-and exact merge-head workflows pass, accepted public capability remains CAP-004.
+Exact candidate `68e2cd8ef7766f3073bc9bf9714dafb0431525ef` passed all nine
+candidate-head checks and protected PR #31 merged it as
+`59f7e47b476871fae8cecdf7e40900e0d1f1b377`. Candidate and merge share tree
+`e0e6ac4d0bdec61fff30efee387b870ce63a282c`. Exact merge-head CI
+`31504122753`, Rust CI `31504122730`, and CodeQL `31504122424` pass.
 
 Bounds and traits, generic methods/impls/enums, recursion, generic-to-generic calls,
 operations or projection on abstract values, expected-result inference, nested generic
@@ -34,14 +37,14 @@ applications in signatures, non-CopyData arguments, collections, heap/drop/lifet
 public ABI, accelerators, releases, benchmarks, stability, and general memory-safety
 claims remain excluded.
 
-The latest accepted compiler-capability master is protected CAP-004 merge
-`e4c515b9566a7d8fcb4f66c975c4e1769607515f`. Bounded PR #28 carried exact candidate
-`a1554cab130ff62c37be535622439bb54e6efe5e`; candidate and merge share tree
-`2011ba2f550c6ef6192319de6a8ab853c7bce776`, with ordered parents prior accepted
-master `f428df22c3dd3e0ab88d7db731a281d4173e8cc9` then the exact candidate. Candidate
-CI runs `31478883514` and `31478927743`, Rust CI `31478927757`, and CodeQL
-`31478926332` pass. Exact merge-head CI `31479212157`, Rust CI `31479211907`, and
-CodeQL `31479212081` also pass.
+The latest accepted compiler-capability master is protected CAP-005 merge
+`59f7e47b476871fae8cecdf7e40900e0d1f1b377`. Bounded PR #31 carried exact candidate
+`68e2cd8ef7766f3073bc9bf9714dafb0431525ef`; candidate and merge share tree
+`e0e6ac4d0bdec61fff30efee387b870ce63a282c`, with ordered parents prior accepted
+master `d20480ec9d12a1d2b58f01666ff6fd762544b22e` then the exact candidate. Candidate
+CI runs `31502822144` and `31502857390`, Rust CI `31502857406`, and CodeQL
+`31502855546` pass. Exact merge-head CI `31504122753`, Rust CI `31504122730`, and
+CodeQL `31504122424` also pass.
 
 Accepted `CAP-004` adds Aero's first executable user-defined generic data definition:
 a uniquely named `struct Name<T, ...>` can be instantiated at exact explicit recursive
@@ -58,7 +61,7 @@ complete 229-library/32-binary/integration/doc root gate plus correctness-denyin
 Clippy pass locally. All nine exact-candidate checks, protected integration, and all
 exact merge-head workflows pass; pinned LLVM/Clang 22.1.8 stable Linux and Windows
 lanes verify, lower, link, and execute the representative program at `-O0` and `-O2`.
-Generic functions/enums/impls/traits, inference/defaults, generic applications inside
+CAP-004 itself did not add generic functions/enums/impls/traits, inference/defaults, generic applications inside
 generic definitions, non-CopyData arguments, collections, heap/drop/lifetimes, public
 ABI, accelerators, releases, benchmarks, and general memory-safety claims remain
 excluded.
@@ -2671,15 +2674,14 @@ Accepted CAP-004 project-truth synchronization merged through protected PR #29 a
 `5e6f30a1e4a8979f38e75423f2021b88d8c92548` with the identical tree. Exact
 merge-head CI `31480903724`, Rust CI `31480903716`, and CodeQL `31480903587` pass.
 
-The required fresh three-gap ranking against accepted CAP-004 is recorded in the
-CAP-005 task-ledger authorization. It selected bound-free recursive-CopyData generic
-transport functions over the tied Milestone 0 contract and the lower-ranked dynamic
-collection foundation because the bounded specialization slice adds the greatest
-source-level reuse without inventing collection or trait semantics. Publish and
-verify that exact CAP-005 candidate through one bounded PR; public acceptance remains
-CAP-004 until protected integration and exact merge-head workflows pass. Do not start
-the next capability, default to the quarantined CORE-091 topology, publish releases/
-packages/benchmarks, force-push, or delete retained integration work.
+CAP-005 is accepted through protected PR #31 and exact merge-head workflows. Before
+authorizing CAP-006, perform a fresh three-gap project-level ranking against accepted
+CAP-005 by roadmap payoff, real-program usefulness, architectural leverage,
+correctness value, risk, and proportional evidence cost. Reconsider the still-open
+Milestone 0 canonical diagnostic/artifact contract alongside broader executable
+capabilities; do not default to neighboring generic topologies, the quarantined
+CORE-091 topology, releases/packages/benchmarks, force-pushes, or deletion of retained
+integration work.
 
 ## Unauthorized actions
 
