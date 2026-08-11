@@ -304,6 +304,8 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
     ));
     assert!(
         project_state
-            .contains("Perform the fresh three-gap project-level ranking against accepted CAP-004")
+            .contains("The required fresh three-gap ranking against accepted CAP-004 is recorded")
     );
+    assert!(project_state.contains("CAP-005 exact local candidate (not yet accepted)"));
+    assert!(project_state.contains("accepted public capability remains CAP-004"));
 }

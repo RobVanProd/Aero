@@ -59,6 +59,27 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
+The exact local CAP-005 candidate advances the founding paper's generic-function and
+compile-time monomorphization direction without claiming its trait-bound example.
+Unique top-level bound-free templates may specialize at exact recursive finite
+CopyData substitutions only when each type parameter is inferred from a whole
+parameter and abstract values undergo whole-value transport through direct
+parameters, annotated locals, branch selection, reassignment, and return. One shared
+idempotent authority runs before semantics and checked admission; ordinary checked IR,
+independent identity/signature verification, and LLVM then handle each private
+nongeneric specialization. The representative program uses the same `choose<T>` for
+`Reading<int>` and `Reading<char>` and retains exact output/exit 91. Focused 5/5,
+contract 2/2, corruption, compatibility, complete 232-library/32-binary repository,
+formatting, correctness-denying Clippy, and pinned LLVM/Clang 22.1.8 external,
+machine, `-O0`, and `-O2` gates pass locally.
+
+This is not yet accepted framework progress. CAP-004 remains public truth until the
+exact CAP-005 candidate passes bounded review, protected integration, and merge-head
+workflows. Bounds/traits, generic operations/methods/enums/impls, recursive or
+generic-to-generic calls, result-only inference, nested generic signatures,
+non-CopyData arguments, runtime polymorphism, collections, lifetimes/drop, stable ABI,
+accelerators, performance, release, and general safety claims do not move.
+
 Accepted CAP-004 advances the founding generic-struct and compile-time
 monomorphization direction with one executable user-defined data-definition slice.
 Exact explicit recursive-CopyData applications of a unique `struct Name<T, ...>` reuse

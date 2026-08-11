@@ -13,6 +13,9 @@ use crate::function_call_contract::{
     FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
     FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
 };
+use crate::generic_function_contract::{
+    normalize_generic_copydata_functions, valid_generic_aware_function_symbol,
+};
 use crate::generic_struct_contract::normalize_generic_copydata_structs;
 use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
@@ -235,6 +238,8 @@ impl IrGenerator {
     ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
         let ast = normalize_primitive_consts(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_generic_copydata_structs(ast).map_err(IrGenerationError::Admission)?;
+        let ast =
+            normalize_generic_copydata_functions(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_builtin_carriers(ast).map_err(IrGenerationError::Admission)?;
         Self::validate_checked_ast(&ast)?;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
@@ -772,7 +777,7 @@ impl IrGenerator {
         type_params: &[String],
     ) -> Option<usize> {
         if matches!(name, "main" | "printf")
-            || !Self::admitted_symbol(name)
+            || !valid_generic_aware_function_symbol(name, Self::admitted_symbol)
             || !type_params.is_empty()
             || return_type.is_some_and(|return_type| {
                 !matches!(

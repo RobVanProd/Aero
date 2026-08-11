@@ -9,6 +9,29 @@ protected CAP-004 compiler-capability merge
 `e4c515b9566a7d8fcb4f66c975c4e1769607515f`; this record is its bounded
 acceptance synchronization.
 
+### CAP-005 exact local candidate: bound-free CopyData generic transport functions
+
+CAP-005 is green locally but is not yet accepted public capability. One shared,
+idempotent pre-semantic/pre-admission authority validates unique top-level bound-free
+generic transport templates, infers every type parameter from whole parameter
+positions, specializes only exact recursive finite CopyData substitutions, and feeds
+the resulting private nongeneric functions through ordinary semantic, checked-IR,
+verifier, and LLVM paths. The verifier independently binds each private identity to
+its concrete signature and canonical substitutions. Abstract values remain limited to
+whole-value copies through direct parameters, annotated locals, branch selection,
+reassignment, and return.
+
+Focused 5/5, shared-contract 2/2, private-identity corruption, compatibility,
+representative, and the complete 232-library/32-binary/integration/doc/format/Clippy
+local gates pass. Pinned LLVM/Clang 22.1.8 external and machine verification passes;
+Windows `-O0`, `-O2`, and public `run` all retain exact telemetry output and exit 91.
+The representative program now instantiates one `choose<T>` helper at both
+`Reading<int>` and `Reading<char>`. Bounds/traits, generic methods/enums/impls,
+recursion or generic-to-generic calls, abstract operations/projections, nested generic
+signatures, non-CopyData arguments, collections, lifetimes/drop, stable ABI, and broad
+generic or safety claims remain unsupported. CAP-004 remains the accepted baseline
+until the exact CAP-005 PR, protected merge, and merge-head workflows pass.
+
 ### CAP-004 accepted: explicit generic CopyData structs
 
 Before CAP-004, Aero retained generic struct syntax but could not construct a value;
@@ -216,9 +239,12 @@ path would stop or reorder the selection. The required post-M1 re-ranking is rec
 in the CAP-001 section above. CAP-001 is accepted, and its bounded accepted-truth
 synchronization passed. CAP-002 records the required fresh three-gap ranking above;
 CAP-003 records the subsequent ranking and accepted carrier outcome; CAP-004 records
-the next ranking and accepted explicit generic-struct outcome. A new three-gap ranking
-against accepted CAP-004 is mandatory before CAP-005; no previous ordering is an
-automatic follow-on.
+the next ranking and accepted explicit generic-struct outcome. The CAP-005 task-ledger
+authorization records the required fresh ranking against accepted CAP-004: bounded
+generic transport functions scored 24, the Milestone 0 diagnostic/artifact contract
+scored 24, and an owned dynamic collection foundation scored 22. Generic transport
+won the tie on immediate real-program expressiveness and is now an exact green local
+candidate; it is not an automatic follow-on or accepted public capability.
 
 ## Verified progress after the audit commit
 

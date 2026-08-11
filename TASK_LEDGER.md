@@ -182,6 +182,71 @@
   changed; user/app-owned untracked directories and the quarantined stash remain
   untouched.
 
+### CAP-005 exact green candidate checkpoint
+
+- Implementation summary: one new shared `generic_function_contract` authority now
+  owns eligibility, complete parametric whole-value transport validation, exact
+  recursive-CopyData call substitution, deterministic collision-checked private
+  specialization identity, call rewriting, and template removal. Both semantic
+  analysis and raw checked admission invoke that same idempotent authority before
+  their ordinary function pipelines. The independent verifier reconstructs the
+  canonical substitution/signature proof, and the backend renders source-readable
+  quoted specialization symbols. No runtime type metadata, boxing, generic callable
+  ABI, trait behavior, or second executable semantic engine was added.
+- Executable real-program delta: the focused product executes one `choose<T>` over
+  scalars, arrays, tuples, ordinary structs, and `Reading<int>`; it also proves two
+  type parameters, reordered and repeated occurrences, concrete side parameters and
+  results, annotated local initialization/reassignment, branch selection, multiple
+  definitions, multiple specializations, deterministic raw/public checked IR and
+  LLVM, direct modules, and public `check`/`build`/`run`. The maintained telemetry
+  application uses the same helper for `Reading<int>` and `Reading<char>` and retains
+  exact `telemetry score: 91` output and exit 91.
+- Exhaustive boundary evidence: focused target
+  `generic_copydata_function_tests` passes 5/5; shared contract unit controls pass
+  2/2; the verifier's private generic-function signature/substitution corruption
+  control passes. The negative product covers missing, extra, duplicate, unused, and
+  result-only parameters; conflicts; invalid arguments; bounds/`where`; nested or
+  method-like placements; recursion and generic-to-generic calls; all forbidden
+  abstract-value uses; wrong arity/type; and preserved legacy topologies through
+  semantic, raw checked-admission, and public routes. Existing generic-struct,
+  frontend, checked-IR, binding, ownership/reference/enum/array/tuple/module, and
+  CORE-043--090/CAP-001--004 compatibility remains green.
+- Complete local evidence: normalized root `./tools/test.sh` passes 232 library tests,
+  32 binary tests, every integration target, doc tests, formatting, and
+  correctness-denying Clippy. `git diff --check` passes. With pinned LLVM/Clang
+  22.1.8, public verified build plus independent `opt -passes=verify`,
+  `llc -verify-machineinstrs`, and `clang` links pass; independent Windows `-O0` and
+  `-O2` executables both print exact `telemetry score: 91`, write no stderr, and exit
+  91. Public `aero run` prints exact `Output: telemetry score: 91`, writes no stderr,
+  and exits 91.
+- Files changed: `src/compiler/src/generic_function_contract.rs`; minimal registration
+  and shared-pipeline/backend/verifier integration in `lib.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, `generic_struct_contract.rs`,
+  `struct_contract.rs`, `ir_verifier.rs`, and `code_generator.rs`; focused and
+  representative tests plus the state-claim contract that forbids stale next-action
+  text; the two representative source files; and, only after the
+  exact code candidate was green, the directly affected state/matrix/roadmap/
+  framework/README and this ledger record. User/app-owned untracked directories and
+  quarantined stash remain untouched.
+- Remaining uncertainty and exclusions: the conservative prepass recovers only the
+  exact source expression types required by the frozen class; every generated
+  specialization is still validated by ordinary semantics and independent checked
+  admission. Bounds/traits, generic operations/methods/enums/impls, recursion,
+  generic-to-generic calls, result-only inference, nested generic signatures,
+  non-CopyData arguments, runtime polymorphism, collections, heap/drop/lifetimes,
+  public ABI, accelerators, releases, benchmarks, stability, and general memory-safety
+  claims remain excluded. Public acceptance remains CAP-004 until exact-head review,
+  protected merge, and merge-head workflows pass.
+- Regression risk, recovery, and next action: the main risks are specialization
+  identity confusion, divergence between semantic and checked routes, and accidental
+  admission of an abstract operation. Shared idempotence/body classification, exact
+  verifier proof, three-route negatives, corruption controls, compatibility rings,
+  the representative gate, and LLVM/native execution detect them. The bounded CAP-005
+  branch/PR is the clean rollback boundary. Publish one intentional candidate commit,
+  keep the PR title/body synchronized to its exact head and exclusions, verify every
+  public workflow, merge only through protected `master`, then perform one bounded
+  accepted-truth synchronization before selecting another capability.
+
 ## CAP-004 post-merge project-truth correction
 
 - Date/task/status: 2026-08-11, `CAP-004-POSTMERGE-TRUTH`, authorized bounded

@@ -79,6 +79,11 @@ impl CodeGenerator {
         format!("aero.arg.{name}")
     }
 
+    fn llvm_function_symbol(name: &str) -> String {
+        crate::generic_function_contract::private_generic_function_llvm_symbol(name)
+            .unwrap_or_else(|| name.to_string())
+    }
+
     fn struct_type_to_llvm(name: &str) -> String {
         match crate::generic_struct_contract::private_generic_struct_source_name(name) {
             Some(source_name) => format!("%\"aero.struct.{source_name}\""),
@@ -1101,7 +1106,8 @@ impl CodeGenerator {
                     &function_defs,
                 );
             } else {
-                llvm_ir.push_str(&format!("define i32 @{function_name}() {{\nentry:\n"));
+                let llvm_name = Self::llvm_function_symbol(&function_name);
+                llvm_ir.push_str(&format!("define i32 @{llvm_name}() {{\nentry:\n"));
                 let empty_param_types: HashMap<String, String> = HashMap::new();
                 self.generate_function_body(
                     &mut llvm_ir,
@@ -1166,7 +1172,8 @@ impl CodeGenerator {
                 );
             } else {
                 // Legacy function without parameters (like main)
-                llvm_ir.push_str(&format!("define i32 @{}() {{\nentry:\n", func_name));
+                let llvm_name = Self::llvm_function_symbol(&func_name);
+                llvm_ir.push_str(&format!("define i32 @{llvm_name}() {{\nentry:\n"));
                 let empty_param_types: HashMap<String, String> = HashMap::new();
                 self.generate_function_body(
                     &mut llvm_ir,
@@ -1232,9 +1239,10 @@ impl CodeGenerator {
             ));
         }
 
+        let llvm_name = Self::llvm_function_symbol(func_name);
         llvm_ir.push_str(&format!(
             "define {} @{}({}) {{\nentry:\n",
-            return_llvm_type, func_name, param_str
+            return_llvm_type, llvm_name, param_str
         ));
 
         let mut param_types = HashMap::new();
@@ -2373,6 +2381,7 @@ impl CodeGenerator {
                     "void".to_string()
                 }
             });
+        let llvm_function = Self::llvm_function_symbol(function);
 
         if let Some(result_reg) = result {
             let result_str = match result_reg {
@@ -2383,7 +2392,7 @@ impl CodeGenerator {
             match return_llvm_type.as_str() {
                 "double" => llvm_ir.push_str(&format!(
                     "  %{} = call double @{}({})\n",
-                    result_str, function, args_str
+                    result_str, llvm_function, args_str
                 )),
                 "i32" => {
                     if self.is_checked_enum_result(result_reg)
@@ -2391,13 +2400,13 @@ impl CodeGenerator {
                     {
                         llvm_ir.push_str(&format!(
                             "  %{} = call i32 @{}({})\n",
-                            result_str, function, args_str
+                            result_str, llvm_function, args_str
                         ));
                     } else {
                         let call_reg = self.fresh_reg();
                         llvm_ir.push_str(&format!(
                             "  %{} = call i32 @{}({})\n",
-                            call_reg, function, args_str
+                            call_reg, llvm_function, args_str
                         ));
                         llvm_ir.push_str(&format!(
                             "  %{} = sitofp i32 %{} to double\n",
@@ -2409,7 +2418,7 @@ impl CodeGenerator {
                     let call_reg = self.fresh_reg();
                     llvm_ir.push_str(&format!(
                         "  %{} = call i64 @{}({})\n",
-                        call_reg, function, args_str
+                        call_reg, llvm_function, args_str
                     ));
                     llvm_ir.push_str(&format!(
                         "  %{} = sitofp i64 %{} to double\n",
@@ -2420,13 +2429,13 @@ impl CodeGenerator {
                     if self.is_checked_bool_result(result_reg) {
                         llvm_ir.push_str(&format!(
                             "  %{} = call i1 @{}({})\n",
-                            result_str, function, args_str
+                            result_str, llvm_function, args_str
                         ));
                     } else {
                         let call_reg = self.fresh_reg();
                         llvm_ir.push_str(&format!(
                             "  %{} = call i1 @{}({})\n",
-                            call_reg, function, args_str
+                            call_reg, llvm_function, args_str
                         ));
                         llvm_ir.push_str(&format!(
                             "  %{} = uitofp i1 %{} to double\n",
@@ -2435,7 +2444,7 @@ impl CodeGenerator {
                     }
                 }
                 "void" => {
-                    llvm_ir.push_str(&format!("  call void @{}({})\n", function, args_str));
+                    llvm_ir.push_str(&format!("  call void @{}({})\n", llvm_function, args_str));
                     llvm_ir.push_str(&format!(
                         "  %{} = fadd double 0x0000000000000000, 0x0000000000000000\n",
                         result_str
@@ -2443,28 +2452,28 @@ impl CodeGenerator {
                 }
                 struct_type if Self::is_struct_llvm_type(struct_type) => {
                     llvm_ir.push_str(&format!(
-                        "  %{result_str} = call {struct_type} @{function}({args_str})\n"
+                        "  %{result_str} = call {struct_type} @{llvm_function}({args_str})\n"
                     ));
                 }
                 array_type if array_type.starts_with('[') => {
                     llvm_ir.push_str(&format!(
-                        "  %{result_str} = call {array_type} @{function}({args_str})\n"
+                        "  %{result_str} = call {array_type} @{llvm_function}({args_str})\n"
                     ));
                 }
                 aggregate_type if aggregate_type.starts_with('{') => {
                     llvm_ir.push_str(&format!(
-                        "  %{result_str} = call {aggregate_type} @{function}({args_str})\n"
+                        "  %{result_str} = call {aggregate_type} @{llvm_function}({args_str})\n"
                     ));
                 }
                 _ => llvm_ir.push_str(&format!(
                     "  %{} = call double @{}({})\n",
-                    result_str, function, args_str
+                    result_str, llvm_function, args_str
                 )),
             }
         } else {
             llvm_ir.push_str(&format!(
                 "  call {} @{}({})\n",
-                return_llvm_type, function, args_str
+                return_llvm_type, llvm_function, args_str
             ));
         }
     }

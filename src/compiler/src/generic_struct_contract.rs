@@ -134,6 +134,24 @@ pub(crate) fn valid_generic_aware_struct_symbol(
     }
 }
 
+pub(crate) fn parse_canonical_copydata_type_list(source: &str) -> Option<Vec<Type>> {
+    let types = CanonicalTypeParser::new(source).parse_type_list().ok()?;
+    let canonical = types
+        .iter()
+        .map(display_source_type)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?
+        .join(",");
+    (canonical == source).then_some(types)
+}
+
+pub(crate) fn canonical_copydata_type_matches_logical(
+    expected: &Type,
+    actual: &LogicalType,
+) -> bool {
+    annotation_matches_logical(expected, actual)
+}
+
 pub(crate) fn normalize_generic_copydata_structs(
     ast: Vec<AstNode>,
 ) -> Result<Vec<AstNode>, String> {
@@ -287,6 +305,7 @@ impl GenericStructNormalizer {
                 return_type,
                 body,
                 type_params,
+                trait_bounds,
                 ..
             } => {
                 let mentions = parameters.iter().any(|parameter| {
@@ -294,7 +313,14 @@ impl GenericStructNormalizer {
                 }) || return_type.as_ref().is_some_and(|result| {
                     contains_source_generic_struct(result, &self.definitions)
                 });
-                if mentions && !type_params.is_empty() {
+                if mentions
+                    && !type_params.is_empty()
+                    && (!trait_bounds.is_empty()
+                        || !crate::generic_function_contract::has_complete_direct_type_parameter_inference(
+                            type_params,
+                            parameters,
+                        ))
+                {
                     return Err(format!(
                         "generic function `{name}` cannot transport an explicit generic CopyData struct in CAP-004"
                     ));

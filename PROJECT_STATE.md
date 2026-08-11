@@ -4,6 +4,36 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
+### CAP-005 exact local candidate (not yet accepted)
+
+The active `agent/cap-005-generic-copydata-functions` candidate adds one bounded
+compile-time specialization class for unique top-level, bound-free generic functions.
+Every type parameter is inferred from an exact whole-parameter occurrence, every
+substitution is already admitted recursive finite CopyData, and the parametric body
+may only copy whole values through direct parameters, explicitly typed direct locals,
+branch selection, reassignment, and return. One shared idempotent authority validates
+the template and call product, emits private nongeneric specializations before both
+semantic analysis and checked admission, and gives the independent verifier enough
+identity data to reject signature or substitution forgery. No runtime polymorphism,
+boxing, type tags, or second executable semantic path is introduced.
+
+The candidate's focused product passes 5/5, its shared-contract controls pass 2/2,
+the private-identity corruption control and all affected compatibility rings pass,
+and the representative telemetry program uses the same `choose<T>` helper for
+`Reading<int>` and `Reading<char>` while retaining exact output and exit 91. The
+complete local repository gate passes 232 library tests, 32 binary tests, every
+integration target, doc tests, formatting, and correctness-denying Clippy. Pinned
+LLVM/Clang 22.1.8 externally verifies and machine-verifies the candidate; independent
+Windows `-O0` and `-O2` executables and public `run` produce exact output and exit 91.
+This is local candidate evidence only. Until a bounded exact-head PR, protected merge,
+and exact merge-head workflows pass, accepted public capability remains CAP-004.
+
+Bounds and traits, generic methods/impls/enums, recursion, generic-to-generic calls,
+operations or projection on abstract values, expected-result inference, nested generic
+applications in signatures, non-CopyData arguments, collections, heap/drop/lifetimes,
+public ABI, accelerators, releases, benchmarks, stability, and general memory-safety
+claims remain excluded.
+
 The latest accepted compiler-capability master is protected CAP-004 merge
 `e4c515b9566a7d8fcb4f66c975c4e1769607515f`. Bounded PR #28 carried exact candidate
 `a1554cab130ff62c37be535622439bb54e6efe5e`; candidate and merge share tree
@@ -2641,11 +2671,15 @@ Accepted CAP-004 project-truth synchronization merged through protected PR #29 a
 `5e6f30a1e4a8979f38e75423f2021b88d8c92548` with the identical tree. Exact
 merge-head CI `31480903724`, Rust CI `31480903716`, and CodeQL `31480903587` pass.
 
-Perform the fresh three-gap project-level ranking against accepted CAP-004 before
-authorizing CAP-005. Select the next real-program capability by roadmap payoff,
-architectural leverage, correctness value, risk, and proportional evidence cost. Do
-not default to the quarantined CORE-091 topology, publish releases/packages/
-benchmarks, force-push, or delete retained integration work.
+The required fresh three-gap ranking against accepted CAP-004 is recorded in the
+CAP-005 task-ledger authorization. It selected bound-free recursive-CopyData generic
+transport functions over the tied Milestone 0 contract and the lower-ranked dynamic
+collection foundation because the bounded specialization slice adds the greatest
+source-level reuse without inventing collection or trait semantics. Publish and
+verify that exact CAP-005 candidate through one bounded PR; public acceptance remains
+CAP-004 until protected integration and exact merge-head workflows pass. Do not start
+the next capability, default to the quarantined CORE-091 topology, publish releases/
+packages/benchmarks, force-push, or delete retained integration work.
 
 ## Unauthorized actions
 

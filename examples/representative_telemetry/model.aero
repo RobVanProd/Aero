@@ -7,6 +7,11 @@ enum Decision {
     Alert(int, bool)
 }
 
+fn choose<T>(first: T, second: T, take_first: bool) -> T {
+    if take_first { return first; }
+    second
+}
+
 fn make_sensor(value: int, trusted: bool) -> Sensor {
     Sensor { value: value, trusted: trusted }
 }
