@@ -232,9 +232,12 @@
   dual-platform `-O0`/`-O2` workflow are the corresponding detectors.
 - Candidate status and next action: unpublished and unaccepted. Freeze the exact tree,
   pass diff hygiene, commit and push one bounded branch, publish an exact candidate PR
-  whose front page leads with CAP-002,
-  and require every exact-head check before protected merge. Then verify the merge head
-  and publish accepted-truth synchronization separately. Commit SHA: pending.
+  whose front page leads with CAP-002, and require every exact-head check before
+  protected merge. Then verify the merge head and publish accepted-truth synchronization
+  separately. Frozen implementation commit
+  `1fa5b2a204d25fdd373ead83ce8cb34fe0da398a`, tree
+  `9c102a55775177bc57b740344afbc5a5981936da`, stable patch ID
+  `a7dfca16bb6b598b4da6dd66dbbd8b76352b5e23`.
 
 ## CAP-001 - verified runtime fixed-array reads
 
