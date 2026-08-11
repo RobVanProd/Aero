@@ -1291,6 +1291,10 @@ jobs:
         grep -Fq '; Aero generic enum: Sample<char>' "${representative_llvm}"
         grep -Fq 'aero.trait.PolicyValue.for.Sensor.policy_value' "${representative_llvm}"
         grep -Fq 'aero.trait.PolicyValue.for.Batch.policy_value' "${representative_llvm}"
+        grep -Fq 'aero.generic.window_get<int>' "${representative_llvm}"
+        grep -Fq 'aero.generic.window_get<char>' "${representative_llvm}"
+        grep -Fq 'aero.generic.window_set<int>' "${representative_llvm}"
+        grep -Fq 'aero.generic.window_set<char>' "${representative_llvm}"
         if grep -E '@printf\([^\n]*, i64 ' "${representative_llvm}"; then
           echo "representative telemetry LLVM rewrote a numeric printf argument to i64"
           exit 1
@@ -1321,7 +1325,11 @@ jobs:
           negative_index.aero \
           upper_bound_index.aero \
           negative_write_index.aero \
-          upper_bound_write_index.aero; do
+          upper_bound_write_index.aero \
+          generic_negative_index.aero \
+          generic_upper_bound_index.aero \
+          generic_negative_write_index.aero \
+          generic_upper_bound_write_index.aero; do
           bounds_case="${bounds_file%.aero}"
           bounds_source="${runtime_fail_root}/${bounds_file}"
           bounds_llvm="${RUNNER_TEMP}/${bounds_case}.ll"
@@ -2197,6 +2205,18 @@ jobs:
         if (-not $representativeText.Contains("aero.trait.PolicyValue.for.Batch.policy_value")) {
           throw "Windows representative telemetry LLVM omitted PolicyValue for Batch"
         }
+        if (-not $representativeText.Contains("aero.generic.window_get<int>")) {
+          throw "Windows representative telemetry LLVM omitted window_get<int>"
+        }
+        if (-not $representativeText.Contains("aero.generic.window_get<char>")) {
+          throw "Windows representative telemetry LLVM omitted window_get<char>"
+        }
+        if (-not $representativeText.Contains("aero.generic.window_set<int>")) {
+          throw "Windows representative telemetry LLVM omitted window_set<int>"
+        }
+        if (-not $representativeText.Contains("aero.generic.window_set<char>")) {
+          throw "Windows representative telemetry LLVM omitted window_set<char>"
+        }
         if ($representativeText -match '@printf\([^\r\n]*, i64 ') {
           throw "Windows representative telemetry LLVM rewrote a numeric printf argument to i64"
         }
@@ -2262,7 +2282,11 @@ jobs:
           "negative_index.aero",
           "upper_bound_index.aero",
           "negative_write_index.aero",
-          "upper_bound_write_index.aero"
+          "upper_bound_write_index.aero",
+          "generic_negative_index.aero",
+          "generic_upper_bound_index.aero",
+          "generic_negative_write_index.aero",
+          "generic_upper_bound_write_index.aero"
         )) {
           $boundsCase = [System.IO.Path]::GetFileNameWithoutExtension($boundsFile)
           $boundsSource = Join-Path $runtimeFailRoot $boundsFile

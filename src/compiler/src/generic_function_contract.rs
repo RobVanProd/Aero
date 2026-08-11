@@ -1,7 +1,8 @@
 use crate::ast::{AstNode, Block, Expression, Parameter, Pattern, Statement, Type, UnaryOp};
 use crate::copydata_trait_dispatch::{TraitDispatchPlan, is_trait_call_marker};
 use crate::generic_struct_contract::{
-    canonical_copydata_type_matches_logical, parse_canonical_copydata_type_list,
+    GenericStructParametricCatalog, canonical_copydata_type_matches_logical,
+    parse_canonical_copydata_type_list, private_generic_struct_application,
     private_generic_struct_source_name,
 };
 use crate::ir::LogicalType;
@@ -30,6 +31,7 @@ struct FunctionSignature {
 #[derive(Debug, Clone)]
 enum IdentityTypeRole {
     Generic(usize),
+    ParametricStruct { name: String, arguments: Vec<usize> },
     Concrete(Type),
 }
 
@@ -77,7 +79,13 @@ impl TypeScopes {
 
 #[derive(Debug, Clone, Default)]
 struct ParametricScopes {
-    scopes: Vec<BTreeMap<String, Option<String>>>,
+    scopes: Vec<BTreeMap<String, Option<ParametricBinding>>>,
+}
+
+#[derive(Debug, Clone)]
+struct ParametricBinding {
+    ty: Type,
+    writable: bool,
 }
 
 impl ParametricScopes {
@@ -97,14 +105,14 @@ impl ParametricScopes {
             .expect("generic-function parametric scopes remain balanced");
     }
 
-    fn insert(&mut self, name: String, parameter: Option<String>) {
+    fn insert(&mut self, name: String, parameter: Option<Type>, writable: bool) {
         self.scopes
             .last_mut()
             .expect("generic-function parametric scopes are nonempty")
-            .insert(name, parameter);
+            .insert(name, parameter.map(|ty| ParametricBinding { ty, writable }));
     }
 
-    fn get(&self, name: &str) -> Option<String> {
+    fn get(&self, name: &str) -> Option<ParametricBinding> {
         self.scopes
             .iter()
             .rev()
@@ -118,6 +126,8 @@ struct GenericFunctionNormalizer {
     struct_fields: BTreeMap<String, Option<Vec<(String, Type)>>>,
     globals: BTreeMap<String, Type>,
     registry: StructRegistry,
+    generic_structs: GenericStructParametricCatalog,
+    generic_struct_applications: BTreeMap<String, String>,
     specializations: BTreeMap<String, AstNode>,
     trait_dispatch: TraitDispatchPlan,
 }
@@ -125,6 +135,16 @@ struct GenericFunctionNormalizer {
 pub(crate) fn normalize_generic_copydata_functions(
     ast: Vec<AstNode>,
 ) -> Result<Vec<AstNode>, String> {
+    let generic_structs = GenericStructParametricCatalog::from_ast(&ast);
+    let generic_struct_applications = ast
+        .iter()
+        .filter_map(|node| match node {
+            AstNode::Statement(Statement::StructDef { name, .. }) => {
+                private_generic_struct_source_name(name).map(|source| (source, name.clone()))
+            }
+            _ => None,
+        })
+        .collect::<BTreeMap<_, _>>();
     let initial_registry = StructRegistry::from_top_level_ast(&ast);
     let trait_dispatch = TraitDispatchPlan::from_ast(&ast, &initial_registry)?;
     let ast = trait_dispatch.lower_active_declarations(ast);
@@ -199,7 +219,7 @@ pub(crate) fn normalize_generic_copydata_functions(
                     &trait_bounds,
                     &mut template.body,
                 )?;
-                if validate_template(&template, &generic_names, &registry)? {
+                if validate_template(&template, &generic_names, &registry, &generic_structs)? {
                     templates.insert(name, template);
                 } else {
                     retained.push(AstNode::Statement(Statement::Function {
@@ -222,6 +242,8 @@ pub(crate) fn normalize_generic_copydata_functions(
         struct_fields: BTreeMap::new(),
         globals: BTreeMap::new(),
         registry,
+        generic_structs,
+        generic_struct_applications,
         specializations: BTreeMap::new(),
         trait_dispatch,
     };
@@ -230,7 +252,7 @@ pub(crate) fn normalize_generic_copydata_functions(
 
     let mut normalized = normalizer.specializations.into_values().collect::<Vec<_>>();
     normalized.extend(retained);
-    Ok(normalized)
+    crate::generic_struct_contract::normalize_generic_copydata_structs(normalized)
 }
 
 pub(crate) fn private_generic_function_source_name(name: &str) -> Option<String> {
@@ -306,6 +328,45 @@ pub(crate) fn has_complete_direct_type_parameter_inference(
         .map(str::to_string)
         .collect::<BTreeSet<_>>();
     inferred == declared
+}
+
+pub(crate) fn admits_parametric_generic_struct_signature(
+    type_parameters: &[String],
+    parameters: &[Parameter],
+    result: Option<&Type>,
+    trait_bounds: &[(String, Vec<String>)],
+    generic_structs: &GenericStructParametricCatalog,
+) -> bool {
+    if type_parameters.is_empty() || !trait_bounds.is_empty() {
+        return false;
+    }
+    let declared = type_parameters.iter().cloned().collect::<BTreeSet<_>>();
+    if declared.len() != type_parameters.len() {
+        return false;
+    }
+
+    let mut inferred = BTreeSet::new();
+    let mut saw_struct = false;
+    for parameter in parameters {
+        if let Some(direct) = direct_type_parameter(&parameter.param_type, &declared) {
+            inferred.insert(direct.to_string());
+        } else if generic_structs.is_exact_application(&parameter.param_type, type_parameters) {
+            inferred.extend(type_parameters.iter().cloned());
+            saw_struct = true;
+        } else if type_mentions_parameters(&parameter.param_type, &declared) {
+            return false;
+        }
+    }
+    if let Some(result) = result {
+        if direct_type_parameter(result, &declared).is_some() {
+        } else if generic_structs.is_exact_application(result, type_parameters) {
+            saw_struct = true;
+        } else if type_mentions_parameters(result, &declared) {
+            return false;
+        }
+    }
+
+    saw_struct && inferred == declared
 }
 
 impl GenericFunctionNormalizer {
@@ -697,6 +758,60 @@ impl GenericFunctionNormalizer {
                 } else {
                     substitutions.insert(type_parameter.to_string(), concrete);
                 }
+            } else if self
+                .generic_structs
+                .is_exact_application(&parameter.param_type, &template.type_parameters)
+            {
+                let actual_application = match actual {
+                    Type::Named(name) => private_generic_struct_application(name),
+                    Type::Generic(_, _) => Some(actual.clone()),
+                    _ => None,
+                }
+                .ok_or_else(|| {
+                    format!(
+                        "generic function `{source_name}` requires an exact concrete generic-struct argument for `{}`",
+                        parameter.name
+                    )
+                })?;
+                let (
+                    Type::Generic(expected_name, expected_arguments),
+                    Type::Generic(actual_name, actual_arguments),
+                ) = (&parameter.param_type, actual_application)
+                else {
+                    unreachable!("generic-struct application classification is exact")
+                };
+                if expected_name != &actual_name
+                    || expected_arguments.len() != actual_arguments.len()
+                {
+                    return Err(format!(
+                        "generic function `{source_name}` argument for `{}` requires {}, actual {}",
+                        parameter.name,
+                        display_source_type(&parameter.param_type)?,
+                        display_source_type(actual)?
+                    ));
+                }
+                for (expected, actual) in expected_arguments.iter().zip(&actual_arguments) {
+                    let type_parameter = direct_type_parameter(expected, &declared)
+                        .expect("exact parametric generic-struct arguments are direct parameters");
+                    let concrete = self.canonical_copy_type(actual).ok_or_else(|| {
+                        format!(
+                            "generic function `{source_name}` requires recursive finite CopyData arguments"
+                        )
+                    })?;
+                    if let Some(existing) = substitutions.get(type_parameter) {
+                        if !self.types_equivalent(existing, &concrete) {
+                            return Err(format!(
+                                "generic function `{source_name}` inferred conflicting types for `{type_parameter}`: {} and {}",
+                                display_source_type(existing)
+                                    .unwrap_or_else(|_| "<invalid>".to_string()),
+                                display_source_type(&concrete)
+                                    .unwrap_or_else(|_| "<invalid>".to_string())
+                            ));
+                        }
+                    } else {
+                        substitutions.insert(type_parameter.to_string(), concrete);
+                    }
+                }
             } else if !self.types_equivalent(&parameter.param_type, actual) {
                 return Err(format!(
                     "generic function `{source_name}` argument for `{}` requires {}, actual {}",
@@ -721,14 +836,19 @@ impl GenericFunctionNormalizer {
             .map(|parameter| {
                 Ok(Parameter {
                     name: parameter.name.clone(),
-                    param_type: substitute_type(&parameter.param_type, &substitutions)?,
+                    param_type: self.materialize_specialized_type(&substitute_type(
+                        &parameter.param_type,
+                        &substitutions,
+                    )?)?,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
         let result = template
             .result
             .as_ref()
-            .map(|result| substitute_type(result, &substitutions))
+            .map(|result| {
+                self.materialize_specialized_type(&substitute_type(result, &substitutions)?)
+            })
             .transpose()?;
         let mut body = template.body.clone();
         substitute_block(&mut body, &substitutions)?;
@@ -925,6 +1045,44 @@ impl GenericFunctionNormalizer {
         self.registry
             .resolve_copy_annotation(ty)
             .and_then(|contract| ty_to_type(&contract.ty))
+            .or_else(|| {
+                let materialized = self.materialize_specialized_type(ty).ok()?;
+                self.registry
+                    .resolve_copy_annotation(&materialized)
+                    .and_then(|contract| ty_to_type(&contract.ty))
+            })
+    }
+
+    fn materialize_specialized_type(&self, ty: &Type) -> Result<Type, String> {
+        match ty {
+            Type::Generic(_, _) => {
+                let canonical = display_source_type(ty)?;
+                self.generic_struct_applications
+                    .get(&canonical)
+                    .cloned()
+                    .map(Type::Named)
+                    .ok_or_else(|| {
+                        format!(
+                            "generic-function specialization requires a proven concrete generic-struct application `{canonical}`"
+                        )
+                    })
+            }
+            Type::Array(element, count) => Ok(Type::Array(
+                Box::new(self.materialize_specialized_type(element)?),
+                *count,
+            )),
+            Type::Tuple(elements) => Ok(Type::Tuple(
+                elements
+                    .iter()
+                    .map(|element| self.materialize_specialized_type(element))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Type::Reference(element, mutable) => Ok(Type::Reference(
+                Box::new(self.materialize_specialized_type(element)?),
+                *mutable,
+            )),
+            Type::Named(name) => Ok(Type::Named(name.clone())),
+        }
     }
 
     fn types_equivalent(&self, left: &Type, right: &Type) -> bool {
@@ -939,6 +1097,7 @@ fn validate_template(
     template: &GenericFunctionTemplate,
     generic_names: &BTreeSet<String>,
     registry: &StructRegistry,
+    generic_structs: &GenericStructParametricCatalog,
 ) -> Result<bool, String> {
     if !valid_source_symbol(&template.name) || matches!(template.name.as_str(), "main" | "printf") {
         return Err(format!(
@@ -964,7 +1123,10 @@ fn validate_template(
                 template.name, parameter.name
             ));
         }
-        if direct_type_parameter(&parameter.param_type, &declared).is_none() {
+        if direct_type_parameter(&parameter.param_type, &declared).is_none()
+            && !generic_structs
+                .is_exact_application(&parameter.param_type, &template.type_parameters)
+        {
             if type_mentions_parameters(&parameter.param_type, &declared) {
                 return Ok(false);
             }
@@ -979,11 +1141,19 @@ fn validate_template(
     if !has_complete_direct_type_parameter_inference(
         &template.type_parameters,
         &template.parameters,
+    ) && !admits_parametric_generic_struct_signature(
+        &template.type_parameters,
+        &template.parameters,
+        template.result.as_ref(),
+        &[],
+        generic_structs,
     ) {
         return Ok(false);
     }
     if let Some(result) = &template.result {
-        if direct_type_parameter(result, &declared).is_none() {
+        if direct_type_parameter(result, &declared).is_none()
+            && !generic_structs.is_exact_application(result, &template.type_parameters)
+        {
             if type_mentions_parameters(result, &declared) {
                 return Ok(false);
             }
@@ -993,38 +1163,38 @@ fn validate_template(
         }
     }
 
-    validate_parametric_body(template, generic_names)?;
+    validate_parametric_body(template, generic_names, generic_structs)?;
     Ok(true)
 }
 
 fn validate_parametric_body(
     template: &GenericFunctionTemplate,
     generic_names: &BTreeSet<String>,
+    generic_structs: &GenericStructParametricCatalog,
 ) -> Result<(), String> {
     let declared = template
         .type_parameters
         .iter()
         .cloned()
         .collect::<BTreeSet<_>>();
-    let result_parameter = template
-        .result
-        .as_ref()
-        .and_then(|result| direct_type_parameter(result, &declared))
-        .map(str::to_string);
+    let result_type = template.result.clone();
     let mut scopes = ParametricScopes::new();
     for parameter in &template.parameters {
-        scopes.insert(
-            parameter.name.clone(),
-            direct_type_parameter(&parameter.param_type, &declared).map(str::to_string),
-        );
+        let parametric = (direct_type_parameter(&parameter.param_type, &declared).is_some()
+            || generic_structs
+                .is_exact_application(&parameter.param_type, &template.type_parameters))
+        .then(|| parameter.param_type.clone());
+        scopes.insert(parameter.name.clone(), parametric, false);
     }
     validate_parametric_block(
         &template.name,
         &template.body,
         &mut scopes,
-        result_parameter.as_deref(),
+        result_type.as_ref(),
+        &template.type_parameters,
         &declared,
         generic_names,
+        generic_structs,
     )
 }
 
@@ -1032,9 +1202,11 @@ fn validate_parametric_block(
     function: &str,
     block: &Block,
     scopes: &mut ParametricScopes,
-    result_parameter: Option<&str>,
+    result_parameter: Option<&Type>,
+    type_parameters: &[String],
     declared: &BTreeSet<String>,
     generic_names: &BTreeSet<String>,
+    generic_structs: &GenericStructParametricCatalog,
 ) -> Result<(), String> {
     scopes.push();
     for statement in &block.statements {
@@ -1043,12 +1215,20 @@ fn validate_parametric_block(
             statement,
             scopes,
             result_parameter,
+            type_parameters,
             declared,
             generic_names,
+            generic_structs,
         )?;
     }
     if let Some(expression) = &block.expression {
-        validate_parametric_return_expression(function, expression, scopes, result_parameter)?;
+        validate_parametric_return_expression(
+            function,
+            expression,
+            scopes,
+            result_parameter,
+            generic_structs,
+        )?;
         reject_generic_calls(function, expression, generic_names)?;
     }
     scopes.pop();
@@ -1059,28 +1239,43 @@ fn validate_parametric_statement(
     function: &str,
     statement: &Statement,
     scopes: &mut ParametricScopes,
-    result_parameter: Option<&str>,
+    result_parameter: Option<&Type>,
+    type_parameters: &[String],
     declared: &BTreeSet<String>,
     generic_names: &BTreeSet<String>,
+    generic_structs: &GenericStructParametricCatalog,
 ) -> Result<(), String> {
     match statement {
         Statement::Let {
             name,
+            mutable,
             type_annotation,
             value,
-            ..
         } => {
-            let parameter = type_annotation
+            let parametric_annotation = type_annotation.as_ref().filter(|ty| {
+                direct_type_parameter(ty, declared).is_some()
+                    || generic_structs.is_exact_application(ty, type_parameters)
+            });
+            if type_annotation
                 .as_ref()
-                .and_then(|ty| direct_type_parameter(ty, declared));
-            if let Some(parameter) = parameter {
-                let Some(value) = value else {
+                .is_some_and(|ty| type_mentions_parameters(ty, declared))
+                && parametric_annotation.is_none()
+            {
+                return Err(parametric_body_diagnostic(function));
+            }
+            let derived = value
+                .as_ref()
+                .and_then(|value| parametric_expression_type(value, scopes, generic_structs));
+            if let Some(actual) = derived {
+                let Some(annotation) = type_annotation else {
                     return Err(parametric_body_diagnostic(function));
                 };
-                if direct_parametric_identifier(value, scopes).as_deref() != Some(parameter) {
+                if !types_equal(annotation, &actual) {
                     return Err(parametric_body_diagnostic(function));
                 }
-                scopes.insert(name.clone(), Some(parameter.to_string()));
+                scopes.insert(name.clone(), parametric_annotation.cloned(), *mutable);
+            } else if parametric_annotation.is_some() {
+                return Err(parametric_body_diagnostic(function));
             } else {
                 if value
                     .as_ref()
@@ -1088,7 +1283,7 @@ fn validate_parametric_statement(
                 {
                     return Err(parametric_body_diagnostic(function));
                 }
-                scopes.insert(name.clone(), None);
+                scopes.insert(name.clone(), None, false);
             }
             if let Some(value) = value {
                 reject_generic_calls(function, value, generic_names)?;
@@ -1096,16 +1291,21 @@ fn validate_parametric_statement(
             Ok(())
         }
         Statement::Assignment { target, value } => {
-            if let Expression::Identifier(name) = target {
-                if let Some(parameter) = scopes.get(name) {
-                    if direct_parametric_identifier(value, scopes).as_deref()
-                        != Some(parameter.as_str())
-                    {
-                        return Err(parametric_body_diagnostic(function));
-                    }
-                    reject_generic_calls(function, value, generic_names)?;
-                    return Ok(());
+            let target_type = parametric_expression_type(target, scopes, generic_structs);
+            let value_type = parametric_expression_type(value, scopes, generic_structs);
+            if target_type.is_some() || value_type.is_some() {
+                let (Some(target_type), Some(value_type)) = (target_type, value_type) else {
+                    return Err(parametric_body_diagnostic(function));
+                };
+                if !types_equal(&target_type, &value_type)
+                    || !is_parametric_assignment_target(target)
+                    || !parametric_assignment_root_is_writable(target, scopes)
+                {
+                    return Err(parametric_body_diagnostic(function));
                 }
+                reject_generic_calls(function, target, generic_names)?;
+                reject_generic_calls(function, value, generic_names)?;
+                return Ok(());
             }
             if expression_mentions_parametric(target, scopes)
                 || expression_mentions_parametric(value, scopes)
@@ -1117,7 +1317,13 @@ fn validate_parametric_statement(
         }
         Statement::Return(value) => {
             if let Some(value) = value {
-                validate_parametric_return_expression(function, value, scopes, result_parameter)?;
+                validate_parametric_return_expression(
+                    function,
+                    value,
+                    scopes,
+                    result_parameter,
+                    generic_structs,
+                )?;
                 reject_generic_calls(function, value, generic_names)?;
             } else if result_parameter.is_some() {
                 return Err(parametric_body_diagnostic(function));
@@ -1135,8 +1341,10 @@ fn validate_parametric_statement(
             block,
             scopes,
             result_parameter,
+            type_parameters,
             declared,
             generic_names,
+            generic_structs,
         ),
         Statement::If {
             condition,
@@ -1153,8 +1361,10 @@ fn validate_parametric_statement(
                 then_block,
                 &mut branch,
                 result_parameter,
+                type_parameters,
                 declared,
                 generic_names,
+                generic_structs,
             )?;
             if let Some(otherwise) = else_block {
                 let mut branch = scopes.clone();
@@ -1163,8 +1373,10 @@ fn validate_parametric_statement(
                     otherwise,
                     &mut branch,
                     result_parameter,
+                    type_parameters,
                     declared,
                     generic_names,
+                    generic_structs,
                 )?;
             }
             Ok(())
@@ -1180,8 +1392,10 @@ fn validate_parametric_statement(
                 body,
                 &mut loop_scopes,
                 result_parameter,
+                type_parameters,
                 declared,
                 generic_names,
+                generic_structs,
             )
         }
         Statement::For {
@@ -1195,14 +1409,16 @@ fn validate_parametric_statement(
             reject_generic_calls(function, iterable, generic_names)?;
             let mut loop_scopes = scopes.clone();
             loop_scopes.push();
-            loop_scopes.insert(variable.clone(), None);
+            loop_scopes.insert(variable.clone(), None, false);
             validate_parametric_block(
                 function,
                 body,
                 &mut loop_scopes,
                 result_parameter,
+                type_parameters,
                 declared,
                 generic_names,
+                generic_structs,
             )?;
             loop_scopes.pop();
             Ok(())
@@ -1230,23 +1446,70 @@ fn validate_parametric_return_expression(
     function: &str,
     expression: &Expression,
     scopes: &ParametricScopes,
-    result_parameter: Option<&str>,
+    result_type: Option<&Type>,
+    generic_structs: &GenericStructParametricCatalog,
 ) -> Result<(), String> {
-    if expression_mentions_parametric(expression, scopes)
-        && direct_parametric_identifier(expression, scopes).as_deref() != result_parameter
-    {
-        return Err(parametric_body_diagnostic(function));
+    let actual = parametric_expression_type(expression, scopes, generic_structs);
+    match (result_type, actual) {
+        (Some(expected), Some(actual)) if types_equal(expected, &actual) => Ok(()),
+        (_, None) if !expression_mentions_parametric(expression, scopes) => Ok(()),
+        _ => Err(parametric_body_diagnostic(function)),
     }
-    Ok(())
 }
 
-fn direct_parametric_identifier(
+fn parametric_expression_type(
     expression: &Expression,
     scopes: &ParametricScopes,
-) -> Option<String> {
+    generic_structs: &GenericStructParametricCatalog,
+) -> Option<Type> {
     match expression {
-        Expression::Identifier(name) => scopes.get(name),
+        Expression::Identifier(name) => scopes.get(name).map(|binding| binding.ty),
+        Expression::FieldAccess { object, field } => {
+            let object = parametric_expression_type(object, scopes, generic_structs)?;
+            generic_structs.field_type(&object, field)
+        }
+        Expression::TupleIndex { object, index } => {
+            let object = parametric_expression_type(object, scopes, generic_structs)?;
+            let Type::Tuple(elements) = object else {
+                return None;
+            };
+            elements.get(*index).cloned()
+        }
+        Expression::IndexAccess { object, index }
+            if !expression_mentions_parametric(index, scopes) =>
+        {
+            let object = parametric_expression_type(object, scopes, generic_structs)?;
+            let Type::Array(element, _) = object else {
+                return None;
+            };
+            Some(*element)
+        }
         _ => None,
+    }
+}
+
+fn is_parametric_assignment_target(expression: &Expression) -> bool {
+    match expression {
+        Expression::Identifier(_) => true,
+        Expression::FieldAccess { object, .. }
+        | Expression::TupleIndex { object, .. }
+        | Expression::IndexAccess { object, .. } => is_parametric_assignment_target(object),
+        _ => false,
+    }
+}
+
+fn parametric_assignment_root_is_writable(
+    expression: &Expression,
+    scopes: &ParametricScopes,
+) -> bool {
+    match expression {
+        Expression::Identifier(name) => scopes.get(name).is_some_and(|binding| binding.writable),
+        Expression::FieldAccess { object, .. }
+        | Expression::TupleIndex { object, .. }
+        | Expression::IndexAccess { object, .. } => {
+            parametric_assignment_root_is_writable(object, scopes)
+        }
+        _ => false,
     }
 }
 
@@ -1787,7 +2050,8 @@ fn display_source_type(ty: &Type) -> Result<String, String> {
         Type::Tuple(_) => {
             Err("generic-function CopyData tuples require arity at least two".to_string())
         }
-        Type::Reference(_, _) | Type::Generic(_, _) => {
+        Type::Generic(_, _) => crate::generic_struct_contract::display_source_type(ty),
+        Type::Reference(_, _) => {
             Err("generic-function specialization type is not CopyData".to_string())
         }
     }
@@ -1858,6 +2122,28 @@ fn identity_contract_key(
                 indexes
                     .get(parameter)
                     .expect("declared type parameter has a stable index")
+            ));
+        }
+        if let Type::Generic(name, arguments) = ty {
+            let argument_indexes = arguments
+                .iter()
+                .map(|argument| {
+                    let parameter = direct_type_parameter(argument, declared).ok_or_else(|| {
+                        "generic-function parametric struct identity is not exact".to_string()
+                    })?;
+                    indexes.get(parameter).copied().ok_or_else(|| {
+                        "generic-function parametric struct identity is not exact".to_string()
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            return Ok(format!(
+                "s{}_{}",
+                encode_hex(name),
+                argument_indexes
+                    .iter()
+                    .map(usize::to_string)
+                    .collect::<Vec<_>>()
+                    .join("_")
             ));
         }
         Ok(format!("c{}", encode_hex(&display_source_type(ty)?)))
@@ -1978,6 +2264,24 @@ fn decode_identity_role(encoded: &str) -> Option<IdentityTypeRole> {
         let parsed = index.parse::<usize>().ok()?;
         return (parsed.to_string() == index).then_some(IdentityTypeRole::Generic(parsed));
     }
+    if let Some(encoded) = encoded.strip_prefix('s') {
+        let (name, arguments) = encoded.split_once('_')?;
+        let name = decode_hex(name)?;
+        if !valid_source_symbol(&name) || arguments.is_empty() {
+            return None;
+        }
+        let arguments = arguments
+            .split('_')
+            .map(|argument| {
+                if argument.is_empty() || (argument.len() > 1 && argument.starts_with('0')) {
+                    return None;
+                }
+                let parsed = argument.parse::<usize>().ok()?;
+                (parsed.to_string() == argument).then_some(parsed)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        return Some(IdentityTypeRole::ParametricStruct { name, arguments });
+    }
     let source = decode_hex(encoded.strip_prefix('c')?)?;
     let mut types = parse_canonical_copydata_type_list(&source)?;
     (types.len() == 1).then(|| IdentityTypeRole::Concrete(types.remove(0)))
@@ -1990,6 +2294,20 @@ fn identity_role_matches(
 ) -> bool {
     let expected = match role {
         IdentityTypeRole::Generic(index) => arguments.get(*index),
+        IdentityTypeRole::ParametricStruct {
+            name,
+            arguments: indexes,
+        } => {
+            let Some(arguments) = indexes
+                .iter()
+                .map(|index| arguments.get(*index).cloned())
+                .collect::<Option<Vec<_>>>()
+            else {
+                return false;
+            };
+            let application = Type::Generic(name.clone(), arguments);
+            return canonical_copydata_type_matches_logical(&application, actual);
+        }
         IdentityTypeRole::Concrete(expected) => Some(expected),
     };
     expected.is_some_and(|expected| canonical_copydata_type_matches_logical(expected, actual))
@@ -2041,6 +2359,63 @@ mod tests {
             private.0,
             &[LogicalType::Char, LogicalType::Int, LogicalType::Bool],
             &LogicalType::Int
+        ));
+    }
+
+    #[test]
+    fn parametric_generic_struct_identity_is_substitution_bound() {
+        let source = "struct Window<T> { values: [T; 3] } fn get<T>(window: Window<T>, index: int) -> T { window.values[index] } fn main() -> int { let ints: Window<int> = Window { values: [1, 2, 3] }; let chars: Window<char> = Window { values: ['a', 'b', 'c'] }; get(chars, 0); get(ints, 1) }";
+        let tokens = crate::lexer::try_tokenize_with_locations(source, None).expect("lex");
+        let ast = crate::parser::parse_with_locations(tokens).expect("parse");
+        let ast = crate::generic_struct_contract::normalize_generic_copydata_structs(ast)
+            .expect("normalize concrete generic structs");
+        let normalized =
+            normalize_generic_copydata_functions(ast).expect("specialize generic container API");
+        let identity = normalized
+            .iter()
+            .find_map(|node| match node {
+                AstNode::Statement(Statement::Function { name, .. })
+                    if private_generic_function_source_name(name).as_deref()
+                        == Some("get<int>") =>
+                {
+                    Some(name.clone())
+                }
+                _ => None,
+            })
+            .expect("int specialization identity");
+        let application_name = |canonical: &str| {
+            normalized
+                .iter()
+                .find_map(|node| match node {
+                    AstNode::Statement(Statement::StructDef { name, .. })
+                        if private_generic_struct_source_name(name).as_deref()
+                            == Some(canonical) =>
+                    {
+                        Some(name.clone())
+                    }
+                    _ => None,
+                })
+                .expect("concrete generic struct identity")
+        };
+        let window = |name: String, element: LogicalType| LogicalType::Struct {
+            name,
+            fields: vec![LogicalType::Array {
+                element: Box::new(element),
+                count: 3,
+            }],
+        };
+        let integers = window(application_name("Window<int>"), LogicalType::Int);
+        let characters = window(application_name("Window<char>"), LogicalType::Char);
+
+        assert!(valid_private_generic_function_signature(
+            &identity,
+            &[integers, LogicalType::Int],
+            &LogicalType::Int,
+        ));
+        assert!(!valid_private_generic_function_signature(
+            &identity,
+            &[characters, LogicalType::Int],
+            &LogicalType::Int,
         ));
     }
 

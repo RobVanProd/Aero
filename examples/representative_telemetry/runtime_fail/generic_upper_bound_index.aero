@@ -1,0 +1,14 @@
+struct Window<T> { values: [T; 2] }
+
+fn window_get<T>(window: Window<T>, index: int) -> T {
+    window.values[index]
+}
+
+fn main() -> int {
+    let values: Window<int> = Window { values: [10, 20] };
+    let count = 2;
+    let index = count;
+    let selected = window_get(values, index);
+    println!("unreachable generic upper-bound index: {}", selected);
+    0
+}
