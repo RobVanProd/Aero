@@ -1,5 +1,169 @@
 # Aero Task Ledger
 
+## CAP-010 - required-only recursive-CopyData trait-bound static dispatch
+
+- Date/task/status: 2026-08-11, `CAP-010`, authorized red-first compiler and
+  representative-program capability from exact accepted public master
+  `a07a9dfdc93f6c535c300b5523168b6977ec09a6` (tree
+  `4ebf65ed214e62261ff217a2dac0d34bafabfcaf`) on
+  `agent/cap-010-next-capability`. Accepted CAP-009 project truth is synchronized.
+  User/app-owned untracked `tmp/` and `.codex-remote-attachments/` remain outside
+  the task. Quarantined stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6`
+  must not be applied or dropped.
+- Milestone-gap audit: Milestone 0's selected `stable-scalar-v0` exit and the
+  bounded Milestone 1 representative-application exit are accepted. The wider
+  language remains a Minimal Prototype. Milestone 2 still requires dynamic
+  collections, general generic substitution and operations, traits/static
+  dispatch, broader patterns/error propagation, general lifetime/drop/unsafe
+  rules, public ABI/destruction, and an ownership-intensive application. CAP-010
+  must advance that exit with executable polymorphic behavior, not enumerate a
+  neighboring reference, selector, or annotation topology.
+- Fresh post-CAP-009 ranking: scores are 1--5; higher `Risk` and `Evidence` mean
+  more favorable delivery, not permission to omit a hard dependency.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Required-only recursive-CopyData trait-bound static dispatch | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+  | 2 | Owned dynamic `Vec<T>` foundation | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
+  | 3 | Positive import/module name resolution | 5 | 4 | 5 | 4 | 2 | 2 | 22 |
+
+  The collection RFC promises `usize` capacity/index results, deterministic
+  element drop, move-on-insert, and collection-scoped `get`/`get_mut` borrows.
+  The executable compiler has no `usize`, trusted dynamic-storage checked
+  identity, allocation-failure rule, general drop path, or borrow-from-collection
+  lifetime contract; legacy Vec IR is explicitly rejected. Activating it would
+  invent semantics. Positive imports remain high leverage, but the formal spec
+  does not yet freeze lookup roots, namespace/collision precedence, re-export
+  behavior, or the visibility identity currently erased from function/struct/
+  enum AST nodes. Required-method traits, exact impl completeness, call-site
+  bounds, and compile-time monomorphized static dispatch are already explicit
+  design contracts, so the bounded class below is the highest eligible payoff.
+- Before/after real-program delta and destination: before CAP-010, accepted
+  generic functions can only transport whole recursive CopyData values; any
+  trait bound keeps the function quarantined and a generic algorithm cannot call
+  behavior supplied by its type argument. After CAP-010, a user can define one
+  required-only trait, implement it for multiple admitted CopyData structs, and
+  call its required methods inside a bounded generic function; each concrete call
+  becomes independently checked static dispatch and native code. The maintained
+  telemetry-policy application will use that capability to compute policy input
+  through two concrete sensor implementations. This is the first step toward
+  ordinary generic algorithms and the Milestone 2 trait/generic exit, not an end
+  claim for traits or generics.
+- Mechanism: introduce one library-owned trait-dispatch contract/normalizer before
+  semantic analysis and checked admission. It exhaustively validates the admitted
+  declaration, implementation, bound, call, and specialization product; replaces
+  it with deterministic private monomorphic helper functions and ordinary exact
+  calls; and removes executable trait/impl syntax from downstream phases. The
+  normalizer is idempotent because semantic analysis and checked admission each
+  independently consume it. Existing semantic trait-name heuristics are not an
+  authority for the admitted class and must be removed or unreachable after
+  normalization, not copied into another phase. Private helper identities encode
+  the trait, concrete receiver, method, parameter/result schema, and immutable
+  receiver mode so the checked verifier can reject corruption without trusting
+  source normalization.
+- Frozen positive class: a unique nongeneric trait with one or more uniquely named
+  required methods and no default bodies. Every method has exactly one leading
+  immutable `&self` receiver, followed by zero or more recursive finite CopyData
+  parameters, and an explicit recursive finite CopyData or implicit `Void` result.
+  A unique nongeneric `impl Trait for Type` targets an already admitted unique,
+  acyclic, nongeneric recursive-CopyData struct and implements every required
+  method exactly once with an identical signature after substituting `Self` with
+  the target type; no extra methods are admitted. Implementation bodies use the
+  existing monomorphic CopyData/reference/function/control-flow contract and may
+  refer to `self` as an ordinary immutable reference expression. A top-level
+  generic function has direct type-parameter inference through existing whole-
+  value CopyData parameters, and each bounded parameter may be the direct receiver
+  of a method named by one of its declared traits. Nonreceiver arguments evaluate
+  once left-to-right, the receiver is immutably borrowed only for the call, the
+  owner remains usable afterward, and the call result composes wherever its exact
+  declared CopyData/`Void` type is admitted. Each concrete recursive-CopyData call
+  argument must have all declared impls and specializes through static dispatch;
+  no vtable or runtime type test exists.
+- Frozen negative boundary: reject duplicate/unknown/generic/default-bearing
+  traits; missing, duplicate, extra, generic, inherent, or wrong-target impls;
+  primitive/enum/generic/non-CopyData impl targets; by-value or mutable receivers;
+  missing/nonleading/multiple receivers; mismatched method names, order, arity,
+  parameter types, result types, or receiver modes; undeclared, unused, duplicate,
+  or unsatisfied bounds; method calls not uniquely justified by the receiver's
+  bounds; non-direct/aliased/projected/borrowed/dereferenced receivers; associated
+  functions/types/constants, supertraits, where-only constraints, generic trait or
+  impl arguments, default methods, trait-to-trait calls, generic-to-generic calls,
+  trait objects/dynamic dispatch, operator overloading, references as generic
+  arguments, enum/resource/collection receivers, move/drop/lifetime/ABI/FFI,
+  imports, accelerators, releases, performance, safety, or general trait/generic
+  stability. Parser-retained excluded shapes fail closed before checked IR.
+- Assumptions and evidence: the formal specification says traits define required
+  method sets, impls provide all required methods, call-site bounds must be
+  satisfied, and generic trait bounds use compile-time monomorphized static
+  dispatch. Accepted CAP-005 already supplies deterministic whole-value recursive-
+  CopyData generic specialization. Existing immutable CopyData reference parameters,
+  struct projection, ordinary calls, checked function schemas, and verifier rules
+  provide the receiver and backend substrate. Current counter-evidence is explicit:
+  trait registries retain only names, impl completeness compares only names, bound
+  checking uses a duplicated first-argument heuristic, checked admission treats
+  trait definitions as syntax-only, impl methods emit no runtime function, and the
+  intrinsic-method classifier rejects user trait calls. The red must reach that
+  shared missing-dispatch boundary before production mutation.
+- Measurement and red-first proof: add one focused integration target before
+  production changes. Its positive product must cover at least two traits, two
+  concrete CopyData struct impls, multiple required methods, zero/multiple extra
+  arguments, CopyData and `Void` results, multiple bounds on one type parameter,
+  multiple type parameters, inferred concrete calls, nested result use, repeated
+  calls, owner use after dispatch, direct modules under the existing flattened
+  compatibility model, public CLI check/build/run, exact checked identities,
+  verified LLVM, and native execution. The negative table must enumerate every
+  frozen declaration/impl/bound/call exclusion through semantic and independent
+  checked admission, with nonzero/no-artifact CLI controls. Verifier corruption
+  must mutate helper identity, receiver type/mode/provenance, trait/method identity,
+  argument/result schema, callee, and call arity/order. The representative telemetry
+  application must gain two concrete trait implementations while preserving its
+  prior exact output/exit and `-O0`/`-O2` equivalence.
+- Failure modes and detection: name-only matching could accept a wrong signature;
+  a missing bound could dispatch anyway; a forged private helper could bypass the
+  normalizer; receiver borrowing could move or mutate the owner; method arguments
+  could reorder or duplicate effects; one phase could accept a topology another
+  rejects; private symbols could collide; generic specialization could select the
+  wrong impl; or unsupported trait syntax could silently disappear. Exact shared-
+  contract unit tests, source negative matrices, semantic-versus-checked parity,
+  private-identity verifier corruptions, evaluation-order specimens, owner reuse,
+  deterministic LLVM snapshots, and cross-platform native gates detect these
+  failures.
+- Allowed files and recovery: authorization/implementation is limited to
+  `TASK_LEDGER.md`; a new `src/compiler/src/copydata_trait_dispatch.rs`;
+  `src/compiler/src/lib.rs`; `parser.rs` only if the red proves the retained `self`
+  token is not usable as an expression; `generic_function_contract.rs` only for the
+  shared specialization seam; `semantic_analyzer.rs` only to remove or route the
+  superseded heuristic; `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`, and
+  `code_generator.rs` only for exact private static-dispatch identity/verification;
+  one focused `src/compiler/tests/copydata_trait_dispatch_tests.rs`; directly
+  affected contract/corruption tests; the existing representative application and
+  its test; one focused tracked example if the representative source cannot carry
+  the complete product; and Linux/Windows workflow entries for the exact native
+  lane. After the exact candidate is green, only directly affected project-truth
+  records and state assertions may describe candidate status. The rollback boundary
+  is this bounded branch/PR; no release, package, benchmark, protection change,
+  external artifact, direct master write, or user-owned untracked mutation is
+  authorized.
+- Decision threshold: merge only if one shared classifier/normalizer proves the
+  complete admitted class; all excluded shapes fail before checked IR; independent
+  verification authenticates every private helper/call relationship; the existing
+  bound-free generic, reference, aggregate, enum, module, stable-profile, and
+  CAP-003--009 behavior is unchanged; focused, representative, full repository,
+  formatting, Clippy, docs, verifier corruption, all public exact-head, pinned LLVM
+  22 Linux/Windows external/machine/object/link/native `-O0`/`-O2`, protected merge,
+  and exact merge-head gates pass. Candidate and public acceptance remain separate.
+- Strategic value and what would change our mind: this turns accepted generic data
+  transport into reusable behavior-polymorphic algorithms, directly advances an
+  open Milestone 2 exit, and enriches the real application rather than another
+  topology micro-test. Evidence that required-method signatures or `self` semantics
+  are ambiguous; that exact dispatch needs default methods, associated items,
+  dynamic dispatch, unresolved lifetimes/drop/layout, or duplicated phase guards;
+  that CAP-005 cannot provide deterministic specialization; that a concrete impl
+  cannot be independently authenticated; or that a more foundational blocker makes
+  the composed application impossible stops CAP-010 and triggers re-ranking. A
+  request to increment a task number, accept only name completeness, or add another
+  neighboring signature permutation does not lower the threshold.
+
 ## CAP-009 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-009-ACCEPTANCE-SYNC`, authorized bounded
