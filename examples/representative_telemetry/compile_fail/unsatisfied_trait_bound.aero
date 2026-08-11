@@ -1,0 +1,20 @@
+struct Reading { value: int }
+struct Other { value: int }
+
+trait Score {
+    fn score(&self) -> int;
+}
+
+impl Score for Reading {
+    fn score(&self) -> int {
+        (*self).value
+    }
+}
+
+fn evaluate<T: Score>(value: T) -> int {
+    value.score()
+}
+
+fn main() -> int {
+    evaluate(Other { value: 7 })
+}

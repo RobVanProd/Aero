@@ -1,4 +1,5 @@
 use crate::ast::{AstNode, Block, Expression, Parameter, Pattern, Statement, Type, UnaryOp};
+use crate::copydata_trait_dispatch::{TraitDispatchPlan, is_trait_call_marker};
 use crate::generic_struct_contract::{
     canonical_copydata_type_matches_logical, parse_canonical_copydata_type_list,
     private_generic_struct_source_name,
@@ -118,11 +119,15 @@ struct GenericFunctionNormalizer {
     globals: BTreeMap<String, Type>,
     registry: StructRegistry,
     specializations: BTreeMap<String, AstNode>,
+    trait_dispatch: TraitDispatchPlan,
 }
 
 pub(crate) fn normalize_generic_copydata_functions(
     ast: Vec<AstNode>,
 ) -> Result<Vec<AstNode>, String> {
+    let initial_registry = StructRegistry::from_top_level_ast(&ast);
+    let trait_dispatch = TraitDispatchPlan::from_ast(&ast, &initial_registry)?;
+    let ast = trait_dispatch.lower_active_declarations(ast);
     let generic_names = ast
         .iter()
         .filter_map(|node| match node {
@@ -180,14 +185,21 @@ pub(crate) fn normalize_generic_copydata_functions(
                 if templates.contains_key(&name) {
                     return Err(format!("duplicate generic function definition `{name}`"));
                 }
-                let template = GenericFunctionTemplate {
+                let mut template = GenericFunctionTemplate {
                     name: name.clone(),
                     parameters: parameters.clone(),
                     result: return_type.clone(),
                     body: body.clone(),
                     type_parameters: type_params.clone(),
                 };
-                if validate_template(&template, &trait_bounds, &generic_names, &registry)? {
+                trait_dispatch.elaborate_generic_template(
+                    &name,
+                    &parameters,
+                    &type_params,
+                    &trait_bounds,
+                    &mut template.body,
+                )?;
+                if validate_template(&template, &generic_names, &registry)? {
                     templates.insert(name, template);
                 } else {
                     retained.push(AstNode::Statement(Statement::Function {
@@ -211,6 +223,7 @@ pub(crate) fn normalize_generic_copydata_functions(
         globals: BTreeMap::new(),
         registry,
         specializations: BTreeMap::new(),
+        trait_dispatch,
     };
     normalizer.prepare_context(&retained)?;
     normalizer.rewrite_top_level(&mut retained)?;
@@ -237,7 +250,7 @@ pub(crate) fn valid_generic_aware_function_symbol(
     if name.starts_with(PRIVATE_GENERIC_FUNCTION_PREFIX) {
         private_generic_function_source_name(name).is_some()
     } else {
-        valid_source_symbol(name)
+        crate::copydata_trait_dispatch::valid_trait_aware_function_symbol(name, valid_source_symbol)
     }
 }
 
@@ -246,6 +259,11 @@ pub(crate) fn valid_private_generic_function_signature(
     parameters: &[LogicalType],
     result: &LogicalType,
 ) -> bool {
+    if name.starts_with(crate::copydata_trait_dispatch::PRIVATE_TRAIT_IMPL_PREFIX) {
+        return crate::copydata_trait_dispatch::valid_private_trait_impl_signature(
+            name, parameters, result,
+        );
+    }
     if !name.starts_with(PRIVATE_GENERIC_FUNCTION_PREFIX) {
         return true;
     }
@@ -714,6 +732,8 @@ impl GenericFunctionNormalizer {
             .transpose()?;
         let mut body = template.body.clone();
         substitute_block(&mut body, &substitutions)?;
+        self.trait_dispatch
+            .finalize_specialization(source_name, &mut body, &substitutions)?;
 
         let concrete_arguments = template
             .type_parameters
@@ -813,6 +833,9 @@ impl GenericFunctionNormalizer {
                 UnaryOp::Not => Some(Type::Named("bool".to_string())),
                 UnaryOp::Negate => self.expression_type(operand, scopes),
             },
+            Expression::FunctionCall { name, .. } if is_trait_call_marker(name) => {
+                self.trait_dispatch.marker_result_type(name)
+            }
             Expression::FunctionCall { name, .. } => self
                 .signatures
                 .get(name)
@@ -914,7 +937,6 @@ impl GenericFunctionNormalizer {
 
 fn validate_template(
     template: &GenericFunctionTemplate,
-    trait_bounds: &[(String, Vec<String>)],
     generic_names: &BTreeSet<String>,
     registry: &StructRegistry,
 ) -> Result<bool, String> {
@@ -923,9 +945,6 @@ fn validate_template(
             "generic function `{}` has an invalid or reserved name",
             template.name
         ));
-    }
-    if !trait_bounds.is_empty() {
-        return Ok(false);
     }
     let mut declared = BTreeSet::new();
     for parameter in &template.type_parameters {
@@ -1244,6 +1263,10 @@ fn expression_mentions_parametric(expression: &Expression, scopes: &ParametricSc
             expression_mentions_parametric(left, scopes)
                 || expression_mentions_parametric(right, scopes)
         }
+        Expression::FunctionCall { name, arguments } if is_trait_call_marker(name) => arguments
+            .iter()
+            .skip(1)
+            .any(|argument| expression_mentions_parametric(argument, scopes)),
         Expression::FunctionCall { arguments, .. }
         | Expression::Print { arguments, .. }
         | Expression::Println { arguments, .. } => arguments

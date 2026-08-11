@@ -47,6 +47,15 @@
   independently reject unanalyzed AST, and prove no closure symbol/layout/LLVM or CLI
   artifact for inferred/explicit bindings, comparisons, arguments, returns,
   array/struct storage, captures, and calls.
+- The CAP-010 required-only trait-dispatch slice must retain positive composition over
+  multiple traits, concrete recursive CopyData structs, required methods, extra
+  CopyData arguments, CopyData/`Void` results, multiple bounds/type parameters,
+  owner reuse, direct modules, the representative program, and public CLI/native
+  execution. Negative source and no-artifact CLI controls must reject every excluded
+  declaration/impl/bound/call family before checked IR. Independent verifier
+  corruption controls must reject helper identity, receiver target/mode/provenance,
+  argument/result schema, callee, arity, and order changes. This is not a conformance
+  claim for general traits or generics.
 - Acyclic conditional ownership tests must distinguish mutually exclusive sibling
   consumption from post-merge uncertainty. For each admitted enum schema, cover
   missing else, both fallthrough arms, definitely returning arms, nested else-if,

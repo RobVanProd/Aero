@@ -694,6 +694,10 @@ impl Parser {
                 Ok(Expression::StringLiteral(s))
             }
             Token::VecMacro => self.parse_vec_macro_literal(),
+            Token::Self_ => {
+                self.advance();
+                Ok(Expression::Identifier("self".to_string()))
+            }
             Token::Identifier(name) => {
                 let name = name.clone();
                 self.advance();

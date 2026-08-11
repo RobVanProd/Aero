@@ -5595,6 +5595,201 @@ mod tests {
     }
 
     #[test]
+    fn private_trait_dispatch_rejects_identity_signature_call_and_borrow_corruption() {
+        fn visit_mut(instructions: &mut [Inst], action: &mut impl FnMut(&mut Inst)) {
+            for instruction in instructions {
+                action(instruction);
+                match instruction {
+                    Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                        visit_mut(body, action);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let source = r#"
+            struct Reading { value: int }
+            trait Score {
+                fn combine(&self, delta: int, enabled: bool) -> int;
+            }
+            impl Score for Reading {
+                fn combine(&self, delta: int, enabled: bool) -> int {
+                    if enabled { return (*self).value + delta; }
+                    (*self).value
+                }
+            }
+            fn evaluate<T: Score>(value: T, delta: int, enabled: bool) -> int {
+                value.combine(delta, enabled)
+            }
+            fn main() -> int {
+                evaluate(Reading { value: 4 }, 3, 1 < 2)
+            }
+        "#;
+        let tokens = crate::lexer::try_tokenize_with_locations(source, None).expect("lex");
+        let ast = crate::parser::parse_with_locations(tokens).expect("parse");
+        let exact = crate::ir_generator::IrGenerator::new()
+            .try_generate_ir(ast)
+            .expect("generate and verify exact trait dispatch")
+            .into_raw();
+        verify_ir(exact.clone()).expect("exact trait dispatch must reverify");
+
+        let helper = exact
+            .values()
+            .flat_map(|function| function.body.iter())
+            .find_map(|instruction| match instruction {
+                Inst::CheckedFunctionDef { name, .. }
+                    if name
+                        .starts_with(crate::copydata_trait_dispatch::PRIVATE_TRAIT_IMPL_PREFIX) =>
+                {
+                    Some(name.clone())
+                }
+                _ => None,
+            })
+            .expect("private trait helper");
+
+        let reading = LogicalType::Struct {
+            name: "Reading".to_string(),
+            fields: vec![LogicalType::Int],
+        };
+        let exact_parameters = vec![
+            (
+                "self".to_string(),
+                LogicalType::ImmutableReference {
+                    pointee: Box::new(reading.clone()),
+                },
+            ),
+            ("delta".to_string(), LogicalType::Int),
+            ("enabled".to_string(), LogicalType::Bool),
+        ];
+        checked_signature(&helper, &exact_parameters, &LogicalType::Int)
+            .expect("exact helper identity and schema");
+
+        let mut wrong_target = exact_parameters.clone();
+        wrong_target[0].1 = LogicalType::ImmutableReference {
+            pointee: Box::new(LogicalType::Struct {
+                name: "Other".to_string(),
+                fields: vec![LogicalType::Int],
+            }),
+        };
+        assert!(
+            checked_signature(&helper, &wrong_target, &LogicalType::Int).is_err(),
+            "encoded impl target accepted a different receiver struct"
+        );
+
+        let mut mutable_receiver = exact_parameters.clone();
+        mutable_receiver[0].1 = LogicalType::MutableReference {
+            pointee: Box::new(reading),
+        };
+        assert!(
+            checked_signature(&helper, &mutable_receiver, &LogicalType::Int).is_err(),
+            "private helper accepted mutable receiver corruption"
+        );
+        assert!(
+            checked_signature(&helper, &exact_parameters, &LogicalType::Char).is_err(),
+            "private helper accepted result-schema corruption"
+        );
+
+        let mut wrong_helper_signature = exact.clone();
+        for function in wrong_helper_signature.values_mut() {
+            visit_mut(&mut function.body, &mut |instruction| {
+                if let Inst::CheckedFunctionDef {
+                    name, parameters, ..
+                } = instruction
+                    && name == &helper
+                {
+                    parameters[1].1 = LogicalType::Char;
+                }
+            });
+        }
+        assert!(
+            verify_ir(wrong_helper_signature).is_err(),
+            "helper parameter corruption passed independent verification"
+        );
+
+        let mut wrong_identity = exact.clone();
+        for function in wrong_identity.values_mut() {
+            visit_mut(&mut function.body, &mut |instruction| {
+                if let Inst::CheckedFunctionDef { name, .. } = instruction
+                    && name == &helper
+                {
+                    name.push('0');
+                }
+            });
+        }
+        assert!(
+            verify_ir(wrong_identity).is_err(),
+            "helper identity corruption passed independent verification"
+        );
+
+        let mut wrong_callee = exact.clone();
+        for function in wrong_callee.values_mut() {
+            visit_mut(&mut function.body, &mut |instruction| {
+                if let Inst::Call { function, .. } = instruction
+                    && function == &helper
+                {
+                    function.push('0');
+                }
+            });
+        }
+        assert!(
+            verify_ir(wrong_callee).is_err(),
+            "trait call callee corruption passed independent verification"
+        );
+
+        let mut wrong_arity = exact.clone();
+        for function in wrong_arity.values_mut() {
+            visit_mut(&mut function.body, &mut |instruction| {
+                if let Inst::Call {
+                    function,
+                    arguments,
+                    ..
+                } = instruction
+                    && function == &helper
+                {
+                    arguments.pop();
+                }
+            });
+        }
+        assert!(
+            verify_ir(wrong_arity).is_err(),
+            "trait call arity corruption passed independent verification"
+        );
+
+        let mut wrong_order = exact.clone();
+        for function in wrong_order.values_mut() {
+            visit_mut(&mut function.body, &mut |instruction| {
+                if let Inst::Call {
+                    function,
+                    arguments,
+                    ..
+                } = instruction
+                    && function == &helper
+                {
+                    arguments.swap(1, 2);
+                }
+            });
+        }
+        assert!(
+            verify_ir(wrong_order).is_err(),
+            "trait call argument-order corruption passed independent verification"
+        );
+
+        let mut wrong_borrow_source = exact;
+        for function in wrong_borrow_source.values_mut() {
+            visit_mut(&mut function.body, &mut |instruction| {
+                if let Inst::CheckedImmutableBorrow { source, .. } = instruction {
+                    *source = Value::ImmInt(0);
+                }
+            });
+        }
+        assert!(
+            verify_ir(wrong_borrow_source).is_err(),
+            "trait receiver borrow-provenance corruption passed independent verification"
+        );
+    }
+
+    #[test]
     fn character_immediates_keep_exact_identity_and_predicates_fail_closed() {
         let checked = verify_ir(function(vec![
             Inst::ICmp {

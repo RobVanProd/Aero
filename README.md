@@ -159,6 +159,19 @@ aero lsp
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
+> **CAP-010 local candidate (not accepted master):** the current integration branch
+> admits one required-only static-dispatch slice for nongeneric recursive-CopyData
+> structs. A direct `T: Trait` generic parameter may call exact immutable `&self`
+> methods with CopyData/`Void` signatures; concrete calls become verifier-bound
+> monomorphic LLVM helpers. The telemetry application uses the same policy trait for
+> `Sensor` and `Batch` and retains exact score/exit 91. Focused 3/3, representative
+> 3/3, corruption controls, neighboring suites, and the full local repository gate
+> pass. Public CI, pinned Linux/Windows native evidence, protected merge, and merge-
+> head verification remain pending. Defaults, associated items, supertraits, generic
+> traits/impls, dynamic dispatch, trait objects, non-CopyData targets, generic-to-
+> generic calls, lifetimes/drop, ABI/FFI, safety, and general trait/generic support are
+> not claimed.
+
 > **CAP-009 accepted:** public library checking/compilation and
 > CLI `check`, `build`, and `run` can explicitly select
 > `--language-profile stable-scalar-v0`. One exhaustive pre-semantic classifier admits

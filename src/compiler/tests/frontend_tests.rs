@@ -1007,9 +1007,10 @@ fn test_semantic_unsatisfied_trait_bound() {
 }
 
 #[test]
-fn test_semantic_satisfied_trait_bound_call_remains_quarantined() {
-    // A satisfied bound does not supply generic substitution, a callable ABI, or an
-    // admitted lowering contract. Preserve the syntax and fail closed at the call.
+fn test_semantic_non_copydata_trait_bound_call_remains_quarantined() {
+    // CAP-010 admits only recursive CopyData parameters/results and targets. A
+    // satisfied String-bearing trait remains outside that class and fails before
+    // checked IR instead of falling back to the earlier name-only call heuristic.
     let source = r#"
         trait Display {
             fn display(&self) -> String;
@@ -1029,11 +1030,11 @@ fn test_semantic_satisfied_trait_bound_call_remains_quarantined() {
     let ast = parser::parse(tokens);
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(ast);
-    let error = result.expect_err("satisfied trait bound must not activate generic calls");
+    let error = result.expect_err("non-CopyData trait bound must not activate generic calls");
     assert!(
-        error.contains("Unsupported function call `print_item`")
-            && error.contains("no admitted executable signature"),
-        "satisfied trait-bound call escaped the shared quarantine: {error}"
+        error.contains("trait-bound static dispatch method `Display::display`")
+            && error.contains("recursive CopyData or Void result"),
+        "non-CopyData trait-bound call escaped the shared quarantine: {error}"
     );
 }
 

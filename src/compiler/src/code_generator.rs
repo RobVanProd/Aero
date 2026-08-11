@@ -82,7 +82,10 @@ impl CodeGenerator {
     }
 
     fn llvm_function_symbol(name: &str) -> String {
-        crate::generic_function_contract::private_generic_function_llvm_symbol(name)
+        crate::copydata_trait_dispatch::private_trait_impl_llvm_symbol(name)
+            .or_else(|| {
+                crate::generic_function_contract::private_generic_function_llvm_symbol(name)
+            })
             .unwrap_or_else(|| name.to_string())
     }
 
