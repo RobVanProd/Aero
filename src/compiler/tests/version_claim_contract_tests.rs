@@ -140,9 +140,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(readme.contains("terminal `_ => fallback` and ignored"));
     assert!(readme.contains("payload leaves such as `Err(_)`"));
     assert!(!readme.contains("CAP-008 local candidate (not accepted)"));
-    assert!(readme.contains("**CAP-009 local candidate (not accepted):**"));
+    assert!(readme.contains("**CAP-009 accepted:**"));
     assert!(readme.contains("--language-profile stable-scalar-v0"));
-    assert!(readme.contains("Accepted public master remains"));
+    assert!(readme.contains("baseline is protected CAP-009 merge"));
 
     let audit = repository_file("CURRENT_CAPABILITY_AUDIT.md");
     assert!(audit.contains(
@@ -152,35 +152,25 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "no authoritative stable subset or single canonical diagnostic contract is frozen"
     ));
     assert!(audit.contains("CAP-008 accepted: nonbinding wildcard enum Match"));
-    assert!(audit.contains("protected CAP-008 compiler-capability merge"));
+    assert!(audit.contains("protected CAP-009 compiler-capability merge"));
     assert!(!audit.contains("this record is its bounded acceptance synchronization candidate"));
-    assert!(
-        audit.contains("CAP-009 local candidate (not accepted): enforceable `stable-scalar-v0`")
-    );
-    assert!(audit.contains("accepted matrix row has yet changed to `STABLE`"));
+    assert!(audit.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
+    assert!(audit.contains("selected-profile row is therefore `STABLE`"));
 
     let alignment = repository_file("FRAMEWORK_ALIGNMENT.md");
     assert!(alignment.contains(
         "accepted CAP-007 makes library compile/check plus CLI check/build/run/profile/source-test validation consume one canonical checked-program authority"
     ));
-    assert!(
-        alignment.contains("The CAP-009 local candidate advances the founding Stabilize direction")
-    );
+    assert!(alignment.contains("Accepted CAP-009 advances the founding Stabilize direction"));
 
     let project_state = repository_file("PROJECT_STATE.md");
-    assert!(
-        project_state
-            .contains("CAP-009 local candidate (not accepted): enforceable `stable-scalar-v0`")
-    );
-    assert!(project_state.contains("Accepted public master remains CAP-008 truth-sync"));
+    assert!(project_state.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
+    assert!(project_state.contains("Protected PR #40 merged it as accepted master"));
 
     let matrix = repository_file("SPEC_IMPLEMENTATION_MATRIX.md");
-    assert!(
-        matrix.contains(
-            "CAP-009 is a locally green candidate, not an accepted matrix reclassification"
-        )
-    );
-    assert!(matrix.contains("no row is reclassified `STABLE`"));
+    assert!(matrix.contains("Accepted CAP-009 adds an explicitly selected `stable-scalar-v0`"));
+    assert!(matrix.contains("Selected `stable-scalar-v0` profile (accepted `CAP-009`)"));
+    assert!(matrix.contains("| STABLE |"));
     assert!(readme.contains(
         "General generic operations/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));

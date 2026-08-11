@@ -159,25 +159,25 @@ aero lsp
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
-> **CAP-009 local candidate (not accepted):** public library checking/compilation and
+> **CAP-009 accepted:** public library checking/compilation and
 > CLI `check`, `build`, and `run` can explicitly select
 > `--language-profile stable-scalar-v0`. One exhaustive pre-semantic classifier admits
 > only the documented one-file, acyclic nongeneric `int`/`bool` function class, and a
 > sealed checked-program identity selects its exact wrapping LLVM `i32` lane. The
 > profile requires the CPU target and no `--gpu` selector. The default experimental
-> profile remains unchanged. Focused 10/10, representative exits
-> 91 and 93, and the complete local repository gate pass; pinned LLVM/Clang 22 public
-> Linux/Windows candidate and merge evidence is pending. Accepted public master remains
-> CAP-008 truth-sync head `b2d57df`. This profile does not stabilize Aero as a whole,
+> profile remains unchanged. Focused 10/10, representative exits 91 and 93, and the
+> complete repository gate pass. Exact candidate `bfd03ff` passed all nine public
+> checks; protected PR #40 merged it as accepted master `1ef21c5` with identical tree,
+> and exact merge-head CI, Rust CI, and CodeQL pass. This profile does not stabilize Aero as a whole,
 > and modules/imports, floats/chars/strings/I/O, aggregates, enums/`Match`, references,
 > closures, methods, general loops, division/remainder, traits/generics, recursion,
 > allocation, lifetimes/drop, unsafe, ABI/FFI, accelerators, benchmarks, and releases
 > remain excluded.
 
-> **Project status after CAP-008:** Aero remains a Minimal Prototype in correctness
+> **Project status after CAP-009:** Aero remains a Minimal Prototype in correctness
 > recovery, not a complete or stable language. Accepted public and compiler-capability
-> baseline is protected CAP-008 merge
-> `a1716f8400052213c8f08e5c397a3d779437dff6`.
+> baseline is protected CAP-009 merge
+> `1ef21c564ec564379e611002b1b321d910a991a3`.
 > The corrective roadmap prioritizes one
 > growing representative scalar application over more neighboring reference/topology partitions. Positive
 > import/name resolution remains high leverage but requires separately frozen namespace

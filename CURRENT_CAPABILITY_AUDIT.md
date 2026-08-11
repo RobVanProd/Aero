@@ -5,13 +5,12 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-protected CAP-008 compiler-capability merge
-`a1716f8400052213c8f08e5c397a3d779437dff6`, followed by accepted truth-sync
-head `b2d57df89da3e3ca272c049847f3905b71f29eaa`.
+protected CAP-009 compiler-capability merge
+`1ef21c564ec564379e611002b1b321d910a991a3`.
 
-### CAP-009 local candidate (not accepted): enforceable `stable-scalar-v0`
+### CAP-009 accepted: enforceable `stable-scalar-v0`
 
-The locally green CAP-009 candidate makes the selected scalar contract enforceable
+Accepted CAP-009 makes the selected scalar contract enforceable
 through public library check/compile and CLI `check`, `build`, and `run`. One exhaustive
 classifier runs after fatal parsing and before modules, semantics, checked IR, cache
 lookup, LLVM, or artifacts. Its accepted AST is one-file acyclic nongeneric scalar
@@ -27,14 +26,18 @@ parameters, calls, results, comparisons, arithmetic, and returns; the profile la
 emits no experimental `double` conversions or signed/unsigned overflow promises.
 Focused 10/10, affected public/CLI/cache/API contracts, the representative exit-91 program,
 the wrapping exit-93 corpus, formatting, Clippy, docs, and the complete repository
-gate pass locally. Pinned LLVM/Clang 22 public Linux/Windows exact-head evidence is
-still pending, so accepted master remains CAP-008 truth-sync head `b2d57df` and no
-accepted matrix row has yet changed to `STABLE`.
+gate pass. Exact candidate `bfd03ff770afc4aad69dc9925b8ad244d6761ec0`
+passed all nine candidate-head checks. Protected PR #40 merged it as
+`1ef21c564ec564379e611002b1b321d910a991a3` with identical tree
+`29a481d53b05dc36c96f2eb90beac394d3e5bef6`; exact merge-head CI
+`31534644903`, Rust CI `31534644999`, and CodeQL `31534643685` pass. The
+selected-profile row is therefore `STABLE`; no component feature or wider compiler
+surface is promoted with it.
 
 Modules/imports, floats/chars/strings/I/O, aggregates, enums/`Match`, references,
 closures, methods, general loops, division/remainder, traits/generics, recursion,
 allocation, lifetimes/drop, unsafe, public ABI/FFI, accelerators, benchmarks, releases,
-and whole-language stability or safety remain outside this candidate.
+and whole-language stability or safety remain outside this accepted profile.
 
 ### CAP-008 accepted: nonbinding wildcard enum Match
 
