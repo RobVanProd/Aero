@@ -2,25 +2,25 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-009 merge
-`1ef21c564ec564379e611002b1b321d910a991a3`. Exact candidate
-`bfd03ff770afc4aad69dc9925b8ad244d6761ec0` and the merge have identical tree
-`29a481d53b05dc36c96f2eb90beac394d3e5bef6`; candidate CI
-`31534296722`/`31534330261`, Rust CI `31534330284`, CodeQL `31534329471`,
-protected integration, merge-head CI `31534644903`, Rust CI `31534644999`, and
-CodeQL `31534643685` pass, including pinned LLVM/Clang 22 Linux/Windows native
+Latest accepted compiler-capability master is protected CAP-010 merge
+`f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`. Exact candidate
+`2e0bfde46022b9617095319452e44d14b0ef31f8` and the merge have identical tree
+`0217e2fa98728b2ad101be1ecc85481a8f4145b8`; candidate CI
+`31540211947`/`31540250537`, Rust CI `31540250543`, CodeQL `31540248956`,
+protected integration, merge-head CI `31540589044`, Rust CI `31540589040`, and
+CodeQL `31540588732` pass, including pinned LLVM/Clang 22 Linux/Windows native
 `-O0`/`-O2` gates.
 
-CAP-010 is a **local candidate, not accepted master**. It adds one bounded partial
-row for required-only nongeneric traits implemented by recursive finite CopyData
+Accepted CAP-010 adds one bounded partial row for required-only nongeneric traits
+implemented by recursive finite CopyData
 structs and invoked through direct whole-value generic parameters. Deterministic
 static specialization, checked immutable receiver/function schemas, private helper
-identity, verified LLVM, the representative program, and local full-gate evidence are
-green. Public candidate/merge-head and pinned Linux/Windows native evidence remain
-pending. The broad traits/bounds/impls row therefore continues to describe accepted
-master as `PARSED_ONLY`; default methods, associated items, supertraits, where-only
-bounds, generic traits/impls, dynamic dispatch, trait objects, non-CopyData targets,
-generic-to-generic calls, lifetimes/drop, and public ABI remain unsupported.
+identity, verified LLVM, the representative program, the complete repository gate,
+candidate/merge-head workflows, and pinned Linux/Windows native evidence are green.
+The broad traits/bounds/impls row is therefore `PARTIAL`; default methods, associated
+items, supertraits, where-only bounds, generic traits/impls, dynamic dispatch, trait
+objects, non-CopyData targets, generic-to-generic calls, lifetimes/drop, and public ABI
+remain unsupported.
 
 Accepted CAP-009 adds an explicitly selected `stable-scalar-v0` profile with one exhaustive post-parse,
 pre-semantic classifier shared by public library and CLI `check`/`build`/`run` routes.
@@ -130,8 +130,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Bound-free whole-value recursive-CopyData generic transport functions (accepted `CAP-005`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Explicit user-defined recursive-CopyData generic enums (accepted `CAP-006`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | P | P | P | P | P | P | Y | PARTIAL |
-| Required-only recursive-CopyData trait-bound static dispatch (`CAP-010` local candidate; not accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
+| Required-only recursive-CopyData trait-bound static dispatch (accepted `CAP-010`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARTIAL |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Direct mutable owned-enum reassignment | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |

@@ -124,6 +124,17 @@ reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
 
+Accepted CAP-010 adds one required-only trait-dispatch conformance slice over
+nongeneric recursive finite CopyData structs and direct whole-value generic parameters.
+Positive evidence composes multiple traits, concrete impls, immutable receivers,
+CopyData/`Void` signatures, owner reuse, modules, the representative application,
+checked helper identities, verified LLVM, and native execution. Negative and verifier
+corruption controls keep every excluded declaration/impl/bound/call form before trusted
+IR. Focused 3/3, representative 3/3, the complete repository gate, all nine exact-
+candidate public results, protected PR #42 integration, and exact merge-head CI/Rust
+CI/CodeQL pass. This is a `PARTIAL` bounded class, not general trait/generic, ABI,
+safety, or stability conformance.
+
 Accepted CAP-009 adds a separately selected `stable-scalar-v0` conformance
 lane. One exhaustive post-parse classifier must reject the complete complement of its
 frozen scalar AST before semantics, checked IR, cache lookup, or artifacts. Positive

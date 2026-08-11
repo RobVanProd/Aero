@@ -4,12 +4,9 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-### CAP-010 local candidate: required-only CopyData trait dispatch
+### CAP-010 accepted: required-only CopyData trait-bound static dispatch
 
-CAP-010 is implemented and locally green on
-`agent/cap-010-next-capability`; it is **not accepted public master**. The accepted
-baseline remains CAP-009 merge `1ef21c564ec564379e611002b1b321d910a991a3`.
-The candidate admits one deliberately bounded form of behavioral polymorphism:
+Accepted CAP-010 admits one deliberately bounded form of behavioral polymorphism:
 unique nongeneric required-only traits, exact immutable `&self` methods over recursive
 finite CopyData parameters/results, unique complete impls for nongeneric recursive
 CopyData structs, and direct trait-method calls inside whole-value generic functions.
@@ -21,10 +18,13 @@ The representative telemetry application now implements one policy trait for bot
 `Sensor` and `Batch` and obtains its observed value and bias through the same generic
 algorithm while retaining exact score/exit 91. Focused trait tests pass 3/3,
 representative tests pass 3/3, affected generic/reference/module/closure suites pass,
-and the complete local repository gate passes 240 library tests, 35 binary tests, all
-integration targets, doc tests, formatting, and correctness-denying Clippy. Public
-candidate-head CI, pinned LLVM/Clang 22 Linux/Windows native `-O0`/`-O2`, protected
-merge, and exact merge-head evidence remain pending; no acceptance claim follows.
+and the complete repository gate passes 240 library tests, 35 binary tests, all
+integration targets, doc tests, formatting, and correctness-denying Clippy. Exact
+candidate `2e0bfde46022b9617095319452e44d14b0ef31f8` passed all nine public results,
+including pinned Windows LLVM/Clang 22 native execution. Protected PR #42 merged it as
+accepted master `f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`; candidate and merge share
+tree `0217e2fa98728b2ad101be1ecc85481a8f4145b8`, and exact merge-head CI
+`31540589044`, Rust CI `31540589040`, and CodeQL `31540588732` pass.
 
 Default methods, associated items, supertraits, where-only bounds, generic traits or
 impls, inherent impls, enum/primitive/non-CopyData targets, trait objects/dynamic

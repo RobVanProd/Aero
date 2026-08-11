@@ -44,6 +44,17 @@
   calls exactly CAP-010 accepted while Aero remains a Minimal Prototype and all
   excluded behavior remains unsupported. Any evidence mismatch, non-record
   mutation, or red gate stops the sync.
+- Local record verification: the focused project-truth contract passes 8/8 and
+  `git diff --check` passes. The first root attempt correctly stopped on formatter
+  drift in the new assertions; formatting was applied without changing behavior.
+  The next attempt passed the unit surface and then exposed only the known Windows
+  CRLF checkout mismatch in byte-identity example tests. After verifying all 122
+  tracked `.aero` files were clean, their worktree bytes were temporarily
+  materialized from the indexed LF blobs; the exact `./tools/test.sh` gate then
+  passed 240 library tests, 35 binary tests, every integration target, doc tests,
+  formatting, and correctness-denying Clippy. The normal CRLF checkout was restored
+  afterward with no indexed or worktree `.aero` diff; user-owned untracked content
+  and the quarantined stash remain untouched.
 - Strategic value and what would change our mind: this restores one source of
   project truth immediately after the first accepted behavior-polymorphic generic
   capability and keeps the next selection anchored to Milestone 2 rather than stale
@@ -232,7 +243,7 @@
   parser, semantic, checked-IR, verifier, backend, workflow, example, dependency,
   project-truth, external repository, or user-owned untracked content changed.
 
-### CAP-010 local candidate evidence
+### CAP-010 candidate evidence, accepted through protected PR #42
 
 - One shared `TraitDispatchPlan` now validates the frozen declaration/impl/bound/call
   product before both semantics and semantic-independent checked admission, removes
@@ -258,10 +269,12 @@
   recursive-CopyData result rejection; the source remains rejected. The exact rerun
   of `./tools/test.sh` passes 240 library tests, 35 binary tests, every integration
   target, doc tests, formatting, and correctness-denying Clippy.
-- This remains local candidate evidence. Public exact-head workflows, pinned LLVM/
-  Clang 22 Linux/Windows external, machine, object, link, and native `-O0`/`-O2`
-  evidence, protected merge, and exact merge-head workflows are pending. Accepted
-  public master and all accepted project-truth claims remain CAP-009.
+- Exact candidate `2e0bfde46022b9617095319452e44d14b0ef31f8` passed all nine
+  public results, including pinned LLVM/Clang 22 Windows native execution. Protected
+  PR #42 merged it as `f77f1a227032008ab3ceadf2e2e3dcaed3b225e9` with identical
+  tree `0217e2fa98728b2ad101be1ecc85481a8f4145b8`; exact merge-head CI
+  `31540589044`, Rust CI `31540589040`, and CodeQL `31540588732` pass. CAP-010
+  is accepted public capability within its frozen boundary.
 
 ## CAP-009 accepted-master project-truth synchronization
 

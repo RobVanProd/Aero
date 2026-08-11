@@ -12,16 +12,15 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-CAP-010 is a local green Milestone 2 candidate, not accepted master. It is the
-highest-payoff result of the post-CAP-009 milestone-gap audit: required-only
+CAP-010 is an accepted Milestone 2 capability and the highest-payoff result of the
+post-CAP-009 milestone-gap audit: required-only
 nongeneric traits can supply immutable-receiver behavior to whole-value recursive
 CopyData generic functions through deterministic static specialization. The
 representative telemetry program uses one trait across both `Sensor` and `Batch`, so
 the change advances real generic algorithm composition instead of another neighboring
-topology. Local focused, corruption, representative, compatibility, full-root,
-formatting, and Clippy gates pass. Public exact-head and pinned Linux/Windows native
-evidence, protected merge, and merge-head verification are still required before this
-roadmap records CAP-010 as accepted or reduces the remaining Milestone 2 gap.
+topology. Focused, corruption, representative, compatibility, full-root, formatting,
+Clippy, exact-candidate, pinned Linux/Windows native, protected PR #42, and exact
+merge-head gates pass at accepted master `f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`.
 
 This slice does not complete traits or generics. Collections, general generic
 operations, associated/default items, dynamic dispatch, broader patterns and error
@@ -320,7 +319,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 |---|---|---|---|
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes; accepted CAP-009 classifies and executes the selected `stable-scalar-v0` subset as `STABLE`. | The wider compiler, component feature rows, experimental default, ABI, ownership, modules, aggregates, and release surface remain unstabilized. | Milestone 0 exit is met; preserve the selected profile while ranking the next broad real-program capability. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
-| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, accepted CAP-006 explicit user-defined recursive-CopyData generic enums, and accepted CAP-008 nonbinding enum wildcards have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices; CAP-008 adds only terminal whole-arm and payload-leaf wildcards, not general pattern semantics. | Collections, general generic substitution and operations, traits, broader patterns/error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
+| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, accepted CAP-006 explicit user-defined recursive-CopyData generic enums, accepted CAP-008 nonbinding enum wildcards, and accepted CAP-010 required-only CopyData trait dispatch have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices; CAP-008 adds only terminal whole-arm and payload-leaf wildcards; CAP-010 adds one verifier-bound static-dispatch class, not general trait semantics. | Collections, general generic substitution and operations, broader traits, broader patterns/error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
 
 Accepted CAP-009 closes the selected-stable-subset portion of the Milestone 0 row with
 protected exact-head and merge-head evidence. It does not promote neighboring
