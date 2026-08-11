@@ -13,6 +13,7 @@ use crate::function_call_contract::{
     FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
     FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
 };
+use crate::generic_struct_contract::normalize_generic_copydata_structs;
 use crate::ir::{EnumSchema, Function, Inst, LogicalType, PlaceId, Value};
 use crate::ir_verifier::PlaceTypeHints;
 use crate::local_reference::{
@@ -233,6 +234,7 @@ impl IrGenerator {
         ast: Vec<AstNode>,
     ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
         let ast = normalize_primitive_consts(ast).map_err(IrGenerationError::Admission)?;
+        let ast = normalize_generic_copydata_structs(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_builtin_carriers(ast).map_err(IrGenerationError::Admission)?;
         Self::validate_checked_ast(&ast)?;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);

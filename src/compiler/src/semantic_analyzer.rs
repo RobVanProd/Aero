@@ -17,6 +17,7 @@ use crate::function_call_contract::{
     FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
     FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
 };
+use crate::generic_struct_contract::normalize_generic_copydata_structs;
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
@@ -1206,6 +1207,7 @@ impl Default for SemanticAnalyzer {
 impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
         let ast = normalize_primitive_consts(ast)?;
+        let ast = normalize_generic_copydata_structs(ast)?;
         let ast = normalize_builtin_carriers(ast)?;
         self.function_table.clear();
         self.compatibility_scope_snapshots.clear();

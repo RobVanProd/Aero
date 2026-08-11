@@ -2,8 +2,8 @@
 
 ## CAP-004 - explicit generic CopyData struct monomorphization
 
-- Date/task/status: 2026-08-11, `CAP-004`, authorized red-first executable vertical
-  slice from accepted and post-merge-verified public master
+- Date/task/status: 2026-08-11, `CAP-004`, local implementation candidate after an
+  authorized red-first executable vertical slice from accepted and post-merge-verified public master
   `f428df22c3dd3e0ab88d7db731a281d4173e8cc9`. Work belongs only on
   `agent/cap-004-generic-copydata-structs`. User/app-owned untracked `tmp/` and
   `.codex-remote-attachments/` remain outside the task. Quarantined stash
@@ -166,6 +166,70 @@
   application, and corruption controls will be added behind this same class boundary.
   No accepted test was weakened; user/app-owned untracked directories and the
   quarantined stash remain untouched.
+
+### CAP-004 local implementation candidate
+
+- Candidate status: the bounded implementation is green locally and remains
+  unaccepted until its exact public candidate and protected merge head pass every
+  required workflow. The enclosing implementation commit assigns the immutable
+  candidate SHA; accepted-master project-truth documents intentionally remain
+  unchanged until that merge is proven.
+- Implementation: one shared, idempotent pre-semantic/pre-checked-admission pass now
+  validates generic struct definitions and exact contextual applications, substitutes
+  the admitted recursive finite CopyData grammar, and emits deterministic private
+  nongeneric schemas. It is a no-op for programs without generic structs and does not
+  preempt legacy diagnostics for unrelated ordinary structs or ambiguous functions.
+  Exact applications compose through bindings, reassignment, nongeneric parameters and
+  results, arrays, tuples, ordinary structs, projected mutation, immutable references,
+  multiple concrete instantiations, and concrete nesting such as
+  `Wrapper<Box<int>>`. Generic applications inside a generic definition remain outside
+  this slice.
+- Trust boundary: private identities commit to both canonical public type spelling and
+  exact field schema. Independent checked-IR verification rejects malformed identities
+  and schema substitution. LLVM uses source-readable, quoted concrete identities such
+  as `aero.struct.Reading<int>` and never exposes the source-unspellable private
+  identity. Semantic and checked routes invoke the same authority; no fallback layout
+  or phase-local generic topology guard was added.
+- Representative-program delta: `examples/representative_telemetry` now defines one
+  `Reading<T>` and executes both `Reading<int>` and `Reading<char>` through ordinary
+  functions while preserving the composed application's established output and exit
+  sentinel 91. The existing public representative-program lane therefore provides the
+  native Linux/Windows integration point without a new one-feature workflow.
+- Negative and corruption evidence: the focused class rejects context-free literals,
+  wrong arity, unused or duplicate parameters, unsupported generic-definition field
+  topology, recursive definitions, non-CopyData arguments, unresolved dependencies,
+  conflicting contextual families, and generic-function transport through semantics,
+  semantic-independent checked admission, and public compilation. Unit and verifier
+  corruption controls reject private-name spoofing, noncanonical payloads, idempotence
+  corruption, and identity/schema disagreement.
+- Commands and results: focused generic target 5/5 green; generic-contract unit target
+  4/4 green; private generic schema corruption control 1/1 green; representative direct-
+  module target 1/1 green; correctness-denying Clippy green; formatting green. An
+  exhaustive `cargo test --locked --manifest-path src/compiler/Cargo.toml
+  --no-fail-fast` passed 229 library tests, 32 binary tests, every integration target,
+  and all doc tests (16 pre-existing ignored tests remain ignored). Exact root
+  `./tools/test.sh` passed after the same candidate, as did `git diff --check`.
+- Compatibility audit: the first exhaustive run exposed six legacy-test regressions.
+  Five were caused by the new pass diagnosing non-generic syntax; the no-op and
+  traversal boundaries above restored every legacy diagnostic. The sixth was an
+  obsolete exclusion of generic CopyData reference parameters; it was replaced by a
+  positive executable reference case because that behavior is intentionally inside
+  the frozen CAP-004 class. The six affected targets and the subsequent exhaustive and
+  root gates are green.
+- Files changed: `src/compiler/src/generic_struct_contract.rs` plus minimal registration
+  and coupling in `lib.rs`, `semantic_analyzer.rs`, `ir_generator.rs`,
+  `struct_contract.rs`, `types.rs`, `ir_verifier.rs`, and `code_generator.rs`; the
+  focused generic test, two compatibility assertions, and the representative source/
+  test. No dependency, workflow, specification, release, benchmark, protection, or
+  claim-verification file changed. User/app-owned untracked directories and the
+  quarantined stash remain untouched.
+- Remaining uncertainty, risk, and recovery: this local machine does not provide the
+  pinned LLVM 22 native toolchain, so exact LLVM verification, machine lowering, and
+  native `-O0`/`-O2` equivalence remain candidate requirements for public Linux and
+  Windows workflows. The bounded CAP-004 implementation commit/PR is the clean rollback
+  boundary. Any public verifier/native failure, private-identity collision, observable
+  source-identity drift, or evidence of required trait/heap/drop semantics rejects the
+  candidate rather than broadening it.
 
 ## CAP-003 - explicitly typed algebraic error carriers
 

@@ -43,7 +43,9 @@ fn main() -> int {
         total = total + step + 1;
         step = step + 1;
     }
-    let accepted_delta: Result<int, char> = validate_delta(4, 3 < 4);
+    let delta_reading: Reading<int> = make_reading(4, 3 < 4);
+    let marker: Reading<char> = Reading { value: 'a', valid: 4 < 5 };
+    let accepted_delta: Result<int, char> = validate_delta(reading_value(delta_reading), marker_is_a(marker));
     let rejected_delta: Result<int, char> = validate_delta(8, 4 < 3);
     total = total + resolved_delta(accepted_delta) + resolved_delta(rejected_delta);
     if batch.meta.1 {
@@ -63,6 +65,7 @@ fn main() -> int {
 
 const MODEL_SOURCE: &str = r#"struct Sensor { value: int, trusted: bool }
 struct Batch { sensors: [Sensor; 3], meta: (int, bool) }
+struct Reading<T> { value: T, valid: bool }
 
 enum Decision {
     Normal(int),
@@ -71,6 +74,18 @@ enum Decision {
 
 fn make_sensor(value: int, trusted: bool) -> Sensor {
     Sensor { value: value, trusted: trusted }
+}
+
+fn make_reading(value: int, valid: bool) -> Reading<int> {
+    Reading { value: value, valid: valid }
+}
+
+fn reading_value(reading: Reading<int>) -> int {
+    reading.value
+}
+
+fn marker_is_a(marker: Reading<char>) -> bool {
+    marker.valid && marker.value == 'a'
 }
 
 fn make_batch() -> Batch {
@@ -322,6 +337,9 @@ fn representative_scalar_application_is_composed_and_portable() {
             "define i32 @main()",
             "define i32 @add_bias(",
             "define i32 @decision_score(",
+            "define i32 @reading_value(",
+            "%\"aero.struct.Reading<int>\" = type",
+            "%\"aero.struct.Reading<char>\" = type",
             "telemetry score: %g",
             "declare void @llvm.trap()",
             "fcmp oge double",

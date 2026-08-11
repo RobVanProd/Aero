@@ -365,7 +365,7 @@ impl StructRegistry {
             resolved.insert(name.to_string(), disposition.clone());
             return disposition;
         };
-        if !admitted_symbol(name)
+        if !crate::generic_struct_contract::valid_generic_aware_struct_symbol(name, admitted_symbol)
             || !raw.type_params.is_empty()
             || raw.fields.is_empty()
             || !visiting.insert(name.to_string())

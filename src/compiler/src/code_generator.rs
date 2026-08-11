@@ -79,6 +79,17 @@ impl CodeGenerator {
         format!("aero.arg.{name}")
     }
 
+    fn struct_type_to_llvm(name: &str) -> String {
+        match crate::generic_struct_contract::private_generic_struct_source_name(name) {
+            Some(source_name) => format!("%\"aero.struct.{source_name}\""),
+            None => format!("%aero.struct.{name}"),
+        }
+    }
+
+    fn is_struct_llvm_type(llvm_type: &str) -> bool {
+        llvm_type.starts_with("%aero.struct.") || llvm_type.starts_with("%\"aero.struct.")
+    }
+
     fn logical_type_to_llvm(logical_type: &LogicalType) -> String {
         if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
             return primitive.scalar_llvm_type().to_string();
@@ -92,7 +103,7 @@ impl CodeGenerator {
             | LogicalType::MutableReference { pointee } => {
                 format!("{}*", Self::reference_pointee_to_llvm(pointee))
             }
-            LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::Struct { name, .. } => Self::struct_type_to_llvm(name),
             LogicalType::Tuple { .. }
             | LogicalType::EnumFields { .. }
             | LogicalType::Array { .. } => Self::copy_data_type_to_llvm(logical_type),
@@ -119,7 +130,7 @@ impl CodeGenerator {
             LogicalType::Array { element, count } => {
                 format!("[{count} x {}]", Self::copy_data_type_to_llvm(element))
             }
-            LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
+            LogicalType::Struct { name, .. } => Self::struct_type_to_llvm(name),
             LogicalType::Tuple { elements } => format!(
                 "{{ {} }}",
                 elements
@@ -1026,7 +1037,8 @@ impl CodeGenerator {
                 .map(Self::struct_field_type_to_llvm)
                 .collect::<Vec<_>>()
                 .join(", ");
-            llvm_ir.push_str(&format!("%aero.struct.{name} = type {{ {fields} }}\n"));
+            let struct_type = Self::struct_type_to_llvm(&name);
+            llvm_ir.push_str(&format!("{struct_type} = type {{ {fields} }}\n"));
         }
         if has_struct_schemas {
             llvm_ir.push('\n');
@@ -1850,9 +1862,8 @@ impl CodeGenerator {
                     let Value::Reg(result) = result else {
                         panic!("Expected register for checked struct alloca")
                     };
-                    llvm_ir.push_str(&format!(
-                        "  %ptr{result} = alloca %aero.struct.{struct_name}, align 8\n"
-                    ));
+                    let struct_type = Self::struct_type_to_llvm(struct_name);
+                    llvm_ir.push_str(&format!("  %ptr{result} = alloca {struct_type}, align 8\n"));
                 }
                 Inst::CheckedStructFieldPtr {
                     result,
@@ -1867,8 +1878,9 @@ impl CodeGenerator {
                     let Value::Reg(base) = base else {
                         panic!("Expected register for checked struct base")
                     };
+                    let struct_type = Self::struct_type_to_llvm(struct_name);
                     llvm_ir.push_str(&format!(
-                        "  %ptr{result} = getelementptr inbounds %aero.struct.{struct_name}, %aero.struct.{struct_name}* %ptr{base}, i32 0, i32 {field_index}\n"
+                        "  %ptr{result} = getelementptr inbounds {struct_type}, {struct_type}* %ptr{base}, i32 0, i32 {field_index}\n"
                     ));
                 }
                 Inst::CheckedTupleAlloca {
@@ -2429,7 +2441,7 @@ impl CodeGenerator {
                         result_str
                     ));
                 }
-                struct_type if struct_type.starts_with("%aero.struct.") => {
+                struct_type if Self::is_struct_llvm_type(struct_type) => {
                     llvm_ir.push_str(&format!(
                         "  %{result_str} = call {struct_type} @{function}({args_str})\n"
                     ));
@@ -2536,7 +2548,7 @@ impl CodeGenerator {
     }
 
     fn emit_return(&mut self, llvm_ir: &mut String, value: &Value, return_llvm_type: &str) {
-        if return_llvm_type.starts_with("%aero.struct.")
+        if Self::is_struct_llvm_type(return_llvm_type)
             || return_llvm_type.starts_with('[')
             || return_llvm_type.starts_with('{')
         {
