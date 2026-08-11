@@ -11,7 +11,10 @@ synchronization merge over accepted M1-001 compiler-capability master
 CI `31430421975`, and CodeQL `31430419706` pass. That synchronization changed
 project truth only; M1-001 remains the accepted executable capability baseline.
 
-`CAP-001` is a local green candidate, not accepted public behavior. Its post-M1
+`CAP-001` is a local green candidate, not accepted public behavior. Its frozen
+implementation is `77a5c6457f3e87d79a0d1987bf02b4db32b875de`, tree
+`555e5290fe8ece199a64d8b0b7450ee411f75b23`, stable patch ID
+`b80e014125340632d7f9fe411434ed75ad1f838a`. Its post-M1
 ranking selected verified runtime fixed-array reads ahead of the canonical Milestone
 0 trusted-entrypoint contract and positive import/name resolution. The active defect
 allowed a nonconstant out-of-range `int` index to reach unchecked LLVM `inbounds`

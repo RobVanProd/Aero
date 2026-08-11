@@ -152,6 +152,11 @@
   115 tracked Aero files were restored before the same gate reran to completion.
   Exact candidate identity, public failure execution, exact-head checks, protected
   merge, and post-merge verification remain pending; no public acceptance is claimed.
+- Frozen implementation commit: `77a5c6457f3e87d79a0d1987bf02b4db32b875de`,
+  tree `555e5290fe8ece199a64d8b0b7450ee411f75b23`, stable patch ID
+  `b80e014125340632d7f9fe411434ed75ad1f838a`. The succeeding candidate-head commit
+  is restricted to this identity amendment and the matching current-state sentence;
+  it changes no compiler, specimen, test, workflow, matrix classification, or claim.
 - Allowed files: this ledger record; one focused runtime-index integration test;
   existing array/codegen/verifier tests only where required for shared-class
   corruption controls; `src/compiler/src/code_generator.rs`; the representative
