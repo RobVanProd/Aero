@@ -4,14 +4,34 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-The current accepted public and compiler-capability master is protected CAP-003 merge
-`e6677941f9467e018089b21dcfe6556e465bf9bb`. Bounded PR #26 carried exact candidate
-`6a20ecfc845d264c68d47ea648acbeb19b2d8af4`; candidate and merge share tree
-`de360d6c6b5b69355b171318f3eae352e585319d`, with ordered parents prior accepted
-master `e28a521efcc0acf18ecd6845ca39875c5eccab3f` then the exact candidate. Both
-candidate CI runs `31471444869` and `31471475995`, Rust CI `31471476004`, and
-CodeQL `31471474738` pass. Exact merge-head CI `31471720829`, Rust CI
-`31471720839`, and CodeQL `31471720887` also pass.
+The latest accepted compiler-capability master is protected CAP-004 merge
+`e4c515b9566a7d8fcb4f66c975c4e1769607515f`. Bounded PR #28 carried exact candidate
+`a1554cab130ff62c37be535622439bb54e6efe5e`; candidate and merge share tree
+`2011ba2f550c6ef6192319de6a8ab853c7bce776`, with ordered parents prior accepted
+master `f428df22c3dd3e0ab88d7db731a281d4173e8cc9` then the exact candidate. Candidate
+CI runs `31478883514` and `31478927743`, Rust CI `31478927757`, and CodeQL
+`31478926332` pass. Exact merge-head CI `31479212157`, Rust CI `31479211907`, and
+CodeQL `31479212081` also pass.
+
+Accepted `CAP-004` adds Aero's first executable user-defined generic data definition:
+a uniquely named `struct Name<T, ...>` can be instantiated at exact explicit recursive
+finite CopyData arguments and used through existing construction, projection, Copy
+transport, arrays/tuples/struct fields, projected mutation, immutable whole-place
+references, nongeneric functions, checked IR, independent verification, and LLVM.
+One shared idempotent pre-semantic/pre-admission authority performs exact substitution
+and derives private identities that commit to canonical source spelling and field
+schema; source diagnostics and LLVM retain readable identities such as
+`Reading<int>`. The representative telemetry application executes `Reading<int>` and
+`Reading<char>` while preserving exact output and exit 91. Focused tests are 5/5,
+generic-contract controls are 4/4, the verifier corruption control passes, and the
+complete 229-library/32-binary/integration/doc root gate plus correctness-denying
+Clippy pass locally. All nine exact-candidate checks, protected integration, and all
+exact merge-head workflows pass; pinned LLVM/Clang 22.1.8 stable Linux and Windows
+lanes verify, lower, link, and execute the representative program at `-O0` and `-O2`.
+Generic functions/enums/impls/traits, inference/defaults, generic applications inside
+generic definitions, non-CopyData arguments, collections, heap/drop/lifetimes, public
+ABI, accelerators, releases, benchmarks, and general memory-safety claims remain
+excluded.
 
 Accepted `CAP-003` admits explicitly typed concrete `Option<T>` and
 `Result<T, E>` values only when all
@@ -2616,10 +2636,10 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish this bounded record-only CAP-003 accepted-truth synchronization, require all
+Publish this bounded record-only CAP-004 accepted-truth synchronization, require all
 exact-head public workflows, protected-merge without tree substitution, and verify
 the exact merge-head workflows. Then perform a fresh three-gap project-level ranking
-against accepted CAP-003 before authorizing CAP-004. Select the next real-program
+against accepted CAP-004 before authorizing CAP-005. Select the next real-program
 capability by roadmap payoff, architectural leverage, correctness value, risk, and
 proportional evidence cost. Do not default to the quarantined CORE-091 topology,
 publish releases/packages/benchmarks, force-push, or delete retained integration work.

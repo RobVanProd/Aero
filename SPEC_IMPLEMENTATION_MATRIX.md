@@ -2,10 +2,10 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Current accepted public and compiler-capability master is protected CAP-003 merge
-`e6677941f9467e018089b21dcfe6556e465bf9bb`. Exact candidate
-`6a20ecfc845d264c68d47ea648acbeb19b2d8af4` and the merge have identical tree
-`de360d6c6b5b69355b171318f3eae352e585319d`; all nine candidate-head checks,
+Latest accepted compiler-capability master is protected CAP-004 merge
+`e4c515b9566a7d8fcb4f66c975c4e1769607515f`. Exact candidate
+`a1554cab130ff62c37be535622439bb54e6efe5e` and the merge have identical tree
+`2011ba2f550c6ef6192319de6a8ab853c7bce776`; all nine candidate-head checks,
 protected integration, exact merge-head CI/Rust CI/CodeQL, and pinned Linux/Windows
 LLVM/Clang 22.1.8 native `-O0`/`-O2` gates pass.
 
@@ -57,7 +57,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Conditional direct-owner enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unified typed CopyData/owned-enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Explicit concrete CopyData `Option`/`Result` construction, internal transport, replacement, and exhaustive bound Match (accepted `CAP-003`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
+| Explicit user-defined recursive-CopyData generic structs (accepted `CAP-004`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Generics and substitutions | Y | Y | P | P | P | P | P | P | P | P | P | P | Y | PARTIAL |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
@@ -266,6 +267,22 @@ row is accepted `PARTIAL` rather than `STABLE`.
 Reference-target writes, projected borrowing, partial moves, slices/collections,
 compound assignment, non-CopyData places, stable runtime/ABI behavior, and general
 memory-safety claims remain absent.
+
+Accepted CAP-004 moves the broad generics row from `PARSED_ONLY` to `PARTIAL` for one
+explicit user-defined data-definition class only. A unique nonempty generic struct can
+be instantiated with exact recursive finite CopyData arguments; deterministic
+compile-time substitution reuses the accepted struct, aggregate, mutation, reference,
+checked-IR, verifier, LLVM, and native paths. Multiple concrete instantiations and
+concrete nesting remain source-distinct, while private identities commit to canonical
+source spelling and exact schema. The representative program executes `Reading<int>`
+and `Reading<char>` at unchanged score 91. Focused 5/5, contract 4/4, corruption,
+compatibility, complete 229-library/32-binary local root, formatting, and Clippy gates
+pass. Exact candidate `a1554cab`, all nine candidate checks, protected PR #28 merge
+`e4c515b9`, and exact merge-head CI/Rust CI/CodeQL pass; pinned stable Linux and Windows
+LLVM/Clang 22.1.8 verify and execute `-O0`/`-O2`. Generic functions/enums/impls/traits,
+inference/defaults, generic applications inside generic definitions, non-CopyData
+arguments, collections, heap/drop/lifetimes, public ABI, and general generics remain
+absent, so neither row is `END_TO_END` or `STABLE`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

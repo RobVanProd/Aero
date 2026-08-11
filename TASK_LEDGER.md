@@ -2,9 +2,9 @@
 
 ## CAP-004 - explicit generic CopyData struct monomorphization
 
-- Date/task/status: 2026-08-11, `CAP-004`, local implementation candidate after an
-  authorized red-first executable vertical slice from accepted and post-merge-verified public master
-  `f428df22c3dd3e0ab88d7db731a281d4173e8cc9`. Work belongs only on
+- Date/task/status: 2026-08-11, `CAP-004`, accepted public after an authorized red-first
+  executable vertical slice from accepted and post-merge-verified public master
+  `f428df22c3dd3e0ab88d7db731a281d4173e8cc9`. Implementation work belonged only on
   `agent/cap-004-generic-copydata-structs`. User/app-owned untracked `tmp/` and
   `.codex-remote-attachments/` remain outside the task. Quarantined stash
   `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
@@ -230,6 +230,40 @@
   boundary. Any public verifier/native failure, private-identity collision, observable
   source-identity drift, or evidence of required trait/heap/drop semantics rejects the
   candidate rather than broadening it.
+
+### CAP-004 public acceptance
+
+- Exact implementation candidate `a1554cab130ff62c37be535622439bb54e6efe5e`
+  (tree `2011ba2f550c6ef6192319de6a8ab853c7bce776`) contains authorization
+  `b6331ca`, immutable red checkpoint `d230049`, and one bounded implementation commit.
+  It passed candidate CI `31478883514` and `31478927743`, Rust CI `31478927757`, and
+  CodeQL `31478926332`, including stable/nightly Rust, pinned LLVM/Clang 22.1.8,
+  independent IR and machine verification, native stable Linux and Windows execution,
+  and representative `-O0`/`-O2` output/exit 91.
+- Rendered PR #28 was verified against the exact candidate, promoted from draft only
+  after every candidate check passed, and merged through protection as
+  `e4c515b9566a7d8fcb4f66c975c4e1769607515f`. The merge has ordered parents prior
+  accepted master `f428df22c3dd3e0ab88d7db731a281d4173e8cc9` then the candidate and the
+  identical tree `2011ba2f550c6ef6192319de6a8ab853c7bce776`.
+- Exact merge-head CI `31479212157`, Rust CI `31479211907`, and CodeQL
+  `31479212081` all pass. The Rust system gate records stable/nightly Linux and pinned
+  Windows LLVM 22 success; stable Linux and Windows verify, machine-lower, link, and
+  execute the representative program at `-O0` and `-O2` with exact output and exit 91.
+  Candidate and public acceptance are therefore no longer conflated: CAP-004 is now
+  accepted bounded behavior, while every frozen exclusion remains unsupported.
+- This acceptance-sync checkpoint changes records only. It synchronizes
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`, `README.md`, this ledger, and the merged PR
+  front page to accepted CAP-004, plus the one README claim-contract assertion that
+  previously required all generics to remain quarantined. It does not add compiler or
+  executable-test behavior, workflows, releases, benchmarks, claims, dependencies, or
+  external artifacts. Its bounded
+  record-only commit/PR is the rollback boundary, and no CAP-005 implementation may be
+  stacked until the exact sync candidate and protected merge head are green.
+- Local sync evidence: the stale-current-state scan and `git diff --check` pass; the
+  updated version-claim contract passes 8/8; and exact root `./tools/test.sh` passes
+  229 library tests, 32 binary tests, every integration target, and doc tests. The
+  enclosing record-only commit assigns the immutable sync candidate SHA.
 
 ## CAP-003 - explicitly typed algebraic error carriers
 

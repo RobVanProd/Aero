@@ -122,7 +122,12 @@ fn conformance_is_presented_as_deterministic_regression_evidence() {
 #[test]
 fn current_repository_surfaces_state_only_evidenced_capabilities() {
     let readme = repository_file("README.md");
-    assert!(readme.contains("Generic and trait syntax is parsed but quarantined"));
+    assert!(readme.contains(
+        "Accepted CAP-004 adds one explicit user-defined recursive-CopyData generic-struct substitution class."
+    ));
+    assert!(readme.contains(
+        "General generic functions/enums/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
+    ));
     assert!(readme.contains(
         "No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee."
     ));

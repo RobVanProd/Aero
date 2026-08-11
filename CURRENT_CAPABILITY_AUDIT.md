@@ -5,8 +5,36 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-`e6677941f9467e018089b21dcfe6556e465bf9bb`; accepted compiler-capability master is
-the same protected CAP-003 merge.
+protected CAP-004 compiler-capability merge
+`e4c515b9566a7d8fcb4f66c975c4e1769607515f`; this record is its bounded
+acceptance synchronization.
+
+### CAP-004 accepted: explicit generic CopyData structs
+
+Before CAP-004, Aero retained generic struct syntax but could not construct a value;
+ordinary programs had to duplicate each concrete record schema. Accepted CAP-004
+supplies one shared idempotent pre-semantic/pre-admission authority for exact explicit
+recursive finite CopyData applications. It substitutes one uniquely named generic
+definition into deterministic private nongeneric schemas and reuses existing struct,
+aggregate, mutation, reference, checked-IR, verifier, and LLVM behavior. Multiple
+instantiations and concrete nesting such as `Wrapper<Box<int>>` remain distinct and
+source-readable.
+
+Private identities commit to canonical public type spelling and exact field schema;
+semantic-independent checked admission and verifier corruption controls reject spoofed
+or mismatched identities. Context-free literals, wrong arity/family, duplicate or
+invalid definitions/parameters/fields, unresolved/cyclic/non-CopyData applications,
+references as arguments, and generic function/enum/impl/trait behavior fail before
+trusted LLVM. The representative telemetry application executes both `Reading<int>`
+and `Reading<char>` while retaining exact score 91. Local focused 5/5, contract 4/4,
+verifier corruption, adjacent compatibility, complete 229-library/32-binary/
+integration/doc root gate, formatting, and correctness-denying Clippy evidence pass.
+Exact candidate `a1554cab130ff62c37be535622439bb54e6efe5e` and protected merge
+`e4c515b9566a7d8fcb4f66c975c4e1769607515f` share tree
+`2011ba2f550c6ef6192319de6a8ab853c7bce776`. All nine candidate checks and exact
+merge-head CI `31479212157`, Rust CI `31479211907`, and CodeQL `31479212081` pass;
+pinned LLVM/Clang 22.1.8 stable Linux and Windows verify and execute the representative
+program at `-O0` and `-O2` with exact output/exit 91.
 
 ### CAP-003 accepted: explicitly typed algebraic error carriers
 
@@ -150,15 +178,16 @@ benchmarks, and general memory-safety claims remain excluded.
 
 ### Work already attributable to Milestone 2
 
-CORE-043 through CORE-090 implemented substantial typed aggregate, enum/`Match`,
+CORE-043 through CORE-090 and CAP-001 through CAP-004 implemented substantial typed aggregate, enum/`Match`,
 CopyData composition, CFG ownership, borrowing, and mutation fragments before the
 Milestone 0/1 exits were closed. This work is retained, tested, and useful, but it does
-not satisfy Milestone 2: collections, generic substitution, trait dispatch, general
+not satisfy Milestone 2: collections, general generic substitution, trait dispatch, general
 error propagation, general lifetimes/drop/unsafe boundaries, public layout/ABI/
-destruction, a generic data structure, and an ownership-intensive representative
-program remain open. Accepted CAP-003 closes only the bounded concrete CopyData
-`Option`/`Result` carrier slice; general generic substitution and broader error
-propagation remain open.
+destruction, and an ownership-intensive representative program remain open. Accepted
+CAP-003 closes a bounded concrete CopyData `Option`/`Result` carrier slice; CAP-004
+closes the generic-data-definition half of the Milestone 2 exit only for explicit
+recursive finite CopyData structs. General substitution, collections, and broader
+error propagation remain open.
 The project therefore remains **Minimal Prototype / correctness recovery**.
 
 ### ROADMAP-001 ranking and M1-001 outcome
@@ -186,9 +215,10 @@ semantics, nonportable behavior, optimizer divergence, or a cheaper higher-lever
 path would stop or reorder the selection. The required post-M1 re-ranking is recorded
 in the CAP-001 section above. CAP-001 is accepted, and its bounded accepted-truth
 synchronization passed. CAP-002 records the required fresh three-gap ranking above;
-CAP-003 records the subsequent ranking and accepted carrier outcome. A new three-gap
-ranking against accepted CAP-003 is mandatory before CAP-004; no previous ordering is
-an automatic follow-on.
+CAP-003 records the subsequent ranking and accepted carrier outcome; CAP-004 records
+the next ranking and accepted explicit generic-struct outcome. A new three-gap ranking
+against accepted CAP-004 is mandatory before CAP-005; no previous ordering is an
+automatic follow-on.
 
 ## Verified progress after the audit commit
 
