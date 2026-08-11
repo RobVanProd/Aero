@@ -340,14 +340,14 @@ fn main() -> int {
             "enum match variant `Warm` does not accept a payload binding",
         ),
         (
-            "wildcard arm",
-            "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, _ => 2 }; }",
-            "enum match requires one explicit variant arm per declared variant",
+            "nonfinal wildcard arm",
+            "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { _ => 1, Phase::Warm => 2 }; }",
+            "enum match wildcard arm must be the final arm",
         ),
         (
             "binding arm",
             "enum Phase { Cold, Warm } fn main() { let value = match Phase::Cold { Phase::Cold => 1, other => 2 }; }",
-            "enum match requires one explicit variant arm per declared variant",
+            "enum match requires explicit variant arms and at most one terminal `_` wildcard",
         ),
         (
             "result mismatch",

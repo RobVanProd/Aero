@@ -4,6 +4,33 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
+### CAP-008 local candidate (not accepted): nonbinding wildcard enum Match
+
+The bounded CAP-008 candidate adds terminal whole-arm `_ => fallback` and ignored
+payload leaves such as `Err(_)` across the complete already-admitted concrete enum
+class: unit, unary, positional multi-field, concrete `Option`/`Result`, and explicit
+generic-enum specializations. One shared `EnumRegistry::resolve_arms` authority owns
+mapping and binding classification for semantic analysis, semantic-independent checked
+admission, and checked lowering. Wildcards create no binding or payload extraction;
+explicit arms remain unique and exact; one optional whole-arm wildcard must be final
+and covers only otherwise-unmapped declared variants.
+
+The verifier was not weakened. Lowering materializes one unique checked target per
+declared variant, so a shared source fallback remains mutually exclusive and retains
+the existing dispatch and result-dominance invariants. Focused 4/4, affected enum and
+carrier suites, the representative application, and the complete normalized 235-
+library/32-binary/integration/doc/format/Clippy/verifier-control gate pass. Official
+Windows LLVM/Clang 22.1.8 external and machine verification, native `-O0`/`-O2`, and
+public `run` all retain exact telemetry output and exit 91.
+
+This is candidate evidence only. Accepted public master remains the protected CAP-007
+truth-correction head `2ba1d33e302439b129f538533ecf5187b07aa34a`. CAP-008 is not
+accepted until its bounded exact-head public checks, protected merge, merge identity,
+and exact merge-head workflows pass. Guards, nested destructuring, whole-enum binding,
+error propagation, collections, imports, aggregate/reference enum storage, partial
+moves, lifetimes/drop, stable ABI, safety, releases, benchmarks, and accelerators do
+not move.
+
 ### CAP-007 accepted: canonical checked-program entrypoint contract
 
 Accepted CAP-007 adds public artifact-free

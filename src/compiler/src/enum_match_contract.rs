@@ -182,7 +182,10 @@ pub(crate) enum EnumError {
         actual: String,
     },
     ExplicitVariantPatternsRequired,
+    WildcardMustBeFinal,
+    RedundantWildcard,
     MissingIdentifierPayloadBinding(String),
+    UnsupportedPayloadPattern(String),
     PatternArityMismatch {
         variant: String,
         expected: usize,
@@ -283,17 +286,28 @@ impl EnumError {
                 format!("enum binding annotation mismatch: expected {expected}, actual {actual}")
             }
             Self::ExplicitVariantPatternsRequired => {
-                "enum match requires one explicit variant arm per declared variant".to_string()
+                "enum match requires explicit variant arms and at most one terminal `_` wildcard"
+                    .to_string()
+            }
+            Self::WildcardMustBeFinal => {
+                "enum match wildcard arm must be the final arm".to_string()
+            }
+            Self::RedundantWildcard => {
+                "enum match wildcard arm is unreachable after complete explicit coverage"
+                    .to_string()
             }
             Self::MissingIdentifierPayloadBinding(variant) => {
                 format!("enum match variant `{variant}` requires one identifier payload binding")
             }
+            Self::UnsupportedPayloadPattern(variant) => format!(
+                "enum match variant `{variant}` payload patterns must be identifier bindings or `_` wildcards"
+            ),
             Self::PatternArityMismatch {
                 variant,
                 expected,
                 actual,
             } => format!(
-                "enum match variant `{variant}` requires {expected} identifier field binding(s), actual {actual}"
+                "enum match variant `{variant}` requires {expected} payload field pattern(s), actual {actual}"
             ),
             Self::DuplicatePayloadBinding(name) => {
                 format!("enum match contains duplicate payload binding `{name}`")
@@ -762,14 +776,40 @@ impl EnumRegistry {
     ) -> Result<(Vec<usize>, Vec<Vec<EnumPayloadBinding>>), EnumError> {
         let mut arm_for_variant = vec![usize::MAX; contract.schema.variants.len()];
         let mut payload_bindings = vec![Vec::new(); arms.len()];
+        let validate_arm_body = |arm: &MatchArm| {
+            if let Some(name) = consumed_scrutinees
+                .iter()
+                .find(|name| expression_mentions_identifier(&arm.body, name))
+            {
+                return Err(EnumError::ArmReusesConsumedScrutinee(name.clone()));
+            }
+            Ok(())
+        };
         for (arm_index, arm) in arms.iter().enumerate() {
-            let Pattern::Enum {
-                enum_name,
-                variant,
-                data,
-            } = &arm.pattern
-            else {
-                return Err(EnumError::ExplicitVariantPatternsRequired);
+            let (enum_name, variant, data) = match &arm.pattern {
+                Pattern::Wildcard => {
+                    if arm_index + 1 != arms.len() {
+                        return Err(EnumError::WildcardMustBeFinal);
+                    }
+                    validate_arm_body(arm)?;
+                    let mut covered = false;
+                    for target in &mut arm_for_variant {
+                        if *target == usize::MAX {
+                            *target = arm_index;
+                            covered = true;
+                        }
+                    }
+                    if !covered {
+                        return Err(EnumError::RedundantWildcard);
+                    }
+                    continue;
+                }
+                Pattern::Enum {
+                    enum_name,
+                    variant,
+                    data,
+                } => (enum_name, variant, data),
+                _ => return Err(EnumError::ExplicitVariantPatternsRequired),
             };
             if enum_name != &contract.schema.name {
                 return Err(EnumError::ForeignArm {
@@ -815,41 +855,41 @@ impl EnumRegistry {
                     for (field_index, (pattern, ty)) in
                         patterns.iter().zip(expected_fields).enumerate()
                     {
-                        let Pattern::Identifier(name) = pattern else {
-                            return Err(EnumError::MissingIdentifierPayloadBinding(
-                                variant.clone(),
-                            ));
-                        };
-                        if !valid_symbol(name) {
-                            return Err(EnumError::MissingIdentifierPayloadBinding(
-                                variant.clone(),
-                            ));
+                        match pattern {
+                            Pattern::Wildcard => {}
+                            Pattern::Identifier(name) => {
+                                if !valid_symbol(name) {
+                                    return Err(EnumError::MissingIdentifierPayloadBinding(
+                                        variant.clone(),
+                                    ));
+                                }
+                                if !seen.insert(name.clone()) {
+                                    return Err(EnumError::DuplicatePayloadBinding(name.clone()));
+                                }
+                                if consumed_scrutinees.contains(name) {
+                                    return Err(EnumError::PayloadBindingShadowsConsumed(
+                                        name.clone(),
+                                    ));
+                                }
+                                bindings.push(EnumPayloadBinding {
+                                    name: name.clone(),
+                                    ty,
+                                    variant_index,
+                                    field_index,
+                                });
+                            }
+                            _ => {
+                                return Err(EnumError::UnsupportedPayloadPattern(variant.clone()));
+                            }
                         }
-                        if !seen.insert(name.clone()) {
-                            return Err(EnumError::DuplicatePayloadBinding(name.clone()));
-                        }
-                        if consumed_scrutinees.contains(name) {
-                            return Err(EnumError::PayloadBindingShadowsConsumed(name.clone()));
-                        }
-                        bindings.push(EnumPayloadBinding {
-                            name: name.clone(),
-                            ty,
-                            variant_index,
-                            field_index,
-                        });
                     }
                     payload_bindings[arm_index] = bindings;
                 }
             }
-            if let Some(name) = consumed_scrutinees
-                .iter()
-                .find(|name| expression_mentions_identifier(&arm.body, name))
-            {
-                return Err(EnumError::ArmReusesConsumedScrutinee(name.clone()));
-            }
+            validate_arm_body(arm)?;
             arm_for_variant[variant_index] = arm_index;
         }
-        if arms.len() != contract.schema.variants.len() || arm_for_variant.contains(&usize::MAX) {
+        if arm_for_variant.contains(&usize::MAX) {
             return Err(EnumError::IncompleteCoverage);
         }
         Ok((arm_for_variant, payload_bindings))

@@ -59,6 +59,24 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
+CAP-008 is a locally green candidate, not accepted public capability. It advances the
+founding algebraic-data-type and pattern-matching direction by adding exact nonbinding
+wildcards to the already-admitted concrete enum class: `Err(_)` can ignore a payload,
+and one final `_ => fallback` can cover otherwise-unmapped declared variants. One
+shared enum-arm resolver owns the rule across semantics and checked admission, while
+lowering preserves the independent verifier's unique per-variant targets. The
+representative application composes both forms; focused 4/4, the complete root and
+verifier controls, and official Windows LLVM/Clang 22.1.8 external/machine/native/
+public-run evidence pass at unchanged output and exit 91.
+
+Accepted public master remains CAP-007 truth-correction head
+`2ba1d33e302439b129f538533ecf5187b07aa34a`. CAP-008 remains unaccepted until
+bounded exact-head public checks, protected integration, merge-identity verification,
+and exact merge-head workflows pass. The candidate does not implement guards, nested
+destructuring, whole-value pattern binding, error propagation, collections, imports,
+ownership/drop expansion, stable ABI, safety, performance, release, or accelerator
+semantics.
+
 Accepted CAP-007 advances the founding compiler/toolchain path rather than a
 new source-language feature. It adds public artifact-free `check_program` and
 `check_file` APIs and routes library compilation plus CLI

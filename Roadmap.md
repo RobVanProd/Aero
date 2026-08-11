@@ -12,6 +12,20 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
+CAP-008 is a locally green, unaccepted Milestone 2 candidate selected by the required
+post-CAP-007 roadmap audit and three-gap ranking. Its real-program delta is concise,
+exhaustive fallback handling: ordinary Aero code may write `Err(_)` for an ignored
+payload and one final `_ => fallback` for otherwise-uncovered variants across the
+already-admitted concrete enum classes. The one shared enum-arm resolver remains the
+semantic and checked-admission authority, and the independent verifier's one-target-
+per-variant contract remains intact. Focused 4/4, complete root/verifier, representative,
+and pinned Windows LLVM/Clang 22.1.8 external/machine/native/public-run gates pass at
+unchanged exact output/exit 91. Accepted public master remains CAP-007 truth-correction
+head `2ba1d33e302439b129f538533ecf5187b07aa34a`; protected candidate and
+merge-head evidence are still required before CAP-008 can alter accepted roadmap
+status. It does not supply guards, nested destructuring, general error propagation,
+collections, imports, ownership/drop expansion, stable ABI, or safety.
+
 The latest accepted compiler-capability master is protected CAP-007 merge
 `5a64acaffa5e7f7167823861a45bc49c6bb670b4`. Exact candidate `bfb7adb`,
 candidate-head checks, protected PR #35, merge-head CI/Rust CI/CodeQL, the full root

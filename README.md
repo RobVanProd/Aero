@@ -168,6 +168,19 @@ aero lsp
 > import/name resolution remains high leverage but requires separately frozen namespace
 > and graph semantics first.
 
+> **CAP-008 local candidate (not accepted):** terminal `_ => fallback` and ignored
+> payload leaves such as `Err(_)` now pass locally across every already-admitted
+> concrete enum class through one shared semantic/checked-admission arm resolver.
+> Lowering retains one independently verified target per declared variant; `_` creates
+> no binding or payload extraction. Focused 4/4, the complete 235-library/32-binary/
+> integration/doc/format/Clippy/verifier-control gate, and official Windows LLVM/Clang
+> 22.1.8 external, machine, native `-O0`/`-O2`, and public-run evidence pass at exact
+> telemetry output and exit 91. Accepted public master remains CAP-007 truth-correction
+> head `2ba1d33e`; CAP-008 still requires exact-head public checks, protected merge,
+> and exact merge-head verification. Guards, nested destructuring, general error
+> propagation, collections, imports, ownership/drop expansion, stable ABI, safety,
+> releases, benchmarks, and accelerators remain unsupported or unchanged.
+
 > **CAP-007 accepted:** public artifact-free
 > `check_program`/`check_file` APIs and library/CLI compile, check, build, run,
 > profile, and source-test routes share one lex/parse/direct-module/semantic/

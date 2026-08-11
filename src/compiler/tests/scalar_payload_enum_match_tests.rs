@@ -339,14 +339,14 @@ fn main() -> int {
             "enum match variant `Idle` does not accept a payload binding",
         ),
         (
-            "wildcard payload pattern",
-            "enum Signal { Count(int) } fn main() { let value = match Signal::Count(1) { Signal::Count(_) => 0 }; }",
-            "enum match variant `Count` requires one identifier payload binding",
+            "nested payload pattern",
+            "enum Signal { Wrapped((int, bool)) } fn main() { let value = match Signal::Wrapped((1, 1 < 2)) { Signal::Wrapped((number, flag)) => 0 }; }",
+            "enum match variant `Wrapped` payload patterns must be identifier bindings or `_` wildcards",
         ),
         (
             "literal payload pattern",
             "enum Signal { Count(int) } fn main() { let value = match Signal::Count(1) { Signal::Count(1) => 0 }; }",
-            "enum match variant `Count` requires one identifier payload binding",
+            "enum match variant `Count` payload patterns must be identifier bindings or `_` wildcards",
         ),
         (
             "binding does not leak",

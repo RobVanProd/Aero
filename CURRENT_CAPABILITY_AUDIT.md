@@ -6,8 +6,30 @@ Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
 protected CAP-007 compiler-capability merge
-`5a64acaffa5e7f7167823861a45bc49c6bb670b4`; this record is its bounded
-acceptance synchronization candidate.
+`5a64acaffa5e7f7167823861a45bc49c6bb670b4`, followed by accepted truth-sync and
+truth-correction head `2ba1d33e302439b129f538533ecf5187b07aa34a`.
+
+### CAP-008 local candidate (not accepted): nonbinding wildcard enum Match
+
+The locally green CAP-008 candidate admits one optional final bare wildcard arm and
+nonbinding wildcard payload leaves across every already-admitted concrete enum class.
+One shared enum-arm resolver supplies semantic analysis, semantic-independent checked
+admission, and lowering; `_` creates neither a source binding nor checked payload
+extraction. Explicit variant identity, exact payload arity, exhaustive declared-variant
+coverage, result typing, and ownership remain mandatory. Checked lowering expands a
+shared source fallback into one unique mutually exclusive target per declared variant,
+preserving the independent verifier's dispatch and dominance invariants without an IR,
+verifier, or backend-contract change.
+
+Focused 4/4, the affected compatibility ring, the representative program, the complete
+235-library/32-binary/integration/doc/format/Clippy/verifier-control root gate, and
+official Windows LLVM/Clang 22.1.8 external/machine/native `-O0`/`-O2` plus public-run
+evidence pass at unchanged exact telemetry output and exit 91. Public acceptance is
+pending a bounded exact-head PR, protected merge, merge-identity proof, and exact
+merge-head workflows. Accepted public master remains CAP-007 truth-correction head
+`2ba1d33e302439b129f538533ecf5187b07aa34a`; no `STABLE`, safety, ABI,
+release, benchmark, import, collection, general-pattern, or error-propagation claim is
+made by this candidate.
 
 ### CAP-007 accepted: canonical checked-program entrypoint contract
 
