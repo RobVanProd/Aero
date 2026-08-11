@@ -20,6 +20,7 @@ pub mod graph_compiler;
 mod ir;
 mod ir_generator;
 mod ir_verifier;
+mod language_profile;
 pub mod lexer;
 mod llvm_verifier;
 mod local_reference;
@@ -47,6 +48,7 @@ pub use code_generator::{CodeGenerationError, CodeGenerator, generate_code, try_
 pub use ir::{CheckedIr, IrMetadata, LogicalType};
 pub use ir_generator::{IrGenerationError, IrGenerator};
 pub use ir_verifier::IrVerificationError;
+pub use language_profile::LanguageProfile;
 pub use lexer::{
     LocatedToken, Token, tokenize, tokenize_with_locations, try_tokenize_with_locations,
 };
@@ -76,17 +78,19 @@ mod error_test;
 
 /// Compiler options for benchmarking.
 ///
-/// Only [`CompilerOptions::default`] is currently supported.
+/// Optimization, debug-info, and target overrides remain unsupported. The typed
+/// language-profile selection is consumed before semantic analysis.
 #[derive(Debug, Clone, Default)]
 pub struct CompilerOptions {
     pub optimize: bool,
     pub debug_info: bool,
     pub target: String,
+    pub language_profile: LanguageProfile,
 }
 
 fn validate_compiler_options(options: &CompilerOptions) -> Result<(), String> {
     if options.optimize || options.debug_info || !options.target.is_empty() {
-        return Err("Unsupported CompilerOptions: only CompilerOptions::default() is supported; optimize, debug_info, and target behavior is not implemented".to_string());
+        return Err("Unsupported CompilerOptions: optimize, debug_info, and target behavior is not implemented; language_profile is the only supported nondefault option".to_string());
     }
 
     Ok(())
@@ -119,6 +123,7 @@ pub struct CheckedProgramTimings {
 #[derive(Debug)]
 pub struct CheckedProgram {
     checked_ir: CheckedIr,
+    language_profile: LanguageProfile,
     semantic_message: String,
     direct_module_cache_material: Option<Vec<u8>>,
     timings: CheckedProgramTimings,
@@ -140,9 +145,14 @@ impl CheckedProgram {
         self.timings
     }
 
+    /// Emit LLVM using the physical lane paired with this validated program.
+    ///
+    /// The profile is deliberately not accepted as a separate argument: callers
+    /// cannot pair checked IR admitted under one source profile with another
+    /// profile's backend representation.
     #[doc(hidden)]
-    pub fn into_checked_ir(self) -> CheckedIr {
-        self.checked_ir
+    pub fn try_generate_llvm(self) -> Result<String, CodeGenerationError> {
+        code_generator::try_generate_code_with_profile(self.checked_ir, self.language_profile)
     }
 }
 
@@ -165,6 +175,27 @@ pub fn prepare_checked_program_with_module_observer(
     source: &str,
     filename: Option<String>,
     entry_file: Option<&str>,
+    on_resolved: impl FnMut(&str, &Path),
+) -> Result<CheckedProgram, String> {
+    prepare_checked_program_with_module_observer_and_profile(
+        source,
+        filename,
+        entry_file,
+        LanguageProfile::Experimental,
+        on_resolved,
+    )
+}
+
+/// Canonical compiler-service authority with a typed language-profile selection.
+///
+/// Profile classification occurs after fatal parsing and before module resolution,
+/// semantic analysis, checked IR, cache lookup, or backend work.
+#[doc(hidden)]
+pub fn prepare_checked_program_with_module_observer_and_profile(
+    source: &str,
+    filename: Option<String>,
+    entry_file: Option<&str>,
+    language_profile: LanguageProfile,
     mut on_resolved: impl FnMut(&str, &Path),
 ) -> Result<CheckedProgram, String> {
     let lexing_start = Instant::now();
@@ -175,6 +206,8 @@ pub fn prepare_checked_program_with_module_observer(
     let parsing_start = Instant::now();
     let mut ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
     let parsing = parsing_start.elapsed();
+
+    language_profile::validate_language_profile(&ast, language_profile)?;
 
     let direct_modules_start = Instant::now();
     let direct_module_cache_material =
@@ -199,6 +232,7 @@ pub fn prepare_checked_program_with_module_observer(
 
     Ok(CheckedProgram {
         checked_ir,
+        language_profile,
         semantic_message,
         direct_module_cache_material,
         timings: CheckedProgramTimings {
@@ -215,11 +249,18 @@ fn compile_source(
     source: &str,
     filename: Option<String>,
     entry_file: Option<&str>,
+    language_profile: LanguageProfile,
 ) -> Result<String, String> {
-    let program = prepare_checked_program_for_compiler_service(source, filename, entry_file)?;
+    let program = prepare_checked_program_with_module_observer_and_profile(
+        source,
+        filename,
+        entry_file,
+        language_profile,
+        |_, _| {},
+    )?;
 
     // Checked code generation re-verifies the private IR before LLVM emission.
-    let llvm_code = try_generate_code(program.into_checked_ir()).map_err(|error| match error {
+    let llvm_code = program.try_generate_llvm().map_err(|error| match error {
         CodeGenerationError::IrVerification(error) => error.to_string(),
         other => format!("Code Generation Error: {other}"),
     })?;
@@ -272,20 +313,27 @@ pub fn collect_direct_modules_for_compiler_service(
 /// Compile exact Aero source text through the checked library pipeline.
 ///
 /// This source-only API cannot resolve `mod` declarations because it has no
-/// entry-file directory. Only [`CompilerOptions::default`] is supported.
+/// entry-file directory. Optimization, debug-info, and target overrides are unsupported.
 pub fn compile_program(source: &str, options: CompilerOptions) -> Result<String, String> {
     validate_compiler_options(&options)?;
-    compile_source(source, None, None)
+    compile_source(source, None, None, options.language_profile)
 }
 
 /// Check exact Aero source text through semantic analysis and verified checked IR.
 ///
 /// This source-only API cannot resolve `mod` declarations because it has no entry-file
 /// directory. It never generates LLVM or writes filesystem artifacts. Only
-/// [`CompilerOptions::default`] is supported.
+/// optimization, debug-info, and target overrides are unsupported.
 pub fn check_program(source: &str, options: CompilerOptions) -> Result<(), String> {
     validate_compiler_options(&options)?;
-    prepare_checked_program_for_compiler_service(source, None, None).map(|_| ())
+    prepare_checked_program_with_module_observer_and_profile(
+        source,
+        None,
+        None,
+        options.language_profile,
+        |_, _| {},
+    )
+    .map(|_| ())
 }
 
 /// Compile an Aero root file through the checked library pipeline.
@@ -293,7 +341,7 @@ pub fn check_program(source: &str, options: CompilerOptions) -> Result<(), Strin
 /// The file path supplies located root diagnostics and the base directory for
 /// the existing direct `mod name;` compatibility contract. The returned LLVM is
 /// kept in memory; this function does not write an artifact or run external tools.
-/// Only [`CompilerOptions::default`] is supported.
+/// Optimization, debug-info, and target overrides are unsupported.
 pub fn compile_file(path: impl AsRef<Path>, options: CompilerOptions) -> Result<String, String> {
     validate_compiler_options(&options)?;
 
@@ -306,14 +354,19 @@ pub fn compile_file(path: impl AsRef<Path>, options: CompilerOptions) -> Result<
     })?;
     let filename = path.to_string_lossy().into_owned();
 
-    compile_source(&source, Some(filename.clone()), Some(&filename))
+    compile_source(
+        &source,
+        Some(filename.clone()),
+        Some(&filename),
+        options.language_profile,
+    )
 }
 
 /// Check an Aero root file through semantic analysis and verified checked IR.
 ///
 /// The file path supplies located diagnostics and the base directory for the existing
 /// direct `mod name;` compatibility contract. This function never generates LLVM or
-/// writes filesystem artifacts. Only [`CompilerOptions::default`] is supported.
+/// writes filesystem artifacts. Optimization, debug-info, and target overrides are unsupported.
 pub fn check_file(path: impl AsRef<Path>, options: CompilerOptions) -> Result<(), String> {
     validate_compiler_options(&options)?;
 
@@ -326,6 +379,12 @@ pub fn check_file(path: impl AsRef<Path>, options: CompilerOptions) -> Result<()
     })?;
     let filename = path.to_string_lossy().into_owned();
 
-    prepare_checked_program_for_compiler_service(&source, Some(filename.clone()), Some(&filename))
-        .map(|_| ())
+    prepare_checked_program_with_module_observer_and_profile(
+        &source,
+        Some(filename.clone()),
+        Some(&filename),
+        options.language_profile,
+        |_, _| {},
+    )
+    .map(|_| ())
 }

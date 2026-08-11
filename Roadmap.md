@@ -12,6 +12,23 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
+CAP-009 is a locally green, unaccepted Milestone 0 candidate selected by the required
+post-CAP-008 audit and three-gap ranking. Before it, programs could execute inside the
+experimental compiler but could not request enforcement of a frozen cross-platform
+source and representation contract. After it, public library and CLI routes can select
+`stable-scalar-v0`, fail closed on every AST shape outside its one-file acyclic
+nongeneric `int`/`bool` class, and execute representative exit-91 and wrapping exit-93
+programs through an exact LLVM `i32` lane at `-O0` and `-O2`. One post-parse classifier
+owns source admission; a private checked-program profile identity selects physical
+representation without duplicating feature guards; the CLI profile is CPU-only.
+Focused 10/10 and the complete local
+repository gate pass. Public exact-head and merge-head LLVM/Clang 22 Linux/Windows
+evidence is still required, so accepted public master remains CAP-008 truth-sync head
+`b2d57df89da3e3ca272c049847f3905b71f29eaa` and the Milestone 0 stable-
+subset exit remains open. CAP-009 does not stabilize Aero as a whole or add any of its
+explicitly excluded aggregate, module, generic, ownership, runtime, ABI, accelerator,
+benchmark, or release behavior.
+
 CAP-008 is an accepted Milestone 2 capability selected by the required
 post-CAP-007 roadmap audit and three-gap ranking. Its real-program delta is concise,
 exhaustive fallback handling: ordinary Aero code may write `Err(_)` for an ignored
@@ -289,6 +306,10 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes. | Per-slice false-success, function/binding/scope, full-gate, and independent-verification controls are strong, but no selected language subset is classified `STABLE`. | Classify the selected stable subset and close any newly enumerated critical residual class without treating neighboring topology as automatic work. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
 | Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, accepted CAP-006 explicit user-defined recursive-CopyData generic enums, and accepted CAP-008 nonbinding enum wildcards have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices; CAP-008 adds only terminal whole-arm and payload-leaf wildcards, not general pattern semantics. | Collections, general generic substitution and operations, traits, broader patterns/error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
+
+The CAP-009 candidate targets the remaining Milestone 0 row directly. Local evidence
+does not close or reword that accepted-master exit; only protected exact-head and
+merge-head evidence may change it to met.
 
 ### ROADMAP-001 ranked gaps and M1-001 outcome
 

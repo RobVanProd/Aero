@@ -3,6 +3,7 @@ use crate::ir::{
     ResultId, Value,
 };
 use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
+use crate::language_profile::LanguageProfile;
 use crate::primitive_contract::PrimitiveKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
@@ -72,6 +73,7 @@ pub struct CodeGenerator {
     next_ptr: u64,
     checked_metadata: Option<IrMetadata>,
     current_function: Option<String>,
+    language_profile: LanguageProfile,
 }
 
 impl CodeGenerator {
@@ -428,6 +430,7 @@ impl CodeGenerator {
             next_ptr: 0,
             checked_metadata: None,
             current_function: None,
+            language_profile: LanguageProfile::Experimental,
         }
     }
 }
@@ -733,7 +736,9 @@ impl CodeGenerator {
             Value::ImmFloat(f) => (*f as i64).to_string(),
             Value::ImmChar(character) => u32::from(*character).to_string(),
             Value::Reg(r) => {
-                if self.is_checked_char_result(value) {
+                if self.is_checked_char_result(value)
+                    || (self.uses_stable_scalar_i32_lane() && self.is_checked_int_result(value))
+                {
                     return format!("%reg{r}");
                 }
                 let tmp = self.fresh_reg();
@@ -839,6 +844,28 @@ impl CodeGenerator {
             .places
             .get(&PlaceId(*register))
             .map(|place| &place.pointee)
+    }
+
+    fn uses_stable_scalar_i32_lane(&self) -> bool {
+        self.language_profile == LanguageProfile::StableScalarV0
+    }
+
+    fn is_checked_int_result(&self, value: &Value) -> bool {
+        matches!(self.checked_result_type(value), Some(LogicalType::Int))
+    }
+
+    fn is_checked_int_place(&self, value: &Value) -> bool {
+        matches!(self.checked_place_type(value), Some(LogicalType::Int))
+    }
+
+    fn stable_int_value_to_string(&self, value: &Value) -> String {
+        match value {
+            Value::ImmInt(value) => value.to_string(),
+            Value::Reg(register) => format!("%reg{register}"),
+            Value::ImmFloat(_) | Value::ImmChar(_) | Value::ImmString(_) => {
+                unreachable!("stable-scalar-v0 integer operands retain logical Int identity")
+            }
+        }
     }
 
     fn is_checked_bool_result(&self, value: &Value) -> bool {
@@ -1074,6 +1101,20 @@ impl CodeGenerator {
         self.checked_metadata = None;
         self.current_function = None;
         Ok(llvm_ir)
+    }
+
+    pub(crate) fn try_generate_code_with_profile<I>(
+        &mut self,
+        ir: I,
+        language_profile: LanguageProfile,
+    ) -> Result<String, CodeGenerationError>
+    where
+        I: Into<CheckedIr>,
+    {
+        self.language_profile = language_profile;
+        let result = self.try_generate_code(ir);
+        self.language_profile = LanguageProfile::Experimental;
+        result
     }
 
     fn generate_checked_code(&mut self, ir_functions: HashMap<String, Function>) -> String {
@@ -1347,10 +1388,20 @@ impl CodeGenerator {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked mutable owned-place alloca")
                     };
-                    let copy_type = Self::reference_pointee_to_llvm(ty);
-                    let align = PrimitiveKind::from_logical_type(ty)
-                        .map(PrimitiveKind::alignment)
-                        .unwrap_or(8);
+                    let copy_type =
+                        if self.uses_stable_scalar_i32_lane() && matches!(ty, LogicalType::Int) {
+                            "i32".to_string()
+                        } else {
+                            Self::reference_pointee_to_llvm(ty)
+                        };
+                    let align =
+                        if self.uses_stable_scalar_i32_lane() && matches!(ty, LogicalType::Int) {
+                            4
+                        } else {
+                            PrimitiveKind::from_logical_type(ty)
+                                .map(PrimitiveKind::alignment)
+                                .unwrap_or(8)
+                        };
                     llvm_ir.push_str(&format!(
                         "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
                     ));
@@ -1387,6 +1438,8 @@ impl CodeGenerator {
                         Value::Reg(r) => *r,
                         _ => panic!("Expected register for alloca"),
                     };
+                    let int_place =
+                        self.uses_stable_scalar_i32_lane() && self.is_checked_int_place(ptr_reg);
                     let bool_place = self.is_checked_bool_place(ptr_reg);
                     let char_place = self.is_checked_char_place(ptr_reg);
                     let aggregate_place = match self.checked_place_type(ptr_reg) {
@@ -1402,6 +1455,8 @@ impl CodeGenerator {
                         llvm_ir.push_str(&format!(
                             "  %ptr{ptr_id} = alloca {aggregate_type}, align 8\n"
                         ));
+                    } else if int_place {
+                        llvm_ir.push_str(&format!("  %ptr{} = alloca i32, align 4\n", ptr_id));
                     } else if bool_place {
                         llvm_ir.push_str(&format!("  %ptr{} = alloca i1, align 1\n", ptr_id));
                     } else if char_place {
@@ -1418,6 +1473,12 @@ impl CodeGenerator {
                         if let Some(aggregate_type) = &aggregate_place {
                             llvm_ir.push_str(&format!(
                                 "  store {aggregate_type} %{parameter}, {aggregate_type}* %ptr{ptr_id}, align 8\n"
+                            ));
+                            continue;
+                        }
+                        if int_place {
+                            llvm_ir.push_str(&format!(
+                                "  store i32 %{parameter}, i32* %ptr{ptr_id}, align 4\n"
                             ));
                             continue;
                         }
@@ -1498,6 +1559,16 @@ impl CodeGenerator {
                         ));
                         continue;
                     }
+                    if self.uses_stable_scalar_i32_lane() && self.is_checked_int_place(ptr_reg) {
+                        let Value::Reg(ptr_id) = ptr_reg else {
+                            panic!("Expected register for stable integer store pointer")
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  store i32 {}, i32* %ptr{ptr_id}, align 4\n",
+                            self.stable_int_value_to_string(value)
+                        ));
+                        continue;
+                    }
                     if self.is_checked_bool_place(ptr_reg) {
                         let ptr_id = match ptr_reg {
                             Value::Reg(register) => *register,
@@ -1541,6 +1612,12 @@ impl CodeGenerator {
                         panic!("Expected register for checked owned-place assignment target")
                     };
                     match ty {
+                        LogicalType::Int if self.uses_stable_scalar_i32_lane() => {
+                            llvm_ir.push_str(&format!(
+                                "  store i32 {}, i32* %ptr{ptr_id}, align 4\n",
+                                self.stable_int_value_to_string(value)
+                            ))
+                        }
                         LogicalType::Int | LogicalType::Float => llvm_ir.push_str(&format!(
                             "  store double {}, double* %ptr{ptr_id}, align 8\n",
                             self.value_to_string(value)
@@ -1588,6 +1665,18 @@ impl CodeGenerator {
                         ));
                         continue;
                     }
+                    if self.uses_stable_scalar_i32_lane() && self.is_checked_int_place(ptr_reg) {
+                        let Value::Reg(result_id) = result_reg else {
+                            panic!("Expected register for stable integer load result")
+                        };
+                        let Value::Reg(ptr_id) = ptr_reg else {
+                            panic!("Expected register for stable integer load pointer")
+                        };
+                        llvm_ir.push_str(&format!(
+                            "  %reg{result_id} = load i32, i32* %ptr{ptr_id}, align 4\n"
+                        ));
+                        continue;
+                    }
                     if self.is_checked_bool_place(ptr_reg) {
                         let result_id = match result_reg {
                             Value::Reg(register) => *register,
@@ -1629,6 +1718,16 @@ impl CodeGenerator {
                         result_str, ptr_str
                     ));
                 }
+                Inst::Add(result_reg, lhs, rhs) if self.uses_stable_scalar_i32_lane() => {
+                    let Value::Reg(result) = result_reg else {
+                        panic!("Expected register for stable integer add result")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = add i32 {}, {}\n",
+                        self.stable_int_value_to_string(lhs),
+                        self.stable_int_value_to_string(rhs)
+                    ));
+                }
                 Inst::Add(result_reg, lhs, rhs) | Inst::FAdd(result_reg, lhs, rhs) => {
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
@@ -1641,6 +1740,16 @@ impl CodeGenerator {
                         result_str, lhs_str, rhs_str
                     ));
                 }
+                Inst::Sub(result_reg, lhs, rhs) if self.uses_stable_scalar_i32_lane() => {
+                    let Value::Reg(result) = result_reg else {
+                        panic!("Expected register for stable integer subtract result")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = sub i32 {}, {}\n",
+                        self.stable_int_value_to_string(lhs),
+                        self.stable_int_value_to_string(rhs)
+                    ));
+                }
                 Inst::Sub(result_reg, lhs, rhs) | Inst::FSub(result_reg, lhs, rhs) => {
                     let result_str = match result_reg {
                         Value::Reg(r) => format!("reg{}", r),
@@ -1651,6 +1760,16 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!(
                         "  %{} = fsub double {}, {}\n",
                         result_str, lhs_str, rhs_str
+                    ));
+                }
+                Inst::Mul(result_reg, lhs, rhs) if self.uses_stable_scalar_i32_lane() => {
+                    let Value::Reg(result) = result_reg else {
+                        panic!("Expected register for stable integer multiply result")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = mul i32 {}, {}\n",
+                        self.stable_int_value_to_string(lhs),
+                        self.stable_int_value_to_string(rhs)
                     ));
                 }
                 Inst::Mul(result_reg, lhs, rhs) | Inst::FMul(result_reg, lhs, rhs) => {
@@ -1824,6 +1943,13 @@ impl CodeGenerator {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for neg result"),
                     };
+                    if self.uses_stable_scalar_i32_lane() {
+                        llvm_ir.push_str(&format!(
+                            "  %{result_str} = sub i32 0, {}\n",
+                            self.stable_int_value_to_string(operand)
+                        ));
+                        continue;
+                    }
                     let operand_str = self.value_to_string(operand);
                     llvm_ir.push_str(&format!(
                         "  %{} = fsub double 0.0, {}\n",
@@ -2465,6 +2591,8 @@ impl CodeGenerator {
                 "i32" => {
                     if self.is_checked_enum_result(result_reg)
                         || self.is_checked_char_result(result_reg)
+                        || (self.uses_stable_scalar_i32_lane()
+                            && self.is_checked_int_result(result_reg))
                     {
                         llvm_ir.push_str(&format!(
                             "  %{} = call i32 @{}({})\n",
@@ -2563,7 +2691,10 @@ impl CodeGenerator {
                 Value::ImmFloat(f) => (*f as i64).to_string(),
                 Value::ImmChar(character) => u32::from(*character).to_string(),
                 Value::Reg(r) => {
-                    if self.is_checked_enum_result(value) || self.is_checked_char_result(value) {
+                    if self.is_checked_enum_result(value)
+                        || self.is_checked_char_result(value)
+                        || (self.uses_stable_scalar_i32_lane() && self.is_checked_int_result(value))
+                    {
                         format!("%reg{}", r)
                     } else {
                         let tmp = self.fresh_reg();
@@ -2682,7 +2813,10 @@ impl CodeGenerator {
                     llvm_ir.push_str(&format!("  ret i32 {}\n", u32::from(*character)))
                 }
                 Value::Reg(r) => {
-                    if self.is_checked_enum_result(value) || self.is_checked_char_result(value) {
+                    if self.is_checked_enum_result(value)
+                        || self.is_checked_char_result(value)
+                        || (self.uses_stable_scalar_i32_lane() && self.is_checked_int_result(value))
+                    {
                         llvm_ir.push_str(&format!("  ret i32 %reg{}\n", r));
                     } else {
                         let tmp = self.fresh_reg();
@@ -2982,6 +3116,17 @@ where
     I: Into<CheckedIr>,
 {
     CodeGenerator::new().try_generate_code(ir)
+}
+
+/// Crate-owned bridge for the physical lane selected by a validated language profile.
+pub(crate) fn try_generate_code_with_profile<I>(
+    ir: I,
+    language_profile: LanguageProfile,
+) -> Result<String, CodeGenerationError>
+where
+    I: Into<CheckedIr>,
+{
+    CodeGenerator::new().try_generate_code_with_profile(ir, language_profile)
 }
 
 /// Legacy unchecked function retained for backward compatibility.

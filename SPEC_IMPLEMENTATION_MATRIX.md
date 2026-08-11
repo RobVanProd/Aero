@@ -11,6 +11,20 @@ protected integration, merge-head CI `31525340621`, Rust CI `31525340810`, and
 master-push/CodeQL `31525340605` pass, including pinned LLVM/Clang 22 Linux/Windows
 native `-O0`/`-O2` gates.
 
+CAP-009 is a locally green candidate, not an accepted matrix reclassification. It
+adds an explicitly selected `stable-scalar-v0` profile with one exhaustive post-parse,
+pre-semantic classifier shared by public library and CLI `check`/`build`/`run` routes.
+The frozen profile contains one-file acyclic nongeneric scalar functions, direct
+initialized bindings/assignments, direct calls/returns, `if`/`else`, `while`, and the
+enumerated `int`/`bool` expression grammar. The checked product privately preserves
+profile identity into an exact wrapping LLVM `i32` lane; the default experimental
+profile and cache identities do not change, and non-CPU/`--gpu` CLI pairings fail.
+Focused 10/10, representative exits 91 and
+93, affected contracts, formatting, Clippy, docs, and the complete local repository
+gate pass. Pinned LLVM/Clang 22 exact-head public evidence remains pending. Until
+protected acceptance, the rows below continue to describe accepted CAP-008 master
+and no row is reclassified `STABLE`.
+
 Accepted CAP-008 adds nonbinding `_` payload leaves and one optional final whole-arm wildcard across
 the already-admitted concrete enum/`Option`/`Result`/generic-enum-specialization
 class. Semantic analysis, raw checked admission, and lowering use one shared arm

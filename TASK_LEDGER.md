@@ -1,5 +1,189 @@
 # Aero Task Ledger
 
+## CAP-009 - enforceable `stable-scalar-v0` language profile
+
+- Date/task/status: 2026-08-11, `CAP-009`, authorized red-first compiler and
+  executable-workflow capability from exact accepted public master
+  `b2d57df89da3e3ca272c049847f3905b71f29eaa` (tree
+  `9cf5dcb51d9bafe451a011f36ad9a96d9193d750`) on
+  `agent/cap-009-stable-scalar-profile`. Accepted CAP-008 project truth is already
+  synchronized. User/app-owned untracked `tmp/` and `.codex-remote-attachments/`
+  remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Milestone-gap audit: Milestone 0 has fatal syntax/semantic failures, artifact-clean
+  invalid-program behavior, and accepted CAP-007's canonical checked-program
+  entrypoint, but still has no compiler-enforceable selected `STABLE` subset.
+  Milestone 1's representative scalar workflow is accepted `END_TO_END`; its broader
+  component rows remain `PARTIAL`. Recent enum, ownership, reference, aggregate,
+  carrier, generic, and wildcard work is Milestone 2. Milestone 2 still lacks
+  collections, general drop/lifetimes, a generic data structure, and an
+  ownership-intensive application. The shortest credible next milestone exit is a
+  narrow compiler-enforced scalar profile, not promotion of the existing broad
+  representative application.
+- Fresh post-CAP-008 ranking: scores are 1--5; higher `Risk` and `Evidence` mean more
+  favorable delivery. A high score is not permission to invent missing semantics.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Enforceable `stable-scalar-v0` profile plus a profile-selected application and differential gate | 3 | 5 | 5 | 5 | 3 | 4 | 25 |
+  | 2 | Owned dynamic `List<T>` foundation | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
+  | 3 | Bounded trait-bound static dispatch over the accepted generic-function mechanism | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+
+  Positive imports score 20 because the founding dotted-import syntax does not freeze
+  lookup roots, namespace/collision precedence, visibility, cycles, or package/file
+  mapping. Owned enum-in-aggregate storage scores 21 but requires unresolved partial-
+  move, projection, and destruction rules. Integer-literal Match is not eligible:
+  although the parser retains it, the founding PDF expressly describes Match as
+  exhaustive matching on enums, so executing scalar Match now would invent semantics.
+  `List<T>` and trait dispatch remain strategically important; their low delivery
+  scores reflect unresolved allocation/failure/drop/borrow contracts and coherence/
+  dispatch/default-method contracts, not permission to avoid them indefinitely.
+- Before/after real-program delta: before CAP-009, a bounded Aero scalar program may
+  compile and run, but neither a user nor CI can request proof that its source remains
+  inside a frozen, cross-platform contract; every program implicitly enters the wider
+  experimental language. After CAP-009, public library `check`/compile and CLI
+  `check`/`build`/`run` can select `stable-scalar-v0`, reject every out-of-profile AST
+  form before semantics or checked IR, and execute a multi-function state/checksum
+  application under the profile on Linux and Windows at `-O0` and `-O2`. This adds an
+  assurance/deployment capability rather than new general syntax; that roadmap exit,
+  not feature-count growth, is its strategic value.
+- Mechanism: add one typed `LanguageProfile` selection with existing experimental
+  behavior as the default. One exhaustive library-owned profile classifier runs after
+  fatal parsing and before module resolution, semantic analysis, checked IR, cache
+  lookup, LLVM generation, artifact writing, or execution. The same classifier is the
+  sole authority for source-only/file library routes and CLI `check`, `build`, and
+  `run`; no semantic/admission/backend phase may duplicate its feature guard. The CLI
+  spelling is `--language-profile stable-scalar-v0`. The validated `CheckedProgram`
+  carries the selected profile privately into code generation, so callers cannot pair
+  checked IR admitted under one profile with another profile's physical lane. The
+  backend selector is representation-only, not a second feature guard. Profile identity
+  participates in compiler-service/cache identity while every default experimental
+  cache key remains byte-for-byte compatible. One shared CLI configuration predicate
+  rejects the stable profile when paired with a non-CPU target or any `--gpu` selector;
+  it is a target/profile compatibility rule, not a second AST feature classifier.
+- Frozen `stable-scalar-v0` source class: one source file; only unique top-level,
+  nongeneric functions; exactly `fn main() -> int` with no parameters; other functions
+  have explicit `int`/`bool` parameters and explicit `int`/`bool`/implicit-`Void`
+  results; an acyclic direct-call graph; initialized direct `let`/`let mut` bindings
+  with optional exact `int`/`bool` annotations; direct-identifier assignment only;
+  `return`, expression statements containing only direct calls, `if`/`else`, and
+  `while`; `int` literals within the admitted signed-i32 range; identifiers; exact
+  direct calls; integer `+`, `-`, and `*`; all six comparison operators over exact
+  canonical-compatible `int`/`bool` operand pairs; Boolean `&&`, `||`, and `!`; and
+  unary integer negation. Integer behavior uses a selected signed i32 lane:
+  values are two's-complement bit patterns, `+`/`-`/`*` wrap modulo 2^32,
+  comparisons are signed, and no `nsw`/`nuw` promise exists. Conditions require
+  `bool`. Function arguments evaluate left-to-right; assignment evaluates the RHS once.
+  The ordinary canonical semantic and independently verified checked-IR contracts still
+  decide names, arity, types, mutability, returns, initialization, CFG validity, and
+  backend admission. Because the parser represents a leading minus separately, the
+  spelling `-2147483648` contains the rejected positive literal `2147483648`; the
+  minimum i32 bit pattern remains reachable by admitted wrapping arithmetic but is not
+  a stable-profile source literal in this version.
+- Explicit exclusions: top-level values/expressions; direct modules, `mod`, `use`,
+  founding imports, namespaces, visibility, separate compilation; floats, chars,
+  String values, formatting/output intrinsics, arrays, tuples, structs, enums, Match,
+  carriers, references, closures, methods, `for`, `loop`, `break`, `continue`, division,
+  remainder, generic/trait/impl syntax, recursion, dynamic allocation, drop/lifetimes,
+  unsafe, public ABI/FFI, accelerators, benchmarks, releases, and whole-language safety
+  or stability. The profile is CPU-only and rejects accelerator selectors.
+  `stable-scalar-v0` stabilizes only the enumerated profile, not Aero,
+  the compiler API, private IR, LLVM layout, or the experimental default profile.
+- Assumptions and evidence: accepted CORE function/binding/scope contracts and CAP-007
+  already funnel public trusted validation through one library authority; M1-001
+  already proves a larger scalar/aggregate application through exact Linux/Windows
+  LLVM 22 execution and optimization equivalence. Primitive admission already rejects
+  integer literals outside signed i32 and checked IR retains logical `Int`/`Bool`.
+  The initial assumption that the existing backend already emitted one exact i32
+  arithmetic lane was false: after red checkpoint
+  `dc6d49cf31fc7c6ae5a1ca20737ca451ce0cf082`, the first classifier-only green probe for
+  `2147483647 + 1` emitted `fadd double` followed by `fptosi`. That candidate was stopped
+  before implementation commit or publication. Reassessment compared abandoning the
+  profile, narrowing it to an arithmetic-free subset, and adding a sealed profile-
+  selected physical i32 lane. The last option retains the selected roadmap exit,
+  changes no experimental bytes, and uses plain LLVM `add`/`sub`/`mul i32` without
+  `nsw`/`nuw`; it is the recovered architecture under test. An exhaustive Rust match
+  over every `AstNode`, `Statement`, `Expression`, `Type`, and operator variant makes
+  future AST additions fail compilation until classified.
+- Measurement and red-first proof: before production mutation, add a focused target
+  proving that no public/CLI language-profile selection exists and therefore an
+  out-of-profile program cannot be rejected by profile identity. Green must cover the
+  complete allowed AST/operator/type/call-graph product; reject every excluded AST
+  family, recursive/mutually-recursive calls, wrong `main`, out-of-range literals, and
+  out-of-profile forms nested in expression-bearing containers; prove source-only,
+  file, direct-module-attempt, `check`, `build`, and `run` parity; prove nonzero and no
+  artifact/native launch on rejection; preserve experimental-default LLVM and
+  diagnostics byte-for-byte; and run a table-driven boundary product plus a deterministic
+  scalar corpus against a small
+  reference evaluator plus LLVM/Clang 22 `-O0`/`-O2` on Linux and Windows. A tracked
+  profile-selected application must execute an exact checksum exit through public and
+  independent native paths. Existing verifier corruption controls remain mandatory.
+- Failure modes and detection: the profile could be bypassed by one compiler route,
+  classify after filesystem/artifact/cache side effects, miss a nested AST variant,
+  admit an unbounded/unsupported integer operation, diverge between CLI and library,
+  accept recursion, change default experimental behavior, or overstate profile evidence
+  as whole-language stability. Canonical-graph assertions, compile-time-exhaustive
+  classifier matches, table-driven positive/negative coverage, no-artifact/no-launch CLI
+  controls, byte-identical default snapshots, differential reference/`-O0`/`-O2`
+  checks, independent checked-IR corruption tests, claim-contract tests, and exact-head
+  workflows detect those failures.
+- Allowed files and recovery: authorization/implementation is limited to
+  `TASK_LEDGER.md`; a new `src/compiler/src/language_profile.rs`;
+  `src/compiler/src/lib.rs`; `src/compiler/src/main.rs`;
+  `src/compiler/src/code_generator.rs`; `src/compiler/src/profiler.rs` only to move
+  its existing package-binary consumer from the removed raw-IR escape hatch to the
+  profile-paired checked-program emission method; focused tests under
+  `src/compiler/tests/`; one new `examples/stable_scalar_v0/` application; shared test
+  tooling only if the red proves reuse is impossible; and the Linux/Windows workflows
+  needed for the exact profile system lane. After the exact implementation candidate is
+  green, only `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`, `README.md`,
+  `CONFORMANCE_PLAN.md`, and exact claim/state assertions may describe candidate status.
+  The rollback boundary is the bounded CAP-009 branch/PR. No release, package,
+  benchmark, protection-rule change, external artifact, or direct `master` write is
+  authorized.
+- Decision threshold: merge only if the classifier is structurally exhaustive and
+  shared by every selected route; the default profile is unchanged; the focused,
+  complete repository, verifier-corruption, formatting, Clippy, docs, public workflow,
+  pinned LLVM 22 external/machine/object/link, deterministic reference, `-O0`/`-O2`,
+  and Linux/Windows application gates pass at one exact candidate; and claims say only
+  the selected profile is `STABLE`. Public acceptance and accepted-master truth remain
+  distinct from candidate evidence.
+- What would change our mind: evidence that admitted arithmetic differs across the
+  canonical checked route or optimization levels; that wrapping i32 contradicts an
+  already accepted Aero contract; that the subset cannot be recognized exhaustively
+  before semantics; that profile selection requires duplicated feature guards; that an
+  admitted scalar program still reaches unclassified false success, invalid IR, or
+  platform-dependent behavior; or that a higher-leverage capability can close a
+  roadmap exit without unresolved language semantics stops the candidate and triggers
+  architecture reassessment. The first arithmetic probe did exactly that to the
+  classifier-only design; inability to seal and prove the recovered i32 lane abandons
+  CAP-009 and forces a fresh three-gap ranking. Documentation convenience, test count,
+  or a desire to advance CAP numbers cannot lower this threshold.
+- Local candidate evidence (public acceptance pending): authorization commit
+  `d574469` and exact red commit `dc6d49c` precede all production mutation. The
+  recovered implementation has one exhaustive classifier, a private checked-program
+  profile identity, and a representation-only stable i32 backend lane. Focused profile
+  tests pass 10/10, including a source-level API visibility contract that prevents a
+  caller from discarding the paired profile through public `CheckedProgram` access;
+  library/source/file/CLI/cache and accepted-feature controls pass;
+  the default and explicitly selected experimental LLVM are byte-identical; the
+  profile application and wrapping corpus match their Rust reference model at exact
+  exits 91 and 93; formatting, documentation, and correctness-denying Clippy pass.
+  The first complete root gate found only that the strengthened Windows workflow now
+  contains 14 reset controls rather than the asserted 13; the contract was updated to
+  the exact stronger count without weakening a runtime check, and the complete root
+  gate then passed. After closing the raw-IR escape hatch, nested-expression
+  classification, complete excluded-family corpus, full comparison product, and
+  accelerator-selector conflict, the final exact working-tree root gate passes 239
+  library tests, 35 binary tests, every integration target, doc tests, formatting,
+  Clippy, examples, and repository/verifier controls. Candidate-truth state assertions
+  pass 8/8 after preserving CAP-008 as accepted master and CAP-009 as local-only.
+  Public exact-head workflows, pinned
+  LLVM/Clang 22 external/machine/native `-O0`/`-O2` evidence, protected merge, merge
+  identity, and exact merge-head workflows remain pending; no accepted `STABLE` claim
+  exists yet.
+
 ## CAP-008 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-008-ACCEPTANCE-SYNC`, authorized bounded

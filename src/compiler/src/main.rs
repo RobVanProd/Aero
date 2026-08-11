@@ -14,10 +14,11 @@ static LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK: std::sync::Mutex<()> = std::sync::Mu
 use compiler::accelerator::AcceleratorBackend;
 use compiler::gpu::{DeviceProfile, GpuDevice, default_gpu_arch};
 use compiler::{
-    CodeGenerationError, LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE, LlvmVerificationMode,
-    PerformanceOptimizer, conformance, graph_compiler,
+    CodeGenerationError, LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE, LanguageProfile,
+    LlvmVerificationMode, PerformanceOptimizer, conformance, graph_compiler,
     guard_live_registry_transport_for_compiler_service,
-    prepare_checked_program_with_module_observer, quantization, registry, try_generate_code,
+    prepare_checked_program_with_module_observer,
+    prepare_checked_program_with_module_observer_and_profile, quantization, registry,
     verify_llvm_module,
 };
 use std::env;
@@ -80,6 +81,7 @@ struct BuildConfig {
     target: BuildTarget,
     gpu_arch: Option<String>,
     require_llvm_verifier: bool,
+    language_profile: LanguageProfile,
 }
 
 impl Default for BuildConfig {
@@ -88,6 +90,7 @@ impl Default for BuildConfig {
             target: BuildTarget::Cpu,
             gpu_arch: None,
             require_llvm_verifier: false,
+            language_profile: LanguageProfile::Experimental,
         }
     }
 }
@@ -205,6 +208,18 @@ fn create_run_artifact_paths(
 }
 
 impl BuildConfig {
+    fn validate_language_profile_target(&self) -> Result<(), String> {
+        if self.language_profile == LanguageProfile::StableScalarV0
+            && (self.target != BuildTarget::Cpu || self.gpu_arch.is_some())
+        {
+            return Err(
+                "Language Profile Error: stable-scalar-v0 requires --target cpu without --gpu"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    }
+
     fn llvm_verification_mode(&self) -> LlvmVerificationMode {
         if self.require_llvm_verifier || environment_requires_llvm_verifier() {
             LlvmVerificationMode::Required
@@ -402,13 +417,15 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
             }
         }
         "check" => {
-            if args.len() != 3 {
-                eprintln!("Usage: {} check <input.aero>", args[0]);
-                return CliStatus::InvocationFailure;
-            }
-            let input_file = &args[2];
+            let (input_file, language_profile) = match parse_check_args(args) {
+                Ok(parsed) => parsed,
+                Err(usage) => {
+                    eprintln!("{}", usage);
+                    return CliStatus::InvocationFailure;
+                }
+            };
 
-            let source_code = match fs::read_to_string(input_file) {
+            let source_code = match fs::read_to_string(&input_file) {
                 Ok(content) => content,
                 Err(err) => {
                     eprintln!(
@@ -419,8 +436,8 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                 }
             };
 
-            if let Err(err) = check_aero_program(&source_code, input_file) {
-                report_check_error(&source_code, input_file, &err);
+            if let Err(err) = check_aero_program(&source_code, &input_file, language_profile) {
+                report_check_error(&source_code, &input_file, &err);
                 return CliStatus::OperationalFailure;
             }
         }
@@ -1421,12 +1438,66 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
     CliStatus::Success
 }
 
-fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), String> {
+fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String> {
+    let usage = || {
+        format!(
+            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0>]",
+            args.first().map(String::as_str).unwrap_or("aero")
+        )
+    };
     if args.len() < 3 {
-        return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
-            args[0]
-        ));
+        return Err(usage());
+    }
+
+    let mut input_file = None;
+    let mut language_profile = LanguageProfile::Experimental;
+    let mut i = 2usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--language-profile" => {
+                if i + 1 >= args.len() {
+                    return Err(usage());
+                }
+                language_profile = args[i + 1].parse()?;
+                i += 2;
+            }
+            value if value.starts_with('-') => {
+                return Err(format!("error: unknown option `{value}`\n{}", usage()));
+            }
+            value => {
+                if let Some(existing) = &input_file {
+                    return Err(format!(
+                        "error: multiple input files provided (`{existing}` and `{value}`)\n{}",
+                        usage()
+                    ));
+                }
+                input_file = Some(value.to_string());
+                i += 1;
+            }
+        }
+    }
+
+    input_file
+        .map(|input_file| (input_file, language_profile))
+        .ok_or_else(usage)
+}
+
+fn build_usage(program_name: &str) -> String {
+    format!(
+        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0>]"
+    )
+}
+
+fn run_usage(program_name: &str) -> String {
+    format!(
+        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0>]"
+    )
+}
+
+fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), String> {
+    let usage = || build_usage(args.first().map(String::as_str).unwrap_or("aero"));
+    if args.len() < 3 {
+        return Err(usage());
     }
 
     let input_file = args[2].clone();
@@ -1437,30 +1508,21 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
         match args[i].as_str() {
             "-o" => {
                 if i + 1 >= args.len() {
-                    return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
-                        args[0]
-                    ));
+                    return Err(usage());
                 }
                 output_file = Some(args[i + 1].clone());
                 i += 2;
             }
             "--target" | "--backend" => {
                 if i + 1 >= args.len() {
-                    return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
-                        args[0]
-                    ));
+                    return Err(usage());
                 }
                 config.target = parse_explicit_build_target(&args[i + 1])?;
                 i += 2;
             }
             "--gpu" => {
                 if i + 1 >= args.len() {
-                    return Err(format!(
-                        "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
-                        args[0]
-                    ));
+                    return Err(usage());
                 }
                 config.gpu_arch = Some(args[i + 1].clone());
                 i += 2;
@@ -1469,31 +1531,31 @@ fn parse_build_args(args: &[String]) -> Result<(String, String, BuildConfig), St
                 config.require_llvm_verifier = true;
                 i += 1;
             }
+            "--language-profile" => {
+                if i + 1 >= args.len() {
+                    return Err(usage());
+                }
+                config.language_profile = args[i + 1].parse()?;
+                i += 2;
+            }
             _ => {
-                return Err(format!(
-                    "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
-                    args[0]
-                ));
+                return Err(usage());
             }
         }
     }
 
     let Some(output_file) = output_file else {
-        return Err(format!(
-            "Usage: {} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier]",
-            args[0]
-        ));
+        return Err(usage());
     };
 
+    config.validate_language_profile_target()?;
     Ok((input_file, output_file, config))
 }
 
 fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
+    let usage = || run_usage(args.first().map(String::as_str).unwrap_or("aero"));
     if args.len() < 3 {
-        return Err(format!(
-            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
-            args[0]
-        ));
+        return Err(usage());
     }
 
     let mut input_file: Option<String> = None;
@@ -1504,36 +1566,36 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
         match args[i].as_str() {
             "--target" | "--backend" => {
                 if i + 1 >= args.len() {
-                    return Err(format!(
-                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
-                        args[0]
-                    ));
+                    return Err(usage());
                 }
                 config.target = parse_explicit_build_target(&args[i + 1])?;
                 i += 2;
             }
             "--gpu" => {
                 if i + 1 >= args.len() {
-                    return Err(format!(
-                        "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
-                        args[0]
-                    ));
+                    return Err(usage());
                 }
                 config.gpu_arch = Some(args[i + 1].clone());
                 i += 2;
             }
+            "--language-profile" => {
+                if i + 1 >= args.len() {
+                    return Err(usage());
+                }
+                config.language_profile = args[i + 1].parse()?;
+                i += 2;
+            }
             value if value.starts_with('-') => {
-                return Err(format!(
-                    "error: unknown option `{}`\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
-                    value, args[0]
-                ));
+                return Err(format!("error: unknown option `{}`\n{}", value, usage()));
             }
             value => {
                 if input_file.is_some() {
                     let existing = input_file.as_deref().unwrap_or("<unknown>");
                     return Err(format!(
-                        "error: multiple input files provided (`{}` and `{}`)\nUsage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
-                        existing, value, args[0]
+                        "error: multiple input files provided (`{}` and `{}`)\n{}",
+                        existing,
+                        value,
+                        usage()
                     ));
                 }
                 input_file = Some(value.to_string());
@@ -1543,12 +1605,10 @@ fn parse_run_args(args: &[String]) -> Result<(String, BuildConfig), String> {
     }
 
     let Some(input_file) = input_file else {
-        return Err(format!(
-            "Usage: {} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>]",
-            args[0]
-        ));
+        return Err(usage());
     };
 
+    config.validate_language_profile_target()?;
     Ok((input_file, config))
 }
 
@@ -1619,13 +1679,18 @@ fn compilation_cache_key(
     direct_module_cache_material: Option<&[u8]>,
 ) -> String {
     let Some(direct_module_cache_material) = direct_module_cache_material else {
+        let profile_material = match build_config.language_profile {
+            LanguageProfile::Experimental => String::new(),
+            profile => format!("::language_profile={}", profile.as_str()),
+        };
         return format!(
             "{:x}",
             md5::compute(format!(
-                "{}::target={}::gpu={}",
+                "{}::target={}::gpu={}{}",
                 source_code,
                 build_config.target.as_str(),
-                build_config.gpu_arch_or_default()
+                build_config.gpu_arch_or_default(),
+                profile_material
             ))
         );
     };
@@ -1642,6 +1707,13 @@ fn compilation_cache_key(
         "gpu",
         build_config.gpu_arch_or_default().as_bytes(),
     );
+    if build_config.language_profile != LanguageProfile::Experimental {
+        push_compilation_cache_frame(
+            &mut bytes,
+            "language-profile",
+            build_config.language_profile.as_str().as_bytes(),
+        );
+    }
     bytes.extend_from_slice(direct_module_cache_material);
 
     format!("{:x}", md5::compute(bytes))
@@ -1663,10 +1735,11 @@ fn compile_to_llvm_ir_with_optimizer(
     let compilation_start = Instant::now();
     let verification_mode = build_config.llvm_verification_mode();
 
-    let checked_program = prepare_checked_program_with_module_observer(
+    let checked_program = prepare_checked_program_with_module_observer_and_profile(
         source_code,
         Some(input_file.to_string()),
         Some(input_file),
+        build_config.language_profile,
         |name, path| println!("  Resolved module `{name}` → {}", path.display()),
     )?;
     let pipeline_timings = checked_program.timings();
@@ -1716,7 +1789,8 @@ fn compile_to_llvm_ir_with_optimizer(
 
     // Optimized code generation with control flow optimizations
     let codegen_start = Instant::now();
-    let llvm_ir = try_generate_code(checked_program.into_checked_ir())
+    let llvm_ir = checked_program
+        .try_generate_llvm()
         .map_err(render_code_generation_error)?;
     let graph_compile_start = Instant::now();
     let graph_backend =
@@ -2004,13 +2078,13 @@ fn print_help(program_name: &str) {
     println!();
     println!("COMMANDS:");
     println!(
-        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda>] [--gpu <arch>]"
+        "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <name>]"
     );
     println!(
-        "    run <input.aero>                     Compile source; execution availability depends on target [--target <cpu|rocm|cuda>] [--gpu <arch>]"
+        "    run <input.aero>                     Compile source; execution availability depends on target [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <name>]"
     );
     println!(
-        "    check <input.aero>                   Validate frontend and checked IR (no LLVM emission)"
+        "    check <input.aero>                   Validate frontend and checked IR (no LLVM emission) [--language-profile <name>]"
     );
     println!(
         "    test                                 Discover and semantically analyze *_test.aero files (no execution)"
@@ -2035,6 +2109,9 @@ fn print_help(program_name: &str) {
     println!("OPTIONS:");
     println!("    -h, --help       Print this help message");
     println!("    -v, --version    Print version information");
+    println!(
+        "    --language-profile <experimental|stable-scalar-v0>  Select the compiler-enforced source profile"
+    );
     println!();
     println!("EXECUTION BOUNDARIES:");
     println!("    CPU is the only current process-execution target.");
@@ -2120,12 +2197,17 @@ fn print_registry_help(program_name: &str) {
 
 /// Validate an Aero program without emitting LLVM or consulting external tools.
 /// Runs lexer → parser → direct modules → semantics → checked IR/internal verification.
-fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String> {
+fn check_aero_program(
+    source_code: &str,
+    input_file: &str,
+    language_profile: LanguageProfile,
+) -> Result<(), String> {
     let check_start = Instant::now();
-    let checked_program = prepare_checked_program_with_module_observer(
+    let checked_program = prepare_checked_program_with_module_observer_and_profile(
         source_code,
         Some(input_file.to_string()),
         Some(input_file),
+        language_profile,
         |_, _| {},
     )?;
     let elapsed = check_start.elapsed();
@@ -2251,6 +2333,126 @@ mod tests {
     }
 
     #[test]
+    fn language_profile_option_is_shared_by_check_build_and_run_parsers() {
+        let check = vec![
+            "aero".to_string(),
+            "check".to_string(),
+            "main.aero".to_string(),
+            "--language-profile".to_string(),
+            "stable-scalar-v0".to_string(),
+        ];
+        let (check_input, check_profile) = parse_check_args(&check).expect("check args");
+        assert_eq!(check_input, "main.aero");
+        assert_eq!(check_profile, LanguageProfile::StableScalarV0);
+
+        let build = vec![
+            "aero".to_string(),
+            "build".to_string(),
+            "main.aero".to_string(),
+            "-o".to_string(),
+            "main.ll".to_string(),
+            "--language-profile".to_string(),
+            "stable-scalar-v0".to_string(),
+        ];
+        let (_, _, build_config) = parse_build_args(&build).expect("build args");
+        assert_eq!(
+            build_config.language_profile,
+            LanguageProfile::StableScalarV0
+        );
+
+        let run = vec![
+            "aero".to_string(),
+            "run".to_string(),
+            "--language-profile".to_string(),
+            "stable-scalar-v0".to_string(),
+            "main.aero".to_string(),
+        ];
+        let (run_input, run_config) = parse_run_args(&run).expect("run args");
+        assert_eq!(run_input, "main.aero");
+        assert_eq!(run_config.language_profile, LanguageProfile::StableScalarV0);
+    }
+
+    #[test]
+    fn stable_scalar_profile_has_distinct_cache_identity_without_changing_default_keys() {
+        let experimental = BuildConfig::default();
+        let stable = BuildConfig {
+            language_profile: LanguageProfile::StableScalarV0,
+            ..BuildConfig::default()
+        };
+        let source = "fn main() -> int { return 0; }";
+
+        assert_ne!(
+            compilation_cache_key(source, &experimental, None),
+            compilation_cache_key(source, &stable, None)
+        );
+        assert_ne!(
+            compilation_cache_key(source, &experimental, Some(b"module-frame")),
+            compilation_cache_key(source, &stable, Some(b"module-frame"))
+        );
+    }
+
+    #[test]
+    fn stable_scalar_profile_rejects_every_accelerator_selector_in_build_and_run() {
+        let expected =
+            "Language Profile Error: stable-scalar-v0 requires --target cpu without --gpu";
+        let cases = [
+            vec![
+                "aero",
+                "build",
+                "main.aero",
+                "-o",
+                "main.ll",
+                "--language-profile",
+                "stable-scalar-v0",
+                "--target",
+                "rocm",
+            ],
+            vec![
+                "aero",
+                "build",
+                "main.aero",
+                "-o",
+                "main.ll",
+                "--language-profile",
+                "stable-scalar-v0",
+                "--gpu",
+                "gfx1100",
+            ],
+            vec![
+                "aero",
+                "run",
+                "main.aero",
+                "--language-profile",
+                "stable-scalar-v0",
+                "--target",
+                "cuda",
+            ],
+            vec![
+                "aero",
+                "run",
+                "main.aero",
+                "--language-profile",
+                "stable-scalar-v0",
+                "--gpu",
+                "sm_90",
+            ],
+        ];
+
+        for arguments in cases {
+            let arguments = arguments
+                .into_iter()
+                .map(str::to_string)
+                .collect::<Vec<_>>();
+            let error = if arguments[1] == "build" {
+                parse_build_args(&arguments).expect_err("stable build selector must fail")
+            } else {
+                parse_run_args(&arguments).expect_err("stable run selector must fail")
+            };
+            assert_eq!(error, expected);
+        }
+    }
+
+    #[test]
     fn parse_run_args_rejects_ambiguous_gpu_target() {
         let args = vec![
             "aero".to_string(),
@@ -2273,6 +2475,7 @@ mod tests {
             target: BuildTarget::Rocm,
             gpu_arch: Some("gfx1101".to_string()),
             require_llvm_verifier: false,
+            language_profile: LanguageProfile::Experimental,
         };
         let output = retarget_llvm_module(input, &config);
         assert!(output.contains("target triple = \"amdgcn-amd-amdhsa\""));
@@ -2295,6 +2498,7 @@ mod tests {
             target: BuildTarget::Rocm,
             gpu_arch: Some("gfx1101".to_string()),
             require_llvm_verifier: false,
+            language_profile: LanguageProfile::Experimental,
         };
         let artifacts = create_run_artifact_paths("examples/hello.aero", &config)
             .expect("paths should be created");

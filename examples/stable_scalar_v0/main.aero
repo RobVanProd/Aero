@@ -1,0 +1,32 @@
+fn advance(value: int) -> int {
+    if value < 5 {
+        return 5;
+    }
+    if value < 8 {
+        return 8;
+    }
+    if value < 11 {
+        return 11;
+    }
+    return value;
+}
+
+fn accepted(value: int) -> bool {
+    return value >= 11 && !(value > 11);
+}
+
+fn score(value: int, accepted_value: bool) -> int {
+    if accepted_value {
+        return value * 7 + 14;
+    }
+    return 1;
+}
+
+fn main() -> int {
+    let mut state: int = 2;
+    while state < 11 {
+        state = advance(state);
+    }
+    let policy: bool = accepted(state);
+    return score(state, policy);
+}

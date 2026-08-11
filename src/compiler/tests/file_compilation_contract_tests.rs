@@ -126,7 +126,7 @@ fn root_read_lex_parse_and_semantic_failures_return_without_artifacts() {
     .expect_err("unsupported options must win before root-file I/O");
     assert_eq!(
         option_error,
-        "Unsupported CompilerOptions: only CompilerOptions::default() is supported; optimize, debug_info, and target behavior is not implemented"
+        "Unsupported CompilerOptions: optimize, debug_info, and target behavior is not implemented; language_profile is the only supported nondefault option"
     );
 
     for (label, bytes, expected) in [
