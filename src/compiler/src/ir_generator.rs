@@ -39,9 +39,11 @@ use crate::ownership_flow::{
 };
 use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
-    CopyProjectionStep, OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
-    ProjectedCopyDataAssignmentDisposition, classify_owned_place_assignment,
-    classify_projected_copydata_assignment, resolve_owned_place_logical_type,
+    CopyProjectionIndex, CopyProjectionStep, OwnedPlaceAssignmentDisposition,
+    OwnedPlaceAssignmentTargetFacts, ProjectedCopyDataAssignmentDisposition,
+    classify_owned_place_assignment, classify_projected_copydata_assignment,
+    classify_projected_copydata_assignment_after_admission,
+    projected_copydata_assignment_array_selectors, resolve_owned_place_logical_type,
 };
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
@@ -1314,6 +1316,27 @@ impl IrGenerator {
                 }
             }
             Statement::Assignment { target, value } => {
+                let mut array_selector_types = Vec::new();
+                if let Some(selectors) = projected_copydata_assignment_array_selectors(target)
+                    .map_err(IrGenerationError::Admission)?
+                {
+                    for selector in selectors {
+                        array_selector_types.push(Self::validate_expression(
+                            selector,
+                            bindings,
+                            program,
+                            ExpressionUse::Value,
+                            inside_impl,
+                            !inside_impl,
+                        )?);
+                        Self::apply_enum_expression_ownership(
+                            selector,
+                            bindings,
+                            program,
+                            inside_loop,
+                        )?;
+                    }
+                }
                 let rhs = Self::validate_expression(
                     value,
                     bindings,
@@ -1357,6 +1380,7 @@ impl IrGenerator {
                 match classify_projected_copydata_assignment(
                     target,
                     &rhs,
+                    &array_selector_types,
                     inside_admitted_function,
                     &program.structs,
                     |name| {
@@ -3901,12 +3925,11 @@ impl IrGenerator {
                 }
             }
             Statement::Assignment { target, value } => {
-                let (assigned_value, assigned_type) =
-                    self.generate_expression_ir(value, current_function);
                 if self.checked_mode {
-                    let projected = classify_projected_copydata_assignment(
+                    let array_selectors = projected_copydata_assignment_array_selectors(&target)
+                        .expect("checked admission resolved projected assignment topology");
+                    let projected = classify_projected_copydata_assignment_after_admission(
                         &target,
-                        &assigned_type,
                         true,
                         &self.struct_registry,
                         |name| {
@@ -3922,6 +3945,8 @@ impl IrGenerator {
                         },
                     );
                     if let ProjectedCopyDataAssignmentDisposition::Supported(contract) = projected {
+                        let array_selectors = array_selectors
+                            .expect("supported projected assignment retains its selectors");
                         let (mut target_place, root_type) = self
                             .symbol_table
                             .get(&contract.root_name)
@@ -3968,15 +3993,34 @@ impl IrGenerator {
                                         &receiver,
                                         Ty::Array(actual, _) if actual.as_ref() == &element
                                     ));
+                                    let index = match index {
+                                        CopyProjectionIndex::Constant(index) => {
+                                            Value::ImmInt(index as i64)
+                                        }
+                                        CopyProjectionIndex::Runtime { selector_ordinal } => {
+                                            let selector = array_selectors
+                                                .get(selector_ordinal)
+                                                .expect("shared contract retained selector order");
+                                            let (index, index_type) = self.generate_expression_ir(
+                                                (*selector).clone(),
+                                                current_function,
+                                            );
+                                            debug_assert_eq!(index_type, Ty::Int);
+                                            index
+                                        }
+                                    };
                                     self.fixed_copy_array_element_ptr(
                                         target_place,
-                                        Value::ImmInt(index as i64),
+                                        index,
                                         &receiver,
                                         current_function,
                                     )
                                 }
                             };
                         }
+                        let (assigned_value, assigned_type) =
+                            self.generate_expression_ir(value, current_function);
+                        debug_assert_eq!(assigned_type, contract.leaf_type);
                         let assigned_value = self.load_copy_aggregate_value(
                             assigned_value,
                             &contract.leaf_type,
@@ -3992,6 +4036,8 @@ impl IrGenerator {
                         return;
                     }
                 }
+                let (assigned_value, assigned_type) =
+                    self.generate_expression_ir(value, current_function);
                 match target {
                     Expression::Identifier(name) => {
                         let (target_place, target_type) = self

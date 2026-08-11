@@ -1,0 +1,13 @@
+fn replacement() -> int {
+    println!("unreachable assignment rhs");
+    41
+}
+
+fn main() -> int {
+    let mut values = [10, 20];
+    let zero = 0;
+    let index = zero - 1;
+    values[index] = replacement();
+    println!("unreachable negative write");
+    0
+}

@@ -19,9 +19,12 @@ fn main() -> int {
     const EXPECTED: int = 91;
 
     let mut batch: Batch = make_batch();
-    batch.sensors[0].value = BASE;
-    batch.sensors[1].value = 20;
-    batch.sensors[2].value = 30;
+    let calibration = [BASE, 20, 30];
+    let mut sensor_index = 0;
+    while sensor_index < 3 {
+        batch.sensors[sensor_index].value = calibration[sensor_index];
+        sensor_index = sensor_index + 1;
+    }
     batch.meta.0 = 4;
     batch.meta.1 = 2 > 1;
 
@@ -159,6 +162,36 @@ const UPPER_BOUND_INDEX_SOURCE: &str = r#"fn main() -> int {
     let index = count;
     let selected = values[index];
     println!("unreachable upper-bound index: {}", selected);
+    0
+}
+"#;
+
+const NEGATIVE_WRITE_INDEX_SOURCE: &str = r#"fn replacement() -> int {
+    println!("unreachable assignment rhs");
+    41
+}
+
+fn main() -> int {
+    let mut values = [10, 20];
+    let zero = 0;
+    let index = zero - 1;
+    values[index] = replacement();
+    println!("unreachable negative write");
+    0
+}
+"#;
+
+const UPPER_BOUND_WRITE_INDEX_SOURCE: &str = r#"fn replacement() -> int {
+    println!("unreachable assignment rhs");
+    41
+}
+
+fn main() -> int {
+    let mut values = [10, 20];
+    let count = 2;
+    let index = count;
+    values[index] = replacement();
+    println!("unreachable upper-bound write");
     0
 }
 "#;
@@ -355,6 +388,14 @@ fn representative_scalar_application_is_composed_and_portable() {
             "runtime_fail/upper_bound_index.aero",
             UPPER_BOUND_INDEX_SOURCE,
         ),
+        (
+            "runtime_fail/negative_write_index.aero",
+            NEGATIVE_WRITE_INDEX_SOURCE,
+        ),
+        (
+            "runtime_fail/upper_bound_write_index.aero",
+            UPPER_BOUND_WRITE_INDEX_SOURCE,
+        ),
     ] {
         let path = repository.join(EXAMPLE_DIRECTORY).join(relative);
         match fs::read_to_string(&path) {
@@ -382,6 +423,8 @@ fn representative_scalar_application_is_composed_and_portable() {
                 "representative telemetry test passed with exit code 91",
                 "negative_index.aero",
                 "upper_bound_index.aero",
+                "negative_write_index.aero",
+                "upper_bound_write_index.aero",
                 "runtime bounds failure corpus passed at O0 and O2",
                 "Test representative telemetry application on Windows at O0 and O2",
             ] {

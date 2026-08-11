@@ -1,5 +1,244 @@
 # Aero Task Ledger
 
+## CAP-002 - checked runtime-indexed fixed-array assignment
+
+- Date/task/status: 2026-08-11, `CAP-002`, authorized tests-first executable
+  vertical slice from accepted public master
+  `29c13fa32c2bef361ff33367b3b3839351e05534`, whose compiler-capability parent is
+  accepted CAP-001 merge `25c1e2b239cba45f7b60c86f19629e9d768c77d0`.
+  Work belongs only on `agent/cap-002-runtime-array-assignment`. User-owned
+  untracked `tmp/` and app-owned untracked `.codex-remote-attachments/` remain
+  outside the task. The quarantined CORE-091 stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remains unpublished and must not be
+  applied or dropped.
+- Fresh post-CAP-001 audit and ranking: the accepted-truth synchronization is green,
+  so the prior ranking is not inherited automatically. Scores are 1--5, with higher
+  `Risk` and `Evidence` scores meaning more favorable delivery:
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Checked runtime-indexed fixed-array assignment | 5 | 4 | 5 | 5 | 3 | 4 | 26 |
+  | 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+  | 3 | Positive founding dotted import/name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
+
+  Runtime-indexed assignment wins because it changes what ordinary Aero programs can
+  do: CAP-001 made `values[index]` safe to read, but `values[index] = value` remains
+  explicitly rejected, preventing in-place loops, lookup-table updates, and computed
+  mutation of nested application state. This is not another receiver or argument-
+  ordering permutation; it is the missing write half of normal fixed-array algorithms.
+  The canonical Milestone 0 contract remains more roadmap-critical but is primarily
+  consolidation rather than a new executable program capability. Positive imports
+  remain broadly useful, and the founding PDF confirms dotted `import` syntax, but
+  current direct-module collection flattens identities and implementing imports now
+  still requires unresolved namespace, alias, visibility, collision, and graph
+  contracts. Runtime Strings, collections, generic Result/error propagation, and heap
+  ownership remain higher-risk because their layout, destruction, and generic
+  semantics are not frozen.
+- Original-framework and roadmap alignment: the founding Aero framework names fixed-
+  size arrays as a core type, explicit mutation as an aid to reasoning, source-to-
+  typed-IR-to-LLVM lowering, and a language whose useful abstractions compile to
+  verified native code. The Claude framework emphasizes execution quality and a real
+  application path rather than compiler activity counts. The current roadmap requires
+  typed aggregate composition and an ownership-intensive representative program.
+  CAP-002 advances those directions without claiming collections, public layout,
+  destruction, generics, or the future AI/ML workload complete.
+- Observed behavior: the shared projected-assignment classifier admits arbitrary
+  finite static field/tuple/fixed-array paths over a mutable initialized owned direct
+  local recursive CopyData root, but `values[index] = 3` is deterministically rejected
+  with `projected CopyData assignment array indexes require a compile-time integer
+  literal`. CAP-001 already makes the atomic checked fixed-array element-pointer
+  instruction retain element/count/index identity, independently verifies it, and
+  lowers every dynamic index through one ordered bounds guard before conversion or
+  `inbounds` address formation. The remaining gap is source/admission classification,
+  source-order target evaluation, and checked lowering of the accepted selector into
+  that existing instruction; there is no need for a second backend guard.
+- Complete class and frozen semantics: an accepted CAP-002 target starts at an
+  initialized mutable owned direct-local root in the existing recursive finite
+  CopyData class and follows any nonempty finite source path composed of declared
+  struct fields, in-range tuple constants, and fixed-array selectors. Every array
+  selector in that path is either an existing compile-time integer constant or any
+  already admitted expression whose semantic type is exactly `int`; a path may contain
+  zero, one, or multiple runtime selectors, and selector expression topology does not
+  create separate rules. Every selected array must be nonempty. Target selectors are
+  evaluated once, left-to-right in source order, before the RHS, matching the formal
+  execution contract; each dynamic selector is bounds-checked before later selectors,
+  RHS evaluation, address formation, or memory access. If every selector is in range,
+  the RHS is evaluated once and its exact CopyData type is stored at the selected leaf.
+  A negative, NaN/unordered physical value, or value greater than or equal to the
+  retained count terminates through the existing private trap before the RHS or store.
+  Constant out-of-range and zero-length selectors remain compile-time rejections.
+- Explicit exclusions: dynamic writes through references, projected borrowing, partial
+  moves, slices, dynamic collections, compound assignment, destructuring, enum
+  aggregate storage, non-CopyData roots or leaves, alias/NLL/lifetime/drop behavior,
+  public layout, stable trap/status/diagnostic/recovery/ABI/FFI behavior, accelerators,
+  benchmarks, releases, and a general memory-safety claim do not move. CAP-002 does not
+  authorize another per-topology projected-assignment task.
+- Before/after real-program delta: before CAP-002, an Aero program can read a sensor or
+  table entry using a loop counter but cannot update that selected state; it must spell
+  every target as a literal path. After CAP-002, bounded loops can update fixed tables,
+  matrices, and nested CopyData application state using parameters, counters, function
+  results, and computed `int` selectors. The representative telemetry application must
+  replace its three literal sensor-value writes with one loop that reads calibration
+  data and writes `batch.sensors[index].value`, while preserving exact output and exit
+  91 at `-O0` and `-O2` on Linux and Windows.
+- Mechanism: generalize only the existing shared projected CopyData assignment
+  classifier so one contract retains every constant or runtime selector and consumes
+  independently proven selector types from semantic analysis and checked admission.
+  Both phases must evaluate/check selector expressions in source order through that
+  shared authority. Checked lowering must materialize each selector once before the
+  RHS and feed it to the existing `CheckedCopyStructArrayElementPtr`; the independent
+  verifier and CAP-001 code generator then enforce the same retained schema/count/type
+  identity and single backend bounds guard. No parser, AST, checked-IR schema, verifier,
+  or backend change is expected.
+- Assumptions and evidence: `docs/language/aero_formal_language_specification.md`
+  requires expression evaluation in source order; `docs/language/aero_type_system.md`
+  defines out-of-bounds array indexing as a compile-time or runtime error; accepted
+  CORE-090 proves mutable owned projected CopyData leaf replacement; accepted CAP-001
+  proves dynamic checked array pointers, ordered failure before conversion/address,
+  conditional trap declaration, LLVM 22 verification, and Linux/Windows `-O0`/`-O2`
+  behavior. Source inspection proves the only intentional barrier is the shared static-
+  selector classifier plus lowering order. Existing ownership, call, verifier-
+  corruption, static assignment, runtime read, and representative gates must remain
+  unchanged.
+- Measurement and decision threshold: merge requires one red-first focused target;
+  positive primitive, entire-struct, nested field/tuple/array, multiple-runtime-
+  selector, parameter, function-result, and computed selector cases; one selector-
+  topology-independent classifier matrix; deterministic rejection of every non-`int`
+  selector type, zero-length arrays, constant bounds misses, immutable/moved/borrowed/
+  nonlocal roots, type mismatch, unsupported leaves, and excluded reference targets;
+  exact one-time left-to-right selector-before-RHS execution evidence; negative and
+  upper-bound native failures before RHS output/store; conditional single-guard-per-
+  runtime-selector LLVM shape; existing checked-IR count/schema/type/constant-bounds
+  corruption controls; representative telemetry enrichment; deterministic LLVM;
+  pinned LLVM 22 external and machine verification; Linux and Windows `-O0`/`-O2`
+  equivalence; focused/adjacent/full repository gates, formatting, correctness-denying
+  Clippy, docs, `git diff --check`, exact-head public workflows, protected merge, and
+  exact merge-head verification.
+- Failure modes and detection: evaluating the RHS first violates source order and is
+  detected by ordered effect output plus an out-of-bounds specimen whose RHS marker
+  must never appear; evaluating a selector twice is detected by one-time call effects;
+  a missing guard or guard after address/store is detected by LLVM ordering assertions
+  and native negative/equal-to-count failures at both optimization levels; a guard
+  duplicated in assignment codegen is detected by requiring the existing checked
+  element-pointer instruction and exactly one CAP-001 guard per runtime selector;
+  topology-specific activation is detected by the mixed/multiple-selector matrix;
+  wrong leaf/count/schema/index identity remains an independent verifier corruption;
+  ownership bypass is detected by the existing static-assignment negative product;
+  optimizer/platform divergence is detected by Linux and Windows `-O0`/`-O2` runs.
+- Recovery: the clean rollback boundary is one bounded CAP-002 PR based on accepted
+  master `29c13fa`. Production changes are restricted to the shared projected-
+  assignment classifier, the semantic/check admission consumers needed to provide
+  selector types in source order, and checked lowering that reuses the existing IR and
+  backend guard. Tests, representative enrichment, two runtime-failure specimens,
+  proportional workflow anchors, and post-green truth updates are separable evidence.
+  Revert restores the accepted explicit rejection without touching CAP-001, CORE-091,
+  or user/app-owned files.
+- Strategic value: CAP-002 turns fixed arrays from safely readable tables into safely
+  mutable program state, composes loops with nested aggregate mutation, strengthens the
+  representative application, and advances the Milestone 2 ownership-intensive real-
+  program path. It deliberately chooses program breadth over another reference or enum
+  topology partition.
+- What would change our mind: evidence that assignment target/RHS order differs from
+  the formal source-order contract, that arbitrary admitted `int` selector expressions
+  cannot be evaluated exactly once without new ownership or effect semantics, that the
+  existing checked element-pointer/verifier/backend contract cannot safely serve stores,
+  that dynamic writes require a stable public layout or alias model, or that the class
+  cannot support every runtime selector in an arbitrary finite admitted path stops this
+  design. A red requiring new IR schema, verifier, and backend guards triggers a task-
+  contract amendment before production; a neighboring receiver or selector expression
+  shape alone does not become a follow-up task.
+- Exact red checkpoint: before any production, representative, workflow, or project-
+  state change, new focused target `runtime_fixed_array_assignment_tests` runs one
+  source-order contract. It requires one function-result selector, the existing CAP-001
+  ordered guard and typed pointer, one later RHS call, and the final store. The target
+  fails before IR with `Semantic Analysis Error: projected CopyData assignment array
+  indexes require a compile-time integer literal`, exactly reproducing the shared
+  classifier boundary. No LLVM assertion runs, no backend/verifier defect is inferred,
+  and no per-selector-shape audit follows.
+- Allowed files before red evidence changes the contract: this ledger record; one
+  focused runtime-assignment integration target; existing projected-assignment,
+  runtime-index, checked-IR/verifier, evaluation-order, representative, and workflow
+  tests only where required for the complete class; `src/compiler/src/scalar_assignment.rs`,
+  `src/compiler/src/semantic_analyzer.rs`, and `src/compiler/src/ir_generator.rs`; the
+  representative telemetry root and one two-file runtime-write failure corpus;
+  proportional Linux/Windows anchors in `.github/workflows/rust.yml`; and post-green
+  updates to `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `README.md`, and
+  `FRAMEWORK_ALIGNMENT.md`. Parser, AST, IR schema, verifier, code generator, runtime
+  libraries, dependencies, release/package/benchmark/claim-verification files,
+  protection settings, master, history, the CORE-091 stash, `tmp/`, and
+  `.codex-remote-attachments/` are not authorized unless the red proves this frozen
+  boundary wrong and this record is amended before the wider change.
+- Candidate implementation summary: one shared projected CopyData assignment
+  predicate now retains every fixed-array selector as either a constant index or a
+  runtime-selector ordinal. Semantic analysis and semantic-independent checked
+  admission evaluate and type-check all target selectors left-to-right before the RHS,
+  require exact `int` for every runtime selector, and delegate path classification to
+  that predicate. Checked lowering materializes each selector exactly once before the
+  RHS and feeds runtime values to the accepted
+  `CheckedCopyStructArrayElementPtr`; the existing independent verifier and CAP-001
+  backend guard remain unchanged. Constant-only paths retain direct lowering and
+  deterministic compile-time bounds diagnostics. No parser, AST, checked-IR schema,
+  verifier, backend, dependency, runtime-library, release, package, benchmark, or
+  claim-verification file changed.
+- Candidate source and evidence files: production changes are limited to
+  `src/compiler/src/scalar_assignment.rs`, `src/compiler/src/semantic_analyzer.rs`,
+  and `src/compiler/src/ir_generator.rs`. Focused coverage is in new
+  `src/compiler/tests/runtime_fixed_array_assignment_tests.rs` plus the amended
+  superseded static-boundary expectation in
+  `src/compiler/tests/projected_copydata_assignment_tests.rs`. The representative
+  application and its exact test now fill sensor values in a bounded runtime-indexed
+  loop while retaining stdout and exit 91. New negative and upper-bound write
+  specimens contain an effectful RHS marker that must remain unreachable. The Rust
+  workflow adds both specimens to stable Linux and pinned Windows `-O0`/`-O2` checked
+  build, LLVM verification, machine verification, object/link, and execution gates.
+  The six project-truth documents label the result as candidate rather than accepted.
+- Focused local evidence: the new runtime-assignment target passes 5/5, including
+  primitive and computed selectors, whole recursive-struct element replacement,
+  mixed nested `struct -> array -> array -> tuple -> field` paths with two runtime
+  selectors, constant fast-path retention, complete non-`int` type rejection, and
+  constant/zero-length bounds failures. CAP-001 runtime-read tests pass 4/4;
+  representative tests pass 3/3; static projected assignment, copy-place
+  reassignment, classifier matrices, and verifier controls pass. LLVM assertions prove
+  target-call/guard/address order before RHS-call/store and exactly one evaluation per
+  runtime selector.
+- Complete local evidence before publication: after amending the one inherited
+  CORE-090 test that still expected the now-deliberately superseded dynamic-index
+  rejection, exact repository-root `./tools/test.sh` passes formatting,
+  correctness-denying Clippy, 220 library tests, 32 binary tests, every integration
+  target, and doc tests with `CARGO_BUILD_JOBS=1`. The initial full-gate failure was
+  solely that stale negative expectation; it was corrected before publication and the
+  complete gate reran green. Windows byte-sensitive fixtures required 117 originally
+  CRLF tracked `.aero` files to be normalized only during the gate and restored to
+  CRLF in a `finally` block; no tracked fixture content remains normalized. The final
+  record-inclusive exact-candidate rerun then passes the same complete gate with exit
+  zero in 43.4 seconds, again at 220 library and 32 binary tests, and restores all 117
+  tracked fixtures. This workstation does not supply the pinned public Linux/Windows
+  LLVM/native matrix, so no public system acceptance is claimed locally.
+- Commands executed include focused `cargo test --test` targets for runtime assignment,
+  runtime reads, projected/static assignment, copy-place reassignment, and the
+  representative application; selected `cargo test --lib` classifier targets;
+  `cargo fmt`; root `./tools/test.sh` through Git Bash with the inherited Cargo path,
+  serialized build jobs, and reversible fixture normalization; Git diff/status checks;
+  and read-only exact GitHub verification of accepted PR #22 and master identities.
+  User-owned `tmp/`, app-owned `.codex-remote-attachments/`, and quarantined CORE-091
+  stash remain untouched.
+- Remaining uncertainty and regression risks: exact-head public stable/nightly Linux
+  and pinned Windows LLVM 22 execution has not yet run. Incorrect source-order effects,
+  missing or duplicated runtime guards, selector ordinal drift, wrong leaf schema,
+  optimizer/platform divergence, and accidentally broadened reference/ownership paths
+  remain the material risks; the focused ordering assertions, negative RHS marker,
+  shared classifier matrices, existing independent verifier corruptions, and public
+  dual-platform `-O0`/`-O2` workflow are the corresponding detectors.
+- Candidate status and next action: unpublished and unaccepted. Freeze the exact tree,
+  pass diff hygiene, commit and push one bounded branch, publish an exact candidate PR
+  whose front page leads with CAP-002, and require every exact-head check before
+  protected merge. Then verify the merge head and publish accepted-truth synchronization
+  separately. Frozen implementation commit
+  `1fa5b2a204d25fdd373ead83ce8cb34fe0da398a`, tree
+  `9c102a55775177bc57b740344afbc5a5981936da`, stable patch ID
+  `a7dfca16bb6b598b4da6dd66dbbd8b76352b5e23`.
+
 ## CAP-001 - verified runtime fixed-array reads
 
 - Date/task/status: 2026-08-11, `CAP-001`, accepted tests-first executable

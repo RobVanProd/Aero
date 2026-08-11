@@ -309,14 +309,9 @@ fn complete_projected_copydata_assignment_class_is_checked_and_executable() {
             "outside 0..0",
         ),
         (
-            "dynamic index",
-            "fn main() -> int { let mut values = [1, 2]; let index = 0; values[index] = 3; values[0] }",
-            "compile-time integer literal",
-        ),
-        (
             "negative index",
             "fn main() -> int { let mut values = [1, 2]; values[-1] = 3; values[0] }",
-            "compile-time integer literal",
+            "nonnegative",
         ),
         (
             "temporary root",
