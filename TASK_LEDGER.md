@@ -1,5 +1,63 @@
 # Aero Task Ledger
 
+## CAP-002 accepted public checkpoint
+
+- Date/task/status: 2026-08-11, `CAP-002-ACCEPTANCE`, authorized record-only
+  synchronization from accepted protected merge
+  `62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`. The observed repository records still
+  label CAP-002 candidate/unaccepted and name prior public master `29c13fa`; the
+  hypothesis is administrative only: exact accepted identities and evidence can be
+  synchronized without changing compiler behavior or broadening the frozen class.
+- Frozen behavior and exclusions: accepted CAP-002 is exactly the runtime-indexed
+  mutable owned direct-local recursive CopyData assignment class authorized below.
+  Selectors execute once left-to-right before the RHS and each runtime selector uses
+  the CAP-001 guard before later selectors, effects, address formation, or memory
+  access. Writes through references, projected borrowing, partial moves, collections,
+  compound assignment, non-CopyData places, lifetime/drop, stable trap/layout/ABI,
+  accelerators, releases, benchmarks, and general memory-safety claims remain absent.
+- Allowed files: this ledger plus `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`,
+  `README.md`, and `FRAMEWORK_ALIGNMENT.md`. No compiler source, test, workflow,
+  example, dependency, runtime, claim-verification, release, package, benchmark,
+  protection, or integration-history behavior may change.
+- Immutable evidence: bounded PR #23 carried exact candidate
+  `577e601fe1243b68ed1026268472c6f85af12074`, tree
+  `f2f5123f41d3b2b96e418c3b1be0b1ba0ca2027c`, from accepted base
+  `29c13fa32c2bef361ff33367b3b3839351e05534`. Candidate CI runs `31464531658` and
+  `31464562605`, Rust CI `31464562651`, and CodeQL `31464562623` pass, including
+  stable/nightly Linux and pinned Windows LLVM 22 representative and runtime-failure
+  execution at `-O0` and `-O2`. Protected merge
+  `62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a` has ordered parents base then exact
+  candidate and the identical tree. Exact merge-head CI `31464742817`, Rust CI
+  `31464742815`, and CodeQL `31464742282` pass. The rendered PR #23 front page now
+  leads with accepted CAP-002 identity, capability, evidence, and exclusions.
+- Acceptance tests and decision threshold: require the exact candidate/merge/base
+  identities, ordered parents, equal trees, successful cited runs on their claimed
+  SHAs, seven-file record-only scope, no remaining material candidate/unaccepted or
+  prior-master contradiction, Markdown/diff hygiene, and the complete repository-root
+  gate. Stop if an identity differs, a cited run is not successful, wording broadens
+  the capability, any non-record file changes, or the baseline is red.
+- Local record verification: the changed-file audit contains exactly the seven
+  authorized Markdown records. Cross-document search finds no material current-state
+  CAP-002 candidate/unaccepted or prior-master contradiction; preserved ledger wording
+  is explicitly historical. `git diff --check` passes. The exact repository-root
+  `./tools/test.sh` gate passes with exit zero in 68.4 seconds: formatting,
+  correctness-denying Clippy, 220 library tests, 32 binary tests, every integration
+  target, and doc tests. The first verbose attempt outlived its five-minute
+  orchestration wrapper while Windows linker children continued without a reported
+  test failure; the quiet uninterrupted rerun produced the authoritative zero exit.
+  All 119 tracked `.aero` fixtures were normalized only during each gate and restored
+  to their original CRLF form. User/app-owned untracked directories remain untouched.
+- Risks, detection, recovery, and next action: the only intended risk is false public
+  chronology or accidental semantic broadening; exact identity queries, cross-document
+  searches, changed-file audits, and the root gate detect it. The clean rollback is one
+  bounded record-only PR. After this synchronization passes exact-head checks and
+  protected merge, verify exact merge-head workflows, then perform a fresh three-gap
+  project-level ranking before any new implementation. Frozen record commit
+  `b973454d0010c959b525e6e3c404c952a1364e23`, tree
+  `8eb2a5e0803c2b4b048068485d01e939fea9143d`, stable patch ID
+  `5fc96538a71d2a4c90b654a286a0f6c6d0fd39a2`.
+
 ## CAP-002 - checked runtime-indexed fixed-array assignment
 
 - Date/task/status: 2026-08-11, `CAP-002`, authorized tests-first executable

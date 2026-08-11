@@ -12,18 +12,17 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-The current accepted public master is PR #22 acceptance-sync merge
-`29c13fa32c2bef361ff33367b3b3839351e05534`; its accepted compiler-capability
-baseline is CAP-001 merge `25c1e2b239cba45f7b60c86f19629e9d768c77d0`.
-CAP-001 exact candidate `71b0db4`, all nine exact-head checks, protected PR #21,
-post-merge CI/Rust CI/CodeQL, the full root gate, and pinned LLVM/Clang 22
-Linux/Windows representative exit 91 plus runtime-failure corpus at `-O0`/`-O2` pass.
-It adds guarded runtime fixed-array reads over the existing recursive CopyData class.
-Dynamic writes, collections, projected borrowing, partial moves, lifetime/drop,
-stable layout/ABI, memory safety, accelerators, and release claims remain excluded
-from accepted public behavior. Accepted CORE-082 remains a bounded Milestone 1
-primitive-constant slice; accepted CORE-083 through CORE-090 are useful but partial
-Milestone 2 reference, ownership, and aggregate-composition fragments.
+The current accepted public and compiler-capability master is protected CAP-002 merge
+`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`. Exact candidate `577e601`, all nine
+exact-head checks, protected PR #23, post-merge CI/Rust CI/CodeQL, the full root gate,
+and pinned LLVM/Clang 22 Linux/Windows representative plus runtime-failure execution at
+`-O0`/`-O2` pass. CAP-002 adds guarded runtime fixed-array writes throughout the
+existing mutable owned recursive CopyData projection class. Reference-target writes,
+collections, projected borrowing, partial moves, lifetime/drop, stable layout/ABI,
+memory safety, accelerators, and release claims remain excluded. Accepted CORE-082
+remains a bounded Milestone 1 primitive-constant slice; accepted CORE-083 through
+CORE-090 are useful but partial Milestone 2 reference, ownership, and aggregate-
+composition fragments.
 
 Current integration work has accepted `CORE-063` publicly: unary owned enums carry the
 accepted recursive CopyData grammar through construction, exhaustive
@@ -267,26 +266,27 @@ that the private trap can be optimized past an access, that retained array count
 not independently trustworthy, or that this class requires an unresolved ownership or
 stable-ABI decision stops CAP-001. A neighboring receiver/index permutation does not.
 
-### Post-CAP-001 ranking and CAP-002 candidate
+### Post-CAP-001 ranking and accepted CAP-002
 
 The CAP-001 accepted-truth synchronization is complete. A fresh comparison uses the
 same 1--5 scoring convention; `Risk` and `Evidence` reward more favorable delivery.
 
 | Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Checked runtime-indexed fixed-array assignment (`CAP-002` candidate) | 5 | 4 | 5 | 5 | 3 | 4 | 26 |
+| 1 | Checked runtime-indexed fixed-array assignment (accepted `CAP-002`) | 5 | 4 | 5 | 5 | 3 | 4 | 26 |
 | 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
 | 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
 
 Before CAP-002, accepted CAP-001 makes `values[index]` safe to read, but ordinary
 programs still cannot write `values[index] = value` or update nested fixed state in a
-loop. The candidate admits runtime `int` selectors throughout the existing mutable
+loop. Accepted CAP-002 admits runtime `int` selectors throughout the existing mutable
 owned projected CopyData assignment class, evaluates selectors once left-to-right
 before the RHS, and guards every dynamic selector before later selectors, effects,
 address formation, or memory access. The representative telemetry application now
 fills its sensor table in a bounded loop. Local focused, representative, and complete
-repository gates pass; exact-head public LLVM/native execution remains required before
-acceptance. Reference-target writes, projected borrowing, collections, compound
+repository gates pass. Exact candidate `577e601`, all nine candidate-head checks,
+protected PR #23 merge `62ccc6a`, and exact merge-head CI/Rust CI/CodeQL pass.
+Reference-target writes, projected borrowing, collections, compound
 assignment, non-CopyData places, stable trap/ABI semantics, releases, benchmarks, and
 general memory safety remain excluded.
 

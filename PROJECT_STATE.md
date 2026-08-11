@@ -5,20 +5,12 @@ Last updated: 2026-08-11 (America/New_York)
 ## Current objective
 
 The current accepted public master is
-`29c13fa32c2bef361ff33367b3b3839351e05534`, the protected PR #22 merge of the
-bounded CAP-001 accepted-truth synchronization. Its ordered parents are accepted
-compiler-capability master `25c1e2b239cba45f7b60c86f19629e9d768c77d0`
-then exact record candidate `bed18f36e8370d16983dcd34900ff0df5d9eebd9`;
-its tree is `02834d52f675267b6b5167a2144827c50be0d9b6`. Post-merge CI
-`31461188093`, Rust CI `31461188114`, and CodeQL `31461187856` pass.
-
-The accepted compiler-capability master remains
-`25c1e2b239cba45f7b60c86f19629e9d768c77d0`, the protected PR #21 merge of
-`CAP-001`. Its ordered parents are prior master
-`29019ff114f668a37eac429dc6f7905ab97fa6fb` then exact candidate
-`71b0db4ad74e11ad535899029f2db8729480a2da`; the merge tree exactly matches
-candidate tree `7f55c3331965edaa1c5190ff8f4c0e29f80a8bec`. Post-merge CI
-`31460114414`, Rust CI `31460114408`, and CodeQL `31460114552` pass.
+`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`, the protected PR #23 merge of
+`CAP-002` and the accepted compiler-capability master. Its ordered parents are prior
+accepted master `29c13fa32c2bef361ff33367b3b3839351e05534` then exact candidate
+`577e601fe1243b68ed1026268472c6f85af12074`; merge tree
+`f2f5123f41d3b2b96e418c3b1be0b1ba0ca2027c` exactly matches the candidate tree.
+Post-merge CI `31464742817`, Rust CI `31464742815`, and CodeQL `31464742282` pass.
 
 Accepted `CAP-001` has frozen implementation
 `77a5c6457f3e87d79a0d1987bf02b4db32b875de`, tree
@@ -42,20 +34,20 @@ verification pass. All nine candidate-head checks pass. Exact merge-head Linux
 stable and pinned Windows LLVM 22 gates both record representative `-O0`/`-O2` exit
 91 and the failure corpus passing at both optimization levels.
 
-`CAP-002` is an unaccepted local candidate based on exact accepted public master
-`29c13fa32c2bef361ff33367b3b3839351e05534`; nothing in this paragraph is public
-acceptance. It extends the existing mutable owned direct-local recursive CopyData
+Accepted `CAP-002` extends the existing mutable owned direct-local recursive CopyData
 projection class so every fixed-array selector may be either a retained in-range
 constant or an exact semantic `int` evaluated at runtime. Target selectors execute
 once in source order before the RHS; each runtime selector reuses the accepted
 CAP-001 nonnegative/below-count guard before later selectors, RHS evaluation, address
 formation, or memory access. In-range execution stores one exact CopyData leaf. The
 representative telemetry application now fills its sensor array in a bounded loop,
-and two candidate runtime-failure specimens require negative and equal-to-count write
+and two runtime-failure specimens require negative and equal-to-count write
 indexes to trap before an effectful RHS. Focused 5/5 assignment tests, representative
 3/3, all 220 library tests, all 32 binary tests, every integration target, formatting,
-correctness-denying Clippy, and doc tests pass locally. Exact-head public LLVM/native
-workflows, protected merge, and post-merge verification remain pending. Writes through
+correctness-denying Clippy, and doc tests pass locally. Exact candidate-head CI runs
+`31464531658` and `31464562605`, Rust CI `31464562651`, and CodeQL `31464562623`
+pass, including stable/nightly Linux and pinned Windows LLVM 22 `-O0`/`-O2` execution.
+Protected merge and all exact merge-head workflows pass. Writes through
 references, projected borrowing, partial moves, slices/collections, compound
 assignment, non-CopyData places, stable trap/ABI behavior, accelerators, releases,
 benchmarks, and general memory-safety claims remain excluded.
@@ -2602,12 +2594,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish the bounded CAP-002 candidate, require its exact-head Linux/Windows LLVM 22
-and native gates, and protected-merge only if the frozen write contract remains green.
-Then verify the exact merge head and synchronize accepted project truth in a separate
-bounded record PR before selecting another capability. Do not default to the
-quarantined CORE-091 topology, publish releases/packages/benchmarks, rewrite history,
-force-push, or delete retained integration work.
+Publish and protected-merge this bounded CAP-002 accepted-truth synchronization, then
+verify its exact merge-head workflows. Only after the records agree with accepted
+master, perform a fresh three-gap project-level ranking and select the next real-program
+capability. Do not default to the quarantined CORE-091 topology, publish releases/
+packages/benchmarks, rewrite history, force-push, or delete retained integration work.
 
 ## Unauthorized actions
 

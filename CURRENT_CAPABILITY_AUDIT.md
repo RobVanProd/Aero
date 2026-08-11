@@ -5,9 +5,8 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-`29c13fa32c2bef361ff33367b3b3839351e05534`, the protected CAP-001 accepted-truth
-merge; accepted compiler-capability master remains protected CAP-001 merge
-`25c1e2b239cba45f7b60c86f19629e9d768c77d0`.
+`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`; accepted compiler-capability master is
+the same protected CAP-002 merge.
 
 ## Corrective roadmap checkpoint after CORE-090
 
@@ -71,17 +70,16 @@ exit 91 and both runtime-failure cases at `-O0` and `-O2`. Dynamic writes, proje
 borrows, collections, stable trap/status/ABI promises, and general memory-safety
 claims remain excluded.
 
-### CAP-002 candidate: checked runtime-indexed fixed-array assignment
+### CAP-002 accepted: checked runtime-indexed fixed-array assignment
 
-CAP-002 is a local candidate only; it is not accepted public behavior. A fresh
-post-CAP-001 comparison ranks checked runtime-indexed fixed-array assignment 26, the
+A fresh post-CAP-001 comparison ranked checked runtime-indexed fixed-array assignment 26, the
 canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract 24, and
 positive import/name resolution 21. The selected real-program delta is write
 capability: before CAP-002, a program can safely read `values[index]` but must spell
 every projected write with literal indexes; after it, bounded loops can update fixed
 tables and nested state such as `batch.sensors[index].value`.
 
-The candidate extends one existing projected CopyData assignment predicate rather
+The accepted capability extends one existing projected CopyData assignment predicate rather
 than adding selector-shape rules. It admits any nonempty finite field/tuple/fixed-array
 path rooted at an initialized mutable owned direct local, with each array selector
 either a retained in-range constant or an independently checked exact semantic `int`.
@@ -89,9 +87,13 @@ Selectors evaluate exactly once, left to right, before the RHS. Every runtime se
 uses the accepted CAP-001 guard before later selectors, RHS evaluation, address
 formation, or memory access; success stores one exact CopyData leaf. Focused 5/5,
 representative 3/3, the complete 220-library/32-binary repository gate, formatting,
-Clippy, and docs pass locally. The workflow contract adds negative and upper-bound
-write specimens at `-O0` and `-O2`, but exact-head public LLVM/native evidence,
-protected merge, and post-merge evidence remain pending. Reference-target writes,
+Clippy, and docs pass locally. Exact candidate
+`577e601fe1243b68ed1026268472c6f85af12074`, tree
+`f2f5123f41d3b2b96e418c3b1be0b1ba0ca2027c`, passed all nine checks, including
+negative and upper-bound write specimens at Linux/Windows `-O0` and `-O2`. Protected
+PR #23 merged it without tree substitution as
+`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`; exact merge-head CI `31464742817`,
+Rust CI `31464742815`, and CodeQL `31464742282` pass. Reference-target writes,
 projected borrowing, partial moves, slices/collections, compound assignment,
 non-CopyData places, stable trap/status/ABI behavior, accelerators, releases,
 benchmarks, and general memory-safety claims remain excluded.
