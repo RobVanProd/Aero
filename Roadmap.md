@@ -12,11 +12,12 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-The latest accepted compiler-capability master is protected CAP-006 merge
-`bdfd4f5a282043ee957c1bf03975e266de5b9b6c`. Exact candidate `5f20a554`,
-candidate-head checks, protected PR #33, merge-head CI/Rust CI/CodeQL, the full root
+The latest accepted compiler-capability master is protected CAP-007 merge
+`5a64acaffa5e7f7167823861a45bc49c6bb670b4`. Exact candidate `bfb7adb`,
+candidate-head checks, protected PR #35, merge-head CI/Rust CI/CodeQL, the full root
 gate, and pinned LLVM/Clang 22 stable Linux/Windows representative execution at
-`-O0`/`-O2` pass. Accepted CAP-006 adds explicit user-defined bound-free generic
+`-O0`/`-O2` pass. Accepted CAP-007 closes the canonical checked-program entrypoint
+mechanism without adding source semantics. Accepted CAP-006 adds explicit user-defined bound-free generic
 enums at exact recursive finite CopyData applications through contextual construction,
 owned transport/replacement, and exhaustive `Match`. Accepted CAP-005 adds bounded
 compile-time specialization of
@@ -35,17 +36,17 @@ remains a bounded Milestone 1 primitive-constant slice; accepted CORE-083 throug
 CORE-090 are useful but partial Milestone 2 reference, ownership, and aggregate-
 composition fragments.
 
-Local CAP-007 candidate work now supplies the ranked Milestone 0 canonical
+Accepted CAP-007 supplies the ranked Milestone 0 canonical
 checked-program entrypoint mechanism. Public artifact-free `check_program` and
 `check_file` APIs, library compilation, and CLI check/build/run/profile/source-test
 validation share one library-owned lex/parse/direct-module/semantic/checked-IR/
 internal-verification authority. Focused 3/3 and the complete normalized
-235-library/32-binary/84-integration/doc/format/Clippy gate pass. This is not accepted
-public evidence; cached official Windows LLVM/Clang 22.1.8 also externally verifies,
+235-library/32-binary/84-integration/doc/format/Clippy gate pass. Cached official
+Windows LLVM/Clang 22.1.8 also externally verifies,
 machine-verifies, and executes the representative product at `-O0`/`-O2` with exact
-output/exit 91. The candidate does not make any language feature `STABLE`; final accepted master
-remains `80f35b4bcf1892838c3e43bdb5dfb0fd21caed06` until exact public and protected
-acceptance gates pass.
+output/exit 91. Exact candidate `bfb7adb`, protected PR #35 merge `5a64aca`, all
+candidate-head checks, and exact merge-head CI/Rust CI/CodeQL pass. CAP-007 does not
+make any language feature `STABLE`; stable-subset classification remains open.
 
 The required post-CAP-004 milestone-gap audit and three-gap ranking are complete in
 the CAP-005 authorization. Bound-free recursive-CopyData generic transport functions
@@ -271,7 +272,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 
 | Roadmap area | Met | Partial | Open |
 |---|---|---|---|
-| Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; current lexical/syntactic controls and claim inventory are established. | Local CAP-007 candidate supplies one canonical checked-program entrypoint and artifact contract across frozen validation routes, but public/protected acceptance and a separately selected stable-subset declaration remain open. | Accept the exact CAP-007 candidate publicly, then classify any remaining critical selected-subset false-success residuals without treating neighboring topology as automatic work. |
+| Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes. | Per-slice false-success, function/binding/scope, full-gate, and independent-verification controls are strong, but no selected language subset is classified `STABLE`. | Classify the selected stable subset and close any newly enumerated critical residual class without treating neighboring topology as automatic work. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
 | Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, and accepted CAP-006 explicit user-defined recursive-CopyData generic enums have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices, not general substitution. | Collections, general generic substitution and operations, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
 
@@ -417,10 +418,10 @@ Exit gate: no unclassified critical false-success defect in the chosen stable
 subset; one canonical diagnostic/artifact contract; full repository gate and
 independent review for each accepted boundary.
 
-Local CAP-007 candidate closes the canonical entrypoint mechanism for the currently
-frozen validation routes and is full-root green. The exit remains in progress until
-the exact candidate is publicly/protectedly accepted and the chosen stable subset has
-no unclassified critical false-success defect.
+Accepted CAP-007 closes the canonical entrypoint mechanism for the currently frozen
+trusted validation routes and is full-root/public-system green. The exit remains in
+progress until the chosen stable subset has no unclassified critical false-success
+defect.
 
 ## Milestone 1 - Trustworthy scalar CPU core
 

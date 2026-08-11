@@ -1,5 +1,51 @@
 # Aero Task Ledger
 
+## CAP-007 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-11, `CAP-007-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from protected PR #35 merge
+  `5a64acaffa5e7f7167823861a45bc49c6bb670b4` (tree
+  `3ab515666d310a7e72f28347ecd2561297ce0eca`) on
+  `agent/cap-007-acceptance-sync`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Observed behavior and hypothesis: exact candidate
+  `bfb7adb36af4c2d5bef65d615a2f8e32bff7902b` passed every candidate-head gate
+  and merged through the normal protected path, and all exact merge-head workflows
+  now pass. The six project-truth records correctly kept CAP-007 candidate-only before
+  acceptance and must now replace that wording with immutable accepted-master
+  evidence before another compiler capability is selected.
+- Frozen semantics and allowed files: no compiler, parser, semantic, checked-IR,
+  verifier, backend, CLI, workflow, example, dependency, claim-verification, release,
+  benchmark, protection, or external behavior may change. Only `TASK_LEDGER.md`,
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `README.md`, and the exact state assertions in
+  `src/compiler/tests/version_claim_contract_tests.rs` may record the established
+  result.
+- Exact evidence: candidate and merge share tree
+  `3ab515666d310a7e72f28347ecd2561297ce0eca`; merge parents are prior accepted
+  master `80f35b4bcf1892838c3e43bdb5dfb0fd21caed06` then exact candidate
+  `bfb7adb36af4c2d5bef65d615a2f8e32bff7902b`. Candidate push CI
+  `31519719961`, PR CI `31519753426`, Rust CI `31519753421`, and CodeQL
+  `31519751604` pass, including stable/nightly and pinned Windows LLVM/Clang 22
+  native execution. Exact merge-head CI `31520069468`, Rust CI `31520069315`,
+  and CodeQL `31520068887` pass with the same system gates.
+- Risks, recovery, decision threshold, and what would change our mind: the rollback
+  boundary is one record-only branch/PR. The primary risks are calling artifact-free
+  checked admission source-language breadth, presenting parse-only docs/LSP as trusted
+  compilation, or calling the subset stable. Merge only if all records agree on
+  accepted CAP-007, the immutable identities above, unchanged Minimal Prototype
+  status, and exclusions. Any tree/parent/run mismatch, compiler-file change, failed
+  state contract, or evidence that a frozen route bypasses checked admission would
+  stop the sync and reopen CAP-007 rather than alter the evidence.
+- Strategic value and next action: accepted CAP-007 closes the ranked Milestone 0
+  canonical trusted-entrypoint mechanism and gives future compiler capabilities one
+  auditable checked-program gate. Publish this bounded synchronization through its own
+  exact-head protected PR. Only after accepted project truth agrees may the next
+  three-gap ranking select a source-level capability; dynamic collections and positive
+  imports remain high leverage but still require explicit semantic/runtime decisions.
+
 ## CAP-007 - canonical checked-program entrypoint contract
 
 - Date/task/status: 2026-08-11, `CAP-007`, authorized red-first architectural

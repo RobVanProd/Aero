@@ -59,7 +59,7 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
-Local CAP-007 candidate advances the founding compiler/toolchain path rather than a
+Accepted CAP-007 advances the founding compiler/toolchain path rather than a
 new source-language feature. It adds public artifact-free `check_program` and
 `check_file` APIs and routes library compilation plus CLI
 check/build/run/profile/source-test validation through one library-owned checked
@@ -70,13 +70,14 @@ checked admission. Focused 3/3 and the complete normalized
 Cached official Windows LLVM/Clang 22.1.8 also externally verifies, machine-verifies,
 and executes the representative product at `-O0`/`-O2` with exact output/exit 91.
 
-This candidate does not define imports, collections, traits, memory layout, runtime
-ABI, or any new executable source behavior. The founding PDF does not freeze import
+Exact candidate `bfb7adb36af4c2d5bef65d615a2f8e32bff7902b`, protected PR #35
+merge `5a64acaffa5e7f7167823861a45bc49c6bb670b4`, every candidate-head check,
+and exact merge-head CI `31520069468`, Rust CI `31520069315`, and CodeQL
+`31520068887` pass. CAP-007 does not define imports, collections, traits, memory
+layout, runtime ABI, or any new executable source behavior. The founding PDF does not freeze import
 lookup, export/visibility, collision, cycle, or file-mapping semantics, so positive
-imports remain separately specified work. CAP-007 is not accepted public evidence
-until exact-head, protected-merge, merge-head, and pinned Linux/Windows LLVM/Clang 22
-representative gates pass; accepted master remains final CAP-006 state
-`80f35b4bcf1892838c3e43bdb5dfb0fd21caed06`.
+imports remain separately specified work. Aero remains in the founding Design ->
+Minimal Prototype progression, not self-hosted, stable, or release-ready.
 
 Accepted CAP-006 advances the founding paper's generic-enum grammar and
 compile-time monomorphization direction without claiming general generics or the
