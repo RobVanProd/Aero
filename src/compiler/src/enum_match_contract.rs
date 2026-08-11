@@ -220,47 +220,65 @@ impl EnumError {
         match self {
             Self::PreserveExistingBehavior => "Match expressions are not supported.".to_string(),
             Self::NoUniqueDefinition(name) => {
+                let name = display_enum_identity(name);
                 format!("enum `{name}` has no unique admitted definition")
             }
             Self::UnsupportedDefinition(name) => {
+                let name = display_enum_identity(name);
                 format!(
                     "enum `{name}` is not an admitted non-generic unit-or-positional-CopyData enum"
                 )
             }
             Self::UnknownVariant { enum_name, variant } => {
+                let enum_name = display_enum_identity(enum_name);
                 format!("enum `{enum_name}` has no variant `{variant}`")
             }
             Self::UnexpectedPayload { enum_name, variant } => {
+                let enum_name = display_enum_identity(enum_name);
                 format!("enum `{enum_name}` variant `{variant}` does not accept payload data")
             }
             Self::MissingPayload {
                 enum_name,
                 variant,
                 expected,
-            } => format!(
-                "enum `{enum_name}` variant `{variant}` requires one {} payload",
-                expected.to_string().to_ascii_lowercase()
-            ),
-            Self::EmptyPositionalPayload { enum_name, variant } => format!(
-                "enum `{enum_name}` variant `{variant}` cannot use an empty positional field list"
-            ),
+            } => {
+                let enum_name = display_enum_identity(enum_name);
+                format!(
+                    "enum `{enum_name}` variant `{variant}` requires one {} payload",
+                    expected.to_string().to_ascii_lowercase()
+                )
+            }
+            Self::EmptyPositionalPayload { enum_name, variant } => {
+                let enum_name = display_enum_identity(enum_name);
+                format!(
+                    "enum `{enum_name}` variant `{variant}` cannot use an empty positional field list"
+                )
+            }
             Self::ConstructorArityMismatch {
                 enum_name,
                 variant,
                 expected,
                 actual,
-            } => format!(
-                "enum `{enum_name}` variant `{variant}` requires {expected} positional field(s), actual {actual}"
-            ),
+            } => {
+                let enum_name = display_enum_identity(enum_name);
+                format!(
+                    "enum `{enum_name}` variant `{variant}` requires {expected} positional field(s), actual {actual}"
+                )
+            }
             Self::PayloadTypeMismatch {
                 enum_name,
                 variant,
                 expected,
                 actual,
-            } => format!(
-                "enum `{enum_name}` variant `{variant}` payload type mismatch: expected {expected}, actual {actual}"
-            ),
+            } => {
+                let enum_name = display_enum_identity(enum_name);
+                format!(
+                    "enum `{enum_name}` variant `{variant}` payload type mismatch: expected {expected}, actual {actual}"
+                )
+            }
             Self::BindingAnnotationMismatch { expected, actual } => {
+                let expected = display_enum_identity(expected);
+                let actual = display_enum_identity(actual);
                 format!("enum binding annotation mismatch: expected {expected}, actual {actual}")
             }
             Self::ExplicitVariantPatternsRequired => {
@@ -286,6 +304,8 @@ impl EnumError {
                 format!("enum payload binding `{name}` shadows consumed scrutinee")
             }
             Self::ForeignArm { actual, expected } => {
+                let actual = display_enum_identity(actual);
+                let expected = display_enum_identity(expected);
                 format!("enum match arm names `{actual}`, expected `{expected}`")
             }
             Self::DuplicateArm(variant) => {
@@ -331,6 +351,11 @@ impl EnumError {
             ),
         }
     }
+}
+
+fn display_enum_identity(name: &str) -> String {
+    crate::builtin_carrier_contract::private_carrier_source_name(name)
+        .unwrap_or_else(|| name.to_string())
 }
 
 impl EnumRegistry {
@@ -388,7 +413,7 @@ impl EnumRegistry {
         structs: &StructRegistry,
     ) -> EnumDefinitionDisposition {
         let mut names = BTreeSet::new();
-        if !valid_symbol(name)
+        if !valid_enum_symbol(name)
             || !definition.type_params.is_empty()
             || definition.variants.is_empty()
         {
@@ -1349,6 +1374,10 @@ fn valid_symbol(name: &str) -> bool {
         .next()
         .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
+}
+
+fn valid_enum_symbol(name: &str) -> bool {
+    crate::builtin_carrier_contract::valid_carrier_aware_enum_symbol(name, valid_symbol)
 }
 
 fn display_type(ty: &Type) -> String {

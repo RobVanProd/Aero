@@ -5,6 +5,9 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, classify_binding_annotation, is_legacy_numeric_array_annotation,
     is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
+use crate::builtin_carrier_contract::{
+    normalize_builtin_carriers, unnormalized_carrier_diagnostic,
+};
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::const_contract::normalize_primitive_consts;
 use crate::enum_match_contract::{
@@ -1203,6 +1206,7 @@ impl Default for SemanticAnalyzer {
 impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
         let ast = normalize_primitive_consts(ast)?;
+        let ast = normalize_builtin_carriers(ast)?;
         self.function_table.clear();
         self.compatibility_scope_snapshots.clear();
         self.return_contract_stack.clear();
@@ -1757,82 +1761,34 @@ impl SemanticAnalyzer {
                 enum_name,
                 variant,
                 data,
-            } => {
-                match enum_name.as_str() {
-                    "Option" => {
-                        match variant.as_str() {
-                            "Some" => {
-                                // Some(value) -> Option<typeof(value)>
-                                if let Some([inner_expr]) = data.as_mut().map(Vec::as_mut_slice) {
-                                    let inner_ty =
-                                        self.infer_and_validate_expression(inner_expr)?;
-                                    Ok(Ty::Option(Box::new(inner_ty)))
-                                } else {
-                                    Err("Some variant requires a value".to_string())
-                                }
-                            }
-                            "None" => {
-                                // None -> Option<unknown>, type must be inferred from context
-                                // For now, default to Option<Int> - proper inference would need context
-                                Ok(Ty::Option(Box::new(Ty::Int)))
-                            }
-                            _ => Err(format!("Unknown Option variant: {}", variant)),
+            } => match enum_name.as_str() {
+                "Option" | "Result" => Err(unnormalized_carrier_diagnostic(enum_name, variant)),
+                _ if self.enum_execution_context() == EnumExecutionContext::AdmittedFunction => {
+                    let actual = if let Some(fields) = data.as_deref_mut() {
+                        let mut types = Vec::with_capacity(fields.len());
+                        for field in fields {
+                            types.push(self.infer_and_validate_expression(field)?);
                         }
-                    }
-                    "Result" => {
-                        match variant.as_str() {
-                            "Ok" => {
-                                // Ok(value) -> Result<typeof(value), String> (default error type)
-                                if let Some([inner_expr]) = data.as_mut().map(Vec::as_mut_slice) {
-                                    let inner_ty =
-                                        self.infer_and_validate_expression(inner_expr)?;
-                                    Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
-                                } else {
-                                    Err("Ok variant requires a value".to_string())
-                                }
-                            }
-                            "Err" => {
-                                // Err(error) -> Result<Int, typeof(error)> (default ok type)
-                                if let Some([inner_expr]) = data.as_mut().map(Vec::as_mut_slice) {
-                                    let inner_ty =
-                                        self.infer_and_validate_expression(inner_expr)?;
-                                    Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
-                                } else {
-                                    Err("Err variant requires a value".to_string())
-                                }
-                            }
-                            _ => Err(format!("Unknown Result variant: {}", variant)),
-                        }
-                    }
-                    _ if self.enum_execution_context()
-                        == EnumExecutionContext::AdmittedFunction =>
-                    {
-                        let actual = if let Some(fields) = data.as_deref_mut() {
-                            let mut types = Vec::with_capacity(fields.len());
-                            for field in fields {
-                                types.push(self.infer_and_validate_expression(field)?);
-                            }
-                            Some(types)
-                        } else {
-                            None
-                        };
-                        let resolved = self
-                            .enum_registry
-                            .resolve_constructor(
-                                enum_name,
-                                variant,
-                                data.as_ref().map(Vec::len),
-                                self.enum_execution_context(),
-                            )
-                            .map_err(|error| error.diagnostic())?;
-                        self.enum_registry
-                            .validate_constructor_payload(&resolved, actual.as_deref())
-                            .map_err(|error| error.diagnostic())?;
-                        Ok(resolved.contract.ty())
-                    }
-                    _ => Ok(Ty::Enum(enum_name.clone())),
+                        Some(types)
+                    } else {
+                        None
+                    };
+                    let resolved = self
+                        .enum_registry
+                        .resolve_constructor(
+                            enum_name,
+                            variant,
+                            data.as_ref().map(Vec::len),
+                            self.enum_execution_context(),
+                        )
+                        .map_err(|error| error.diagnostic())?;
+                    self.enum_registry
+                        .validate_constructor_payload(&resolved, actual.as_deref())
+                        .map_err(|error| error.diagnostic())?;
+                    Ok(resolved.contract.ty())
                 }
-            }
+                _ => Ok(Ty::Enum(enum_name.clone())),
+            },
             Expression::Match { expr, arms } => {
                 let scrutinee = self.infer_admitted_match_scrutinee(expr)?;
                 let patterns = self
@@ -2575,49 +2531,7 @@ impl SemanticAnalyzer {
                 variant,
                 data,
             } => match enum_name.as_str() {
-                "Option" => match variant.as_str() {
-                    "Some" => {
-                        if let Some([inner_expr]) = data.as_deref() {
-                            let inner_ty = self
-                                .infer_and_validate_expression_immutable_with_cache(
-                                    inner_expr,
-                                    array_types,
-                                )?;
-                            Ok(Ty::Option(Box::new(inner_ty)))
-                        } else {
-                            Err("Some variant requires a value".to_string())
-                        }
-                    }
-                    "None" => Ok(Ty::Option(Box::new(Ty::Int))),
-                    _ => Err(format!("Unknown Option variant: {}", variant)),
-                },
-                "Result" => match variant.as_str() {
-                    "Ok" => {
-                        if let Some([inner_expr]) = data.as_deref() {
-                            let inner_ty = self
-                                .infer_and_validate_expression_immutable_with_cache(
-                                    inner_expr,
-                                    array_types,
-                                )?;
-                            Ok(Ty::Result(Box::new(inner_ty), Box::new(Ty::String)))
-                        } else {
-                            Err("Ok variant requires a value".to_string())
-                        }
-                    }
-                    "Err" => {
-                        if let Some([inner_expr]) = data.as_deref() {
-                            let inner_ty = self
-                                .infer_and_validate_expression_immutable_with_cache(
-                                    inner_expr,
-                                    array_types,
-                                )?;
-                            Ok(Ty::Result(Box::new(Ty::Int), Box::new(inner_ty)))
-                        } else {
-                            Err("Err variant requires a value".to_string())
-                        }
-                    }
-                    _ => Err(format!("Unknown Result variant: {}", variant)),
-                },
+                "Option" | "Result" => Err(unnormalized_carrier_diagnostic(enum_name, variant)),
                 _ if self.enum_execution_context() == EnumExecutionContext::AdmittedFunction => {
                     let actual = if let Some(fields) = data.as_deref() {
                         let mut types = Vec::with_capacity(fields.len());

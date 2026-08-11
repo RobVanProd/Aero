@@ -372,6 +372,10 @@ fn valid_symbol(name: &str) -> bool {
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
+fn valid_enum_symbol(name: &str) -> bool {
+    crate::builtin_carrier_contract::valid_carrier_aware_enum_symbol(name, valid_symbol)
+}
+
 fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
     valid_owned_place_type(ty)
 }
@@ -403,7 +407,7 @@ fn valid_enum_payload_type(payload: &LogicalType) -> bool {
 
 fn valid_enum_schema(schema: &EnumSchema) -> bool {
     let mut unique = BTreeSet::new();
-    valid_symbol(&schema.name)
+    valid_enum_symbol(&schema.name)
         && !schema.variants.is_empty()
         && schema.variants.iter().all(|variant| {
             valid_symbol(&variant.name)

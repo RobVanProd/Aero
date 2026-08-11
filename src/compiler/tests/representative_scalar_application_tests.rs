@@ -43,8 +43,11 @@ fn main() -> int {
         total = total + step + 1;
         step = step + 1;
     }
+    let accepted_delta: Result<int, char> = validate_delta(4, 3 < 4);
+    let rejected_delta: Result<int, char> = validate_delta(8, 4 < 3);
+    total = total + resolved_delta(accepted_delta) + resolved_delta(rejected_delta);
     if batch.meta.1 {
-        total = total + 16;
+        total = total + 12;
     } else {
         total = 1;
     }
@@ -92,6 +95,18 @@ fn classify(total: int, trusted: bool) -> Decision {
 fn add_urgent(urgent: bool, value: int) -> int {
     if urgent { return value + 1; }
     value
+}
+
+fn validate_delta(value: int, valid: bool) -> Result<int, char> {
+    if valid { return Ok(value); }
+    Err('e')
+}
+
+fn resolved_delta(result: Result<int, char>) -> int {
+    match result {
+        Ok(value) => value,
+        Err(code) => 0
+    }
 }
 
 fn decision_score(decision: Decision) -> int {
