@@ -131,6 +131,11 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(readme.contains(
         "accepted CAP-006 adds exact explicit user-defined recursive-CopyData generic-enum specialization."
     ));
+    assert!(readme.contains("**CAP-007 accepted:** public artifact-free"));
+    assert!(readme.contains(
+        "Accepted CAP-007 makes check/build/run/profile/source-test validation consume one checked-program preparation authority"
+    ));
+    assert!(!readme.contains("CAP-007 local candidate (not accepted)"));
     assert!(readme.contains(
         "General generic operations/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));

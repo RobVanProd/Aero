@@ -2,15 +2,14 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-006 merge
-`bdfd4f5a282043ee957c1bf03975e266de5b9b6c`. Exact candidate
-`5f20a5543503736422115145b12fd6c593c5eeb3` and the merge have identical tree
-`98cd0e3fa09ad255d4e58cd4c860dcf0271ea915`; candidate push CI `31514226887`,
-PR CI `31514272313`, Rust CI `31514272209`, CodeQL `31514269749`, protected
-integration, merge-head CI `31514651356`, Rust CI `31514651355`, and CodeQL
-`31514652091` pass. The merge-head Rust retry on the unchanged SHA cleared a Windows
-runner checkout certificate failure and completed pinned LLVM/Clang 22 Linux/Windows
-native `-O0`/`-O2` gates.
+Latest accepted compiler-capability master is protected CAP-007 merge
+`5a64acaffa5e7f7167823861a45bc49c6bb670b4`. Exact candidate
+`bfb7adb36af4c2d5bef65d615a2f8e32bff7902b` and the merge have identical tree
+`3ab515666d310a7e72f28347ecd2561297ce0eca`; candidate push/PR CI
+`31519719961`/`31519753426`, Rust CI `31519753421`, CodeQL `31519751604`,
+protected integration, merge-head CI `31520069468`, Rust CI `31520069315`, and
+CodeQL `31520068887` pass, including pinned LLVM/Clang 22 Linux/Windows native
+`-O0`/`-O2` gates.
 
 Accepted CAP-006 adds a further bounded `PARTIAL` slice: exact explicit recursive
 finite CopyData applications of one
@@ -21,16 +20,18 @@ compatibility, representative 3/3, and complete 235-library/32-binary/83-integra
 doc/format/Clippy local gates pass, as do the public exact-head and merge-head gates
 above. This moves no row beyond `PARTIAL`.
 
-Local CAP-007 candidate evidence adds a canonical checked-program preparation
+Accepted CAP-007 adds a canonical checked-program preparation
 authority and artifact-free public `check_program`/`check_file` APIs. Library
 compilation plus CLI check/build/run/profile/source-test validation share lex, parse,
 direct-module, semantic, checked-IR, and mandatory internal-verification admission.
 Focused 3/3 and the complete normalized 235-library/32-binary/84-integration/doc/
 format/Clippy gate pass; cached official Windows LLVM/Clang 22.1.8 external, machine,
 and native `-O0`/`-O2` representative evidence also passes at exact output/exit 91.
-This candidate is not accepted public evidence, does not add
-source semantics, and moves no language row beyond `PARTIAL`; accepted master remains
-final CAP-006 state `80f35b4bcf1892838c3e43bdb5dfb0fd21caed06`.
+Exact candidate `bfb7adb36af4c2d5bef65d615a2f8e32bff7902b` and protected PR #35
+merge `5a64acaffa5e7f7167823861a45bc49c6bb670b4` share tree
+`3ab515666d310a7e72f28347ecd2561297ce0eca`; all candidate-head and exact
+merge-head workflows pass. CAP-007 adds no source semantics and moves no language row
+beyond `PARTIAL`.
 
 Accepted CAP-005 adds one additional `PARTIAL` generics/function-call slice. Unique top-level
 bound-free generic functions whose type parameters are inferred from whole parameter
@@ -427,18 +428,18 @@ evidence is not general Windows or stable ABI support.
 
 | Surface | Interface | Shared compiler truth | Artifact/result | Failure tests | Integration evidence | Docs | Class |
 |---|---:|---:|---:|---:|---:|---:|---|
-| Library `compile_program` | Y | P | LLVM text or located phase failure; local CAP-007 candidate shares checked preparation | Y | P | P | PARTIAL |
-| Library `compile_file` | Y | P | In-memory checked LLVM text or file-located phase failure; direct `mod` only; local CAP-007 candidate shares checked preparation | Y | P | P | PARTIAL |
-| Library `check_program` / `check_file` (local CAP-007 candidate) | Y | Y | Artifact-free checked admission or located phase failure | Y | Y | P | PARTIAL |
+| Library `compile_program` | Y | Y | LLVM text or located phase failure; accepted CAP-007 shares checked preparation | Y | Y | P | PARTIAL |
+| Library `compile_file` | Y | Y | In-memory checked LLVM text or file-located phase failure; direct `mod` only; accepted CAP-007 shares checked preparation | Y | Y | P | PARTIAL |
+| Library `check_program` / `check_file` (accepted CAP-007) | Y | Y | Artifact-free checked admission or located phase failure | Y | Y | P | PARTIAL |
 | Compiler options | Y | N | Default path preserved; accepted CORE-020 rejects nondefaults before lexing | Y | Y | P | PARSED_ONLY |
-| CLI build/check | Y | P | P; local CAP-007 candidate shares checked admission and keeps failures nonzero/artifact-clean | Y | P | Y | PARTIAL |
-| CLI run | Y | P | Local CAP-007 candidate shares checked admission; CPU executes; ROCm/CUDA exclusions unchanged | Y | P | Y | PARTIAL |
-| CLI test | Y | P | Local CAP-007 candidate performs checked admission without execution; failures nonzero | Y | P | Y | PARTIAL |
+| CLI build/check | Y | P | P; accepted CAP-007 shares checked admission and keeps failures nonzero/artifact-clean | Y | P | Y | PARTIAL |
+| CLI run | Y | P | Accepted CAP-007 shares checked admission; CPU executes; ROCm/CUDA exclusions unchanged | Y | P | Y | PARTIAL |
+| CLI test | Y | P | Accepted CAP-007 performs checked admission without execution; failures nonzero | Y | P | Y | PARTIAL |
 | Formatter | Y | N | Text trimming | N | N | P | EXPERIMENTAL |
 | Diagnostics/source spans | Y | P | Point/one-char ranges | P | P | Y | PARTIAL |
 | LSP | Y | N | P | P | P | Y | EXPERIMENTAL |
 | Documentation generator | Y | P | Markdown | P | P | Y | EXPERIMENTAL |
-| Profiler | Y | P | Local CAP-007 candidate shares checked admission before timing/trace publication | Y | P | Y | EXPERIMENTAL |
+| Profiler | Y | P | Accepted CAP-007 shares checked admission before timing/trace publication | Y | P | Y | EXPERIMENTAL |
 | Project initialization | Y | — | Project files | Y | P | Y | EXPERIMENTAL |
 | Module resolver | Y | P | Resolved source | P | P | Y | EXPERIMENTAL |
 | Registry | Y | — | Local search and dry-run plans; live transport quarantined | Y | N | Y | EXPERIMENTAL |

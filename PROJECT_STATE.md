@@ -4,9 +4,9 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-### CAP-007 local candidate: canonical checked-program entrypoint contract
+### CAP-007 accepted: canonical checked-program entrypoint contract
 
-CAP-007 is locally green but not publicly accepted. It adds public artifact-free
+Accepted CAP-007 adds public artifact-free
 `check_program` and `check_file` library APIs and one library-owned preparation
 authority for lexing, fatal parsing, direct modules, semantic analysis, checked IR,
 and mandatory internal verification. Library compilation plus CLI `check`, optimized
@@ -20,11 +20,17 @@ formatting, correctness-denying Clippy, examples, and repository/verifier contro
 Cached official Windows LLVM/Clang 22.1.8 also externally and machine verifies the
 representative product; public `run` and native `-O0`/`-O2` executions retain exact
 output and exit 91.
-No source semantics, IR schema, backend lowering, runtime behavior, release, benchmark,
-or stability claim changes. Accepted public truth remains final CAP-006 state merge
-`80f35b4bcf1892838c3e43bdb5dfb0fd21caed06`; CAP-007 requires an exact committed
-candidate, public candidate-head gates, protected integration, exact merge-head gates,
-and pinned Linux/Windows LLVM/Clang 22 representative execution before acceptance.
+
+Exact candidate `bfb7adb36af4c2d5bef65d615a2f8e32bff7902b` passed candidate push
+CI `31519719961`, PR CI `31519753426`, Rust CI `31519753421`, and CodeQL
+`31519751604`. Protected PR #35 merged it as
+`5a64acaffa5e7f7167823861a45bc49c6bb670b4`; candidate and merge share tree
+`3ab515666d310a7e72f28347ecd2561297ce0eca`, with ordered parents prior accepted
+master `80f35b4bcf1892838c3e43bdb5dfb0fd21caed06` then exact candidate. Exact
+merge-head CI `31520069468`, Rust CI `31520069315`, and CodeQL `31520068887`
+pass, including stable/nightly and pinned Windows native execution. No source
+semantics, IR schema, backend lowering, runtime behavior, release, benchmark, or
+stability claim changes. Aero remains a Minimal Prototype in correctness recovery.
 
 ### CAP-006 accepted: explicit user-defined generic CopyData enums
 
