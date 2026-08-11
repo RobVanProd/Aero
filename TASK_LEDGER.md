@@ -1,5 +1,62 @@
 # Aero Task Ledger
 
+## CAP-006 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-11, `CAP-006-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from exact protected merge
+  `bdfd4f5a282043ee957c1bf03975e266de5b9b6c` (tree
+  `98cd0e3fa09ad255d4e58cd4c860dcf0271ea915`). Work belongs only on
+  `agent/cap-006-acceptance-sync`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task; quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Observed behavior and hypothesis: protected PR #33 merged exact candidate
+  `5f20a5543503736422115145b12fd6c593c5eeb3` after every candidate-head gate
+  passed, and exact merge-head CI, CodeQL, stable/nightly, and the pinned Windows
+  LLVM/Clang 22 native system gate now pass. The six project-truth records still call
+  CAP-006 a local candidate and CAP-005 the latest accepted capability. Replacing only
+  those status statements and recording immutable evidence restores accepted-master
+  observability without changing language semantics or implementation.
+- Frozen semantics and allowed files: no parser, semantic, checked-IR, verifier,
+  backend, CLI, workflow, example, test, dependency, claim-verification, release,
+  benchmark, or protection behavior may change. Only `TASK_LEDGER.md`,
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`, and
+  `README.md` may record the already-established result. The exact state-claim
+  assertions in `src/compiler/tests/version_claim_contract_tests.rs` may change only
+  from the superseded local-candidate wording to the accepted identities; no compiler
+  capability assertion or implementation test may otherwise change.
+- Exact acceptance evidence: candidate and merge share tree
+  `98cd0e3fa09ad255d4e58cd4c860dcf0271ea915`; the merge parents are prior accepted
+  master `233716c7521cb0186eb781549e12e67b277009a6` then exact candidate
+  `5f20a5543503736422115145b12fd6c593c5eeb3`. Candidate push CI
+  `31514226887`, PR CI `31514272313`, Rust CI `31514272209`, and CodeQL
+  `31514269749` pass. Merge-head CI `31514651356` and CodeQL `31514652091` pass.
+  Merge-head Rust CI `31514651355` first encountered Windows runner
+  `SEC_E_UNTRUSTED_ROOT` during `actions/checkout` before repository access; rerunning
+  failed jobs on the unchanged merge SHA passed stable, nightly, and the complete
+  pinned Windows LLVM/Clang 22 native system gate. No source correction was made.
+- Acceptance tests and stop conditions: verify PR #33 state/title/body, exact candidate
+  and merge identities, parent order, identical trees, run SHAs/conclusions/attempt
+  chronology, changed-file scope, Markdown/diff hygiene, and the complete repository
+  root gate. Stop if any identity differs, a cited run is not successful on its claimed
+  SHA, the retry includes a source change, wording broadens the admitted class, any
+  file outside the seven records and that one state-contract test changes, or the
+  accepted baseline is red.
+- Risks, recovery, and decision threshold: the rollback boundary is one record-only
+  branch/PR; reverting it changes claims only. The primary risk is presenting the
+  bounded generic-enum specialization as general generics, Copy semantics, borrowing,
+  stable ABI, or general safety. Merge the sync only if all seven records agree on
+  accepted CAP-006, exact immutable evidence, CAP-005 chronology, Minimal Prototype
+  status, and unchanged exclusions. Evidence that the candidate/merge trees differ,
+  any language job failed rather than infrastructure checkout, or representative
+  output/exit changed would reverse acceptance and require a new corrective candidate.
+- Strategic value and next action: accepted CAP-006 removes concrete enum duplication
+  for one useful user-defined ADT class and composes generic structs, generic transport
+  functions, owned enums, and exhaustive `Match` in the representative application.
+  Publish this bounded acceptance sync through its own exact-head protected PR. Only
+  after it is accepted and all project-truth records agree may the next capability be
+  freshly ranked; neighboring generic topologies do not inherit priority.
+
 ## CAP-006 - explicit user-defined generic CopyData enums
 
 - Date/task/status: 2026-08-11, `CAP-006`, authorized red-first executable vertical

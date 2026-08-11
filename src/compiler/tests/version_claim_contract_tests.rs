@@ -129,7 +129,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         readme.contains("accepted CAP-005 adds bound-free whole-value generic transport functions")
     );
     assert!(readme.contains(
-        "Local candidate CAP-006 adds exact explicit user-defined recursive-CopyData generic-enum specialization, but public acceptance is pending."
+        "accepted CAP-006 adds exact explicit user-defined recursive-CopyData generic-enum specialization."
     ));
     assert!(readme.contains(
         "General generic operations/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
@@ -314,13 +314,9 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
     assert!(project_state.contains("59f7e47b476871fae8cecdf7e40900e0d1f1b377"));
     assert!(!project_state.contains("CAP-005 exact local candidate (not yet accepted)"));
     assert!(
-        project_state.contains(
-            "CAP-005 is accepted through protected PR #31 and exact merge-head workflows"
-        )
+        project_state.contains("CAP-006 accepted: explicit user-defined generic CopyData enums")
     );
-    assert!(
-        project_state
-            .contains("required fresh three-gap ranking selected CAP-006 explicit user-defined")
-    );
-    assert!(project_state.contains("next action is to commit and rerun the immutable candidate"));
+    assert!(project_state.contains("bdfd4f5a282043ee957c1bf03975e266de5b9b6c"));
+    assert!(project_state.contains("CAP-006 is accepted through protected PR #33"));
+    assert!(project_state.contains("exact next action is this bounded"));
 }
