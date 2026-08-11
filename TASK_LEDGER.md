@@ -1,5 +1,49 @@
 # Aero Task Ledger
 
+## CAP-004 post-merge project-truth correction
+
+- Date/task/status: 2026-08-11, `CAP-004-POSTMERGE-TRUTH`, authorized bounded
+  observability correction from accepted public master
+  `6c4a1a579dff60db146951d0a2657dd61dbdff59`. The compiler capability is already
+  accepted through PR #28, and its record synchronization is already accepted through
+  PR #29, but `PROJECT_STATE.md` still instructs the reader to publish that completed
+  synchronization. This is a project-truth defect, not a compiler defect or a new
+  capability task.
+- Mechanism and frozen scope: replace the stale exact-next-action paragraph with the
+  completed PR #29 candidate/merge/workflow identities and make the fresh post-CAP-004
+  three-gap ranking the sole next action. Amend the CAP-004 ledger acceptance record
+  with the same immutable synchronization evidence and add one focused claim-contract
+  assertion against regression. Only `TASK_LEDGER.md`, `PROJECT_STATE.md`, and
+  `src/compiler/tests/version_claim_contract_tests.rs` may change. No compiler,
+  language, checked-IR, verifier, backend, CLI, workflow, specimen, dependency,
+  roadmap, release, benchmark, protection, or external-repository behavior may move.
+- Assumptions and evidence: PR #29 candidate
+  `5e6f30a1e4a8979f38e75423f2021b88d8c92548` merged through protection as
+  `6c4a1a579dff60db146951d0a2657dd61dbdff59`; exact merge-head CI
+  `31480903724`, Rust CI `31480903716`, and CodeQL `31480903587` pass. GitHub and
+  local `origin/master` agree on that merge. The remaining governing records already
+  classify CAP-004 as accepted and require a fresh ranking before CAP-005.
+- Measurement, failure modes, and detection: the focused version-claim target must
+  reject the stale publication instruction and require the accepted synchronization
+  identity plus ranking-only next action. Changed-file scope, `git diff --check`, and
+  the exact repository-root gate must pass. Stop on any identity disagreement,
+  semantic broadening, non-authorized file mutation, red baseline, or evidence that
+  another accepted-truth document still materially describes CAP-004 as pending.
+- Red-first and local evidence: before changing `PROJECT_STATE.md`, the new focused
+  assertion ran 0/1 green on the stale publication instruction. After the correction,
+  the complete version-claim target passes 8/8, `git diff --check` passes, and exact
+  repository-root `./tools/test.sh` passes formatting, correctness-denying Clippy,
+  229 library tests, 32 binary tests, every integration target, and doc tests. The
+  changed-file surface is exactly the three authorized files; tracked `.aero` fixture
+  line endings were restored and user/app-owned untracked directories were untouched.
+- Recovery, decision threshold, and strategic value: one bounded three-file commit/PR
+  is the rollback boundary. Merge only after exact-head public checks and protected
+  integration; then verify the merge head before CAP-005 implementation. This restores
+  a trustworthy decision baseline so the next task can optimize for real-program
+  capability rather than stale administration. Evidence that PR #29 changed compiler
+  behavior, retained a different tree, or lacks exact-head success would change the
+  decision and stop this correction.
+
 ## CAP-004 - explicit generic CopyData struct monomorphization
 
 - Date/task/status: 2026-08-11, `CAP-004`, accepted public after an authorized red-first
@@ -264,6 +308,15 @@
   updated version-claim contract passes 8/8; and exact root `./tools/test.sh` passes
   229 library tests, 32 binary tests, every integration target, and doc tests. The
   enclosing record-only commit assigns the immutable sync candidate SHA.
+- Project-truth synchronization acceptance: exact record candidate
+  `5e6f30a1e4a8979f38e75423f2021b88d8c92548`, tree
+  `492c6c3c990e656d6156bc386f7cbd0c6577df25`, passed all nine candidate checks and
+  merged through protected PR #29 as
+  `6c4a1a579dff60db146951d0a2657dd61dbdff59` with the identical tree and ordered
+  parents accepted CAP-004 merge then exact record candidate. Exact merge-head CI
+  `31480903724`, Rust CI `31480903716`, and CodeQL `31480903587` pass. The
+  synchronization is accepted on public master; the only next authorization step is
+  the fresh post-CAP-004 three-gap ranking, not another CAP-004 publication step.
 
 ## CAP-003 - explicitly typed algebraic error carriers
 
