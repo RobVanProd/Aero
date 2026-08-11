@@ -180,6 +180,37 @@
   parser, semantic, checked-IR, verifier, backend, workflow, example, dependency,
   project-truth, external repository, or user-owned untracked content changed.
 
+### CAP-010 local candidate evidence
+
+- One shared `TraitDispatchPlan` now validates the frozen declaration/impl/bound/call
+  product before both semantics and semantic-independent checked admission, removes
+  the active trait/impl syntax, emits deterministic private monomorphic helpers, and
+  specializes direct bounded calls through the accepted recursive-CopyData generic
+  function authority. No downstream phase contains a second topology guard.
+- Private helper identity includes trait, concrete target, method, and complete logical
+  signature. The verifier additionally ties the encoded target to the leading
+  immutable-reference struct schema. Its focused corruption control rejects changed
+  target/mode, parameter/result schema, helper identity, callee, call arity/order, and
+  receiver borrow provenance.
+- The focused trait target passes 3/3. The representative target passes 3/3 and now
+  applies `PolicyValue` to both `Sensor` and `Batch` through `read_policy_value<T:
+  PolicyValue>`, preserving telemetry score/exit 91. Its new unsatisfied-bound fixture
+  proves public `check`, `build`, and `run` all return status 1 without LLVM or native
+  artifacts.
+- Generic function/struct/enum, immutable and mixed references, direct modules,
+  module containment, closures, and checked-IR adjacent suites pass. Formatting and
+  `cargo clippy --all-targets --all-features -- -D clippy::correctness` pass.
+- The first complete root gate exposed one intentionally obsolete frontend assertion:
+  a String-bearing trait was still expected to reach the pre-CAP-010 generic-call
+  quarantine. The test was amended before publication to require the new shared
+  recursive-CopyData result rejection; the source remains rejected. The exact rerun
+  of `./tools/test.sh` passes 240 library tests, 35 binary tests, every integration
+  target, doc tests, formatting, and correctness-denying Clippy.
+- This remains local candidate evidence. Public exact-head workflows, pinned LLVM/
+  Clang 22 Linux/Windows external, machine, object, link, and native `-O0`/`-O2`
+  evidence, protected merge, and exact merge-head workflows are pending. Accepted
+  public master and all accepted project-truth claims remain CAP-009.
+
 ## CAP-009 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-009-ACCEPTANCE-SYNC`, authorized bounded

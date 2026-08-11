@@ -1289,6 +1289,8 @@ jobs:
         grep -Fq 'call i32 (i8*, ...) @printf(' "${representative_llvm}"
         grep -Fq '; Aero generic enum: Sample<Reading<int>>' "${representative_llvm}"
         grep -Fq '; Aero generic enum: Sample<char>' "${representative_llvm}"
+        grep -Fq 'aero.trait.PolicyValue.for.Sensor.policy_value' "${representative_llvm}"
+        grep -Fq 'aero.trait.PolicyValue.for.Batch.policy_value' "${representative_llvm}"
         if grep -E '@printf\([^\n]*, i64 ' "${representative_llvm}"; then
           echo "representative telemetry LLVM rewrote a numeric printf argument to i64"
           exit 1
@@ -2188,6 +2190,12 @@ jobs:
         }
         if (-not $representativeText.Contains("; Aero generic enum: Sample<char>")) {
           throw "Windows representative telemetry LLVM omitted Sample<char>"
+        }
+        if (-not $representativeText.Contains("aero.trait.PolicyValue.for.Sensor.policy_value")) {
+          throw "Windows representative telemetry LLVM omitted PolicyValue for Sensor"
+        }
+        if (-not $representativeText.Contains("aero.trait.PolicyValue.for.Batch.policy_value")) {
+          throw "Windows representative telemetry LLVM omitted PolicyValue for Batch"
         }
         if ($representativeText -match '@printf\([^\r\n]*, i64 ') {
           throw "Windows representative telemetry LLVM rewrote a numeric printf argument to i64"

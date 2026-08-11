@@ -12,6 +12,22 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
+CAP-010 is a local green Milestone 2 candidate, not accepted master. It is the
+highest-payoff result of the post-CAP-009 milestone-gap audit: required-only
+nongeneric traits can supply immutable-receiver behavior to whole-value recursive
+CopyData generic functions through deterministic static specialization. The
+representative telemetry program uses one trait across both `Sensor` and `Batch`, so
+the change advances real generic algorithm composition instead of another neighboring
+topology. Local focused, corruption, representative, compatibility, full-root,
+formatting, and Clippy gates pass. Public exact-head and pinned Linux/Windows native
+evidence, protected merge, and merge-head verification are still required before this
+roadmap records CAP-010 as accepted or reduces the remaining Milestone 2 gap.
+
+This slice does not complete traits or generics. Collections, general generic
+operations, associated/default items, dynamic dispatch, broader patterns and error
+propagation, lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive
+program remain Milestone 2 work.
+
 CAP-009 is an accepted Milestone 0 capability selected by the required
 post-CAP-008 audit and three-gap ranking. Before it, programs could execute inside the
 experimental compiler but could not request enforcement of a frozen cross-platform

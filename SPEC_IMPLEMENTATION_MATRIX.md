@@ -11,6 +11,17 @@ protected integration, merge-head CI `31534644903`, Rust CI `31534644999`, and
 CodeQL `31534643685` pass, including pinned LLVM/Clang 22 Linux/Windows native
 `-O0`/`-O2` gates.
 
+CAP-010 is a **local candidate, not accepted master**. It adds one bounded partial
+row for required-only nongeneric traits implemented by recursive finite CopyData
+structs and invoked through direct whole-value generic parameters. Deterministic
+static specialization, checked immutable receiver/function schemas, private helper
+identity, verified LLVM, the representative program, and local full-gate evidence are
+green. Public candidate/merge-head and pinned Linux/Windows native evidence remain
+pending. The broad traits/bounds/impls row therefore continues to describe accepted
+master as `PARSED_ONLY`; default methods, associated items, supertraits, where-only
+bounds, generic traits/impls, dynamic dispatch, trait objects, non-CopyData targets,
+generic-to-generic calls, lifetimes/drop, and public ABI remain unsupported.
+
 Accepted CAP-009 adds an explicitly selected `stable-scalar-v0` profile with one exhaustive post-parse,
 pre-semantic classifier shared by public library and CLI `check`/`build`/`run` routes.
 The frozen profile contains one-file acyclic nongeneric scalar functions, direct
@@ -119,6 +130,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Bound-free whole-value recursive-CopyData generic transport functions (accepted `CAP-005`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Explicit user-defined recursive-CopyData generic enums (accepted `CAP-006`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | P | P | P | P | P | P | Y | PARTIAL |
+| Required-only recursive-CopyData trait-bound static dispatch (`CAP-010` local candidate; not accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |

@@ -8,6 +8,7 @@ mod compatibility;
 pub mod conformance;
 mod const_contract;
 mod copy_place_contract;
+mod copydata_trait_dispatch;
 mod enum_match_contract;
 pub mod errors;
 mod fixed_array_method;

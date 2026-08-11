@@ -1,3 +1,23 @@
+trait PolicyValue {
+    fn policy_value(&self, bias: int) -> int;
+}
+
+impl PolicyValue for Sensor {
+    fn policy_value(&self, bias: int) -> int {
+        (*self).value + bias
+    }
+}
+
+impl PolicyValue for Batch {
+    fn policy_value(&self, bias: int) -> int {
+        (*self).meta.0 + bias
+    }
+}
+
+fn read_policy_value<T: PolicyValue>(value: T, bias: int) -> int {
+    value.policy_value(bias)
+}
+
 fn add_bias(target: &mut int, observed: &int, bias: int) -> int {
     *target = *target + *observed + bias;
     *target

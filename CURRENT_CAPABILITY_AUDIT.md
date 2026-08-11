@@ -8,6 +8,27 @@ Current accepted public master:
 protected CAP-009 compiler-capability merge
 `1ef21c564ec564379e611002b1b321d910a991a3`.
 
+### CAP-010 local candidate: required-only CopyData trait-bound static dispatch
+
+The working branch contains a green, unaccepted CAP-010 candidate. Before this slice,
+accepted generic functions transported whole recursive CopyData values but could not
+invoke behavior supplied by a type argument. The candidate validates one exact
+required-only trait/impl/bound/call product, specializes each concrete call to an
+immutable-receiver monomorphic helper, and sends that helper through ordinary checked
+function/reference IR and LLVM. The helper's private identity commits to its concrete
+receiver and full logical signature; verifier corruption controls reject receiver
+mode/target, argument/result schema, callee, call arity/order, identity, and borrow
+provenance changes.
+
+Two concrete implementations now compose into the maintained three-file telemetry
+application without changing exact output/exit 91. Focused 3/3, representative 3/3,
+the affected compatibility ring, formatting, Clippy correctness, and the complete
+240-library/35-binary/integration/doc local gate pass. An unsatisfied-bound fixture
+also proves public `check`/`build`/`run` rejection with no artifact. Public CI and
+pinned cross-platform native evidence are not yet available, so accepted-master
+classifications below do not move. General traits/generics and every exclusion listed
+in `TASK_LEDGER.md` remain unsupported.
+
 ### CAP-009 accepted: enforceable `stable-scalar-v0`
 
 Accepted CAP-009 makes the selected scalar contract enforceable

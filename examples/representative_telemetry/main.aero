@@ -16,9 +16,9 @@ fn main() -> int {
     batch.meta.1 = 2 > 1;
 
     let first_sensor_index = 0;
-    let observed = batch.sensors[first_sensor_index].value;
+    let observed = read_policy_value(batch.sensors[first_sensor_index], 0);
     let observed_ref = &observed;
-    let bias = batch.meta.0;
+    let bias = read_policy_value(batch, 0);
     let mut total = batch.sensors[1].value + batch.sensors[2].value;
     total = add_bias(&mut total, observed_ref, bias);
 

@@ -29,9 +29,9 @@ fn main() -> int {
     batch.meta.1 = 2 > 1;
 
     let first_sensor_index = 0;
-    let observed = batch.sensors[first_sensor_index].value;
+    let observed = read_policy_value(batch.sensors[first_sensor_index], 0);
     let observed_ref = &observed;
-    let bias = batch.meta.0;
+    let bias = read_policy_value(batch, 0);
     let mut total = batch.sensors[1].value + batch.sensors[2].value;
     total = add_bias(&mut total, observed_ref, bias);
 
@@ -108,7 +108,27 @@ fn make_batch() -> Batch {
 }
 "#;
 
-const POLICY_SOURCE: &str = r#"fn add_bias(target: &mut int, observed: &int, bias: int) -> int {
+const POLICY_SOURCE: &str = r#"trait PolicyValue {
+    fn policy_value(&self, bias: int) -> int;
+}
+
+impl PolicyValue for Sensor {
+    fn policy_value(&self, bias: int) -> int {
+        (*self).value + bias
+    }
+}
+
+impl PolicyValue for Batch {
+    fn policy_value(&self, bias: int) -> int {
+        (*self).meta.0 + bias
+    }
+}
+
+fn read_policy_value<T: PolicyValue>(value: T, bias: int) -> int {
+    value.policy_value(bias)
+}
+
+fn add_bias(target: &mut int, observed: &int, bias: int) -> int {
     *target = *target + *observed + bias;
     *target
 }
@@ -198,6 +218,28 @@ fn main() -> int {
         Decision::Normal(value) => value,
         Decision::Alert(value, trusted) => value
     }
+}
+"#;
+
+const UNSATISFIED_TRAIT_BOUND_SOURCE: &str = r#"struct Reading { value: int }
+struct Other { value: int }
+
+trait Score {
+    fn score(&self) -> int;
+}
+
+impl Score for Reading {
+    fn score(&self) -> int {
+        (*self).value
+    }
+}
+
+fn evaluate<T: Score>(value: T) -> int {
+    value.score()
+}
+
+fn main() -> int {
+    evaluate(Other { value: 7 })
 }
 "#;
 
@@ -367,6 +409,8 @@ fn representative_scalar_application_is_composed_and_portable() {
             "%\"aero.struct.Reading<char>\" = type",
             "aero.generic.choose<Reading<int>>",
             "aero.generic.choose<Reading<char>>",
+            "aero.trait.PolicyValue.for.Sensor.policy_value",
+            "aero.trait.PolicyValue.for.Batch.policy_value",
             "; Aero generic enum: Sample<Reading<int>>",
             "; Aero generic enum: Sample<char>",
             "define i32 @sample_reading_value(",
@@ -447,6 +491,10 @@ fn representative_scalar_application_is_composed_and_portable() {
             "compile_fail/wrong_policy_argument.aero",
             WRONG_POLICY_ARGUMENT_SOURCE,
         ),
+        (
+            "compile_fail/unsatisfied_trait_bound.aero",
+            UNSATISFIED_TRAIT_BOUND_SOURCE,
+        ),
         ("runtime_fail/negative_index.aero", NEGATIVE_INDEX_SOURCE),
         (
             "runtime_fail/upper_bound_index.aero",
@@ -486,6 +534,8 @@ fn representative_scalar_application_is_composed_and_portable() {
                 "telemetry score: 91",
                 "; Aero generic enum: Sample<Reading<int>>",
                 "; Aero generic enum: Sample<char>",
+                "aero.trait.PolicyValue.for.Sensor.policy_value",
+                "aero.trait.PolicyValue.for.Batch.policy_value",
                 "representative telemetry test passed with exit code 91",
                 "negative_index.aero",
                 "upper_bound_index.aero",
@@ -532,6 +582,11 @@ fn representative_compile_fail_corpus_rejects_before_artifacts() {
             "wrong_policy_argument",
             WRONG_POLICY_ARGUMENT_SOURCE,
             "parameter `trusted` type mismatch: expected bool, actual int",
+        ),
+        (
+            "unsatisfied_trait_bound",
+            UNSATISFIED_TRAIT_BOUND_SOURCE,
+            "type `Other` does not implement trait `Score` required by generic function `evaluate`",
         ),
     ] {
         let workspace = TestWorkspace::new();

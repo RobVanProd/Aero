@@ -4,6 +4,34 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
+### CAP-010 local candidate: required-only CopyData trait dispatch
+
+CAP-010 is implemented and locally green on
+`agent/cap-010-next-capability`; it is **not accepted public master**. The accepted
+baseline remains CAP-009 merge `1ef21c564ec564379e611002b1b321d910a991a3`.
+The candidate admits one deliberately bounded form of behavioral polymorphism:
+unique nongeneric required-only traits, exact immutable `&self` methods over recursive
+finite CopyData parameters/results, unique complete impls for nongeneric recursive
+CopyData structs, and direct trait-method calls inside whole-value generic functions.
+Calls specialize to deterministic private monomorphic helpers; checked signatures bind
+the helper identity to its concrete receiver and the independent verifier rejects
+identity, schema, callee, arity/order, and borrow-provenance corruption.
+
+The representative telemetry application now implements one policy trait for both
+`Sensor` and `Batch` and obtains its observed value and bias through the same generic
+algorithm while retaining exact score/exit 91. Focused trait tests pass 3/3,
+representative tests pass 3/3, affected generic/reference/module/closure suites pass,
+and the complete local repository gate passes 240 library tests, 35 binary tests, all
+integration targets, doc tests, formatting, and correctness-denying Clippy. Public
+candidate-head CI, pinned LLVM/Clang 22 Linux/Windows native `-O0`/`-O2`, protected
+merge, and exact merge-head evidence remain pending; no acceptance claim follows.
+
+Default methods, associated items, supertraits, where-only bounds, generic traits or
+impls, inherent impls, enum/primitive/non-CopyData targets, trait objects/dynamic
+dispatch, generic-to-generic calls, references as generic arguments, collection or
+resource receivers, captures, lifetimes/drop, public ABI/FFI, accelerators, safety,
+stability, benchmarks, releases, and general trait/generic semantics remain excluded.
+
 ### CAP-009 accepted: enforceable `stable-scalar-v0`
 
 Accepted CAP-009 adds an explicitly selected
