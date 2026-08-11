@@ -12,19 +12,33 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-The current accepted public and compiler-capability master is protected CAP-003 merge
-`e6677941f9467e018089b21dcfe6556e465bf9bb`. Exact candidate `6a20ecfc`, all nine
-exact-head checks, protected PR #26, exact merge-head CI/Rust CI/CodeQL, the full root
-gate, and pinned LLVM/Clang 22.1.8 Linux/Windows representative and bounds-failure
-execution at `-O0`/`-O2` pass. Accepted CAP-003 adds bounded explicitly typed concrete
-recursive-CopyData `Option<T>` and `Result<T, E>` construction, owned transport,
-replacement, and exhaustive bound `Match`. Context-free inference, general generic
-substitution/error propagation, carrier aggregate/reference storage, collections,
-lifetimes/drop, stable layout/ABI, memory safety, accelerators, and release claims
-remain excluded. Accepted CORE-082
+The latest accepted compiler-capability master is protected CAP-004 merge
+`e4c515b9566a7d8fcb4f66c975c4e1769607515f`. Exact candidate `a1554cab`, all nine
+exact-head checks, protected PR #28, exact merge-head CI/Rust CI/CodeQL, the full root
+gate, and pinned LLVM/Clang 22.1.8 stable Linux/Windows representative execution at
+`-O0`/`-O2` pass. Accepted CAP-004 adds bounded explicit user-defined generic
+recursive-CopyData structs with deterministic compile-time substitution, checked
+identity/schema verification, and composition through existing functions, aggregates,
+mutation, and references. Accepted CAP-003 separately supplies bounded explicitly typed
+concrete recursive-CopyData `Option<T>` and `Result<T, E>` construction, owned
+transport, replacement, and exhaustive bound `Match`. Context-free inference, general
+generic substitution/error propagation, generic functions/enums/traits, carrier
+aggregate/reference storage, collections, lifetimes/drop, stable layout/ABI, memory
+safety, accelerators, and release claims remain excluded. Accepted CORE-082
 remains a bounded Milestone 1 primitive-constant slice; accepted CORE-083 through
 CORE-090 are useful but partial Milestone 2 reference, ownership, and aggregate-
 composition fragments.
+
+CAP-004 was selected by the required fresh post-CAP-003 milestone-gap and three-gap
+ranking. Its accepted real-program delta is reusable data definition: one
+`struct Reading<T>` now supplies independently typed `Reading<int>` and
+`Reading<char>` values in the representative application instead of duplicated
+concrete records. One shared pre-semantic/pre-admission authority performs exact
+substitution; independent verification binds each private identity to its logical
+schema. Local focused, corruption, compatibility, representative, complete root,
+formatting, and correctness-denying Clippy evidence passes, as do the exact public
+candidate, protected merge, merge-head, and pinned LLVM 22 gates. This closes one
+bounded generic-data-definition requirement, not general generics or collections.
 
 CAP-003 was selected by the required fresh milestone-gap and three-gap ranking. Its
 accepted real-program delta is explicit absence/recoverable-failure
@@ -217,7 +231,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 |---|---|---|---|
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; current lexical/syntactic controls and claim inventory are established. | False-success containment, function/binding/scope contracts, full gates, and independent verification are strong per accepted slice but not frozen as one selected stable-subset contract. | One canonical diagnostic/artifact contract and closure of remaining critical trusted-entrypoint residuals for the selected subset. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
-| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, and accepted CAP-003 concrete CopyData `Option`/`Result` carriers have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence, not general generic substitution/error propagation. | Collections, generic substitution, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, a generic data structure, and an ownership-intensive real program. |
+| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, and accepted CAP-004 explicit generic CopyData structs have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence and CAP-004 is one exact user-defined generic-data-definition slice, not general substitution. | Collections, general generic substitution, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
 
 ### ROADMAP-001 ranked gaps and M1-001 outcome
 
@@ -339,8 +353,9 @@ observable source identity, that enum ownership is unsound for these values, or 
 general substitution engine is required would have stopped the slice. Accepted
 CAP-003 does not settle context-free inference, general generics, question-mark
 propagation, collections, String errors, aggregate/reference storage, public ABI, or
-lifetimes/drop. A fresh three-gap ranking against this accepted baseline is mandatory
-before CAP-004; ranks 2 and 3 above are not automatic follow-ons.
+lifetimes/drop. The required fresh three-gap ranking was completed before CAP-004 and
+selected the accepted explicit generic-struct slice; ranks 2 and 3 were not automatic
+follow-ons. Another fresh ranking against accepted CAP-004 is mandatory before CAP-005.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 
