@@ -2636,13 +2636,16 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish this bounded record-only CAP-004 accepted-truth synchronization, require all
-exact-head public workflows, protected-merge without tree substitution, and verify
-the exact merge-head workflows. Then perform a fresh three-gap project-level ranking
-against accepted CAP-004 before authorizing CAP-005. Select the next real-program
-capability by roadmap payoff, architectural leverage, correctness value, risk, and
-proportional evidence cost. Do not default to the quarantined CORE-091 topology,
-publish releases/packages/benchmarks, force-push, or delete retained integration work.
+Accepted CAP-004 project-truth synchronization merged through protected PR #29 as
+`6c4a1a579dff60db146951d0a2657dd61dbdff59` from exact candidate
+`5e6f30a1e4a8979f38e75423f2021b88d8c92548` with the identical tree. Exact
+merge-head CI `31480903724`, Rust CI `31480903716`, and CodeQL `31480903587` pass.
+
+Perform the fresh three-gap project-level ranking against accepted CAP-004 before
+authorizing CAP-005. Select the next real-program capability by roadmap payoff,
+architectural leverage, correctness value, risk, and proportional evidence cost. Do
+not default to the quarantined CORE-091 topology, publish releases/packages/
+benchmarks, force-push, or delete retained integration work.
 
 ## Unauthorized actions
 

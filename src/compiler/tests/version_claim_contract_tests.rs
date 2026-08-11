@@ -295,4 +295,15 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
     assert!(
         project_state.contains("Formal conformance: three example cases plus four deterministic")
     );
+    assert!(
+        !project_state
+            .contains("Publish this bounded record-only CAP-004 accepted-truth synchronization")
+    );
+    assert!(project_state.contains(
+        "Accepted CAP-004 project-truth synchronization merged through protected PR #29"
+    ));
+    assert!(
+        project_state
+            .contains("Perform the fresh three-gap project-level ranking against accepted CAP-004")
+    );
 }
