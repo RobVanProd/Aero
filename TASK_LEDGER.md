@@ -1,5 +1,139 @@
 # Aero Task Ledger
 
+## CAP-008 - nonbinding wildcard enum Match
+
+- Date/task/status: 2026-08-11, `CAP-008`, authorized red-first positive language
+  capability from protected CAP-007 truth-correction merge
+  `2ba1d33e302439b129f538533ecf5187b07aa34a` (tree
+  `47505350727df5a2a4685913166c3b9532681c1e`) on
+  `agent/cap-008-capability-ranking`. Implementation must not begin until that exact
+  merge-head CI/Rust CI/CodeQL set is green. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Milestone-gap audit: Milestone 0 now has one canonical checked-program entrypoint
+  and artifact contract, but no selected subset is classified `STABLE`. Milestone 1's
+  representative application and optimization-equivalence exit is accepted. Current
+  capability work is Milestone 2: fixed aggregates, bounded ownership/references,
+  concrete carriers, and compile-time-specialized CopyData generics execute, while
+  collections, broader patterns/error propagation, general ownership/drop, and an
+  ownership-intensive application remain open. Stable-subset classification remains
+  roadmap-critical, but a record-only classification would add no executable language
+  capability and therefore does not win this positive milestone.
+- Fresh post-CAP-007 ranking: scores are 1--5; higher `Risk` and `Evidence` mean more
+  favorable delivery. This is a capability ranking, not a promise to execute ranks in
+  numerical order.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Nonbinding wildcard enum Match across every admitted concrete enum class | 4 | 4 | 5 | 4 | 4 | 4 | 25 |
+  | 2 | Classify a genuinely stable selected subset and close any critical residual exposed by that audit | 2 | 5 | 5 | 5 | 3 | 3 | 23 |
+  | 3 | Owned dynamic `List<T>` collection foundation | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
+
+  Positive imports score 20 because the founding PDF freezes dotted syntax but not
+  lookup roots, namespaces, visibility, collision precedence, cycles, or package/file
+  mapping. Owned enum-in-aggregate storage scores 21: it has high program value, but
+  the compiler currently tracks ownership only for direct enum owners while aggregate
+  machinery is recursive `CopyData`; safe admission would require unresolved recursive
+  move/projection/drop rules. Neither lower score is permission to avoid those hard
+  capabilities indefinitely.
+- Before/after real-program delta: before CAP-008, an Aero program handling a concrete
+  `Result<int, char>` must invent a name for an ignored error payload, and every enum
+  Match must spell every variant even when several share one fallback behavior. This
+  makes ordinary decoding, validation, and state-machine code noisy and blocks the
+  already parsed wildcard form. After CAP-008, the same program can write `Err(_)`
+  and a terminal `_ => fallback` while remaining exhaustive. The representative
+  telemetry program must use both forms without changing its exact output or exit 91.
+- Mechanism and frozen semantics: extend the single `EnumRegistry::resolve_arms`
+  authority already consumed by semantic analysis, independent checked admission,
+  and checked lowering. Every explicit enum arm must still name the exact concrete
+  enum and one unique declared variant. Payload arity remains exact; each payload leaf
+  is either one valid identifier binding or `_`. An identifier creates the existing
+  typed payload extraction; `_` creates no binding and no extraction. At top level,
+  zero or one bare `_` arm may be the final arm and maps every otherwise-uncovered
+  declared variant to that arm. Without it, explicit coverage of every variant remains
+  mandatory. A wildcard after complete explicit coverage, a nonfinal wildcard, a
+  duplicate/foreign/unknown explicit arm, or any missing mapping rejects
+  deterministically. The rule applies after existing normalization to admitted unit,
+  unary, and positional multi-field enums, concrete built-in `Option`/`Result`, and
+  admitted concrete generic enum specializations.
+- Explicit exclusions: a top-level identifier catch-all, whole-enum binding, literal,
+  tuple, struct, nested enum, or-or-pattern is not added; payload tuple/struct/nested
+  destructuring, guards, ranges, named-field enum variants, carrier/generic aggregate
+  or reference storage, partial moves, by-reference wildcard observation changes,
+  question-mark propagation, general error conversion, traits, dynamic collections,
+  imports, lifetime/drop/NLL behavior, public layout/ABI, safety, performance, release,
+  and accelerator claims remain unchanged. Wildcards never expose or duplicate the
+  consumed enum owner. Existing arm-result typing and per-arm ownership joins remain
+  authoritative.
+- Assumptions and evidence: the founding language document requires exhaustive enum
+  Match and states that patterns include guard-capable matching; the parser already
+  preserves `_` at both arm and payload positions. The dormant pattern matcher also
+  records `_` as a nonbinding catch-all and treats later arms as unreachable, while the
+  trusted enum authority currently rejects it. Existing checked dispatch already maps
+  each schema variant to one source arm, and payload extraction is emitted only for
+  classified bindings. Therefore this slice can change one shared classifier without
+  adding parser, IR, verifier, backend, layout, or ownership identities.
+- Measurement and red-first proof: before production mutation, add one focused target
+  that demonstrates current rejection of (1) a terminal whole-arm wildcard and (2)
+  wildcard payload leaves. Green must enumerate unit, unary, multi-field, built-in
+  carrier, and generic-specialization products; zero/one/many explicitly covered
+  variants; all-wildcard and mixed identifier/wildcard payload fields; nested Match;
+  direct-module and public check/build/run behavior; exact checked dispatch target
+  reuse; absence of payload extraction for ignored fields; LLVM verification and native
+  execution. Negative coverage must include nonfinal/duplicate wildcards, wildcard
+  after complete coverage, explicit duplicate/foreign/unknown arms, wrong arity,
+  repeated identifiers, unsupported nested/literal/top-level binding patterns, result
+  type mismatch, moved-owner reuse, and invalid artifact hygiene.
+- Failure modes and detection: a wildcard could hide an uncovered or misspelled
+  variant, route a variant to multiple arms, make a later arm unreachable, fabricate a
+  payload binding, extract the wrong field, bypass result typing/ownership, or diverge
+  between semantic analysis and checked admission. Classifier units and focused source
+  products enumerate every mapping/binding disposition; checked-IR assertions require
+  exact per-variant targets and no ignored-field extraction; verifier corruption
+  controls retain exact schema/dispatch/data identity; negative CLI tests require
+  nonzero artifact-clean failure; representative and pinned LLVM/native gates detect
+  integration or lowering drift.
+- Allowed files and recovery: production changes are limited to
+  `src/compiler/src/enum_match_contract.rs` unless the red proof disproves the shared-
+  authority hypothesis. Tests may add one focused
+  `src/compiler/tests/wildcard_enum_match_tests.rs` target and update only directly
+  superseded wildcard expectations in enum/carrier/generic Match suites. The
+  representative telemetry source and its exact embedded test copy may change only to
+  compose the new forms at unchanged output/exit 91. After exact green, only directly
+  affected project-state/capability/matrix/roadmap/framework/README records and public
+  workflow anchors may change. No parser/AST, checked-IR schema, verifier/backend,
+  dependency, package, benchmark, release, claim artifact, protection, master,
+  external repository, or user-owned untracked content is authorized. Rollback is one
+  bounded branch/PR restoring the prior classifier and specimens.
+- Decision threshold and what would change our mind: merge only if one classifier
+  owns every admitted wildcard mapping, every enumerated positive source product
+  executes end to end, ignored fields cause no extraction, all negative and corruption
+  controls fail closed, the representative program retains exact `-O0`/`-O2` behavior,
+  the complete root and public Linux/Windows LLVM 22 gates pass, and no exclusion
+  broadens. Stop and re-rank if a wildcard needs new ownership/drop semantics, if
+  normalized carriers or generic enums bypass the shared authority, if the backend
+  must infer pattern meaning, if first-match ordering cannot be represented by the
+  existing exact dispatch, if any accepted program changes behavior, or if evidence
+  shows dynamic collections/imports are now fully specified with a comparably safe
+  implementation boundary.
+
+### CAP-008 exact red checkpoint
+
+- Before any compiler production mutation, focused command `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test wildcard_enum_match_tests --
+  --nocapture` runs 0/1 green. The parser preserves both forms. Semantic analysis,
+  semantic-independent checked admission, and public compilation all reject the
+  terminal catch-all with `enum match requires one explicit variant arm per declared
+  variant`; all three reject the ignored payload with ``enum match variant `Failed`
+  requires one identifier payload binding``. This proves the capability reaches the one
+  shared trusted enum-pattern boundary rather than failing in syntax or the backend.
+- The red changes only this ledger authorization and one focused integration target.
+  No compiler production, parser/AST, checked-IR/verifier/backend, existing test,
+  representative source, workflow, dependency, master, external repository, or
+  user-owned untracked content changed. Production may now change only the authorized
+  shared classifier; a semantic-only or checked-admission-only wildcard guard would
+  violate the task contract.
+
 ## CAP-007 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-007-ACCEPTANCE-SYNC`, authorized bounded
