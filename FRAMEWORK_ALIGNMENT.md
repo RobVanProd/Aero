@@ -214,16 +214,17 @@ protected-merge, and exact merge-head Linux/Windows evidence is green. This
 does not add dynamic writes, collections, projected borrowing, stable runtime/ABI
 semantics, or a general memory-safety claim.
 
-Unaccepted CAP-002 candidate continues the useful-program progression by making fixed
+Accepted CAP-002 continues the useful-program progression by making fixed
 arrays safely writable at runtime rather than enumerating another neighboring ownership
 topology. It extends the existing mutable owned projected CopyData assignment class so
 bounded loops can update fixed tables and nested state. One shared predicate classifies
 all finite mixed field/tuple/array paths; runtime selectors evaluate once in source
 order before the RHS and reuse the CAP-001 guard before effects or memory access. The
 representative telemetry application now fills its sensor array in a loop, and local
-focused, representative, and complete repository gates pass. Exact-head public LLVM/
-native evidence and protected integration remain pending, so this is not accepted
-framework progress yet. It adds no reference-target writes, projected borrowing,
+focused, representative, and complete repository gates pass. Exact candidate
+`577e601`, all nine exact-head checks, protected PR #23 merge `62ccc6a`, and exact
+merge-head CI/Rust CI/CodeQL pass, including Linux/Windows LLVM 22 native evidence.
+It adds no reference-target writes, projected borrowing,
 partial moves, collections, stable runtime/ABI, release, performance, or general
 memory-safety claim.
 
