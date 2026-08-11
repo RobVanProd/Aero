@@ -162,6 +162,26 @@
   publication, or that a source-grounded collection/import architecture can deliver
   greater real-program payoff at lower risk would stop CAP-005 and reorder the ranking.
 
+### CAP-005 exact red checkpoint
+
+- Before any production compiler mutation, focused command `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test generic_copydata_function_tests --
+  --nocapture` runs exactly 0/2 green. The active parser retains one bound-free
+  `choose<T>` definition and three calls over `int`, `char`, and accepted
+  `Reading<int>`. Public semantic analysis reaches the existing shared named-call
+  boundary: `Unsupported function call choose: Function choose has no admitted
+  executable signature.` Semantic-independent checked admission reaches the distinct
+  legacy boundary: `generic function IR is not admitted in CORE-010`.
+- The immutable red source already requires branch-based whole-value selection,
+  repeated `T` unification, a concrete Boolean side parameter, multiple concrete
+  instantiations, CAP-004 generic-struct composition, deterministic semantic/raw-
+  checked LLVM equality, distinguishable source-readable specialization names, and no
+  private identity leakage. The full declaration/call/body product, negative matrix,
+  modules/native product, representative application, and corruption controls must be
+  completed behind this same class boundary. No production source or accepted test was
+  changed; user/app-owned untracked directories and the quarantined stash remain
+  untouched.
+
 ## CAP-004 post-merge project-truth correction
 
 - Date/task/status: 2026-08-11, `CAP-004-POSTMERGE-TRUTH`, authorized bounded
