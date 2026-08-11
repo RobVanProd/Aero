@@ -1,5 +1,41 @@
 # Aero Task Ledger
 
+## CAP-002 acceptance-record correction
+
+- Date/task/status: 2026-08-11, `CAP-002-ACCEPTANCE-CORRECTION`, authorized
+  record-only correction from accepted public master
+  `71b4e7572723b5233bba295ab8c1d4fb8ea9dd96`. A fresh next-capability audit found
+  that the summary table in `FRAMEWORK_ALIGNMENT.md` still says dynamic writes are
+  absent even though its detailed CAP-002 section and the other accepted-truth records
+  correctly describe guarded direct-owner runtime-indexed writes. This is a material
+  observability contradiction, not a compiler defect.
+- Frozen scope and semantics: change only this ledger and the two stale current-evidence
+  table cells in `FRAMEWORK_ALIGNMENT.md`. Record accepted CAP-002 guarded runtime
+  fixed-array writes while retaining reference-target writes, projected borrowing,
+  partial moves, collections, alias/lifetime/drop, stable ABI, accelerators, releases,
+  benchmarks, and general memory-safety claims as absent. No source, test, workflow,
+  example, dependency, runtime, release, package, benchmark, claim-verification,
+  protection, or integration-history behavior may change.
+- Evidence, detection, and decision threshold: accepted PR #23/merge `62ccc6a` and
+  accepted record PR #24/merge `71b4e75` provide the immutable capability and
+  acceptance evidence recorded below. Cross-document current-state search must find no
+  remaining material statement that all dynamic writes are absent; changed-file scope
+  must be exactly these two records; `git diff --check` and the complete root gate must
+  pass. Stop on any capability broadening, non-record edit, identity disagreement, or
+  red baseline.
+- Local verification: changed-file scope is exactly two records, the stale current-
+  evidence phrases are removed, and `git diff --check` passes. Exact repository-root
+  `./tools/test.sh` passes with exit zero in 43.7 seconds: formatting, correctness-
+  denying Clippy, 220 library tests, 32 binary tests, every integration target, and doc
+  tests. All 119 tracked `.aero` fixtures were normalized only during the gate and
+  restored to their original CRLF form; user/app-owned untracked directories remain
+  untouched.
+- Recovery and next action: one bounded two-file correction PR is the rollback
+  boundary. After exact-head checks, protected merge, and exact merge-head workflows,
+  resume the fresh three-gap audit; do not begin implementation while accepted records
+  disagree. The single publication commit and tree must be recorded on the rendered PR
+  front page because a commit cannot contain its own identity.
+
 ## CAP-002 accepted public checkpoint
 
 - Date/task/status: 2026-08-11, `CAP-002-ACCEPTANCE`, authorized record-only
