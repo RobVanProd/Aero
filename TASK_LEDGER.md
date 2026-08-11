@@ -180,6 +180,62 @@
   workflow, example, dependency, project-truth, external repository, or user-owned
   untracked content changed.
 
+### CAP-011 local green candidate checkpoint
+
+- Candidate status: implementation checkpoint `24db04a` is locally green on
+  `agent/cap-011-generic-fixed-window`. This is candidate evidence only. No public
+  exact-head workflow, pinned LLVM/Clang 22 native execution, protected merge, or
+  public acceptance is claimed yet; accepted master remains CAP-010 at
+  `72b8ddade5a392b46b4b3d4f3ddde5f261f8465f`.
+- Implementation: one shared generic-function specialization authority now admits
+  exact CAP-004 generic-struct applications whose arguments are an ordered,
+  nonrepeated subsequence of declared function type parameters. It infers concrete
+  recursive finite CopyData substitutions through the container schema, classifies
+  only whole-value transport and structural field/tuple/fixed-array reads or mutable
+  local writes, then eliminates all generic syntax into ordinary concrete functions
+  and structs before semantic analysis or checked IR. The generic-struct contract
+  performs only the exact handoff; it has no duplicate body classifier.
+- Trust boundary: private generic-function identities encode the parametric struct
+  source identity and type-parameter positions. Existing concrete struct, array,
+  projection, function-call, and bounds-guard checked identities remain the only IR
+  admitted after specialization. A unit corruption control proves an `int`
+  specialization rejects a substituted `Window<char>` signature; the complete
+  existing verifier corruption suite remains green.
+- Positive/negative evidence: the focused target passes 4/4 across semantic, raw
+  checked-admission, and public compile routes. It covers `int`, `char`, ordinary
+  struct, tuple, fixed array, nested concrete generic struct, multiple fields/type
+  parameters, an additional directly inferred generic side, runtime reads, and
+  functional updates. Signature controls reject partially concrete, reordered,
+  repeated, result-only, and reference applications. One shared body-use boundary
+  rejects arithmetic, comparison, arbitrary calls, borrowing, construction,
+  immutable/parameter writes, leaf mismatch, and generic-to-generic calls in both
+  trusted routes.
+- Representative/system evidence: telemetry now uses one `Window<T>` API for both
+  integer calibration and character markers while preserving expected output/exit
+  91. Representative tests pass 3/3. Four added generic runtime specimens close the
+  lower/upper-bound read/write product alongside the retained direct-array controls;
+  local public builds contain the required trap and specialization identities. The
+  Linux and Windows pinned-native workflow declarations require all successful
+  specializations and all eight bounds failures at `-O0` and `-O2`.
+- Commands and results: focused generic/representative tests pass 7/7; the private
+  identity unit control passes 1/1; `cargo check --locked --all-targets
+  --all-features`, `cargo doc --locked --no-deps`, formatting, and `git diff
+  --check` pass. The exact repository-root `./tools/test.sh` passes twice, with the
+  final implementation run completing 241 library tests, every integration target,
+  doc tests, and correctness-denying Clippy in 528.4 seconds. Existing warnings are
+  unchanged and outside the correctness lint gate.
+- Files changed by the implementation checkpoint: the two generic contract modules,
+  one focused test, the representative model/main and synchronized test, four
+  representative runtime-failure specimens, and Linux/Windows workflow anchors.
+  User-owned untracked directories and the quarantined stash remain untouched.
+- Remaining boundary and next action: dynamic collections, construction of
+  parametric containers inside generic bodies, operators/methods/traits on abstract
+  values, generic-to-generic calls, references, enums, allocation, lifetimes/drop,
+  public layout/ABI, accelerators, safety, stability, benchmarks, and releases remain
+  excluded. Synchronize only candidate-facing project truth, push one bounded draft
+  PR, verify its rendered metadata, and require every exact-head public check plus
+  pinned Linux/Windows LLVM 22 native evidence before proposing protected integration.
+
 ## CAP-010 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-010-ACCEPTANCE-SYNC`, authorized bounded

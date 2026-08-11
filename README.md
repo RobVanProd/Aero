@@ -159,6 +159,16 @@ aero lsp
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
+> **CAP-011 local candidate (not accepted):** implementation checkpoint `24db04a`
+> composes existing generic structs, fixed arrays, runtime bounds guards, projected
+> mutation, and compile-time specialization into a reusable fixed-capacity
+> `Window<T>` API. The telemetry program uses generic read/update functions for both
+> `int` and `char`; focused 4/4, representative 3/3, identity, full-root, check, docs,
+> format, and diff gates pass locally. Exact public pinned LLVM/native checks and
+> protected integration are pending. Dynamic collections, allocation, general generic
+> operations/calls/borrowing, lifetimes/drop, public ABI, safety, and stability remain
+> unsupported. The accepted public baseline is still CAP-010.
+
 > **CAP-010 accepted:** protected master admits one required-only static-dispatch slice
 > for nongeneric recursive-CopyData
 > structs. A direct `T: Trait` generic parameter may call exact immutable `&self`

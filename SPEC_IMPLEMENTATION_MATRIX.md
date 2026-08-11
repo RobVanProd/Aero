@@ -11,6 +11,13 @@ protected integration, merge-head CI `31540589044`, Rust CI `31540589040`, and
 CodeQL `31540588732` pass, including pinned LLVM/Clang 22 Linux/Windows native
 `-O0`/`-O2` gates.
 
+Local CAP-011 candidate checkpoint `24db04a` composes the existing generic-struct,
+generic-function, fixed-array, runtime-index, and projected-write rows into a bounded
+fixed-capacity `Window<T>` algorithm slice. Focused 4/4, representative 3/3, private
+identity mismatch, complete root, check, doc, format, and diff gates pass locally.
+Exact candidate-head pinned LLVM/native workflows and protected integration are
+pending, so no accepted row or public baseline is reclassified by this paragraph.
+
 Accepted CAP-010 adds one bounded partial row for required-only nongeneric traits
 implemented by recursive finite CopyData
 structs and invoked through direct whole-value generic parameters. Deterministic

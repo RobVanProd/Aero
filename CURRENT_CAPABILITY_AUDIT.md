@@ -8,6 +8,22 @@ Current accepted public master:
 protected CAP-010 compiler-capability merge
 `f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`.
 
+### CAP-011 local candidate: generic fixed-window algorithms
+
+Unpublished implementation checkpoint `24db04a` closes the selected Milestone 2
+generic-data-structure gap without introducing heap or namespace semantics. One
+shared schema classifier admits exact ordered parametric generic-struct applications,
+infers concrete recursive CopyData substitutions, and permits only structural reads
+and functional updates through a mutable copied container. Specialization removes the
+template before both trusted frontend routes, and private function identity commits to
+the container substitution.
+
+The generic target passes 4/4, telemetry passes 3/3 at expected exit 91, the full
+repository gate passes 241 library tests and every integration/doc target, and local
+generic bounds builds contain both trap and specialization identities. Candidate-head
+public LLVM/native checks and protected integration are still pending. Accordingly,
+the accepted matrix below remains based on CAP-010; CAP-011 is not public acceptance.
+
 ### CAP-010 accepted: required-only CopyData trait-bound static dispatch
 
 Before this accepted slice,

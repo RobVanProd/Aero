@@ -59,6 +59,21 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
+Local CAP-011 candidate checkpoint `24db04a` advances the founding generic-data-
+structure direction through composition rather than a neighboring syntax partition.
+One source `Window<T>` definition now supplies checked read and functional-update
+algorithms specialized for both `int` and `char` in the representative telemetry
+program. Shared schema classification, concrete pre-IR specialization, private
+identity binding, retained verifier controls, and a complete lower/upper-bound native
+workflow declaration keep the slice evidence-based. Local gates pass; public exact-
+head LLVM/native evidence and protected integration are pending, so this is not an
+accepted or general-generics claim.
+
+The candidate does not supply dynamic collections, allocation, abstract operators,
+generic-to-generic calls, general traits, borrowing through generic containers,
+lifetimes/drop, public ABI, memory safety, accelerators, or stability. Those founding
+goals remain roadmap work.
+
 Accepted CAP-010 advances the founding preference for traits and generics over
 inheritance: one
 required-only nongeneric trait can be implemented by multiple recursive finite
