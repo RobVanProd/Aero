@@ -243,11 +243,11 @@ benchmarks, and general memory-safety claims remain excluded.
 | Requirement | State | Evidence and remaining gap |
 |---|---|---|
 | Fatal invalid lexical/syntactic input on trusted paths | Met for the current checked compiler/CLI routes | Strict lexer/parser, CLI status, module, and no-artifact controls pass; unchecked compatibility APIs remain outside certification. |
-| No invented or silently dropped unsupported expressions | Partial | The audited closure/call/method/import classes fail closed and checked admission is verifier-gated, but the selected stable subset and every public unchecked entrypoint have not been closed as one milestone contract. |
+| No invented or silently dropped unsupported expressions | Partial | The audited closure/call/method/import classes fail closed and accepted CAP-007 makes the frozen trusted validation routes consume canonical checked admission. The selected stable subset and explicitly uncertified compatibility/parse-only routes remain outside a completed milestone contract. |
 | Function, return, binding, and scope contracts before IR | Partial | Many exact classes are controlled, while generic/context annotation, broader scope, unsupported result, and public-API residuals remain excluded rather than milestone-complete. |
 | Nonzero failure and no invalid artifacts | Met for checked public `check`/`build`/`run` routes | CLI status and artifact-hygiene suites cover admitted failure paths; experimental tools are not promoted into this contract. |
 | Claim inventory by stage | Met and continuously maintained | The matrix, backend status, current audit, claim-verification controls, and README separate parsed, partial, experimental, and unsupported behavior. |
-| Exit: stable subset, canonical diagnostic/artifact contract, full gates, independent boundary verification | Partial | Per-slice full gates and independent checked-IR/corruption controls exist, but no authoritative stable subset or single canonical diagnostic contract is frozen and no feature is `STABLE`. |
+| Exit: stable subset, canonical diagnostic/artifact contract, full gates, independent boundary verification | Partial | Accepted CAP-007 closes the canonical checked-entrypoint and artifact mechanism for frozen trusted routes, and per-slice full gates plus independent checked-IR/corruption controls exist. No authoritative language subset is yet classified `STABLE`. |
 
 ### Milestone 1 gap classification
 

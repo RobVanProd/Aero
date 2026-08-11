@@ -136,6 +136,19 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "Accepted CAP-007 makes check/build/run/profile/source-test validation consume one checked-program preparation authority"
     ));
     assert!(!readme.contains("CAP-007 local candidate (not accepted)"));
+
+    let audit = repository_file("CURRENT_CAPABILITY_AUDIT.md");
+    assert!(audit.contains(
+        "Accepted CAP-007 closes the canonical checked-entrypoint and artifact mechanism"
+    ));
+    assert!(!audit.contains(
+        "no authoritative stable subset or single canonical diagnostic contract is frozen"
+    ));
+
+    let alignment = repository_file("FRAMEWORK_ALIGNMENT.md");
+    assert!(alignment.contains(
+        "accepted CAP-007 makes library compile/check plus CLI check/build/run/profile/source-test validation consume one canonical checked-program authority"
+    ));
     assert!(readme.contains(
         "General generic operations/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));

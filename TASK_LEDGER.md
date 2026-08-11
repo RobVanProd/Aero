@@ -45,6 +45,15 @@
   exact-head protected PR. Only after accepted project truth agrees may the next
   three-gap ranking select a source-level capability; dynamic collections and positive
   imports remain high leverage but still require explicit semantic/runtime decisions.
+- Post-publication observability correction: the first accepted-truth sync correctly
+  updated all top-level accepted identities but missed two deeper Milestone 0 rows in
+  `CURRENT_CAPABILITY_AUDIT.md` and the integrated-tooling/next-ranking cells in
+  `FRAMEWORK_ALIGNMENT.md`. A fresh post-CAP-007 gap scan caught the contradiction
+  before CAP-008 authorization or implementation. The bounded correction may change
+  only those two records, this ledger note, and their existing state-contract test; it
+  must state that accepted CAP-007 closes the canonical checked entrypoint mechanism
+  while stable-subset classification, parse-only tools, and nontrusted compatibility
+  routes remain open. Any compiler behavior or broader capability claim stops it.
 
 ## CAP-007 - canonical checked-program entrypoint contract
 
