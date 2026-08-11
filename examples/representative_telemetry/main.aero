@@ -6,9 +6,12 @@ fn main() -> int {
     const EXPECTED: int = 91;
 
     let mut batch: Batch = make_batch();
-    batch.sensors[0].value = BASE;
-    batch.sensors[1].value = 20;
-    batch.sensors[2].value = 30;
+    let calibration = [BASE, 20, 30];
+    let mut sensor_index = 0;
+    while sensor_index < 3 {
+        batch.sensors[sensor_index].value = calibration[sensor_index];
+        sensor_index = sensor_index + 1;
+    }
     batch.meta.0 = 4;
     batch.meta.1 = 2 > 1;
 

@@ -1260,7 +1260,11 @@ jobs:
         cmp -s "${representative_o0}.stderr" "${representative_o2}.stderr"
         echo "representative telemetry test passed with exit code 91"
 
-        for bounds_file in negative_index.aero upper_bound_index.aero; do
+        for bounds_file in \
+          negative_index.aero \
+          upper_bound_index.aero \
+          negative_write_index.aero \
+          upper_bound_write_index.aero; do
           bounds_case="${bounds_file%.aero}"
           bounds_source="${runtime_fail_root}/${bounds_file}"
           bounds_llvm="${RUNNER_TEMP}/${bounds_case}.ll"
@@ -2109,7 +2113,12 @@ jobs:
         }
         Write-Host "representative telemetry test passed with exit code 91"
 
-        foreach ($boundsFile in @("negative_index.aero", "upper_bound_index.aero")) {
+        foreach ($boundsFile in @(
+          "negative_index.aero",
+          "upper_bound_index.aero",
+          "negative_write_index.aero",
+          "upper_bound_write_index.aero"
+        )) {
           $boundsCase = [System.IO.Path]::GetFileNameWithoutExtension($boundsFile)
           $boundsSource = Join-Path $runtimeFailRoot $boundsFile
           $boundsLlvm = Join-Path $env:RUNNER_TEMP "$boundsCase.windows.ll"

@@ -64,9 +64,15 @@ pub(crate) enum CopyProjectionStep {
     },
     ArrayElement {
         receiver: Ty,
-        index: usize,
+        index: CopyProjectionIndex,
         element: Ty,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CopyProjectionIndex {
+    Constant(usize),
+    Runtime { selector_ordinal: usize },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,41 +91,31 @@ pub(crate) enum ProjectedCopyDataAssignmentDisposition {
     PreserveExistingBehavior,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum UnresolvedProjectionStep {
+#[derive(Debug, Clone)]
+enum UnresolvedProjectionStep<'a> {
     StructField(String),
     TupleElement(usize),
-    ArrayElement(usize),
+    ArrayElement(&'a Expression),
 }
 
-fn collect_static_projection_path<'a>(
+fn collect_projection_path<'a>(
     target: &'a Expression,
-    path: &mut Vec<UnresolvedProjectionStep>,
+    path: &mut Vec<UnresolvedProjectionStep<'a>>,
 ) -> Result<&'a str, String> {
     match target {
         Expression::Identifier(name) => Ok(name),
         Expression::FieldAccess { object, field } => {
-            let root = collect_static_projection_path(object, path)?;
+            let root = collect_projection_path(object, path)?;
             path.push(UnresolvedProjectionStep::StructField(field.clone()));
             Ok(root)
         }
         Expression::TupleIndex { object, index } => {
-            let root = collect_static_projection_path(object, path)?;
+            let root = collect_projection_path(object, path)?;
             path.push(UnresolvedProjectionStep::TupleElement(*index));
             Ok(root)
         }
         Expression::IndexAccess { object, index } => {
-            let Expression::IntegerLiteral(index) = index.as_ref() else {
-                return Err(
-                    "projected CopyData assignment array indexes require a compile-time integer literal"
-                        .to_string(),
-                );
-            };
-            let index = usize::try_from(*index).map_err(|_| {
-                "projected CopyData assignment array indexes require a nonnegative compile-time integer literal"
-                    .to_string()
-            })?;
-            let root = collect_static_projection_path(object, path)?;
+            let root = collect_projection_path(object, path)?;
             path.push(UnresolvedProjectionStep::ArrayElement(index));
             Ok(root)
         }
@@ -129,12 +125,79 @@ fn collect_static_projection_path<'a>(
     }
 }
 
+pub(crate) fn projected_copydata_assignment_array_selectors(
+    target: &Expression,
+) -> Result<Option<Vec<&Expression>>, String> {
+    if !matches!(
+        target,
+        Expression::FieldAccess { .. }
+            | Expression::TupleIndex { .. }
+            | Expression::IndexAccess { .. }
+    ) {
+        return Ok(None);
+    }
+
+    let mut unresolved = Vec::new();
+    collect_projection_path(target, &mut unresolved)?;
+    Ok(Some(
+        unresolved
+            .into_iter()
+            .filter_map(|step| match step {
+                UnresolvedProjectionStep::ArrayElement(selector) => Some(selector),
+                UnresolvedProjectionStep::StructField(_)
+                | UnresolvedProjectionStep::TupleElement(_) => None,
+            })
+            .collect(),
+    ))
+}
+
 pub(crate) fn classify_projected_copydata_assignment<F>(
     target: &Expression,
     rhs: &Ty,
+    array_selector_types: &[Ty],
     inside_admitted_function: bool,
     structs: &StructRegistry,
     mut facts_for_root: F,
+) -> ProjectedCopyDataAssignmentDisposition
+where
+    F: FnMut(&str) -> Option<OwnedPlaceAssignmentTargetFacts>,
+{
+    classify_projected_copydata_assignment_impl(
+        target,
+        Some(rhs),
+        Some(array_selector_types),
+        inside_admitted_function,
+        structs,
+        &mut facts_for_root,
+    )
+}
+
+pub(crate) fn classify_projected_copydata_assignment_after_admission<F>(
+    target: &Expression,
+    inside_admitted_function: bool,
+    structs: &StructRegistry,
+    mut facts_for_root: F,
+) -> ProjectedCopyDataAssignmentDisposition
+where
+    F: FnMut(&str) -> Option<OwnedPlaceAssignmentTargetFacts>,
+{
+    classify_projected_copydata_assignment_impl(
+        target,
+        None,
+        None,
+        inside_admitted_function,
+        structs,
+        &mut facts_for_root,
+    )
+}
+
+fn classify_projected_copydata_assignment_impl<F>(
+    target: &Expression,
+    rhs: Option<&Ty>,
+    array_selector_types: Option<&[Ty]>,
+    inside_admitted_function: bool,
+    structs: &StructRegistry,
+    facts_for_root: &mut F,
 ) -> ProjectedCopyDataAssignmentDisposition
 where
     F: FnMut(&str) -> Option<OwnedPlaceAssignmentTargetFacts>,
@@ -155,7 +218,7 @@ where
     }
 
     let mut unresolved = Vec::new();
-    let root_name = match collect_static_projection_path(target, &mut unresolved) {
+    let root_name = match collect_projection_path(target, &mut unresolved) {
         Ok(root) => root.to_string(),
         Err(message) => {
             return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(message);
@@ -211,6 +274,7 @@ where
 
     let mut current = facts.ty.clone();
     let mut path = Vec::with_capacity(unresolved.len());
+    let mut selector_ordinal = 0usize;
     for step in unresolved {
         match step {
             UnresolvedProjectionStep::StructField(field_name) => {
@@ -255,19 +319,64 @@ where
                     element: projection.element,
                 });
             }
-            UnresolvedProjectionStep::ArrayElement(index) => {
-                let Ty::Array(element, count) = &current else {
-                    return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-                        "projected assignment array selector requires an admitted fixed array, found {current}"
-                    ));
+            UnresolvedProjectionStep::ArrayElement(selector) => {
+                let (contract, index) = match structs.classify_copy_array_index(&current, selector)
+                {
+                    crate::struct_contract::CopyArrayIndexDisposition::Accepted {
+                        contract,
+                        constant_index: Some(index),
+                    } => (contract, CopyProjectionIndex::Constant(index)),
+                    crate::struct_contract::CopyArrayIndexDisposition::Accepted {
+                        contract,
+                        constant_index: None,
+                    } => {
+                        if let Some(selector_types) = array_selector_types {
+                            let Some(selector_type) = selector_types.get(selector_ordinal) else {
+                                return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
+                                    "projected CopyData assignment is missing an independently checked array selector type"
+                                        .to_string(),
+                                );
+                            };
+                            if *selector_type != Ty::Int {
+                                return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
+                                    format!(
+                                        "projected CopyData assignment array selector type mismatch: expected int, actual {selector_type}"
+                                    ),
+                                );
+                            }
+                        }
+                        if contract.count == 0 {
+                            return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
+                                "projected CopyData array index is outside 0..0".to_string(),
+                            );
+                        }
+                        (contract, CopyProjectionIndex::Runtime { selector_ordinal })
+                    }
+                    crate::struct_contract::CopyArrayIndexDisposition::OutOfBounds {
+                        index,
+                        count,
+                    } => {
+                        if index < 0 {
+                            return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
+                                "projected CopyData assignment array indexes require a nonnegative integer"
+                                    .to_string(),
+                            );
+                        }
+                        return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
+                            format!("projected CopyData array index {index} is outside 0..{count}"),
+                        );
+                    }
+                    crate::struct_contract::CopyArrayIndexDisposition::PreserveExistingBehavior => {
+                        return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
+                            format!(
+                                "projected assignment array selector requires an admitted fixed array, found {current}"
+                            ),
+                        );
+                    }
                 };
-                if index >= *count {
-                    return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-                        "projected CopyData array index {index} is outside 0..{count}"
-                    ));
-                }
-                let receiver = current.clone();
-                let element = element.as_ref().clone();
+                selector_ordinal += 1;
+                let receiver = contract.ty();
+                let element = contract.element.ty;
                 current = element.clone();
                 path.push(CopyProjectionStep::ArrayElement {
                     receiver,
@@ -283,7 +392,8 @@ where
             "projected assignment leaf type {current} is not admitted CopyData"
         ));
     };
-    if current != *rhs {
+    if rhs.is_some_and(|rhs| current != *rhs) {
+        let rhs = rhs.expect("checked above");
         return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
             "projected assignment type mismatch: expected {current}, actual {rhs}"
         ));
@@ -515,6 +625,7 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &target,
                     &leaf_ty,
+                    &[],
                     true,
                     &structs,
                     |name| (name == "root").then(|| facts(root_ty.clone())),
@@ -542,7 +653,7 @@ mod tests {
             "x",
         );
         let ProjectedCopyDataAssignmentDisposition::Supported(contract) =
-            classify_projected_copydata_assignment(&mixed, &Ty::Int, true, &structs, |name| {
+            classify_projected_copydata_assignment(&mixed, &Ty::Int, &[], true, &structs, |name| {
                 (name == "root").then(|| facts(root_type.clone()))
             })
         else {
@@ -553,14 +664,24 @@ mod tests {
             [
                 CopyProjectionStep::TupleElement { index: 0, .. },
                 CopyProjectionStep::StructField { field_index: 1, .. },
-                CopyProjectionStep::ArrayElement { index: 1, .. },
+                CopyProjectionStep::ArrayElement {
+                    index: CopyProjectionIndex::Constant(1),
+                    ..
+                },
                 CopyProjectionStep::StructField { field_index: 0, .. },
             ]
         ));
         assert_eq!(contract.leaf_logical_type, LogicalType::Int);
 
         assert!(matches!(
-            classify_projected_copydata_assignment(&id("root"), &Ty::Int, true, &structs, |_| None),
+            classify_projected_copydata_assignment(
+                &id("root"),
+                &Ty::Int,
+                &[],
+                true,
+                &structs,
+                |_| None,
+            ),
             ProjectedCopyDataAssignmentDisposition::PreserveExistingBehavior
         ));
 
@@ -572,6 +693,7 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &simple,
                     &Ty::Int,
+                    &[],
                     false,
                     &structs,
                     root_is_frame,
@@ -579,67 +701,117 @@ mod tests {
                 "only inside admitted function bodies",
             ),
             (
-                classify_projected_copydata_assignment(&simple, &Ty::Int, true, &structs, |_| None),
+                classify_projected_copydata_assignment(
+                    &simple,
+                    &Ty::Int,
+                    &[],
+                    true,
+                    &structs,
+                    |_| None,
+                ),
                 "not an initialized local binding",
             ),
             (
-                classify_projected_copydata_assignment(&simple, &Ty::Int, true, &structs, |_| {
-                    Some(OwnedPlaceAssignmentTargetFacts {
-                        initialized: false,
-                        ..facts(Ty::Struct("Frame".to_string()))
-                    })
-                }),
+                classify_projected_copydata_assignment(
+                    &simple,
+                    &Ty::Int,
+                    &[],
+                    true,
+                    &structs,
+                    |_| {
+                        Some(OwnedPlaceAssignmentTargetFacts {
+                            initialized: false,
+                            ..facts(Ty::Struct("Frame".to_string()))
+                        })
+                    },
+                ),
                 "must already be initialized",
             ),
             (
-                classify_projected_copydata_assignment(&simple, &Ty::Int, true, &structs, |_| {
-                    Some(OwnedPlaceAssignmentTargetFacts {
-                        mutable: false,
-                        ..facts(Ty::Struct("Frame".to_string()))
-                    })
-                }),
+                classify_projected_copydata_assignment(
+                    &simple,
+                    &Ty::Int,
+                    &[],
+                    true,
+                    &structs,
+                    |_| {
+                        Some(OwnedPlaceAssignmentTargetFacts {
+                            mutable: false,
+                            ..facts(Ty::Struct("Frame".to_string()))
+                        })
+                    },
+                ),
                 "must be a mutable local owned binding",
             ),
             (
-                classify_projected_copydata_assignment(&simple, &Ty::Int, true, &structs, |_| {
-                    Some(OwnedPlaceAssignmentTargetFacts {
-                        local: false,
-                        ..facts(Ty::Struct("Frame".to_string()))
-                    })
-                }),
+                classify_projected_copydata_assignment(
+                    &simple,
+                    &Ty::Int,
+                    &[],
+                    true,
+                    &structs,
+                    |_| {
+                        Some(OwnedPlaceAssignmentTargetFacts {
+                            local: false,
+                            ..facts(Ty::Struct("Frame".to_string()))
+                        })
+                    },
+                ),
                 "must be a mutable local owned binding",
             ),
             (
-                classify_projected_copydata_assignment(&simple, &Ty::Int, true, &structs, |_| {
-                    Some(OwnedPlaceAssignmentTargetFacts {
-                        ownership: OwnershipState::Moved,
-                        ..facts(Ty::Struct("Frame".to_string()))
-                    })
-                }),
+                classify_projected_copydata_assignment(
+                    &simple,
+                    &Ty::Int,
+                    &[],
+                    true,
+                    &structs,
+                    |_| {
+                        Some(OwnedPlaceAssignmentTargetFacts {
+                            ownership: OwnershipState::Moved,
+                            ..facts(Ty::Struct("Frame".to_string()))
+                        })
+                    },
+                ),
                 "moved value",
             ),
             (
-                classify_projected_copydata_assignment(&simple, &Ty::Int, true, &structs, |_| {
-                    Some(OwnedPlaceAssignmentTargetFacts {
-                        ownership: OwnershipState::MaybeMoved,
-                        ..facts(Ty::Struct("Frame".to_string()))
-                    })
-                }),
+                classify_projected_copydata_assignment(
+                    &simple,
+                    &Ty::Int,
+                    &[],
+                    true,
+                    &structs,
+                    |_| {
+                        Some(OwnedPlaceAssignmentTargetFacts {
+                            ownership: OwnershipState::MaybeMoved,
+                            ..facts(Ty::Struct("Frame".to_string()))
+                        })
+                    },
+                ),
                 "may have been moved",
             ),
             (
-                classify_projected_copydata_assignment(&simple, &Ty::Int, true, &structs, |_| {
-                    Some(OwnedPlaceAssignmentTargetFacts {
-                        ownership: OwnershipState::ImmutablyBorrowed(1),
-                        ..facts(Ty::Struct("Frame".to_string()))
-                    })
-                }),
+                classify_projected_copydata_assignment(
+                    &simple,
+                    &Ty::Int,
+                    &[],
+                    true,
+                    &structs,
+                    |_| {
+                        Some(OwnedPlaceAssignmentTargetFacts {
+                            ownership: OwnershipState::ImmutablyBorrowed(1),
+                            ..facts(Ty::Struct("Frame".to_string()))
+                        })
+                    },
+                ),
                 "while it is borrowed",
             ),
             (
                 classify_projected_copydata_assignment(
                     &field(id("root"), "missing"),
                     &Ty::Int,
+                    &[],
                     true,
                     &structs,
                     root_is_frame,
@@ -650,6 +822,7 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &tuple_element(id("root"), 2),
                     &Ty::Int,
+                    &[],
                     true,
                     &structs,
                     |_| Some(facts(Ty::Tuple(vec![Ty::Int, Ty::Bool]))),
@@ -660,6 +833,7 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &array_element(id("root"), Expression::IntegerLiteral(2)),
                     &Ty::Int,
+                    &[],
                     true,
                     &structs,
                     |_| Some(facts(Ty::Array(Box::new(Ty::Int), 2))),
@@ -670,6 +844,7 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &array_element(id("root"), Expression::IntegerLiteral(0)),
                     &Ty::Int,
+                    &[],
                     true,
                     &structs,
                     |_| Some(facts(Ty::Array(Box::new(Ty::Int), 0))),
@@ -680,6 +855,7 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &array_element(id("root"), Expression::IntegerLiteral(-1)),
                     &Ty::Int,
+                    &[],
                     true,
                     &structs,
                     |_| Some(facts(Ty::Array(Box::new(Ty::Int), 2))),
@@ -690,11 +866,12 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &array_element(id("root"), id("index")),
                     &Ty::Int,
+                    &[Ty::Bool],
                     true,
                     &structs,
                     |_| Some(facts(Ty::Array(Box::new(Ty::Int), 2))),
                 ),
-                "compile-time integer literal",
+                "expected int, actual bool",
             ),
             (
                 classify_projected_copydata_assignment(
@@ -706,6 +883,7 @@ mod tests {
                         "bias",
                     ),
                     &Ty::Int,
+                    &[],
                     true,
                     &structs,
                     |_| None,
@@ -716,6 +894,7 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &field(id("root"), "bias"),
                     &Ty::Float,
+                    &[],
                     true,
                     &structs,
                     root_is_frame,
@@ -726,6 +905,7 @@ mod tests {
                 classify_projected_copydata_assignment(
                     &field(id("root"), "bias"),
                     &Ty::Int,
+                    &[],
                     true,
                     &structs,
                     |_| Some(facts(Ty::String)),
@@ -743,6 +923,162 @@ mod tests {
                 "expected rejection containing `{expected}`, got {actual:?}"
             );
         }
+
+        let ProjectedCopyDataAssignmentDisposition::Supported(dynamic) =
+            classify_projected_copydata_assignment(
+                &array_element(id("root"), id("index")),
+                &Ty::Int,
+                &[Ty::Int],
+                true,
+                &structs,
+                |_| Some(facts(Ty::Array(Box::new(Ty::Int), 2))),
+            )
+        else {
+            panic!("runtime int selector must be admitted");
+        };
+        assert!(matches!(
+            dynamic.path.as_slice(),
+            [CopyProjectionStep::ArrayElement {
+                index: CopyProjectionIndex::Runtime {
+                    selector_ordinal: 0
+                },
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn runtime_array_assignment_selector_contract_is_total_and_fail_closed() {
+        let (structs, _) = registries();
+        let target = array_element(id("root"), id("index"));
+
+        for selector_type in [
+            Ty::Float,
+            Ty::Bool,
+            Ty::Char,
+            Ty::String,
+            Ty::Array(Box::new(Ty::Int), 1),
+            Ty::Tuple(vec![Ty::Int]),
+            Ty::Struct("Frame".to_string()),
+            Ty::Enum("E".to_string()),
+            Ty::Void,
+            Ty::Reference(Box::new(Ty::Int), false),
+            Ty::Reference(Box::new(Ty::Int), true),
+            Ty::TypeParam("T".to_string()),
+            Ty::Option(Box::new(Ty::Int)),
+            Ty::Result(Box::new(Ty::Int), Box::new(Ty::String)),
+            Ty::Vec(Box::new(Ty::Int)),
+            Ty::HashMap(Box::new(Ty::Int), Box::new(Ty::Int)),
+            Ty::Fn("selector".to_string()),
+        ] {
+            let actual = classify_projected_copydata_assignment(
+                &target,
+                &Ty::Int,
+                &[selector_type.clone()],
+                true,
+                &structs,
+                |_| Some(facts(Ty::Array(Box::new(Ty::Int), 2))),
+            );
+            assert!(
+                matches!(
+                    actual,
+                    ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(ref message)
+                        if message == &format!(
+                            "projected CopyData assignment array selector type mismatch: expected int, actual {selector_type}"
+                        )
+                ),
+                "selector type {selector_type} must fail closed, got {actual:?}"
+            );
+        }
+
+        assert!(matches!(
+            classify_projected_copydata_assignment(
+                &target,
+                &Ty::Int,
+                &[],
+                true,
+                &structs,
+                |_| Some(facts(Ty::Array(Box::new(Ty::Int), 2))),
+            ),
+            ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(message)
+                if message.contains("missing an independently checked array selector type")
+        ));
+        assert!(matches!(
+            classify_projected_copydata_assignment(
+                &target,
+                &Ty::Int,
+                &[Ty::Int],
+                true,
+                &structs,
+                |_| Some(facts(Ty::Array(Box::new(Ty::Int), 0))),
+            ),
+            ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(message)
+                if message.contains("outside 0..0")
+        ));
+        assert!(matches!(
+            classify_projected_copydata_assignment_after_admission(&target, true, &structs, |_| {
+                Some(facts(Ty::Array(Box::new(Ty::Int), 2)))
+            },),
+            ProjectedCopyDataAssignmentDisposition::Supported(_)
+        ));
+    }
+
+    #[test]
+    fn runtime_array_assignment_retains_all_selectors_in_source_order() {
+        let (structs, _) = registries();
+        let target = array_element(
+            array_element(
+                array_element(id("root"), id("first")),
+                Expression::IntegerLiteral(1),
+            ),
+            id("last"),
+        );
+        let selectors = projected_copydata_assignment_array_selectors(&target)
+            .expect("direct-local projection must classify")
+            .expect("array projection must retain selectors");
+        assert!(matches!(selectors.as_slice(), [
+            Expression::Identifier(first),
+            Expression::IntegerLiteral(1),
+            Expression::Identifier(last),
+        ] if first == "first" && last == "last"));
+
+        let root_type = Ty::Array(
+            Box::new(Ty::Array(Box::new(Ty::Array(Box::new(Ty::Int), 2)), 2)),
+            2,
+        );
+        let ProjectedCopyDataAssignmentDisposition::Supported(contract) =
+            classify_projected_copydata_assignment(
+                &target,
+                &Ty::Int,
+                &[Ty::Int, Ty::Int, Ty::Int],
+                true,
+                &structs,
+                |_| Some(facts(root_type.clone())),
+            )
+        else {
+            panic!("mixed constant/runtime selector path must be admitted");
+        };
+        assert!(matches!(
+            contract.path.as_slice(),
+            [
+                CopyProjectionStep::ArrayElement {
+                    index: CopyProjectionIndex::Runtime {
+                        selector_ordinal: 0
+                    },
+                    ..
+                },
+                CopyProjectionStep::ArrayElement {
+                    index: CopyProjectionIndex::Constant(1),
+                    ..
+                },
+                CopyProjectionStep::ArrayElement {
+                    index: CopyProjectionIndex::Runtime {
+                        selector_ordinal: 2
+                    },
+                    ..
+                },
+            ]
+        ));
     }
 
     #[test]

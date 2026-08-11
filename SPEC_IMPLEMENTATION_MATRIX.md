@@ -2,8 +2,9 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Current accepted public and compiler-capability master is CAP-001 protected merge
-`25c1e2b239cba45f7b60c86f19629e9d768c77d0`. Exact candidate
+Current accepted public master is protected CAP-001 accepted-truth merge
+`29c13fa32c2bef361ff33367b3b3839351e05534`; accepted compiler-capability master is
+CAP-001 protected merge `25c1e2b239cba45f7b60c86f19629e9d768c77d0`. Exact capability candidate
 `71b0db4ad74e11ad535899029f2db8729480a2da` and the merge have identical tree
 `7f55c3331965edaa1c5190ff8f4c0e29f80a8bec`; candidate-head and post-merge public
 gates pass.
@@ -39,6 +40,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Shared intrinsic method classification | P | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fixed arrays | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Runtime-indexed reads of nonempty recursive CopyData fixed arrays (accepted `CAP-001`) | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Runtime-indexed writes through mutable owned recursive CopyData paths (`CAP-002` candidate, not accepted) | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fixed arrays of all-scalar Copy structs | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Tuples | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Struct declarations | Y | Y | P | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
@@ -248,6 +250,20 @@ pass. Linux stable and pinned Windows execute the representative and two-case fa
 corpus at `-O0` and `-O2`. Dynamic writes, projected borrowing, collections, stable
 runtime/ABI behavior, and general array or memory-safety claims remain absent, so both
 rows remain `PARTIAL`.
+
+Unaccepted CAP-002 candidate extends the existing projected CopyData assignment row
+to runtime `int` fixed-array selectors without adding a data topology. One shared
+predicate classifies any finite mixed field/tuple/array path; selectors evaluate once
+in source order before the RHS, and every runtime selector reuses the accepted CAP-001
+guard before later selectors, RHS effects, address formation, or memory access. The
+representative application now fills its fixed sensor table in a bounded loop, and two
+runtime-failure specimens cover negative and equal-to-count writes with an effectful
+RHS that must remain unreachable. Focused 5/5, representative 3/3, and the complete
+220-library/32-binary local root gate pass. Public exact-head LLVM/native, protected-
+merge, and post-merge evidence are pending, so this row remains candidate `PARTIAL`.
+Reference-target writes, projected borrowing, partial moves, slices/collections,
+compound assignment, non-CopyData places, stable runtime/ABI behavior, and general
+memory-safety claims remain absent.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

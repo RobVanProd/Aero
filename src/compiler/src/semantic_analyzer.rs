@@ -37,7 +37,7 @@ use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
     OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
     ProjectedCopyDataAssignmentDisposition, classify_owned_place_assignment,
-    classify_projected_copydata_assignment,
+    classify_projected_copydata_assignment, projected_copydata_assignment_array_selectors,
 };
 use crate::struct_contract::{CopyArrayIndexDisposition, StructExecutionContext, StructRegistry};
 use crate::tuple_contract::{
@@ -3095,6 +3095,14 @@ impl SemanticAnalyzer {
                 Ok(())
             }
             Statement::Assignment { target, value } => {
+                let mut array_selector_types = Vec::new();
+                if let Some(selectors) = projected_copydata_assignment_array_selectors(target)? {
+                    for selector in selectors {
+                        self.check_expression_initialization(selector)?;
+                        array_selector_types.push(self.require_value(selector)?);
+                        self.apply_enum_match_moves(selector)?;
+                    }
+                }
                 self.check_expression_initialization(value)?;
                 let rhs = self.require_value(value)?;
                 let inside_admitted_function = self.scope_manager.is_in_function()
@@ -3134,6 +3142,7 @@ impl SemanticAnalyzer {
                 match classify_projected_copydata_assignment(
                     target,
                     &rhs,
+                    &array_selector_types,
                     inside_admitted_function,
                     &self.struct_registry,
                     |name| {
