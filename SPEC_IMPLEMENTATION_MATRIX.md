@@ -2,10 +2,11 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Current accepted public master is `29019ff114f668a37eac429dc6f7905ab97fa6fb`;
-accepted compiler-capability master is M1-001 merge `d7d1c7682911503470a19c97acb72d231824b193`.
-CAP-001 runtime-index evidence below is a local candidate until exact public gates and
-protected acceptance pass.
+Current accepted public and compiler-capability master is CAP-001 protected merge
+`25c1e2b239cba45f7b60c86f19629e9d768c77d0`. Exact candidate
+`71b0db4ad74e11ad535899029f2db8729480a2da` and the merge have identical tree
+`7f55c3331965edaa1c5190ff8f4c0e29f80a8bec`; candidate-head and post-merge public
+gates pass.
 
 This matrix records stages independently. `Y` means direct evidence for the
 listed slice, `P` means partial or known-defective support, `N` means absent,
@@ -37,7 +38,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Shared intrinsic method classification | P | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fixed arrays | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
-| Runtime-indexed reads of nonempty recursive CopyData fixed arrays (`CAP-001` candidate) | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Runtime-indexed reads of nonempty recursive CopyData fixed arrays (accepted `CAP-001`) | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fixed arrays of all-scalar Copy structs | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Tuples | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Struct declarations | Y | Y | P | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
@@ -232,18 +233,21 @@ workflows pass. The representative application/conformance-subset workflow below
 therefore `END_TO_END`; each component language row remains `PARTIAL`, and no row is
 `STABLE`.
 
-Local CAP-001 closes one fixed-array read false-success without adding a data topology.
+Accepted CAP-001 closes one fixed-array read false-success without adding a data topology.
 Every nonconstant semantic `int` index into the existing admitted nonempty recursive
 CopyData array universe lowers through one ordered nonnegative/below-count branch;
 failure invokes a private trap before conversion or address formation, while success
 forms the typed `inbounds` address. Constant indexes keep their compile-time diagnostic
 and direct lowering. The representative application composes computed reads; a two-
 file runtime-failure corpus covers negative and equal-to-count values. Focused 4/4,
-representative 3/3, 218 library tests, the full root gate, and local LLVM 22 external/
-machine verification plus Windows representative `-O0`/`-O2` exit 91 pass. Public
-Linux/Windows failure execution and acceptance remain pending. Dynamic writes,
-projected borrowing, collections, stable runtime/ABI behavior, and general array or
-memory-safety claims remain absent, so both rows remain `PARTIAL`.
+representative 3/3, 218 library tests, the full root gate, and LLVM 22 external/
+machine verification plus Windows representative `-O0`/`-O2` exit 91 pass. Exact
+candidate `71b0db4` passed all nine checks, protected PR #21 merged it as `25c1e2b`,
+and post-merge CI `31460114414`, Rust CI `31460114408`, and CodeQL `31460114552`
+pass. Linux stable and pinned Windows execute the representative and two-case failure
+corpus at `-O0` and `-O2`. Dynamic writes, projected borrowing, collections, stable
+runtime/ABI behavior, and general array or memory-safety claims remain absent, so both
+rows remain `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

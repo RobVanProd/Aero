@@ -2,13 +2,15 @@
 
 ## CAP-001 - verified runtime fixed-array reads
 
-- Date/task/status: 2026-08-11, `CAP-001`, authorized tests-first executable
+- Date/task/status: 2026-08-11, `CAP-001`, accepted tests-first executable
   vertical slice from accepted public master
   `29019ff114f668a37eac429dc6f7905ab97fa6fb`, whose compiler-capability parent is
   accepted M1-001 merge `d7d1c7682911503470a19c97acb72d231824b193`.
-  Work belongs only on `agent/cap-001-verified-runtime-array-indexing`;
-  user-owned untracked `tmp/` remains outside the task. The quarantined CORE-091
-  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remains unpublished and must not
+  Implementation belongs only on `agent/cap-001-verified-runtime-array-indexing`;
+  the bounded accepted-truth continuation belongs only on
+  `agent/cap-001-acceptance-sync`. User-owned untracked `tmp/` and app-owned
+  untracked `.codex-remote-attachments/` remain outside the task. The quarantined
+  CORE-091 stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remains unpublished and must not
   be applied or dropped.
 - Post-M1 once-per-class audit and ranking: accepted M1-001 closes the first
   representative scalar application gate, so three remaining project gaps were
@@ -157,6 +159,36 @@
   `b80e014125340632d7f9fe411434ed75ad1f838a`. The succeeding candidate-head commit
   is restricted to this identity amendment and the matching current-state sentence;
   it changes no compiler, specimen, test, workflow, matrix classification, or claim.
+- Public acceptance and exact evidence: candidate
+  `71b0db4ad74e11ad535899029f2db8729480a2da`, tree
+  `7f55c3331965edaa1c5190ff8f4c0e29f80a8bec`, passed all nine reported PR #21
+  checks. Protected merge `25c1e2b239cba45f7b60c86f19629e9d768c77d0`
+  has ordered parents prior master `29019ff114f668a37eac429dc6f7905ab97fa6fb`
+  then the candidate and exactly the candidate tree. Exact merge-head CI run
+  `31460114414` (job `93681790693`), Rust CI run `31460114408` (nightly
+  `93681790484`, stable `93681790512`, Windows LLVM 22 native system
+  `93681790493`), and CodeQL run `31460114552` (Rust `93681793271`, Python
+  `93681793276`, Actions `93681793278`) all pass. Linux stable and pinned Windows
+  logs record representative exit 91 and the negative/equal-to-count runtime-failure
+  corpus passing at `-O0` and `-O2`. CAP-001 is accepted public behavior within its
+  frozen exclusions.
+- Accepted-truth synchronization contract: update only `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`,
+  `README.md`, `FRAMEWORK_ALIGNMENT.md`, and this ledger so their current sections
+  describe accepted master `25c1e2b`; preserve historical candidate chronology and
+  every exclusion. Run `git diff --check` and the complete repository gate, publish
+  one documentation-only protected PR, require exact-head and post-merge workflows,
+  and do not select or implement the next capability until this synchronization is
+  accepted. Any compiler, specimen, test, workflow, dependency, release, benchmark,
+  protection, history, stash, `tmp/`, or `.codex-remote-attachments/` change stops
+  the synchronization.
+- Accepted-truth local evidence: `git diff --check` passes and the complete repository
+  gate exits zero with 218 library tests, 32 binary tests, every integration target,
+  formatting, correctness-denying Clippy, and doc tests. The preservation wrapper
+  restores all 115 tracked Aero files that entered with CRLF; no compiler, specimen,
+  test, workflow, dependency, stash, or user/app-owned untracked path enters the diff.
+  After this evidence amendment, the exact final documentation candidate must pass the
+  same root gate before commit and publication.
 - Allowed files: this ledger record; one focused runtime-index integration test;
   existing array/codegen/verifier tests only where required for shared-class
   corruption controls; `src/compiler/src/code_generator.rs`; the representative

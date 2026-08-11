@@ -238,27 +238,28 @@ later gaps more safely would still change future decisions. Before another
 implementation, at least three remaining gaps must be re-ranked against this accepted
 baseline rather than inheriting the old order.
 
-### Post-M1 ranking and CAP-001 candidate
+### Post-M1 ranking and accepted CAP-001
 
 The required post-M1 comparison is complete. Scores retain the same 1--5 convention;
 `Risk` and `Evidence` reward more favorable delivery.
 
 | Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Verified runtime reads from fixed arrays (`CAP-001` candidate) | 5 | 4 | 5 | 5 | 3 | 4 | 26 |
+| 1 | Verified runtime reads from fixed arrays (accepted `CAP-001`) | 5 | 4 | 5 | 5 | 3 | 4 | 26 |
 | 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
 | 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
 
-Before CAP-001, ordinary variable indexing can compile to unchecked LLVM `inbounds`
-address formation and an out-of-range program can falsely succeed. The local candidate
+Before CAP-001, ordinary variable indexing could compile to unchecked LLVM `inbounds`
+address formation and an out-of-range program could falsely succeed. Accepted CAP-001
 adds one backend-wide ordered bounds guard for every nonconstant read over the existing
 recursive CopyData fixed-array class, enriches the representative telemetry program
-with computed reads, and adds negative/equal-to-count runtime controls. Local focused,
-representative, root, LLVM/machine, and Windows `-O0`/`-O2` positive gates pass; exact
-public Linux/Windows failure execution and protected acceptance remain pending. The
-source contract is only a runtime bounds error; the private trap has no stable status,
-diagnostic, ABI, or recovery promise. Dynamic writes, projected borrowing, collections,
-and general memory safety remain open.
+with computed reads, and adds negative/equal-to-count runtime controls. Focused,
+representative, root, LLVM/machine, exact candidate-head, protected-merge, and exact
+merge-head Linux/Windows `-O0`/`-O2` gates pass. The source contract is only a runtime
+bounds error; the private trap has no stable status, diagnostic, ABI, or recovery
+promise. Dynamic writes, projected borrowing, collections, and general memory safety
+remain open. After accepted-truth synchronization, the next task requires a fresh
+three-gap ranking against this stronger baseline.
 
 What would change the decision: evidence that runtime bounds errors must be recoverable,
 that the private trap can be optimized past an access, that retained array counts are
