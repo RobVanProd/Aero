@@ -9,6 +9,17 @@ Latest accepted compiler-capability master is protected CAP-004 merge
 protected integration, exact merge-head CI/Rust CI/CodeQL, and pinned Linux/Windows
 LLVM/Clang 22.1.8 native `-O0`/`-O2` gates pass.
 
+Candidate overlay, not accepted master: the active CAP-005 branch has exact local
+evidence for one additional `PARTIAL` generics/function-call slice. Unique top-level
+bound-free generic functions whose type parameters are inferred from whole parameter
+positions can be compile-time-specialized at recursive finite CopyData arguments when
+their abstract values are only copied through direct parameters, annotated locals,
+branch selection, reassignment, and return. Focused 5/5, contract 2/2, verifier
+corruption, compatibility, the complete 232-library/32-binary/integration/doc/format/
+Clippy gate, and pinned LLVM/Clang 22.1.8 external, machine, `-O0`, and `-O2` execution
+pass locally. This overlay does not change the accepted matrix rows until a bounded
+PR, protected merge, and exact merge-head verification pass.
+
 This matrix records stages independently. `Y` means direct evidence for the
 listed slice, `P` means partial or known-defective support, `N` means absent,
 `?` means not yet verified, and `—` means not applicable. The only feature-level
@@ -283,6 +294,17 @@ LLVM/Clang 22.1.8 verify and execute `-O0`/`-O2`. Generic functions/enums/impls/
 inference/defaults, generic applications inside generic definitions, non-CopyData
 arguments, collections, heap/drop/lifetimes, public ABI, and general generics remain
 absent, so neither row is `END_TO_END` or `STABLE`.
+
+The local CAP-005 candidate extends that already-`PARTIAL` row with bounded generic
+function specialization, not full generics. One shared pre-semantic/pre-admission
+authority creates verifier-bound private nongeneric functions for exact recursive
+finite CopyData substitutions and preserves source-readable LLVM specialization
+names. The representative program instantiates the same `choose<T>` at
+`Reading<int>` and `Reading<char>` and retains exact output/exit 91. Trait bounds,
+generic operations/methods/enums/impls, recursive or generic-to-generic calls,
+result-only inference, nested generic signatures, non-CopyData arguments, runtime
+polymorphism, collections, lifetimes/drop, and stable callable ABI remain absent. This
+paragraph is candidate evidence only; the accepted public row still rests on CAP-004.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

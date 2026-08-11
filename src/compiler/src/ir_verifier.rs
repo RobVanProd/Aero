@@ -380,6 +380,10 @@ fn valid_struct_symbol(name: &str) -> bool {
     crate::generic_struct_contract::valid_generic_aware_struct_symbol(name, valid_symbol)
 }
 
+fn valid_function_symbol(name: &str) -> bool {
+    crate::generic_function_contract::valid_generic_aware_function_symbol(name, valid_symbol)
+}
+
 fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
     valid_owned_place_type(ty)
 }
@@ -504,7 +508,7 @@ fn signature(
     parameters: &[(String, String)],
     return_type: &Option<String>,
 ) -> Result<FunctionSignature, IrVerificationError> {
-    if !valid_symbol(function) {
+    if !valid_function_symbol(function) {
         return Err(IrVerificationError::new(
             function,
             None,
@@ -574,6 +578,23 @@ fn signature(
             IrVerificationErrorKind::UnsupportedType("string return".to_string()),
         ));
     }
+    if !crate::generic_function_contract::valid_private_generic_function_signature(
+        function,
+        &typed_parameters
+            .iter()
+            .map(|(_, ty)| ty.clone())
+            .collect::<Vec<_>>(),
+        &result,
+    ) {
+        return Err(IrVerificationError::new(
+            function,
+            None,
+            IrVerificationErrorKind::MetadataMismatch(
+                "private generic-function identity does not match its checked signature"
+                    .to_string(),
+            ),
+        ));
+    }
     if function == "main" && (!typed_parameters.is_empty() || result != LogicalType::Int) {
         return Err(IrVerificationError::new(
             function,
@@ -594,7 +615,7 @@ fn checked_signature(
     parameters: &[(String, LogicalType)],
     result: &LogicalType,
 ) -> Result<FunctionSignature, IrVerificationError> {
-    if !valid_symbol(function) {
+    if !valid_function_symbol(function) {
         return Err(IrVerificationError::new(
             function,
             None,
@@ -640,6 +661,23 @@ fn checked_signature(
             function,
             None,
             IrVerificationErrorKind::UnsupportedType(format!("checked function return {result}")),
+        ));
+    }
+    if !crate::generic_function_contract::valid_private_generic_function_signature(
+        function,
+        &parameters
+            .iter()
+            .map(|(_, ty)| ty.clone())
+            .collect::<Vec<_>>(),
+        result,
+    ) {
+        return Err(IrVerificationError::new(
+            function,
+            None,
+            IrVerificationErrorKind::MetadataMismatch(
+                "private generic-function identity does not match its checked signature"
+                    .to_string(),
+            ),
         ));
     }
     let reference_parameters = parameters
@@ -725,7 +763,7 @@ fn collect_bodies<'a>(
                 )),
             ));
         }
-        if !valid_symbol(&function.name) {
+        if !valid_function_symbol(&function.name) {
             return Err(IrVerificationError::new(
                 &function.name,
                 None,
@@ -5390,6 +5428,113 @@ mod tests {
         assert!(matches!(
             error.kind,
             IrVerificationErrorKind::UnsupportedType(_)
+        ));
+    }
+
+    #[test]
+    fn private_generic_function_identity_rejects_signature_corruption() {
+        fn specialization(source: &str, canonical: &str) -> String {
+            let tokens = crate::lexer::try_tokenize_with_locations(source, None).expect("lex");
+            let ast = crate::parser::parse_with_locations(tokens).expect("parse");
+            crate::generic_function_contract::normalize_generic_copydata_functions(ast)
+                .expect("specialize")
+                .into_iter()
+                .find_map(|node| match node {
+                    crate::ast::AstNode::Statement(crate::ast::Statement::Function {
+                        name,
+                        ..
+                    }) if crate::generic_function_contract::private_generic_function_source_name(
+                        &name,
+                    )
+                    .as_deref() == Some(canonical) =>
+                    {
+                        Some(name)
+                    }
+                    _ => None,
+                })
+                .expect("requested private specialization")
+        }
+
+        let scalar_identity = specialization(
+            "fn choose<T>(first: T, second: T, take_first: bool) -> T { first } fn main() -> int { choose(1, 2, 1 < 2) }",
+            "choose<int>",
+        );
+        signature(
+            &scalar_identity,
+            &[
+                ("first".to_string(), "int".to_string()),
+                ("second".to_string(), "int".to_string()),
+                ("take_first".to_string(), "bool".to_string()),
+            ],
+            &Some("int".to_string()),
+        )
+        .expect("exact private scalar specialization signature must verify");
+        let scalar_error = signature(
+            &scalar_identity,
+            &[
+                ("first".to_string(), "char".to_string()),
+                ("second".to_string(), "int".to_string()),
+                ("take_first".to_string(), "bool".to_string()),
+            ],
+            &Some("int".to_string()),
+        )
+        .expect_err("private scalar substitution corruption must fail verification");
+        assert!(matches!(
+            scalar_error.kind,
+            IrVerificationErrorKind::MetadataMismatch(_)
+        ));
+        let forged_substitution = crate::generic_function_contract::private_name_for_test(
+            "choose<char>",
+            "g0.g0.c626f6f6c>g0",
+            &[LogicalType::Int, LogicalType::Int, LogicalType::Bool],
+            &LogicalType::Int,
+        );
+        let substitution_error = signature(
+            &forged_substitution,
+            &[
+                ("first".to_string(), "int".to_string()),
+                ("second".to_string(), "int".to_string()),
+                ("take_first".to_string(), "bool".to_string()),
+            ],
+            &Some("int".to_string()),
+        )
+        .expect_err("canonical substitution/signature disagreement must fail verification");
+        assert!(matches!(
+            substitution_error.kind,
+            IrVerificationErrorKind::MetadataMismatch(_)
+        ));
+
+        let aggregate = LogicalType::Struct {
+            name: "Point".to_string(),
+            fields: vec![LogicalType::Int, LogicalType::Int],
+        };
+        let aggregate_identity = specialization(
+            "struct Point { x: int, y: int } fn choose<T>(first: T, second: T, take_first: bool) -> T { first } fn main() -> int { let first: Point = Point { x: 1, y: 2 }; let second: Point = Point { x: 3, y: 4 }; let selected: Point = choose(first, second, 1 < 2); selected.x }",
+            "choose<Point>",
+        );
+        checked_signature(
+            &aggregate_identity,
+            &[
+                ("first".to_string(), aggregate.clone()),
+                ("second".to_string(), aggregate.clone()),
+                ("take_first".to_string(), LogicalType::Bool),
+            ],
+            &aggregate,
+        )
+        .expect("exact private aggregate specialization signature must verify");
+        let aggregate_error = checked_signature(
+            &aggregate_identity,
+            &[
+                ("first".to_string(), aggregate.clone()),
+                ("second".to_string(), LogicalType::Int),
+                ("take_first".to_string(), LogicalType::Bool),
+            ],
+            &aggregate,
+        )
+        .expect_err("private aggregate substitution corruption must fail verification");
+        assert!(matches!(
+            aggregate_error.kind,
+            IrVerificationErrorKind::MetadataMismatch(_)
         ));
     }
 

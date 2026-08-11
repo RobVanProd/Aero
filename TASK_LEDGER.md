@@ -1,5 +1,252 @@
 # Aero Task Ledger
 
+## CAP-005 - bound-free CopyData generic transport functions
+
+- Date/task/status: 2026-08-11, `CAP-005`, authorized red-first executable vertical
+  slice from accepted and exact-merge-head-green public master
+  `d20480ec9d12a1d2b58f01666ff6fd762544b22e`. Work belongs only on
+  `agent/cap-005-generic-copydata-functions`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Fresh milestone audit: Milestone 0 still lacks one canonical stable-subset
+  diagnostic/artifact and trusted-entrypoint contract. The bounded Milestone 1
+  representative workflow remains accepted `END_TO_END`. Milestone 2 now has
+  executable aggregates, error carriers, guarded fixed-array mutation, bounded
+  ownership/references, and explicit generic CopyData structs, but still lacks generic
+  functions/enums/traits, general substitution and error propagation, collections,
+  lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive program.
+  No accepted state document materially disagrees after protected PR #30 and its exact
+  merge-head gates.
+- Fresh three-gap ranking: scores are 1--5; higher `Risk` and `Evidence` mean more
+  favorable delivery.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Bound-free recursive-CopyData generic transport functions | 5 | 5 | 5 | 4 | 2 | 3 | 24 |
+  | 2 | Canonical Milestone 0 stable-subset diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+  | 3 | Owned dynamic `List<T>` collection foundation | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
+
+  CAP-005 wins the tie because it adds a new reusable-program class and advances the
+  explicit general-substitution roadmap gap, whereas rank 2 is correctness-critical
+  consolidation without comparable source expressiveness. `List<T>` is strategically
+  larger but cannot yet be frozen without inventing allocation, capacity growth,
+  failure, destruction, iterator, alias, and ABI semantics. Positive dotted imports
+  remain high leverage but the founding framework fixes grammar only; lookup,
+  visibility, collision, namespace, graph, and cycle contracts remain insufficiently
+  specified. Generic enums rank below generic functions because accepted CAP-003
+  already supplies concrete error carriers while no source-level function abstraction
+  can yet be instantiated.
+- Original-framework and roadmap alignment: the founding Aero framework explicitly
+  gives `func max<T: Comparable>(a: T, b: T) -> T`, states that Aero has fully generic
+  types and functions, and requires compile-time monomorphization with no runtime type
+  information or boxing. Its compiler architecture expands generics before typed IR
+  and LLVM. The execution-quality framework requires real-application evidence rather
+  than compiler-activity counts. CAP-005 implements only the bound-free CopyData
+  transport foundation needed before trait-bounded operations; it does not claim the
+  example's `Comparable` semantics, full generics, or benchmark readiness.
+- Observed behavior and hypothesis: the active parser retains top-level generic
+  functions, type parameters, bounds, and `where` metadata. A definition such as
+  `fn identity<T>(value: T) -> T { value }` currently passes legacy semantic
+  characterization, but every executable call has no admitted signature and checked
+  admission independently rejects the template with `generic function IR is not
+  admitted in CORE-010`. The disconnected legacy `generic_resolver.rs` is not part of
+  the canonical compiler graph and contains heuristic/placeholder trait behavior, so
+  it is not trusted evidence. Existing nongeneric function contracts already execute
+  every admitted recursive finite CopyData type, and CAP-003/CAP-004 establish shared,
+  idempotent contextual specialization patterns. One shared generic-function authority
+  can validate parametric transport, infer exact call substitutions, create private
+  nongeneric specializations, and reuse the existing checked function pipeline.
+- Frozen positive class: a uniquely named top-level non-entry function declares one or
+  more unique type parameters and no trait or `where` bounds. Each type parameter must
+  appear as the complete annotation of at least one value parameter, so every
+  substitution is inferred from arguments and never from an expected result. A
+  parameter/result annotation is either one of those exact type parameters or an
+  already admitted concrete recursive finite CopyData type; `Void` remains permitted
+  only as the existing omitted result, never as a type argument. At each call, every
+  type-parameter position receives an exact recursive finite CopyData argument and all
+  repeated occurrences unify identically. Concrete parameter positions retain exact
+  existing matching. All declared type parameters must resolve, multiple type
+  parameters and parameter orderings are handled by the same substitution predicate,
+  and multiple concrete instantiations may coexist deterministically.
+- Parametric body boundary: type-parameter values may be copied only as whole values
+  through direct parameters, explicitly annotated direct local bindings/reassignment,
+  branch selection, and returns. Conditions and all non-parametric expressions must
+  use already admitted concrete behavior. A type-parameter value may not be an
+  arithmetic/logical/comparison operand, receiver, callee, index, projection root,
+  dereference, borrowed place, mutation target, aggregate element/field, pattern
+  scrutinee, print/output argument, or argument to another call. This is one shared
+  transport predicate, not per-type or per-order guards. Each concrete specialization
+  must then pass ordinary semantic analysis and independent checked admission exactly
+  as if the equivalent nongeneric function had been written by hand.
+- Frozen negative boundary: missing/extra/duplicate/unused/result-only/unresolved type
+  parameters; conflicting repeated substitutions; non-CopyData, `String`, reference,
+  owned enum/carrier, collection, type-parameter, closure, trait-object, or cyclic
+  arguments; bounds/`where`; generic methods/impls/traits/enums; nested/local/entry
+  generic functions; recursion or generic-to-generic calls; generic applications
+  nested in generic parameter/result annotations; inference from expected results;
+  overloads, defaults, specialization, conversions, higher-kinded types, variadics,
+  reference results, callable ABI, heap/drop/lifetime/NLL/unsafe behavior, public symbol
+  or layout stability, FFI, accelerators, benchmarks, releases, production, performance,
+  stability, or general memory-safety claims remain excluded. Every executable use
+  outside the positive class must fail before checked IR through both trusted routes.
+- Before/after real-program delta: before CAP-005, Aero programs must duplicate the
+  same type-independent helper for `int`, `char`, arrays, structs, and accepted generic
+  structs; parsed `fn choose<T>(first: T, second: T, use_first: bool) -> T` cannot be
+  called. After CAP-005, that one function can select and return any admitted CopyData
+  value, with multiple concrete instantiations in one program. The representative
+  telemetry application must use the same generic helper for at least two materially
+  different accepted types while preserving its exact output and exit sentinel 91.
+- Mechanism: introduce one shared, idempotent pre-semantic/pre-checked-admission
+  generic-function authority. It inventories templates and exact call sites, validates
+  the complete frozen declaration/call/body product, derives collision-checked private
+  specializations from canonical concrete type identities, substitutes all parameter,
+  result, local annotation, and retained type identities, rewrites calls consistently,
+  removes executable templates before checked IR, and emits deterministic source-
+  readable LLVM specialization names without promising a stable ABI. Semantic analysis
+  and checked admission must invoke the same authority; no duplicate guard, heuristic
+  fallback, runtime type tag, boxing, or disconnected legacy resolver activation is
+  permitted.
+- Assumptions and evidence: parser/AST retention is covered by active strict tests;
+  accepted scalar, recursive CopyData, array/tuple/struct, and CAP-004 concrete-generic
+  function contracts already prove the specialized ABI and verifier path; the existing
+  named-call authority provides exact arity/type failure after specialization; private
+  identity precedent exists in CAP-003/CAP-004. The red test must prove both current
+  public-call rejection and semantic-independent checked rejection rather than treating
+  definition-only semantic success as capability.
+- Measurement and decision threshold: before production mutation, one focused target
+  must run red on a called generic `choose<T>` over at least two admitted concrete
+  types. Its completed product must cover every type-parameter count/order/repetition
+  rule, every admitted whole-value transport statement, multiple definitions and
+  instantiations, concrete CopyData arguments including a CAP-004 generic struct,
+  deterministic checked IR/LLVM, direct modules, public check/build/run, and native
+  execution. Negative groups must cover every frozen exclusion through semantic,
+  semantic-independent checked, and public routes. Corruption controls must reject
+  private specialization/name/signature/substitution mismatch. Merge additionally
+  requires representative-program enrichment, affected compatibility rings,
+  formatting, correctness-denying Clippy, docs, `git diff --check`, exact root
+  `./tools/test.sh`, pinned LLVM 22 external and machine verification, Linux/Windows
+  native `-O0`/`-O2`, one bounded exact-head PR, protected merge, and exact merge-head
+  workflows.
+- Failure modes and detection: unsound traitless operations are caught by the shared
+  parametric-body classifier; inconsistent inference by repeated/multi-parameter calls;
+  identity collision or specialization confusion by adversarial names and verifier
+  mutations; source/admission drift by raw-AST checked tests; accidental runtime
+  polymorphism by LLVM symbol/layout assertions; private-name leakage by diagnostics;
+  missed call rewriting or template escape by checked admission; wrong copy/return
+  behavior by multiple concrete native results; invalid IR by the independent verifier,
+  official LLVM 22, and machine lowering; optimizer/platform drift by Linux/Windows
+  `-O0`/`-O2` equivalence.
+- Allowed files: one new shared generic-function contract module and registration;
+  `semantic_analyzer.rs` and `ir_generator.rs` only to invoke it and remove superseded
+  outer rejection; directly coupled AST/type/function-contract/display/verifier/backend
+  code only if the red proof requires exact specialization identity; one focused
+  integration target; the representative specimen/test; minimal workflow anchors; and,
+  only after the exact candidate is green, directly affected project-state, matrix,
+  roadmap, framework, README, and this existing authorization record. No dependency,
+  package, release, benchmark, claim-verification, protection, master, external
+  repository, or unrelated test/spec change is authorized.
+- Recovery and stop conditions: one bounded CAP-005 PR is the rollback boundary. Stop
+  rather than approximate if exact argument types cannot be recovered by one shared
+  authority without a second semantic engine; if parametric body safety requires trait
+  semantics; if generic calls require new syntax; if the specializer changes source
+  evaluation order; if generic recursion, heap/drop/lifetime, public ABI, or more than
+  the expected semantic-to-checked-IR vertical slice becomes necessary; if an unrelated
+  baseline is red; or if any accepted test/spec must be weakened. Candidate and public
+  acceptance remain separate and the four scaling controls remain active.
+- Strategic value and what would change our mind: CAP-005 turns CAP-004's reusable data
+  definitions into reusable type-independent program logic, advances Milestone 2's
+  substitution requirement, and enriches the representative application without
+  pretending traits or collections exist. Evidence that the accepted function pipeline
+  cannot be reused without duplicating inference, that abstract transport cannot be
+  validated before specialization, that a canonical Milestone 0 residual blocks trusted
+  publication, or that a source-grounded collection/import architecture can deliver
+  greater real-program payoff at lower risk would stop CAP-005 and reorder the ranking.
+
+### CAP-005 exact red checkpoint
+
+- Before any production compiler mutation, focused command `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test generic_copydata_function_tests --
+  --nocapture` runs exactly 0/2 green. The active parser retains one bound-free
+  `choose<T>` definition and three calls over `int`, `char`, and accepted
+  `Reading<int>`. Public semantic analysis reaches the existing shared named-call
+  boundary: `Unsupported function call choose: Function choose has no admitted
+  executable signature.` Semantic-independent checked admission reaches the distinct
+  legacy boundary: `generic function IR is not admitted in CORE-010`.
+- The immutable red source already requires branch-based whole-value selection,
+  repeated `T` unification, a concrete Boolean side parameter, multiple concrete
+  instantiations, CAP-004 generic-struct composition, deterministic semantic/raw-
+  checked LLVM equality, distinguishable source-readable specialization names, and no
+  private identity leakage. The full declaration/call/body product, negative matrix,
+  modules/native product, representative application, and corruption controls must be
+  completed behind this same class boundary. No production source or accepted test was
+  changed; user/app-owned untracked directories and the quarantined stash remain
+  untouched.
+
+### CAP-005 exact green candidate checkpoint
+
+- Implementation summary: one new shared `generic_function_contract` authority now
+  owns eligibility, complete parametric whole-value transport validation, exact
+  recursive-CopyData call substitution, deterministic collision-checked private
+  specialization identity, call rewriting, and template removal. Both semantic
+  analysis and raw checked admission invoke that same idempotent authority before
+  their ordinary function pipelines. The independent verifier reconstructs the
+  canonical substitution/signature proof, and the backend renders source-readable
+  quoted specialization symbols. No runtime type metadata, boxing, generic callable
+  ABI, trait behavior, or second executable semantic engine was added.
+- Executable real-program delta: the focused product executes one `choose<T>` over
+  scalars, arrays, tuples, ordinary structs, and `Reading<int>`; it also proves two
+  type parameters, reordered and repeated occurrences, concrete side parameters and
+  results, annotated local initialization/reassignment, branch selection, multiple
+  definitions, multiple specializations, deterministic raw/public checked IR and
+  LLVM, direct modules, and public `check`/`build`/`run`. The maintained telemetry
+  application uses the same helper for `Reading<int>` and `Reading<char>` and retains
+  exact `telemetry score: 91` output and exit 91.
+- Exhaustive boundary evidence: focused target
+  `generic_copydata_function_tests` passes 5/5; shared contract unit controls pass
+  2/2; the verifier's private generic-function signature/substitution corruption
+  control passes. The negative product covers missing, extra, duplicate, unused, and
+  result-only parameters; conflicts; invalid arguments; bounds/`where`; nested or
+  method-like placements; recursion and generic-to-generic calls; all forbidden
+  abstract-value uses; wrong arity/type; and preserved legacy topologies through
+  semantic, raw checked-admission, and public routes. Existing generic-struct,
+  frontend, checked-IR, binding, ownership/reference/enum/array/tuple/module, and
+  CORE-043--090/CAP-001--004 compatibility remains green.
+- Complete local evidence: normalized root `./tools/test.sh` passes 232 library tests,
+  32 binary tests, every integration target, doc tests, formatting, and
+  correctness-denying Clippy. `git diff --check` passes. With pinned LLVM/Clang
+  22.1.8, public verified build plus independent `opt -passes=verify`,
+  `llc -verify-machineinstrs`, and `clang` links pass; independent Windows `-O0` and
+  `-O2` executables both print exact `telemetry score: 91`, write no stderr, and exit
+  91. Public `aero run` prints exact `Output: telemetry score: 91`, writes no stderr,
+  and exits 91.
+- Files changed: `src/compiler/src/generic_function_contract.rs`; minimal registration
+  and shared-pipeline/backend/verifier integration in `lib.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, `generic_struct_contract.rs`,
+  `struct_contract.rs`, `ir_verifier.rs`, and `code_generator.rs`; focused and
+  representative tests plus the state-claim contract that forbids stale next-action
+  text; the two representative source files; and, only after the
+  exact code candidate was green, the directly affected state/matrix/roadmap/
+  framework/README and this ledger record. User/app-owned untracked directories and
+  quarantined stash remain untouched.
+- Remaining uncertainty and exclusions: the conservative prepass recovers only the
+  exact source expression types required by the frozen class; every generated
+  specialization is still validated by ordinary semantics and independent checked
+  admission. Bounds/traits, generic operations/methods/enums/impls, recursion,
+  generic-to-generic calls, result-only inference, nested generic signatures,
+  non-CopyData arguments, runtime polymorphism, collections, heap/drop/lifetimes,
+  public ABI, accelerators, releases, benchmarks, stability, and general memory-safety
+  claims remain excluded. Public acceptance remains CAP-004 until exact-head review,
+  protected merge, and merge-head workflows pass.
+- Regression risk, recovery, and next action: the main risks are specialization
+  identity confusion, divergence between semantic and checked routes, and accidental
+  admission of an abstract operation. Shared idempotence/body classification, exact
+  verifier proof, three-route negatives, corruption controls, compatibility rings,
+  the representative gate, and LLVM/native execution detect them. The bounded CAP-005
+  branch/PR is the clean rollback boundary. Publish one intentional candidate commit,
+  keep the PR title/body synchronized to its exact head and exclusions, verify every
+  public workflow, merge only through protected `master`, then perform one bounded
+  accepted-truth synchronization before selecting another capability.
+
 ## CAP-004 post-merge project-truth correction
 
 - Date/task/status: 2026-08-11, `CAP-004-POSTMERGE-TRUTH`, authorized bounded

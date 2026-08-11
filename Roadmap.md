@@ -29,6 +29,19 @@ remains a bounded Milestone 1 primitive-constant slice; accepted CORE-083 throug
 CORE-090 are useful but partial Milestone 2 reference, ownership, and aggregate-
 composition fragments.
 
+The required post-CAP-004 milestone-gap audit and three-gap ranking are complete in
+the CAP-005 authorization. Bound-free recursive-CopyData generic transport functions
+and the Milestone 0 canonical diagnostic/artifact contract tied at 24; an owned
+dynamic collection foundation scored 22. CAP-005 won the tie because one reusable
+type-independent helper creates a larger immediate real-program delta without
+inventing trait or collection semantics. Its exact local candidate is green: one
+shared compile-time specialization authority handles the bounded whole-value
+transport class, the representative program uses `choose<T>` at `Reading<int>` and
+`Reading<char>`, the complete 232-library/32-binary repository gate passes, and pinned
+LLVM/Clang 22.1.8 verifies and executes exact `-O0`/`-O2` output/exit 91. This remains
+candidate evidence. Accepted public capability stays at CAP-004 until bounded review,
+protected merge, and exact merge-head workflows pass.
+
 CAP-004 was selected by the required fresh post-CAP-003 milestone-gap and three-gap
 ranking. Its accepted real-program delta is reusable data definition: one
 `struct Reading<T>` now supplies independently typed `Reading<int>` and
@@ -355,7 +368,9 @@ CAP-003 does not settle context-free inference, general generics, question-mark
 propagation, collections, String errors, aggregate/reference storage, public ABI, or
 lifetimes/drop. The required fresh three-gap ranking was completed before CAP-004 and
 selected the accepted explicit generic-struct slice; ranks 2 and 3 were not automatic
-follow-ons. Another fresh ranking against accepted CAP-004 is mandatory before CAP-005.
+follow-ons. The next fresh ranking against accepted CAP-004 is now recorded in the
+CAP-005 authorization and selected the exact green local generic-transport candidate;
+it does not become accepted roadmap progress before protected integration.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 

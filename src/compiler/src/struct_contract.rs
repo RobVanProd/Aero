@@ -707,7 +707,12 @@ impl StructRegistry {
                 StructContractError::ProcessEntryStructTransport
             });
         }
-        if !type_params.is_empty() || !admitted_symbol(name) {
+        if !type_params.is_empty()
+            || !crate::generic_function_contract::valid_generic_aware_function_symbol(
+                name,
+                admitted_symbol,
+            )
+        {
             return Err(StructContractError::PreserveExistingBehavior);
         }
 

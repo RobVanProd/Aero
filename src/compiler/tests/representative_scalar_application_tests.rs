@@ -43,8 +43,10 @@ fn main() -> int {
         total = total + step + 1;
         step = step + 1;
     }
-    let delta_reading: Reading<int> = make_reading(4, 3 < 4);
-    let marker: Reading<char> = Reading { value: 'a', valid: 4 < 5 };
+    let delta_reading: Reading<int> = choose(make_reading(4, 3 < 4), make_reading(8, 4 < 3), 4 < 5);
+    let first_marker: Reading<char> = Reading { value: 'a', valid: 4 < 5 };
+    let second_marker: Reading<char> = Reading { value: 'b', valid: 5 < 4 };
+    let marker: Reading<char> = choose(first_marker, second_marker, 5 < 6);
     let accepted_delta: Result<int, char> = validate_delta(reading_value(delta_reading), marker_is_a(marker));
     let rejected_delta: Result<int, char> = validate_delta(8, 4 < 3);
     total = total + resolved_delta(accepted_delta) + resolved_delta(rejected_delta);
@@ -70,6 +72,11 @@ struct Reading<T> { value: T, valid: bool }
 enum Decision {
     Normal(int),
     Alert(int, bool)
+}
+
+fn choose<T>(first: T, second: T, take_first: bool) -> T {
+    if take_first { return first; }
+    second
 }
 
 fn make_sensor(value: int, trusted: bool) -> Sensor {
@@ -340,6 +347,8 @@ fn representative_scalar_application_is_composed_and_portable() {
             "define i32 @reading_value(",
             "%\"aero.struct.Reading<int>\" = type",
             "%\"aero.struct.Reading<char>\" = type",
+            "aero.generic.choose<Reading<int>>",
+            "aero.generic.choose<Reading<char>>",
             "telemetry score: %g",
             "declare void @llvm.trap()",
             "fcmp oge double",

@@ -168,6 +168,21 @@ aero lsp
 > import/name resolution remains high leverage but requires separately frozen namespace
 > and graph semantics first.
 
+> **CAP-005 candidate, not accepted public capability:** the active bounded candidate
+> adds compile-time specialization for unique top-level bound-free generic functions
+> over exact recursive finite CopyData substitutions. Abstract type-parameter values
+> may only be transported whole through direct parameters, explicitly typed locals,
+> branch selection, reassignment, and return. The representative telemetry application
+> uses one `choose<T>` helper for both `Reading<int>` and `Reading<char>` while
+> preserving exact output and exit 91. Focused 5/5, shared-contract 2/2, corruption,
+> compatibility, complete 232-library/32-binary/integration/doc/format/Clippy, and
+> pinned LLVM/Clang 22.1.8 verification plus native `-O0`/`-O2` gates pass locally.
+> Bounds/traits, generic methods/enums/impls, recursive or generic-to-generic calls,
+> operations on abstract values, result-only inference, nested generic signatures,
+> non-CopyData arguments, collections, lifetimes/drop, stable ABI, and general generic
+> or safety claims remain unsupported. The compiler-surface table above continues to
+> describe accepted CAP-004 until protected CAP-005 integration is complete.
+
 > **CAP-004 accepted:** one unique nonempty user-defined generic struct can be
 > instantiated with exact explicit recursive finite CopyData arguments. One shared
 > idempotent authority performs deterministic substitution before semantic analysis and
