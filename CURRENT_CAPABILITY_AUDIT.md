@@ -5,14 +5,14 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-protected CAP-009 compiler-capability merge
-`1ef21c564ec564379e611002b1b321d910a991a3`.
+protected CAP-010 compiler-capability merge
+`f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`.
 
-### CAP-010 local candidate: required-only CopyData trait-bound static dispatch
+### CAP-010 accepted: required-only CopyData trait-bound static dispatch
 
-The working branch contains a green, unaccepted CAP-010 candidate. Before this slice,
+Before this accepted slice,
 accepted generic functions transported whole recursive CopyData values but could not
-invoke behavior supplied by a type argument. The candidate validates one exact
+invoke behavior supplied by a type argument. CAP-010 validates one exact
 required-only trait/impl/bound/call product, specializes each concrete call to an
 immutable-receiver monomorphic helper, and sends that helper through ordinary checked
 function/reference IR and LLVM. The helper's private identity commits to its concrete
@@ -23,11 +23,13 @@ provenance changes.
 Two concrete implementations now compose into the maintained three-file telemetry
 application without changing exact output/exit 91. Focused 3/3, representative 3/3,
 the affected compatibility ring, formatting, Clippy correctness, and the complete
-240-library/35-binary/integration/doc local gate pass. An unsatisfied-bound fixture
-also proves public `check`/`build`/`run` rejection with no artifact. Public CI and
-pinned cross-platform native evidence are not yet available, so accepted-master
-classifications below do not move. General traits/generics and every exclusion listed
-in `TASK_LEDGER.md` remain unsupported.
+240-library/35-binary/integration/doc gate pass. An unsatisfied-bound fixture also
+proves public `check`/`build`/`run` rejection with no artifact. Exact candidate
+`2e0bfde46022b9617095319452e44d14b0ef31f8`, protected PR #42 merge
+`f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`, their shared tree, every candidate
+result, and exact merge-head CI/Rust CI/CodeQL pass. The bounded row is therefore
+accepted `PARTIAL`; general traits/generics and every exclusion listed in
+`TASK_LEDGER.md` remain unsupported.
 
 ### CAP-009 accepted: enforceable `stable-scalar-v0`
 

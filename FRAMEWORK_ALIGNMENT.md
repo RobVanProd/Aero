@@ -59,8 +59,8 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
-CAP-010 is a local green candidate, not accepted public capability. It directly
-advances the founding preference for traits and generics over inheritance: one
+Accepted CAP-010 advances the founding preference for traits and generics over
+inheritance: one
 required-only nongeneric trait can be implemented by multiple recursive finite
 CopyData structs and called from a direct bounded generic parameter through compile-
 time static specialization. The representative telemetry program now applies the same
@@ -68,11 +68,12 @@ policy abstraction to `Sensor` and `Batch`, preserving exact output/exit 91. Pri
 monomorphic helper identities and the independent checked-IR verifier keep this from
 being a name-only or syntax-only claim.
 
-The candidate remains intentionally narrow. It does not establish general trait or
+The accepted slice remains intentionally narrow. It does not establish general trait or
 generic semantics, trait objects, dynamic dispatch, defaults, associated items,
 supertraits, where-only constraints, generic impls, lifetimes/drop, public ABI, memory
-safety, accelerators, or stability. Local proof is green; public exact-head, pinned
-Linux/Windows native, protected merge, and exact merge-head evidence remain pending.
+safety, accelerators, or stability. Exact candidate `2e0bfde46022b9617095319452e44d14b0ef31f8`,
+protected PR #42 merge `f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`, their
+shared tree, pinned Linux/Windows native proof, and exact merge-head workflows pass.
 
 Accepted CAP-009 advances the founding Stabilize direction without
 mislabeling the wider prototype. It introduces an explicitly selected

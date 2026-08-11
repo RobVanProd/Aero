@@ -1,5 +1,68 @@
 # Aero Task Ledger
 
+## CAP-010 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-11, `CAP-010-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from protected PR #42 merge
+  `f77f1a227032008ab3ceadf2e2e3dcaed3b225e9` (tree
+  `0217e2fa98728b2ad101be1ecc85481a8f4145b8`) on
+  `agent/cap-010-acceptance-sync`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Observed behavior and hypothesis: exact candidate
+  `2e0bfde46022b9617095319452e44d14b0ef31f8` passed every candidate-head gate
+  and merged through the normal protected path. Candidate and merge share tree
+  `0217e2fa98728b2ad101be1ecc85481a8f4145b8`; ordered merge parents are prior
+  accepted master `a07a9dfdc93f6c535c300b5523168b6977ec09a6` then exact candidate.
+  Exact merge-head workflows now pass, so CAP-009 baseline and CAP-010
+  candidate-only wording are observability defects that must become immutable
+  accepted-master evidence before another capability is selected.
+- Frozen semantics and allowed files: no compiler, parser, semantic, checked-IR,
+  verifier, backend, CLI, workflow, example, dependency, claim-verification,
+  release, benchmark, protection, or external behavior may change. Only
+  `TASK_LEDGER.md`, `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `README.md`, `CONFORMANCE_PLAN.md`, and exact state assertions in
+  `src/compiler/tests/version_claim_contract_tests.rs` may record the established
+  result.
+- Exact evidence: authorization `4812a79`, red checkpoint
+  `d6b7b4624034e638eb110a94705ff77a9aded4db`, candidate head
+  `2e0bfde46022b9617095319452e44d14b0ef31f8`, protected PR #42 merge
+  `f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`, and shared tree
+  `0217e2fa98728b2ad101be1ecc85481a8f4145b8`. Candidate CI runs
+  `31540211947` and `31540250537`, Rust CI `31540250543`, and CodeQL
+  `31540248956` pass all nine results, including pinned Windows LLVM/Clang 22
+  native execution. Exact merge-head CI `31540589044`, Rust CI `31540589040`,
+  and CodeQL `31540588732` pass on the protected merge.
+- Acceptance tests, failure modes, recovery, and decision threshold: verify every
+  identity, parent order, tree, PR state/body, run SHA/conclusion, changed-file
+  scope, state assertion, Markdown/diff hygiene, and the repository-root gate.
+  Primary failures are broadening this bounded required-only recursive-CopyData
+  static-dispatch slice into general traits/generics, weakening its fail-closed
+  exclusions, or presenting private helper layout as a public ABI. The rollback
+  boundary is this record-only branch/PR. Merge only if every current truth surface
+  calls exactly CAP-010 accepted while Aero remains a Minimal Prototype and all
+  excluded behavior remains unsupported. Any evidence mismatch, non-record
+  mutation, or red gate stops the sync.
+- Local record verification: the focused project-truth contract passes 8/8 and
+  `git diff --check` passes. The first root attempt correctly stopped on formatter
+  drift in the new assertions; formatting was applied without changing behavior.
+  The next attempt passed the unit surface and then exposed only the known Windows
+  CRLF checkout mismatch in byte-identity example tests. After verifying all 122
+  tracked `.aero` files were clean, their worktree bytes were temporarily
+  materialized from the indexed LF blobs; the exact `./tools/test.sh` gate then
+  passed 240 library tests, 35 binary tests, every integration target, doc tests,
+  formatting, and correctness-denying Clippy. The normal CRLF checkout was restored
+  afterward with no indexed or worktree `.aero` diff; user-owned untracked content
+  and the quarantined stash remain untouched.
+- Strategic value and what would change our mind: this restores one source of
+  project truth immediately after the first accepted behavior-polymorphic generic
+  capability and keeps the next selection anchored to Milestone 2 rather than stale
+  CAP-009 status. Evidence that candidate and merge trees differ, a public run did
+  not execute the claimed head, the representative application did not traverse the
+  verifier-bound static-dispatch path, or an excluded trait form reaches checked IR
+  would revoke acceptance and reopen CAP-010 rather than being corrected in prose.
+
 ## CAP-010 - required-only recursive-CopyData trait-bound static dispatch
 
 - Date/task/status: 2026-08-11, `CAP-010`, authorized red-first compiler and
@@ -180,7 +243,7 @@
   parser, semantic, checked-IR, verifier, backend, workflow, example, dependency,
   project-truth, external repository, or user-owned untracked content changed.
 
-### CAP-010 local candidate evidence
+### CAP-010 candidate evidence, accepted through protected PR #42
 
 - One shared `TraitDispatchPlan` now validates the frozen declaration/impl/bound/call
   product before both semantics and semantic-independent checked admission, removes
@@ -206,10 +269,12 @@
   recursive-CopyData result rejection; the source remains rejected. The exact rerun
   of `./tools/test.sh` passes 240 library tests, 35 binary tests, every integration
   target, doc tests, formatting, and correctness-denying Clippy.
-- This remains local candidate evidence. Public exact-head workflows, pinned LLVM/
-  Clang 22 Linux/Windows external, machine, object, link, and native `-O0`/`-O2`
-  evidence, protected merge, and exact merge-head workflows are pending. Accepted
-  public master and all accepted project-truth claims remain CAP-009.
+- Exact candidate `2e0bfde46022b9617095319452e44d14b0ef31f8` passed all nine
+  public results, including pinned LLVM/Clang 22 Windows native execution. Protected
+  PR #42 merged it as `f77f1a227032008ab3ceadf2e2e3dcaed3b225e9` with identical
+  tree `0217e2fa98728b2ad101be1ecc85481a8f4145b8`; exact merge-head CI
+  `31540589044`, Rust CI `31540589040`, and CodeQL `31540588732` pass. CAP-010
+  is accepted public capability within its frozen boundary.
 
 ## CAP-009 accepted-master project-truth synchronization
 
