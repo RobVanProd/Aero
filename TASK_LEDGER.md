@@ -1,5 +1,175 @@
 # Aero Task Ledger
 
+## CAP-001 - verified runtime fixed-array reads
+
+- Date/task/status: 2026-08-11, `CAP-001`, authorized tests-first executable
+  vertical slice from accepted public master
+  `29019ff114f668a37eac429dc6f7905ab97fa6fb`, whose compiler-capability parent is
+  accepted M1-001 merge `d7d1c7682911503470a19c97acb72d231824b193`.
+  Work belongs only on `agent/cap-001-verified-runtime-array-indexing`;
+  user-owned untracked `tmp/` remains outside the task. The quarantined CORE-091
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remains unpublished and must not
+  be applied or dropped.
+- Post-M1 once-per-class audit and ranking: accepted M1-001 closes the first
+  representative scalar application gate, so three remaining project gaps were
+  re-ranked rather than inheriting ROADMAP-001's pre-M1 order. Scores are 1--5,
+  with higher `Risk` and `Evidence` scores meaning more favorable delivery:
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Verified runtime reads from fixed arrays | 5 | 4 | 5 | 5 | 3 | 4 | 26 |
+  | 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+  | 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
+
+  Runtime fixed-array reads are selected because they close an active trusted
+  miscompilation while enabling ordinary variable-indexed algorithms. The
+  Milestone 0 contract remains the next correctness control but is primarily a
+  consolidation/evidence task. Positive imports remain strategically important,
+  but current direct-module collection flattens module identity and both retained
+  import syntaxes are deliberately fail-closed; selecting imports now would require
+  unresolved namespace, collision, alias, visibility, and graph decisions.
+- Observed behavior and reproduction: for `let values = [10, 20]; let index = 5;
+  values[index]`, public `check` exits 0, externally verified public `build` exits
+  0, and generated LLVM contains an unchecked `getelementptr inbounds [2 x
+  double]` using the converted runtime register with no comparison, branch, or
+  trap. Pinned LLVM/Clang 22.1.8 then executes the out-of-bounds program and the
+  public runner falsely reports successful exit 0. Semantic analysis and
+  semantic-independent checked admission both route every nonconstant `int` index
+  for an admitted nonempty recursive CopyData fixed array through the shared
+  `classify_copy_array_index` contract. `CheckedCopyStructArrayElementPtr` retains
+  the array count and element schema, and the independent verifier checks both plus
+  constant bounds, but checked code generation currently emits the dynamic
+  `inbounds` access without honoring the instruction's checked runtime meaning.
+- Complete class and frozen semantics: the class is every value read whose receiver
+  has an admitted nonempty recursive CopyData fixed-array type and whose index has
+  semantic type `int` but is not a compile-time integer constant. Receiver origin,
+  expression nesting, element topology, function/module placement, and index
+  expression shape do not create separate rules. A runtime index in `0..count`
+  selects and copies the same element as the corresponding accepted constant index.
+  A runtime index less than zero or greater than or equal to `count` must terminate
+  abnormally before address formation or memory access. The source-level contract is
+  only the already specified runtime bounds error; its current implementation is a
+  private `llvm.trap` with no stable diagnostic, status value, panic ABI, or FFI
+  promise. Compile-time constants retain the shared existing in-range admission and
+  deterministic out-of-range diagnostic. Zero-length indexing remains rejected.
+  Dynamic projected assignment, projected borrowing, slices, collections, enum
+  aggregate storage, integer-representation redesign, and stable runtime/ABI
+  semantics do not move.
+- Before/after real-program delta: before this task, a program cannot safely select a
+  fixed-array element using a loop counter, function result, parameter, or other
+  runtime integer; even an obvious out-of-bounds value can compile as `inbounds` and
+  falsely execute successfully. After it, bounded searches, table lookups, and
+  application state selection can use variable indexes through checked IR and
+  verified native execution, while every runtime miss fails before access. The
+  representative telemetry application will use a computed variable index so the
+  capability is proved in composition rather than only in a micro-test.
+- Mechanism: retain the one shared semantic/admission classifier and the atomic
+  `CheckedCopyStructArrayElementPtr` IR contract. Checked code generation must lower
+  every nonconstant index through one shared guard: compare the physical numeric
+  value as ordered and nonnegative and strictly below the retained array count,
+  branch to a trap block on failure, and perform integer conversion plus `inbounds`
+  address formation only in the success block. Emit the private trap declaration
+  only for modules containing this dynamic checked operation. Constant accesses keep
+  their existing direct lowering. No duplicated source-topology guard is permitted.
+- Assumptions and evidence: `docs/language/aero_type_system.md` states that an
+  out-of-bounds array index is a compile-time or runtime error; the accepted
+  recursive CopyData classifier defines the executable fixed-array universe; checked
+  IR retains exact element/count metadata; the verifier independently reconstructs
+  the base array contract and index type; and LLVM 22 defines ordered floating-point
+  comparisons, `llvm.trap`, and verified control flow suitable for this private
+  lowering. Source inspection and the reproduced public check/build/run behavior
+  prove the active defect. Existing constant-bound, schema/count corruption, type,
+  recursive aggregate, function/module, and native array tests prove the assumptions
+  that this task must preserve.
+- Measurement and decision threshold: merge requires a red-first focused test that
+  fails on the missing dynamic guard; in-range dynamic reads for primitive and
+  recursive CopyData elements, nested/field receivers, computed indexes, and internal
+  function/module composition; negative and upper-bound native failures before any
+  following observable effect; constant-bound diagnostic parity; checked-IR schema,
+  count, type, and constant-bound corruption controls; representative telemetry use
+  of a computed index; deterministic LLVM; LLVM 22 verification and machine
+  verification; Linux and Windows `-O0`/`-O2` exact in-range behavior plus nonzero
+  out-of-bounds termination; focused and adjacent tests; formatting, correctness-
+  denying Clippy, docs, `git diff --check`, the complete root gate, all exact-head
+  public workflows, protected merge, and exact post-merge gates.
+- Failure modes and detection: converting before the guard can create poison and is
+  detected by LLVM-shape assertions requiring conversion only in the success block;
+  negative, equal-to-count, or larger indexes reaching a GEP are detected by native
+  trap specimens at both optimization levels; accepting NaN/unordered physical values
+  is prevented by ordered comparisons and covered by LLVM-shape review; wrong count,
+  base, element, index type, or constant bounds remain verifier corruptions; a guard
+  added only for one syntax topology is detected by the cross-context matrix; an
+  unconditional trap or changed element value is detected by the representative and
+  in-range native exits; optimizer/platform divergence is detected independently on
+  Linux and Windows; and unrelated LLVM churn is detected by conditional trap
+  declaration tests and existing deterministic-output suites.
+- Recovery: the clean rollback boundary is one bounded CAP-001 PR. The production
+  change is restricted to the checked backend lowering of the already verified array
+  element-pointer instruction; tests, the runtime-fail specimen, representative
+  enrichment, proportional workflow anchors, and post-green truth updates are
+  separable evidence. Revert restores the prior behavior without touching the
+  quarantined CORE-091 work or any unrelated user file.
+- Strategic value: this is the first post-M1 capability selected by real-program
+  payoff. It turns fixed arrays from constant-address aggregates into safe runtime-
+  selectable state, unlocks ordinary bounded algorithms, strengthens the typed-IR to
+  LLVM trust boundary, and enriches the representative application while closing a
+  critical false-success.
+- What would change our mind: evidence that accepted source semantics require a
+  recoverable result instead of a runtime error, that `llvm.trap` can be bypassed or
+  optimized into an access on either pinned target, that the retained count cannot be
+  independently trusted, that in-range dynamic reads require a stable ABI or ownership
+  decision, or that the full class cannot be closed by the one atomic checked
+  operation stops this design. Evidence that module namespaces or the canonical M0
+  contract can be completed with lower risk while this defect must remain quarantined
+  would reorder the ranking; a neighboring index/receiver permutation alone would
+  not.
+- Exact red checkpoint: before any production, representative-program, workflow, or
+  project-state mutation, new focused target
+  `runtime_fixed_array_index_tests` runs 2 tests: the constant-index no-trap control
+  passes and `dynamic_fixed_array_index_is_guarded_before_inbounds_address_formation`
+  fails at its first required ordered nonnegative comparison. The generated LLVM
+  instead converts the runtime register immediately and emits unchecked `inbounds`
+  address formation, matching the public pinned-tool reproduction. This is the
+  authoritative red for the complete dynamic-read class; no per-receiver or per-index
+  audit follows.
+- Evidence-scope amendment before specimen work: the negative and equal-to-count
+  native failure classes cannot both execute from one process because the first
+  required trap terminates it. The singular runtime-fail fixture allowance is
+  therefore refined to one two-file runtime-fail corpus, not two language tasks or
+  topology rules. Both files exercise the same checked operation and shared guard;
+  no additional production phase or semantic behavior is authorized.
+- Local green candidate evidence: focused CAP-001 passes 4/4 across primitive,
+  recursive-struct/field, nested, computed, function-transport, constant-bound, and
+  conditional-declaration controls. Representative M1-001 remains 3/3 after computed
+  index enrichment. All 218 library tests, checked-IR corruption controls, adjacent
+  array transports, and Windows workflow self-contracts pass. The complete root gate
+  exits 0 with 218 library tests, 32 binary tests, every integration target, formatting,
+  correctness-denying Clippy, and doc tests. Official local LLVM/Clang 22.1.8
+  externally and machine verifies the representative and both failure specimens;
+  Windows representative executables at `-O0` and `-O2` both print exact
+  `telemetry score: 91` and exit 91. A first root wrapper reached its command timeout
+  while tests were still running; its interrupted normalization was detected and all
+  115 tracked Aero files were restored before the same gate reran to completion.
+  Exact candidate identity, public failure execution, exact-head checks, protected
+  merge, and post-merge verification remain pending; no public acceptance is claimed.
+- Frozen implementation commit: `77a5c6457f3e87d79a0d1987bf02b4db32b875de`,
+  tree `555e5290fe8ece199a64d8b0b7450ee411f75b23`, stable patch ID
+  `b80e014125340632d7f9fe411434ed75ad1f838a`. The succeeding candidate-head commit
+  is restricted to this identity amendment and the matching current-state sentence;
+  it changes no compiler, specimen, test, workflow, matrix classification, or claim.
+- Allowed files: this ledger record; one focused runtime-index integration test;
+  existing array/codegen/verifier tests only where required for shared-class
+  corruption controls; `src/compiler/src/code_generator.rs`; the representative
+  telemetry root and one tracked two-file runtime-fail corpus; proportional Linux/Windows
+  anchors in `.github/workflows/rust.yml`; and post-green updates to
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `README.md`, and
+  `FRAMEWORK_ALIGNMENT.md`. Parser, AST, semantic analyzer, shared classifier,
+  checked admission, IR schema, runtime libraries, dependencies, release/package/
+  benchmark/claim-verification files, protection settings, master, the CORE-091
+  stash, and `tmp/` are not authorized unless red evidence contradicts this bounded
+  contract and the record is amended before any wider change.
+
 ## M1-001 - representative scalar telemetry application and conformance gate
 
 - Date/task/status: 2026-08-10, `M1-001`, accepted tests-first integration

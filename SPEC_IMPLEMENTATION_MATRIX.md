@@ -2,6 +2,11 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
+Current accepted public master is `29019ff114f668a37eac429dc6f7905ab97fa6fb`;
+accepted compiler-capability master is M1-001 merge `d7d1c7682911503470a19c97acb72d231824b193`.
+CAP-001 runtime-index evidence below is a local candidate until exact public gates and
+protected acceptance pass.
+
 This matrix records stages independently. `Y` means direct evidence for the
 listed slice, `P` means partial or known-defective support, `N` means absent,
 `?` means not yet verified, and `—` means not applicable. The only feature-level
@@ -31,7 +36,8 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | While/for/loop/break/continue | Y | Y | P | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Strings and formatting | Y | P | P | — | P | P | P | P | P | Y | P | P | Y | PARTIAL |
 | Shared intrinsic method classification | P | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Fixed arrays | Y | Y | Y | P | P | P | P | P | ? | Y | P | P | Y | PARTIAL |
+| Fixed arrays | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |
+| Runtime-indexed reads of nonempty recursive CopyData fixed arrays (`CAP-001` candidate) | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fixed arrays of all-scalar Copy structs | Y | — | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Tuples | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Struct declarations | Y | Y | P | P | P | N | P | P | P | Y | Y | Y | Y | PARTIAL |
@@ -225,6 +231,19 @@ exact-head checks, protected PR #19 merged it as `d7d1c768`, and all three post-
 workflows pass. The representative application/conformance-subset workflow below is
 therefore `END_TO_END`; each component language row remains `PARTIAL`, and no row is
 `STABLE`.
+
+Local CAP-001 closes one fixed-array read false-success without adding a data topology.
+Every nonconstant semantic `int` index into the existing admitted nonempty recursive
+CopyData array universe lowers through one ordered nonnegative/below-count branch;
+failure invokes a private trap before conversion or address formation, while success
+forms the typed `inbounds` address. Constant indexes keep their compile-time diagnostic
+and direct lowering. The representative application composes computed reads; a two-
+file runtime-failure corpus covers negative and equal-to-count values. Focused 4/4,
+representative 3/3, 218 library tests, the full root gate, and local LLVM 22 external/
+machine verification plus Windows representative `-O0`/`-O2` exit 91 pass. Public
+Linux/Windows failure execution and acceptance remain pending. Dynamic writes,
+projected borrowing, collections, stable runtime/ABI behavior, and general array or
+memory-safety claims remain absent, so both rows remain `PARTIAL`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

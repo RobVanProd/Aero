@@ -12,7 +12,8 @@ fn main() -> int {
     batch.meta.0 = 4;
     batch.meta.1 = 2 > 1;
 
-    let observed = batch.sensors[0].value;
+    let first_sensor_index = 0;
+    let observed = batch.sensors[first_sensor_index].value;
     let observed_ref = &observed;
     let bias = batch.meta.0;
     let mut total = batch.sensors[1].value + batch.sensors[2].value;
@@ -32,7 +33,7 @@ fn main() -> int {
         total = 1;
     }
 
-    let trusted = batch.sensors[0].trusted;
+    let trusted = batch.sensors[first_sensor_index].trusted;
     let decision = classify(total, trusted);
     let score = decision_score(decision);
     println!("telemetry score: {}", score);

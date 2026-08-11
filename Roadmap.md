@@ -1,6 +1,6 @@
 # Aero Development Roadmap
 
-Last updated: 2026-08-10 (America/New_York)
+Last updated: 2026-08-11 (America/New_York)
 
 This roadmap translates Aero's founding Design -> Minimal Prototype -> Self-Host
 -> Stabilize -> Optimize path into evidence-gated engineering milestones. A
@@ -12,8 +12,9 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-The current accepted master is M1-001 merge
-`d7d1c7682911503470a19c97acb72d231824b193`.
+The current accepted public master is PR #20 acceptance-sync merge
+`29019ff114f668a37eac429dc6f7905ab97fa6fb`; its accepted compiler-capability
+baseline is M1-001 merge `d7d1c7682911503470a19c97acb72d231824b193`.
 Exact CORE-090 candidate `af68d0e`, all nine
 exact-head checks, protected PR #17, post-merge CI/Rust CI/CodeQL, the full root gate,
 and pinned LLVM/Clang 22.1.8 Linux/Windows native exit 90 pass. CORE-090 adds only
@@ -236,6 +237,33 @@ nonportable behavior, optimizer divergence, or evidence that a different task cl
 later gaps more safely would still change future decisions. Before another
 implementation, at least three remaining gaps must be re-ranked against this accepted
 baseline rather than inheriting the old order.
+
+### Post-M1 ranking and CAP-001 candidate
+
+The required post-M1 comparison is complete. Scores retain the same 1--5 convention;
+`Risk` and `Evidence` reward more favorable delivery.
+
+| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | Verified runtime reads from fixed arrays (`CAP-001` candidate) | 5 | 4 | 5 | 5 | 3 | 4 | 26 |
+| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
+
+Before CAP-001, ordinary variable indexing can compile to unchecked LLVM `inbounds`
+address formation and an out-of-range program can falsely succeed. The local candidate
+adds one backend-wide ordered bounds guard for every nonconstant read over the existing
+recursive CopyData fixed-array class, enriches the representative telemetry program
+with computed reads, and adds negative/equal-to-count runtime controls. Local focused,
+representative, root, LLVM/machine, and Windows `-O0`/`-O2` positive gates pass; exact
+public Linux/Windows failure execution and protected acceptance remain pending. The
+source contract is only a runtime bounds error; the private trap has no stable status,
+diagnostic, ABI, or recovery promise. Dynamic writes, projected borrowing, collections,
+and general memory safety remain open.
+
+What would change the decision: evidence that runtime bounds errors must be recoverable,
+that the private trap can be optimized past an access, that retained array counts are
+not independently trustworthy, or that this class requires an unresolved ownership or
+stable-ABI decision stops CAP-001. A neighboring receiver/index permutation does not.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 

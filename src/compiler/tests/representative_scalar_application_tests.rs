@@ -25,7 +25,8 @@ fn main() -> int {
     batch.meta.0 = 4;
     batch.meta.1 = 2 > 1;
 
-    let observed = batch.sensors[0].value;
+    let first_sensor_index = 0;
+    let observed = batch.sensors[first_sensor_index].value;
     let observed_ref = &observed;
     let bias = batch.meta.0;
     let mut total = batch.sensors[1].value + batch.sensors[2].value;
@@ -45,7 +46,7 @@ fn main() -> int {
         total = 1;
     }
 
-    let trusted = batch.sensors[0].trusted;
+    let trusted = batch.sensors[first_sensor_index].trusted;
     let decision = classify(total, trusted);
     let score = decision_score(decision);
     println!("telemetry score: {}", score);
@@ -139,6 +140,26 @@ fn main() -> int {
         Decision::Normal(value) => value,
         Decision::Alert(value, trusted) => value
     }
+}
+"#;
+
+const NEGATIVE_INDEX_SOURCE: &str = r#"fn main() -> int {
+    let values = [10, 20];
+    let zero = 0;
+    let index = zero - 1;
+    let selected = values[index];
+    println!("unreachable negative index: {}", selected);
+    0
+}
+"#;
+
+const UPPER_BOUND_INDEX_SOURCE: &str = r#"fn main() -> int {
+    let values = [10, 20];
+    let count = 2;
+    let index = count;
+    let selected = values[index];
+    println!("unreachable upper-bound index: {}", selected);
+    0
 }
 "#;
 
@@ -254,6 +275,9 @@ fn representative_scalar_application_is_composed_and_portable() {
             "define i32 @add_bias(",
             "define i32 @decision_score(",
             "telemetry score: %g",
+            "declare void @llvm.trap()",
+            "fcmp oge double",
+            "fcmp olt double",
         ] {
             if !first.contains(anchor) {
                 failures.push(format!("representative LLVM omitted anchor {anchor:?}"));
@@ -326,6 +350,11 @@ fn representative_scalar_application_is_composed_and_portable() {
             "compile_fail/wrong_policy_argument.aero",
             WRONG_POLICY_ARGUMENT_SOURCE,
         ),
+        ("runtime_fail/negative_index.aero", NEGATIVE_INDEX_SOURCE),
+        (
+            "runtime_fail/upper_bound_index.aero",
+            UPPER_BOUND_INDEX_SOURCE,
+        ),
     ] {
         let path = repository.join(EXAMPLE_DIRECTORY).join(relative);
         match fs::read_to_string(&path) {
@@ -351,6 +380,9 @@ fn representative_scalar_application_is_composed_and_portable() {
                 "representative_telemetry.o2",
                 "telemetry score: 91",
                 "representative telemetry test passed with exit code 91",
+                "negative_index.aero",
+                "upper_bound_index.aero",
+                "runtime bounds failure corpus passed at O0 and O2",
                 "Test representative telemetry application on Windows at O0 and O2",
             ] {
                 if !workflow.contains(anchor) {
