@@ -2,21 +2,22 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-010 merge
-`f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`. Exact candidate
-`2e0bfde46022b9617095319452e44d14b0ef31f8` and the merge have identical tree
-`0217e2fa98728b2ad101be1ecc85481a8f4145b8`; candidate CI
-`31540211947`/`31540250537`, Rust CI `31540250543`, CodeQL `31540248956`,
-protected integration, merge-head CI `31540589044`, Rust CI `31540589040`, and
-CodeQL `31540588732` pass, including pinned LLVM/Clang 22 Linux/Windows native
+Latest accepted compiler-capability master is protected CAP-011 merge
+`34b81eee1d598cbd00693f40301f1a4f72481d07`. Exact candidate
+`dea5714e87e1fe3c059717b3e5aa23b8860b62f2` and the merge have identical tree
+`b16d5f68e791c969a0aa81723801b2d1ae7c7f41`; candidate push/PR CI
+`31546356295`/`31546382195`, Rust CI `31546382191`, CodeQL `31546380741`,
+protected integration, merge-head CI `31546637614`, Rust CI `31546637544`, and
+CodeQL `31546636973` pass, including pinned LLVM/Clang 22 Linux/Windows native
 `-O0`/`-O2` gates.
 
-Local CAP-011 candidate checkpoint `24db04a` composes the existing generic-struct,
+Accepted CAP-011 composes the existing generic-struct,
 generic-function, fixed-array, runtime-index, and projected-write rows into a bounded
 fixed-capacity `Window<T>` algorithm slice. Focused 4/4, representative 3/3, private
 identity mismatch, complete root, check, doc, format, and diff gates pass locally.
-Exact candidate-head pinned LLVM/native workflows and protected integration are
-pending, so no accepted row or public baseline is reclassified by this paragraph.
+Exact candidate-head pinned LLVM/native workflows, protected integration, and exact
+merge-head checks pass. This remains a `PARTIAL` generics/collections slice; no row is
+promoted to general or stable support.
 
 Accepted CAP-010 adds one bounded partial row for required-only nongeneric traits
 implemented by recursive finite CopyData
@@ -138,6 +139,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Explicit user-defined recursive-CopyData generic enums (accepted `CAP-006`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | P | P | P | P | P | P | Y | PARTIAL |
 | Required-only recursive-CopyData trait-bound static dispatch (accepted `CAP-010`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Fixed-capacity generic CopyData container algorithms (accepted `CAP-011`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARTIAL |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |

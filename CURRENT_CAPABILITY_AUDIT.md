@@ -5,12 +5,12 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-protected CAP-010 compiler-capability merge
-`f77f1a227032008ab3ceadf2e2e3dcaed3b225e9`.
+protected CAP-011 compiler-capability merge
+`34b81eee1d598cbd00693f40301f1a4f72481d07`.
 
-### CAP-011 local candidate: generic fixed-window algorithms
+### CAP-011 accepted: generic fixed-window algorithms
 
-Unpublished implementation checkpoint `24db04a` closes the selected Milestone 2
+Accepted CAP-011 closes the selected Milestone 2
 generic-data-structure gap without introducing heap or namespace semantics. One
 shared schema classifier admits exact ordered parametric generic-struct applications,
 infers concrete recursive CopyData substitutions, and permits only structural reads
@@ -18,11 +18,12 @@ and functional updates through a mutable copied container. Specialization remove
 template before both trusted frontend routes, and private function identity commits to
 the container substitution.
 
-The generic target passes 4/4, telemetry passes 3/3 at expected exit 91, the full
-repository gate passes 241 library tests and every integration/doc target, and local
-generic bounds builds contain both trap and specialization identities. Candidate-head
-public LLVM/native checks and protected integration are still pending. Accordingly,
-the accepted matrix below remains based on CAP-010; CAP-011 is not public acceptance.
+The generic target passes 4/4, telemetry passes 3/3 at expected exit 91, and the full
+repository gate passes 241 library tests and every integration/doc target. Exact
+candidate `dea5714e` passed all nine public results, protected PR #44 merged it as
+`34b81eee`, candidate and merge share tree `b16d5f68`, and exact merge-head CI,
+Rust CI, and CodeQL pass. The bounded row is therefore accepted `PARTIAL`; general
+generics and dynamic collections remain unsupported.
 
 ### CAP-010 accepted: required-only CopyData trait-bound static dispatch
 

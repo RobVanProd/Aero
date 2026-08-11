@@ -56,7 +56,7 @@
   corruption controls must reject helper identity, receiver target/mode/provenance,
   argument/result schema, callee, arity, and order changes. This is not a conformance
   claim for general traits or generics.
-- The CAP-011 candidate fixed-window slice must retain one shared schema authority for
+- The accepted CAP-011 fixed-window slice must retain one shared schema authority for
   generic-struct signature handoff, nested inference, structural body use, and
   concrete pre-IR specialization. Positive evidence covers recursive CopyData
   substitutions, multiple parameters, direct generic sides, reads, functional
@@ -134,11 +134,12 @@ reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
 
-Local CAP-011 implementation checkpoint `24db04a` passes focused 4/4,
-representative 3/3, its private identity mismatch control, check/doc/format/diff, and
-the complete repository gate with 241 library tests plus every integration and doc
-target. Public exact-head pinned LLVM/native checks and protected integration are
-pending. Candidate status is separate from accepted CAP-010 below.
+Accepted CAP-011 passes focused 4/4, representative 3/3, its private identity
+mismatch control, check/doc/format/diff, and the complete repository gate with 241
+library tests plus every integration and doc target. Exact candidate `dea5714e`, all
+nine candidate-head results, protected PR #44 merge `34b81eee`, and exact merge-head
+CI/Rust CI/CodeQL pass, including pinned Windows LLVM 22 native execution. This is a
+bounded `PARTIAL` generic-container slice, not general generics or collections.
 
 Accepted CAP-010 adds one required-only trait-dispatch conformance slice over
 nongeneric recursive finite CopyData structs and direct whole-value generic parameters.

@@ -4,9 +4,9 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-### CAP-011 candidate: fixed-capacity generic CopyData container algorithms
+### CAP-011 accepted: fixed-capacity generic CopyData container algorithms
 
-Local candidate checkpoint `24db04a` composes accepted generic structs, generic
+Accepted CAP-011 composes generic structs, generic
 function specialization, fixed arrays, runtime bounds guards, and projected mutation
 into one useful `Window<T>` API. A generic function may accept an exact parametric
 CopyData container, infer concrete element types through its schema, read structural
@@ -15,17 +15,18 @@ uses the same API for `int` calibration and `char` markers while preserving expe
 output/exit 91.
 
 Focused generic tests pass 4/4, representative tests pass 3/3, the identity corruption
-control passes, compile/check/doc/format/diff gates pass, and the complete local root
-gate passes 241 library tests plus all integration and doc tests. Linux and Windows
-workflow declarations now require the four successful specializations and the exact
-lower/upper-bound read/write failure product at `-O0` and `-O2`. Those public native
-results have not run on the candidate head yet, so CAP-011 is not accepted and the
-public baseline remains CAP-010.
+control passes, and the complete root gate passes 241 library tests plus all
+integration, doc, format, and correctness-Clippy gates. Exact candidate
+`dea5714e87e1fe3c059717b3e5aa23b8860b62f2` passed all nine public results,
+including pinned Windows LLVM/Clang 22 native execution. Protected PR #44 merged it as
+accepted master `34b81eee1d598cbd00693f40301f1a4f72481d07`; candidate and merge share
+tree `b16d5f68e791c969a0aa81723801b2d1ae7c7f41`, and exact merge-head CI
+`31546637614`, Rust CI `31546637544`, and CodeQL `31546636973` pass.
 
 This is not dynamic collection or general generic-operation support. Parametric
 construction, operators, arbitrary calls, borrowing, generic-to-generic calls,
 references, enums, allocation, lifetimes/drop, public ABI, safety, and stability stay
-outside the candidate.
+outside the accepted slice.
 
 ### CAP-010 accepted: required-only CopyData trait-bound static dispatch
 
