@@ -4,9 +4,9 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-### CAP-008 local candidate (not accepted): nonbinding wildcard enum Match
+### CAP-008 accepted: nonbinding wildcard enum Match
 
-The bounded CAP-008 candidate adds terminal whole-arm `_ => fallback` and ignored
+Accepted CAP-008 adds terminal whole-arm `_ => fallback` and ignored
 payload leaves such as `Err(_)` across the complete already-admitted concrete enum
 class: unit, unary, positional multi-field, concrete `Option`/`Result`, and explicit
 generic-enum specializations. One shared `EnumRegistry::resolve_arms` authority owns
@@ -23,13 +23,16 @@ library/32-binary/integration/doc/format/Clippy/verifier-control gate pass. Offi
 Windows LLVM/Clang 22.1.8 external and machine verification, native `-O0`/`-O2`, and
 public `run` all retain exact telemetry output and exit 91.
 
-This is candidate evidence only. Accepted public master remains the protected CAP-007
-truth-correction head `2ba1d33e302439b129f538533ecf5187b07aa34a`. CAP-008 is not
-accepted until its bounded exact-head public checks, protected merge, merge identity,
-and exact merge-head workflows pass. Guards, nested destructuring, whole-enum binding,
-error propagation, collections, imports, aggregate/reference enum storage, partial
-moves, lifetimes/drop, stable ABI, safety, releases, benchmarks, and accelerators do
-not move.
+Exact candidate `9ebd204407f09d14092bb4ed874e19afc5bf6105` passed push CI
+`31524994573`, PR CI `31525033075`, Rust CI `31525033103`, and CodeQL
+`31525030957`. Protected PR #38 merged it as
+`a1716f8400052213c8f08e5c397a3d779437dff6`; candidate and merge share tree
+`c3dab0e762b27b5f49d8b25b424f24f7d5d66c1b`, with ordered parents prior accepted
+master `2ba1d33e302439b129f538533ecf5187b07aa34a` then exact candidate. Exact
+merge-head CI `31525340621`, Rust CI `31525340810`, and master-push/CodeQL
+`31525340605` pass. Guards, nested destructuring, whole-enum binding, error
+propagation, collections, imports, aggregate/reference enum storage, partial moves,
+lifetimes/drop, stable ABI, safety, releases, benchmarks, and accelerators do not move.
 
 ### CAP-007 accepted: canonical checked-program entrypoint contract
 

@@ -136,10 +136,10 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "Accepted CAP-007 makes check/build/run/profile/source-test validation consume one checked-program preparation authority"
     ));
     assert!(!readme.contains("CAP-007 local candidate (not accepted)"));
-    assert!(readme.contains("CAP-008 local candidate (not accepted)"));
+    assert!(readme.contains("**CAP-008 accepted:** terminal `_ => fallback`"));
     assert!(readme.contains("terminal `_ => fallback` and ignored"));
     assert!(readme.contains("payload leaves such as `Err(_)`"));
-    assert!(!readme.contains("CAP-008 accepted"));
+    assert!(!readme.contains("CAP-008 local candidate (not accepted)"));
 
     let audit = repository_file("CURRENT_CAPABILITY_AUDIT.md");
     assert!(audit.contains(
@@ -148,8 +148,8 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!audit.contains(
         "no authoritative stable subset or single canonical diagnostic contract is frozen"
     ));
-    assert!(audit.contains("CAP-008 local candidate (not accepted)"));
-    assert!(audit.contains("Accepted public master remains CAP-007 truth-correction head"));
+    assert!(audit.contains("CAP-008 accepted: nonbinding wildcard enum Match"));
+    assert!(audit.contains("protected CAP-008 compiler-capability merge"));
     assert!(!audit.contains("this record is its bounded acceptance synchronization candidate"));
 
     let alignment = repository_file("FRAMEWORK_ALIGNMENT.md");

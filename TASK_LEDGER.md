@@ -1,5 +1,53 @@
 # Aero Task Ledger
 
+## CAP-008 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-11, `CAP-008-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from protected PR #38 merge
+  `a1716f8400052213c8f08e5c397a3d779437dff6` (tree
+  `c3dab0e762b27b5f49d8b25b424f24f7d5d66c1b`) on
+  `agent/cap-008-acceptance-sync`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Observed behavior and hypothesis: exact candidate
+  `9ebd204407f09d14092bb4ed874e19afc5bf6105` passed every candidate-head gate
+  and merged through the normal protected path. Candidate and merge share tree
+  `c3dab0e762b27b5f49d8b25b424f24f7d5d66c1b`; ordered merge parents are prior
+  accepted master `2ba1d33e302439b129f538533ecf5187b07aa34a` then exact candidate.
+  Exact merge-head workflows now pass, so candidate-only wording must become immutable
+  accepted-master evidence before the next capability ranking is acted upon.
+- Frozen semantics and allowed files: no compiler, parser, semantic, checked-IR,
+  verifier, backend, CLI, workflow, example, dependency, claim-verification, release,
+  benchmark, protection, or external behavior may change. Only `TASK_LEDGER.md`,
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `README.md`, and exact state assertions in
+  `src/compiler/tests/version_claim_contract_tests.rs` may record the established
+  result.
+- Exact evidence: red checkpoint
+  `af36687117f015c2dada7a6e161dceaad454b907`; candidate head
+  `9ebd204407f09d14092bb4ed874e19afc5bf6105`; protected PR #38 merge
+  `a1716f8400052213c8f08e5c397a3d779437dff6`; shared tree
+  `c3dab0e762b27b5f49d8b25b424f24f7d5d66c1b`. Candidate push CI
+  `31524994573`, PR CI `31525033075`, Rust CI `31525033103`, and CodeQL
+  `31525030957` pass. Exact merge-head CI `31525340621`, Rust CI
+  `31525340810`, and master-push/CodeQL aggregate `31525340605` pass, including
+  stable/nightly and pinned Windows LLVM/Clang 22 native execution.
+- Risks, recovery, decision threshold, and what would change our mind: the rollback
+  boundary is one record-only branch/PR. The primary risks are broadening a bounded
+  nonbinding wildcard class into general pattern matching, calling private enum layout
+  stable, or treating one Milestone 2 ergonomics capability as language completeness.
+  Merge only if every current truth surface says CAP-008 is accepted at the immutable
+  identities above while preserving all exclusions and Minimal Prototype status. Any
+  identity/run mismatch, compiler-file change, failed state contract, or evidence that
+  a trusted route bypasses the shared resolver would stop the sync and reopen CAP-008.
+- Strategic value and next action: accepted CAP-008 lets ordinary result-handling and
+  state-machine programs ignore unused payloads and share terminal fallback behavior
+  without weakening exhaustiveness or verification. Publish this bounded sync through
+  its own exact-head protected PR. Then rerun the three-gap ranking against accepted
+  CAP-008 and prefer the next broad real-program or roadmap blocker over neighboring
+  wildcard topology.
+
 ## CAP-008 - nonbinding wildcard enum Match
 
 - Date/task/status: 2026-08-11, `CAP-008`, authorized red-first positive language
