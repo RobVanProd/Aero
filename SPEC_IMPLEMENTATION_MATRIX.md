@@ -2,22 +2,24 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-005 merge
-`59f7e47b476871fae8cecdf7e40900e0d1f1b377`. Exact candidate
-`68e2cd8ef7766f3073bc9bf9714dafb0431525ef` and the merge have identical tree
-`e0e6ac4d0bdec61fff30efee387b870ce63a282c`; all nine candidate-head checks,
-protected integration, exact merge-head CI `31504122753`, Rust CI `31504122730`,
-CodeQL `31504122424`, and pinned Linux/Windows LLVM/Clang 22.1.8 native `-O0`/`-O2`
-gates pass.
+Latest accepted compiler-capability master is protected CAP-006 merge
+`bdfd4f5a282043ee957c1bf03975e266de5b9b6c`. Exact candidate
+`5f20a5543503736422115145b12fd6c593c5eeb3` and the merge have identical tree
+`98cd0e3fa09ad255d4e58cd4c860dcf0271ea915`; candidate push CI `31514226887`,
+PR CI `31514272313`, Rust CI `31514272209`, CodeQL `31514269749`, protected
+integration, merge-head CI `31514651356`, Rust CI `31514651355`, and CodeQL
+`31514652091` pass. The merge-head Rust retry on the unchanged SHA cleared a Windows
+runner checkout certificate failure and completed pinned LLVM/Clang 22 Linux/Windows
+native `-O0`/`-O2` gates.
 
-Local candidate CAP-006 adds a further bounded `PARTIAL` slice without changing
-accepted public truth: exact explicit recursive finite CopyData applications of one
+Accepted CAP-006 adds a further bounded `PARTIAL` slice: exact explicit recursive
+finite CopyData applications of one
 user-defined bound-free generic enum can be contextually specialized before both
 semantic analysis and raw checked admission, then reuse the accepted owned-enum,
 exhaustive-Match, checked-IR, verifier, and LLVM pipeline. Focused 4/4, corruption,
 compatibility, representative 3/3, and complete 235-library/32-binary/83-integration/
-doc/format/Clippy local gates pass. Pinned LLVM/Clang 22 Linux/Windows native and
-public exact-head evidence remain pending, so this is not an accepted row.
+doc/format/Clippy local gates pass, as do the public exact-head and merge-head gates
+above. This moves no row beyond `PARTIAL`.
 
 Accepted CAP-005 adds one additional `PARTIAL` generics/function-call slice. Unique top-level
 bound-free generic functions whose type parameters are inferred from whole parameter
@@ -78,7 +80,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Explicit concrete CopyData `Option`/`Result` construction, internal transport, replacement, and exhaustive bound Match (accepted `CAP-003`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Explicit user-defined recursive-CopyData generic structs (accepted `CAP-004`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Bound-free whole-value recursive-CopyData generic transport functions (accepted `CAP-005`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Explicit user-defined recursive-CopyData generic enums (local `CAP-006` candidate; public acceptance pending) | Y | Y | Y | P | P | P | P | P | ? | Y | Y | Y | Y | PARTIAL |
+| Explicit user-defined recursive-CopyData generic enums (accepted `CAP-006`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | P | P | P | P | P | P | Y | PARTIAL |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
@@ -316,7 +318,7 @@ result-only inference, nested generic signatures, non-CopyData arguments, runtim
 polymorphism, collections, lifetimes/drop, and stable callable ABI remain absent. The
 accepted broad generics row therefore remains `PARTIAL`, not `END_TO_END` or `STABLE`.
 
-Local candidate CAP-006 extends the same `PARTIAL` row with explicit user-defined
+Accepted CAP-006 extends the same `PARTIAL` row with explicit user-defined
 bound-free generic enums over exact recursive finite CopyData arguments. One shared
 idempotent authority creates private nongeneric enum schemas before both trusted
 front-end routes; the independent verifier binds each identity to its canonical source
@@ -324,9 +326,9 @@ application and complete specialized variant schema. The representative program 
 `Sample<Reading<int>>` and `Sample<char>` at unchanged output/exit 91. Bounds/traits,
 named variants, nested generic templates, generic-to-generic use, context-free
 inference, non-CopyData arguments, aggregate/reference storage, borrowing, projection,
-drop/lifetimes, public ABI, and general generics remain absent. Local gates are green;
-pinned native and public exact-head acceptance remain pending, so CAP-006 does not yet
-change accepted-master classification.
+drop/lifetimes, public ABI, and general generics remain absent. Local, pinned native,
+candidate-head, protected-merge, and merge-head gates are green; the broad generics
+row remains `PARTIAL`, not `END_TO_END` or `STABLE`.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

@@ -4,11 +4,10 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-### CAP-006 local candidate: explicit user-defined generic CopyData enums
+### CAP-006 accepted: explicit user-defined generic CopyData enums
 
-CAP-006 is a locally green candidate, not accepted public capability. Accepted
-`master` remains the CAP-005 acceptance-sync head
-`233716c7521cb0186eb781549e12e67b277009a6`. One shared idempotent authority now
+Accepted CAP-006 adds one bounded user-defined generic algebraic-data-type class.
+One shared idempotent authority
 retains and rejects generic-enum bounds, validates the frozen declaration/application
 class, and specializes exact explicit recursive finite CopyData arguments into private
 nongeneric enum definitions before both semantic analysis and raw checked admission.
@@ -22,17 +21,27 @@ pass 4/4; malformed/private-schema corruption and affected compatibility control
 pass; and the complete local gate passes 235 library tests, 32 binary tests, all 83
 integration targets, doc tests, formatting, correctness-denying Clippy, and diff
 hygiene. Public `check` and `build` emit deterministic LLVM with source-readable
-specialization identities. This workstation lacks the pinned LLVM/Clang 22 toolchain,
-so external verification, machine lowering, and native execution remain candidate-head
-CI requirements rather than local claims.
+specialization identities. Pinned LLVM/Clang 22 externally and machine-verifies the
+product; Linux stable/nightly and Windows `-O0`/`-O2` representative executions retain
+exact output and exit 91.
+
+Exact candidate `5f20a5543503736422115145b12fd6c593c5eeb3` passed push CI
+`31514226887`, PR CI `31514272313`, Rust CI `31514272209`, and CodeQL
+`31514269749`. Protected PR #33 merged it as
+`bdfd4f5a282043ee957c1bf03975e266de5b9b6c`; candidate and merge share tree
+`98cd0e3fa09ad255d4e58cd4c860dcf0271ea915`, with ordered parents prior accepted
+master `233716c7521cb0186eb781549e12e67b277009a6` then exact candidate. Merge-head
+CI `31514651356` and CodeQL `31514652091` pass. Merge-head Rust CI
+`31514651355` initially hit a Windows runner certificate-chain failure during checkout;
+its unchanged-SHA failed-job rerun passes stable, nightly, and the pinned Windows
+LLVM/Clang 22 native system gate.
 
 Bounds/traits, named variants, nested generic templates, generic-to-generic use,
 context-free inference, non-CopyData arguments, aggregate/reference storage,
 borrowing, projected access, partial moves, drop/lifetimes/unsafe, collections, public
 layout/ABI/FFI, accelerators, releases, benchmarks, stability, production, and general
-memory-safety claims remain excluded. The exact candidate SHA, protected PR, all public
-candidate-head checks, protected merge, and merge-head acceptance synchronization are
-pending.
+memory-safety claims remain excluded. Aero remains a Minimal Prototype in correctness
+recovery, not a complete or stable language.
 
 ### CAP-005 accepted: bound-free CopyData generic transport functions
 
@@ -67,7 +76,7 @@ applications in signatures, non-CopyData arguments, collections, heap/drop/lifet
 public ABI, accelerators, releases, benchmarks, stability, and general memory-safety
 claims remain excluded.
 
-The latest accepted compiler-capability master is protected CAP-005 merge
+CAP-005 remains accepted chronology through protected merge
 `59f7e47b476871fae8cecdf7e40900e0d1f1b377`. Bounded PR #31 carried exact candidate
 `68e2cd8ef7766f3073bc9bf9714dafb0431525ef`; candidate and merge share tree
 `e0e6ac4d0bdec61fff30efee387b870ce63a282c`, with ordered parents prior accepted
@@ -2704,15 +2713,15 @@ Accepted CAP-004 project-truth synchronization merged through protected PR #29 a
 `5e6f30a1e4a8979f38e75423f2021b88d8c92548` with the identical tree. Exact
 merge-head CI `31480903724`, Rust CI `31480903716`, and CodeQL `31480903587` pass.
 
-CAP-005 is accepted through protected PR #31 and exact merge-head workflows. The
-required fresh three-gap ranking selected CAP-006 explicit user-defined
-recursive-CopyData generic enums, and its bounded local candidate is green. The exact
-next action is to commit and rerun the immutable candidate, publish one bounded
-protected PR, require every exact-head workflow including pinned Linux/Windows native
-execution, and synchronize accepted truth only after the merge head is green. Any
-contrary verifier or cross-platform evidence stops acceptance. Do not default to
-neighboring generic topologies, the quarantined CORE-091 topology,
-releases/packages/benchmarks, force-pushes, or deletion of retained integration work.
+CAP-006 is accepted through protected PR #33 at merge
+`bdfd4f5a282043ee957c1bf03975e266de5b9b6c`, with exact merge-head CI, CodeQL,
+stable/nightly, and pinned Windows LLVM/Clang 22 native evidence green after the
+documented infrastructure-only checkout retry. The exact next action is this bounded
+accepted-truth synchronization. After it is green and protected-integrated, freshly
+rank at least three remaining project-level gaps before selecting another
+implementation. Do not default to neighboring generic topologies, the quarantined
+CORE-091 topology, releases/packages/benchmarks, force-pushes, or deletion of retained
+integration work.
 
 ## Unauthorized actions
 

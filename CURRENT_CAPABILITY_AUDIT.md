@@ -5,13 +5,13 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-protected CAP-005 compiler-capability merge
-`59f7e47b476871fae8cecdf7e40900e0d1f1b377`; this record is its bounded
+protected CAP-006 compiler-capability merge
+`bdfd4f5a282043ee957c1bf03975e266de5b9b6c`; this record is its bounded
 acceptance synchronization.
 
-### CAP-006 local candidate: explicit user-defined generic CopyData enums
+### CAP-006 accepted: explicit user-defined generic CopyData enums
 
-CAP-006 is locally green but not accepted public capability. One shared idempotent
+Accepted CAP-006 supplies one shared idempotent
 pre-semantic/pre-admission authority retains and rejects bounds, validates the frozen
 generic-enum declaration/application class, and substitutes exact explicit recursive
 finite CopyData arguments into verifier-bound private nongeneric enum schemas. It
@@ -25,15 +25,22 @@ The representative application executes both `Sample<Reading<int>>` and
 output/exit 91. Focused 4/4, identity/schema corruption, affected compatibility,
 representative 3/3, and the complete 235-library/32-binary/83-integration/doc/format/
 Clippy local gates pass. Public `check` and `build` emit deterministic LLVM carrying
-both source-readable specialization identities. Pinned LLVM/Clang 22 external,
-machine, Linux/Windows native `-O0`/`-O2`, exact-candidate workflows, protected merge,
-and merge-head acceptance evidence remain pending and are not claimed.
+both source-readable specialization identities. Exact candidate
+`5f20a5543503736422115145b12fd6c593c5eeb3` and protected PR #33 merge
+`bdfd4f5a282043ee957c1bf03975e266de5b9b6c` share tree
+`98cd0e3fa09ad255d4e58cd4c860dcf0271ea915`. Candidate push CI
+`31514226887`, PR CI `31514272313`, Rust CI `31514272209`, and CodeQL
+`31514269749` pass. Merge-head CI `31514651356`, CodeQL `31514652091`, and Rust
+CI `31514651355` pass; the Rust run's failed-job retry on the unchanged merge SHA
+cleared an infrastructure-only Windows checkout certificate failure and completed the
+pinned LLVM/Clang 22 native system gate. Linux stable/nightly and Windows `-O0`/`-O2`
+representative executions retain exact output/exit 91.
 
 Bounds/traits, named variants, nested generic templates, generic-to-generic use,
 context-free inference, non-CopyData arguments, aggregate/reference storage,
 borrowing, projection, partial moves, collections, drop/lifetimes/unsafe, stable
 layout/ABI/FFI, accelerators, releases, benchmarks, stability, and general safety
-claims remain excluded. Accepted public truth remains CAP-005.
+claims remain excluded. Aero remains a Minimal Prototype in correctness recovery.
 
 ### CAP-005 accepted: bound-free CopyData generic transport functions
 
@@ -240,10 +247,9 @@ destruction, and an ownership-intensive representative program remain open. Acce
 CAP-003 closes a bounded concrete CopyData `Option`/`Result` carrier slice; CAP-004
 closes the generic-data-definition half of the Milestone 2 exit only for explicit
 recursive finite CopyData structs; CAP-005 adds one bound-free whole-value generic
-transport-function slice. Local candidate CAP-006 adds one explicit user-defined
-recursive-CopyData generic-enum specialization slice, but does not enter accepted
-milestone truth until protected integration and exact merge-head evidence pass.
-General substitution and operations, collections, and
+transport-function slice. Accepted CAP-006 adds one explicit user-defined
+recursive-CopyData generic-enum specialization slice. General substitution and
+operations, collections, and
 broader error propagation remain open.
 The project therefore remains **Minimal Prototype / correctness recovery**.
 
@@ -280,9 +286,9 @@ scored 24, and an owned dynamic collection foundation scored 22. Generic transpo
 won the tie on immediate real-program expressiveness and is now accepted through
 protected PR #31 and exact merge-head workflows. The fresh CAP-006 ledger ranking
 against accepted CAP-005 selected user-defined recursive-CopyData generic enums over
-the Milestone 0 contract and an owned dynamic collection foundation. Its local
-candidate is green, but no neighboring generic topology inherits priority and no
-CAP-006 acceptance claim exists before protected integration and merge-head evidence.
+the Milestone 0 contract and an owned dynamic collection foundation. CAP-006 is now
+accepted through protected PR #33 and exact merge-head evidence; no neighboring
+generic topology inherits priority.
 
 ## Verified progress after the audit commit
 
