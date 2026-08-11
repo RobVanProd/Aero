@@ -147,6 +147,26 @@
   program, or that the canonical Milestone 0 gap blocks trustworthy publication would
   stop CAP-004 and return selection to the fresh ranking.
 
+### CAP-004 exact red checkpoint
+
+- Before any production compiler mutation, focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  generic_copydata_struct_tests -- --nocapture` runs exactly 0/2 green. The parser
+  retains one `Reading<T>` definition, concrete `Reading<int>` and `Reading<char>`
+  annotations, contextual literals, reassignment, nongeneric parameters/results,
+  field observation, and executable composition. Semantic analysis reaches the
+  current deterministic `Struct construction expressions are not supported.` boundary.
+  Semantic-independent raw checked admission separately rejects the concrete generic
+  result with `function return type is not an admitted scalar or Void type`.
+- The red changes no production source. It already requires multiple concrete
+  instantiations, result-context and binding-context construction, same-typed
+  reassignment, by-value function transport, field access, deterministic semantic/raw-
+  checked LLVM equality, and no private identity leakage. The full substitution field
+  grammar, context matrix, exclusions, direct-module/native product, representative
+  application, and corruption controls will be added behind this same class boundary.
+  No accepted test was weakened; user/app-owned untracked directories and the
+  quarantined stash remain untouched.
+
 ## CAP-003 - explicitly typed algebraic error carriers
 
 - Date/task/status: 2026-08-11, `CAP-003`, local implementation candidate after
