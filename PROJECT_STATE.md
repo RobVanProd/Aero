@@ -4,19 +4,17 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-The current accepted public master is
-`e28a521efcc0acf18ecd6845ca39875c5eccab3f`, the protected record-correction PR #25
-merge. The accepted compiler-capability master remains protected CAP-002 merge
-`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`; PR #24 synchronized its acceptance
-evidence and PR #25 corrected the remaining framework summary. CAP-002's ordered
-parents are prior accepted master `29c13fa32c2bef361ff33367b3b3839351e05534`
-then exact candidate `577e601fe1243b68ed1026268472c6f85af12074`; merge tree
-`f2f5123f41d3b2b96e418c3b1be0b1ba0ca2027c` exactly matches the candidate tree.
-Post-merge CI `31464742817`, Rust CI `31464742815`, and CodeQL `31464742282` pass.
+The current accepted public and compiler-capability master is protected CAP-003 merge
+`e6677941f9467e018089b21dcfe6556e465bf9bb`. Bounded PR #26 carried exact candidate
+`6a20ecfc845d264c68d47ea648acbeb19b2d8af4`; candidate and merge share tree
+`de360d6c6b5b69355b171318f3eae352e585319d`, with ordered parents prior accepted
+master `e28a521efcc0acf18ecd6845ca39875c5eccab3f` then the exact candidate. Both
+candidate CI runs `31471444869` and `31471475995`, Rust CI `31471476004`, and
+CodeQL `31471474738` pass. Exact merge-head CI `31471720829`, Rust CI
+`31471720839`, and CodeQL `31471720887` also pass.
 
-`CAP-003` is an unaccepted implementation candidate on
-`agent/cap-003-typed-error-carriers`; it is not public master truth. The candidate
-admits explicitly typed concrete `Option<T>` and `Result<T, E>` values only when all
+Accepted `CAP-003` admits explicitly typed concrete `Option<T>` and
+`Result<T, E>` values only when all
 type arguments are already admitted recursive finite CopyData. One shared,
 idempotent contextual normalizer maps exact annotations, constructors, function
 transport, reassignment, and bound exhaustive `Match` to collision-checked private
@@ -27,9 +25,14 @@ now executes both success and error `Result<int, char>` paths while retaining ex
 score 91. Focused carrier tests are 4/4, the shared normalizer controls are 4/4,
 adjacent enum/ownership rings pass, representative tests are 3/3, and the complete
 224-library/32-binary/integration/doc root gate plus correctness-denying Clippy pass
-locally. Public candidate workflows, LLVM 22 native gates, protected merge, and
-post-merge evidence remain pending; therefore CAP-003 must not yet be described as
-accepted.
+locally. All nine exact-candidate public checks, the protected merge, and all exact
+merge-head workflows pass. Pinned LLVM/Clang 22.1.8 Linux and Windows lanes verify,
+lower, link, and execute the representative program at `-O0` and `-O2` with exact
+output and exit 91, and the bounds-failure corpus passes. General generics,
+context-free constructor inference, question-mark propagation, String errors,
+carrier aggregate/reference storage, borrowing, nested carriers, dynamic collections,
+stable ABI/FFI, accelerators, releases, benchmarks, and general memory-safety claims
+remain excluded.
 
 Accepted `CAP-001` has frozen implementation
 `77a5c6457f3e87d79a0d1987bf02b4db32b875de`, tree
@@ -2613,13 +2616,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Finish CAP-003's complete local gate, freeze one exact candidate, publish one bounded
-PR, require all exact-head public workflows and pinned Linux/Windows LLVM 22 native
-gates, protected-merge without tree substitution, then verify exact merge-head
-workflows and synchronize accepted truth. Only after CAP-003 is accepted or rolled
-back may a fresh three-gap project-level ranking select the next real-program
-capability. Do not default to the quarantined CORE-091 topology, publish releases/
-packages/benchmarks, force-push, or delete retained integration work.
+Publish this bounded record-only CAP-003 accepted-truth synchronization, require all
+exact-head public workflows, protected-merge without tree substitution, and verify
+the exact merge-head workflows. Then perform a fresh three-gap project-level ranking
+against accepted CAP-003 before authorizing CAP-004. Select the next real-program
+capability by roadmap payoff, architectural leverage, correctness value, risk, and
+proportional evidence cost. Do not default to the quarantined CORE-091 topology,
+publish releases/packages/benchmarks, force-push, or delete retained integration work.
 
 ## Unauthorized actions
 
