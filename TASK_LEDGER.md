@@ -164,6 +164,22 @@
   request to increment a task number, accept only name completeness, or add another
   neighboring signature permutation does not lower the threshold.
 
+### CAP-010 exact red checkpoint
+
+- Before any production mutation, focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  copydata_trait_dispatch_tests -- --nocapture` runs 0/1 green. The source strictly
+  parses a required-only `Score` trait, an exact `impl Score for Reading`, a direct
+  `T: Score` generic parameter, and a call whose result composes with post-call owner
+  use. Semantic analysis reaches the existing shared boundary and rejects
+  `T.score()` with `Unsupported intrinsic method call T.score(): syntax is preserved
+  in a generic/impl context, but executable method semantics are not admitted.`
+- The red proves the missing capability is static dispatch, not trait parsing,
+  generic-bound retention, impl-name completeness, struct construction, or ordinary
+  generic call syntax. Exactly one new focused test and this ledger changed; no
+  parser, semantic, checked-IR, verifier, backend, workflow, example, dependency,
+  project-truth, external repository, or user-owned untracked content changed.
+
 ## CAP-009 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-009-ACCEPTANCE-SYNC`, authorized bounded
