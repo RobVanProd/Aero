@@ -4,6 +4,37 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
+### CAP-009 local candidate (not accepted): enforceable `stable-scalar-v0`
+
+The locally green CAP-009 candidate adds an explicitly selected
+`stable-scalar-v0` language profile to public library compilation/checking and CLI
+`check`, `build`, and `run`. One exhaustive post-parse classifier rejects every
+out-of-profile AST form before module resolution, semantic analysis, checked IR,
+cache lookup, LLVM generation, or artifacts. A validated `CheckedProgram` privately
+carries its profile into code generation, preventing callers from pairing checked IR
+with a different physical representation. The default experimental profile and its
+cache identities remain byte-for-byte unchanged.
+
+The selected profile freezes one-file, acyclic nongeneric `int`/`bool` functions,
+initialized direct scalar bindings and assignments, direct calls and returns,
+`if`/`else`, `while`, and the enumerated scalar expression grammar. Its physical
+integer lane is exact wrapping LLVM `i32`; CLI target pairing is CPU-only; generated profile LLVM contains no
+`double`, `fptosi`, `sitofp`, `nsw`, or `nuw`. The growing profile application exits
+91, and its wrapping-boundary companion exits 93. Focused 9/9, affected library/CLI/
+cache/API contracts, formatting, correctness-denying Clippy, documentation, and the
+complete repository gate pass locally. Pinned LLVM/Clang 22 Linux/Windows external,
+machine, native `-O0`/`-O2`, and public-route evidence is encoded in CI but remains
+publicly pending.
+
+This is candidate evidence only. Accepted public master remains CAP-008 truth-sync
+head `b2d57df89da3e3ca272c049847f3905b71f29eaa`. CAP-009 is not accepted
+until a bounded exact-head PR, protected merge, merge-identity proof, and exact
+merge-head workflows pass. The profile excludes modules/imports, floats, characters,
+strings and I/O, aggregates, enums/`Match`, references, closures, methods, general
+loops, division/remainder, traits/generics, recursion, allocation, lifetimes/drop,
+unsafe, public ABI/FFI, accelerators, benchmarks, and releases. It does not make Aero,
+the default compiler profile, private IR, or the whole language stable.
+
 ### CAP-008 accepted: nonbinding wildcard enum Match
 
 Accepted CAP-008 adds terminal whole-arm `_ => fallback` and ignored

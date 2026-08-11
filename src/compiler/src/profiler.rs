@@ -1,6 +1,6 @@
 use compiler::{
     CodeGenerationError, LlvmVerificationMode, prepare_checked_program_with_module_observer,
-    try_generate_code, verify_llvm_module,
+    verify_llvm_module,
 };
 use serde::Serialize;
 use serde_json::json;
@@ -41,8 +41,9 @@ pub fn profile_compilation(
     push_stage(&mut stages, "ir_generation", timings.checked_ir);
 
     let codegen_start = Instant::now();
-    let llvm_ir =
-        try_generate_code(checked_program.into_checked_ir()).map_err(|error| match error {
+    let llvm_ir = checked_program
+        .try_generate_llvm()
+        .map_err(|error| match error {
             CodeGenerationError::IrVerification(error) => error.to_string(),
             other => format!("Code Generation Error: {other}"),
         })?;

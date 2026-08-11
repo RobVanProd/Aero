@@ -59,6 +59,23 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
+The CAP-009 local candidate advances the founding Stabilize direction without
+mislabeling the wider prototype. It introduces an explicitly selected
+`stable-scalar-v0` profile whose single exhaustive post-parse classifier freezes a
+one-file, acyclic nongeneric `int`/`bool` program class before semantic or checked-IR
+work. A private checked-program profile identity selects an exact wrapping LLVM `i32`
+representation, one shared CLI rule rejects accelerator pairing, and the default
+experimental behavior remains unchanged. The
+profile's representative application and wrapping-boundary corpus execute with exact
+exits 91 and 93; focused 10/10 and the complete local repository gate pass.
+
+This is not yet accepted framework progress: pinned LLVM/Clang 22 exact-head and
+merge-head Linux/Windows evidence remains pending, and accepted public master remains
+CAP-008 truth-sync head `b2d57df`. The profile deliberately excludes modules,
+aggregates, enums, references, closures, generics, allocation, ownership expansion,
+public ABI, accelerators, and release claims. It stabilizes neither Aero as a whole nor
+the experimental default compiler surface.
+
 Accepted CAP-008 advances the founding algebraic-data-type and pattern-matching
 direction by adding exact nonbinding
 wildcards to the already-admitted concrete enum class: `Err(_)` can ignore a payload,

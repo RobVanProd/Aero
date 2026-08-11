@@ -6,7 +6,35 @@ Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
 protected CAP-008 compiler-capability merge
-`a1716f8400052213c8f08e5c397a3d779437dff6`.
+`a1716f8400052213c8f08e5c397a3d779437dff6`, followed by accepted truth-sync
+head `b2d57df89da3e3ca272c049847f3905b71f29eaa`.
+
+### CAP-009 local candidate (not accepted): enforceable `stable-scalar-v0`
+
+The locally green CAP-009 candidate makes the selected scalar contract enforceable
+through public library check/compile and CLI `check`, `build`, and `run`. One exhaustive
+classifier runs after fatal parsing and before modules, semantics, checked IR, cache
+lookup, LLVM, or artifacts. Its accepted AST is one-file acyclic nongeneric scalar
+functions, direct initialized bindings/assignments, direct calls/returns, `if`/`else`,
+`while`, and exact `int`/`bool` expressions. All other statement, expression, type,
+declaration, module, and call-graph shapes fail deterministically at the profile
+boundary. Default experimental behavior and cache keys are unchanged.
+
+The checked product carries the selected profile privately into a representation-only
+backend selector, and one shared CLI predicate rejects non-CPU or `--gpu` pairings.
+Stable integers use exact wrapping LLVM `i32`, including locals,
+parameters, calls, results, comparisons, arithmetic, and returns; the profile lane
+emits no experimental `double` conversions or signed/unsigned overflow promises.
+Focused 10/10, affected public/CLI/cache/API contracts, the representative exit-91 program,
+the wrapping exit-93 corpus, formatting, Clippy, docs, and the complete repository
+gate pass locally. Pinned LLVM/Clang 22 public Linux/Windows exact-head evidence is
+still pending, so accepted master remains CAP-008 truth-sync head `b2d57df` and no
+accepted matrix row has yet changed to `STABLE`.
+
+Modules/imports, floats/chars/strings/I/O, aggregates, enums/`Match`, references,
+closures, methods, general loops, division/remainder, traits/generics, recursion,
+allocation, lifetimes/drop, unsafe, public ABI/FFI, accelerators, benchmarks, releases,
+and whole-language stability or safety remain outside this candidate.
 
 ### CAP-008 accepted: nonbinding wildcard enum Match
 

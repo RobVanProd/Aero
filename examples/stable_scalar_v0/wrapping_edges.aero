@@ -1,0 +1,11 @@
+fn main() -> int {
+    let wrapped_add: int = 2147483647 + 1;
+    let wrapped_sub: int = wrapped_add - 1;
+    let wrapped_mul: int = 1073741824 * 2;
+    let wrapped_neg: int = -wrapped_add;
+
+    if wrapped_add < 0 && wrapped_sub > 0 && wrapped_mul < 0 && wrapped_neg < 0 {
+        return 93;
+    }
+    return 1;
+}

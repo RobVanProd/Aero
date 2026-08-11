@@ -20,8 +20,8 @@ const EXPECTED_DEFAULT_LLVM: &str = concat!(
 );
 const EXPECTED_DEFAULT_PARSE_ERROR: &str =
     "Parse error: Error at 1:5: Expected variable name, found Assign";
-const UNSUPPORTED_OPTIONS_ERROR: &str = "Unsupported CompilerOptions: only \
-CompilerOptions::default() is supported; optimize, debug_info, and target behavior is not implemented";
+const UNSUPPORTED_OPTIONS_ERROR: &str = "Unsupported CompilerOptions: optimize, debug_info, and \
+target behavior is not implemented; language_profile is the only supported nondefault option";
 
 #[test]
 fn default_options_preserve_parent_llvm_and_parse_diagnostic_exactly() {
@@ -76,6 +76,7 @@ fn every_nondefault_option_fails_before_lexing_without_target_normalization() {
                 optimize: true,
                 debug_info: true,
                 target: "x86_64-unknown-aero".to_string(),
+                ..CompilerOptions::default()
             },
         ),
         (
@@ -117,6 +118,7 @@ fn every_nondefault_option_fails_before_lexing_without_target_normalization() {
                 optimize: true,
                 debug_info: true,
                 target: "x86_64-unknown-aero".to_string(),
+                ..CompilerOptions::default()
             },
         ),
     ];

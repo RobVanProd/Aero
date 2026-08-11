@@ -115,6 +115,17 @@ reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
 
+The CAP-009 local candidate adds a separately selected `stable-scalar-v0` conformance
+lane. One exhaustive post-parse classifier must reject the complete complement of its
+frozen scalar AST before semantics, checked IR, cache lookup, or artifacts. Positive
+evidence runs the profile application and wrapping corpus through public `check`,
+verified `build`, and `run`; rejects experimental numeric LLVM; externally verifies
+LLVM and machine code; and compares native `-O0`/`-O2` results on pinned Linux and
+Windows LLVM/Clang 22. Non-CPU and `--gpu` profile pairings fail before compilation.
+Focused 10/10 and the complete local gate pass. The public pinned
+system lanes remain candidate acceptance requirements, so no accepted stable-core or
+release gate is yet claimed.
+
 `CORE-059` and `CORE-060` are accepted public for immutable and exclusive mutable
 whole-place references over exact admitted Copy-data places, with pinned LLVM/Clang 22
 verification and exact native exits 37 and 59. `CORE-061` extends only direct mutable
