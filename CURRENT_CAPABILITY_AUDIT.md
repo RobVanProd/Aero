@@ -5,13 +5,12 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-protected CAP-007 compiler-capability merge
-`5a64acaffa5e7f7167823861a45bc49c6bb670b4`, followed by accepted truth-sync and
-truth-correction head `2ba1d33e302439b129f538533ecf5187b07aa34a`.
+protected CAP-008 compiler-capability merge
+`a1716f8400052213c8f08e5c397a3d779437dff6`.
 
-### CAP-008 local candidate (not accepted): nonbinding wildcard enum Match
+### CAP-008 accepted: nonbinding wildcard enum Match
 
-The locally green CAP-008 candidate admits one optional final bare wildcard arm and
+Accepted CAP-008 admits one optional final bare wildcard arm and
 nonbinding wildcard payload leaves across every already-admitted concrete enum class.
 One shared enum-arm resolver supplies semantic analysis, semantic-independent checked
 admission, and lowering; `_` creates neither a source binding nor checked payload
@@ -24,12 +23,14 @@ verifier, or backend-contract change.
 Focused 4/4, the affected compatibility ring, the representative program, the complete
 235-library/32-binary/integration/doc/format/Clippy/verifier-control root gate, and
 official Windows LLVM/Clang 22.1.8 external/machine/native `-O0`/`-O2` plus public-run
-evidence pass at unchanged exact telemetry output and exit 91. Public acceptance is
-pending a bounded exact-head PR, protected merge, merge-identity proof, and exact
-merge-head workflows. Accepted public master remains CAP-007 truth-correction head
-`2ba1d33e302439b129f538533ecf5187b07aa34a`; no `STABLE`, safety, ABI,
-release, benchmark, import, collection, general-pattern, or error-propagation claim is
-made by this candidate.
+evidence pass at unchanged exact telemetry output and exit 91. Exact candidate
+`9ebd204407f09d14092bb4ed874e19afc5bf6105` and protected PR #38 merge
+`a1716f8400052213c8f08e5c397a3d779437dff6` share tree
+`c3dab0e762b27b5f49d8b25b424f24f7d5d66c1b`. Candidate push/PR CI
+`31524994573`/`31525033075`, Rust CI `31525033103`, and CodeQL `31525030957`
+pass; exact merge-head CI `31525340621`, Rust CI `31525340810`, and
+master-push/CodeQL `31525340605` also pass. No `STABLE`, safety, ABI, release,
+benchmark, import, collection, general-pattern, or error-propagation claim follows.
 
 ### CAP-007 accepted: canonical checked-program entrypoint contract
 
@@ -284,7 +285,7 @@ benchmarks, and general memory-safety claims remain excluded.
 
 ### Work already attributable to Milestone 2
 
-CORE-043 through CORE-090 and accepted CAP-001 through CAP-005 implemented substantial typed
+CORE-043 through CORE-090 and accepted CAP-001 through CAP-008 implemented substantial typed
 aggregate, enum/`Match`, CopyData composition, CFG ownership, borrowing, and mutation fragments before the
 Milestone 0/1 exits were closed. This work is retained, tested, and useful, but it does
 not satisfy Milestone 2: collections, general generic substitution, trait dispatch, general
@@ -294,8 +295,9 @@ CAP-003 closes a bounded concrete CopyData `Option`/`Result` carrier slice; CAP-
 closes the generic-data-definition half of the Milestone 2 exit only for explicit
 recursive finite CopyData structs; CAP-005 adds one bound-free whole-value generic
 transport-function slice. Accepted CAP-006 adds one explicit user-defined
-recursive-CopyData generic-enum specialization slice. General substitution and
-operations, collections, and
+recursive-CopyData generic-enum specialization slice. CAP-008 adds only terminal
+whole-arm and payload-leaf nonbinding wildcards over that existing enum universe.
+General substitution and operations, collections, broader pattern semantics, and
 broader error propagation remain open.
 The project therefore remains **Minimal Prototype / correctness recovery**.
 

@@ -2,26 +2,24 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-007 merge
-`5a64acaffa5e7f7167823861a45bc49c6bb670b4`. Exact candidate
-`bfb7adb36af4c2d5bef65d615a2f8e32bff7902b` and the merge have identical tree
-`3ab515666d310a7e72f28347ecd2561297ce0eca`; candidate push/PR CI
-`31519719961`/`31519753426`, Rust CI `31519753421`, CodeQL `31519751604`,
-protected integration, merge-head CI `31520069468`, Rust CI `31520069315`, and
-CodeQL `31520068887` pass, including pinned LLVM/Clang 22 Linux/Windows native
-`-O0`/`-O2` gates.
+Latest accepted compiler-capability master is protected CAP-008 merge
+`a1716f8400052213c8f08e5c397a3d779437dff6`. Exact candidate
+`9ebd204407f09d14092bb4ed874e19afc5bf6105` and the merge have identical tree
+`c3dab0e762b27b5f49d8b25b424f24f7d5d66c1b`; candidate push/PR CI
+`31524994573`/`31525033075`, Rust CI `31525033103`, CodeQL `31525030957`,
+protected integration, merge-head CI `31525340621`, Rust CI `31525340810`, and
+master-push/CodeQL `31525340605` pass, including pinned LLVM/Clang 22 Linux/Windows
+native `-O0`/`-O2` gates.
 
-CAP-008 is a locally green candidate, not an accepted matrix reclassification. It
-adds nonbinding `_` payload leaves and one optional final whole-arm wildcard across
+Accepted CAP-008 adds nonbinding `_` payload leaves and one optional final whole-arm wildcard across
 the already-admitted concrete enum/`Option`/`Result`/generic-enum-specialization
 class. Semantic analysis, raw checked admission, and lowering use one shared arm
 resolver; lowering preserves one independently verified target per declared variant.
 Focused 4/4, complete root/verifier controls, and pinned Windows LLVM/Clang 22.1.8
 external, machine, native `-O0`/`-O2`, and public-run evidence pass at exact output and
-exit 91. Until exact-head public acceptance, the rows below continue to describe
-accepted CAP-007 master; CAP-008 moves no feature beyond `PARTIAL` and does not add
-guards, nested destructuring, whole-enum binding, propagation, storage, collections,
-drop/lifetimes, stable ABI, or safety claims.
+exit 91. CAP-008 moves no feature beyond `PARTIAL` and does not add guards, nested
+destructuring, whole-enum binding, propagation, storage, collections, drop/lifetimes,
+stable ABI, or safety claims.
 
 Accepted CAP-006 adds a further bounded `PARTIAL` slice: exact explicit recursive
 finite CopyData applications of one
@@ -98,6 +96,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Positional multi-field recursive CopyData enum variants | Y | - | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Enums and construction | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Pattern matching | Y | Y | P | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Nonbinding enum payload and terminal whole-arm wildcards (accepted `CAP-008`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fresh owned-enum Match-expression results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Conditional direct-owner enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unified typed CopyData/owned-enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |

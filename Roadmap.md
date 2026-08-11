@@ -12,7 +12,7 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-CAP-008 is a locally green, unaccepted Milestone 2 candidate selected by the required
+CAP-008 is an accepted Milestone 2 capability selected by the required
 post-CAP-007 roadmap audit and three-gap ranking. Its real-program delta is concise,
 exhaustive fallback handling: ordinary Aero code may write `Err(_)` for an ignored
 payload and one final `_ => fallback` for otherwise-uncovered variants across the
@@ -20,13 +20,13 @@ already-admitted concrete enum classes. The one shared enum-arm resolver remains
 semantic and checked-admission authority, and the independent verifier's one-target-
 per-variant contract remains intact. Focused 4/4, complete root/verifier, representative,
 and pinned Windows LLVM/Clang 22.1.8 external/machine/native/public-run gates pass at
-unchanged exact output/exit 91. Accepted public master remains CAP-007 truth-correction
-head `2ba1d33e302439b129f538533ecf5187b07aa34a`; protected candidate and
-merge-head evidence are still required before CAP-008 can alter accepted roadmap
-status. It does not supply guards, nested destructuring, general error propagation,
-collections, imports, ownership/drop expansion, stable ABI, or safety.
+unchanged exact output/exit 91. Exact candidate `9ebd204`, protected PR #38 merge
+`a1716f8`, shared tree `c3dab0e`, all candidate-head checks, and exact merge-head CI
+`31525340621`, Rust CI `31525340810`, and master-push/CodeQL `31525340605` pass.
+It does not supply guards, nested destructuring, general error propagation, collections,
+imports, ownership/drop expansion, stable ABI, or safety.
 
-The latest accepted compiler-capability master is protected CAP-007 merge
+The prior accepted compiler-capability checkpoint was protected CAP-007 merge
 `5a64acaffa5e7f7167823861a45bc49c6bb670b4`. Exact candidate `bfb7adb`,
 candidate-head checks, protected PR #35, merge-head CI/Rust CI/CodeQL, the full root
 gate, and pinned LLVM/Clang 22 stable Linux/Windows representative execution at
@@ -288,7 +288,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 |---|---|---|---|
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes. | Per-slice false-success, function/binding/scope, full-gate, and independent-verification controls are strong, but no selected language subset is classified `STABLE`. | Classify the selected stable subset and close any newly enumerated critical residual class without treating neighboring topology as automatic work. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
-| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, and accepted CAP-006 explicit user-defined recursive-CopyData generic enums have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices, not general substitution. | Collections, general generic substitution and operations, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
+| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, accepted CAP-006 explicit user-defined recursive-CopyData generic enums, and accepted CAP-008 nonbinding enum wildcards have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices; CAP-008 adds only terminal whole-arm and payload-leaf wildcards, not general pattern semantics. | Collections, general generic substitution and operations, traits, broader patterns/error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
 
 ### ROADMAP-001 ranked gaps and M1-001 outcome
 
