@@ -4,7 +4,7 @@ use crate::ir::{
 };
 use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
 use crate::primitive_contract::PrimitiveKind;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 
 #[derive(Clone)]
@@ -361,6 +361,63 @@ impl CodeGenerator {
             }
             for place in function.places.values() {
                 Self::collect_logical_struct_schema(&place.pointee, schemas);
+            }
+        }
+    }
+
+    fn collect_generic_enum_identities(
+        logical_type: &LogicalType,
+        identities: &mut BTreeSet<String>,
+    ) {
+        match logical_type {
+            LogicalType::ImmutableReference { pointee }
+            | LogicalType::MutableReference { pointee }
+            | LogicalType::Array {
+                element: pointee, ..
+            } => Self::collect_generic_enum_identities(pointee, identities),
+            LogicalType::Struct { fields, .. }
+            | LogicalType::Tuple { elements: fields }
+            | LogicalType::EnumFields { fields } => {
+                for field in fields {
+                    Self::collect_generic_enum_identities(field, identities);
+                }
+            }
+            LogicalType::Enum { name, variants } => {
+                if let Some(source) =
+                    crate::generic_enum_contract::private_generic_enum_source_name(name)
+                {
+                    identities.insert(source);
+                }
+                for payload in variants
+                    .iter()
+                    .filter_map(|variant| variant.payload.as_ref())
+                {
+                    Self::collect_generic_enum_identities(payload, identities);
+                }
+            }
+            LogicalType::Int
+            | LogicalType::Float
+            | LogicalType::Bool
+            | LogicalType::Char
+            | LogicalType::Void
+            | LogicalType::String => {}
+        }
+    }
+
+    fn collect_metadata_generic_enum_identities(
+        metadata: &IrMetadata,
+        identities: &mut BTreeSet<String>,
+    ) {
+        for function in metadata.functions.values() {
+            for (_, parameter) in &function.signature.parameters {
+                Self::collect_generic_enum_identities(parameter, identities);
+            }
+            Self::collect_generic_enum_identities(&function.signature.result, identities);
+            for result in function.results.values() {
+                Self::collect_generic_enum_identities(result, identities);
+            }
+            for place in function.places.values() {
+                Self::collect_generic_enum_identities(&place.pointee, identities);
             }
         }
     }
@@ -1028,6 +1085,17 @@ impl CodeGenerator {
         let requires_array_bounds_trap = ir_functions
             .values()
             .any(|function| Self::contains_dynamic_checked_copy_array_index(&function.body));
+        let mut generic_enum_identities = BTreeSet::new();
+        if let Some(metadata) = &self.checked_metadata {
+            Self::collect_metadata_generic_enum_identities(metadata, &mut generic_enum_identities);
+        }
+        let has_generic_enum_identities = !generic_enum_identities.is_empty();
+        for identity in generic_enum_identities {
+            llvm_ir.push_str(&format!("; Aero generic enum: {identity}\n"));
+        }
+        if has_generic_enum_identities {
+            llvm_ir.push('\n');
+        }
         let mut struct_schemas = BTreeMap::new();
         if let Some(metadata) = &self.checked_metadata {
             Self::collect_metadata_struct_schemas(metadata, &mut struct_schemas);

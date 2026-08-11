@@ -4,6 +4,36 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
+### CAP-006 local candidate: explicit user-defined generic CopyData enums
+
+CAP-006 is a locally green candidate, not accepted public capability. Accepted
+`master` remains the CAP-005 acceptance-sync head
+`233716c7521cb0186eb781549e12e67b277009a6`. One shared idempotent authority now
+retains and rejects generic-enum bounds, validates the frozen declaration/application
+class, and specializes exact explicit recursive finite CopyData arguments into private
+nongeneric enum definitions before both semantic analysis and raw checked admission.
+Existing owned-enum construction, transport, replacement, control flow, exhaustive
+`Match`, checked IR, independent verification, and LLVM remain the executable path.
+
+The representative telemetry application now defines `Sample<T>` and composes
+`Sample<Reading<int>>` with `Sample<char>` through ordinary nongeneric functions and
+exhaustive `Match` while preserving exact output and exit 91. Focused CAP-006 tests
+pass 4/4; malformed/private-schema corruption and affected compatibility controls
+pass; and the complete local gate passes 235 library tests, 32 binary tests, all 83
+integration targets, doc tests, formatting, correctness-denying Clippy, and diff
+hygiene. Public `check` and `build` emit deterministic LLVM with source-readable
+specialization identities. This workstation lacks the pinned LLVM/Clang 22 toolchain,
+so external verification, machine lowering, and native execution remain candidate-head
+CI requirements rather than local claims.
+
+Bounds/traits, named variants, nested generic templates, generic-to-generic use,
+context-free inference, non-CopyData arguments, aggregate/reference storage,
+borrowing, projected access, partial moves, drop/lifetimes/unsafe, collections, public
+layout/ABI/FFI, accelerators, releases, benchmarks, stability, production, and general
+memory-safety claims remain excluded. The exact candidate SHA, protected PR, all public
+candidate-head checks, protected merge, and merge-head acceptance synchronization are
+pending.
+
 ### CAP-005 accepted: bound-free CopyData generic transport functions
 
 Accepted CAP-005 adds one bounded
@@ -2674,14 +2704,15 @@ Accepted CAP-004 project-truth synchronization merged through protected PR #29 a
 `5e6f30a1e4a8979f38e75423f2021b88d8c92548` with the identical tree. Exact
 merge-head CI `31480903724`, Rust CI `31480903716`, and CodeQL `31480903587` pass.
 
-CAP-005 is accepted through protected PR #31 and exact merge-head workflows. Before
-authorizing CAP-006, perform a fresh three-gap project-level ranking against accepted
-CAP-005 by roadmap payoff, real-program usefulness, architectural leverage,
-correctness value, risk, and proportional evidence cost. Reconsider the still-open
-Milestone 0 canonical diagnostic/artifact contract alongside broader executable
-capabilities; do not default to neighboring generic topologies, the quarantined
-CORE-091 topology, releases/packages/benchmarks, force-pushes, or deletion of retained
-integration work.
+CAP-005 is accepted through protected PR #31 and exact merge-head workflows. The
+required fresh three-gap ranking selected CAP-006 explicit user-defined
+recursive-CopyData generic enums, and its bounded local candidate is green. The exact
+next action is to commit and rerun the immutable candidate, publish one bounded
+protected PR, require every exact-head workflow including pinned Linux/Windows native
+execution, and synchronize accepted truth only after the merge head is green. Any
+contrary verifier or cross-platform evidence stops acceptance. Do not default to
+neighboring generic topologies, the quarantined CORE-091 topology,
+releases/packages/benchmarks, force-pushes, or deletion of retained integration work.
 
 ## Unauthorized actions
 

@@ -389,8 +389,8 @@ fn mutable_enum_reference_exclusions_fail_closed_in_both_trust_phases() {
         ),
         (
             "generic enum",
-            "enum E<T> { Value(T) } fn set(value: &mut E) {} fn main() -> int { 0 }",
-            &["not an admitted non-generic unit-or-positional-CopyData enum"],
+            "enum E<T> { Value(T) } fn set(value: &mut E<int>) {} fn main() -> int { 0 }",
+            &["generic enum applications are not admitted inside function parameters"],
         ),
         (
             "named-field enum",

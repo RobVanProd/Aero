@@ -495,7 +495,13 @@ impl fmt::Display for LogicalType {
                 write!(f, "]>")
             }
             Self::Enum { name, variants } => {
-                write!(f, "Enum<{name}; [")?;
+                let display_name =
+                    crate::builtin_carrier_contract::private_carrier_source_name(name)
+                        .or_else(|| {
+                            crate::generic_enum_contract::private_generic_enum_source_name(name)
+                        })
+                        .unwrap_or_else(|| name.clone());
+                write!(f, "Enum<{display_name}; [")?;
                 for (index, variant) in variants.iter().enumerate() {
                     if index > 0 {
                         write!(f, ", ")?;

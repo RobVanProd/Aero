@@ -66,6 +66,7 @@ impl CarrierContract {
             name: self.private_name.clone(),
             variants,
             type_params: Vec::new(),
+            trait_bounds: Vec::new(),
         })
     }
 
@@ -894,11 +895,12 @@ impl BuiltinCarrierNormalizer {
             name,
             variants,
             type_params,
+            trait_bounds,
         }) = node
         else {
             unreachable!("private definition collection retains enum definitions only")
         };
-        if !type_params.is_empty() {
+        if !type_params.is_empty() || !trait_bounds.is_empty() {
             return Err(format!(
                 "invalid private built-in carrier definition `{name}`"
             ));

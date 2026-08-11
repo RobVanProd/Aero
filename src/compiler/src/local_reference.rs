@@ -1061,6 +1061,7 @@ mod tests {
                     },
                 ],
                 type_params: Vec::new(),
+                trait_bounds: Vec::new(),
             })],
             &StructRegistry::default(),
         )

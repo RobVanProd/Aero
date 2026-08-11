@@ -189,6 +189,7 @@ fn main() -> int {
                 name,
                 variants,
                 type_params,
+                ..
             })) = ast.first()
             else {
                 failures.push(format!("parser omitted enum definition: {ast:?}"));
@@ -286,7 +287,7 @@ fn main() -> int {
         (
             "generic definition",
             "enum Phase<T> { Cold, Warm } fn main() { let value = Phase::Cold; }",
-            "enum `Phase` is not an admitted non-generic unit-or-positional-CopyData enum",
+            "generic enum `Phase` has unused type parameter(s): T",
         ),
         (
             "empty definition",

@@ -179,6 +179,60 @@
   the declaration as bound-free. No production source or accepted test was changed;
   user/app-owned untracked directories and the quarantined stash remain untouched.
 
+### CAP-006 local green candidate checkpoint
+
+- Status: the bounded implementation candidate is locally green but is not accepted
+  public capability. Accepted `master` remains the CAP-005 acceptance-sync head
+  `233716c7521cb0186eb781549e12e67b277009a6`. The exact CAP-006 candidate identity
+  will be assigned by the implementation commit; protected PR integration, exact-head
+  public checks, and post-merge accepted-truth synchronization remain pending.
+- Implementation summary: one shared idempotent generic-enum authority now retains
+  and rejects bounds, validates the complete frozen declaration/application class,
+  specializes exact explicit recursive finite CopyData arguments into deterministic
+  private nongeneric enum schemas, and rewrites annotations, contextual constructors,
+  and bound patterns before both semantic analysis and raw checked admission. Existing
+  owned-enum transport, replacement, control-flow, Match, checked IR, verifier, and
+  LLVM paths remain the only executable product. The verifier independently validates
+  each private identity against its canonical source name and complete specialized
+  schema; LLVM retains source-readable specialization comments.
+- Real-program result: the representative telemetry application defines one
+  `Sample<T>` enum and executes materially distinct `Sample<Reading<int>>` and
+  `Sample<char>` instantiations through nongeneric function transport, exhaustive
+  `Match`, and existing generic-struct composition while preserving exact output and
+  exit 91. The focused positive program also covers unit and positional variants,
+  multiple parameters, arrays/tuples, direct function-argument construction,
+  annotated binding/reassignment/result contexts, and branch/loop replacement.
+- Negative and corruption evidence: the focused 4/4 target covers semantic and raw
+  checked parity, idempotence, declarations, applications, constructor contexts,
+  cross-specialization construction/assignment/calls/returns/patterns, excluded
+  aggregate/reference storage, generic/trait/impl/closure integration, and every
+  frozen non-CopyData or unresolved topology. A verifier control rejects both
+  malformed private identities and complete-schema corruption. An adjacent regression
+  exposed and closed one inherited local-borrow path so no specialized enum can bypass
+  the CAP-006 reference exclusion.
+- Local gates: the complete repository-root gate passes formatting,
+  correctness-denying Clippy, 235 library tests, 32 binary tests, all 83 integration
+  targets, and doc tests. Focused compatibility rings and `git diff --check` pass.
+  Public `check` and `build` produce deterministic LLVM for the representative source;
+  the local artifact SHA-256 is
+  `3ADFEAC3607E6C48A7F04AF493D59E0489212B58B3F875CF5D55B6E19DE240DC` and contains
+  both expected generic-enum specialization identities. This workstation lacks the
+  pinned LLVM/Clang 22 toolchain, so no local external-verifier, machine, or native
+  result is claimed; the public Linux/Windows candidate gates must supply it.
+- Remaining boundary and risk: named variants, bounds/traits, nested generic template
+  applications, generic-to-generic use, context-free inference, non-CopyData arguments,
+  aggregate/reference storage, borrowing, projected access, partial moves, callable
+  ABI, drop/lifetimes/unsafe, collections, public layout/ABI/FFI, accelerators,
+  releases, benchmarks, stability, production, and general memory-safety claims remain
+  excluded. The rollback boundary is the bounded CAP-006 branch/PR. Any public failure,
+  verifier/schema discrepancy, cross-platform behavior difference, or evidence that
+  contextual specialization changes source evaluation order stops acceptance.
+- Recommended next action: commit the exact candidate, rerun the complete gate at that
+  immutable head, publish one bounded protected PR whose front page leads with CAP-006,
+  require every candidate-head workflow including pinned LLVM/Clang 22 Linux/Windows
+  `-O0`/`-O2` representative execution, and synchronize accepted project truth only
+  after the exact merge head is green.
+
 ## CAP-005 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-005-ACCEPTANCE-SYNC`, authorized bounded

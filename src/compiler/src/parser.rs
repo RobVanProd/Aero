@@ -1227,7 +1227,7 @@ impl Parser {
                 ));
             }
         };
-        let (type_params, _bounds) = self.parse_optional_type_params()?;
+        let (type_params, trait_bounds) = self.parse_optional_type_params()?;
         self.consume(Token::LeftBrace, "Expected '{' after enum name")?;
         let mut variants = Vec::new();
         while !self.check(&Token::RightBrace) && !self.is_at_end() {
@@ -1298,6 +1298,7 @@ impl Parser {
             name,
             variants,
             type_params,
+            trait_bounds,
         })
     }
 

@@ -13,6 +13,7 @@ use crate::function_call_contract::{
     FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
     FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
 };
+use crate::generic_enum_contract::normalize_generic_copydata_enums;
 use crate::generic_function_contract::{
     normalize_generic_copydata_functions, valid_generic_aware_function_symbol,
 };
@@ -238,6 +239,7 @@ impl IrGenerator {
     ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
         let ast = normalize_primitive_consts(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_generic_copydata_structs(ast).map_err(IrGenerationError::Admission)?;
+        let ast = normalize_generic_copydata_enums(ast).map_err(IrGenerationError::Admission)?;
         let ast =
             normalize_generic_copydata_functions(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_builtin_carriers(ast).map_err(IrGenerationError::Admission)?;

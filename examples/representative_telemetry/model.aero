@@ -2,6 +2,11 @@ struct Sensor { value: int, trusted: bool }
 struct Batch { sensors: [Sensor; 3], meta: (int, bool) }
 struct Reading<T> { value: T, valid: bool }
 
+enum Sample<T> {
+    Present(T),
+    Missing
+}
+
 enum Decision {
     Normal(int),
     Alert(int, bool)
@@ -22,10 +27,6 @@ fn make_reading(value: int, valid: bool) -> Reading<int> {
 
 fn reading_value(reading: Reading<int>) -> int {
     reading.value
-}
-
-fn marker_is_a(marker: Reading<char>) -> bool {
-    marker.valid && marker.value == 'a'
 }
 
 fn make_batch() -> Batch {

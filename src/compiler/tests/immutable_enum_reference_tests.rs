@@ -276,8 +276,8 @@ fn immutable_enum_match_reference_exclusions_fail_closed_in_both_trust_phases() 
         ),
         (
             "generic enum reference",
-            "enum E<T> { Value(T) } fn read(value: &E) -> int { 0 } fn main() -> int { 0 }",
-            &["not an admitted non-generic unit-or-positional-CopyData enum"],
+            "enum E<T> { Value(T) } fn read(value: &E<int>) -> int { 0 } fn main() -> int { 0 }",
+            &["generic enum applications are not admitted inside function parameters"],
         ),
     ];
 

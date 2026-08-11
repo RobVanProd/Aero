@@ -360,7 +360,7 @@ fn recursive_copydata_payload_enum_class_is_complete_checked_and_executable() {
             "enum E { Value { x: int } } fn main() { let value = E::Value; }",
         ),
         (
-            "generic enum",
+            "inferred generic enum",
             "enum E<T> { Value(T) } fn main() { let value = E::Value(1); }",
         ),
         (

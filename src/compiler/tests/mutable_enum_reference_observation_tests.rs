@@ -518,8 +518,8 @@ fn mutable_enum_reference_observation_exclusions_fail_closed_in_both_trust_phase
         ),
         (
             "generic enum",
-            "enum E<T> { Value(T) } fn read(value: &mut E) -> int { 0 } fn main() -> int { 0 }",
-            &["not an admitted non-generic unit-or-positional-CopyData enum"],
+            "enum E<T> { Value(T) } fn read(value: &mut E<int>) -> int { 0 } fn main() -> int { 0 }",
+            &["generic enum applications are not admitted inside function parameters"],
         ),
         (
             "named-field enum",
