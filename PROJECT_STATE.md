@@ -4,6 +4,29 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
+### CAP-011 candidate: fixed-capacity generic CopyData container algorithms
+
+Local candidate checkpoint `24db04a` composes accepted generic structs, generic
+function specialization, fixed arrays, runtime bounds guards, and projected mutation
+into one useful `Window<T>` API. A generic function may accept an exact parametric
+CopyData container, infer concrete element types through its schema, read structural
+paths, update a copied mutable local, and return the specialized container. Telemetry
+uses the same API for `int` calibration and `char` markers while preserving expected
+output/exit 91.
+
+Focused generic tests pass 4/4, representative tests pass 3/3, the identity corruption
+control passes, compile/check/doc/format/diff gates pass, and the complete local root
+gate passes 241 library tests plus all integration and doc tests. Linux and Windows
+workflow declarations now require the four successful specializations and the exact
+lower/upper-bound read/write failure product at `-O0` and `-O2`. Those public native
+results have not run on the candidate head yet, so CAP-011 is not accepted and the
+public baseline remains CAP-010.
+
+This is not dynamic collection or general generic-operation support. Parametric
+construction, operators, arbitrary calls, borrowing, generic-to-generic calls,
+references, enums, allocation, lifetimes/drop, public ABI, safety, and stability stay
+outside the candidate.
+
 ### CAP-010 accepted: required-only CopyData trait-bound static dispatch
 
 Accepted CAP-010 admits one deliberately bounded form of behavioral polymorphism:

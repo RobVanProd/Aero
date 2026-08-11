@@ -1,6 +1,7 @@
 struct Sensor { value: int, trusted: bool }
 struct Batch { sensors: [Sensor; 3], meta: (int, bool) }
 struct Reading<T> { value: T, valid: bool }
+struct Window<T> { values: [T; 3] }
 
 enum Sample<T> {
     Present(T),
@@ -15,6 +16,16 @@ enum Decision {
 fn choose<T>(first: T, second: T, take_first: bool) -> T {
     if take_first { return first; }
     second
+}
+
+fn window_get<T>(window: Window<T>, index: int) -> T {
+    window.values[index]
+}
+
+fn window_set<T>(window: Window<T>, index: int, value: T) -> Window<T> {
+    let mut updated: Window<T> = window;
+    updated.values[index] = value;
+    updated
 }
 
 fn make_sensor(value: int, trusted: bool) -> Sensor {

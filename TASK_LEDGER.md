@@ -1,5 +1,241 @@
 # Aero Task Ledger
 
+## CAP-011 - fixed-capacity generic CopyData container algorithms
+
+- Date/task/status: 2026-08-11, `CAP-011`, authorized red-first compiler and
+  representative-program capability from exact accepted public master
+  `72b8ddade5a392b46b4b3d4f3ddde5f261f8465f` (tree
+  `29d52133c72d8b03a1d03bb7814c7f1573f5280d`) on
+  `agent/cap-011-generic-fixed-window`. Accepted CAP-010 project truth is
+  synchronized. User/app-owned untracked `tmp/` and `.codex-remote-attachments/`
+  remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Milestone-gap audit: Milestone 0's selected `stable-scalar-v0` exit and the
+  bounded Milestone 1 representative-application exit remain met. Milestone 2 has
+  accepted generic data definitions, whole-value generic transport, one bounded
+  trait-dispatch class, fixed arrays, projected mutation, and checked runtime
+  indexes, but still lacks the exit gate's usable generic data structure. It also
+  lacks dynamic collections, general generic operations, broader traits/patterns/
+  error propagation, general lifetime/drop/unsafe rules, public ABI/destruction,
+  and an ownership-intensive application.
+- Fresh post-CAP-010 ranking: scores are 1--5; higher `Risk` and `Evidence` mean
+  more favorable delivery, not permission to omit a hard dependency.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Fixed-capacity generic CopyData container with generic checked read/update algorithms | 5 | 5 | 5 | 5 | 2 | 3 | 25 |
+  | 2 | Owned dynamic `Vec<T>` foundation | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
+  | 3 | Positive import/module name resolution | 5 | 4 | 5 | 4 | 2 | 2 | 22 |
+
+  The draft collection RFC requires `usize`, allocation/reallocation failure,
+  deterministic element destruction, move-on-insert, and collection-scoped
+  `get`/`get_mut` loans; the trusted compiler still has no complete contract for
+  any of them. The founding module material still does not freeze lookup roots,
+  namespace/collision precedence, re-export behavior, visibility identity, or
+  cycle/package mapping. Activating either now would invent semantics. By contrast,
+  explicit generic structs, recursive finite CopyData substitution, fixed-array
+  layout, runtime index guards, direct-owner projected assignment, and compile-time
+  monomorphization are already accepted. The selected task composes those contracts
+  into the roadmap's first useful generic data structure without heap or namespace
+  invention.
+- Before/after real-program delta and destination: before CAP-011, Aero can define
+  `Window<T>` and can transport a bare `T`, but a generic function cannot accept
+  `Window<T>`, infer `T` through that container, read `window.values[index]`, update
+  a copied window, or return the updated container. Users must duplicate one
+  concrete API per element type. After CAP-011, one user-defined fixed-capacity
+  recursive-CopyData container can expose generic checked read and functional-update
+  algorithms and execute for at least `int` and `char`; the representative telemetry
+  application uses that same API for calibration and marker windows. This is the
+  shortest safe path to the Milestone 2 generic-data-structure exit, not a claim for
+  dynamic collections or general generic operations.
+- Mechanism: extend the existing shared generic-function specialization authority
+  with one schema-driven parametric-use classifier. The classifier recognizes exact
+  CAP-004 generic-struct applications whose arguments are direct declared type
+  parameters, unifies call arguments through those schemas, proves only structural
+  whole-container/local-copy/field/tuple/fixed-array path reads and direct-owner
+  writes, then substitutes concrete recursive-CopyData types before ordinary
+  semantic and semantic-independent checked admission. The CAP-004 normalizer may
+  preserve only this handed-off syntax until specialization; it must not implement a
+  second body guard. Both trusted phases consume the same idempotent authority.
+- Frozen positive class: a unique accepted CAP-004 generic struct has one or more
+  fields and at least one field containing a declared type parameter through the
+  existing finite CopyData field/tuple/nonempty-fixed-array schema. A top-level,
+  called, bound-free generic function may use a direct application such as
+  `Window<T>` in parameters, explicit initialized local annotations, and results;
+  every application argument is a direct declared type parameter and every type
+  parameter remains inferable from call arguments. Direct `T` parameters/results
+  and concrete recursive-CopyData sides remain allowed. Parametric container values
+  may be copied whole, assigned to an exact same-schema mutable local, returned under
+  an exact result schema, and traversed only by statically known struct fields/tuple
+  indexes plus already admitted integer literal or runtime fixed-array indexes.
+  A leaf read has its substituted exact type; a direct-owner leaf write requires an
+  exact same parametric role and retains accepted target-before-RHS, once-only
+  selector evaluation, bounds checks, and CopyData ownership. Concrete calls may
+  instantiate the class with any accepted recursive finite CopyData type and lower
+  to verifier-bound private monomorphic functions; no runtime type test or generic
+  representation exists.
+- Frozen negative boundary: reject generic applications that are unknown, nested,
+  partially concrete, reordered, repeated incompatibly, result-only, or contain
+  non-CopyData/reference/enum/resource/collection arguments; generic struct template
+  nesting; context-free generic literals; parametric arithmetic, comparison, logical,
+  unary, formatting, arbitrary call arguments, method/trait calls, borrowing,
+  dereference, Match, enum/Option/Result storage, array/tuple/container construction,
+  destructuring, projected borrowing, partial moves, reference results, mutation of
+  parameters or immutable roots, mismatched container/leaf assignment, generic-to-
+  generic calls, recursion, bounds/where clauses, generic enums/traits/impls/methods,
+  dynamic collections, const generics, slices, zero-length inferred storage, heap/
+  allocation, drop/lifetimes/unsafe, public ABI/FFI, imports, accelerators, releases,
+  performance, safety, stability, or general generic-container semantics. Parser-
+  retained excluded shapes fail closed before checked IR.
+- Assumptions and evidence: the formal type-system document defines generic structs
+  and functions, compile-time monomorphization, explicit annotations for generic
+  data, and homogeneous fixed arrays. Accepted CAP-004 already substitutes type
+  parameters recursively through tuple/fixed-array generic-struct fields; CAP-005
+  produces exact private generic-function identities; CAP-001/002 guard runtime
+  fixed-array reads/writes; CORE-090 proves arbitrary finite direct-owner projection;
+  and their checked verifier/LLVM paths are green. Current counter-evidence is exact:
+  `validate_template` returns preserved quarantine for every parameter/result that
+  mentions a type parameter below the root, the CAP-004 authority rejects a generic
+  struct application inside a generic function, and one body-wide predicate rejects
+  every projected parametric use as outside whole-value transport.
+- Measurement and red-first proof: before production changes add one focused target
+  whose initial source strictly parses a generic fixed window plus `get` and
+  functional `set` algorithms, reaches the current shared quarantine, and fails in
+  semantics, raw checked admission, and public compilation. The complete green
+  product must cover at least two generic container definitions; `int`, `char`,
+  struct, tuple, fixed-array, and accepted concrete generic-struct element types;
+  multiple fields/type parameters; literal/runtime nested reads; functional updates;
+  multiple calls and inference conflicts; owner reuse; exact evaluation order and
+  runtime bounds failure; direct modules; public check/build/run; deterministic
+  checked identities; verified LLVM; and native execution. A finite negative table
+  must enumerate every frozen signature, inference, body-use, mutability, storage,
+  and excluded-topology family through both trusted routes. Corruption controls must
+  mutate specialized container schemas, leaf types, path/index/count identities,
+  private function identities, calls, argument order/arity, and bounds-guard
+  provenance. The representative application must use one `Window<T>` API for both
+  calibration integers and marker characters while preserving exact output/exit 91.
+- Failure modes and detection: nested inference could choose the wrong concrete type;
+  a type-specific operation could masquerade as generic; a preserved template could
+  escape into semantics/IR; container schema or array count could drift during
+  substitution; a write could target the original/immutable owner; selector or RHS
+  effects could duplicate/reorder; an unchecked access could bypass the accepted
+  bounds guard; private identities could collide; or semantic and raw-checked routes
+  could disagree. Shared classifier unit tests, exhaustive source matrices, phase-
+  parity tests, deterministic snapshots, exact checked metadata, verifier corruption,
+  runtime lower/upper-bound failures, owner reuse, and Linux/Windows `-O0`/`-O2`
+  native gates detect these failures.
+- Allowed files and recovery: authorization/implementation is limited to
+  `TASK_LEDGER.md`; `src/compiler/src/generic_function_contract.rs`;
+  `src/compiler/src/generic_struct_contract.rs` only for the single handoff into the
+  shared authority; one new shared contract module plus `lib.rs` only if keeping the
+  structural classifier separate prevents duplication; `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, and `code_generator.rs` only if exact already-specialized private
+  schema verification proves insufficient; one focused
+  `src/compiler/tests/generic_copydata_window_tests.rs`; directly affected generic,
+  aggregate, projected-write, and corruption tests; the existing representative
+  application/test; and Linux/Windows workflow anchors for its exact native lane.
+  After the exact candidate is green, only directly affected project-truth records
+  may describe candidate status. The rollback boundary is this branch/PR; no release,
+  package, benchmark, protection change, external artifact, direct master write, or
+  user-owned untracked mutation is authorized.
+- Decision threshold: merge only if one shared schema classifier proves the complete
+  admitted class; every excluded parametric use fails before checked IR; all generic
+  syntax is eliminated into exact concrete definitions before semantics/lowering;
+  independent verification authenticates container/function/path/count/call identity;
+  the existing bound-free transport, trait dispatch, generic structs/enums, references,
+  aggregates, modules, stable profile, and CAP-003--010 behavior is unchanged; and
+  focused, representative, full repository, formatting, Clippy, docs, corruption,
+  all public exact-head, pinned LLVM 22 Linux/Windows external/machine/object/link/
+  native `-O0`/`-O2`, protected merge, and exact merge-head gates pass. Candidate and
+  public acceptance remain separate.
+- Strategic value and what would change our mind: this converts isolated generic
+  definition/transport primitives into a reusable application-level data structure,
+  directly advances the explicit Milestone 2 exit, composes prior bounds-safe array
+  and projected-write work, and removes concrete API duplication. Evidence that
+  structural validity cannot be proven without general trait/operator semantics;
+  that CAP-004 field substitution or CAP-005 identity cannot represent the class;
+  that ownership-safe updates require unresolved partial-move/lifetime/drop rules;
+  that a generic template could type-check only for selected instantiations; that the
+  task requires heap/dynamic collection behavior; or that another ranked capability
+  closes the milestone more safely stops CAP-011 and triggers re-ranking. Another
+  wrapper, field order, count, or element-type permutation does not lower the
+  threshold.
+
+### CAP-011 exact red checkpoint
+
+- Before any production mutation, focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  generic_copydata_window_tests -- --nocapture` runs 0/1 green. The source strictly
+  parses `Window<T> { values: [T; 3] }`, nested inference through `Window<int>`, a
+  runtime-indexed generic read, a copied direct-owner generic update, and an exact
+  generic-container result. Semantic analysis reaches the existing CAP-004 handoff
+  boundary and rejects `window_get` with `generic function 'window_get' cannot
+  transport an explicit generic CopyData struct in CAP-004` (rendered with source
+  backticks).
+- The red proves the missing capability is composition between already accepted
+  generic-struct substitution and generic-function specialization, not parsing,
+  fixed-array layout, struct projection, runtime index syntax, generic call syntax,
+  or concrete `Window<int>` construction. Exactly one new focused test and this
+  ledger changed; no generic normalizer, semantic, checked-IR, verifier, backend,
+  workflow, example, dependency, project-truth, external repository, or user-owned
+  untracked content changed.
+
+### CAP-011 local green candidate checkpoint
+
+- Candidate status: implementation checkpoint `24db04a` is locally green on
+  `agent/cap-011-generic-fixed-window`. This is candidate evidence only. No public
+  exact-head workflow, pinned LLVM/Clang 22 native execution, protected merge, or
+  public acceptance is claimed yet; accepted master remains CAP-010 at
+  `72b8ddade5a392b46b4b3d4f3ddde5f261f8465f`.
+- Implementation: one shared generic-function specialization authority now admits
+  exact CAP-004 generic-struct applications whose arguments are an ordered,
+  nonrepeated subsequence of declared function type parameters. It infers concrete
+  recursive finite CopyData substitutions through the container schema, classifies
+  only whole-value transport and structural field/tuple/fixed-array reads or mutable
+  local writes, then eliminates all generic syntax into ordinary concrete functions
+  and structs before semantic analysis or checked IR. The generic-struct contract
+  performs only the exact handoff; it has no duplicate body classifier.
+- Trust boundary: private generic-function identities encode the parametric struct
+  source identity and type-parameter positions. Existing concrete struct, array,
+  projection, function-call, and bounds-guard checked identities remain the only IR
+  admitted after specialization. A unit corruption control proves an `int`
+  specialization rejects a substituted `Window<char>` signature; the complete
+  existing verifier corruption suite remains green.
+- Positive/negative evidence: the focused target passes 4/4 across semantic, raw
+  checked-admission, and public compile routes. It covers `int`, `char`, ordinary
+  struct, tuple, fixed array, nested concrete generic struct, multiple fields/type
+  parameters, an additional directly inferred generic side, runtime reads, and
+  functional updates. Signature controls reject partially concrete, reordered,
+  repeated, result-only, and reference applications. One shared body-use boundary
+  rejects arithmetic, comparison, arbitrary calls, borrowing, construction,
+  immutable/parameter writes, leaf mismatch, and generic-to-generic calls in both
+  trusted routes.
+- Representative/system evidence: telemetry now uses one `Window<T>` API for both
+  integer calibration and character markers while preserving expected output/exit
+  91. Representative tests pass 3/3. Four added generic runtime specimens close the
+  lower/upper-bound read/write product alongside the retained direct-array controls;
+  local public builds contain the required trap and specialization identities. The
+  Linux and Windows pinned-native workflow declarations require all successful
+  specializations and all eight bounds failures at `-O0` and `-O2`.
+- Commands and results: focused generic/representative tests pass 7/7; the private
+  identity unit control passes 1/1; `cargo check --locked --all-targets
+  --all-features`, `cargo doc --locked --no-deps`, formatting, and `git diff
+  --check` pass. The exact repository-root `./tools/test.sh` passes twice, with the
+  final implementation run completing 241 library tests, every integration target,
+  doc tests, and correctness-denying Clippy in 528.4 seconds. Existing warnings are
+  unchanged and outside the correctness lint gate.
+- Files changed by the implementation checkpoint: the two generic contract modules,
+  one focused test, the representative model/main and synchronized test, four
+  representative runtime-failure specimens, and Linux/Windows workflow anchors.
+  User-owned untracked directories and the quarantined stash remain untouched.
+- Remaining boundary and next action: dynamic collections, construction of
+  parametric containers inside generic bodies, operators/methods/traits on abstract
+  values, generic-to-generic calls, references, enums, allocation, lifetimes/drop,
+  public layout/ABI, accelerators, safety, stability, benchmarks, and releases remain
+  excluded. Synchronize only candidate-facing project truth, push one bounded draft
+  PR, verify its rendered metadata, and require every exact-head public check plus
+  pinned Linux/Windows LLVM 22 native evidence before proposing protected integration.
+
 ## CAP-010 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-010-ACCEPTANCE-SYNC`, authorized bounded

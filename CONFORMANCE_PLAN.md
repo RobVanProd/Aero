@@ -56,6 +56,16 @@
   corruption controls must reject helper identity, receiver target/mode/provenance,
   argument/result schema, callee, arity, and order changes. This is not a conformance
   claim for general traits or generics.
+- The CAP-011 candidate fixed-window slice must retain one shared schema authority for
+  generic-struct signature handoff, nested inference, structural body use, and
+  concrete pre-IR specialization. Positive evidence covers recursive CopyData
+  substitutions, multiple parameters, direct generic sides, reads, functional
+  updates, modules, and the representative program. Negative evidence covers every
+  frozen signature and body-use family in semantic and raw checked routes. Private
+  identity mismatch and the existing concrete verifier corruption controls remain
+  mandatory. Pinned Linux/Windows native gates must execute `int` and `char`
+  specializations and reject the complete lower/upper-bound read/write product at
+  `-O0` and `-O2`. This is not general generic or dynamic collection conformance.
 - Acyclic conditional ownership tests must distinguish mutually exclusive sibling
   consumption from post-merge uncertainty. For each admitted enum schema, cover
   missing else, both fallthrough arms, definitely returning arms, nested else-if,
@@ -123,6 +133,12 @@ nonzero result. Focused tests, the complete repository gate, three exact-diff
 reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
+
+Local CAP-011 implementation checkpoint `24db04a` passes focused 4/4,
+representative 3/3, its private identity mismatch control, check/doc/format/diff, and
+the complete repository gate with 241 library tests plus every integration and doc
+target. Public exact-head pinned LLVM/native checks and protected integration are
+pending. Candidate status is separate from accepted CAP-010 below.
 
 Accepted CAP-010 adds one required-only trait-dispatch conformance slice over
 nongeneric recursive finite CopyData structs and direct whole-value generic parameters.

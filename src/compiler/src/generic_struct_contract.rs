@@ -15,6 +15,90 @@ struct GenericStructDefinition {
     fields: Vec<FieldDecl>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct GenericStructParametricCatalog {
+    definitions: BTreeMap<String, GenericStructDefinition>,
+}
+
+impl GenericStructParametricCatalog {
+    pub(crate) fn from_ast(ast: &[AstNode]) -> Self {
+        let definitions = ast
+            .iter()
+            .filter_map(|node| match node {
+                AstNode::Statement(Statement::StructDef {
+                    name,
+                    fields,
+                    type_params,
+                }) if !type_params.is_empty() => Some((
+                    name.clone(),
+                    GenericStructDefinition {
+                        parameters: type_params.clone(),
+                        fields: fields.clone(),
+                    },
+                )),
+                _ => None,
+            })
+            .collect();
+        Self { definitions }
+    }
+
+    fn from_definitions(definitions: &BTreeMap<String, GenericStructDefinition>) -> Self {
+        Self {
+            definitions: definitions.clone(),
+        }
+    }
+
+    pub(crate) fn is_exact_application(&self, ty: &Type, function_parameters: &[String]) -> bool {
+        let Type::Generic(name, arguments) = ty else {
+            return false;
+        };
+        let Some(definition) = self.definitions.get(name) else {
+            return false;
+        };
+        if definition.parameters.len() != arguments.len() {
+            return false;
+        }
+        let mut previous = None;
+        for argument in arguments {
+            let Type::Named(name) = argument else {
+                return false;
+            };
+            let Some(index) = function_parameters
+                .iter()
+                .position(|parameter| parameter == name)
+            else {
+                return false;
+            };
+            if previous.is_some_and(|previous| index <= previous) {
+                return false;
+            }
+            previous = Some(index);
+        }
+        true
+    }
+
+    pub(crate) fn field_type(&self, application: &Type, field: &str) -> Option<Type> {
+        let Type::Generic(name, arguments) = application else {
+            return None;
+        };
+        let definition = self.definitions.get(name)?;
+        if definition.parameters.len() != arguments.len() {
+            return None;
+        }
+        let substitutions = definition
+            .parameters
+            .iter()
+            .cloned()
+            .zip(arguments.iter().cloned())
+            .collect::<BTreeMap<_, _>>();
+        let field = definition
+            .fields
+            .iter()
+            .find(|candidate| candidate.name == field)?;
+        substitute_type(&field.field_type, &substitutions).ok()
+    }
+}
+
 #[derive(Debug, Clone)]
 struct GenericStructContract {
     source_name: String,
@@ -132,6 +216,11 @@ pub(crate) fn valid_generic_aware_struct_symbol(
     } else {
         valid_source_symbol(name)
     }
+}
+
+pub(crate) fn private_generic_struct_application(name: &str) -> Option<Type> {
+    let source = private_generic_struct_source_name(name)?;
+    CanonicalTypeParser::new(&source).parse_complete().ok()
 }
 
 pub(crate) fn parse_canonical_copydata_type_list(source: &str) -> Option<Vec<Type>> {
@@ -313,6 +402,32 @@ impl GenericStructNormalizer {
                 }) || return_type.as_ref().is_some_and(|result| {
                     contains_source_generic_struct(result, &self.definitions)
                 });
+                let parametric_mentions = parameters.iter().any(|parameter| {
+                    contains_source_generic_struct(&parameter.param_type, &self.definitions)
+                        && contains_any_type_parameter(&parameter.param_type, type_params)
+                }) || return_type.as_ref().is_some_and(|result| {
+                    contains_source_generic_struct(result, &self.definitions)
+                        && contains_any_type_parameter(result, type_params)
+                });
+                if parametric_mentions && !type_params.is_empty() {
+                    let catalog =
+                        GenericStructParametricCatalog::from_definitions(&self.definitions);
+                    if crate::generic_function_contract::admits_parametric_generic_struct_signature(
+                        type_params,
+                        parameters,
+                        return_type.as_ref(),
+                        trait_bounds,
+                        &catalog,
+                    ) {
+                        // CAP-011 hands this exact parametric signature and its body to the
+                        // generic-function specializer. Concrete applications are normalized
+                        // after specialization by the same generic-struct contract.
+                        return Ok(());
+                    }
+                    return Err(format!(
+                        "generic function `{name}` cannot transport an explicit generic CopyData struct in CAP-004"
+                    ));
+                }
                 if mentions
                     && !type_params.is_empty()
                     && (!trait_bounds.is_empty()
@@ -686,8 +801,21 @@ impl GenericStructNormalizer {
                     parameters,
                     body,
                     return_type,
+                    type_params,
+                    trait_bounds,
                     ..
                 }) => {
+                    let catalog =
+                        GenericStructParametricCatalog::from_definitions(&self.definitions);
+                    if crate::generic_function_contract::admits_parametric_generic_struct_signature(
+                        type_params,
+                        parameters,
+                        return_type.as_ref(),
+                        trait_bounds,
+                        &catalog,
+                    ) {
+                        continue;
+                    }
                     let mut scopes = TypeScopes::new();
                     for parameter in parameters {
                         scopes.insert(parameter.name.clone(), Some(parameter.param_type.clone()));
@@ -1195,6 +1323,18 @@ fn contains_source_generic_struct(
             .iter()
             .any(|element| contains_source_generic_struct(element, definitions)),
         Type::Named(_) => false,
+    }
+}
+
+fn contains_any_type_parameter(ty: &Type, parameters: &[String]) -> bool {
+    match ty {
+        Type::Named(name) => parameters.iter().any(|parameter| parameter == name),
+        Type::Array(element, _) | Type::Reference(element, _) => {
+            contains_any_type_parameter(element, parameters)
+        }
+        Type::Tuple(elements) | Type::Generic(_, elements) => elements
+            .iter()
+            .any(|element| contains_any_type_parameter(element, parameters)),
     }
 }
 

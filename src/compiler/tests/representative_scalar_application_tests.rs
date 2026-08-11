@@ -19,10 +19,11 @@ fn main() -> int {
     const EXPECTED: int = 91;
 
     let mut batch: Batch = make_batch();
-    let calibration = [BASE, 20, 30];
+    let calibration_seed: Window<int> = Window { values: [0, 20, 30] };
+    let calibration: Window<int> = window_set(calibration_seed, 0, BASE);
     let mut sensor_index = 0;
     while sensor_index < 3 {
-        batch.sensors[sensor_index].value = calibration[sensor_index];
+        batch.sensors[sensor_index].value = window_get(calibration, sensor_index);
         sensor_index = sensor_index + 1;
     }
     batch.meta.0 = 4;
@@ -44,8 +45,10 @@ fn main() -> int {
         step = step + 1;
     }
     let delta_reading: Reading<int> = choose(make_reading(4, 3 < 4), make_reading(8, 4 < 3), 4 < 5);
-    let first_marker: Reading<char> = Reading { value: 'a', valid: 4 < 5 };
-    let second_marker: Reading<char> = Reading { value: 'b', valid: 5 < 4 };
+    let marker_seed: Window<char> = Window { values: ['a', 'x', 'c'] };
+    let marker_window: Window<char> = window_set(marker_seed, 1, 'b');
+    let first_marker: Reading<char> = Reading { value: window_get(marker_window, 0), valid: 4 < 5 };
+    let second_marker: Reading<char> = Reading { value: window_get(marker_window, 1), valid: 5 < 4 };
     let marker: Reading<char> = choose(first_marker, second_marker, 5 < 6);
     let marker_valid = marker.valid;
     let delta_sample: Sample<Reading<int>> = Sample::Present(delta_reading);
@@ -71,6 +74,7 @@ fn main() -> int {
 const MODEL_SOURCE: &str = r#"struct Sensor { value: int, trusted: bool }
 struct Batch { sensors: [Sensor; 3], meta: (int, bool) }
 struct Reading<T> { value: T, valid: bool }
+struct Window<T> { values: [T; 3] }
 
 enum Sample<T> {
     Present(T),
@@ -85,6 +89,16 @@ enum Decision {
 fn choose<T>(first: T, second: T, take_first: bool) -> T {
     if take_first { return first; }
     second
+}
+
+fn window_get<T>(window: Window<T>, index: int) -> T {
+    window.values[index]
+}
+
+fn window_set<T>(window: Window<T>, index: int, value: T) -> Window<T> {
+    let mut updated: Window<T> = window;
+    updated.values[index] = value;
+    updated
 }
 
 fn make_sensor(value: int, trusted: bool) -> Sensor {
@@ -293,6 +307,82 @@ fn main() -> int {
 }
 "#;
 
+const GENERIC_NEGATIVE_INDEX_SOURCE: &str = r#"struct Window<T> { values: [T; 2] }
+
+fn window_get<T>(window: Window<T>, index: int) -> T {
+    window.values[index]
+}
+
+fn main() -> int {
+    let values: Window<int> = Window { values: [10, 20] };
+    let zero = 0;
+    let index = zero - 1;
+    let selected = window_get(values, index);
+    println!("unreachable generic negative index: {}", selected);
+    0
+}
+"#;
+
+const GENERIC_UPPER_BOUND_INDEX_SOURCE: &str = r#"struct Window<T> { values: [T; 2] }
+
+fn window_get<T>(window: Window<T>, index: int) -> T {
+    window.values[index]
+}
+
+fn main() -> int {
+    let values: Window<int> = Window { values: [10, 20] };
+    let count = 2;
+    let index = count;
+    let selected = window_get(values, index);
+    println!("unreachable generic upper-bound index: {}", selected);
+    0
+}
+"#;
+
+const GENERIC_NEGATIVE_WRITE_INDEX_SOURCE: &str = r#"struct Window<T> { values: [T; 2] }
+
+fn window_get<T>(window: Window<T>, index: int) -> T {
+    window.values[index]
+}
+
+fn window_set<T>(window: Window<T>, index: int, value: T) -> Window<T> {
+    let mut updated: Window<T> = window;
+    updated.values[index] = value;
+    updated
+}
+
+fn main() -> int {
+    let values: Window<int> = Window { values: [10, 20] };
+    let zero = 0;
+    let index = zero - 1;
+    let updated = window_set(values, index, 41);
+    println!("unreachable generic negative write: {}", window_get(updated, 0));
+    0
+}
+"#;
+
+const GENERIC_UPPER_BOUND_WRITE_INDEX_SOURCE: &str = r#"struct Window<T> { values: [T; 2] }
+
+fn window_get<T>(window: Window<T>, index: int) -> T {
+    window.values[index]
+}
+
+fn window_set<T>(window: Window<T>, index: int, value: T) -> Window<T> {
+    let mut updated: Window<T> = window;
+    updated.values[index] = value;
+    updated
+}
+
+fn main() -> int {
+    let values: Window<int> = Window { values: [10, 20] };
+    let count = 2;
+    let index = count;
+    let updated = window_set(values, index, 41);
+    println!("unreachable generic upper-bound write: {}", window_get(updated, 0));
+    0
+}
+"#;
+
 static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 struct TestWorkspace {
@@ -409,6 +499,10 @@ fn representative_scalar_application_is_composed_and_portable() {
             "%\"aero.struct.Reading<char>\" = type",
             "aero.generic.choose<Reading<int>>",
             "aero.generic.choose<Reading<char>>",
+            "aero.generic.window_get<int>",
+            "aero.generic.window_get<char>",
+            "aero.generic.window_set<int>",
+            "aero.generic.window_set<char>",
             "aero.trait.PolicyValue.for.Sensor.policy_value",
             "aero.trait.PolicyValue.for.Batch.policy_value",
             "; Aero generic enum: Sample<Reading<int>>",
@@ -508,6 +602,22 @@ fn representative_scalar_application_is_composed_and_portable() {
             "runtime_fail/upper_bound_write_index.aero",
             UPPER_BOUND_WRITE_INDEX_SOURCE,
         ),
+        (
+            "runtime_fail/generic_negative_index.aero",
+            GENERIC_NEGATIVE_INDEX_SOURCE,
+        ),
+        (
+            "runtime_fail/generic_upper_bound_index.aero",
+            GENERIC_UPPER_BOUND_INDEX_SOURCE,
+        ),
+        (
+            "runtime_fail/generic_negative_write_index.aero",
+            GENERIC_NEGATIVE_WRITE_INDEX_SOURCE,
+        ),
+        (
+            "runtime_fail/generic_upper_bound_write_index.aero",
+            GENERIC_UPPER_BOUND_WRITE_INDEX_SOURCE,
+        ),
     ] {
         let path = repository.join(EXAMPLE_DIRECTORY).join(relative);
         match fs::read_to_string(&path) {
@@ -536,11 +646,19 @@ fn representative_scalar_application_is_composed_and_portable() {
                 "; Aero generic enum: Sample<char>",
                 "aero.trait.PolicyValue.for.Sensor.policy_value",
                 "aero.trait.PolicyValue.for.Batch.policy_value",
+                "aero.generic.window_get<int>",
+                "aero.generic.window_get<char>",
+                "aero.generic.window_set<int>",
+                "aero.generic.window_set<char>",
                 "representative telemetry test passed with exit code 91",
                 "negative_index.aero",
                 "upper_bound_index.aero",
                 "negative_write_index.aero",
                 "upper_bound_write_index.aero",
+                "generic_negative_index.aero",
+                "generic_upper_bound_index.aero",
+                "generic_negative_write_index.aero",
+                "generic_upper_bound_write_index.aero",
                 "runtime bounds failure corpus passed at O0 and O2",
                 "Test representative telemetry application on Windows at O0 and O2",
             ] {

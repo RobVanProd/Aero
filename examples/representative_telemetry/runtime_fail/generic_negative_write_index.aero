@@ -1,0 +1,20 @@
+struct Window<T> { values: [T; 2] }
+
+fn window_get<T>(window: Window<T>, index: int) -> T {
+    window.values[index]
+}
+
+fn window_set<T>(window: Window<T>, index: int, value: T) -> Window<T> {
+    let mut updated: Window<T> = window;
+    updated.values[index] = value;
+    updated
+}
+
+fn main() -> int {
+    let values: Window<int> = Window { values: [10, 20] };
+    let zero = 0;
+    let index = zero - 1;
+    let updated = window_set(values, index, 41);
+    println!("unreachable generic negative write: {}", window_get(updated, 0));
+    0
+}

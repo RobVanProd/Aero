@@ -12,6 +12,16 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
+CAP-011 is the current local Milestone 2 candidate selected by the post-CAP-010 gap
+ranking. It turns earlier generic-definition, whole-value specialization, fixed-array,
+bounds-check, and projected-mutation primitives into one reusable fixed-capacity
+`Window<T>` data structure with generic checked reads and functional updates. The
+representative application now uses it for both integers and characters. Local
+focused, representative, identity, complete-root, check, docs, formatting, and diff
+gates pass at implementation checkpoint `24db04a`; exact public pinned native and
+protected integration evidence remain pending. This does not complete collections or
+general generics, and accepted master remains CAP-010.
+
 CAP-010 is an accepted Milestone 2 capability and the highest-payoff result of the
 post-CAP-009 milestone-gap audit: required-only
 nongeneric traits can supply immutable-receiver behavior to whole-value recursive
