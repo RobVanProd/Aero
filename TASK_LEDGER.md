@@ -1,5 +1,184 @@
 # Aero Task Ledger
 
+## CAP-006 - explicit user-defined generic CopyData enums
+
+- Date/task/status: 2026-08-11, `CAP-006`, authorized red-first executable vertical
+  slice from accepted and exact-merge-head-green public master
+  `233716c7521cb0186eb781549e12e67b277009a6` (tree
+  `cbe3cacf9180dd5553e026c4b270bff6acdcaff7`). Work belongs only on
+  `agent/cap-006-generic-copydata-enums`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Accepted-baseline proof and project-truth checkpoint: protected PR #31 accepted
+  CAP-005 exact candidate `68e2cd8ef7766f3073bc9bf9714dafb0431525ef`
+  as merge `59f7e47b476871fae8cecdf7e40900e0d1f1b377`; protected PR #32 then
+  synchronized accepted truth at final exact head
+  `15abc19f41a074c972bdb8aa9d664a4567163e51` and merge `233716c`. Exact
+  merge-head CI `31507073267`, Rust CI `31507073237`, and CodeQL
+  `31507072848` pass. `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`, and
+  `README.md` agree on accepted CAP-005, Minimal Prototype status, exclusions,
+  and the requirement for this fresh ranking. There is no open PR and no red
+  implementation is being stacked.
+- Fresh milestone audit: Milestone 0 still lacks one canonical selected-subset
+  diagnostic/artifact and trusted-entrypoint contract, although per-capability
+  false-success, verifier, and artifact controls are strong. The bounded Milestone 1
+  representative-program/optimization-equivalence exit remains accepted and has no
+  remaining M1-001 item. Milestone 2 has executable aggregates, fixed collections,
+  owned enums and exhaustive `Match`, bounded ownership/references, typed built-in
+  carriers, generic CopyData structs, and whole-value generic transport functions.
+  General generic substitution/operations, user-defined generic enums and traits,
+  dynamic collections, broad error propagation, general lifetimes/drop/unsafe,
+  stable ABI/destruction, and an ownership-intensive application remain open.
+- Fresh post-CAP-005 three-gap ranking: scores are 1--5; higher `Risk` and
+  `Evidence` mean more favorable delivery.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Explicit user-defined recursive-CopyData generic enums and exhaustive `Match` | 5 | 5 | 5 | 5 | 2 | 3 | 25 |
+  | 2 | Canonical Milestone 0 stable-subset diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+  | 3 | Owned dynamic `List<T>` collection foundation | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
+
+  CAP-006 wins because it creates reusable user-defined algebraic data types and
+  composes the accepted generic-struct/function work with the mature enum/ownership/
+  `Match` pipeline. This is one general declaration-and-instantiation class, not a
+  neighboring payload/order permutation. The Milestone 0 contract remains the next
+  correctness-critical comparison but adds less immediate source expressiveness.
+  `List<T>` has larger eventual reach but its allocation, capacity growth, allocation
+  failure, element destruction, borrow invalidation, iterator, and ABI contracts are
+  not frozen. Positive imports remain high leverage but lookup, visibility,
+  collision, namespace, graph, and cycle semantics are still deliberately unresolved.
+  Question-mark propagation and trait-bounded operations lack a frozen syntax or
+  operator-to-trait satisfaction contract and would invent semantics now.
+- Original-framework alignment: the founding framework grammar admits generic enum
+  declarations; its type-system example uses `Result<T, E>`; and it requires generic
+  expansion/monomorphization before typed IR and LLVM without runtime type metadata or
+  boxing. The execution-quality framework requires real-application composition, not
+  compiler-activity counts. CAP-006 therefore targets one bounded user-defined ADT
+  specialization foundation and must enrich the representative application; it does
+  not claim full generics, traits, a standard-library `Result`, or benchmark readiness.
+- Before/after real-program delta: before CAP-006, Aero programmers must duplicate a
+  concrete enum for every payload combination, and only the fixed built-in
+  `Option`/`Result` families have bounded concrete specialization. A parsed
+  `enum Sample<T> { Present(T), Missing }` is rejected by the existing enum registry.
+  After CAP-006, one user definition can create independently typed owned
+  `Sample<int>`, `Sample<char>`, and `Sample<Reading<int>>` values, transport them
+  through ordinary nongeneric functions, replace them, and inspect them with
+  exhaustive bound `Match`. The maintained telemetry application must use at least
+  two materially different instantiations while retaining exact output and exit 91.
+- Mechanism: add one shared, idempotent pre-semantic/pre-checked-admission generic-enum
+  authority. It inventories unique templates and exact contextual applications,
+  validates the complete declaration/application class, substitutes payload types,
+  creates collision-checked private nongeneric enum definitions whose identity commits
+  to canonical source spelling and the complete variant schema, rewrites annotations,
+  constructors, and enum patterns consistently, and removes executable templates
+  before ordinary enum registration. Both trusted routes invoke the same authority;
+  the independent verifier reconstructs private identity/schema validity; the backend
+  renders source-readable specialization names without promising stable ABI. Generic
+  enum trait-bound metadata must be retained and rejected by that authority rather
+  than silently discarded. No duplicate semantic guard, runtime tag beyond the
+  existing private enum layout, boxing, or second enum engine is permitted.
+- Frozen positive declaration class: one uniquely named top-level user enum declares
+  one or more unique, valid type parameters and no trait or `where` bounds. It has one
+  or more uniquely named unit or positional variants; named-field variants remain
+  excluded. Every parameter is used by at least one field. Each template field is a
+  recursive finite CopyData expression made only from an exact type parameter,
+  admitted concrete CopyData leaves/structs, fixed arrays, and tuples of arity at
+  least two. Self recursion, references, owned enums/carriers, `String`, dynamic
+  collections, closures, trait objects, and nested generic applications in a template
+  field remain excluded.
+- Frozen positive application class: every application supplies the exact arity of
+  explicit recursive finite CopyData arguments; multiple parameters and multiple
+  concrete applications may coexist. Constructors have no type-argument syntax, so
+  each constructor is resolved only from an exact concrete expected enum type supplied
+  by an annotated direct binding/reassignment target, nongeneric function parameter,
+  or nongeneric function result. Constructor fields must exactly match the specialized
+  schema. Existing whole-owner initialization, transport, replacement, conditional/
+  loop ownership, exhaustive bound `Match`, Match results, direct-module linking, and
+  private LLVM behavior then apply unchanged. Specialized enum values remain owned,
+  even when every payload is CopyData; CAP-006 does not make enums Copy types.
+- Frozen negative boundary and complete-class enumeration: duplicate/invalid/reserved
+  definitions, variants, or parameters; empty enums; unused parameters; trait/`where`
+  bounds; missing/extra type arguments; unresolved, cyclic, reference, owned,
+  collection, closure, or otherwise non-CopyData arguments; nested generic template
+  applications; recursive templates; named-field variants; context-free or conflicting
+  constructor use; wrong variant arity/type; cross-specialization construction,
+  assignment, calls, returns, or patterns; aggregate/reference storage of the owned
+  specialization; generic-function/impl/trait/method integration; generic-to-generic
+  nesting; default arguments, variance, higher-kinded types, runtime polymorphism,
+  drop/lifetime/NLL/unsafe behavior, stable/public layout or ABI, FFI, accelerators,
+  benchmarks, releases, stability, production, or general memory-safety claims remain
+  excluded and must fail before checked IR through both trusted routes.
+- Assumptions and evidence: active strict parser tests retain generic enum parameters
+  and payload syntax. CAP-003 proves contextual specialization and owned-carrier
+  composition; CAP-004 proves canonical recursive-CopyData substitution and private
+  schema identity; CAP-005 proves shared idempotent specialization across semantic and
+  raw checked routes. The accepted enum registry, ownership/Match contracts, checked
+  IR verifier, and typed private LLVM layout already execute the specialized
+  nongeneric product. The red must prove current rejection in both public semantic and
+  semantic-independent checked admission and must expose any silently discarded enum
+  bound metadata before production mutation.
+- Measurement, detection, and decision threshold: a focused target first runs red on
+  a called/matched `Sample<T>` at `int`, `char`, and accepted `Reading<int>`. Green
+  evidence must enumerate every declaration, type-argument, constructor-context,
+  schema, identity, ownership, and cross-specialization shape above; prove deterministic
+  semantic/raw-checked IR and LLVM; add verifier name/schema/substitution corruption
+  controls; execute direct modules and public check/build/run; and enrich the
+  representative program. Merge additionally requires affected compatibility rings,
+  formatting, correctness-denying Clippy, docs, `git diff --check`, exact root
+  `./tools/test.sh`, pinned LLVM/Clang 22 external and machine verification, Linux and
+  Windows native `-O0`/`-O2`, one bounded exact-head PR, protected merge, exact
+  merge-head workflows, and immediate accepted-truth synchronization.
+- Failure modes: wrong contextual specialization could conflate owned schemas; a
+  private-name collision or fabricated schema could miscompile payload offsets;
+  constructor/pattern rewriting drift could move or inspect the wrong owned value;
+  repeated normalization could duplicate definitions; a generic template could escape
+  into checked IR; or bounds/non-CopyData inputs could silently broaden semantics.
+  Multi-instantiation native results, adversarial identities, idempotence checks,
+  semantic-versus-raw checked parity, negative matrices, ownership compatibility,
+  verifier corruption, official LLVM verification, machine lowering, and optimized
+  cross-platform execution detect those failures.
+- Recovery, allowed files, and stop conditions: one bounded CAP-006 branch/PR is the
+  rollback boundary. Allowed files are this ledger; one new shared generic-enum
+  contract module and registration; the minimal AST/parser field needed to retain
+  enum-bound metadata; semantic and IR entrypoint calls; directly coupled generic-
+  struct/carrier/enum/type/display/verifier/backend code only where exact specialization
+  identity requires it; one focused integration target; the representative specimen/
+  test; minimal workflow anchors; and, only after the exact candidate is green, directly
+  affected state/matrix/roadmap/framework/README records. Stop rather than approximate
+  if expected constructor types cannot be recovered by one shared authority, if
+  specialization changes source evaluation order, if existing enum ownership cannot be
+  reused unchanged, if traits/drop/lifetimes/stable ABI become necessary, if an
+  unrelated baseline is red, or if any accepted test/spec must be weakened.
+- Strategic value and mandatory change-of-mind test: CAP-006 supplies reusable
+  user-defined ADTs, composes three previously accepted foundations, and advances the
+  general-substitution roadmap gap while making the representative program more normal.
+  Evidence that contextual constructors are inherently ambiguous, that private enum
+  identity cannot independently commit to complete specialized schemas, that parser
+  metadata preservation requires disproportionate architectural churn, that accepted
+  enum ownership is unsound under monomorphization, or that the Milestone 0 residual is
+  a prerequisite for trusted execution stops CAP-006 and returns selection to this
+  fresh ranking. A request for only another payload ordering or topology does not.
+
+### CAP-006 exact red checkpoint
+
+- Before any production compiler mutation, focused command `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test generic_copydata_enum_tests --
+  --nocapture` runs exactly 0/2 green. The executable specimen parses one
+  `Sample<T>` definition and concrete `Sample<int>`, `Sample<char>`, and
+  `Sample<Reading<int>>` use, then the public semantic route reaches the existing
+  fail-closed `Match expressions are not supported.` boundary because the generic
+  definition has no admitted concrete enum contract. The same test requires raw
+  checked admission, independent verification, deterministic LLVM, and
+  source-readable distinct specializations once green.
+- The separate bound-retention control parses
+  `enum Sample<T: Comparable> { Present(T), Missing }` but its exact debug AST contains
+  `type_params: ["T"]` and no `Comparable`; the parser currently discards generic-enum
+  bound metadata. The red assertion requires that metadata to remain available so one
+  shared CAP-006 authority can reject unsupported bounds instead of silently treating
+  the declaration as bound-free. No production source or accepted test was changed;
+  user/app-owned untracked directories and the quarantined stash remain untouched.
+
 ## CAP-005 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-005-ACCEPTANCE-SYNC`, authorized bounded
